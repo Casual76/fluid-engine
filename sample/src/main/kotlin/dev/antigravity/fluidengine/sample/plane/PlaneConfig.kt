@@ -15,10 +15,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 internal const val PlaneLogTag = "FluidPiano"
 
 /**
- * Le dieci scene della pagina «Piano flottante» (piano «iOS in Android», F3.6 e F3.2c). Ognuna mette davanti un risultato
- * osservabile di F3: [key] è il valore di `plane.scene`, [command] il nome del cambio di stato che la scena sa fare,
- * [voice] cosa si guarda. Ogni scena cambia **solo lo stato** (un `if`, una distanza, un fondo): nessuna animazione è
- * scritta qui, le fa il contenitore.
+ * Le diciassette scene della pagina «Piano flottante» (piano «iOS in Android», F3.6, F3.2c e il giro di correzione di F3).
+ * Ognuna mette davanti un risultato osservabile di F3: [key] è il valore di `plane.scene`, [command] il nome del cambio
+ * di stato che la scena sa fare, [voice] cosa si guarda. Ogni scena cambia **solo lo stato** (un `if`, una distanza, un
+ * margine, un fondo): nessuna animazione del vetro è scritta qui, le fa il contenitore. L'unica cosa che si muove da sé
+ * è la lista della scena `lista`, perché il caso è proprio un cambio di stato **mentre** il fondo scorre.
  */
 internal enum class PlaneScene(val key: String, val title: String, val command: String, val voice: String) {
   OneTwo(
@@ -62,6 +63,40 @@ internal enum class PlaneScene(val key: String, val title: String, val command: 
     "molti", "Quattro e otto vetri in volo", "Stringi / Allarga",
     "una riga di quattro tasti e una di otto (unite: un campo solo) che cambiano passo insieme: il palco porta 4 e 8 " +
       "pezzi in volo, il caso più caro (il costo si misura in S3)",
+  ),
+
+  // Le scene del giro di correzione di F3 (review F3, rilievo 13 di A, R6 di D, R10 di C): i casi che mettono alla
+  // prova le decisioni del piano, in una pagina che assomiglia a una pagina d'app. In fondo: l'ordine del tasto «Scena»
+  // delle prime dieci resta quello di sempre.
+  TwoBorn(
+    "due-nati", "Un tasto ne fa nascere due", "Mostra due / Nascondi due",
+    "«Seleziona» si sposta e lascia due tondi che nascono da lui, dalla stessa parte: il più lontano dal suo arrivo " +
+      "parte per primo (scaglionamento)",
+  ),
+  Edge(
+    "bordo", "Tasti accanto al bordo del contenitore", "Aggiungi / Togli",
+    "contenitore stretto attorno alla riga, come nelle barre vere: sopra un tasto nasce verso il bordo, sotto uno nasce " +
+      "verso l'interno e il donatore va al bordo",
+  ),
+  ThreeNear(
+    "tre-vicini", "Tre tasti a 8 dp, non uniti", "Aggiungi / Togli il quarto",
+    "tre tasti vicini senza unione: il terzo fa nascere un quarto, e i due fermi restano al loro vetro di riposo",
+  ),
+  Scrolling(
+    "lista", "Un viaggio sopra una lista che scorre", "Modifica / Fatto, la lista scorre",
+    "la barra cambia stato mentre la lista sotto scorre: la cattura del palco si rinfresca a ogni fotogramma",
+  ),
+  Label(
+    "testo", "La scritta cambia lunghezza", "Scritta corta / lunga",
+    "un tasto con testo (stesso id) che cambia taglia per la scritta: il contenuto nuovo è più largo della sagoma in volo",
+  ),
+  Several(
+    "piu-contenitori", "Due contenitori che cambiano insieme", "Cambia i due",
+    "una barra in alto e una capsula sotto, nella stessa pagina: un viaggio ciascuno, sonde e inchiostri indipendenti",
+  ),
+  Resize(
+    "ridimensiona", "Il contenitore cambia misura", "Allarga / Stringi",
+    "la riga si allarga e si stringe, stessi pezzi e stesso stato: i pezzi seguono il contenitore, senza un viaggio",
   ),
   ;
 

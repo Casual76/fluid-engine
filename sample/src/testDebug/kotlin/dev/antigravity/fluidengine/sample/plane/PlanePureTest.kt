@@ -7,6 +7,7 @@ import dev.antigravity.fluidengine.sample.GalleryPage
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -73,6 +74,29 @@ class PlanePureTest {
     assertEquals(PlaneSpacing.Narrow, PlaneSpacing.next(PlaneSpacing.Wide))
     assertEquals(PlaneScene.entries.size, PlaneScene.entries.map { it.key }.toSet().size)
     assertEquals(PlaneScene.OneTwo, PlaneScene.entries.last().next())
+  }
+
+  @Test
+  fun `le scene del giro di correzione si aprono dagli extra, ognuna con i suoi due stati in parole`() {
+    val added = mapOf(
+      "due-nati" to PlaneScene.TwoBorn,
+      "bordo" to PlaneScene.Edge,
+      "tre-vicini" to PlaneScene.ThreeNear,
+      "lista" to PlaneScene.Scrolling,
+      "testo" to PlaneScene.Label,
+      "piu-contenitori" to PlaneScene.Several,
+      "ridimensiona" to PlaneScene.Resize,
+    )
+    added.forEach { (key, scene) ->
+      val (config, _) = PlaneLaunch.parse(false, FluidGlassModel.Liquid, mapOf("plane.scene" to key)::get)
+      assertEquals(key, scene, config.scene)
+      assertEquals(key, scene.key)
+      assertNotEquals("$key: i due stati hanno nomi diversi", describe(scene, false), describe(scene, true))
+    }
+    assertEquals(17, PlaneScene.entries.size)
+    // Le prime dieci restano nel loro ordine: il tasto «Scena» e le riprese di prima non cambiano.
+    assertEquals(PlaneScene.Many, PlaneScene.entries[9])
+    assertEquals(PlaneScene.TwoBorn, PlaneScene.Many.next())
   }
 
   @Test

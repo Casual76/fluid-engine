@@ -7,6 +7,10 @@ import android.graphics.Matrix
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +25,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
@@ -116,8 +122,8 @@ import kotlinx.coroutines.launch
  * fondo): chi nasce da chi, chi compare per lente, chi si fonde, il collo, il contenuto che si sfoca e il giro uniforme li
  * decide il contenitore. La pagina non scrive nessuna animazione.
  *
- * Nove scene, ognuna con il suo extra di lancio (`plane.scene`) e a mano dal tasto «Scena»: le leggi e i comandi sono nel
- * `LEGGIMI.md` della cartella. In logcat (`adb logcat -s FluidPiano`) la pagina scrive `SCENA`, `STATO` (ogni cambio di
+ * Diciassette scene, ognuna con il suo extra di lancio (`plane.scene`) e a mano dal tasto «Scena»: le leggi e i comandi
+ * sono nel `LEGGIMI.md` della cartella. In logcat (`adb logcat -s FluidPiano`) la pagina scrive `SCENA`, `STATO` (ogni cambio di
  * stato, con l'istante), `VIAGGIO` (partito o ripartito, chi va dove), `FINE` (il riposo d'arrivo, coi raggi risolti),
  * `RIPOSO` e `RIQUADRO` (dove sta il contenitore nella finestra).
  *
@@ -260,6 +266,13 @@ internal fun describe(scene: PlaneScene, on: Boolean): String = when (scene) {
   PlaneScene.Uniform, PlaneScene.Clear -> if (on) "fondo-scuro" else "fondo-chiaro"
   PlaneScene.Concentric -> if (on) "margini-larghi" else "margini-stretti"
   PlaneScene.Many -> if (on) "larghi" else "stretti"
+  PlaneScene.TwoBorn -> if (on) "tre-tasti" else "un-tasto"
+  PlaneScene.Edge -> if (on) "con-i-nuovi" else "senza-i-nuovi"
+  PlaneScene.ThreeNear -> if (on) "quattro-tasti" else "tre-tasti"
+  PlaneScene.Scrolling -> if (on) "due-tasti-lista-in-basso" else "un-tasto-lista-in-alto"
+  PlaneScene.Label -> if (on) "scritta-lunga" else "scritta-corta"
+  PlaneScene.Several -> if (on) "entrambi-acceso" else "entrambi-a-riposo"
+  PlaneScene.Resize -> if (on) "largo" else "stretto"
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -398,6 +411,7 @@ private val Lens: Dp = FluidMetrics.GlassButtonLens
 @Composable
 private fun SceneBody(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, command: () -> Unit) {
   val ns = rememberFluidGlassNamespace()
+  val ns2 = rememberFluidGlassNamespace()
   val on = live.on
   val container = Modifier
     .onGloballyPositioned { frame.bounds = it.boundsInWindow() }
@@ -496,6 +510,38 @@ private fun SceneBody(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, c
           }
         }
       }
+    }
+    PlaneScene.TwoBorn -> FluidGlassContainer(container, spacing = config.spacing) {
+      TwoBorn(ns, on, command)
+    }
+    PlaneScene.Edge -> FluidGlassContainer(container, spacing = config.spacing) {
+      EdgeRows(ns, on, command)
+    }
+    PlaneScene.ThreeNear -> FluidGlassContainer(container, spacing = config.spacing) {
+      ThreeNear(ns, on, command)
+    }
+    PlaneScene.Scrolling -> ScrollingBar(config, live, ns, container, command)
+    PlaneScene.Label -> FluidGlassContainer(container, spacing = config.spacing) {
+      LabelRow(ns, on, command)
+    }
+    PlaneScene.Several -> Column {
+      // Una barra in alto (la scena `uno-due`) e una capsula sotto (la barra del contesto, col contenuto che si sfoca): due
+      // contenitori, due namespace, un solo comando. Il vuoto fra i due è oltre ogni spacing della pagina.
+      FluidGlassContainer(container, spacing = config.spacing) {
+        OneTwo(ns, on, command)
+      }
+      Spacer(Modifier.height(64.dp))
+      FluidGlassContainer(spacing = config.spacing) {
+        ContextBar(ns2, on)
+      }
+    }
+    PlaneScene.Resize -> FluidGlassContainer(
+      // La misura è dell'app: il contenitore si allarga e si stringe, i pezzi restano gli stessi (stessi `id`, stesso
+      // stato) e sono posati ai due capi e in mezzo della riga.
+      container.width(if (on) ResizeWide else ResizeNarrow),
+      spacing = config.spacing,
+    ) {
+      ResizeRow(ns, command)
     }
   }
 }
@@ -626,6 +672,195 @@ private fun ConcentricPanel(config: PlaneConfig, ns: FluidGlassNamespace, on: Bo
         )
       }
     }
+  }
+}
+
+// ------------------------------------------------------------------------------------------------------------
+// Le scene del giro di correzione di F3
+// ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Lo spazio fra i riquadri da 48 dp di due tasti tondi perché fra i due **vetri** ci siano 8 dp (`GlassSpacing`): le barre
+ * vere stanno così (4 dp fra i riquadri, 8 fra i vetri). Il riquadro del tocco è più grande del vetro, e a 8 dp fra i
+ * riquadri i vetri starebbero a 12.
+ */
+private val BarGap: Dp = FluidMetrics.GlassSpacing - (FluidMetrics.TouchTarget - Lens)
+
+/** Un tasto tondo di vetro con il suo `id`: il pezzo di una barra. [onClick] vuoto = un tasto che sta fermo. */
+@Composable
+private fun RoundKey(
+  id: String,
+  icon: ImageVector,
+  label: String,
+  ns: FluidGlassNamespace,
+  onClick: () -> Unit = {},
+  tag: String? = null,
+) {
+  // L'`id` va prima di tutto il resto: il tag, se c'è, viene dopo e non cambia a chi appartiene il vetro.
+  val modifier = Modifier.fluidGlassId(id, ns).then(if (tag != null) Modifier.testTag(tag) else Modifier)
+  FluidGlassIconButton(onClick = onClick, modifier = modifier) { FluidIcon(icon, label) }
+}
+
+/**
+ * Un tasto ne fa nascere **due**: «Seleziona» si sposta a destra e lascia due tondi nel posto dov'era. Entrambi nascono
+ * da lui e dalla stessa parte, e l'orologio li rilascia a due istanti diversi (il più lontano dal suo arrivo per primo,
+ * `FluidMotion.PlaneReleaseStagger`). Con un donatore che resta fermo ne può nascere uno solo per lato: i nuovi devono
+ * stare entro lo spacing dal posto di **prima** del donatore, e il secondo tondo di fila non ci sta. Per questo il
+ * donatore è largo e si sposta.
+ */
+@Composable
+private fun TwoBorn(ns: FluidGlassNamespace, on: Boolean, command: () -> Unit) {
+  Row(horizontalArrangement = Arrangement.spacedBy(BarGap), verticalAlignment = Alignment.CenterVertically) {
+    if (on) {
+      RoundKey("condividi", FluidIcons.Share, "Condividi", ns, command)
+      RoundKey("elimina", FluidIcons.Delete, "Elimina", ns, command)
+    }
+    FluidGlassButton(text = "Seleziona", onClick = command, modifier = Modifier.fluidGlassId("seleziona", ns))
+  }
+}
+
+/**
+ * Il contenitore **stretto attorno alla riga**, come nelle barre vere: il bordo del contenitore è il bordo dell'ultimo
+ * tasto. Due righe della stessa larghezza, a 24 dp una dall'altra (oltre lo spacing di serie: due grappoli):
+ *
+ *  - sopra, «Modifica» è l'ultimo tasto e ne nasce uno **verso il bordo**: il nuovo tasto sta sul bordo del contenitore
+ *    (che si allarga) e il superamento della sua molla esce da dove il contenitore finisce;
+ *  - sotto, «Condividi» è l'ultimo tasto e ne nasce uno **verso l'interno**: il nuovo si infila prima di lui e il donatore
+ *    va al bordo, spinto e rinculando verso il vuoto dove il nuovo esce.
+ */
+@Composable
+private fun EdgeRows(ns: FluidGlassNamespace, on: Boolean, command: () -> Unit) {
+  Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(BarGap)) {
+      RoundKey("indietro", FluidIcons.ArrowBackIosNew, "Indietro", ns)
+      RoundKey("modifica", FluidIcons.Edit, "Modifica", ns, command)
+      if (on) RoundKey("preferiti", FluidIcons.Star, "Preferiti", ns, command)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(BarGap)) {
+      RoundKey("elenco", FluidIcons.MoreHoriz, "Altro", ns)
+      if (on) RoundKey("cerca", FluidIcons.Search, "Cerca", ns, command)
+      RoundKey("condividi", FluidIcons.Share, "Condividi", ns, command)
+    }
+  }
+}
+
+/**
+ * Tre tasti a 8 dp fra i vetri, **senza unione**: già un grappolo (una cattura) ma tre vetri distinti. Il terzo fa
+ * nascere un quarto; i primi due non cambiano e non toccano ciò che viaggia, quindi restano al loro vetro di riposo
+ * (due fermi vicini non si uniscono perché un terzo compare). Solo il terzo è un comando.
+ */
+@Composable
+private fun ThreeNear(ns: FluidGlassNamespace, on: Boolean, command: () -> Unit) {
+  Row(horizontalArrangement = Arrangement.spacedBy(BarGap), verticalAlignment = Alignment.CenterVertically) {
+    RoundKey("cerca", FluidIcons.Search, "Cerca", ns)
+    RoundKey("condividi", FluidIcons.Share, "Condividi", ns)
+    RoundKey("modifica", FluidIcons.Edit, "Modifica", ns, command)
+    if (on) RoundKey("elimina", FluidIcons.Delete, "Elimina", ns, command)
+  }
+}
+
+/** Quanto è alta la lista della scena `lista`, la riga di una voce e quante voci porta. */
+private val ListHeight: Dp = 360.dp
+private val ListRowHeight: Dp = 72.dp
+private const val ListRows = 40
+
+/** Quanto dura lo scorrimento che accompagna ogni cambio di stato (scalato dalla scala delle animazioni), e di quante righe. */
+private const val ListScrollMillis = 1_600
+private const val ListScrollRows = 20
+
+/**
+ * Un viaggio **sopra una lista che scorre**: il layout canonico delle barre (il contenitore fermo, la lista sotto). Il
+ * contenitore sta in un angolo, **attorno alla barra e non alla lista**; la lista è la sorgente del vetro, e a ogni
+ * cambio di stato scorre da sola per ~1,6 s (giù se lo stato è acceso, su se è spento) così che il cambio parta con la
+ * lista già in moto. Se l'app non muove niente, non si muove niente: lo scorrimento parte solo da un cambio di stato.
+ *
+ * Perché serve: durante uno scorrimento la cattura del palco va rifatta a ogni fotogramma (la sorgente si ridisegna), ed
+ * è il costo di scorrimento che S3 non aveva coperto. Il fondo della pagina non c'entra: la scena ha la sua sorgente.
+ */
+@Composable
+private fun ScrollingBar(
+  config: PlaneConfig,
+  live: PlaneLive,
+  ns: FluidGlassNamespace,
+  container: Modifier,
+  command: () -> Unit,
+) {
+  val backdrop = rememberGlassBackdrop()
+  val listState = rememberLazyListState()
+  val rowPx = with(LocalDensity.current) { ListRowHeight.toPx() }
+  LaunchedEffect(live.step) {
+    // Allo stato di partenza (il lancio, o la scena che rinasce) la lista sta in alto e non si muove.
+    if (live.step == 0) return@LaunchedEffect
+    val here = listState.firstVisibleItemIndex * rowPx + listState.firstVisibleItemScrollOffset
+    val goal = if (live.on) ListScrollRows * rowPx else 0f
+    listState.animateScrollBy(goal - here, tween(durationMillis = ListScrollMillis, easing = LinearEasing))
+  }
+  Box(modifier = Modifier.fillMaxWidth().height(ListHeight)) {
+    // Un fondo opaco dentro la sorgente: un testo su trasparenza si rifrange in una macchia (regola di `glassBackdropSource`).
+    LazyColumn(
+      state = listState,
+      modifier = Modifier.fillMaxSize().glassBackdropSource(backdrop).background(MaterialTheme.colorScheme.background),
+    ) {
+      items(ListRows) { index -> ListRow(index) }
+    }
+    CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalFluidCanvasBackdrop provides backdrop) {
+      FluidGlassContainer(container.align(Alignment.TopStart).padding(12.dp), spacing = config.spacing) {
+        OneTwo(ns, live.on, command)
+      }
+    }
+  }
+}
+
+/** Una voce della lista: una striscia di un colore vivo, che il vetro rifrange, con la sua scritta. */
+@Composable
+private fun ListRow(index: Int) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(ListRowHeight)
+      .background(Color.hsv((index * 37f) % 360f, 0.55f, 0.92f))
+      .padding(horizontal = 16.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) { Text("Voce ${index + 1}", color = Color.Black, fontWeight = FontWeight.SemiBold) }
+}
+
+/**
+ * Un pezzo la cui **scritta cambia lunghezza**: un tasto con testo e lo stesso `id`, che cambia taglia per ciò che dice.
+ * Il contenuto nuovo è già della misura d'arrivo mentre il vetro è ancora in viaggio, e viene ritagliato sulla sagoma in
+ * volo. Davanti c'è un tondo che sta fermo: non deve muoversi né sentire il viaggio del vicino.
+ */
+@Composable
+private fun LabelRow(ns: FluidGlassNamespace, on: Boolean, command: () -> Unit) {
+  Row(horizontalArrangement = Arrangement.spacedBy(BarGap), verticalAlignment = Alignment.CenterVertically) {
+    RoundKey("indietro", FluidIcons.ArrowBackIosNew, "Indietro", ns)
+    FluidGlassButton(
+      text = if (on) "Salva e chiudi la raccolta" else "Salva",
+      onClick = command,
+      modifier = Modifier.fluidGlassId("salva", ns),
+    )
+  }
+}
+
+/** Le due larghezze della riga di `ridimensiona`: stretta (i vetri a ~30 dp, oltre lo spacing) e larga. */
+private val ResizeNarrow: Dp = 200.dp
+private val ResizeWide: Dp = 340.dp
+
+/**
+ * Tre tasti posati ai due capi e al centro di una riga che riempie il contenitore. Cambia **solo la misura del
+ * contenitore**: i pezzi hanno lo stesso `id` e lo stesso stato, e per la regola del nucleo («se cambia solo il riquadro,
+ * i pezzi lo seguono senza viaggio e senza luce») non c'è nessun viaggio. È ciò che succede a una rotazione, a uno
+ * schermo diviso, a una barra che sale con la tastiera.
+ */
+@Composable
+private fun ResizeRow(ns: FluidGlassNamespace, command: () -> Unit) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    RoundKey("indietro", FluidIcons.ArrowBackIosNew, "Indietro", ns, command)
+    RoundKey("cerca", FluidIcons.Search, "Cerca", ns, command)
+    RoundKey("condividi", FluidIcons.Share, "Condividi", ns, command, tag = "plane-resize-end")
   }
 }
 

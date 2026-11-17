@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.sample.plane
 
 import android.os.Looper
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -251,6 +252,140 @@ class PlanePageTest {
     assertEquals(0, live.step)
     compose.onNodeWithText("F3.6 · capsule", substring = true).assertExists()
     assertTrue(rest.toString(), rest.map { it.id }.toSet() == setOf("sinistra", "destra"))
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
+  // Le scene del giro di correzione di F3 (review F3, A 13, D R6, C R10): si compongono, hanno gli `id` dichiarati e nessun
+  // avviso d'ordine. Come si vedono lo dicono solo le riprese: `artifacts/liquid-glass/sessioni/f3-corr-scene/riprese.md`.
+  // ----------------------------------------------------------------------------------------------------------
+
+  private fun born(): Map<Any?, Any?> =
+    FluidGlassContainerDiagnostics.lastJourney.filter { it.change == "BornFromNeighbour" }.associate { it.toId to it.bornFromId }
+
+  private fun merged(): Map<Any?, Any?> =
+    FluidGlassContainerDiagnostics.lastJourney.filter { it.change == "MergeIntoNeighbour" }.associate { it.fromId to it.mergesIntoId }
+
+  @Test
+  fun `un tasto ne fa nascere due, dalla stessa parte, e tornando confluiscono nel donatore`() {
+    open(PlaneScene.TwoBorn)
+    assertEquals(listOf("seleziona"), rest.map { it.id })
+    command()
+    assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(journey(), mapOf("condividi" to "seleziona", "elimina" to "seleziona"), born())
+    advance(1_200)
+    assertEquals(setOf("condividi", "elimina", "seleziona"), rest.map { it.id }.toSet())
+    command()
+    assertEquals(journey(), mapOf("condividi" to "seleziona", "elimina" to "seleziona"), merged())
+    advance(1_200)
+    assertEquals(listOf("seleziona"), rest.map { it.id })
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `accanto al bordo del contenitore un tasto nasce verso il bordo e uno verso l'interno`() {
+    open(PlaneScene.Edge)
+    assertEquals(setOf("indietro", "modifica", "elenco", "condividi"), rest.map { it.id }.toSet())
+    command()
+    assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(journey(), mapOf("preferiti" to "modifica", "cerca" to "condividi"), born())
+    advance(1_200)
+    assertEquals(
+      setOf("indietro", "modifica", "preferiti", "elenco", "cerca", "condividi"),
+      rest.map { it.id }.toSet(),
+    )
+    // Le due righe hanno la stessa larghezza: l'ultimo tasto di ognuna sta sul bordo del contenitore.
+    fun right(id: String) = rest.single { it.id == id }.bounds.right
+    assertEquals(rest.toString(), right("preferiti"), right("condividi"), 1f)
+    command()
+    assertEquals(journey(), mapOf("preferiti" to "modifica", "cerca" to "condividi"), merged())
+    advance(1_200)
+    assertEquals(setOf("indietro", "modifica", "elenco", "condividi"), rest.map { it.id }.toSet())
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `tre tasti a 8 dp non uniti, il terzo ne fa nascere un quarto e i due fermi non viaggiano`() {
+    open(PlaneScene.ThreeNear)
+    // Tre vetri distinti in un grappolo (8 dp fra i vetri), nessuna unione.
+    assertTrue(rest.toString(), rest.size == 3 && rest.all { it.clusterSize == 3 && it.unionId == null })
+    command()
+    assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(journey(), mapOf("elimina" to "modifica"), born())
+    // I due che non cambiano non nascono, non confluiscono e non compaiono: restano pezzi che ci sono.
+    val fixed = FluidGlassContainerDiagnostics.lastJourney.filter { it.fromId == "cerca" || it.fromId == "condividi" }
+    assertTrue(journey(), fixed.none { it.change != "Matched" })
+    advance(1_200)
+    assertTrue("quattro vetri distinti: $rest", rest.size == 4 && rest.all { it.clusterSize == 4 && it.unionId == null })
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `un viaggio sopra una lista che scorre, la lista scende da sola e risale, un viaggio per cambio`() {
+    open(PlaneScene.Scrolling)
+    compose.onNodeWithText("Voce 1").assertExists()
+    command()
+    assertEquals(1L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(journey(), mapOf("fatto" to "modifica"), born())
+    advance(2_000)
+    assertEquals(setOf("modifica", "fatto"), rest.map { it.id }.toSet())
+    compose.onNodeWithText("Voce 1").assertDoesNotExist()
+    command()
+    advance(2_000)
+    assertEquals(listOf("modifica"), rest.map { it.id })
+    compose.onNodeWithText("Voce 1").assertExists()
+    assertEquals(2L, FluidGlassContainerDiagnostics.totalJourneys)
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `la scritta che cambia lunghezza allarga il pezzo e non muove il tasto fermo`() {
+    open(PlaneScene.Label)
+    assertEquals(setOf("indietro", "salva"), rest.map { it.id }.toSet())
+    val short = rest.single { it.id == "salva" }.bounds
+    val still = rest.single { it.id == "indietro" }.bounds
+    command()
+    assertTrue(journey(), FluidGlassContainerDiagnostics.lastJourney.any { it.toId == "salva" && it.change == "Matched" })
+    advance(1_200)
+    val long = rest.single { it.id == "salva" }.bounds
+    assertTrue("la capsula si allarga per la scritta: ${short.width} -> ${long.width}", long.width > short.width + 40f)
+    assertEquals("il tasto fermo sta dov'era", still.left, rest.single { it.id == "indietro" }.bounds.left, 0.5f)
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `due contenitori nella stessa pagina cambiano insieme, un viaggio e una sonda ciascuno`() {
+    open(PlaneScene.Several)
+    assertEquals(2, FluidGlassContainerDiagnostics.liveContainers)
+    command()
+    assertEquals("un viaggio per contenitore", 2L, FluidGlassContainerDiagnostics.totalJourneys)
+    advance(1_200)
+    // `lastRest` è quello dell'ultimo contenitore che ha pubblicato: la barra in alto o la capsula sotto.
+    assertTrue(
+      rest.toString(),
+      rest.map { it.id }.toSet() == setOf("modifica", "fatto") || rest.map { it.id }.toSet() == setOf("barra", "fatto"),
+    )
+    assertEquals("otto tasti dei comandi più una sonda per contenitore", ControlButtons + 2, FluidGlassProbeDiagnostics.liveProbes)
+    noOrderWarnings()
+  }
+
+  @Test
+  fun `il contenitore che cambia misura porta i pezzi con se, agli stessi id`() {
+    open(PlaneScene.Resize)
+    assertEquals(setOf("indietro", "cerca", "condividi"), rest.map { it.id }.toSet())
+    val before = compose.onNodeWithTag("plane-resize-end").getBoundsInRoot().right
+    command()
+    advance(1_200)
+    assertEquals(setOf("indietro", "cerca", "condividi"), rest.map { it.id }.toSet())
+    val after = compose.onNodeWithTag("plane-resize-end").getBoundsInRoot().right
+    // Da 200 a 340 dp: l'ultimo tasto sta sempre al capo della riga, che si è allargata di 140 dp.
+    assertEquals("l'ultimo tasto segue il capo della riga", 140f, (after - before).value, 1f)
+    // La regola del giro di correzione (D R5): cambia solo il riquadro del contenitore, i pezzi lo seguono senza viaggio.
+    assertEquals("nessun viaggio per un contenitore che cambia misura", 0L, FluidGlassContainerDiagnostics.totalJourneys)
+    command()
+    advance(1_200)
+    assertEquals(before.value, compose.onNodeWithTag("plane-resize-end").getBoundsInRoot().right.value, 1f)
+    assertEquals("nessun viaggio nemmeno al ritorno", 0L, FluidGlassContainerDiagnostics.totalJourneys)
+    noOrderWarnings()
   }
 
   @Test

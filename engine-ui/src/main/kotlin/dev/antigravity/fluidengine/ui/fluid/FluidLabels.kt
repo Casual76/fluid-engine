@@ -178,6 +178,10 @@ data class FluidLabels(
   val fileExecutable: String = "Eseguibile o pacchetto, attenzione",
   val fileOther: String = "File",
   // --- fine pm-f1/gg2 ---
+  /** Il menu delle azioni nascoste della barra, distinto dall'etichetta generica «Azioni». */
+  val more: String = "Altro",
+  /** La conferma di un'azione della pagina, indipendente da quella del calendario. */
+  val confirm: String = "Conferma",
 ) {
   // --- pm-f1/gf2 ---
   /** A grouped view of the calendar vocabulary, without another stored translation object. */
@@ -207,6 +211,8 @@ data class FluidLabels(
       showSecret = "Show text",
       hideSecret = "Hide text",
       actions = "Actions",
+      more = "More",
+      confirm = "Confirm",
       back = "Back",
       scrollToTop = "Back to top",
       notification = "In-app notification",

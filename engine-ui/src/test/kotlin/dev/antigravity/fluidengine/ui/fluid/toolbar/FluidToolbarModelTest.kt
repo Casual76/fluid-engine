@@ -118,12 +118,30 @@ class FluidToolbarModelTest {
     assertEquals(listOf("middle", "inner"), leading.overflow.map { it.id })
   }
 
-  @Test fun `massimo tre gruppi comprende Altro e conserva navigazione e principale`() {
-    val resolved = state(back(), text("a"), text("b"), primary("done"))
+  @Test fun `massimo tre gruppi comprende Altro ma non indietro come iPhone R5 B11`() {
+    // F4A.1 contava anche l'uscita: R5 B11 mostra invece indietro + tondo + gruppo + Altro.
+    val resolved = state(back(), text("a"), text("b"), text("c"), primary("done"))
     assertTrue(resolved.fits)
-    assertEquals(3, resolved.groups.size)
+    assertEquals(4, resolved.groups.size)
     assertEquals(listOf("a", "b"), resolved.overflow.map { it.id })
-    assertGroups(resolved, listOf("back"), listOf(FluidToolbarOverflowId), listOf("done"))
+    assertGroups(resolved, listOf("back"), listOf("c"), listOf(FluidToolbarOverflowId), listOf("done"))
+  }
+
+  @Test fun `indietro e Chiudi sono fuori conto ma occupano larghezza e restano protetti`() {
+    for (exit in listOf(back(), close(), close().copy(placement = FluidToolbarPlacement.Trailing))) {
+      val resolved = state(exit, icon("a"), fixed("one"), icon("b"), fixed("two"), icon("c"))
+      assertTrue(resolved.fits)
+      assertEquals(4, resolved.groups.size)
+      assertTrue(resolved.overflow.isEmpty())
+      assertFalse(resolved.element(exit.id)!!.inOverflow)
+      val narrow = state(exit, primary("done"), width = 120f)
+      assertFalse(narrow.fits)
+      assertEquals(132f, narrow.requiredWidthDp, 0f)
+      assertTrue(narrow.overflow.isEmpty())
+    }
+    val withoutExit = state(text("a"), text("b"), text("c"), primary("done"))
+    assertEquals(3, withoutExit.groups.size)
+    assertEquals(listOf("a", "b"), withoutExit.overflow.map { it.id })
   }
 
   @Test fun `PinnedTrailing e esterno protetto e va nel menu con ricerca attiva`() {
@@ -625,7 +643,7 @@ class FluidToolbarModelTest {
       assertEquals(5, real.size)
       assertEquals(5, real.map { it.item.id }.distinct().size)
       assertEquals(resolved.overflow.map { it.id }.toSet(), real.filter { it.inOverflow }.map { it.item.id }.toSet())
-      if (resolved.fits) assertTrue(resolved.groups.size <= 3 && resolved.requiredWidthDp <= width)
+      if (resolved.fits) assertTrue(resolved.groups.count { group -> group.items.none { it.isExit } } <= 3 && resolved.requiredWidthDp <= width)
     }
   }
 }

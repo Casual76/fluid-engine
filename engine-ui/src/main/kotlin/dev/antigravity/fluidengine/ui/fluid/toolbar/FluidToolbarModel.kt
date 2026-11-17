@@ -266,6 +266,7 @@ private fun List<ToolbarDraft>.requiredWidth(metrics: FluidToolbarMetrics): Floa
 
 /**
  * R1 B1–B10, R5 B11: icone insieme, testo/uscita/principale isolati, tre gruppi e menu compreso nel conto.
+ * Le uscite (indietro e Chiudi) non contano nei tre: R5 B11 mostra indietro più tre vetri (F4A.2b).
  * I pareggi espellono dall'interno verso l'esterno; l'ordine nel menu resta quello dichiarato.
  * Con vincoli impossibili (es. finestra più stretta di un fissato) [FluidToolbarResolved.fits] è false:
  * non si perde in silenzio un comando protetto. Nessuna misura di testo viene indovinata dal modello.
@@ -290,7 +291,7 @@ internal fun resolveFluidToolbar(
     }))
   var drafts = toolbarDrafts(tokens, hidden, hidden.isNotEmpty(), metrics)
   for (candidate in candidates) {
-    if (drafts.size <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
+    if (drafts.count { draft -> draft.items.none { it.isExit } } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
     if (hidden.add(candidate.item.id)) drafts = toolbarDrafts(tokens, hidden, true, metrics)
   }
   val groups = ArrayList<FluidToolbarGroup>()
@@ -322,7 +323,7 @@ internal fun resolveFluidToolbar(
   }
   val required = drafts.requiredWidth(metrics)
   return FluidToolbarResolved(groups, elements, overflow, widthDp, required,
-    groups.size <= 3 && required <= widthDp, metrics, model.titles, model.presentation)
+    groups.count { group -> group.items.none { it.isExit } } <= 3 && required <= widthDp, metrics, model.titles, model.presentation)
 }
 
 internal enum class FluidToolbarMatch { Id, Role, Symbol, OutsideOrder }

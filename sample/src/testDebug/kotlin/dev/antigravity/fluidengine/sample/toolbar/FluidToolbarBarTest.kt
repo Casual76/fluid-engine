@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,6 +36,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPieceRecord
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.FluidLabels
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassId
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassUnion
@@ -215,19 +218,44 @@ class FluidToolbarBarTest {
   fun `quando il posto non basta i tasti a priorita' bassa vanno nel menu Altro, raggiungibili`() {
     page(ToolbarScene.Overflow)
     // Ciò che sta in `overflow { }` è sempre nel menu: il tasto «Altro» c'è già.
-    assertButton("Azioni")
-    fun hidden(): List<String> = compose.onNodeWithContentDescription("Azioni").fetchSemanticsNode().config
+    assertButton("Altro")
+    fun hidden(): List<String> = compose.onNodeWithContentDescription("Altro").fetchSemanticsNode().config
       .getOrNull(SemanticsActions.CustomActions).orEmpty().map { it.label }
     assertEquals(listOf("Aggiungi ai preferiti"), hidden())
     toggleFromPage()
     advance(1_200)
-    assertTrue("al più tre gruppi, Altro compreso (${rest.size})", rest.size <= 3)
-    assertEquals(setOf("Modifica", "Archivia", "Aggiungi ai preferiti"), hidden().toSet())
+    assertEquals("R5 B11: indietro più tre vetri, Altro compreso", 4, rest.size)
+    assertEquals(setOf("Modifica", "Aggiungi ai preferiti"), hidden().toSet())
     assertTrue(compose.onAllNodesWithContentDescription("Modifica").fetchSemanticsNodes().isEmpty())
     assertButton("Condividi")
+    assertButton("Archivia")
     toggleFromPage()
     advance(1_200)
     assertEquals(listOf("Aggiungi ai preferiti"), hidden())
+  }
+
+  @Test
+  fun `la barra usa more e confirm della radice senza riusare actions e dateTimeConfirm`() {
+    var labels by mutableStateOf(FluidLabels.english())
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        CompositionLocalProvider(LocalFluidLabels provides labels) {
+          FluidScreen(title = "Labels", toolbar = {
+            confirm(onClick = {})
+            overflow { text("hidden", "Hidden", onClick = {}) }
+          }) { }
+        }
+      }
+    }
+    compose.waitForIdle()
+    assertButton("More")
+    assertButton("Confirm")
+    compose.runOnIdle { labels = labels.copy(more = "Options", confirm = "Save", actions = "Commands", dateTimeConfirm = "Choose date") }
+    compose.waitForIdle()
+    assertButton("Options")
+    assertButton("Save")
+    compose.onNodeWithContentDescription("Commands").assertDoesNotExist()
+    compose.onNodeWithContentDescription("Choose date").assertDoesNotExist()
   }
 
   @Test

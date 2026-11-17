@@ -257,6 +257,20 @@ fun Modifier.fluidGlassTransition(transition: FluidGlassTransition): Modifier =
   this then FluidGlassTransitionElement(transition)
 
 /**
+ * Il punto del pezzo che porta il contenuto mentre il vetro cambia larghezza. Il centro conserva il volo del piano;
+ * un bordo tiene ferme le icone di una capsula che cresce attorno a loro, senza stirarle (R7: chi resta resta nitido).
+ * I bordi seguono la direzione del layout; in verticale resta il centro. Il rimbalzo del bordo resta nel contenuto.
+ */
+enum class FluidGlassContentAnchor { Center, Start, End }
+
+/**
+ * Ancora il contenuto al bordo del vetro che segue, invece che al suo centro. Stesso ordine di [fluidGlassId];
+ * fuori da un [FluidGlassContainer] non cambia il disegno. Di serie [FluidGlassContentAnchor.Center].
+ */
+fun Modifier.fluidGlassContentAnchor(anchor: FluidGlassContentAnchor): Modifier =
+  this then FluidGlassContentAnchorElement(anchor)
+
+/**
  * Il contenitore del piano flottante: `GlassEffectContainer(spacing:)` di SwiftUI.
  *
  * Dentro, ogni [fluidGlass] (e ogni `glassControlSurface` dell'engine, i tasti di vetro compresi) è un **pezzo**: il
@@ -723,6 +737,7 @@ internal data class FluidGlassAttributes(
   val id: FluidGlassQualifiedId? = null,
   val unionId: FluidGlassQualifiedId? = null,
   val transition: FluidGlassTransition = FluidGlassTransition.MatchedGeometry,
+  val contentAnchor: FluidGlassContentAnchor = FluidGlassContentAnchor.Center,
 ) {
   companion object {
     val None = FluidGlassAttributes()
@@ -751,6 +766,7 @@ internal fun fluidGlassAttributesOf(chain: Modifier): FluidGlassAttributes {
       is FluidGlassIdElement -> out.copy(id = FluidGlassQualifiedId(element.namespace, element.id))
       is FluidGlassUnionElement -> out.copy(unionId = FluidGlassQualifiedId(element.namespace, element.id))
       is FluidGlassTransitionElement -> out.copy(transition = element.transition)
+      is FluidGlassContentAnchorElement -> out.copy(contentAnchor = element.anchor)
     }
   }
   return out
@@ -803,6 +819,17 @@ internal class FluidGlassTransitionElement(val transition: FluidGlassTransition)
   override fun InspectorInfo.inspectableProperties() {
     name = "fluidGlassTransition"
     properties["transition"] = transition
+  }
+}
+
+internal class FluidGlassContentAnchorElement(val anchor: FluidGlassContentAnchor) : FluidGlassAttributeElement() {
+  override val label: String get() = "fluidGlassContentAnchor($anchor)"
+  override fun equals(other: Any?): Boolean =
+    this === other || other is FluidGlassContentAnchorElement && other.anchor == anchor
+  override fun hashCode(): Int = anchor.hashCode()
+  override fun InspectorInfo.inspectableProperties() {
+    name = "fluidGlassContentAnchor"
+    properties["anchor"] = anchor
   }
 }
 
@@ -1622,7 +1649,7 @@ internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = fals
  * Come si disegna in questo fotogramma il contenuto di un pezzo che sta in [place] (nel contenitore), col vetro [flying],
  * la parte [role] e l'aspetto [look] (F3.8a). Null per un contenuto fermo e nitido: è quello di riposo, senza ritaglio.
  *
- * **Ogni contenuto viaggia col suo vetro** (F3.12a): è spostato di quanto il centro della lastra è lontano dal posto
+ * **Ogni contenuto viaggia col suo vetro** (F3.12a): è spostato di quanto l'ancora della lastra è lontana dal posto
  * in cui il contenuto è stato composto. Fino a F3.11 valeva solo per chi resta (R7 A3: «nitido, si sposta col suo
  * vetro»), e il contenuto di un pezzo che nasce stava fermo al posto d'arrivo mentre il vetro gli rimbalzava attorno;
  * in Apple i simboli stanno dentro il vetro e fanno il suo rimbalzo (`sessioni/f3-12a/misure.md`: superano il loro
@@ -1630,7 +1657,8 @@ internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = fals
  * **non cambiano misura** (la larghezza di un simbolo resta entro l'1%): il contenuto trasla, non si stira (invariante
  * 23). Chi compare o scompare per lente non si sposta: la sua lastra cresce attorno al centro. Tutti sono ritagliati
  * sulla lastra in volo, rigonfiata di [swell] (col rigonfiamento in più del pezzo) come la disegna il palco: mai un
- * contenuto fuori dal suo vetro. Pura.
+ * contenuto fuori dal suo vetro. Di serie [anchor] è il centro, identico a F3.12a; un bordo (F4A.2b) conserva invece
+ * il posto d'arrivo delle icone di un gruppo che cambia larghezza, salvo il rimbalzo di quel bordo. Pura.
  */
 internal fun fluidGlassContentFlightOf(
   flying: GlassPlanePieceFrame,
@@ -1643,6 +1671,8 @@ internal fun fluidGlassContentFlightOf(
    * spostamento no: la scala e la deriva della pressione il contenuto le ha già nel suo layer.
    */
   press: FluidPressTransform? = null,
+  anchor: FluidGlassContentAnchor = FluidGlassContentAnchor.Center,
+  layoutDirection: LayoutDirection = LayoutDirection.Ltr,
 ): FluidGlassContentFlight? {
   if (flying.still && look == GlassContentLook.Sharp) return null
   val lens = flying.change == GlassPlaneChange.Materialize || flying.change == GlassPlaneChange.Dematerialize
@@ -1651,9 +1681,19 @@ internal fun fluidGlassContentFlightOf(
   val drawn = if (press != null && !press.isIdentity) fluidGlassPressedSlab(grown, press) else grown
   // Un contenuto che non si vede non ha un posto: niente spostamento da ricordare per quando comparirà.
   val rides = !lens && role.role != GlassPieceContentRole.Hidden
+  val offset = if (!rides) Offset.Zero else when (anchor) {
+    FluidGlassContentAnchor.Center -> flying.bounds.center - place.center
+    else -> {
+      val left = (anchor == FluidGlassContentAnchor.Start) == (layoutDirection == LayoutDirection.Ltr)
+      Offset(
+        if (left) flying.bounds.left - place.left else flying.bounds.right - place.right,
+        flying.bounds.center.y - place.center.y,
+      )
+    }
+  }
   return FluidGlassContentFlight(
     look = look,
-    offset = if (rides) flying.bounds.center - place.center else Offset.Zero,
+    offset = offset,
     clip = drawn.frame.translate(-place.left, -place.top),
     radii = drawn.cornerRadii,
   )
@@ -2866,8 +2906,8 @@ internal class FluidGlassContainerState {
 
   /**
    * L'aspetto del contenuto di ogni pezzo in questo fotogramma (F3.8a): dalla sua parte e dalla fase del volo del suo
-   * vetro, ritagliato sulla lastra in volo. Ogni contenuto viaggia con la sua lastra (F3.12a: di quanto il centro si è
-   * spostato dal suo posto), anche quello di chi nasce e di chi confluisce: l'icona rimbalza col vetro.
+   * vetro, ritagliato sulla lastra in volo. Ogni contenuto viaggia con la sua lastra (F3.12a: il centro di serie,
+   * F4A.2b: l'ancora scelta dal pezzo), anche quello di chi nasce e di chi confluisce: l'icona rimbalza col vetro.
    */
   private fun driveContents(frame: GlassPlaneFrame) {
     val blur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -2884,7 +2924,9 @@ internal class FluidGlassContainerState {
         (finished ?: HashSet<FluidGlassPiece>().also { finished = it }) += piece
         continue
       }
-      val flight = fluidGlassContentFlightOf(flying, role, look, content.place, swell, pressOf(flying))
+      val flight = fluidGlassContentFlightOf(
+        flying, role, look, content.place, swell, pressOf(flying), piece.attributes.contentAnchor, layoutDirection,
+      )
       if (flight != null || content.flight.value != null) content.show(flight)
     }
     finished?.let { done -> dropDeparted { it in done } }

@@ -24,6 +24,10 @@ class GlassPlaneTest {
     assertEquals(expected.right, actual.right, epsilon)
     assertEquals(expected.bottom, actual.bottom, epsilon)
   }
+  /** [this] più piccolo di [scale] attorno al suo centro: il bocciolo di chi nasce, il nucleo di chi confluisce (F3.12c). */
+  private fun Rect.scaledAbout(scale: Float) = Rect(
+    center.x - width * scale / 2f, center.y - height * scale / 2f, center.x + width * scale / 2f, center.y + height * scale / 2f,
+  )
   private fun assertContains(outer: Rect, inner: Rect) {
     assertTrue("$outer non contiene $inner", outer.left <= inner.left + 0.001f && outer.top <= inner.top + 0.001f &&
       outer.right + 0.001f >= inner.right && outer.bottom + 0.001f >= inner.bottom)
@@ -156,7 +160,8 @@ class GlassPlaneTest {
     val born = frame.target("new")
     assertEquals(GlassPlaneChange.BornFromNeighbour, born.change)
     assertEquals("b", born.bornFrom)
-    assertRect(b.bounds, born.bounds)
+    // F3.12c: chi nasce parte dentro il donatore, più piccolo di lui (il bocciolo che cresce mentre esce).
+    assertRect(b.bounds.scaledAbout(FluidMotion.PlaneReleaseBud), born.bounds)
     assertEquals(1f, born.materialize, 0f)
     assertRect(newcomer.bounds, born.contentBounds)
   }
@@ -185,6 +190,8 @@ class GlassPlaneTest {
     val exit = merging.frame(1000.0).pieces.single { it.flightId.sourceKey == "b" }
     assertEquals(GlassPlaneChange.MergeIntoNeighbour, exit.change)
     assertEquals("a", exit.mergesInto)
+    // F3.12c: chi confluisce si rimpicciolisce di traverso mentre entra, e quando è dentro diventa il vicino: finisce
+    // della sua misura, così le due sagome coincidono e l'unione non fa orecchie sul fianco di chi accoglie.
     assertRect(a.bounds, exit.bounds)
     assertRect(b.bounds, exit.contentBounds)
     val disappearing = GlassPlaneJourney(state(piece("far", 300f)), state())
@@ -213,7 +220,7 @@ class GlassPlaneTest {
     assertContains(field.bounds, a.bounds)
     assertContains(field.bounds, b.bounds)
     assertContains(field.bounds, newborn.bounds)
-    for (ms in 0..600 step 2) {
+    for (ms in 0..(journey.durationMs.toInt() + 4) step 2) {
       val frame = journey.frame(ms.toDouble())
       assertEquals(journey.fields, frame.fields)
       frame.pieces.forEach { assertContains(field.bounds, it.bounds) }
@@ -577,21 +584,26 @@ class GlassPlaneTest {
 
   @Test fun theDonorGoesFirstAndTheBornLeaveItLaterTheFarthestFirst() {
     val journey = GlassPlaneJourney(state(select), state(circle, triangle, done))
-    // F3.12a: la nascita intera dura mezzo secondo (Apple a tempo vero), ed è lì che finisce anche la geometria.
-    assertEquals(500.0, journey.settleMs, 0.5)
-    // Il donatore si sposta di più della sua altezza: dopo l'attesa (0,17) va per primo, e il più lontano è rilasciato
-    // quando ha fatto un pezzo di strada (+0,12: 0,29 della fase, R4 B2 (d)); il più vicino dopo (+0,09: 0,38).
+    // F3.12c: il riposo a vista è il ritorno del superamento di Apple sull'orologio corretto (540 ms); la coda viene dopo.
+    val budget = FluidMotion.PlaneReleaseMillis.toDouble()
+    assertEquals(540.0, journey.settleMs, 0.5)
+    assertTrue("la coda tiene il palco oltre il riposo a vista: ${journey.durationMs}", journey.durationMs > budget + 150.0)
+    // Il donatore si sposta di più della sua altezza: dopo l'attesa (0,23) va per primo, e il più lontano è rilasciato
+    // quando ha fatto un pezzo di strada (+0,08: 0,31 della fase, R4 B2 (d) sull'orologio corretto); il più vicino dopo
+    // (+0,09: 0,40).
     val first = journey.releaseDelays.getValue("circle")
     val second = journey.releaseDelays.getValue("triangle")
-    assertEquals(0.29 * 500.0, first, 0.5)
-    assertEquals(0.38 * 500.0, second, 0.5)
+    assertEquals(0.31 * budget, first, 0.5)
+    assertEquals(0.40 * budget, second, 0.5)
     val travel = done.bounds.center.x - select.bounds.center.x
-    // L'attesa: per i primi 0,17 il donatore non viaggia.
-    val wait = 0.17 * 500.0
+    // L'attesa: per i primi 0,23 il donatore non viaggia.
+    val wait = FluidMotion.PlaneReleaseDelay * budget
     assertRect(select.bounds, journey.frame(wait * 0.7).target("done").bounds, 0.05f)
     assertEquals(select.bounds.center.x, journey.frame(wait).target("done").bounds.center.x, 0.6f)
     assertTrue("dopo l'attesa il donatore parte", journey.frame(wait + 40.0).target("done").bounds.center.x > select.bounds.center.x + 3f)
-    // Finché non è rilasciato, chi nasce sta nel donatore in volo: al più se ne sporge dell'8% della strada che gli resta.
+    // Finché non è rilasciato, chi nasce sta nel donatore in volo, **più piccolo** (F3.12c, il bocciolo): al più se ne
+    // sporge di [FluidMotion.PlaneReleaseCreep] della strada che gli resta.
+    val bud = FluidMotion.PlaneReleaseBud
     var ms = 0.0
     while (ms <= first) {
       val frame = journey.frame(ms)
@@ -599,7 +611,7 @@ class GlassPlaneTest {
       val born = frame.target("circle").bounds
       val lean = FluidMotion.PlaneReleaseCreep * (donor.left - circle.bounds.left)
       assertTrue("t=$ms: il tondo ($born) sta nel donatore ($donor)", born.left >= donor.left - lean - 0.01f && born.right <= donor.right)
-      assertEquals(circle.bounds.width, born.width, 0.01f)
+      assertTrue("t=$ms: ed è più piccolo di lui (${born.height})", born.height < circle.bounds.height * (bud + FluidMotion.PlaneReleaseCreep * (1f - bud)) + 0.05f)
       ms += 3.0
     }
     // Al rilascio il donatore ha già fatto un quarto della strada, e il tondo parte da lì, non dal riquadro di partenza.
@@ -609,9 +621,11 @@ class GlassPlaneTest {
       donorAtRelease.center.x - select.bounds.center.x > 0.15f * travel)
     val from = release.target("circle").bounds
     assertTrue("il tondo parte da ${from.left}, il donatore era partito da ${select.bounds.left}", from.left > select.bounds.left + 5f)
-    assertEquals(donorAtRelease.left - FluidMotion.PlaneReleaseCreep * (donorAtRelease.left - circle.bounds.left), from.left, 0.05f)
-    // Prima del rilascio il blob è andato verso il posto del donatore: il suo bordo sinistro è rientrato.
-    assertTrue(from.left > journey.frame(0.0).target("circle").bounds.left + 5f)
+    val budLeft = donorAtRelease.left + (1f - bud) / 2f * circle.bounds.width
+    assertEquals(budLeft - FluidMotion.PlaneReleaseCreep * (budLeft - circle.bounds.left), from.left, 0.05f)
+    // Prima del rilascio il blob è andato verso il posto del donatore: il suo bordo sinistro è rientrato (di poco: il
+    // donatore è partito solo dopo l'attesa, e chi nasce si sporge dall'altra parte).
+    assertTrue("il tondo parte da ${from.left}", from.left > journey.frame(0.0).target("circle").bounds.left + 0.5f)
     // Il triangolo è ancora nel donatore quando il tondo è già partito.
     val between = journey.frame(second - 1.0)
     assertTrue(between.target("circle").bounds.left < from.left - 1f)
@@ -645,19 +659,21 @@ class GlassPlaneTest {
     val journey = GlassPlaneJourney(state(a), state(a, b))
     val delay = journey.releaseDelays.getValue("b")
     val budget = FluidMotion.PlaneReleaseMillis.toDouble()
-    assertEquals("la nascita di Apple a tempo vero", 500.0, budget, 0.0)
-    assertEquals("un donatore fermo rilascia alla fine dell'attesa, a 0,17 del bilancio", 0.17 * budget, delay, 0.5)
-    // F3.12a: il riposo a vista è la fine della coda. Geometria, contenuto, luce e collo finiscono insieme.
+    assertEquals("il ritorno di Apple a tempo vero, sull'orologio corretto", 540.0, budget, 0.0)
+    assertEquals("un donatore fermo rilascia alla fine dell'attesa, a 0,23 del bilancio", 0.23 * budget, delay, 0.5)
+    // F3.12c: il riposo a vista è il ritorno; la coda di Apple viene dopo e il viaggio finisce quando lo scarto è sotto
+    // il mezzo pixel (qui, coi pixel di un tasto da 44, ~700 ms; il donatore torna fino a ~860).
     assertEquals(budget, journey.settleMs, 0.5)
-    assertEquals("la fine della coda del rilascio", budget, journey.durationMs, 0.5)
+    assertTrue("la coda viene dopo il ritorno: ${journey.durationMs}", journey.durationMs in budget + 120.0..budget + 400.0)
     fun born(ms: Double) = journey.frame(ms).target("b")
     fun donor(ms: Double) = journey.frame(ms).target("a")
-    assertRect(a.bounds, born(0.0).bounds, 0f)
-    // Prima del rilascio si sporge appena dal donatore (che intanto comincia a rinculare verso di lui), con una rampa
-    // liscia: parte da fermo, è a metà a metà dell'attesa, e al rilascio è fermo rispetto al donatore (F3.12a: la molla
-    // di rilascio parte da ferma, come quella adattata alle clip di Apple).
+    // Parte dentro il donatore, più piccolo di lui (F3.12c, il bocciolo).
+    assertRect(a.bounds.scaledAbout(FluidMotion.PlaneReleaseBud), born(0.0).bounds)
+    // Prima del rilascio si sporge appena dal suo posto nel donatore (che intanto comincia a rinculare verso di lui), con
+    // una rampa liscia: parte da fermo, è a metà a metà dell'attesa, e al rilascio è fermo rispetto al donatore.
     assertEquals(0f, born(0.0).velocity.bounds.right, 0f)
-    fun lean(ms: Double) = (born(ms).bounds.right - donor(ms).bounds.right) / (b.bounds.right - donor(ms).bounds.right)
+    fun budRight(ms: Double) = donor(ms).bounds.center.x + FluidMotion.PlaneReleaseBud * donor(ms).bounds.width / 2f
+    fun lean(ms: Double) = (born(ms).bounds.right - budRight(ms)) / (b.bounds.right - budRight(ms))
     assertEquals(FluidMotion.PlaneReleaseCreep, lean(delay), 0.001f)
     assertEquals(FluidMotion.PlaneReleaseCreep / 2f, lean(delay / 2.0), 0.001f)
     // Al rilascio lo sporgersi è fermo: del donatore, che in quell'istante rincula verso di lui, il vetro ha la velocità
@@ -670,15 +686,19 @@ class GlassPlaneTest {
     val after = born(delay + 0.01)
     assertEquals(before.bounds.right, after.bounds.right, 0.05f)
     assertEquals(before.velocity.bounds.right, after.velocity.bounds.right, 0.05f * abs(after.velocity.bounds.right) + 1f)
-    // I tempi di Apple a tempo vero (R4 B2 (b): arrivo a 254 ms, colmo a 334, ritorno a 500): il lato di testa arriva al
-    // suo posto a ~0,5 del bilancio, lo supera del 9,5% della sua corsa a 0,67 (il resto del 13% di Apple è il
-    // rigonfiamento del pezzo nato, che non sta in questa geometria: vedi `swell`), e alla fine è al suo posto.
+    // I tempi di Apple a tempo vero sull'orologio corretto (R4 B2 (b): arrivo a ~283–296 ms, colmo a ~367, ritorno a
+    // ~537–559): il lato di testa arriva al suo posto a ~0,55 del bilancio, lo supera del 9,5% della sua corsa a ~0,68 (il
+    // resto del 13% di Apple è il rigonfiamento del pezzo nato, che non sta in questa geometria: vedi `swell`), ripassa
+    // per il suo posto al ritorno, poi la coda: un secondo passaggio dall'altra parte, piccolo, e fermo.
     val run = b.bounds.right - born(delay).bounds.right
     var peak = 0f
     var peakMs = 0.0
     var trail = 0f
     var centre = 0f
     var arrival = Double.NaN
+    var back = Double.NaN
+    var under = 0f
+    var underMs = 0.0
     var ms = 0.0
     while (ms <= journey.durationMs) {
       val bounds = born(ms).bounds
@@ -687,16 +707,24 @@ class GlassPlaneTest {
         peakMs = ms
       }
       if (arrival.isNaN() && bounds.right >= b.bounds.right) arrival = ms
+      if (!arrival.isNaN() && ms > peakMs && back.isNaN() && bounds.right < b.bounds.right) back = ms
+      if (!back.isNaN() && b.bounds.right - bounds.right > under) {
+        under = b.bounds.right - bounds.right
+        underMs = ms
+      }
       trail = maxOf(trail, bounds.left - b.bounds.left)
       centre = maxOf(centre, bounds.center.x - b.bounds.center.x)
       ms += 1.0
     }
     val overshoot = (peak - b.bounds.right) / run
-    println("F3.12a rilascio: arrivo a $arrival ms, colmo a $peakMs ms (+${overshoot * 100}%), centro oltre di $centre px")
+    println("F3.12c rilascio: arrivo a $arrival ms, colmo a $peakMs ms (+${overshoot * 100}%), ritorno a $back ms, " +
+      "coda ${under / run * 100}% a $underMs ms, fine a ${journey.durationMs} ms; centro oltre di $centre px")
     assertTrue("superamento del ${overshoot * 100}% a $peakMs ms", overshoot in 0.085f..0.115f)
-    assertTrue("il colmo cade a ${peakMs / budget} del bilancio", peakMs / budget in 0.62..0.72)
-    assertTrue("arriva al suo posto a ${arrival / budget} del bilancio", arrival / budget in 0.45..0.56)
-    assertTrue("dopo il colmo torna", born(420.0).velocity.bounds.right < 0f)
+    assertTrue("il colmo cade a $peakMs ms", peakMs in 350.0..385.0)
+    assertTrue("arriva al suo posto a $arrival ms", arrival in 280.0..305.0)
+    assertTrue("ripassa per il suo posto a $back ms", back in 525.0..560.0)
+    assertTrue("la coda va dall'altra parte di ${under / run * 100}% a $underMs ms", under / run in 0.004f..0.013f && underMs in 580.0..650.0)
+    assertTrue("dopo il colmo torna", born(450.0).velocity.bounds.right < 0f)
     // Il vetro viaggia rigido: anche il lato di coda supera il suo arrivo, e il centro (dove sta il contenuto) con lui.
     // Fino a F3.11 il lato di coda si fermava all'arrivo e il contenuto restava fermo dentro un vetro che si allungava.
     val trailRun = b.bounds.left - a.bounds.left
@@ -704,7 +732,17 @@ class GlassPlaneTest {
     assertTrue("il centro supera il suo posto di $centre px", centre > 0.07f * (b.bounds.center.x - a.bounds.center.x))
     assertRect(b.bounds, born(journey.durationMs + 0.01).bounds, 0f)
     assertEquals(0f, born(journey.durationMs + 0.01).velocity.bounds.right, 0f)
-    // Il palco contiene il superamento.
+    // La coda arriva al suo posto in continuo: negli ultimi fotogrammi lo scarto è sotto il mezzo pixel e non scatta.
+    var previous = born(budget).bounds.right
+    ms = budget + 1.0
+    while (ms <= journey.durationMs + 2.0) {
+      val now = born(ms).bounds.right
+      assertTrue("t=$ms: la coda non scatta ($previous -> $now)", abs(now - previous) < 0.2f)
+      if (ms >= journey.durationMs - 40.0) assertEquals("t=$ms: sotto il mezzo pixel", b.bounds.right, now, 0.5f)
+      previous = now
+      ms += 1.0
+    }
+    // Il palco contiene il superamento e la coda.
     val field = journey.fields.single()
     assertTrue(field.bounds.right >= peak)
     ms = 0.0
@@ -714,15 +752,16 @@ class GlassPlaneTest {
     }
     // Il bilancio del rilascio segue quello del contesto.
     val slow = GlassPlaneJourney(state(a), state(a, b), GlassPlaneMotion(contextMs = 600.0))
-    assertEquals(0.17 * 1000.0, slow.releaseDelays.getValue("b"), 0.5)
-    assertEquals(1000.0, slow.settleMs, 0.5)
+    assertEquals(0.23 * 1080.0, slow.releaseDelays.getValue("b"), 0.5)
+    assertEquals(1080.0, slow.settleMs, 0.5)
   }
 
-  // ---- F3.12a: i tempi di Apple, il donatore che rincula, il pezzo che arriva gonfio -------------------------------
+  // ---- F3.12a e F3.12c: i tempi di Apple, il donatore che rincula, il pezzo che arriva gonfio ----------------------
 
   @Test fun theDonorRecoilsTowardTheBornGlassAndReboundsAsAWhole() {
-    // R4 B2 (b), le due nascite a tempo vero: il tondo che resta va verso chi esce di 0,077 D (al colmo a ~217 ms), poi
-    // rimbalza di 0,047 D dall'altra parte e torna. Si sposta tutto il vetro: la misura non cambia.
+    // R4 B2 (b), le due nascite a tempo vero sull'orologio corretto (F3.12c): il tondo che resta va verso chi esce di
+    // ~0,10 D (al colmo a ~260 ms), poi rimbalza di ~0,07 D dall'altra parte (~480), torna con un ultimo piccolo passaggio
+    // verso chi è nato (~710) e si ferma (~860). Si sposta tutto il vetro: la sua misura cambia solo nel rigonfiamento.
     val a = piece("a", 100f)
     val b = piece("b", 152f, width = 88f)
     val journey = GlassPlaneJourney(state(a), state(a, b))
@@ -730,6 +769,8 @@ class GlassPlaneTest {
     var towardMs = 0.0
     var away = 0f
     var awayMs = 0.0
+    var settle = 0f
+    var settleMs = 0.0
     var previous = a.bounds.left
     var ms = 0.0
     while (ms <= journey.durationMs) {
@@ -737,7 +778,7 @@ class GlassPlaneTest {
       assertEquals("t=$ms: il donatore non cambia misura", a.bounds.width, donor.bounds.width, 0.001f)
       assertEquals(a.bounds.top, donor.bounds.top, 0f)
       val shift = donor.bounds.left - a.bounds.left
-      if (shift > toward) {
+      if (ms < 400.0 && shift > toward) {
         toward = shift
         towardMs = ms
       }
@@ -745,17 +786,24 @@ class GlassPlaneTest {
         away = -shift
         awayMs = ms
       }
+      if (ms > 600.0 && shift > settle) {
+        settle = shift
+        settleMs = ms
+      }
       assertTrue("t=$ms: nessuno scatto (${previous} -> ${donor.bounds.left})", abs(donor.bounds.left - previous) < 0.1f)
       // Non è fermo: il suo contenuto lo segue (il palco lo porta, e `fluidGlassContentFlightOf` lo sposta).
       assertFalse(donor.still)
       previous = donor.bounds.left
       ms += 1.0
     }
-    println("F3.12a donatore: rincula di $toward px a $towardMs ms, rimbalza di $away px a $awayMs ms")
-    assertEquals("rincula verso chi esce di 0,077 del suo lato corto", FluidMotion.PlaneDonorRecoil * 44f, toward, 0.02f)
-    assertTrue("il colmo del rinculo cade a $towardMs ms", towardMs in 190.0..235.0)
-    assertEquals("rimbalza oltre di 0,047", FluidMotion.PlaneDonorRebound * 44f, away, 0.02f)
-    assertTrue("il rimbalzo viene dopo il colmo di chi è nato ($awayMs ms)", awayMs in 380.0..440.0)
+    println("F3.12c donatore: rincula di $toward px a $towardMs ms, rimbalza di $away px a $awayMs ms, " +
+      "ultimo passaggio $settle px a $settleMs ms, fermo a ${journey.durationMs} ms")
+    assertEquals("rincula verso chi esce di 0,10 del suo lato corto", FluidMotion.PlaneDonorRecoil * 44f, toward, 0.02f)
+    assertTrue("il colmo del rinculo cade a $towardMs ms", towardMs in 240.0..280.0)
+    assertEquals("rimbalza oltre di 0,07", FluidMotion.PlaneDonorRebound * 44f, away, 0.02f)
+    assertTrue("il rimbalzo viene dopo il colmo di chi è nato ($awayMs ms)", awayMs in 455.0..505.0)
+    assertEquals("e torna con un ultimo piccolo passaggio", FluidMotion.PlaneDonorSettle * 44f, settle, 0.02f)
+    assertTrue("a $settleMs ms", settleMs in 680.0..740.0)
     assertRect(a.bounds, journey.frame(journey.durationMs).target("a").bounds, 0f)
     assertEquals(0f, journey.frame(journey.durationMs).target("a").velocity.bounds.left, 0f)
     // Parte da fermo.
@@ -772,63 +820,112 @@ class GlassPlaneTest {
     assertTrue("arriva a $leftmost", leftmost >= canvas.left - 0.001f)
   }
 
-  @Test fun aReleasedGlassArrivesSwollenAndDeflatesByTheEnd() {
-    // R4 B2 (b): il pezzo nato è alto +19,5% a 334–367 ms, quando il donatore è già tornato alla sua misura (+11% a
-    // 217 ms). È un rigonfiamento in più del solo pezzo rilasciato, col colmo a metà fra l'arrivo e la fine.
+  @Test fun everyoneInABirthHasItsOwnSwellInsteadOfTheCommonOne() {
+    // F3.12c, R4 B2 (b), il contorno alto delle due nascite a tempo vero: il pezzo nato passa per la sua misura a ~286
+    // ms, è alto +19% a ~385, va sotto del 3% a ~680 e si ferma; il donatore si gonfia poco (+4% a ~260, sotto del 2,5%
+    // a ~550). Né l'uno né l'altro prendono il rigonfiamento comune del carattere (`swellShare`), che ha il colmo a 0,45
+    // del viaggio per tutti; un vetro che non fa parte della nascita lo prende tutto.
     val a = piece("a", 100f)
     val b = piece("b", 152f, width = 88f)
-    val journey = GlassPlaneJourney(state(a), state(a, b))
+    val c = piece("c", 300f)
+    val journey = GlassPlaneJourney(state(a, c), state(a, b, piece("c", 330f)))
     var peak = 0f
     var peakMs = 0.0
+    var low = 0f
+    var lowMs = 0.0
     var first = Double.NaN
+    var donorPeak = 0f
+    var donorPeakMs = 0.0
+    var donorLow = 0f
+    var previous = 0f
     var ms = 0.0
     while (ms <= journey.durationMs) {
       val frame = journey.frame(ms)
-      assertEquals("t=$ms: il donatore non ha un rigonfiamento in più", 0f, frame.target("a").swell, 0f)
+      assertEquals(0f, frame.target("a").swellShare, 0f)
+      assertEquals(0f, frame.target("b").swellShare, 0f)
+      assertEquals(1f, frame.target("c").swellShare, 0f)
+      assertEquals(0f, frame.target("c").swell, 0f)
       val swell = frame.target("b").swell
-      assertTrue(swell >= 0f)
+      // Sale in ~95 ms dal suo posto al colmo: al più 0,035 al millisecondo (0,3 a 120 Hz, poco più di mezzo dp).
+      assertTrue("t=$ms: in continuo ($previous -> $swell)", abs(swell - previous) < 0.04f)
+      previous = swell
       if (first.isNaN() && swell > 0f) first = ms
       if (swell > peak) {
         peak = swell
         peakMs = ms
       }
+      if (swell < low) {
+        low = swell
+        lowMs = ms
+      }
+      val breath = frame.target("a").swell
+      if (breath > donorPeak) {
+        donorPeak = breath
+        donorPeakMs = ms
+      }
+      donorLow = minOf(donorLow, breath)
       ms += 1.0
     }
-    println("F3.12a rigonfiamento del nato: da $first ms, colmo $peak a $peakMs ms")
+    println("F3.12c rigonfiamento: il nato da $first ms, colmo $peak a $peakMs ms, sotto $low a $lowMs ms; " +
+      "il donatore $donorPeak a $donorPeakMs ms, sotto $donorLow")
     assertEquals(FluidMotion.PlaneReleaseSwell, peak, 0.01f)
-    assertTrue("comincia quando il pezzo arriva al suo posto ($first ms)", first in 230.0..290.0)
-    assertTrue("il colmo cade dopo quello del superamento ($peakMs ms)", peakMs in 350.0..410.0)
+    assertTrue("comincia quando il pezzo arriva al suo posto ($first ms)", first in 265.0..300.0)
+    assertTrue("il colmo cade dopo quello del superamento ($peakMs ms)", peakMs in 360.0..400.0)
+    // Poi va sotto la sua misura (in Apple −3% a ~680 ms): qui, coi pixel di un tasto da 44, quello scarto è sotto il
+    // pixel e la coda comincia già a spegnerlo, quindi è un poco meno profondo e cade prima.
+    assertTrue("poi va sotto la sua misura ($low a $lowMs ms)", low in -0.25f..-0.08f && lowMs in 590.0..700.0)
+    assertEquals(FluidMotion.PlaneDonorBreath, donorPeak, 0.005f)
+    assertTrue("il donatore al colmo a $donorPeakMs ms", donorPeakMs in 240.0..280.0)
+    assertEquals(-FluidMotion.PlaneDonorBreathUnder, donorLow, 0.005f)
     assertEquals(0f, journey.frame(journey.durationMs).target("b").swell, 0f)
+    assertEquals(0f, journey.frame(journey.durationMs).target("a").swell, 0f)
     assertEquals(0f, journey.frame(journey.releaseDelays.getValue("b")).target("b").swell, 0f)
     // Un viaggio che riparte al colmo lo porta con sé e lo spegne, senza scalini.
     val live = journey.frame(peakMs).target("b")
-    val back = journey.retarget(peakMs, state(a))
+    val back = journey.retarget(peakMs, state(a, piece("c", 330f)))
     assertEquals(live.swell, back.frame(0.0).source("b").swell, 0f)
-    var previous = live.swell
+    // «b» ora confluisce in «a»: quando è dentro diventa «a», rigonfiamento compreso (F3.12c), così le due sagome
+    // coincidono. Prima si spegne soltanto; sempre senza scalini.
+    val regrow = FluidMotion.PlaneMergeCoreRegrowFrom * FluidMotion.PlaneReleaseMillis
+    val inside = FluidMotion.PlaneMergeCoreRegrowTo * FluidMotion.PlaneReleaseMillis
+    var falling = live.swell
     ms = 1.0
     while (ms <= back.durationMs) {
-      val now = back.frame(ms).source("b").swell
-      assertTrue("t=$ms: si spegne ($previous -> $now)", now <= previous + 1e-6f && previous - now < 0.03f)
-      previous = now
+      val frame = back.frame(ms)
+      val now = frame.source("b").swell
+      assertTrue("t=$ms: senza scalini ($falling -> $now)", abs(falling - now) < 0.03f)
+      if (ms < regrow) assertTrue("t=$ms: si spegne ($falling -> $now)", now <= falling + 1e-6f)
+      if (ms >= inside) assertEquals("t=$ms: è il vicino", frame.target("a").swell, now, 1e-5f)
+      falling = now
       ms += 1.0
     }
-    assertEquals(0f, previous, 0f)
-    // Con una spec dell'app niente rigonfiamento in più.
+    assertEquals(0f, falling, 0f)
+    // Chi riparte prendendo una parte del comune diversa da prima si porta la differenza: la somma col comune (che riparte
+    // da dov'era) non salta.
+    val common = 0.6f
+    val again = journey.retarget(peakMs, state(a, b, piece("c", 330f)), commonSwell = common)
+    for (key in listOf("a", "b", "c")) {
+      val was = journey.frame(peakMs).target(key)
+      val now = again.frame(0.0).target(key)
+      assertEquals(key, was.swell + was.swellShare * common, now.swell + now.swellShare * common, 1e-5f)
+    }
+    // Con una spec dell'app niente rigonfiamento proprio.
     val plain = GlassPlaneJourney(state(a), state(a, b), GlassPlaneMotion(spec = androidx.compose.animation.core.tween(200)))
-    assertTrue((0..200).all { plain.frame(it.toDouble()).target("b").swell == 0f })
+    assertTrue((0..200).all { plain.frame(it.toDouble()).target("b").swell == 0f && plain.frame(it.toDouble()).target("b").swellShare == 1f })
   }
 
   @Test fun aLaterReleaseHasAFasterSpringSoThePeaksFallTogether() {
-    // R4 B2 (d): il tondo è rilasciato a 0,29 e il triangolo a 0,38, e i due colmi cadono insieme (0,71–0,77): la molla
-    // sta fra il rilascio e la fine.
+    // R4 B2 (d), sull'orologio corretto: il tondo è rilasciato a 0,31 e il triangolo a 0,40, e i due colmi cadono
+    // insieme (0,72–0,78): la molla sta fra il rilascio e il ritorno.
     val journey = GlassPlaneJourney(state(select), state(circle, triangle, done))
     fun peakOf(key: String, place: Rect): Double =
       (0..journey.durationMs.toInt()).minByOrNull { journey.frame(it.toDouble()).target(key).bounds.left - place.left }!!.toDouble()
     val far = peakOf("circle", circle.bounds)
     val near = peakOf("triangle", triangle.bounds)
-    println("F3.12a colmi: tondo a $far ms, triangolo a $near ms")
-    assertTrue("il colmo del tondo a ${far / 500.0}", far / 500.0 in 0.66..0.78)
-    assertTrue("il colmo del triangolo a ${near / 500.0}", near / 500.0 in 0.68..0.82)
+    val budget = FluidMotion.PlaneReleaseMillis.toDouble()
+    println("F3.12c colmi: tondo a $far ms, triangolo a $near ms")
+    assertTrue("il colmo del tondo a ${far / budget}", far / budget in 0.66..0.78)
+    assertTrue("il colmo del triangolo a ${near / budget}", near / budget in 0.68..0.82)
     assertTrue("cadono insieme: $far e $near ms", abs(far - near) < 45.0)
     // Tutti e due superano il loro posto, e alla fine ci sono.
     assertTrue(journey.frame(far).target("circle").bounds.left < circle.bounds.left - 2f)
@@ -884,7 +981,10 @@ class GlassPlaneTest {
       previous = now
       ms += 1.0
     }
-    assertRect(a.bounds, leaving.frame(leaving.durationMs + 0.01).source("b").bounds, 0f)
+    // F3.12c: finisce dentro «a», e quando è dentro diventa «a» (anche se ripartiva dal bocciolo, più basso di lui): due
+    // sagome quasi uguali farebbero orecchie nell'unione, due uguali no.
+    val core = leaving.frame(leaving.durationMs + 0.01).source("b").bounds
+    assertRect(a.bounds, core, 0.01f)
     // Lo stesso stato ridato a metà rilascio: «b» continua verso il suo posto, da dove si trova.
     val same = journey.retarget(at, state(a, b)).frame(0.0).target("b")
     assertRect(live.bounds, same.bounds, 0f)
@@ -897,14 +997,16 @@ class GlassPlaneTest {
   }
 
   @Test fun aMergingGlassEntersItsNeighbourWhereverItIsGoingAndPushesThrough() {
-    // La confluenza (R4 B2 (b), 4:51): nessuna attesa, e il superamento dell'8,4% è la **spinta** che sposta chi
-    // accoglie, tutto intero (F3.12a: in Apple il tondo che resta va a +0,16 D e torna; in F3.11 gli usciva un lato).
+    // La confluenza (R4 B2 (b), 4:51 e 4:59): nessuna attesa, e il superamento dell'8,4% è la **spinta** che sposta chi
+    // accoglie, tutto intero (F3.12a: in Apple il tondo che resta va a +0,18 D e torna; in F3.11 gli usciva un lato). Da
+    // F3.12c la spinta ha la coda di Apple: dall'altra parte a ~590 ms, ferma a ~900.
     val a = piece("a", 100f)
     val b = piece("b", 152f, width = 88f)
     val merging = GlassPlaneJourney(state(a, b), state(a))
     assertTrue(merging.releaseDelays.isEmpty())
-    assertEquals(500.0, merging.settleMs, 0.5)
-    assertEquals(500.0, merging.durationMs, 0.5)
+    val budget = FluidMotion.PlaneReleaseMillis.toDouble()
+    assertEquals(budget, merging.settleMs, 0.5)
+    assertTrue("la coda di chi accoglie: ${merging.durationMs}", merging.durationMs in 880.0..920.0)
     fun leaving(ms: Double) = merging.frame(ms).source("b")
     fun host(ms: Double) = merging.frame(ms).target("a")
     assertRect(b.bounds, leaving(0.0).bounds, 0f)
@@ -913,9 +1015,14 @@ class GlassPlaneTest {
     val run = b.bounds.right - a.bounds.right
     val pushAt = (0..merging.durationMs.toInt()).minByOrNull { host(it.toDouble()).bounds.left }!!.toDouble()
     val push = a.bounds.left - host(pushAt).bounds.left
-    println("F3.12a confluenza: la spinta e' $push px (${push / run * 100}% della corsa) a $pushAt ms")
+    val backAt = (0..merging.durationMs.toInt()).maxByOrNull { host(it.toDouble()).bounds.left }!!.toDouble()
+    val pushBack = host(backAt).bounds.left - a.bounds.left
+    println("F3.12c confluenza: la spinta e' $push px (${push / run * 100}% della corsa) a $pushAt ms, " +
+      "poi $pushBack px dall'altra parte a $backAt ms, ferma a ${merging.durationMs} ms")
     assertTrue("la spinta è del ${push / run * 100}% della corsa", push / run in 0.07f..0.095f)
-    assertTrue("al colmo a ${pushAt / 500.0} del bilancio", pushAt / 500.0 in 0.62..0.72)
+    assertTrue("al colmo a $pushAt ms", pushAt in 285.0..320.0)
+    assertEquals("poi dall'altra parte", FluidMotion.PlaneMergeRebound * push, pushBack, 0.05f)
+    assertTrue("a $backAt ms", backAt in 570.0..610.0)
     assertEquals("si sposta tutto il vetro", a.bounds.width, host(pushAt).bounds.width, 0.001f)
     assertFalse(host(pushAt).still)
     assertRect(a.bounds, host(0.0).bounds, 0f)
@@ -939,6 +1046,16 @@ class GlassPlaneTest {
     assertRect(pushed.bounds, again.bounds, 0f)
     assertEquals(pushed.velocity, again.velocity)
     assertRect(a.bounds, leaving(merging.durationMs + 0.01).bounds, 0f)
+    // E mentre entra si rimpicciolisce (F3.12c): a metà strada è già più basso di chi lo accoglie. Quando è dentro
+    // (da 0,37 a 0,6 del riposo a vista) torna della sua misura, e con la sua velocità: nessun salto.
+    assertTrue("a 120 ms è alto ${leaving(120.0).bounds.height}", leaving(120.0).bounds.height < 0.9f * a.bounds.height)
+    for (ms in 1..merging.durationMs.toInt()) {
+      val before = leaving(ms - 1.0).bounds
+      val now = leaving(ms.toDouble()).bounds
+      assertTrue("t=$ms: l'altezza non salta (${before.height} -> ${now.height})", abs(now.height - before.height) < 0.6f)
+    }
+    val inside = leaving(0.6 * FluidMotion.PlaneReleaseMillis + 1.0).bounds
+    assertTrue("dentro è della misura del vicino: $inside", abs(inside.height - a.bounds.height) < 0.06f * a.bounds.height)
     val field = merging.fields.single()
     for (ms in 0..(merging.durationMs.toInt() + 5)) merging.frame(ms.toDouble()).pieces.forEach { assertContains(field.bounds, it.bounds) }
     // Il vicino che intanto si sposta: chi confluisce lo segue, e finisce dove finisce lui.

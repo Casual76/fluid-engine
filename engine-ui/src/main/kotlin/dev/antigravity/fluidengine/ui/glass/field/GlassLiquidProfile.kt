@@ -944,7 +944,7 @@ internal const val GlassJourneyLightApple: Float = 1f
  * e morbida, l'ombra B), che anche all'alfa piena restava a metà di Apple: era il tetto. Da F3.12b ha la sua geometria
  * ([GlassJourneyGlowDrop], [GlassJourneyGlowRadius]) e all'alfa piena arriva al render. Nel render sale un poco dopo la
  * luce del corpo (metà a 0,09 della fase, colmo a 0,31) e si spegne prima (metà a 0,49, via a 0,69, quando il corpo è
- * ancora a 0,4 della sua luce); qui segue il livello della luce del carattere, che arriva e se ne va con il corpo.
+ * ancora a 0,4 della sua luce); da F3.12c ha la sua curva ([GlassLiquidJourney.glowLevel]: fino a F3.12b seguiva la luce).
  * Fiducia **bassa**: è del solo render; nelle clip a tempo vero (il tocco di R4 B4, il tasto tondo e la capsula
  * trascinata) il vetro acceso non proietta luce fuori di sé, e sotto resta l'ombra.
  */
@@ -963,6 +963,19 @@ internal const val GlassJourneyGlowApple: Float = 1f
  * a f9036 e f9037).
  */
 internal const val GlassJourneyGlowDrop: Float = 0.33f
+
+/**
+ * Fase a cui l'alone comincia a spegnersi (F3.12c): resta pieno fino a 0,31, il colmo del render «Select → Done» (R4 B2
+ * (d), `sessioni/f3-12b/misure.md`, fiducia media-bassa: un render). Sale con la luce del corpo.
+ */
+internal const val GlassJourneyGlowHold: Float = 0.31f
+
+/**
+ * Fase a cui l'alone è spento (F3.12c): 0,69, con `smoothstep` da [GlassJourneyGlowHold] (metà a 0,50: nel render metà a
+ * 0,49, via a 0,69, quando il corpo è ancora a 0,4 della sua luce). Fino a F3.12b l'alone seguiva la luce del corpo e si
+ * spegneva un decimo di fase dopo Apple.
+ */
+internal const val GlassJourneyGlowSettle: Float = 0.69f
 
 /**
  * Il raggio di sfocatura dell'alone, in frazione del lato corto di adesso (F3.12b): la sigma di Apple, 0,23 H = 0,20 H'
@@ -1116,6 +1129,15 @@ internal data class GlassLiquidJourney(
    */
   fun light(phase: Float, entry: Float = 0f, settleMs: Float = Float.NaN): Float =
     journeyEnvelope(phase, entry, journeyLightRise(settleMs), GlassJourneyLightHold, GlassJourneyLightSettle, longTail = true)
+
+  /**
+   * Il livello dell'**alone** alla [phase] del viaggio, 0..1 (F3.12c): sale come la luce ([light], la stessa salita),
+   * resta pieno fino a [GlassJourneyGlowHold] e si spegne con `smoothstep` a [GlassJourneyGlowSettle], prima del corpo,
+   * come nel render di Apple. [entry] e [settleMs] come in [light]. Lo porta il palco (`PhysicsPlaneShape.journeyGlow`) a
+   * `glassJourneyRecipe`, che ci pesa l'alone invece che sulla luce.
+   */
+  fun glowLevel(phase: Float, entry: Float = 0f, settleMs: Float = Float.NaN): Float =
+    journeyEnvelope(phase, entry, journeyLightRise(settleMs), GlassJourneyGlowHold, GlassJourneyGlowSettle)
 
   /** Il livello del rigonfiamento alla [phase] del viaggio, 0..1; [entry] come in [light]. */
   fun swell(phase: Float, entry: Float = 0f): Float =

@@ -208,7 +208,7 @@ internal object F38aTraces {
           }
           // La parte del contenuto di ogni pezzo, dall'aspetto che ha: `startContents` del contenitore.
           for (flying in frame.pieces) {
-            val arrival = fluidGlassArrivalOf(flying.change)
+            val arrival = fluidGlassArrivalOf(flying.change, flying.relay)
             val targetKey = flying.flightId.targetKey
             val sourceKey = flying.flightId.sourceKey
             if (targetKey != null) {
@@ -276,6 +276,8 @@ internal object F38aTraces {
             touch = if (field.lens) null else fluidGlassFingerTouch(
               frame, field.flights, Offset.Zero, driver.finger, driver.fingerGlow, driver.fingerFill,
             ),
+            // F3.12c: l'alone ha la sua curva, come `driveStage`.
+            journeyGlow = if (field.lens) 0f else driver.journeyGlow,
           )
           if (shape.slabs.isEmpty()) continue
           val keys = field.flights.mapNotNull { it.targetKey ?: it.sourceKey }
@@ -289,6 +291,8 @@ internal object F38aTraces {
           element["_gonfio_pezzi"] = frame.pieces.filter { it.flightId in field.flights }
             .associate { (it.flightId.targetKey ?: it.flightId.sourceKey).toString() to round3(it.swell) }
           element["_luce"] = round3(shape.journeyLight)
+          // F3.12c: l'alone ha la sua curva.
+          element["_alone"] = round3(shape.journeyGlow)
           element["_dito"] = round3(shape.touch?.amount ?: 0f)
           element["_riempito"] = round3(shape.touch?.fill ?: 0f)
           element["_unione"] = field.union.name
@@ -393,7 +397,14 @@ internal object F38aTraces {
     // `physicsLiquidRecipe` e di `PhysicsLiquidSurface.fill`.
     glassTravelRecipe(recipe, GlassLiquidProfile.Default.travel, shape.motion)
     val journey = if (stage != null) scene.journey else null
-    if (journey != null) glassJourneyRecipe(recipe, journey, shape.journeyLight, scene.dark)
+    // F3.12c: come `physicsLiquidRecipe`, col lato corto (la geometria dell'alone di F3.12b), il dito (l'alone e il filo)
+    // e il livello dell'alone (la sua curva). Fino a F3.12a la traccia passava solo la luce.
+    if (journey != null) {
+      glassJourneyRecipe(
+        recipe, journey, shape.journeyLight, scene.dark, shortDp = shortDp, finger = shape.touch?.amount ?: 0f,
+        glowLevel = shape.journeyGlow,
+      )
+    }
     glassMaterializeRecipe(recipe, shape.materialize)
     val padding = glassTravelPaddingDp(GlassRole.Interactive, ButtonOptics, journey = journey)
     // Il bagliore: quello del vetro fermo premuto, o la luce del dito che il palco porta.
@@ -444,12 +455,12 @@ internal object F38aTraces {
     GlassPlaneState(pieces.toList(), PhysicsPlaneFusionDp * Density, Rect(0f, 0f, widthDp * Density, heightDp * Density))
 
   private val Select = linkedMapOf(
-    "name" to "select-done", "video" to "wwdc2025-219_hd", "t0Frame" to 9031, "crop" to listOf(300, 250, 1320, 587),
+    "name" to "select-done", "video" to "wwdc2025-219_hd", "t0Frame" to 9030, "crop" to listOf(300, 250, 1320, 587),
     "collage" to "artifacts/liquid-glass/riferimenti/collage/B2_select_done_f9029-9076.jpg",
     "speed" to 2.34,
-    "note" to "R4 B2 (d), classe C rallentata: vale l'ordine delle fasi. t0 = f9031, l'ultimo fotogramma con «Select» " +
-      "nitido; riposo a f9066 (35 fotogrammi, 1168 ms): 2,3 volte i 500 ms di una nascita (F3.12a; il render è " +
-      "rallentato di 2,3 volte anche rispetto alle clip di Apple a tempo vero).",
+    "note" to "R4 B2 (d), classe C rallentata: vale l'ordine delle fasi. t0 = f9030, l'ultimo fotogramma fermo " +
+      "(orologio corretto dall'analisi fotogramma per fotogramma, F3.12c); ritorno a f9066 (36 fotogrammi, 1201 ms): " +
+      "2,2 volte i 540 ms del riposo a vista di una nascita.",
   )
 
   fun scenes(): List<Scene> {
@@ -465,7 +476,7 @@ internal object F38aTraces {
       val theme = if (dark) "scuro" else "chiaro"
       out += Scene(
         "uno-due-$theme", "«Modifica» fa nascere «Fatto»: il testo arriva sfocato dentro il vetro, mai prima", w, h, dark,
-        st(edit), listOf(Step(0.0, st(edit, done))), oneTwo, lastFrame = 72, apple = listOf(Select),
+        st(edit), listOf(Step(0.0, st(edit, done))), oneTwo, lastFrame = TailFrames, apple = listOf(Select),
       )
     }
     // La clip di Apple «Select → Done»: un tasto con la scritta diventa due tondi e «Fatto», e **tutto** il contenuto
@@ -487,17 +498,17 @@ internal object F38aTraces {
       out += Scene(
         "seleziona-fatto-$theme", "«Seleziona» diventa due tondi e «Fatto», come «Select → Done»: il vecchio esce, i nuovi nascono",
         chooseDp, h, dark, chosen(choose), listOf(Step(0.0, chosen(circle, triangle, finish))), chooseLabels,
-        lastFrame = 72, apple = listOf(Select),
+        lastFrame = TailFrames, apple = listOf(Select),
       )
     }
     out += Scene(
       "due-uno-chiaro", "«Fatto» confluisce in «Modifica»: il testo si sfoca dov'era e il bordo lo copre", w, h, false,
-      st(edit, done), listOf(Step(0.0, st(edit))), oneTwo, lastFrame = 72,
+      st(edit, done), listOf(Step(0.0, st(edit))), oneTwo, lastFrame = TailFrames,
     )
     out += Scene(
       "uno-due-interrotto", "«Fatto» nasce, a 150 ms se ne va, a 300 torna: nessuna scritta salta (F3-f)", w, h, false,
       st(edit), listOf(Step(0.0, st(edit, done)), Step(150.0, st(edit)), Step(300.0, st(edit, done))), oneTwo,
-      lastFrame = 108,
+      lastFrame = 36 + TailFrames,
     )
     // Due capsule con il loro id: divise a 96 dp, accostate senza varco. Chi resta viaggia nitido col suo vetro.
     val music = piece("musica", 36f, 38f, w = 112f)
@@ -551,7 +562,43 @@ internal object F38aTraces {
       "separa", "la sagoma torna tre tasti: il collo si strozza e si rompe una volta", blockDp, h, false,
       blockState(true), listOf(Step(0.0, blockState(false))), views, lastFrame = 48,
     )
+    out += appleScenes()
     return out
+  }
+
+  /**
+   * Quanti fotogrammi a 120 Hz tengono una nascita o una confluenza con la coda di Apple (F3.12c): un secondo. Il palco
+   * ora resta finché lo scarto si vede (~800–950 ms); fino a F3.12a bastavano 600 ms.
+   */
+  const val TailFrames = 120
+
+  /**
+   * Le scene d'analisi con la **geometria di Apple** (F3.12c, rilievo 18 dell'analisi fotogramma per fotogramma): la
+   * barra di 4:49 e 4:59 (R4 B2 (b)), in altezze del tondo (D = 44 dp), riflessa come le scene della galleria (chi nasce
+   * va a destra). Dalla clip (`sessioni/f3-12c/misure.md`, il contorno alto a riposo prima e dopo): il tondo largo 1,0 D,
+   * prima centrato in 66 dp, dopo 0,025 D più in là dalla parte opposta a chi nasce; la capsula larga **1,72 D** col centro
+   * a 1,59 D dal tondo di prima, a **0,25 D** dal tondo (11 dp: le scene della galleria hanno 2 D e 8 dp). Il confronto con
+   * Apple si fa su queste (`sessioni/f3-12c/strumenti/misura_noi.py` e `tabella.py`); quelle della galleria restano.
+   */
+  fun appleScenes(): List<Scene> {
+    val w = 240f
+    val h = 120f
+    val d = 44f
+    fun st(vararg p: GlassPlanePiece) = state(w, h, *p)
+    val before = piece("tondo", 66f - d / 2f, 38f)
+    val after = piece("tondo", 66f - 0.025f * d - d / 2f, 38f)
+    val capsule = piece("capsula", 66f + 1.59f * d - 0.86f * d, 38f, w = 1.72f * d)
+    val labels = mapOf<Any, Label>("tondo" to Label(icon = "fluid:add", sizeDp = 22f), "capsula" to Label(text = "1 +"))
+    return listOf(
+      Scene(
+        "nascita-apple", "la nascita di Apple a 4:49 con la sua geometria: il tondo fa nascere la capsula «1 +»", w, h, false,
+        st(before), listOf(Step(0.0, st(after, capsule))), labels, lastFrame = TailFrames,
+      ),
+      Scene(
+        "confluenza-apple", "la confluenza di Apple a 4:59 con la sua geometria: la capsula torna nel tondo", w, h, false,
+        st(after, capsule), listOf(Step(0.0, st(before))), labels, lastFrame = TailFrames,
+      ),
+    )
   }
 
   /** Il testo sotto il vetro delle tavole «sul testo» (lo stesso delle tracce di F3 e di F3.9). */
@@ -600,7 +647,7 @@ internal object F38aTraces {
             else -> "la luce a metà e la luce del dito, cambio da un tocco su «Seleziona»"
           } + ")",
           chooseDp, h, dark, chosen(choose), listOf(Step(0.0, chosen(circle, triangle, finish))), labels,
-          lastFrame = 72, background = background, apple = listOf(Select), journey = journey, touch = touch,
+          lastFrame = TailFrames, background = background, apple = listOf(Select), journey = journey, touch = touch,
           phase = "f3-10",
         )
       }

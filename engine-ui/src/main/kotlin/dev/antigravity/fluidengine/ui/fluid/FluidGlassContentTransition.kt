@@ -31,6 +31,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /*
@@ -597,12 +598,45 @@ internal object GlassPieceContentDefaults {
   const val BornAt: Float = 0.5f
 
   /**
-   * La fase in cui il contenuto di chi nasce è nitido (σ zero): 0,78. Nella clip di Apple (35 fotogrammi da «Select»
-   * nitido, f9031, al riposo, f9066) il contenuto nuovo compare al 51–54% (f9049–f9050), al 60% è una macchia sfocata,
-   * al 70% è quasi nitido, nitido al 77–80% (f9058–f9059), e i colli si rompono dopo, al 90%. Sulla tavola del banco
-   * (`bench/f3-8a/tavole/`) con 0,82 al 70% la scritta era ancora sfocata dove quella di Apple si legge già.
+   * La fase in cui il contenuto di chi nasce ha finito la curva di F3.4 per l'opacità e la scala (u = 1): 0,78. Nella
+   * clip di Apple (35 fotogrammi da «Select» nitido, f9031, al riposo, f9066) il contenuto nuovo compare al 51–54%
+   * (f9049–f9050), al 60% è una macchia sfocata, al 70% si legge, ed è della sua misura. La **sfocatura** non finisce qui
+   * (F3.12c): va a zero con la sua rampa fino a [BornFocusEnd].
    */
   const val BornSharp: Float = 0.78f
+
+  /**
+   * La fase in cui il contenuto di chi nasce è **nitido** (σ zero, e il contenuto è fermo): 1,0 della fase del contenuto
+   * (con un donatore fermo ~497 ms). Dal colmo della sfocatura (~260 ms) ci arriva con due rampe: quasi tutta scende presto,
+   * `(1 − x)^`[BornFocusPower], e una piccola parte piano, [BornFocusTail]. Con un donatore fermo: ~1,3 dp a 300 ms (si
+   * legge, ancora morbido), ~0,5 a 333, ~0,2 al colmo del superamento (~370), ~0,1 a 400, nitido a ~497; i decimi di dp,
+   * dove il Laplaciano del simbolo sale, durano ~120 ms (fino a F3.12a la sfocatura lineare finiva di colpo, in due
+   * fotogrammi).
+   *
+   * Il tempo è quello delle clip **a tempo vero** (R4 B2 (b), 4:49 e 4:57, sull'orologio corretto), il riferimento di
+   * Alessio: il «1 +» che nasce è sfocato a ~233 ms, morbido ma leggibile a ~267, quasi nitido a ~300 e nitido dal colmo;
+   * la larghezza dei suoi segni dice una sfocatura sotto il dp da ~267 ms, mentre l'opacità sale piano fino a ~630
+   * (`sessioni/f3-12c/rapporto.md`). Il render rallentato «Select → Done» (l'analisi fotogramma per fotogramma, rilievo 5,
+   * sul Laplaciano normalizzato alla fase del render) mette il 90% della nitidezza a ~0,97 della fase: una prima versione
+   * di F3.12c lo seguiva (nitido a 1,25, ~630 ms) e sulla tavola a tempo vero la scritta restava sfocata fino a ~430 ms,
+   * 130 ms dopo Apple. Del rilievo resta la continuità: nessuno scalino e nessun superamento.
+   */
+  const val BornFocusEnd: Float = 1f
+
+  /** La forma della rampa della sfocatura di chi nasce verso [BornFocusEnd]: vedi lì. */
+  const val BornFocusPower: Float = 7f
+
+  /**
+   * La parte della sfocatura di chi nasce che scende **piano** (F3.12c): 0,08 del massimo (~0,4 dp su un'icona di 44 dp),
+   * con la rampa `(1 − x)^`[BornFocusTailPower] fino a [BornFocusEnd]; il resto scende presto, con [BornFocusPower]. Il
+   * Laplaciano del simbolo sente soprattutto i decimi di dp: con la sola rampa veloce saliva dal 20 al 90% in tre
+   * fotogrammi (l'analisi rifatta su F3.12c), con questa coda in ~90 ms. Nella clip a tempo vero la larghezza dei segni
+   * dice ~0,4 dp a 300–367 ms, ~0,2 a 400, poi niente: la stessa coda.
+   */
+  const val BornFocusTail: Float = 0.08f
+
+  /** La forma della coda lenta della sfocatura di chi nasce: vedi [BornFocusTail]. */
+  const val BornFocusTailPower: Float = 1.5f
 
   /** Da dove a dove della comparsa per lente il simbolo si condensa (R7 A8: fra 0,25 e 0,85). */
   const val LensFrom: Float = 0.25f
@@ -627,6 +661,17 @@ internal object GlassPieceContentDefaults {
    * 470 di una scomparsa («simbolo via in 130 ms»). È la scheda che lo misura, e non è quella del cambio di contesto.
    */
   const val LensExitSpan: Float = 0.4f
+
+  /**
+   * Lo stesso per il contenuto di un vetro che **confluisce in un vicino** (F3.12c): 0,65, cioè via a 0,43 del volo (~230
+   * ms sui 540 del riposo a vista), al massimo della sfocatura a ~175 ms. In Apple a tempo vero (R4 B2 (b), 4:51 e 4:59,
+   * classe B) il «1 +» di chi confluisce resta visibile **sfocato** e viaggia col suo vetro dentro chi accoglie: nitido a
+   * 33–67 ms, sfocato e ancora leggibile a 100–133, molto sfocato a 167, una traccia a 200, sparito a ~230 (la «massa»
+   * dei simboli: 78–90% a 33 ms, 62–74% a 67, 36–50% a 100, 15–26% a 133). Fino a F3.12a valeva [ExitSpan], la fase del
+   * render, e spariva a ~80 ms. La **staffetta** (un vetro che confluisce in chi nasce da lui: è lo stesso vetro che cambia
+   * identità, «Select → Done») resta su [ExitSpan].
+   */
+  const val MergeExitSpan: Float = 0.65f
 
   /** In quanta parte del volo un contenuto che resta torna nitido dall'aspetto che aveva. */
   const val RecoverSpan: Float = 0.5f
@@ -673,7 +718,8 @@ internal fun glassPieceContentLook(
     GlassPieceContentRole.Rest -> GlassContentLook.Sharp
     GlassPieceContentRole.Hidden -> GlassContentInvisible
     GlassPieceContentRole.Born -> {
-      // La curva di chi nasce di F3.4 (opacità, scala da 0,75, σ che scende a zero), portata sulla finestra del volo.
+      // La curva di chi nasce di F3.4 (opacità, scala da 0,75), portata sulla finestra del volo; la sfocatura sale come
+      // quella di F3.4 e poi scende con la sua rampa fino a `BornFocusEnd` (F3.12c, [glassPieceBornBlur]).
       val u = glassPieceBornU(p)
       if (p < GlassPieceContentDefaults.BornAt) {
         GlassContentInvisible
@@ -681,7 +727,7 @@ internal fun glassPieceContentLook(
         GlassContentLook(
           alpha = GlassContentCurves.alpha(GlassContentRole.Born, u, blurAvailable),
           scale = GlassContentCurves.scale(GlassContentRole.Born, u),
-          blur = GlassContentCurves.blur(GlassContentRole.Born, u) * peak,
+          blur = glassPieceBornBlur(p) * peak,
         )
       }
     }
@@ -726,10 +772,29 @@ internal fun glassPieceBornU(phase: Float): Float =
   GlassContentDefaults.EnterAt + (phase - GlassPieceContentDefaults.BornAt) * (1f - GlassContentDefaults.EnterAt) /
     (GlassPieceContentDefaults.BornSharp - GlassPieceContentDefaults.BornAt)
 
+/**
+ * La sfocatura di chi nasce alla [phase] del contenuto, in frazione del massimo (F3.12c): la salita di F3.4 fino al
+ * massimo (a u = 0,5), poi `(1 − x)^`[GlassPieceContentDefaults.BornFocusPower] fino a zero a
+ * [GlassPieceContentDefaults.BornFocusEnd]. Continua, con la pendenza zero all'arrivo: la nitidezza sale col vetro che
+ * arriva al colmo, senza lo scalino degli ultimi due fotogrammi e senza superare il riposo. Pura.
+ */
+internal fun glassPieceBornBlur(phase: Float): Float {
+  val u = glassPieceBornU(phase)
+  if (u <= GlassContentDefaults.PeakAt) return GlassContentCurves.blurRise(u)
+  val from = GlassPieceContentDefaults.BornAt + (GlassContentDefaults.PeakAt - GlassContentDefaults.EnterAt) /
+    (1f - GlassContentDefaults.EnterAt) * (GlassPieceContentDefaults.BornSharp - GlassPieceContentDefaults.BornAt)
+  val x = ((phase - from) / (GlassPieceContentDefaults.BornFocusEnd - from)).coerceIn(0f, 1f)
+  val rest = (1f - x).toDouble()
+  val tail = GlassPieceContentDefaults.BornFocusTail.toDouble()
+  return ((1.0 - tail) * rest.pow(GlassPieceContentDefaults.BornFocusPower.toDouble()) +
+    tail * rest.pow(GlassPieceContentDefaults.BornFocusTailPower.toDouble())).toFloat()
+}
+
 /** Vero quando [content] ha finito di muoversi alla [phase]: da lì è fermo (o sparito, per chi esce). */
 internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Boolean = when (content.role) {
   GlassPieceContentRole.Rest, GlassPieceContentRole.Hidden -> true
-  GlassPieceContentRole.Born -> glassPieceBornU(phase) >= GlassContentDefaults.EnterEnd
+  GlassPieceContentRole.Born -> glassPieceBornU(phase) >= GlassContentDefaults.EnterEnd &&
+    phase >= GlassPieceContentDefaults.BornFocusEnd
   GlassPieceContentRole.Lens -> phase >= GlassPieceContentDefaults.LensTo
   GlassPieceContentRole.Exit -> phase / glassPieceExitSpan(content) >= GlassContentDefaults.ExitEnd
   GlassPieceContentRole.Recover -> phase >= GlassPieceContentDefaults.RecoverSpan
@@ -739,8 +804,12 @@ internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Bo
 private fun glassPieceExitSpan(content: GlassPieceContent): Float =
   if (content.span.isFinite() && content.span > 0f) content.span else GlassPieceContentDefaults.ExitSpan
 
-/** Che cosa fa il vetro di un pezzo in un viaggio, per il suo contenuto: la sola parte di `GlassPlaneChange` che conta qui. */
-internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, Instant }
+/**
+ * Che cosa fa il vetro di un pezzo in un viaggio, per il suo contenuto: la sola parte di `GlassPlaneChange` che conta qui.
+ * [MergesIntoNeighbour] (F3.12c) è chi se ne va confluendo in un vicino vero (non la staffetta): il suo contenuto ha
+ * [GlassPieceContentDefaults.MergeExitSpan].
+ */
+internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, Instant, MergesIntoNeighbour }
 
 /**
  * La parte che il contenuto di un pezzo prende quando un viaggio parte o riparte.
@@ -753,10 +822,13 @@ internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, I
 internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentLook?, departed: Boolean): GlassPieceContent {
   if (departed) {
     // Un vetro che sparisce senza transizione porta via il contenuto con sé; uno mai visto non ha niente da far uscire.
-    // Il simbolo di chi scompare per lente ha i tempi della scomparsa (R4 B3); chi confluisce quelli del cambio di
-    // contesto (R4 B2 (d)).
-    val span = if (arrival == GlassPieceArrival.ThroughLens) GlassPieceContentDefaults.LensExitSpan
-      else GlassPieceContentDefaults.ExitSpan
+    // Il simbolo di chi scompare per lente ha i tempi della scomparsa (R4 B3); chi confluisce in un vicino quelli della
+    // confluenza a tempo vero (F3.12c, R4 B2 (b)); la staffetta quelli del cambio di contesto (R4 B2 (d)).
+    val span = when (arrival) {
+      GlassPieceArrival.ThroughLens -> GlassPieceContentDefaults.LensExitSpan
+      GlassPieceArrival.MergesIntoNeighbour -> GlassPieceContentDefaults.MergeExitSpan
+      else -> GlassPieceContentDefaults.ExitSpan
+    }
     return if (arrival == GlassPieceArrival.Instant || now == null || now.alpha <= 0f) GlassPieceContent.Hidden
       else GlassPieceContent(GlassPieceContentRole.Exit, now, span)
   }
@@ -767,7 +839,7 @@ internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentL
     // Un vetro che resta: il contenuto che si vedeva continua (nitido, o tornando nitido da dov'era). Uno mai visto è
     // un nodo nuovo su un vetro che c'era già (un pezzo tolto e rimesso a metà viaggio): entra come chi nasce, quando il
     // vetro l'ha raggiunto, invece di comparire di colpo.
-    GlassPieceArrival.Stays -> when (now) {
+    GlassPieceArrival.Stays, GlassPieceArrival.MergesIntoNeighbour -> when (now) {
       null -> GlassPieceContent(GlassPieceContentRole.Born)
       GlassContentLook.Sharp -> GlassPieceContent.Rest
       else -> GlassPieceContent(GlassPieceContentRole.Recover, now)

@@ -860,6 +860,9 @@ private class PhysicsPlaneDrive(var frame: () -> PhysicsPlaneShape, var progress
  *   Il rigonfiamento dello stesso carattere è già nelle [slabs].
  * @param touch la **luce del dito** del campo (F3.10): il bagliore della pressione che ha fatto partire il viaggio,
  *   portato dentro il vetro toccato. Null senza tocco: il campo ha la luce del carattere e basta.
+ * @param journeyGlow il livello dell'**alone** del carattere del viaggio (F3.12c, `GlassLiquidJourney.glowLevel`), 0..1:
+ *   sale con la luce e si spegne prima (`FluidGlassPlaneDriver.journeyGlow`), e `glassJourneyRecipe` lo usa per l'alone
+ *   al posto di [journeyLight]. Di serie [journeyLight]: l'alone segue la luce, com'era fino a F3.12b, al bit.
  */
 internal class PhysicsPlaneShape(
   val slabs: List<FluidForm.Slab>,
@@ -872,6 +875,7 @@ internal class PhysicsPlaneShape(
   val resting: Boolean = false,
   val journeyLight: Float = 0f,
   val touch: PhysicsPlaneTouch? = null,
+  val journeyGlow: Float = journeyLight,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()

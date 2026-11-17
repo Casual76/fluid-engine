@@ -86,28 +86,41 @@ class F38aExportTest {
           assertTrue("$name t=${frame.tMs}: la lastra ($left..$right) copre la scritta", left <= x + w / 3 && right >= x + 2 * w / 3)
         }
       }
-      // F3.12a: il riposo a vista è a 500 ms (la nascita intera di Apple a tempo vero; era 300), e il contenuto di chi
-      // nasce conta dal primo rilascio: qui il donatore resta dov'è e rilascia a 0,17, quindi «Fatto» compare a 0,38 del
-      // viaggio (190 ms), dentro il vetro che sta arrivando. In Apple a tempo vero i simboli nuovi si vedono da ~200 ms
-      // e sono nitidi a ~350 (`sessioni/f3-12a/misure.md`).
-      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 185.0..215.0)
-      val early = layer(trace.frames.first { it.tMs >= 215.0 }, "c-fatto")!!
-      assertTrue("a 215 ms è sfocato", number(early, "blurDp", 0.0) > 1.0)
+      // F3.12c: il riposo a vista è a 540 ms (il ritorno di Apple a tempo vero sull'orologio corretto), e il contenuto
+      // di chi nasce conta dal primo rilascio: qui il donatore resta dov'è e rilascia a 0,23, quindi «Fatto» compare a
+      // 0,42 del viaggio (~227 ms), dentro il vetro che sta arrivando. In Apple a tempo vero il «1 +» si vede, sfocato, da
+      // ~200–233 ms. La messa a fuoco va sul tempo di quelle clip: morbido ma leggibile a ~300 ms, nitido dal colmo del
+      // superamento; e senza scalino (fino a F3.12a la sfocatura finiva di colpo, in due fotogrammi).
+      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 215.0..240.0)
+      val early = layer(trace.frames.first { it.tMs >= 250.0 }, "c-fatto")!!
+      assertTrue("a 250 ms è sfocato", number(early, "blurDp", 0.0) > 1.0)
       assertTrue("e traslucido", number(early, "alpha", 1.0) < 0.7)
-      val sharp = layer(trace.frames.first { it.tMs >= 340.0 }, "c-fatto")!!
-      assertEquals("a 340 ms è nitido", 0.0, number(sharp, "blurDp", 0.0), 0.0)
-      val late = layer(trace.frames.first { it.tMs >= 500.0 }, "c-fatto")!!
-      assertEquals("a 500 ms è nitido", 0.0, number(late, "blurDp", 0.0), 0.0)
-      assertEquals(1.0, number(late, "alpha", 1.0), 0.0)
+      val soft = number(layer(trace.frames.first { it.tMs >= 300.0 }, "c-fatto")!!, "blurDp", 0.0)
+      assertTrue("$name: a 300 ms si legge, ancora morbido ($soft dp)", soft in 0.8..2.0)
+      val colmo = number(layer(trace.frames.first { it.tMs >= 370.0 }, "c-fatto")!!, "blurDp", 0.0)
+      assertTrue("$name: al colmo del superamento è nitido a vista, come in Apple ($colmo dp)", colmo < 0.3)
+      val sharp = layer(trace.frames.first { it.tMs >= 520.0 }, "c-fatto")!!
+      assertEquals("a 520 ms è nitido", 0.0, number(sharp, "blurDp", 0.0), 0.0)
+      assertEquals(1.0, number(layer(trace.frames.first { it.tMs >= 640.0 }, "c-fatto")!!, "alpha", 1.0), 0.0)
+      // La nitidezza sale con continuità: dopo il colmo la sfocatura scende sempre, di poco per fotogramma quando è
+      // sotto il dp (dove il Laplaciano del simbolo sale), e passa da 1 a 0,05 dp in più fotogrammi, non in due.
+      val blurs = trace.frames.filter { it.tMs >= 300.0 && it.tMs <= 660.0 }
+        .map { number(layer(it, "c-fatto")!!, "blurDp", 0.0) }
+      blurs.zipWithNext().forEach { (a, b) ->
+        assertTrue("$name: la sfocatura scende piano ($a -> $b)", b <= a + 1e-9 && a - b < (if (a < 0.6) 0.2 else 0.4))
+      }
+      val ramp = trace.frames.count { number(layer(it, "c-fatto") ?: return@count false, "blurDp", 0.0) in 0.05..1.0 }
+      assertTrue("$name: $ramp fotogrammi fra 1 e 0,05 dp", ramp >= 6)
       // Il contenuto rimbalza col suo vetro (F3.12a): al colmo del superamento la scritta è oltre il suo posto, e alla
       // fine ci torna. «Modifica», il donatore, va verso «Fatto» e poi rimbalza dall'altra parte.
       val rest = number(layer(trace.frames.last(), "c-fatto")!!, "x", 0.0)
-      val furthest = trace.frames.filter { it.tMs in 300.0..420.0 }.maxOf { number(layer(it, "c-fatto")!!, "x", 0.0) }
+      val furthest = trace.frames.filter { it.tMs in 320.0..440.0 }.maxOf { number(layer(it, "c-fatto")!!, "x", 0.0) }
       assertTrue("$name: «Fatto» supera il suo posto di ${furthest - rest} dp", furthest - rest > 3.0)
       val home = number(layer(trace.frames.first(), "c-modifica")!!, "x", 0.0)
       val xs = trace.frames.map { number(layer(it, "c-modifica")!!, "x", 0.0) - home }
-      assertTrue("$name: «Modifica» rincula verso «Fatto» di ${xs.max()} dp", xs.max() in 2.5..4.0)
-      assertTrue("$name: e rimbalza dall'altra parte di ${-xs.min()} dp", -xs.min() in 1.5..2.5)
+      // F3.12c: 0,10 e 0,07 del lato corto (4,4 e 3,1 dp), sull'orologio corretto.
+      assertTrue("$name: «Modifica» rincula verso «Fatto» di ${xs.max()} dp", xs.max() in 4.0..4.8)
+      assertTrue("$name: e rimbalza dall'altra parte di ${-xs.min()} dp", -xs.min() in 2.7..3.4)
       assertEquals("$name: alla fine è al suo posto", 0.0, xs.last(), 0.0)
       // «Modifica» resta: mai sfocata, mai traslucida.
       for (frame in trace.frames) {
@@ -142,8 +155,14 @@ class F38aExportTest {
         val born = layer(first, key)!!
         assertTrue("$name: $key arriva sfocato", number(born, "blurDp", 0.0) > 1.0)
         assertNotNull("$name: $key arriva dentro il vetro", born["clip"])
-        val sharp = layer(trace.frames.first { it.tMs >= 400.0 }, key)!!
-        assertEquals("$name: $key è nitido a 400 ms (quattro quinti di 500)", 0.0, number(sharp, "blurDp", 0.0), 0.0)
+        // F3.12c: la messa a fuoco è una rampa che finisce a 1,0 della fase del contenuto (540 ms qui): morbido a 330 ms,
+        // nitido a vista a ~420, gli ultimi decimi di dp fino a 540.
+        val soft = layer(trace.frames.first { it.tMs >= 330.0 }, key)!!
+        assertTrue("$name: $key a 330 ms è ancora morbido", number(soft, "blurDp", 0.0) > 0.5)
+        val focused = layer(trace.frames.first { it.tMs >= 420.0 }, key)!!
+        assertTrue("$name: $key a 420 ms è quasi nitido", number(focused, "blurDp", 0.0) < 0.3)
+        val sharp = layer(trace.frames.first { it.tMs >= 560.0 }, key)!!
+        assertEquals("$name: $key è nitido a 560 ms", 0.0, number(sharp, "blurDp", 0.0), 0.0)
         assertEquals("$name: $key a riposo", 1.0, number(layer(trace.frames.last(), key)!!, "alpha", 1.0), 0.0)
       }
     }
@@ -158,7 +177,11 @@ class F38aExportTest {
     val before = layer(trace.frames.first(), "c-fatto")!!
     val x0 = number(before, "x", 0.0)
     val gone = trace.frames.first { it.tMs >= 0.0 && layer(it, "c-fatto") == null }
-    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 70.0..95.0)
+    // F3.12c: in Apple a tempo vero il «1 +» di chi confluisce resta visibile, sfocato, fino a ~200–230 ms (era sparito a
+    // ~80 ms con la fase del render).
+    assertTrue("«Fatto» è sparito a ${gone.tMs} ms", gone.tMs in 215.0..245.0)
+    val visible = layer(trace.frames.first { it.tMs >= 133.0 }, "c-fatto")!!
+    assertTrue("a 133 ms si vede ancora (${number(visible, "alpha", 1.0)})", number(visible, "alpha", 1.0) > 0.3)
     var previous = x0
     for (frame in trace.frames.filter { it.tMs > 0.0 && it.tMs < gone.tMs }) {
       val text = layer(frame, "c-fatto")!!
@@ -166,7 +189,7 @@ class F38aExportTest {
       assertTrue("t=${frame.tMs}: va verso il vicino col suo vetro ($previous -> $x)", x <= previous + 1e-6 && previous - x < 6.0)
       previous = x
       assertNotNull("ritagliato dalla lastra che se ne va", text["clip"])
-      if (frame.tMs >= 40.0) assertTrue("già sfocato a ${frame.tMs} ms", number(text, "blurDp", 0.0) > 0.5)
+      if (frame.tMs >= 70.0) assertTrue("già sfocato a ${frame.tMs} ms", number(text, "blurDp", 0.0) > 0.5)
     }
     assertTrue("si è spostato di ${x0 - previous} dp prima di sparire", x0 - previous > 1.0)
     assertNull("a riposo non resta niente", layer(trace.frames.last(), "c-fatto"))
@@ -174,6 +197,9 @@ class F38aExportTest {
     val home = number(layer(trace.frames.first(), "c-modifica")!!, "x", 0.0)
     val pushed = trace.frames.minOf { number(layer(it, "c-modifica")!!, "x", 0.0) - home }
     assertTrue("«Modifica» è spinta di ${-pushed} dp", -pushed in 5.0..9.0)
+    // F3.12c: e poi torna dall'altra parte (la coda di chi accoglie: 0,38 della spinta a ~590 ms).
+    val backAgain = trace.frames.filter { it.tMs > 400.0 }.maxOf { number(layer(it, "c-modifica")!!, "x", 0.0) - home }
+    assertTrue("«Modifica» torna dall'altra parte di $backAgain dp", backAgain in 0.3 * -pushed..0.46 * -pushed)
     assertEquals(0.0, number(layer(trace.frames.last(), "c-modifica")!!, "x", 0.0) - home, 0.0)
   }
 

@@ -409,26 +409,27 @@ internal object F33Traces {
     val split = "un tasto che diventa due"
     val merge = "due tasti che tornano uno"
     val list = arrayListOf(
-      // F3.12a: una nascita e una confluenza durano 500 ms (erano 345): le tracce arrivano a 600, e a 800 quelle
-      // ripensate a metà, per avere la coda ferma che serve a guardare la consegna.
+      // F3.12c: una nascita e una confluenza hanno la coda di Apple (ferme a ~900 ms; erano 500 in F3.12a, 345 in
+      // F3.11): le tracce arrivano a 1000 ms, e a 1300 quelle ripensate a metà, per avere la coda ferma che serve a
+      // guardare la consegna.
       Scenario("collo-uno-due", "$split (geometria di F3.1, 40 dp a riposo)", w, h, d, false, text(false),
-        listOf(lane(one, Leg(0.0, two))), lastFrame = 36, apple = listOf(Select)),
+        listOf(lane(one, Leg(0.0, two))), lastFrame = 60, apple = listOf(Select)),
       Scenario("collo-divisione", "$merge (geometria di F3.1)", w, h, d, false, text(false),
-        listOf(lane(two, Leg(0.0, one))), lastFrame = 36, apple = listOf(Tinted)),
+        listOf(lane(two, Leg(0.0, one))), lastFrame = 60, apple = listOf(Tinted)),
       Scenario("collo-uno-due-vicini", "$split, a 8 dp", w, h, d, false, text(false),
-        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 36, apple = listOf(Select)),
+        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 60, apple = listOf(Select)),
       Scenario("collo-divisione-vicini", "$merge, da 8 dp", w, h, d, false, text(false),
-        listOf(lane(twoNear, Leg(0.0, oneNear))), lastFrame = 36, apple = listOf(Tinted)),
+        listOf(lane(twoNear, Leg(0.0, oneNear))), lastFrame = 60, apple = listOf(Tinted)),
       Scenario("collo-uno-due-vicini-scuro", "$split, a 8 dp, tema scuro", w, h, d, true, text(true),
-        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 36),
+        listOf(lane(oneNear, Leg(0.0, twoNear))), lastFrame = 60),
       Scenario("collo-uno-due-interrotto", "$split, ripensato a 150 ms (F3.1)", w, h, d, false, text(false),
-        listOf(lane(one, Leg(0.0, two), Leg(150.0, one))), lastFrame = 48),
+        listOf(lane(one, Leg(0.0, two), Leg(150.0, one))), lastFrame = 78),
       Scenario("collo-divisione-interrotta", "$merge, ripensato a 150 ms (F3.1)", w, h, d, false, text(false),
-        listOf(lane(two, Leg(0.0, one), Leg(150.0, two))), lastFrame = 48),
+        listOf(lane(two, Leg(0.0, one), Leg(150.0, two))), lastFrame = 78),
       Scenario("collo-uno-due-vicini-interrotto", "$split a 8 dp, ripensato a 80 ms, col collo vivo", w, h, d, false,
-        text(false), listOf(lane(oneNear, Leg(0.0, twoNear), Leg(80.0, oneNear))), lastFrame = 48),
+        text(false), listOf(lane(oneNear, Leg(0.0, twoNear), Leg(80.0, oneNear))), lastFrame = 78),
       Scenario("collo-divisione-vicini-interrotta", "$merge da 8 dp, ripensato a 50 ms, col collo vivo", w, h, d, false,
-        text(false), listOf(lane(twoNear, Leg(0.0, oneNear), Leg(50.0, twoNear))), lastFrame = 48),
+        text(false), listOf(lane(twoNear, Leg(0.0, oneNear), Leg(50.0, twoNear))), lastFrame = 78),
       Scenario("contesto-capsule-curva", "la capsula di F3.1 che si stringe da 200 a 88 dp", w, h, d, false, Flat,
         listOf(lane(st(piece(d, "capsula", 120f, 58f, 200f)), Leg(0.0, st(piece(d, "capsula", 232f, 58f, 88f))))),
         apple = listOf(Context),

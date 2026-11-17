@@ -88,17 +88,19 @@ class PhysicsPlaneNeckTest {
   @Test
   fun aSplitBetweenNeighboursThinsAndBreaksOnceAbout200msBeforeRest() {
     val (samples, duration) = journey(state(piece("a", 158f)), state(piece("a", 132f), piece("b", 184f)))
-    // F3.12a: una divisione è una nascita, e una nascita intera dura mezzo secondo (Apple a tempo vero, scelta di
-    // Alessio); il riposo a vista è la fine della coda del rilascio. Fino a F3.11 era 300 ms, e la geometria finiva a 345.
-    assertTrue("il piano dura ${duration} ms", duration in 480.0..520.0)
+    // F3.12a e F3.12c: una divisione è una nascita, coi tempi di Apple a tempo vero (scelta di Alessio); il riposo a
+    // vista è il ritorno del superamento di chi è nato, sull'orologio corretto (540 ms), e dopo viene la coda. Fino a
+    // F3.12a era 500, fino a F3.11 300.
+    assertTrue("il piano dura ${duration} ms", duration in 525.0..555.0)
     assertEquals("si rompe una volta sola", 1, changes(samples))
     val broke = samples.first { !it.connected }.ms
     // La rottura di serie (0,38, la scelta di Alessio: non cambia) sull'orologio lungo il doppio del riposo a vista cade
-    // a 0,76 del viaggio: ~380 ms su 500 (era ~228 su 300), dopo che i pezzi si sono staccati e **dopo il colmo del
-    // superamento** di chi è nato (~0,7), come in Apple (R4 B2 (b): colmo a 334 ms, rottura a 400).
+    // a 0,76 del viaggio: ~410 ms su 540, dopo che i pezzi si sono staccati e **dopo il colmo del superamento** di chi è
+    // nato (~0,68), come in Apple (R4 B2 (b), orologio corretto: colmo a ~367 ms, rottura a ~433: un poco prima di Apple,
+    // la scelta «com'è oggi»).
     val apart = samples.first { it.gap > 0f }.ms
-    println("F3.12a divisione a 8 dp: si staccano a $apart ms, il collo si rompe a $broke ms, riposo a vista a $duration ms")
-    assertTrue("si rompe a $broke ms", broke in 350.0..410.0)
+    println("F3.12c divisione a 8 dp: si staccano a $apart ms, il collo si rompe a $broke ms, riposo a vista a $duration ms")
+    assertTrue("si rompe a $broke ms", broke in 380.0..440.0)
     assertTrue("si rompe dopo che si staccano ($apart ms)", broke > apart + 20.0)
     assertTrue("si rompe ${duration - broke} ms prima del riposo a vista", duration - broke in 90.0..150.0)
     assertTrue("si rompe a ${broke / duration} del viaggio, dopo il colmo del superamento", broke / duration in 0.72..0.82)
@@ -107,6 +109,23 @@ class PhysicsPlaneNeckTest {
     assertTrue("collo visibile per $neck ms", neck >= 40.0)
     assertTrue("a riposo i pezzi sono separati", !samples.last().connected)
     assertEquals("a riposo nessun raccordo", 0f, samples.last().blend, 0f)
+  }
+
+  @Test
+  fun aDonorThatLeavesAWideGapBreaksTheNeckOnlyOnce() {
+    // F3.12c, il rischio di F3.12a: chi è rilasciato supera il suo posto anche col lato di coda, quindi il varco col
+    // donatore al colmo cresce; per un donatore che se ne va lasciando un varco finale fra ~19 e 24 dp il collo poteva
+    // spezzarsi per la distanza, rifarsi al ritorno e rompersi di nuovo all'orologio. Qui il donatore va a sinistra e
+    // chi nasce resta a destra, col varco finale da 12 a 26 dp: il collo si rompe una volta sola, e non si rifà.
+    for (gap in listOf(12f, 16f, 19f, 21f, 22.5f, 24f, 26f)) {
+      val (samples, _) = journey(state(piece("a", 158f)), state(piece("a", 110f), piece("b", 154f + gap)))
+      val breaks = samples.zipWithNext().count { (a, b) -> a.connected && !b.connected }
+      val joins = samples.zipWithNext().count { (a, b) -> !a.connected && b.connected }
+      println("F3.12c varco finale $gap dp: rotture $breaks, riunioni $joins")
+      assertEquals("varco $gap dp: si rompe una volta sola", 1, breaks)
+      assertEquals("varco $gap dp: e non si rifà", 0, joins)
+      assertTrue("varco $gap dp: a riposo i pezzi sono separati", !samples.last().connected)
+    }
   }
 
   @Test

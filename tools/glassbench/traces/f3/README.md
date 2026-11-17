@@ -157,3 +157,25 @@ contratto, rispetto alla sezione sopra:
   quello di chi nasce e di chi confluisce, che prima restava al posto d'arrivo o di partenza.
 - `GlassPlanePieceFrame.contentPhase`: la fase su cui entra il contenuto. È `phase` per tutti; per chi nasce da un
   vicino è avanti di quanto il primo rilascio del viaggio viene prima di 0,29 (0,12 quando il donatore resta dov'è).
+
+## F3.12c: l'orologio corretto, la coda di Apple, la goccia con la vita
+
+Le sei tracce sono state riesportate dal Kotlin dopo F3.12c e ora hanno **80 fotogrammi** (da −83 a 1233 ms: una nascita
+ripensata a 150 ms diventa una confluenza con la coda di chi accoglie, ferma a ~1050, e servono cinque fotogrammi fermi
+dopo). `contesto-capsule` e `comparsa` hanno i primi 53 fotogrammi identici a prima, più 27 fermi: chi si sposta soltanto
+e chi compare per lente non cambiano. Le `collo-*` arrivano a 1000 ms (1300 quelle ripensate a metà). Le misure di Apple
+sull'orologio corretto sono in `artifacts/liquid-glass/sessioni/f3-12c/misure.md`; le tracce delle scene col contenuto,
+con la luce e con la geometria di Apple sono in `traces/f3-12c/`. Cosa cambia nel contratto, rispetto a F3.12a:
+
+- **Il riposo a vista (`settleMs`) è il ritorno del superamento**, 540 ms (`FluidMotion.PlaneReleaseMillis`): contenuto,
+  luce, alone e collo contano lì (il collo si rompe a ~415 ms). **La fine del viaggio (`durationMs`) viene dopo**: la
+  molla di chi è rilasciato fa la sua coda (lo 0,9% della corsa dall'altra parte a ~610 ms) e finisce quando la sua busta
+  e quella del suo rigonfiamento sono sotto il mezzo pixel; il donatore e chi accoglie hanno il loro dondolio a chiavi
+  (`PlaneSway`), fermo a ~860 e ~900 ms.
+- **L'attesa** dura 0,23 (124 ms); chi nasce da un donatore che va lontano è rilasciato 0,08 dopo.
+- **Chi nasce parte piccolo** (0,8 della sua misura dentro il donatore, `PlaneReleaseBud`) e cresce con la molla; **chi
+  confluisce** va verso un posto dentro il vicino più basso di lui (0,66 di traverso, `PlaneMergeCore`) e, quando è
+  dentro, diventa il vicino (`PlaneMergeCoreRegrowFrom` e `…To`: niente «orecchie» nell'unione).
+- **Il rigonfiamento proprio** (`GlassPlanePieceFrame.swell`, anche negativo) e **la parte del comune**
+  (`GlassPlanePieceFrame.swellShare`, zero per chi nasce, chi confluisce, il donatore e chi accoglie): il contenitore
+  disegna `swellShare · comune + swell`.

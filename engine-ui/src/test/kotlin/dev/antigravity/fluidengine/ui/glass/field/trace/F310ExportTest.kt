@@ -43,8 +43,8 @@ class F310ExportTest {
       assertEquals("$fund: al primo fotogramma del palco la luce è zero", 0.0, number(stage(first), "_luce"), 0.0)
       val peak = lit.frames.mapNotNull { stage(it) }.maxOf { number(it, "_luce") }
       assertTrue("$fund: la luce arriva piena ($peak)", peak > 0.99)
-      // F3.12a: il riposo a vista è a 500 ms (era 300): il 90% del viaggio è 450 ms.
-      val late = lit.frames.filter { it.tMs >= 455.0 }.mapNotNull { stage(it) }
+      // F3.12c: il riposo a vista è a 540 ms (500 in F3.12a, 300 prima): il 90% del viaggio è 486 ms.
+      val late = lit.frames.filter { it.tMs >= 490.0 }.mapNotNull { stage(it) }
       assertTrue("$fund: spenta dal 90% del viaggio", late.all { number(it, "_luce") == 0.0 })
       // Senza tocco nessun bagliore.
       assertTrue("$fund: senza tocco nessun dito", lit.frames.mapNotNull { stage(it) }.all { number(it, "_dito") == 0.0 })
@@ -63,10 +63,27 @@ class F310ExportTest {
       assertEquals("$fund: con la campana del vetro fermo", 0.0, number(first, "_riempito"), 1e-3)
       val full = stage(touched.frames.first { it.tMs >= 120.0 })
       assertTrue("$fund: a 120 ms il bagliore è pieno", number(full, "_dito") > 0.99)
-      val half = stage(touched.frames.first { it.tMs >= 255.0 })
+      val half = stage(touched.frames.first { it.tMs >= 275.0 })
       assertTrue("$fund: a metà viaggio il bagliore ha riempito il vetro", number(half, "_riempito") > 0.98)
-      val late = touched.frames.filter { it.tMs >= 455.0 }.mapNotNull { stage(it) }
+      val late = touched.frames.filter { it.tMs >= 490.0 }.mapNotNull { stage(it) }
       assertTrue("$fund: spento col carattere", late.all { number(it, "_dito") == 0.0 })
+    }
+  }
+
+  @Test
+  fun theHaloRisesWithTheLightAndIsGoneBeforeIt() {
+    // F3.12c (F3.12b §7): nel render di Apple l'alone sale con la luce, è pieno fino a 0,31 del viaggio e si spegne a
+    // 0,69, quando il corpo è ancora acceso. Il palco lo scrive in `_alone`, accanto a `_luce`.
+    for (variant in listOf("meta", "dito")) {
+      val trace = traces.getValue("seleziona-chiaro-$variant")
+      val stages = trace.frames.filter { it.tMs >= 0.0 }.mapNotNull { frame -> stage(frame)?.let { frame.tMs to it } }
+      assertEquals("$variant: alla partenza niente alone", 0.0, number(stages.first().second, "_alone"), 0.0)
+      val full = stages.filter { it.first in 80.0..160.0 }
+      assertTrue("$variant: pieno fra 80 e 160 ms", full.all { number(it.second, "_alone") > 0.99 })
+      val gone = stages.filter { it.first >= 0.69 * 540.0 + 1.0 }
+      assertTrue("$variant: spento a 0,69 del viaggio", gone.all { number(it.second, "_alone") == 0.0 })
+      val lit = stages.first { it.first >= 0.6 * 540.0 }.second
+      assertTrue("$variant: a 0,6 la luce c'è ancora e l'alone quasi no", number(lit, "_luce") > 0.6 && number(lit, "_alone") < 0.2)
     }
   }
 

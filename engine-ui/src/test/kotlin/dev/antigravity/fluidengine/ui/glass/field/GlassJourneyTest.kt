@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
@@ -289,6 +290,81 @@ class GlassJourneyTest {
       glowOf(glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f, finger = 1f)), 1e-6f)
     assertEquals(half.glow * half.darkLight,
       glowOf(glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f)), 1e-6f)
+  }
+
+  @Test
+  fun theGlowHasItsOwnCurveRisingWithTheLightAndGoneBeforeIt() {
+    // F3.12c (F3.12b §7): nel render di Apple l'alone sale un poco dopo la luce del corpo, è pieno fino a 0,31 e si
+    // spegne a 0,69 (metà a 0,49), quando il corpo è ancora a 0,4 della sua luce.
+    assertEquals(0f, apple.glowLevel(0f), 0f)
+    assertEquals(apple.light(0.05f), apple.glowLevel(0.05f), 0f)
+    assertEquals(1f, apple.glowLevel(0.2f), 0f)
+    assertEquals(1f, apple.glowLevel(GlassJourneyGlowHold), 0f)
+    assertEquals(0.5f, apple.glowLevel((GlassJourneyGlowHold + GlassJourneyGlowSettle) / 2f), 1e-5f)
+    assertEquals(0f, apple.glowLevel(GlassJourneyGlowSettle), 0f)
+    assertTrue("a 0,6 la luce c'è ancora", apple.light(0.6f) > 0.6f && apple.glowLevel(0.6f) < 0.2f)
+    // La salita è quella della luce, anche con il minimo in millisecondi.
+    assertEquals(apple.light(0.1f, settleMs = 540f), apple.glowLevel(0.1f, settleMs = 540f), 0f)
+    // Riparte dal livello che aveva.
+    assertEquals(0.4f, apple.glowLevel(0f, entry = 0.4f), 0f)
+    // Nessuno scalino.
+    var previous = apple.glowLevel(0f)
+    var phase = 0.005f
+    while (phase <= 1f) {
+      val now = apple.glowLevel(phase)
+      assertTrue("a $phase: $previous -> $now", abs(now - previous) < 0.08f)
+      previous = now
+      phase += 0.005f
+    }
+  }
+
+  @Test
+  fun theRecipeWeighsTheGlowOnItsOwnLevelAndByDefaultOnTheLight() {
+    val half = GlassLiquidJourneys.Shipped
+    fun glowOf(r: GlassRecipe) = r.shadowContactAlpha + r.shadowAmbientAlpha
+    for (dark in listOf(false, true)) {
+      // Di serie l'alone segue la luce: lo stesso, al bit, di prima di F3.12c.
+      for (level in listOf(0.2f, 0.7f, 1f)) {
+        val before = fields(glassJourneyRecipe(button(dark), half, level, dark, shortDp = 44f, finger = 0.5f))
+        val now = fields(glassJourneyRecipe(button(dark), half, level, dark, shortDp = 44f, finger = 0.5f, glowLevel = level))
+        for ((name, value) in before) assertEquals("$dark $level $name", value, now[name])
+      }
+    }
+    // Con la luce piena e l'alone spento il fondo ha l'ombra di riposo e il corpo la sua luce.
+    val noHalo = glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, glowLevel = 0f)
+    val rest = button()
+    assertEquals(rest.shadowColor, noHalo.shadowColor)
+    assertEquals(rest.shadowAmbientAlpha, noHalo.shadowAmbientAlpha, 0f)
+    assertEquals(rest.shadowContactAlpha, noHalo.shadowContactAlpha, 0f)
+    assertEquals(glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f).veilColor, noHalo.veilColor)
+    // A metà dell'alone, la quota della mescola di metà.
+    val partial = glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, glowLevel = 0.5f)
+    val atHalf = glassJourneyRecipe(button(), half, 0.5f, false, shortDp = 44f)
+    assertEquals(glowOf(atHalf), glowOf(partial), 1e-6f)
+  }
+
+  @Test
+  fun withTheFingerTheRimFadesToo() {
+    // F3.12c (F3.12b §7): col bagliore del dito il vetro è il blocco bianco del render, che ha tutto il bordo morbido:
+    // il filo scuro cala anche del dito, non solo della luce del carattere.
+    val half = GlassLiquidJourneys.Shipped
+    val rim = button().rimDark.alpha
+    val lit = clampGlassUnit(half.light)
+    val plain = glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f)
+    assertEquals(rim * (1f - lit), plain.rimDark.alpha, colourStep)
+    val touched = glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, finger = 0.5f)
+    assertEquals(rim * (1f - lit) * 0.5f, touched.rimDark.alpha, 2f * colourStep)
+    val full = glassJourneyRecipe(button(), half, 1f, false, shortDp = 44f, finger = 1f)
+    assertEquals(0f, full.rimDark.alpha, colourStep)
+    // Al buio la metà, come la luce; con la luce del dito spenta niente; la variante limpida tiene il suo filo.
+    val dark = glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f, finger = 1f)
+    val darkPlain = glassJourneyRecipe(button(dark = true), half, 1f, true, shortDp = 44f)
+    assertEquals(darkPlain.rimDark.alpha * (1f - half.darkLight), dark.rimDark.alpha, 2f * colourStep)
+    val off = glassJourneyRecipe(button(), half.copy(finger = 0f), 1f, false, shortDp = 44f, finger = 1f)
+    assertEquals(plain.rimDark.alpha, off.rimDark.alpha, 0f)
+    // Il corpo non cambia per il dito: solo il filo.
+    assertEquals(plain.bodyShade, touched.bodyShade)
+    assertEquals(plain.veilColor, touched.veilColor)
   }
 
   @Test

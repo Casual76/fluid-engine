@@ -16,10 +16,10 @@ class GlassPlaneTraceExportTest {
     for (scenario in scenarios) {
       val trace = GlassPlaneTraces.build(scenario)
       assertTrue(trace.encode().isNotEmpty())
-      assertEquals(53, trace.frames.size)
+      assertEquals(80, trace.frames.size)
       assertTrue(trace.frames.any { it.tMs == 0.0 })
       val first = scenario.frame(0.0)
-      val last = scenario.frame(800.0)
+      val last = scenario.frame(1240.0)
       assertTrue(last.finished)
       assertEquals(first.fields, scenario.frame(0.01).fields)
       // La partenza non salta: in 0,01 ms da fermo i lati non cambiano di un centesimo di pixel.
@@ -40,8 +40,9 @@ class GlassPlaneTraceExportTest {
           assertEquals(piece.bounds, continuing.bounds)
           assertEquals(piece.velocity, continuing.velocity)
         }
-        // I due viaggi interrotti sono una nascita e una confluenza: mezzo secondo (F3.12a; erano 300 ms).
-        assertTrue(abs(scenario.journey.settleMs - 500.0) < 0.5)
+        // I due viaggi interrotti sono una nascita e una confluenza: riposo a vista a 540 ms (F3.12c; 500 in F3.12a,
+        // 300 prima).
+        assertTrue(abs(scenario.journey.settleMs - 540.0) < 0.5)
       }
       output?.let { directory ->
         val file = File(File(directory, trace.name), "trace.json")

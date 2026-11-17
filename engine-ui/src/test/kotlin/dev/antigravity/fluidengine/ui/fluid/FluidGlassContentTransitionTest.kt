@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneChange
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -339,19 +340,27 @@ class FluidGlassContentTransitionTest {
     }
     val early = pieceLook(GlassPieceContentRole.Born, 0.6f)
     assertTrue("al 60% c'è, traslucido: ${early.alpha}", early.alpha in 0.2f..0.6f)
-    assertTrue("e sfocato quasi al massimo: ${early.blur}", early.blur > 0.8f * peak)
+    assertTrue("e sfocato: ${early.blur}", early.blur > 0.4f * peak)
     assertTrue("più piccolo: ${early.scale}", early.scale < 0.8f)
+    // F3.12c: dopo il colmo la sfocatura scende fino a `BornFocusEnd` (1,0): quasi tutta presto, `(1 − x)^7`, e una coda
+    // piccola piano (`BornFocusTail`), sul tempo delle clip di Apple a tempo vero (il «1 +» si legge a ~267 ms, quasi
+    // nitido a ~300, gli ultimi decimi di dp fino a ~430), senza scalino.
     val late = pieceLook(GlassPieceContentRole.Born, 0.7f)
-    assertTrue(late.alpha > 0.75f && late.blur < 0.4f * peak && late.blur > 0f)
-    val sharp = pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornSharp)
-    assertEquals(0f, sharp.blur, 1e-5f)
-    assertEquals(1f, sharp.scale, 1e-4f)
-    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Born, 1f))
+    assertTrue("al 70% quasi opaco (${late.alpha}) e quasi nitido (${late.blur / peak})",
+      late.alpha > 0.75f && late.blur in 0.03f * peak..0.15f * peak)
+    val whole = pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornSharp)
+    assertEquals(1f, whole.scale, 1e-4f)
+    assertTrue("a `BornSharp` ha la sua misura e la sfocatura è quasi finita: ${whole.blur / peak}",
+      whole.blur in 0.01f * peak..0.06f * peak)
+    val almost = pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornFocusEnd - 0.01f)
+    assertTrue("arriva a nitido senza scalino: ${almost.blur / peak}", almost.blur > 0f && almost.blur < 0.01f * peak)
+    assertEquals(0f, pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornFocusEnd).blur, 0f)
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Born, 1.3f))
     // Opacità e scala salgono e non tornano indietro; la sfocatura, dopo il massimo, scende soltanto.
     var previous = pieceLook(GlassPieceContentRole.Born, 0.5f)
     var falling = false
     var phase = 0.51f
-    while (phase <= 1.1f) {
+    while (phase <= 1.3f) {
       val now = pieceLook(GlassPieceContentRole.Born, phase)
       assertTrue(now.alpha >= previous.alpha - 1e-5f && now.scale >= previous.scale - 1e-5f)
       if (now.blur < previous.blur - 1e-6f) falling = true
@@ -360,7 +369,8 @@ class FluidGlassContentTransitionTest {
       phase += 0.01f
     }
     assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 0.8f))
-    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 1f))
+    assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 0.95f))
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), GlassPieceContentDefaults.BornFocusEnd))
   }
 
   @Test fun theSymbolOfALensAppearanceCondensesWithoutAPause() {
@@ -439,6 +449,19 @@ class FluidGlassContentTransitionTest {
       glassPieceContentFor(GlassPieceArrival.ThroughLens, half, true),
     )
     assertEquals(GlassPieceContentDefaults.ExitSpan, glassPieceContentFor(GlassPieceArrival.Stays, sharp, true).span, 0f)
+    // F3.12c: chi confluisce in un vicino vero se ne va coi tempi della confluenza a tempo vero; la staffetta no.
+    assertEquals(
+      GlassPieceContentDefaults.MergeExitSpan,
+      glassPieceContentFor(GlassPieceArrival.MergesIntoNeighbour, sharp, true).span, 0f,
+    )
+    assertEquals(GlassPieceContentRole.Exit, glassPieceContentFor(GlassPieceArrival.MergesIntoNeighbour, sharp, true).role)
+    assertEquals(GlassPieceContent.Rest, glassPieceContentFor(GlassPieceArrival.MergesIntoNeighbour, sharp, false))
+    assertEquals(GlassPieceArrival.MergesIntoNeighbour, fluidGlassArrivalOf(GlassPlaneChange.MergeIntoNeighbour))
+    assertEquals(GlassPieceArrival.Stays, fluidGlassArrivalOf(GlassPlaneChange.MergeIntoNeighbour, relay = true))
+    // Visibile e sfocato a lungo (in Apple fino a ~200–230 ms su 540): a 0,25 della fase c'è ancora per un terzo.
+    val leaving = glassPieceContentLook(GlassPieceContent(GlassPieceContentRole.Exit, sharp, GlassPieceContentDefaults.MergeExitSpan), 0.25f)
+    assertTrue("a 0,25 si vede (${leaving.alpha}) ed è sfocato (${leaving.blur})", leaving.alpha > 0.3f && leaving.blur > 0.5f * peak)
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Exit, sharp, GlassPieceContentDefaults.MergeExitSpan), 0.43f))
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, null, true))
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Stays, GlassContentInvisible, true))
     assertEquals(GlassPieceContent.Hidden, glassPieceContentFor(GlassPieceArrival.Instant, sharp, true))

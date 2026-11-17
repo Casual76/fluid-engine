@@ -877,6 +877,10 @@ internal class FluidGlassPlaneDriver(
   var journeySwellEntry: Float = 0f
     private set
 
+  /** Vedi [journeyLightEntry]: il livello dell'alone (F3.12c) con cui il viaggio comincia. */
+  var journeyGlowEntry: Float = 0f
+    private set
+
   /** Il carattere del viaggio di adesso: vedi il parametro `character`. */
   val journeyCharacter: GlassLiquidJourney get() = character()
 
@@ -892,6 +896,20 @@ internal class FluidGlassPlaneDriver(
       // Un carattere senza luce (`journey=off`) non ha livello: il palco dice zero, non l'inviluppo della curva.
       if (!c.lights) return 0f
       return c.light(phase, journeyLightEntry, running.settleMs.toFloat())
+    }
+
+  /**
+   * Il livello dell'**alone** del carattere del viaggio adesso, 0..1 (F3.12c, `GlassLiquidJourney.glow` alla [phase]):
+   * sale come la luce, resta pieno fino a ~0,31 del viaggio e si spegne a ~0,69, prima della luce del corpo, come nel
+   * render di Apple (F3.12b, `sessioni/f3-12b/misure.md`). Lo porta la forma del palco (`PhysicsPlaneShape.journeyGlow`) a
+   * `glassJourneyRecipe`, che lo usa per l'alone al posto della luce. Zero a riposo e senza luce (`journey=off`).
+   */
+  val journeyGlow: Float
+    get() {
+      val running = journey ?: return 0f
+      val c = character()
+      if (!c.lights) return 0f
+      return c.glowLevel(phase, journeyGlowEntry, running.settleMs.toFloat())
     }
 
   /**
@@ -1022,6 +1040,7 @@ internal class FluidGlassPlaneDriver(
       movingMs = 0.0
       journeyLightEntry = 0f
       journeySwellEntry = 0f
+      journeyGlowEntry = 0f
       finger = null
       fingerGlowCarried = 0f
       fingerFillCarried = 0f
@@ -1043,10 +1062,12 @@ internal class FluidGlassPlaneDriver(
       // La luce e il rigonfiamento di adesso, prima di cambiare viaggio: da lì riparte il carattere di quello nuovo.
       val lightNow = journeyLight
       val swellNow = journeySwell
+      val glowNow = journeyGlow
       // E il bagliore del dito: il viaggio nuovo lo porta da dov'è (F3.10).
       val fingerNow = fingerGlow
       val fillNow = fingerFill
-      val restarted = running.retarget(elapsed, measured)
+      // Il rigonfiamento comune di adesso passa al piano: chi prendeva una parte diversa del comune se la porta (F3.12c).
+      val restarted = running.retarget(elapsed, measured, swellNow)
       // Il collo riparte da dove si trova, sul riposo a vista del viaggio nuovo.
       val neckMs = physicsPlaneNeckMs(restarted.settleMs)
       neck = neck?.retarget(elapsed, neckMs) ?: PhysicsPlaneNeck(-1f, neckMs)
@@ -1061,6 +1082,7 @@ internal class FluidGlassPlaneDriver(
       movingMs = movingNanos / 1_000_000.0 / durationScale.toDouble()
       journeyLightEntry = lightNow
       journeySwellEntry = swellNow
+      journeyGlowEntry = glowNow
       fingerGlowCarried = fingerNow
       fingerFillCarried = fillNow
       finger = finger?.let { FluidGlassFinger(it.key, fingerNow, fillNow, it.u, it.v) }
@@ -1099,6 +1121,7 @@ internal class FluidGlassPlaneDriver(
     movingMs = 0.0
     journeyLightEntry = 0f
     journeySwellEntry = 0f
+    journeyGlowEntry = 0f
     finger = null
     fingerGlowCarried = 0f
     fingerFillCarried = 0f
@@ -1266,28 +1289,66 @@ internal class FluidGlassSwell(
   val density: Float,
 ) {
   /**
-   * Di quanto esce ogni lato di una lastra col lato corto [shortPx], in pixel. [extra] è il rigonfiamento **in più** di
-   * quel pezzo (F3.12a, `GlassPlanePieceFrame.swell`: chi è stato rilasciato arriva gonfio), nelle stesse unità del
-   * livello; si somma, e il tetto vale per la somma.
+   * Di quanto esce ogni lato di una lastra col lato corto [shortPx], in pixel; negativo, di quanto rientra. [extra] è il
+   * rigonfiamento **proprio** di quel pezzo (F3.12a, F3.12c: `GlassPlanePieceFrame.swell`, anche negativo), nelle stesse
+   * unità del livello, e [share] la parte del livello comune che il pezzo prende (`GlassPlanePieceFrame.swellShare`): la
+   * somma `share · level + extra`, col tetto [maxPx] da tutte e due le parti.
    */
-  fun growPx(shortPx: Float, extra: Float = 0f): Float {
+  fun growPx(shortPx: Float, extra: Float = 0f, share: Float = 1f): Float {
     if (!(density > 0f)) return 0f
-    val more = if (extra.isFinite() && extra > 0f) extra else 0f
-    if (!(level > 0f) && !(more > 0f)) return 0f
+    val own = if (extra.isFinite()) extra else 0f
+    val common = if (share.isFinite()) level * share.fastCoerceIn(0f, 1f) else level
+    if (!(common > 0f) && own == 0f) return 0f
     val short = shortPx / density
-    // Due chiamate: `glassJourneySwellDp` ferma il suo livello a uno, e la somma dei due può superarlo.
-    val grow = glassJourneySwellDp(short, level, character) + glassJourneySwellDp(short, more, character)
-    return min(grow * density, maxPx)
+    // Più chiamate: `glassJourneySwellDp` ferma il suo livello fra zero e uno, e la somma può superarlo o scendere sotto.
+    var grow = glassJourneySwellDp(short, common, character)
+    val sign = if (own < 0f) -1f else 1f
+    var more = abs(own)
+    while (more > 0f) {
+      grow += sign * glassJourneySwellDp(short, min(more, 1f), character)
+      more -= 1f
+    }
+    return (grow * density).fastCoerceIn(-maxPx, maxPx)
   }
 
-  /** [slab] rigonfiata, col rigonfiamento in più [extra] del suo pezzo; a livello zero è [slab], la stessa istanza. */
-  fun of(slab: FluidForm.Slab, extra: Float = 0f): FluidForm.Slab =
-    glassJourneySwollen(slab, growPx(slab.frame.minDimension, extra))
+  /**
+   * [slab] rigonfiata, col rigonfiamento proprio [extra] del suo pezzo e la sua parte [share] del comune; più piccola se
+   * la somma è negativa. A livello zero è [slab], la stessa istanza.
+   */
+  fun of(slab: FluidForm.Slab, extra: Float = 0f, share: Float = 1f): FluidForm.Slab {
+    val grow = growPx(slab.frame.minDimension, extra, share)
+    return if (grow >= 0f) glassJourneySwollen(slab, grow) else fluidGlassShrunk(slab, -grow)
+  }
 
   companion object {
     /** Nessun rigonfiamento: a riposo, e nei campi che compaiono o scompaiono per lente. */
     val None = FluidGlassSwell(GlassLiquidJourneys.Off, 0f, 0f, 1f)
   }
+}
+
+/**
+ * [slab] più piccola di [insetPx] su ogni lato, raggi compresi e mai oltre il mezzo lato nuovo: il contrario di
+ * `glassJourneySwollen` (F3.12c, un pezzo che dopo il suo colmo va un poco sotto la sua misura). Mai sotto un pixel di
+ * lato. Con [insetPx] zero restituisce [slab] stessa. Pura.
+ */
+internal fun fluidGlassShrunk(slab: FluidForm.Slab, insetPx: Float): FluidForm.Slab {
+  if (!(insetPx > 0f) || !insetPx.isFinite()) return slab
+  val f = slab.frame
+  val inset = min(insetPx, (f.minDimension - 1f) / 2f).coerceAtLeast(0f)
+  if (!(inset > 0f)) return slab
+  val frame = Rect(f.left + inset, f.top + inset, f.right - inset, f.bottom - inset)
+  val half = frame.minDimension / 2f
+  val r = slab.cornerRadii
+  return FluidForm.Slab(
+    frame = frame,
+    cornerRadii = FluidCornerRadii(
+      topLeft = (r.topLeft - inset).coerceIn(0f, half),
+      topRight = (r.topRight - inset).coerceIn(0f, half),
+      bottomRight = (r.bottomRight - inset).coerceIn(0f, half),
+      bottomLeft = (r.bottomLeft - inset).coerceIn(0f, half),
+    ),
+    smoothing = slab.smoothing,
+  )
 }
 
 /**
@@ -1297,8 +1358,9 @@ internal class FluidGlassSwell(
  * fotogramma, e ciò che le tracce del banco rendono. Pura.
  *
  * [journeyLight] è la luce del carattere del viaggio (F3.9), che la forma porta alla ricetta (`glassJourneyRecipe`,
- * agganciata da F3.10); [touch] la luce del dito del campo ([fluidGlassFingerTouch]). Di serie zero e null: la forma di
- * prima, al bit.
+ * agganciata da F3.10); [touch] la luce del dito del campo ([fluidGlassFingerTouch]); [journeyGlow] il livello
+ * dell'**alone** (F3.12c, `GlassLiquidJourney.glow`: sale con la luce e si spegne prima). Di serie zero, null e l'alone
+ * sulla luce: la forma di prima, al bit.
  */
 internal fun fluidGlassStagePlane(
   frame: GlassPlaneFrame,
@@ -1312,6 +1374,7 @@ internal fun fluidGlassStagePlane(
   movingMs: Float,
   journeyLight: Float = 0f,
   touch: PhysicsPlaneTouch? = null,
+  journeyGlow: Float = journeyLight,
 ): PhysicsPlaneShape {
   val shape = fluidGlassFieldSlabs(frame, flights, origin, smoothing)
   // Il lato più veloce del campo, in dp al secondo.
@@ -1320,10 +1383,14 @@ internal fun fluidGlassStagePlane(
     maxOf(maxOf(abs(v.left), abs(v.right)), maxOf(abs(v.top), abs(v.bottom)))
   } ?: 0f
   val slabs = shape.slabs.take(FluidForm.Group.MaxPieces)
-  // Il rigonfiamento comune del viaggio, più quello di ogni pezzo (F3.12a: chi è stato rilasciato arriva gonfio).
-  val swollen = swell.level > 0f || shape.members.any { it.swell > 0f }
+  // Il rigonfiamento comune del viaggio, nella parte che ogni pezzo prende, più il suo proprio (F3.12a, F3.12c: chi nasce,
+  // chi confluisce, il donatore e chi accoglie hanno il loro).
+  val swollen = swell.level > 0f || shape.members.any { it.swell != 0f }
   return PhysicsPlaneShape(
-    slabs = if (swollen) slabs.mapIndexed { index, slab -> swell.of(slab, shape.members[index].swell) } else slabs,
+    slabs = if (swollen) slabs.mapIndexed { index, slab ->
+      val member = shape.members[index]
+      swell.of(slab, member.swell, member.swellShare)
+    } else slabs,
     nominalBlend = spacingPx,
     neck = neck,
     unions = fluidGlassStableUnionIndices(shape.members),
@@ -1331,15 +1398,22 @@ internal fun fluidGlassStagePlane(
     motion = physicsPlaneMotion(speedPx / density, movingMs),
     journeyLight = journeyLight,
     touch = touch,
+    journeyGlow = journeyGlow,
   )
 }
 
-/** Come arriva il vetro di un pezzo, per il suo contenuto: vedi [glassPieceContentFor]. Pura. */
-internal fun fluidGlassArrivalOf(change: GlassPlaneChange): GlassPieceArrival = when (change) {
+/**
+ * Come arriva il vetro di un pezzo, per il suo contenuto: vedi [glassPieceContentFor]. [relay] è
+ * `GlassPlanePieceFrame.relay`: il vetro che confluisce in chi nasce da lui (la staffetta) è lo stesso vetro che cambia
+ * identità, e il suo contenuto ha i tempi di un cambio di contesto; chi confluisce in un vicino vero ha i suoi (F3.12c).
+ * Pura.
+ */
+internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = false): GlassPieceArrival = when (change) {
   GlassPlaneChange.BornFromNeighbour -> GlassPieceArrival.BornFromNeighbour
   // Per chi se ne va (F3.10): il simbolo di chi scompare per lente ha i tempi della scomparsa, non del cambio di contesto.
   GlassPlaneChange.Materialize, GlassPlaneChange.Dematerialize -> GlassPieceArrival.ThroughLens
   GlassPlaneChange.Identity -> GlassPieceArrival.Instant
+  GlassPlaneChange.MergeIntoNeighbour -> if (relay) GlassPieceArrival.Stays else GlassPieceArrival.MergesIntoNeighbour
   else -> GlassPieceArrival.Stays
 }
 
@@ -1367,7 +1441,7 @@ internal fun fluidGlassContentFlightOf(
   if (flying.still && look == GlassContentLook.Sharp) return null
   val lens = flying.change == GlassPlaneChange.Materialize || flying.change == GlassPlaneChange.Dematerialize
   val slab = FluidForm.Slab(flying.bounds, flying.radii)
-  val drawn = if (lens) slab else swell.of(slab, flying.swell)
+  val drawn = if (lens) slab else swell.of(slab, flying.swell, flying.swellShare)
   // Un contenuto che non si vede non ha un posto: niente spostamento da ricordare per quando comparirà.
   val rides = !lens && role.role != GlassPieceContentRole.Hidden
   return FluidGlassContentFlight(
@@ -2133,12 +2207,12 @@ internal class FluidGlassContainerState {
     val exports = exportsOf(flights.flatMap { listOf(it.targetKey, it.sourceKey) })
     val lens = flights.all { it.change == GlassPlaneChange.Materialize || it.change == GlassPlaneChange.Dematerialize }
     // Il nodo contiene il rigonfiamento al colmo (F3.9): ogni pezzo sta nel riquadro del campo, quindi il lato corto
-    // del campo è un tetto al suo. Chi compare o scompare per lente non si gonfia. Dove un vetro nasce da un vicino
-    // c'è anche il suo rigonfiamento in più (F3.12a), che arriva quando quello comune sta scendendo: il tetto è la somma.
+    // del campo è un tetto al suo. Chi compare o scompare per lente non si gonfia. Dove un vetro nasce da un vicino il
+    // suo rigonfiamento proprio arriva a [FluidMotion.PlaneReleaseSwell] (F3.12c: al posto del comune, non sopra).
     val born = flights.any { it.change == GlassPlaneChange.BornFromNeighbour }
     val grow = if (lens) 0f else {
       FluidGlassSwell(driver.journeyCharacter, 1f, FluidMotion.PlaneSwellMaxDp * density.density, density.density)
-        .growPx(field.bounds.minDimension, if (born) FluidMotion.PlaneReleaseSwell else 0f)
+        .growPx(field.bounds.minDimension, if (born) max(0f, FluidMotion.PlaneReleaseSwell - 1f) else 0f)
     }
     return FluidGlassStageField(
       index, field.bounds.inflate(margin + grow).snapped(), look, flights, exports, union = field.union, lens = lens,
@@ -2157,7 +2231,7 @@ internal class FluidGlassContainerState {
     for (flying in frame.pieces) {
       val target = flying.flightId.targetKey as? FluidGlassPiece
       val source = flying.flightId.sourceKey as? FluidGlassPiece
-      val arrival = fluidGlassArrivalOf(flying.change)
+      val arrival = fluidGlassArrivalOf(flying.change, flying.relay)
       if (target != null) {
         val content = target.content
         // Un nodo nuovo con l'identità di uno che se n'è appena andato continua il suo contenuto, dall'aspetto che aveva.
@@ -2200,6 +2274,8 @@ internal class FluidGlassContainerState {
     // La luce del carattere (F3.9) e quella del dito (F3.10), agganciate da F3.10: la forma le porta alla ricetta delle
     // superfici del palco (`physicsLiquidRecipe`, `physicsLiquidGlow`). Chi compare o scompare per lente ha la sua.
     val light = driver.journeyLight
+    // L'alone ha la sua curva (F3.12c): sale con la luce e si spegne prima.
+    val halo = driver.journeyGlow
     val finger = driver.finger
     val glow = driver.fingerGlow
     val fill = driver.fingerFill
@@ -2217,6 +2293,7 @@ internal class FluidGlassContainerState {
         movingMs = movingMs,
         journeyLight = if (field.lens) 0f else light,
         touch = if (field.lens) null else fluidGlassFingerTouch(frame, field.flights, field.node.topLeft, finger, glow, fill),
+        journeyGlow = if (field.lens) 0f else halo,
       )
       val holder = stageShapes[field.index]
       if (holder == null) stageShapes[field.index] = mutableStateOf(plane) else holder.value = plane

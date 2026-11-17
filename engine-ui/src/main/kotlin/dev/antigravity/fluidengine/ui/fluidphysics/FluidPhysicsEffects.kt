@@ -897,6 +897,11 @@ internal fun physicsLiquidRecipe(
    * con [journeyLight] sopra zero.
    */
   journeyTouch: Float = 0f,
+  /**
+   * Il livello dell'alone del carattere del viaggio (F3.12c, `PhysicsPlaneShape.journeyGlow`), 0..1: sale con la luce e
+   * si spegne prima. Di serie [journeyLight]: l'alone segue la luce, com'era fino a F3.12b, al bit.
+   */
+  journeyGlow: Float = journeyLight,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -944,6 +949,7 @@ internal fun physicsLiquidRecipe(
   // il livello è zero e il carattere non tocca niente. Il lato corto dà la geometria dell'alone (F3.12b).
   return glassJourneyRecipe(
     recipe, profile.journey, journeyLight, darkSide, variant, shortDp = shortDp, finger = journeyTouch,
+    glowLevel = journeyGlow,
   )
 }
 
@@ -1274,6 +1280,8 @@ internal class PhysicsLiquidSurface(
       journeyLight = if (planeJourney) planeShape?.journeyLight ?: 0f else 0f,
       // La luce del dito porta l'alone verso quello di Apple (F3.12b): lo stesso bagliore che `physicsLiquidGlow` disegna.
       journeyTouch = if (planeJourney) planeShape?.touch?.amount ?: 0f else 0f,
+      // L'alone ha la sua curva (F3.12c): sale con la luce e si spegne prima.
+      journeyGlow = if (planeJourney) planeShape?.journeyGlow ?: 0f else 0f,
     )
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {

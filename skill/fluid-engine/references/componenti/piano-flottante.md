@@ -175,9 +175,9 @@ Il piano confronta lo stato di prima e quello di adesso, una volta per cambio:
 | prima → adesso | che cosa fa | quanto dura |
 |---|---|---|
 | stesso `id` | **lo stesso vetro** si sposta e cambia forma; i vicini che si avvicinano si fondono passando per un collo, quelli che si allontanano si strozzano e si dividono | molla di serie, ferma a vista a `FluidMotion.PlaneContextMillis` (300 ms) |
-| `id` nuovo entro `spacing` da un vetro di prima | **nasce da lui**: gli sta dentro, e dopo un'attesa ne è **rilasciato** con una molla che supera il suo posto e torna (vedi «La nascita e la confluenza», sotto) | `FluidMotion.PlaneReleaseMillis` (500 ms) |
+| `id` nuovo entro `spacing` da un vetro di prima | **nasce da lui**: gli sta dentro, piccolo, e dopo un'attesa ne è **rilasciato** con una molla che supera il suo posto e torna, crescendo mentre esce (vedi «La nascita e la confluenza», sotto) | `FluidMotion.PlaneReleaseMillis` (540 ms a vista; la coda fino a ~850–900) |
 | `id` nuovo più lontano (o `Materialize`) | **compare per lente** al suo posto: la rifrazione sale, il contorno si stringe da `FluidMotion.PlaneAppearScale` (×1,09); il corpo non sfuma mai | `FluidMotion.PlaneAppearMillis` (430 ms) |
-| un vetro che se ne va vicino a un altro | **vi confluisce**: gli entra dentro subito e lo spinge, e quello torna al suo posto | 500 ms |
+| un vetro che se ne va vicino a un altro | **vi confluisce**: gli entra dentro subito, rimpicciolendosi, e lo spinge; quello torna al suo posto con un piccolo passaggio dall'altra parte | 540 ms a vista; la coda fino a ~900 |
 | un vetro che se ne va lontano | **scompare per lente** | `FluidMotion.PlaneDisappearMillis` (470 ms) |
 | `fluidGlassUnion` uguale | **un grappolo solo e una sagoma sola**, anche oltre lo `spacing` (mai oltre otto pezzi), ferma o in viaggio | — |
 | gli stessi vetri, l'unione che **nasce** o **si scioglie** («Unisci», «Separa») | **un viaggio del collo**, anche se nessun pezzo si muove: il ponte nasce a circa un quarto ed è pieno a metà; al contrario si strozza e si rompe una volta, come ogni divisione | 300 ms |
@@ -189,34 +189,45 @@ capsula della traccia `contesto-capsule-curva` a ~294 ms, contro i 270–330 ms 
 quando ogni lato è a mezzo pixel dal suo arrivo. Fino a F3.2 la molla si stirava sulla coda numerica e la sagoma si
 fermava a vista a 133 ms. **Il collo** si strozza una volta sola, «spesso» (esponente 1/2, scelta di Alessio del
 2026-11-16), e si rompe dopo che i pezzi si sono staccati, a circa tre quarti del moto (~228 ms su 300; in una nascita,
-che dura 500 ms, a ~380 ms: l'ordine delle fasi di R4 B2 (d), dove Apple lo rompe all'80% del tempo). Il suo orologio
+ferma a vista a 540 ms, a ~415 ms, dopo il colmo: Apple lo rompe a ~433, la scelta «com'è oggi»). Il suo orologio
 dura il doppio del riposo a vista, così il collo lungo scelto da Alessio cade nella stessa fase della molla in cui è
 stato tarato. Durante il viaggio il vetro **si illumina e si fa lattiginoso** (il carattere del viaggio, sotto) e torna
 al vetro di riposo prima di posarsi.
 
-**La nascita e la confluenza** (F3.11 e F3.12a; le misure sono in `artifacts/liquid-glass/sessioni/f3-11/misure.md` e
-`…/f3-12a/misure.md`, sulle clip di Apple a tempo vero). Un vetro che nasce da un vicino non va dritto al suo posto:
+**La nascita e la confluenza** (F3.11, F3.12a e F3.12c; le misure sono in `artifacts/liquid-glass/sessioni/f3-11/misure.md`,
+`…/f3-12a/misure.md` e `…/f3-12c/misure.md`, sulle clip di Apple a tempo vero, con l'orologio corretto dall'analisi
+fotogramma per fotogramma: un fotogramma dopo quello che leggevano F3.11 e F3.12a). Un vetro che nasce da un vicino non
+va dritto al suo posto:
 
-1. **l'attesa**: per i primi 0,17 (85 ms) nessun vetro viaggia; il vetro si gonfia e si accende, e chi sta per nascere
-   si sporge appena dal vicino (il «donatore»);
-2. **il donatore va per primo** verso il suo posto, se ne ha uno nuovo, e chi nasce gli resta dentro (della sua misura,
-   o di quella del donatore se è più piccolo, a filo del bordo dalla parte del suo posto);
-3. **il rilascio**: alla fine dell'attesa se il donatore resta dov'è, un poco dopo se si sposta (0,29 del viaggio se va
+1. **l'attesa**: per i primi 0,23 (124 ms) nessun vetro viaggia; il vetro si accende, e chi sta per nascere si sporge
+   appena dal vicino (il «donatore»): in Apple il bordo di testa ha fatto solo il 9,5% della strada a 133 ms;
+2. **il donatore va per primo** verso il suo posto, se ne ha uno nuovo, e chi nasce gli resta dentro **più piccolo**
+   (0,8 della sua misura dentro il donatore, `FluidMotion.PlaneReleaseBud`), a filo del bordo dalla parte del suo posto;
+3. **il rilascio**: alla fine dell'attesa se il donatore resta dov'è, un poco dopo se si sposta (0,31 del viaggio se va
    lontano almeno quanto è alto), e +0,09 per ogni fratello più vicino dalla stessa parte (il più lontano parte per
    primo). Chi è rilasciato ha una molla che **supera il suo posto del 9,5% della corsa e torna**, e che sta fra il
-   rilascio e la fine: chi parte dopo è più svelto, e i colmi cadono insieme (a ~0,67–0,75 del viaggio);
-4. **arriva gonfio**: fra l'arrivo e la fine chi è stato rilasciato ha un rigonfiamento in più (+13,5% del lato corto al
-   colmo, sopra quello comune): al colmo il suo bordo di testa è oltre il posto del 13–14% della corsa, come in Apple;
-5. **il donatore che resta dov'è rincula** verso chi esce (0,077 del suo lato corto, ~3,4 dp su un tasto da 44) e
-   **rimbalza** dall'altra parte (0,047), poi è fermo; uno che se ne va non rincula, e supera appena il suo posto;
-6. a **500 ms** tutto è fermo: è il riposo a vista e la fine del viaggio, e su quell'orologio contano anche il
-   contenuto, la luce, il rigonfiamento e il collo (che si rompe a ~380 ms, dopo il colmo).
+   rilascio e il ritorno: chi parte dopo è più svelto, e i colmi cadono insieme (a ~0,7–0,8 del viaggio). Con la stessa
+   molla **cresce mentre esce**: è la goccia con la vita di Apple, un lobo più piccolo del donatore unito da un collo,
+   non una pillola. Coi tempi di Apple: arrivo a ~296 ms, colmo a ~367, ritorno a 540;
+4. **si gonfia passando per il suo posto**: +19% del lato corto al colmo (~385 ms), poi un poco sotto la sua misura
+   (−3% a ~680) e fermo: al colmo il suo bordo di testa è oltre il posto del 13–14% della corsa, come in Apple. È il suo
+   rigonfiamento, non quello comune (`FluidMotion.PlaneReleaseSwell`);
+5. **il donatore che resta dov'è rincula** verso chi esce (0,10 del suo lato corto, ~4,4 dp su un tasto da 44, a ~260
+   ms), **rimbalza** dall'altra parte (0,07 a ~480), torna con un ultimo piccolo passaggio (0,015 a ~710) e si ferma a
+   ~860; intanto si gonfia **poco** (+4%) invece del rigonfiamento comune. Uno che se ne va non rincula;
+6. a **540 ms** è il riposo a vista: su quell'orologio contano il contenuto, la luce, l'alone e il collo (che si rompe a
+   ~415 ms, dopo il colmo). Poi la **coda di Apple**: chi è nato ripassa piano dall'altra parte del suo posto (lo 0,9%
+   della corsa a ~610 ms) e il palco lo tiene finché lo scarto si vede, fino al mezzo pixel (~850–900 ms).
 
-Un vetro che **confluisce** fa il verso opposto, senza attesa: entra nel vicino dovunque quello stia andando, e la sua
-spinta (l'8,4% della sua corsa, al più 0,2 del lato corto di chi lo accoglie) **sposta il vicino tutto intero** nel suo
-verso, col suo contenuto; poi quello torna al suo posto. Un vetro che se ne va confluendo proprio nel vetro che nasce da
-lui è lo stesso vetro che cambia identità (la staffetta): vola come un vetro solo, ed è lui il donatore. Fra più vicini
-vince quello della stessa misura («Fatto» continua «Seleziona», non il tondo di mezzo). **Il contenuto sta dentro il
+Un vetro che **confluisce** fa il verso opposto, senza attesa: entra nel vicino dovunque quello stia andando,
+**rimpicciolendosi** (0,66 della sua misura dentro di lui, `FluidMotion.PlaneMergeCore`: fino a quando è entrato restano
+due lobi col collo; quando è dentro, fra 0,37 e 0,6 del riposo a vista, **diventa il vicino**, lati, raggi e
+rigonfiamento, perché due sagome quasi uguali fanno nell'unione due «orecchie» sul fianco), e la sua spinta (l'8,4% della sua corsa, al più 0,2 del lato corto di chi lo accoglie) **sposta il
+vicino tutto intero** nel suo verso, col suo contenuto, al colmo a ~300 ms; poi quello torna, passa un poco dall'altra
+parte (0,38 della spinta a ~590) e si ferma a ~900. Intanto chi accoglie si gonfia presto (+15% a ~170 ms) e poi va un
+poco sotto la sua misura (−4,7% a ~370), invece del rigonfiamento comune. Un vetro che se ne va confluendo proprio nel
+vetro che nasce da lui è lo stesso vetro che cambia identità (la staffetta): vola come un vetro solo, ed è lui il
+donatore. Fra più vicini vince quello della stessa misura («Fatto» continua «Seleziona», non il tondo di mezzo). **Il contenuto sta dentro il
 vetro e rimbalza con lui**: vedi sotto. Con `FluidGlassAnimation.Custom` niente di questo: la spec porta la sua curva. I
 numeri sono i token `PlaneRelease*`, `PlaneMerge*` e `PlaneDonor*` di `FluidMotion`.
 
@@ -231,16 +242,21 @@ un pixel dopo che la sagoma è ferma a vista.
 i vetri di un cambio di contesto, di una nascita dal vicino, di una confluenza, di un'unione e di una separazione **si
 gonfiano** nel mezzo del viaggio, del 15% del lato corto al 45% della fase (3,6 dp per lato su un tasto da 48 dp),
 rientrato al 95%; mai più di `FluidMotion.PlaneSwellMaxDp` (6 dp per lato), così un pannello grande non si deforma. Un
-viaggio interrotto riparte dal rigonfiamento che ha; chi compare o scompare per lente non si gonfia. Chi è stato
-rilasciato da un vicino ha in più il suo (F3.12a: `FluidMotion.PlaneReleaseSwell`, 0,9 di quello del carattere, fra
-l'arrivo e la fine), dentro lo stesso tetto. La manopola è `travelswell` (o `journey=off`, che spegne tutto il
-carattere) di `gallery.tune`: a zero spegne anche quello di chi nasce.
+viaggio interrotto riparte dal rigonfiamento che ha; chi compare o scompare per lente non si gonfia. **Nella nascita e
+nella confluenza ognuno ha il suo** (F3.12c, `GlassPlanePieceFrame.swell` e `swellShare`): chi nasce, il donatore, chi
+confluisce e chi accoglie non prendono il rigonfiamento comune, che ha il colmo a metà viaggio per tutti, ma quello
+misurato su Apple per ciascuno (sopra), nelle stesse unità del carattere e dentro lo stesso tetto; può anche andare un
+poco sotto la misura del vetro. La manopola è `travelswell` (o `journey=off`, che spegne tutto il carattere) di
+`gallery.tune`: a zero spegne anche quelli propri.
 
 **La luce del viaggio** (F3.9, agganciata al palco da F3.10; scelta di Alessio del 16 novembre: «a metà, col
 rigonfiamento di Apple, più la luce del dito»). Nello stesso viaggio il vetro **si illumina e si fa lattiginoso**: il
 velo va a metà verso il bianco, l'ombra sotto la sagoma diventa un alone di luce, la sfocatura raddoppia e la
 limpidezza del vetro in viaggio cede allo smerigliato. Sale in ~70 ms, resta piena fino a metà viaggio e si spegne con
-una coda lunga entro il 90%: alla partenza e all'arrivo il vetro è quello di riposo al bit. Sul tema scuro prende metà
+una coda lunga entro il 90%: alla partenza e all'arrivo il vetro è quello di riposo al bit. **L'alone ha i suoi tempi**
+(F3.12c, `GlassLiquidJourney.glowLevel`, come nel render di Apple): sale con la luce, è pieno fino a 0,31 del viaggio e si
+spegne a 0,69, quando il corpo è ancora acceso. Col bagliore del dito anche il **filo** scuro del bordo cala (il blocco
+bianco del render ha tutto il bordo morbido). Sul tema scuro prende metà
 della luce. È il render di Apple «Select → Done» preso a metà (`GlassLiquidJourneys.Shipped`): la luce piena è un blocco
 bianco che sul testo e al buio copre tutto. Solo il palco del contenitore la porta: menu e Fluid-physics fuori dal piano
 restano «un po' limpidi» (la scelta B di F1B), e chi compare o scompare per lente ha la sua comparsa.
@@ -296,16 +312,19 @@ consegne, niente ricetta del viaggio, e due tasti fermi a 8 dp restano due tasti
 sempre, e il contenitore porta il contenuto di ognuno lungo la **fase** del volo del suo vetro (0 alla partenza, 1 al
 riposo a vista), ritagliato a ogni fotogramma sulla sagoma in volo. È la sequenza del render di Apple «Select → Done»
 (R4 B2 (d), R7 A): il vecchio è già sfocato all'8% ed è sparito nel vetro al 16% (Apple: 14–17%); il nuovo arriva
-sfocato dentro il vetro dopo metà viaggio ed è nitido a quattro quinti. **Ogni contenuto sta al centro del suo vetro e
-si muove con lui** (F3.12a): quello di un tasto che nasce supera il suo posto e torna col vetro, quello del donatore lo
+sfocato dentro il vetro dopo metà viaggio e si mette a fuoco mentre il vetro arriva al colmo, con una rampa che
+scende presto e finisce piano (F3.12c: sul tempo delle clip di Apple a tempo vero, e senza lo scalino di due
+fotogrammi che aveva fino a F3.12a). **Ogni contenuto
+sta al centro del suo vetro e si muove con lui** (F3.12a): quello di un tasto che nasce supera il suo posto e torna col vetro, quello del donatore lo
 segue nel rinculo. In Apple i simboli fanno lo stesso e non cambiano misura: il contenuto trasla, non si stira.
 
 | il vetro del pezzo | il suo contenuto |
 |---|---|
 | resta (stesso `id`) | **nitido, viaggia col suo vetro**: spostato di quanto il centro della lastra è lontano dal posto d'arrivo, mai stirato; anche nel rinculo e nella spinta |
-| nasce da un vicino | non c'è finché il suo vetro non sta arrivando: compare 0,21 del viaggio **dopo il primo rilascio** (a ~190 ms se il donatore resta dov'è, a metà viaggio se si sposta), sfocato e traslucido **dentro il suo vetro, e ne fa il rimbalzo**; è nitido 0,28 dopo (~330 e ~390 ms) |
+| nasce da un vicino | non c'è finché il suo vetro non sta arrivando: compare 0,19 del viaggio **dopo il primo rilascio** (a ~227 ms se il donatore resta dov'è, a metà viaggio se si sposta), sfocato e traslucido **dentro il suo vetro, e ne fa il rimbalzo**; è opaco e della sua misura a ~0,7 del viaggio; la sfocatura scende quasi tutta presto, `(1 − x)^7`, e per 0,08 piano (gli ultimi decimi di dp, dove il Laplaciano del simbolo sale): si legge a ~300 ms, è nitido a vista al colmo del superamento (~370 ms) e fermo a 1,0 della fase del contenuto (~500 ms), senza scalino |
 | compare per lente | da un quarto della comparsa, 2× e traslucido, si condensa fino all'85% |
-| confluisce in un vicino (un cambio di contesto) | **entra nel vicino col suo vetro** anche se l'app l'ha già tolto, e intanto si sfoca e svanisce entro il 16% del volo (~80 ms), ritagliato sulla lastra che si ritira |
+| confluisce in un vicino | **entra nel vicino col suo vetro** anche se l'app l'ha già tolto, e intanto si sfoca e svanisce: si legge ancora, sfocato, a ~130 ms ed è sparito a ~230 (F3.12c, come Apple a tempo vero; era ~80 ms), ritagliato sulla lastra che si ritira |
+| confluisce nel vetro che nasce da lui (la staffetta, «Select → Done») | come sopra, ma via entro il 16% del volo (~85 ms): è lo stesso vetro che cambia identità |
 | scompare per lente | resta dov'era, si sfoca e svanisce nei primi ~130 ms della scomparsa (R4 B3) |
 | `Identity` | c'è o non c'è, col vetro |
 
@@ -507,6 +526,9 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 - **Da misurare sul dispositivo** (sessione S3): il costo di un palco con 4 e con 8 pezzi (scena `molti` della galleria:
   gli otto sono uniti, quindi un campo solo pieno), e un viaggio sopra un contenuto che scorre (la cattura del palco va
   rifatta a ogni fotogramma).
+- **La coda di Apple** (F3.12c): una nascita tiene il palco fino a ~850–900 ms e una confluenza fino a ~900 (erano 500),
+  finché lo scarto è sopra il mezzo pixel: una quarantina di fotogrammi in più a 120 Hz, con la luce già spenta e il
+  collo già rotto (il palco costa lì quanto un vetro che si sposta piano). Da misurare in F7.
 
 ## La diagnostica
 
@@ -539,13 +561,18 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
   rigonfiamento; in `GlassProbeSchedulerTest` la sorgente che ridisegna e fa rileggere la sonda; `F38aExportTest` legge
   dalle tracce del banco ciò che S3 ha visto sul tablet (nessuna scritta fuori dal vetro, il contenuto di chi nasce dopo
   metà viaggio, due fermi che non passano dal palco, «Unisci» e «Separa» come viaggi).
-- F3.11 e F3.12a: in `GlassPlaneTest` la staffetta e la parentela, il donatore che va per primo dopo l'attesa, la
-  molla di rilascio coi tempi di Apple (arrivo, colmo, ritorno a 500 ms, il vetro rigido), i colmi di due nati che
+- F3.11, F3.12a e F3.12c: in `GlassPlaneTest` la staffetta e la parentela, il donatore che va per primo dopo l'attesa,
+  chi nasce piccolo dentro il donatore, la molla di rilascio coi tempi di Apple sull'orologio corretto (arrivo a ~296
+  ms, colmo a ~367, ritorno a 540, la coda dall'altra parte e ferma sotto il mezzo pixel, il vetro rigido), il
+  rigonfiamento proprio di chi nasce e del donatore al posto del comune, i colmi di due nati che
   cadono insieme, il rinculo e il rimbalzo del donatore, il pezzo che arriva gonfio, la spinta su chi accoglie,
   l'interruzione a metà rilascio, il superamento che non esce dal contenitore, la spec dell'app senza coreografia; in
   `FluidGlassContainerDriverTest` il contenuto che viaggia col suo vetro e il rigonfiamento per pezzo; in
-  `PhysicsPlaneNeckTest` la rottura dopo il colmo; `F38aExportTest` legge dalle tracce che «Fatto» supera il suo posto
-  col vetro e che «Modifica» rincula e rimbalza.
+  `PhysicsPlaneNeckTest` la rottura dopo il colmo e, per un donatore che se ne va lasciando un varco da 12 a 26 dp, un
+  collo che si rompe una volta sola e non si rifà; `F38aExportTest` legge dalle tracce che «Fatto» supera il suo posto
+  col vetro, si mette a fuoco con una rampa senza scalino (leggibile a 300 ms, nitido al colmo), che «Modifica» rincula e rimbalza, e che il contenuto di chi confluisce si
+  legge fino a ~230 ms; `F310ExportTest` che l'alone sale con la luce e si spegne prima; `GlassJourneyTest` l'alone sul
+  suo livello e il filo che cala col dito.
 - F3.10: `FluidGlassJourneyLightTest` (la luce del carattere nel palco, `journey=off` che spegne luce e rigonfiamento, il
   tocco che fa partire il campo dal bagliore della pressione e lo riempie, il cambio senza tocco, la ripartenza),
   `PhysicsJourneyLightTest` (la ricetta col carattere dopo il vetro in viaggio, al bit a livello zero, il margine del

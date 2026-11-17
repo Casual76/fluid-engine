@@ -963,7 +963,11 @@ internal fun glassTravelShadowReachDp(
  * @param shortDp il lato corto della sagoma di adesso, in dp (`physicsRecipeShortPx` per la densità): dà la geometria
  *   dell'alone. Non finito (di serie) = l'alone resta nella geometria dell'ombra, come fino a F3.11.
  * @param finger il bagliore del dito che il viaggio porta (`PhysicsPlaneTouch.amount`, 0..1; zero senza tocco): porta
- *   l'alone verso [GlassLiquidJourney.glowFinger].
+ *   l'alone verso [GlassLiquidJourney.glowFinger], e il filo scuro del bordo cala anche di lui (F3.12c: col dito il vetro
+ *   è il blocco bianco del render, che ha tutto il bordo morbido).
+ * @param glowLevel il livello dell'**alone** (F3.12c, [GlassLiquidJourney.glowLevel]): sale con la luce, resta pieno
+ *   fino a ~0,31 del viaggio e si spegne a ~0,69, prima del corpo, come nel render di Apple. Di serie [level]: l'alone
+ *   segue la luce, com'era fino a F3.12b, al bit.
  */
 internal fun glassJourneyRecipe(
   recipe: GlassRecipe,
@@ -973,6 +977,7 @@ internal fun glassJourneyRecipe(
   variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
   shortDp: Float = Float.NaN,
   finger: Float = 0f,
+  glowLevel: Float = level,
 ): GlassRecipe {
   val e = if (level.isFinite()) clampGlassUnit(level) else 0f
   if (e <= 0f) return recipe
@@ -987,19 +992,29 @@ internal fun glassJourneyRecipe(
     recipe.rimDark = recipe.rimDark.copy(alpha = recipe.rimDark.alpha * (1f - lit))
     recipe.bodyShade = recipe.bodyShade.copy(alpha = recipe.bodyShade.alpha * (1f - lit))
   }
+  // Il filo col dito (F3.12c): il bagliore che il viaggio porta (già sulla curva della luce, `fingerGlow`) toglie anche
+  // lui il filo scuro del bordo. Senza dito niente cambia, al bit.
+  val touched = if (finger.isFinite() && journey.finger.isFinite()) {
+    clampGlassUnit(finger) * clampGlassUnit(journey.finger) * side
+  } else {
+    0f
+  }
+  if (regular && touched > 0f) recipe.rimDark = recipe.rimDark.copy(alpha = recipe.rimDark.alpha * (1f - touched))
+  // L'alone ha la sua curva (F3.12c): di serie quella della luce.
+  val eg = if (glowLevel.isFinite()) clampGlassUnit(glowLevel) else e
   val glow = journey.glowWith(finger) * side * recipe.lightColor.alpha
-  if (glow > 0f && recipe.shadowAmbientRadiusDp > 0f) {
+  if (glow > 0f && eg > 0f && recipe.shadowAmbientRadiusDp > 0f) {
     // Una dissolvenza incrociata fra ombra e alone, premoltiplicata: la stessa maschera d'ambiente porta `(1 − e)` del
     // nero dell'ombra ed `e` della luce dell'alone. Così a metà strada il fondo non scurisce più dell'ombra (mescolare
     // il colore a parte darebbe un grigio scuro più forte dell'ombra) e al colmo resta la sola luce.
     val shade = recipe.shadowColor
     val ambient = recipe.shadowAmbientAlpha * shade.alpha
-    val total = (1f - e) * ambient + e * glow
+    val total = (1f - eg) * ambient + eg * glow
     if (total > 0f) {
-      val lightShare = e * glow / total
+      val lightShare = eg * glow / total
       recipe.shadowColor = lerpSrgb(shade.copy(alpha = 1f), recipe.lightColor.copy(alpha = 1f), lightShare)
       recipe.shadowAmbientAlpha = clampGlassUnit(total)
-      recipe.shadowContactAlpha = recipe.shadowContactAlpha * shade.alpha * (1f - e)
+      recipe.shadowContactAlpha = recipe.shadowContactAlpha * shade.alpha * (1f - eg)
       // La geometria dell'alone (F3.12b), con la stessa quota del colore: è dell'ombra quanto la mescola è ombra.
       val glowSide = glassJourneyGlowSideDp(shortDp)
       if (glowSide > 0f && lightShare > 0f) {

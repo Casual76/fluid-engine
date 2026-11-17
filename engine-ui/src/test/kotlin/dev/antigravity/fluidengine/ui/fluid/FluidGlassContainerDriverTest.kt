@@ -89,9 +89,15 @@ class FluidGlassContainerDriverTest {
     assertEquals(GlassPlaneChange.Matched, matched.change)
     assertEquals(GlassPlaneChange.BornFromNeighbour, born.change)
     assertEquals("a", born.bornFrom)
-    // Il primo fotogramma del palco è il riposo di prima: «a» è dov'era, «b» coincide con «a».
+    // Il primo fotogramma del palco è il riposo di prima: «a» è dov'era, «b» è dentro «a», più piccolo di lui (F3.12c:
+    // il bocciolo che cresce mentre esce), quindi la sagoma è quella di «a».
     assertRect(a.bounds, matched.bounds, message = "a al primo fotogramma")
-    assertRect(a.bounds, born.bounds, message = "b al primo fotogramma")
+    val bud = FluidMotion.PlaneReleaseBud
+    val budRect = Rect(
+      a.bounds.center.x - a.bounds.width * bud / 2f, a.bounds.center.y - a.bounds.height * bud / 2f,
+      a.bounds.center.x + a.bounds.width * bud / 2f, a.bounds.center.y + a.bounds.height * bud / 2f,
+    )
+    assertRect(budRect, born.bounds, message = "b al primo fotogramma")
     assertEquals(0f, driver.progress, 0f)
     // Il riposo è già l'arrivo, montato e spento finché il palco porta il vetro.
     assertEquals(setOf("a", "b"), driver.rest!!.pieces.map { it.key }.toSet())
@@ -116,9 +122,10 @@ class FluidGlassContainerDriverTest {
       frames++
       assertTrue("il viaggio deve finire", frames < 200)
     }
-    // Una nascita di 500 ms a 60 Hz (F3.12a, i tempi di Apple a tempo vero): una trentina di fotogrammi. Erano una
-    // ventina coi 345 ms di F3.11.
-    assertTrue("fotogrammi $frames", frames in 26..34)
+    // Una nascita a 60 Hz con la coda di Apple (F3.12c: il riposo a vista a 540 ms, la coda finché lo scarto si vede,
+    // ~900 ms su un tasto da 132 px): una cinquantina di fotogrammi. Erano una trentina coi 500 ms di F3.12a (la coda
+    // spenta al bilancio), una ventina coi 345 ms di F3.11.
+    assertTrue("fotogrammi $frames", frames in 46..60)
     assertNull(driver.journey)
     assertEquals(1f, driver.progress, 0f)
     for (target in listOf(a, b)) {
@@ -510,6 +517,21 @@ class FluidGlassContainerDriverTest {
     assertEquals(6f, FluidGlassSwell(character, 1f, 6f, 1f).growPx(44f, 0.9f), 1e-4f)
     assertEquals(0f, FluidGlassSwell(GlassLiquidJourneys.Off, 1f, 100f, 1f).growPx(44f, 0.9f), 0f)
     assertEquals(3.3f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, Float.NaN), 1e-4f)
+    // F3.12c: il rigonfiamento proprio può essere negativo (un pezzo sotto la sua misura, dopo il colmo), e un pezzo della
+    // coreografia di una nascita o di una confluenza non prende il comune (`swellShare` zero).
+    assertEquals(-0.66f, FluidGlassSwell(character, 0f, 100f, 1f).growPx(44f, -0.2f), 1e-4f)
+    assertEquals(3.3f - 0.66f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, -0.2f), 1e-4f)
+    assertEquals(2.97f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, 0.9f, share = 0f), 1e-4f)
+    assertEquals(1.65f + 2.97f, FluidGlassSwell(character, 1f, 100f, 1f).growPx(44f, 0.9f, share = 0.5f), 1e-4f)
+    assertEquals(-6f, FluidGlassSwell(character, 0f, 6f, 1f).growPx(600f, -1f), 1e-4f)
+    assertEquals(2f * 3.3f, FluidGlassSwell(character, 0f, 100f, 1f).growPx(44f, 2f), 1e-4f)
+    // Più piccola: ogni lato rientra della stessa distanza, raggi compresi; una capsula resta una capsula.
+    val shrunk = FluidGlassSwell(character, 0f, 100f, 1f).of(slab, -0.2f)
+    assertRect(Rect(10.66f, 10.66f, 109.34f, 53.34f), shrunk.frame, 1e-4f)
+    assertEquals(shrunk.frame.height / 2f, shrunk.cornerRadii.topLeft, 1e-4f)
+    assertSame("a livello zero e senza il proprio è la stessa lastra", slab, FluidGlassSwell(character, 1f, 100f, 1f).of(slab, 0f, share = 0f))
+    // Mai sotto un pixel di lato.
+    assertEquals(1f, fluidGlassShrunk(slab, 100f).frame.height, 1e-4f)
   }
 
   @Test
@@ -531,10 +553,12 @@ class FluidGlassContainerDriverTest {
       val flight = fluidGlassContentFlightOf(flying, born, GlassContentLook.Sharp, b.bounds, swell)!!
       assertEquals("t=$ms", flying.bounds.center.x - b.bounds.center.x, flight.offset.x, 1e-3f)
       furthest = maxOf(furthest, flight.offset.x)
-      // Il ritaglio è la lastra come la disegna il palco: rigonfiata, col rigonfiamento in più del pezzo.
-      val grow = swell.growPx(flying.bounds.minDimension, flying.swell)
+      // Il ritaglio è la lastra come la disegna il palco: col rigonfiamento proprio del pezzo e la sua parte del comune
+      // (F3.12c: chi è nato non prende il comune).
+      assertEquals(0f, flying.swellShare, 0f)
+      val grow = swell.growPx(flying.bounds.minDimension, flying.swell, flying.swellShare)
       assertEquals("t=$ms", flying.bounds.width + 2f * grow, flight.clip!!.width, 1e-2f)
-      swollen = maxOf(swollen, swell.growPx(132f, flying.swell) - swell.growPx(132f))
+      swollen = maxOf(swollen, swell.growPx(132f, flying.swell, 0f))
       val donor = frame.pieces.single { it.flightId.targetKey == "a" }
       val rides = fluidGlassContentFlightOf(donor, GlassPieceContent.Rest, GlassContentLook.Sharp, a.bounds, swell)!!
       assertEquals("t=$ms", donor.bounds.center.x - a.bounds.center.x, rides.offset.x, 1e-3f)
@@ -543,7 +567,7 @@ class FluidGlassContainerDriverTest {
     }
     assertTrue("il contenuto supera il suo posto col vetro: $furthest px", furthest > 6f)
     assertEquals("il donatore porta il suo contenuto nel rinculo", FluidMotion.PlaneDonorRecoil * 132f, recoil, 0.2f)
-    // +13,5% del lato corto in più al colmo (0,9 del 15% del carattere): metà per lato.
+    // +19% del lato corto al colmo (1,27 del 15% del carattere, F3.12c): metà per lato.
     assertEquals(FluidMotion.PlaneReleaseSwell * 0.15f * 132f / 2f, swollen, 0.3f)
     // La forma che il palco disegna ha le stesse lastre: quella di chi è nato è più gonfia di quella del donatore.
     val at = journey.frame(380.0)
@@ -569,6 +593,59 @@ class FluidGlassContainerDriverTest {
     )!!
     assertTrue("va verso il vicino: ${exit.offset.x}", exit.offset.x < -10f)
     assertEquals(leaving.bounds.center.x - b.bounds.center.x, exit.offset.x, 1e-3f)
+  }
+
+  @Test
+  fun `l'alone ha la sua curva, sale con la luce e si spegne prima, e la forma del palco la porta`() {
+    // F3.12c (F3.12b §7): nel render di Apple l'alone sale con la luce, è pieno fino a 0,31 del viaggio e si spegne a
+    // 0,69, quando il corpo è ancora acceso. Il conducente lo scrive nella forma (`journeyGlow`), e la ricetta lo usa.
+    val motion = GlassPlaneMotion()
+    val character = GlassLiquidJourneys.Apple
+    val driver = FluidGlassPlaneDriver(character = { character })
+    assertEquals(0f, driver.journeyGlow, 0f)
+    driver.step(0L, state(a), motion)
+    driver.step(frameNanos, state(a, b), motion)
+    assertEquals("alla partenza niente alone", 0f, driver.journeyGlow, 0f)
+    val settle = driver.journey!!.settleMs
+    fun at(phase: Double) = frameNanos + (settle * phase * 1_000_000.0).toLong()
+    driver.step(at(0.25), state(a, b), motion)
+    assertEquals(1f, driver.journeyGlow, 1e-3f)
+    assertEquals(1f, driver.journeyLight, 1e-3f)
+    driver.step(at(0.6), state(a, b), motion)
+    assertTrue("a 0,6 l'alone se ne va (${driver.journeyGlow}) e la luce no (${driver.journeyLight})",
+      driver.journeyGlow < 0.2f && driver.journeyLight > 0.6f)
+    driver.step(at(0.7), state(a, b), motion)
+    assertEquals("a 0,7 è spento", 0f, driver.journeyGlow, 0f)
+    // Un cambio di stato a metà riparte dall'alone che c'era.
+    val other = FluidGlassPlaneDriver(character = { character })
+    other.step(0L, state(a), motion)
+    other.step(frameNanos, state(a, b), motion)
+    other.step(at(0.4), state(a, b), motion)
+    val before = other.journeyGlow
+    other.step(at(0.4) + frameNanos, state(a), motion)
+    // Un fotogramma dopo (l'alone sta scendendo): da lì riparte, senza tornare pieno né spegnersi.
+    assertTrue("riparte da ${other.journeyGlowEntry} (prima $before)", other.journeyGlowEntry in 0.6f..before)
+    assertEquals(other.journeyGlowEntry, other.journeyGlow, 1e-6f)
+    // La forma del palco porta l'alone accanto alla luce; di serie l'alone è la luce (al bit).
+    val frame = driver.frame!!
+    val shape = fluidGlassStagePlane(
+      frame = frame, flights = driver.journey!!.fields.single().flights, origin = Offset.Zero, smoothing = { 0f },
+      spacingPx = 48f, neck = 0f, swell = FluidGlassSwell.None, density = 1f, movingMs = 0f, journeyLight = 0.8f,
+      journeyGlow = 0.3f,
+    )
+    assertEquals(0.8f, shape.journeyLight, 0f)
+    assertEquals(0.3f, shape.journeyGlow, 0f)
+    val plain = fluidGlassStagePlane(
+      frame = frame, flights = driver.journey!!.fields.single().flights, origin = Offset.Zero, smoothing = { 0f },
+      spacingPx = 48f, neck = 0f, swell = FluidGlassSwell.None, density = 1f, movingMs = 0f, journeyLight = 0.8f,
+    )
+    assertEquals(0.8f, plain.journeyGlow, 0f)
+    // Senza luce (`journey=off`) niente alone.
+    val off = FluidGlassPlaneDriver(character = { GlassLiquidJourneys.Off })
+    off.step(0L, state(a), motion)
+    off.step(frameNanos, state(a, b), motion)
+    off.step(at(0.25), state(a, b), motion)
+    assertEquals(0f, off.journeyGlow, 0f)
   }
 
   @Test

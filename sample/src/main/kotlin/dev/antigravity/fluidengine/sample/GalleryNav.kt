@@ -95,6 +95,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Assistant("Assistente"),
 
+  /**
+   * La barra dichiarata sul piano flottante (piano «iOS in Android», F4A.2): poche barre che cambiano stato a un tocco
+   * (sfoglia → seleziona, un tasto che diventa principale, il trabocco, la selezione per tasto, le icone che cambiano),
+   * col cambio automatico per le riprese. Prova minima: la galleria «Barre» vera è F4A.5. Vedi `toolbar/`. Si apre con
+   * `--es gallery.page toolbar`. Uno strumento per le sessioni sul dispositivo, come «Piano flottante».
+   */
+  Toolbar("Barre (prova)"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

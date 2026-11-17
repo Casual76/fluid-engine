@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Box
@@ -278,11 +280,18 @@ fun FluidCollapsingTopBar(
    */
   contentTranslation: () -> Float = { 0f },
   onTapTitle: (() -> Unit)? = null,
+  /**
+   * La barra **dichiarata** (4.0, F4A.2), come quella di [FluidScreen]: se c'è vince su [actions], e il titolo segue il
+   * suo modo (`Inline` e `Large` qui sono lo stesso: la piega del titolo la decide [collapse]; `None` lo toglie) col
+   * sottotitolo sotto il titolo agganciato. Prima di [actions], perché la lambda in coda resti le azioni di sempre.
+   */
+  toolbar: (FluidToolbarScope.() -> Unit)? = null,
   actions: @Composable RowScope.() -> Unit = {},
 ) {
   val density = LocalDensity.current
   val scope = androidx.compose.runtime.rememberCoroutineScope()
   val activeFacet = rememberTitleFacet(titleFacets, collapse.progress)
+  val declaration = toolbar?.let { buildFluidToolbar(onBack, it) }
   Box(modifier) {
     FluidTopBar(
       title = title,
@@ -307,6 +316,8 @@ fun FluidCollapsingTopBar(
           scope.launch { collapse.scroll.scrollToTop() }
         }
       },
+      toolbar = declaration,
+      subtitle = declaration?.subtitle,
     )
   }
 }

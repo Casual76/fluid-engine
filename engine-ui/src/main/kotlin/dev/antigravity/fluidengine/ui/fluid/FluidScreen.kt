@@ -92,6 +92,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchItem
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -739,8 +745,23 @@ fun FluidScreen(
    * colonne ([fluidColumns]). Null — il default — e la schermata non scrive niente.
    */
   metrics: FluidScreenMetrics? = null,
+  /**
+   * La barra **dichiarata** (4.0, piano «iOS in Android» F4A.2): i tasti come modello e non come composable liberi
+   * ([FluidToolbarScope]: icone, scritte, principale tinta, conferma, indietro e Chiudi, spaziatori, gruppi, priorità,
+   * trabocco, titolo e sottotitolo). Ogni cambio di stato della pagina si trasforma da solo sul piano flottante. Se c'è,
+   * **vince su [actions]**; null, la barra di sempre. Con [onBack] e senza un `back` o un `close` dichiarati, l'indietro
+   * lo aggiunge la barra.
+   */
+  toolbar: (FluidToolbarScope.() -> Unit)? = null,
+  /**
+   * La ricerca della pagina (F4A.2): il campo dell'engine, oggi sotto il titolo grande; il `search(spec)` della barra la
+   * sostituisce. Un punto solo per tutti e due (`FluidToolbarSearchSlot`): F4B porterà il campo nella barra.
+   */
+  search: FluidSearchSpec? = null,
   content: LazyListScope.() -> Unit,
 ) {
+  // La barra si rilegge a ogni composizione, come il contenuto di un `if`: il modello che ne esce e' strutturale.
+  val declaration = toolbar?.let { buildFluidToolbar(onBack, it) }
   // La larghezza si legge qui, una volta, e diventa un margine: e' l'unica riga che distingue una
   // pagina da telefono allargata da una pagina da tablet. Tutto il resto della schermata non sa
   // di essere su un tablet, e non deve saperlo — salvo chi lo chiede con [metrics].
@@ -775,6 +796,8 @@ fun FluidScreen(
         if (wide) it.copy(showMotif = false) else it
       },
       overlay = overlay,
+      toolbar = declaration,
+      search = declaration?.search ?: search,
       content = content,
     )
   }
@@ -795,8 +818,13 @@ private fun FluidScreenLayout(
   extraBottomPadding: Dp,
   ambient: FluidAmbient?,
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit,
+  toolbar: FluidToolbarDeclaration?,
+  search: FluidSearchSpec?,
   content: LazyListScope.() -> Unit,
 ) {
+  // Il titolo grande c'e' di serie; la barra dichiarata puo' chiederlo solo agganciato, o nessuno (F4A.2).
+  val titleMode = toolbar?.titleMode ?: FluidToolbarTitleMode.Large
+  val largeTitle = titleMode == FluidToolbarTitleMode.Large
   // A render layer may have only one writer. Keeping this state local is what makes overlapping
   // NavHost destinations (including predictive back) safe: each screen records into its own layers.
   val bodyBackdrop = rememberGlassBackdrop()
@@ -934,6 +962,8 @@ private fun FluidScreenLayout(
     listState = listState,
     titleMorphState = titleMorphState,
   )
+  // Senza il titolo grande quello della barra e' sempre agganciato (F4A.2).
+  val docked = remember { mutableFloatStateOf(1f) }
 
   // The morph is welded to the scroll, and that is the whole of its correctness.
   //
@@ -945,7 +975,7 @@ private fun FluidScreenLayout(
   // one of them is a title. The minimum time now comes from where it belongs: the fling snaps the
   // scroll itself to one end of the handoff or the other, so the movement is always completed, is
   // always animated when a gesture leaves it partway, and never rests in between.
-  val collapseProgress = scrollProgress
+  val collapseProgress: State<Float> = if (largeTitle) scrollProgress else docked
   val activeFacet = rememberTitleFacet(titleFacets, collapseProgress)
 
   // The title has two homes and no address in between. Letting a gesture stop halfway leaves the
@@ -979,7 +1009,8 @@ private fun FluidScreenLayout(
       calculateGlassIntensity(
         firstVisibleItemIndex = listState.firstVisibleItemIndex,
         firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
-        collapseProgress = collapseProgress.value,
+        // Senza titolo grande il bordo dello scorrimento segue solo lo scorrimento: il titolo agganciato non e' un moto.
+        collapseProgress = if (largeTitle) collapseProgress.value else 0f,
         deadZonePx = shieldDeadZonePx,
         rampDistancePx = shieldRampDistancePx,
       )
@@ -1095,17 +1126,21 @@ private fun FluidScreenLayout(
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
         overscrollEffect = null,
       ) {
-        item(key = TitleItemKey, contentType = TitleItemKey) {
-          FluidLargeTitle(
-            title = title,
-            subtitle = subtitle,
-            style = expandedTitleStyle,
-            collapseProgress = collapseProgress,
-            morphState = titleMorphState,
-            fontScale = density.fontScale,
-            reducedMotion = reducedMotion,
-          )
+        if (largeTitle) {
+          item(key = TitleItemKey, contentType = TitleItemKey) {
+            FluidLargeTitle(
+              title = title,
+              subtitle = toolbar?.subtitle ?: subtitle,
+              style = expandedTitleStyle,
+              collapseProgress = collapseProgress,
+              morphState = titleMorphState,
+              fontScale = density.fontScale,
+              reducedMotion = reducedMotion,
+            )
+          }
         }
+        // La ricerca della pagina, se c'e': dove la posa il suo punto unico (F4A.2: sotto il titolo).
+        fluidToolbarSearchItem(search)
         content()
       }
       }
@@ -1158,6 +1193,8 @@ private fun FluidScreenLayout(
       onTapTitle = {
         scope.launch { listState.animateScrollToItem(0) }
       },
+      toolbar = toolbar,
+      subtitle = if (toolbar != null) toolbar.subtitle ?: subtitle else null,
     )
 
     CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(chromeBackdrop) }
@@ -1577,18 +1614,32 @@ internal fun FluidTopBar(
   onBack: (() -> Unit)?,
   actions: @Composable RowScope.() -> Unit,
   onTapTitle: () -> Unit,
+  /**
+   * La barra dichiarata (F4A.2): se c'è, i suoi gruppi sul piano flottante prendono il posto dell'indietro e di
+   * [actions], e il titolo segue il suo modo. Null: la barra di sempre, identica.
+   */
+  toolbar: FluidToolbarDeclaration? = null,
+  /** Il sottotitolo sotto il titolo agganciato (solo con [toolbar]): compare mentre il titolo si aggancia. */
+  subtitle: String? = null,
 ) {
   // Dentro un host di pagine (3.0) la barra non si disegna qui: si descrive, e la disegna l'host,
   // una sola, ferma sopra le pagine che si muovono. Fuori, la barra di sempre.
   val slot = LocalFluidPageBar.current
   if (slot != null) {
+    // Fino a F4A.3 l'host conosce l'indietro e una riga di azioni: la barra dichiarata gli dà il suo indietro e i suoi
+    // gruppi (senza indietro e Chiudi) in quella riga, sul piano. Il modello nella barra dell'host arriva con F4A.3.
+    val hostActions: @Composable RowScope.() -> Unit = if (toolbar == null) {
+      actions
+    } else {
+      { FluidToolbarBar(toolbar, title = title, exits = false, wrap = true) }
+    }
     RegisterFluidPageBar(
       slot,
       FluidPageBarSpec(
         title = title,
         activeFacet = activeFacet,
-        onBack = onBack,
-        actions = actions,
+        onBack = if (toolbar == null) onBack else toolbar.back?.onClick ?: onBack,
+        actions = hostActions,
         context = currentCompositionLocalContext,
         collapseProgress = collapseProgress,
         glassIntensity = glassIntensity,
@@ -1653,6 +1704,23 @@ internal fun FluidTopBar(
       GlassInkContent(shade.ink, LocalContentColor.current) {
       val controls = remember { FluidTopBarControls() }
       FluidTopBarRow(onTapTitle = onTapTitle) {
+        if (toolbar != null) {
+          FluidToolbarTopRow(
+            toolbar = toolbar,
+            title = title,
+            subtitle = subtitle,
+            collapseProgress = collapseProgress,
+            activeFacet = activeFacet,
+            morphState = morphState,
+            compactStyle = compactStyle,
+            contentTranslation = contentTranslation,
+            fontScale = fontScale,
+            reducedMotion = reducedMotion,
+            controls = controls,
+            fade = shade.fade,
+          )
+          return@FluidTopBarRow
+        }
         Box(Modifier.matchParentSize().graphicsLayer { alpha = shade.fade() }) {
           FluidTopBarTitle(
             title = title,
@@ -2084,6 +2152,80 @@ internal fun FluidTopBarActions(
     content = actions,
   )
 }
+
+/**
+ * La riga della barra **dichiarata** (F4A.2): il titolo nel suo modo, il sottotitolo sotto il titolo agganciato e i
+ * gruppi sul piano flottante ([FluidToolbarBar]). Gli inset del titolo li dà la misura d'**arrivo** dei gruppi
+ * ([FluidToolbarExtent]), non il vetro in volo: mentre un gruppo cambia larghezza il titolo non balla. Un elemento al
+ * centro (`Principal`) prende il posto del titolo, come in SwiftUI.
+ */
+@Composable
+private fun BoxScope.FluidToolbarTopRow(
+  toolbar: FluidToolbarDeclaration,
+  title: String,
+  subtitle: String?,
+  collapseProgress: State<Float>,
+  activeFacet: State<String?>,
+  morphState: FluidTitleMorphState,
+  compactStyle: TextStyle,
+  contentTranslation: () -> Float,
+  fontScale: Float,
+  reducedMotion: Boolean,
+  controls: FluidTopBarControls,
+  fade: () -> Float,
+) {
+  val showsTitle = toolbar.titleMode != FluidToolbarTitleMode.None && !toolbar.hasPrincipal
+  if (showsTitle) {
+    Box(Modifier.matchParentSize().graphicsLayer { alpha = fade() }) {
+      // Col sottotitolo il titolo agganciato sale: l'ancora del morph si misura dal posto, che sale con lui.
+      Box(Modifier.fillMaxSize().padding(bottom = if (subtitle != null) FluidToolbarSubtitleLift else 0.dp)) {
+        FluidTopBarTitle(
+          title = title,
+          collapseProgress = collapseProgress,
+          activeFacet = activeFacet,
+          morphState = morphState,
+          compactStyle = compactStyle,
+          contentTranslation = contentTranslation,
+          fontScale = fontScale,
+          reducedMotion = reducedMotion,
+          controls = controls,
+        )
+      }
+      if (subtitle != null) {
+        Box(
+          Modifier
+            .align(Alignment.BottomCenter)
+            .fluidTopBarTitleInset(controls)
+            .fillMaxWidth()
+            .graphicsLayer { alpha = smoothStep(collapseProgress.value.coerceIn(0f, 1f)) },
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = FluidToolbarSubtitleInk),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+      }
+    }
+  }
+  FluidToolbarBar(
+    declaration = toolbar,
+    title = title.takeIf { showsTitle },
+    onExtent = { extent ->
+      controls.startPx = extent.startPx
+      controls.endPx = extent.endPx
+    },
+  )
+}
+
+/** Quanto sale il titolo agganciato quando sotto di lui c'è il sottotitolo. */
+private val FluidToolbarSubtitleLift = 16.dp
+
+/** L'inchiostro del sottotitolo agganciato: quello della barra, attenuato come un'etichetta secondaria. */
+private const val FluidToolbarSubtitleInk = 0.6f
 
 /**
  * Come si muove il titolo di una pagina mentre l'host delle pagine la cambia (3.0), letto in disegno.

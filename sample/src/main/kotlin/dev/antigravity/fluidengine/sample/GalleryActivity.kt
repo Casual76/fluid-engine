@@ -316,6 +316,8 @@ internal fun Gallery(
               GalleryPage.Plane -> dev.antigravity.fluidengine.sample.plane.PlanePage(bottomInset) { nav.back() }
               // Le superfici dell'assistente (F3.2b): `assistant.fund`, `assistant.auto`, `assistant.theme`, `assistant.model`, `assistant.card`.
               GalleryPage.Assistant -> dev.antigravity.fluidengine.sample.assistant.AssistantPage(bottomInset) { nav.back() }
+              // La barra dichiarata (F4A.2): `toolbar.scene`, `toolbar.auto`.
+              GalleryPage.Toolbar -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

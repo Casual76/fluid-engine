@@ -7,7 +7,9 @@ Questa famiglia e' tutto cio' che galleggia di vetro in fondo allo schermo (o al
 altrove o fa qualcosa: la **tab bar flottante** (`FluidFloatingTabBar`), la sua forma da schermo largo (`FluidTabRail`),
 la **capsula di azioni** (`FluidFloatingCapsule`), il **campo di ricerca** di vetro (`FluidSearchField`) e le due barre
 storiche, oggi deprecate e ridotte a un involucro della prima (`FluidTabBar`, `FluidFoldingTabBar`). La barra
-*superiore* (titolo, indietro, azioni) e' di `FluidScreen`, in [schermata.md](schermata.md); la barra di pagina ancorata
+*superiore* (titolo, indietro, azioni) e' di `FluidScreen`, in [schermata.md](schermata.md); dalla 4.0 i suoi tasti si
+**dichiarano** (`toolbar { … }`: gruppi, principale tinta, conferma, trabocco, sul piano flottante), in
+[toolbar.md](toolbar.md); la barra di pagina ancorata
 all'host delle pagine (`FluidPageChrome` e relative) e' in [pagine.md](pagine.md) e [pagine-back-e-barra.md](pagine-back-e-barra.md).
 
 **Modello mentale.** Chi *usa* la barra decide dove sta e quanto spazio le lascia la pagina; la barra decide come si
@@ -52,6 +54,7 @@ I numeri che la pagina deve conoscere, in dp: `OpenHeight` 62 (`FluidMetrics.Tab
 | un campo di ricerca di vetro, anche richiudibile in un cerchio, anche con «3/12» | `FluidSearchField` |
 | un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` — attenzione: `FluidSearchField` porta il **suo** pannello (vedi trappole) |
 | la barra superiore col titolo e le azioni | `FluidScreen` / `FluidBarAction` — [schermata.md](schermata.md) |
+| i tasti della barra superiore che cambiano con lo stato (sfoglia → seleziona, una conferma tinta, il menu «Altro») | `FluidScreen(toolbar = { … })` — [toolbar.md](toolbar.md) |
 | la barra di una pagina che non e' una `FluidScreen`, dentro un host di pagine | `FluidPageChrome` — [pagine.md](pagine.md) |
 | «Non cosi'»: `FluidTabBar` | deprecata: e' `FluidFloatingTabBar` a elenco senza ripiegamento. Usa `FluidFloatingTabBar` direttamente |
 | «Non cosi'»: `FluidFoldingTabBar` + `FluidBarFold` | deprecata: e' `FluidFloatingTabBar` con la piega guidata da te. Usa `FluidFloatingTabBar` e la sua connessione |

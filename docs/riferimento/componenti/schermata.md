@@ -75,6 +75,7 @@ pagina che *deve* tenere una griglia propria si usa il titolo che si ritira senz
 | salto fra sezioni (mesi, giorni, lettere) su una lista sezionata | `FluidSectionIndex` — **non** scorre, salta |
 | lista lunga da scorrere trascinando una maniglia (con bolla «Marzo 2024») | `FluidFastScroller` — **non** salta fra sezioni, la posizione del dito e' la posizione della lista |
 | un'azione nella barra in alto | `FluidBarAction(icon, contentDescription, onClick)` nello slot `actions` |
+| tasti in alto che cambiano con lo stato (sfoglia → seleziona), una conferma tinta, un menu «Altro» | `FluidScreen(toolbar = { … })`, la barra dichiarata — [toolbar.md](toolbar.md) |
 | «Non cosi'»: due `LazyColumn` annidate, una `Surface` attorno a una `FluidScreen`, un `Scaffold` con `bottomBar` per la tab bar | emettere item nella lista della pagina; lo `Scaffold` toglie spazio alla pagina mentre la tab bar deve galleggiare **sopra** (vedi `ADOZIONE.md`, fase 5) |
 
 ## Una schermata tipica, dalla shell al contenuto
@@ -179,11 +180,20 @@ fun FluidScreen(
   ambient: FluidAmbient? = null,
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit = {},
   metrics: FluidScreenMetrics? = null,
+  toolbar: (FluidToolbarScope.() -> Unit)? = null,                  // 4.0: la barra dichiarata
+  search: FluidSearchSpec? = null,                                    // 4.0: la ricerca della pagina
   content: LazyListScope.() -> Unit,
 )
 ```
 
 Tutti i parametri: [../api/schermata.md](../api/schermata.md).
+
+**La barra dichiarata (4.0, F4A.2).** `toolbar = { … }` dice i tasti della barra in alto come un modello (icone,
+scritte, principale tinta, conferma, indietro e Chiudi, spaziatori, gruppi, priorità, trabocco, titolo `Large`/`Inline`/
+`None` e sottotitolo agganciato) e la barra li porta sul piano flottante: ogni cambio di stato si trasforma da solo.
+**Vince su `actions`**, che resta identico per chi non lo usa; con `onBack` e senza un `back` o un `close` dichiarati
+l'indietro lo aggiunge la barra. `search` (o `search(spec)` nel blocco, che vince) posa il `FluidSearchField` di oggi
+sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
 
 **Comportamento.**
 

@@ -297,6 +297,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-assistant"),
           onClick = { onOpen(GalleryPage.Assistant) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Barre (prova)",
+          subtitle = "F4A.2: la barra dichiarata sul piano flottante; sfoglia → seleziona, principale, trabocco, tinta per tasto",
+          modifier = Modifier.testTag("chrome-open-toolbar"),
+          onClick = { onOpen(GalleryPage.Toolbar) },
+        )
       }
     }
 

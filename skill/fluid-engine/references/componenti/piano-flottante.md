@@ -24,6 +24,7 @@ fogli della 4.0 sono **clienti** del piano: lo usano, non lo riscrivono.
 | ho bisogno di… | uso |
 |---|---|
 | un tasto che diventa due, una barra che cambia azioni, un tasto che compare | `FluidGlassContainer { … if (stato) … }` con `Modifier.fluidGlassId(id, ns)` su ogni vetro; nessuna animazione |
+| la barra in alto di una schermata, con tasti che cambiano con lo stato | la barra **dichiarata**, `FluidScreen(toolbar = { … })`: il contenitore, i gruppi e le identità li fa lei ([toolbar.md](toolbar.md)) |
 | un vetro su un elemento qualsiasi (un'icona, un testo, un `Box`) | `Modifier.fluidGlass(glass, shape)`; in un contenitore è un pezzo del piano, fuori è un vetro a sé |
 | lo spazio dei nomi degli `id` | `rememberFluidGlassNamespace()` |
 | un blocco di tasti che è una cosa sola (azioni dello stesso gruppo, una capsula di comandi) | `Modifier.fluidGlassUnion(id, ns)` su ognuno, **prima** del vetro: una sagoma sola anche ferma (sotto, «L'unione») |
@@ -176,16 +177,20 @@ serve); un vetro che **compare o scompare per lente** (mentre compare è un camp
 riposo); due **gruppi diversi** della stessa barra (12 dp, `FluidMetrics.GroupSpacing`): ognuno la sua unione, o
 nessuna. Un'unione resta un grappolo solo fino a otto pezzi; `fluidGlassUnion` va **prima** del vetro, come `fluidGlassId`.
 
-**Un grappolo ha un aspetto solo: limite noto, da correggere prima di F4A** (review di F3, D R4). Un grappolo unito, e
-ogni grappolo di più pezzi, si disegna con la **tinta, il ruolo e l'ottica del primo pezzo**. Vale anche per i tasti:
-la pellicola di selezione di un `FluidGlassIconButton(selected = true)` (una tinta per pezzo) dentro un blocco unito
-**non si vede** se il tasto non è il primo e **tinge tutto il blocco** se lo è; lo stesso per `FluidGlass.Regular.tint(…)`
-accanto a vetri non tinti. L'esempio qui sopra (Grassetto, Corsivo, Sottolineato) è proprio il caso in cui la selezione
-dovrebbe vedersi su un tasto solo, e oggi non si vede così. Finché non è corretto: in un blocco unito la selezione si
-legge dall'icona (pieno/vuoto), non da `selected` né da una tinta; o i tasti selezionabili stanno fuori dal blocco.
-La correzione sta fra due strade: il grappolo si divide anche per aspetto incompatibile (come già fa per `Clear` e
-`Regular`), o la tinta passa a essere per lastra; va fatta prima che le barre di F4A, con azioni selezionate e tintate,
-ci costruiscano sopra. Nessuna scena e nessun test della galleria mettono ancora un pezzo selezionato in un grappolo.
+**Ogni pezzo ha la sua tinta, anche in un grappolo** (F4A.2, la correzione della review di F3, D R4). Fino a F4A.1 un
+grappolo di più pezzi si disegnava con la tinta del primo: la selezione di un `FluidGlassIconButton(selected = true)` in un
+blocco unito non si vedeva (o tingeva tutto il blocco), e un `FluidGlass.Regular.tint(…)` accanto a vetri non tinti
+perdeva la sua tinta o la dava agli altri. Ora, quando i pezzi di un grappolo (a riposo) o di un campo del palco (in
+viaggio) **non hanno tutti la stessa pellicola**, il contenitore disegna **una superficie per tinta**, ognuna ritagliata
+sulla **striscia dei suoi pezzi** lungo la riga: la sagoma resta una (stesse lastre, stesso collo, stessa unione), cambia
+solo la pellicola. Fra due pezzi distinti il taglio cade a metà del varco, dove non c'è vetro: ognuno ha la sua pellicola,
+intera. In un blocco unito cade nel collo: la selezione è la striscia del suo tasto, come la selezione dentro una capsula
+di Apple. In viaggio le strisce seguono le lastre a ogni fotogramma (chi nasce dentro il donatore porta la sua tinta da
+metà della parte in cui si sovrappongono). Il confronto è sulla sola **tinta**: pezzi con la stessa pellicola e ruolo o
+ottica diversi (un `fluidGlass` accanto a un tasto) restano un'unica superficie col ruolo e l'ottica del primo, com'erano.
+Il registro dice con che tinta si disegna ogni vetro (`FluidGlassPieceRecord.drawnTint`). Costa una superficie (una
+cattura) in più per ogni tinta in più, solo nei grappoli che ne hanno più d'una. È ciò che serve alla barra dichiarata
+([toolbar.md](toolbar.md)): l'azione principale tinta a 12 dp da un gruppo neutro è nello stesso grappolo.
 
 ## Quando lo stato cambia
 
@@ -554,16 +559,20 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
   visto sul tablet: da riprendere, e da dire qui com'è.
 - **Il rientro iniziale** di una capsula che si allarga (R4 B2 (c): il bordo rientra di 0,19 H prima di allargarsi) non
   c'è: le molle per lato partono ferme e non anticipano.
+- **Il contenuto di un pezzo che cambia larghezza viaggia col centro del vetro**: in una capsula ancorata a un bordo che
+  si allarga (un gruppo della barra che guadagna un'icona) il contenuto che resta si sposta per un attimo verso il bordo e
+  torna, ritagliato. Da guardare sul tablet; un contenuto ancorato al bordo fermo è una proposta per la barra (F4A.2).
 - **Altri componenti** che posano il `modifier` dell'app fuori dal vetro non inoltrano ancora gli attributi del piano:
   `FluidGlassMenuButton`, il tasto di `FluidMorphMenuButton` e i controlli di `FluidControls.kt`. Lì un `fluidGlassId` non
   ha effetto e in debug il log lo dice; arrivano con barre e menu (F4A, F5A).
 - **Vetro di prima** (`FluidGlassModel.Classic`) e **sotto Android 13**: il contenitore non disegna; ogni pezzo è il vetro
   di sempre, senza viaggi.
 - **Più di otto pezzi** in un grappolo: il grappolo si divide, dichiarato.
-- **Un grappolo ha un aspetto solo** (tinta, ruolo e ottica del primo pezzo). Vale per i **pannelli**: un pannello e un
-  tasto vicini si disegnano con la ricetta di chi viene prima; un pannello sta di solito da solo. Vale anche per i
-  **tasti**: un `selected` o una tinta dentro un blocco unito perde la tinta, o la dà a tutti (sopra, «L'unione»). Si
-  corregge prima di F4A.
+- **Ruolo e ottica restano del primo pezzo** in un grappolo (la tinta no, dalla F4A.2: sopra, «L'unione»). Vale per i
+  **pannelli**: un pannello e un tasto vicini con la stessa pellicola si disegnano col ruolo e l'ottica di chi viene
+  prima; un pannello sta di solito da solo.
+- **La striscia di una tinta è dritta**: il taglio fra due tinte è una retta a metà fra i pezzi, non segue il collo. In un
+  blocco unito il passaggio di tinta è netto, a metà del collo; da guardare sul tablet (scena `tinta` di «Barre (prova)»).
 - Le tre tavole di gusto di F3.3 sono decise (Alessio, 2026-11-16): distanza di fusione media (16 dp), collo «spesso»
   (1/2), comparsa da 1,09. Il collo «spesso» vale per tutto l'engine: anche i viaggi di `morphTo` (menu, barre, pannelli)
   hanno l'esponente 1/2 (prima restavano a 2/3; `PhysicsNeckPinchExponent`, e `PhysicsPlaneNeckPinch` è lo stesso numero).
@@ -610,6 +619,10 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
 
 ## Cosa è verificato dai test
 
+- `FluidGlassTintSplitTest` (F4A.2): le tinte di un grappolo e le loro strisce (il taglio nel varco, la selezione in un
+  blocco unito, una colonna, chi nasce dentro il donatore). In galleria, `FluidToolbarBarTest`: in un blocco unito di tre
+  `FluidGlassIconButton` il selezionato si disegna con la sua tinta e gli altri no, anche quando la selezione si sposta; la
+  conferma tinta accanto a un gruppo neutro resta tinta.
 - `GlassPlaneTest`: la logica pura del piano (registro, grappoli, accoppiamento, classificazione, palco, viaggio
   interrompibile, riposo a vista dentro R4 B2, comparse in un campo a sé). `PhysicsPlaneNeckTest`: il collo del piano
   (una rottura sola a tre quarti del viaggio, la riunione che si vede, l'esponente «spesso», l'unione che è una sagoma

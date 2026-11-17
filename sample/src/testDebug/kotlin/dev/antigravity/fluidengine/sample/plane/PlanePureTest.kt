@@ -116,22 +116,32 @@ class PlanePureTest {
   @Test
   fun `chi guarda il contenitore distingue partenza, ripartenza, fine e riposo`() {
     val first = listOf("riposo-0")
-    val watch = PlaneJourneyWatch(journeys = 0, retargets = 0, rest = first)
-    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(0, 0, first))
+    val watch = PlaneJourneyWatch(journeys = 0, retargets = 0, arrivals = 0, rest = first)
+    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(0, 0, 0, first))
     // Il primo riposo (o un aspetto cambiato) senza viaggio: RIPOSO.
     val second = listOf("riposo-1")
-    assertEquals(PlaneJourneyWatch.Event.Rest, watch.observe(0, 0, second))
-    // Un viaggio parte e pubblica il riposo d'arrivo nello stesso fotogramma: è la partenza, non la fine.
+    assertEquals(PlaneJourneyWatch.Event.Rest, watch.observe(0, 0, 0, second))
+    // Un viaggio parte: è la partenza.
+    assertEquals(PlaneJourneyWatch.Event.Started, watch.observe(1, 0, 0, second))
+    assertTrue(watch.inFlight)
+    // Il riposo d'arrivo pubblicato al secondo fotogramma del palco (giro di correzione di F3): non è la fine. Era il
+    // `FINE` a 20–44 ms di S5.
     val target = listOf("arrivo")
-    assertEquals(PlaneJourneyWatch.Event.Started, watch.observe(1, 0, target))
+    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(1, 0, 0, target))
     assertTrue(watch.inFlight)
-    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(1, 0, target))
-    // Ripartito a metà: un altro arrivo, ancora in volo.
+    // Ripartito a metà: un altro arrivo pubblicato, ancora in volo.
     val retarget = listOf("arrivo-2")
-    assertEquals(PlaneJourneyWatch.Event.Retargeted, watch.observe(1, 1, retarget))
+    assertEquals(PlaneJourneyWatch.Event.Retargeted, watch.observe(1, 1, 0, retarget))
+    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(1, 1, 0, retarget))
     assertTrue(watch.inFlight)
-    // L'arrivo: un riposo nuovo a contatori fermi.
-    assertEquals(PlaneJourneyWatch.Event.Finished, watch.observe(1, 1, listOf("arrivo-2")))
+    // L'arrivo vero: il conducente ha finito (il contatore degli arrivi sale), anche a riposo pubblicato invariato.
+    assertEquals(PlaneJourneyWatch.Event.Finished, watch.observe(1, 1, 1, retarget))
     assertFalse(watch.inFlight)
+    // Un arrivo e la partenza dopo nello stesso controllo: la partenza assorbe l'arrivo di prima e aspetta il suo.
+    assertEquals(PlaneJourneyWatch.Event.Started, watch.observe(2, 1, 1, retarget))
+    assertEquals(PlaneJourneyWatch.Event.Started, watch.observe(3, 1, 2, listOf("arrivo-3")))
+    assertEquals(PlaneJourneyWatch.Event.None, watch.observe(3, 1, 2, listOf("arrivo-3")))
+    assertTrue(watch.inFlight)
+    assertEquals(PlaneJourneyWatch.Event.Finished, watch.observe(3, 1, 3, listOf("arrivo-3")))
   }
 }

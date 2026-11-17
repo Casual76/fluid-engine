@@ -278,28 +278,37 @@ internal object PlaneLaunch {
  * Chi guarda il contenitore da fuori per scrivere le righe `VIAGGIO`, `FINE` e `RIPOSO`: logica pura, che riceve i
  * contatori di `FluidGlassContainerDiagnostics` a ogni controllo e dice che cosa è successo dall'ultimo.
  *
- * Perché così: la diagnostica del contenitore non avvisa, conta. Un viaggio partito o ripartito fa salire i contatori (e
- * pubblica il riposo d'arrivo nello stesso fotogramma); la fine del viaggio pubblica solo un riposo nuovo, a contatori
- * fermi. Quindi un riposo nuovo con un viaggio in volo è la fine, senza viaggio in volo è il primo riposo (o un aspetto
- * cambiato). L'istante della fine è quello del controllo: preciso al passo del controllo, non al fotogramma.
+ * Perché così: la diagnostica del contenitore non avvisa, conta. Un viaggio partito o ripartito fa salire i contatori dei
+ * viaggi; l'arrivo vero (il conducente ha finito, il palco lascia il vetro al riposo) fa salire quello degli arrivi
+ * (`totalArrivals`). Il riposo pubblicato (`lastRest`) **non** è la fine: dal giro di correzione di F3 il riposo d'arrivo
+ * si pubblica al secondo fotogramma del palco, e prenderlo per la fine scriveva `FINE` a 20–44 ms dalla partenza (S5,
+ * «Errori degli strumenti»; corretto in f3-corpo). Un riposo nuovo senza viaggio in volo è il primo riposo (o un aspetto
+ * cambiato); in volo non dice niente. L'istante della fine è quello del controllo: preciso al passo del controllo, non
+ * al fotogramma.
  */
-internal class PlaneJourneyWatch(journeys: Long, retargets: Long, rest: Any?) {
+internal class PlaneJourneyWatch(journeys: Long, retargets: Long, arrivals: Long, rest: Any?) {
   enum class Event { None, Started, Retargeted, Finished, Rest }
 
   private var journeys = journeys
   private var retargets = retargets
+  private var arrivals = arrivals
   private var rest = rest
 
   /** Un viaggio partito e non ancora arrivato. */
   var inFlight: Boolean = false
     private set
 
-  /** Che cosa è cambiato da quanto visto l'ultima volta; [rest] si confronta per identità (un riposo nuovo è una lista nuova). */
-  fun observe(journeys: Long, retargets: Long, rest: Any?): Event {
+  /**
+   * Che cosa è cambiato da quanto visto l'ultima volta; [rest] si confronta per identità (un riposo nuovo è una lista
+   * nuova). Un arrivo visto nello stesso controllo di una partenza è del viaggio di prima (un viaggio dura molto più di
+   * un controllo): la partenza lo assorbe, e il viaggio nuovo aspetta il suo.
+   */
+  fun observe(journeys: Long, retargets: Long, arrivals: Long, rest: Any?): Event {
     val event = when {
       retargets > this.retargets -> Event.Retargeted
       journeys > this.journeys -> Event.Started
-      rest !== this.rest -> if (inFlight) Event.Finished else Event.Rest
+      arrivals > this.arrivals -> if (inFlight) Event.Finished else Event.Rest
+      rest !== this.rest && !inFlight -> Event.Rest
       else -> Event.None
     }
     when (event) {
@@ -309,6 +318,7 @@ internal class PlaneJourneyWatch(journeys: Long, retargets: Long, rest: Any?) {
     }
     this.journeys = journeys
     this.retargets = retargets
+    this.arrivals = arrivals
     this.rest = rest
     return event
   }

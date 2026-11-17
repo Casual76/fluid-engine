@@ -222,6 +222,15 @@ Le modifiche fatte finora:
     e la installa prima del corpo (prima un giro chiaro↔scuro poteva costruire piu' catene intermedie fra due disegni). A
     stato e scope invariati il disegno non ricostruisce; la cattura si invalida come prima. Stessi punti marcati, nessuna
     firma pubblica cambia; la prova sono i due casi nuovi di `BackdropEffectsUpdatesTest`.
+    Correzione urgente di F3 (`sessioni/f3-corpo/`): il disegno chiesto da un avviso **non e' garantito**. Sul tablet il
+    palco in viaggio su un fondo fermo riceveva un avviso a fotogramma, chiedeva il disegno e il disegno non arrivava fino
+    all'arrivo: costruita solo li', la catena restava quella di partenza (il corpo congelato). Ora l'avviso iscrive anche
+    il nodo, una tantum, al pre-draw della finestra (`ViewTreeObserver.OnPreDrawListener`, tolto al distacco), dove
+    `BackdropEffectsUpdates.beforeFrame` costruisce la catena sporca con l'ultimo campione se lo scope e' quello del
+    fotogramma (stessa taglia, densita', direzione e scala dell'ultimo disegno); altrimenti resta al disegno. Una
+    costruzione per fotogramma, nessuna intermedia; la catena va sul layer della cattura come a monte, che il renderer
+    applica senza ridisegnare il nodo. Nessuna firma pubblica cambia; la prova sono i casi «senza disegno» di
+    `BackdropEffectsUpdatesTest`.
 
 21. **Le sorgenti dicono quando si registrano di nuovo** (4.0.0, `LayerBackdrop.kt`, `LayerBackdropModifier.kt`, F2.1).
     Una superficie che campiona un layer non ricattura quando il layer cambia: sotto un vetro fermo lo sfondo puo'

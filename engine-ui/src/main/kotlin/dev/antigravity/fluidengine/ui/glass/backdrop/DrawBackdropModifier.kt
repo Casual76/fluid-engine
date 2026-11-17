@@ -28,6 +28,8 @@ package dev.antigravity.fluidengine.ui.glass.backdrop
 
 import android.os.Handler
 import android.os.Looper
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.mutableFloatStateOf
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 // Fluid Engine addition (F1A, voce 18): lo scope degli effetti dice se la superficie sta su un vetro.
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -59,7 +62,10 @@ import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.findNearestAncestor
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.observeReads
+import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.node.requireGraphicsContext
+import androidx.compose.ui.node.requireLayoutDirection
+import androidx.compose.ui.node.requireView
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
@@ -1089,7 +1095,62 @@ private class DrawBackdropNode(
         // F3: accorpa le notifiche prima del prossimo draw. Gli effetti immutabili prendono l'ultimo campione
         // del frame, insieme alla luce; nessuna catena intermedia viene installata fra due disegni.
         effectsUpdates.invalidate()
-        if (isAttached) invalidateDraw()
+        if (isAttached) {
+            invalidateDraw()
+            // F3 (f3-corpo): il draw chiesto qui può non arrivare (il palco in viaggio su un fondo fermo): la catena si
+            // costruisce comunque prima del fotogramma. Vedi [BackdropEffectsUpdates.beforeFrame].
+            requestBeforeFrame()
+        }
+    }
+
+    // --- F3 (f3-corpo): la catena prima del fotogramma, anche senza il draw del nodo ---------------------------------
+
+    /** La vista con il pre-draw iscritto, o null: uno per nodo, una tantum, fino al prossimo fotogramma. */
+    private var beforeFrameView: View? = null
+
+    private val beforeFrameListener = ViewTreeObserver.OnPreDrawListener {
+        cancelBeforeFrame()
+        if (isAttached) {
+            val built = effectsUpdates.beforeFrame(scopeCurrent = effectScopeIsCurrent())
+            GlassFrameDiagnostics.event("beforeFrame", this@DrawBackdropNode) { "built=$built" }
+        }
+        true
+    }
+
+    private fun requestBeforeFrame() {
+        if (beforeFrameView != null) return
+        val view = requireView()
+        view.viewTreeObserver.addOnPreDrawListener(beforeFrameListener)
+        beforeFrameView = view
+    }
+
+    private fun cancelBeforeFrame() {
+        val view = beforeFrameView ?: return
+        beforeFrameView = null
+        // L'osservatore della finestra, quello in cui il listener è finito anche se iscritto prima dell'attacco della vista.
+        val observer = view.viewTreeObserver
+        if (observer.isAlive) observer.removeOnPreDrawListener(beforeFrameListener)
+    }
+
+    /**
+     * Se lo scope degli effetti è quello che il draw di questo fotogramma troverebbe: la stessa taglia, densità, scala del
+     * testo, direzione e scala della cattura dell'ultimo [effectScope] aggiornato nel draw. Mai vero prima del primo draw
+     * (lo scope non ha taglia). Stessa aritmetica di `BackdropEffectScopeImpl.update` e di [draw], a numeri uguali.
+     */
+    private fun effectScopeIsCurrent(): Boolean {
+        val scoped = effectScope.size
+        if (!scoped.isSpecified) return false
+        val coordinates = lastCoordinates?.takeIf { it.isAttached } ?: return false
+        val width = coordinates.size.width.toFloat()
+        val height = coordinates.size.height.toFloat()
+        val contentScale = fitToTexture(backdropScale * quantiseScaleFactor(backdropScaleFactor()), width, height)
+        if (contentScale != effectiveScale) return false
+        val density = requireDensity()
+        val size = if (contentScale != 1f) Size(width * contentScale, height * contentScale) else Size(width, height)
+        return scoped == size &&
+            effectScope.density == density.density * contentScale &&
+            effectScope.fontScale == density.fontScale &&
+            effectScope.layoutDirection == requireLayoutDirection()
     }
 
     private fun updateEffects() {
@@ -1156,6 +1217,7 @@ private class DrawBackdropNode(
     }
 
     override fun onDetach() {
+        cancelBeforeFrame()
         val graphicsContext = requireGraphicsContext()
         graphicsLayer?.let { layer ->
             graphicsContext.releaseGraphicsLayer(layer)
@@ -1425,6 +1487,16 @@ private fun sameSampling(a: Backdrop, b: Backdrop): Boolean {
  * intermedie. Il giro resta osservato anche quando il ramo degli effetti cambia. La cattura si invalida solo
  * se cambia il padding, come prima: un nuovo uniform non fa registrare di nuovo lo sfondo.
  *
+ * F3 (f3-corpo): **il draw del nodo non è garantito.** La catena è una proprietà del layer della cattura, che il
+ * renderer applica anche se il nodo non si ridisegna, e Compose non ridisegna sempre il nodo che lo chiede: sul tablet,
+ * per tutto il viaggio del palco su un fondo fermo, il nodo riceveva un avviso a fotogramma e chiedeva il draw, e il draw
+ * non arrivava fino all'arrivo (`sessioni/f3-corpo/`). Costruita solo nel draw, la catena restava quella di partenza:
+ * il corpo congelato. Per questo c'è [beforeFrame]: il nodo lo chiama dal pre-draw della finestra, l'ultimo istante prima
+ * che il fotogramma si disegni, dopo i callback del fotogramma e le applicazioni di Compose. Lì una catena sporca si
+ * costruisce con l'ultimo campione **se lo scope è quello del fotogramma** (stessa taglia, densità, direzione e scala
+ * dell'ultimo draw); altrimenti la lascia al draw, che con una taglia nuova arriva comunque. Un fotogramma che ridisegna
+ * anche il nodo la trova già fatta: resta una costruzione per fotogramma.
+ *
  * Una classe e non due righe nel nodo perché la regola si prova sul JVM con un osservatore vero
  * (`BackdropEffectsUpdatesTest`), senza un nodo attaccato.
  *
@@ -1437,15 +1509,28 @@ internal class BackdropEffectsUpdates(
 ) {
     private var dirty = true
 
-    /** All'attacco, all'aggiornamento del nodo o quando cambia un ingresso; il chiamante chiede il draw. */
+    /** All'attacco, all'aggiornamento del nodo o quando cambia un ingresso; il chiamante chiede il draw e il pre-draw. */
     fun invalidate() {
         dirty = true
     }
 
-    /** La costruzione osservata; il nodo la raggiunge solo da [onDraw]. Resta disponibile ai modelli di test. */
+    /** La costruzione osservata; il nodo la raggiunge da [beforeFrame] e da [onDraw]. Resta disponibile ai modelli di test. */
     fun refresh() {
         dirty = false
         observe(rebuild)
+    }
+
+    /**
+     * Prima che il fotogramma si disegni (il pre-draw della finestra), anche se il nodo non verrà ridisegnato: una catena
+     * sporca si costruisce qui con l'ultimo campione, se [scopeCurrent] (lo scope è quello che il draw di questo
+     * fotogramma troverebbe). Senza scope corrente, o mai disegnata, resta sporca per [onDraw].
+     *
+     * @return se ha costruito.
+     */
+    fun beforeFrame(scopeCurrent: Boolean): Boolean {
+        if (!dirty || !scopeCurrent) return false
+        refresh()
+        return true
     }
 
     /** L'ultimo campione e la taglia del frame, in un solo giro **osservato** prima di disegnare il corpo. */

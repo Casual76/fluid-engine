@@ -905,6 +905,7 @@ private fun JourneyLog(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, 
     fun fresh() = PlaneJourneyWatch(
       FluidGlassContainerDiagnostics.totalJourneys,
       FluidGlassContainerDiagnostics.totalRetargets,
+      FluidGlassContainerDiagnostics.totalArrivals,
       FluidGlassContainerDiagnostics.lastRest,
     )
     var watch = fresh()
@@ -939,6 +940,7 @@ private fun JourneyLog(config: PlaneConfig, live: PlaneLive, frame: PlaneFrame, 
       val event = watch.observe(
         FluidGlassContainerDiagnostics.totalJourneys,
         FluidGlassContainerDiagnostics.totalRetargets,
+        FluidGlassContainerDiagnostics.totalArrivals,
         FluidGlassContainerDiagnostics.lastRest,
       )
       val t = SystemClock.uptimeMillis()

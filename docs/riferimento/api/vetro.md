@@ -50,6 +50,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidGlassContainerDiagnostics` — Il contenitore visto da fuori, per le prove (il test del piano nel modulo della galleria, che non vede gli `internal` dell'engine) e per le sessioni sul dispositivo. Non è un'API per le app.
   - `val totalJourneys: Long get()` — I viaggi partiti (un cambio a riposo), in tutto il processo.
   - `val totalRetargets: Long get()` — I viaggi ripartiti a metà (uno stato cambiato mentre il vetro viaggiava).
+  - `val totalArrivals: Long get()` — I viaggi arrivati: il conducente ha finito e il palco ha lasciato il vetro al riposo (f3-corpo). È la fine vera di un viaggio; [lastRest] non lo è più, perché il riposo d'arrivo si pubblica al secondo fotogramma del palco (giro di correzione di F3), molto prima dell'arrivo.
   - `val totalOrderWarnings: Long get()` — Quante volte un `fluidGlassId`, `fluidGlassUnion` o `fluidGlassTransition` è stato scritto **dopo** il suo vetro (o senza vetro alla sua destra): non ha effetto, e in debug il log lo dice.
   - `val liveContainers: Int get()` — I contenitori in scena adesso.
   - `val lastJourney: List<FluidGlassFlightRecord> get()` — Chi è andato dove nell'ultimo viaggio partito o ripartito: un record per vetro in volo.

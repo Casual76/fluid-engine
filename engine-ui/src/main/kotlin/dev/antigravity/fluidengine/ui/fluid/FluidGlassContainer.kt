@@ -513,6 +513,7 @@ fun FluidGlassNested(content: @Composable () -> Unit) {
 object FluidGlassContainerDiagnostics {
   private val journeys = AtomicLong()
   private val retargets = AtomicLong()
+  private val arrivals = AtomicLong()
   private val orderWarnings = AtomicLong()
   private val live = AtomicInteger()
 
@@ -539,6 +540,13 @@ object FluidGlassContainerDiagnostics {
 
   /** I viaggi ripartiti a metà (uno stato cambiato mentre il vetro viaggiava). */
   val totalRetargets: Long get() = retargets.get()
+
+  /**
+   * I viaggi arrivati: il conducente ha finito e il palco ha lasciato il vetro al riposo (f3-corpo). È la fine vera di un
+   * viaggio; [lastRest] non lo è più, perché il riposo d'arrivo si pubblica al secondo fotogramma del palco (giro di
+   * correzione di F3), molto prima dell'arrivo.
+   */
+  val totalArrivals: Long get() = arrivals.get()
 
   /**
    * Quante volte un `fluidGlassId`, `fluidGlassUnion` o `fluidGlassTransition` è stato scritto **dopo** il suo vetro
@@ -609,6 +617,7 @@ object FluidGlassContainerDiagnostics {
   fun resetForTesting() {
     journeys.set(0)
     retargets.set(0)
+    arrivals.set(0)
     orderWarnings.set(0)
     last = emptyList()
     rest = emptyList()
@@ -625,6 +634,10 @@ object FluidGlassContainerDiagnostics {
   internal fun onJourney(records: List<FluidGlassFlightRecord>, retarget: Boolean) {
     if (retarget) retargets.incrementAndGet() else journeys.incrementAndGet()
     last = records
+  }
+
+  internal fun onArrival() {
+    arrivals.incrementAndGet()
   }
 
   internal fun onFinger(entry: Float) {
@@ -2475,7 +2488,10 @@ internal class FluidGlassContainerState {
       }
       FluidGlassPlaneDriver.Change.Retargeted -> fluidGlassTraced("FluidGlass.restart") { start(retarget = true) }
       FluidGlassPlaneDriver.Change.Moved -> driveStage(publishPending = true)
-      FluidGlassPlaneDriver.Change.Finished -> settle(driver.rest ?: measured)
+      FluidGlassPlaneDriver.Change.Finished -> {
+        settle(driver.rest ?: measured)
+        FluidGlassContainerDiagnostics.onArrival()
+      }
     }
     if (change == FluidGlassPlaneDriver.Change.Started) {
       // Dove va il tempo fra il cambio e il primo fotogramma del palco (A 8, B 3, C R5): l'attesa del fotogramma (che a

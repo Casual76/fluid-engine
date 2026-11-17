@@ -27,8 +27,11 @@ adb shell am start -S -W -n $A --es gallery.page plane --es plane.scene ridimens
 adb logcat -s FluidPiano
 ```
 
-(`$A` è una variabile di PowerShell; in `bash` va scritta `A=…` e `$A`.) Gli extra valgono solo nella build di debug:
-chiudere l'attività prima di un nuovo lancio con extra diversi (`-S` la ferma e la riparte).
+(`$A` è una variabile di PowerShell; in `bash` va scritta `A=…` e `$A`.) Gli extra valgono solo nella build di debug e
+nella **`bench`** (la release misurabile, non debuggable ma profilabile: pacchetto `dev.antigravity.fluidglass.bench`,
+al posto di `…fluidglass.debug` in `$A`; come costruirla e installarla in
+`artifacts/liquid-glass/sessioni/build-bench/LEGGIMI.md`); la galleria dello store non li legge. Chiudere l'attività
+prima di un nuovo lancio con extra diversi (`-S` la ferma e la riparte).
 
 ## Gli extra
 

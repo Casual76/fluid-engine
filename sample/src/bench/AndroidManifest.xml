@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+  <application>
+    <!--
+      La build «bench» e' non debuggable (deve girare come la release), ma Perfetto e `dumpsys gfxinfo` da shell devono
+      poterla guardare: `profileable` con `shell` lo permette senza accendere il debug. Sotto l'API 29 l'elemento non
+      c'e' e si ignora (il tablet di prova e' piu' nuovo).
+    -->
+    <profileable
+        android:shell="true"
+        tools:targetApi="29" />
+  </application>
+
+</manifest>

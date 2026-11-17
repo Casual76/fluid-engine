@@ -315,7 +315,7 @@ private fun KnobRows(onRetune: () -> Unit) {
     if (switches != null) {
       switches.tune(context, next)
     } else {
-      FluidGlassDiagnostics.tuneLiquidProfile(context, next)
+      FluidGlassDiagnostics.tuneLiquidProfile(context.diagnosticHost(), next)
       onRetune()
     }
   }

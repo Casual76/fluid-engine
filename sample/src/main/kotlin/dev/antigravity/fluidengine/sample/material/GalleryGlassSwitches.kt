@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.sample.material
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.ApplicationInfo
 import android.util.Log
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import dev.antigravity.fluidengine.sample.BuildConfig
 import dev.antigravity.fluidengine.sample.GalleryPage
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
@@ -83,7 +85,7 @@ internal class GalleryGlassSwitches(private val modelState: MutableState<FluidGl
 
   /** Simula [level] (`null`: il livello vero) e fa rinascere la galleria. Falso se l'engine non l'ha accettato. */
   fun simulate(context: Context, level: Int?): Boolean {
-    val applied = FluidGlassDiagnostics.simulateApiLevel(context, level)
+    val applied = FluidGlassDiagnostics.simulateApiLevel(context.diagnosticHost(), level)
     apiLevel = FluidGlassDiagnostics.simulatedApiLevel
     Log.i(MaterialLogTag, "GALLERIA api=${level ?: "off"} applicato=${if (applied) "si" else "no"} (a mano)")
     if (applied) epoch++
@@ -98,7 +100,7 @@ internal class GalleryGlassSwitches(private val modelState: MutableState<FluidGl
 
   /** Mette le manopole [knobs] (vuote: il profilo di serie) e fa rinascere la galleria. */
   fun tune(context: Context, knobs: Map<String, String>): Boolean {
-    val applied = FluidGlassDiagnostics.tuneLiquidProfile(context, knobs)
+    val applied = FluidGlassDiagnostics.tuneLiquidProfile(context.diagnosticHost(), knobs)
     tuning = FluidGlassDiagnostics.liquidProfileTuning
     Log.i(MaterialLogTag, tuneLine(knobs, tuning, applied, byHand = true))
     if (applied) epoch++
@@ -112,11 +114,12 @@ internal class GalleryGlassSwitches(private val modelState: MutableState<FluidGl
      */
     fun applyAtLaunch(context: Context, launch: GalleryGlassLaunch) {
       if (launch.isEmpty) return
+      val host = context.diagnosticHost()
       val parts = ArrayList<String>()
       launch.model?.let { parts += "model=${it.name.lowercase()}" }
       launch.api?.let { level ->
         val wanted = level.takeIf { it != GalleryGlassLaunch.ApiOff }
-        val applied = FluidGlassDiagnostics.simulateApiLevel(context, wanted)
+        val applied = FluidGlassDiagnostics.simulateApiLevel(host, wanted)
         parts += "api=${wanted ?: "off"} applicato=${if (applied) "si" else "no"}"
       }
       launch.warmUp?.let { on ->
@@ -125,7 +128,7 @@ internal class GalleryGlassSwitches(private val modelState: MutableState<FluidGl
       }
       Log.i(MaterialLogTag, "GALLERIA ${parts.joinToString(" ")}".trimEnd())
       launch.tune?.let { knobs ->
-        val applied = FluidGlassDiagnostics.tuneLiquidProfile(context, knobs)
+        val applied = FluidGlassDiagnostics.tuneLiquidProfile(host, knobs)
         Log.i(MaterialLogTag, tuneLine(knobs, FluidGlassDiagnostics.liquidProfileTuning, applied, byHand = false))
       }
     }
@@ -154,8 +157,37 @@ internal fun rememberGalleryGlassSwitches(launch: GalleryGlassLaunch): GalleryGl
   return remember(model) { GalleryGlassSwitches(model) }
 }
 
-/** Vero nella build di debug: gli interruttori e la pagina esistono solo lì. */
-internal fun Context.isDebuggableApp(): Boolean = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+/**
+ * Vero nella build di debug **e nella `bench`**: gli extra di lancio, gli interruttori e la diagnostica esistono solo
+ * lì. È l'unico punto che lo decide: la galleria dello store (release) non ha scorciatoie nascoste.
+ *
+ * Il nome è rimasto quello di prima per non toccare le pagine che lo chiamano, ma non vuol più dire «il flag
+ * `debuggable`»: la `bench` è non debuggable di proposito (deve comportarsi come la release) e li ammette lo stesso,
+ * per la costante di build [BuildConfig.EXTRAS_WITHOUT_DEBUGGABLE] (vera solo lì). In release e in debug la costante è
+ * falsa, quindi decide il flag, come sempre: i test di debug provano proprio quello.
+ */
+internal fun Context.isDebuggableApp(): Boolean = isDebuggableApp(BuildConfig.EXTRAS_WITHOUT_DEBUGGABLE)
+
+/** La decisione di [isDebuggableApp] con la costante di build passata a mano: la prova la fa anche dove vale falso. */
+internal fun Context.isDebuggableApp(extrasWithoutDebuggable: Boolean): Boolean =
+  extrasWithoutDebuggable || (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+/**
+ * Il contesto da dare alla diagnostica dell'engine (`FluidGlassDiagnostics.simulateApiLevel`, `tuneLiquidProfile`).
+ *
+ * Quelle due funzioni **si rifiutano** se `applicationInfo` non ha `FLAG_DEBUGGABLE` (la regola è dell'engine, e la
+ * release non deve poterle usare). Nella `bench` quel flag manca di proposito, quindi senza questo `gallery.tune` e
+ * `gallery.api` risponderebbero «NON APPLICATO». Qui si mostra all'engine un `ApplicationInfo` con il flag acceso, solo
+ * a lui e solo se la build ammette gli extra senza essere debuggable; l'app vera resta non debuggable (ART, JIT e
+ * R8 non cambiano). Il giorno che l'engine avrà un interruttore suo per le build di misura, questa funzione sparisce.
+ */
+internal fun Context.diagnosticHost(extrasWithoutDebuggable: Boolean = BuildConfig.EXTRAS_WITHOUT_DEBUGGABLE): Context {
+  if (!extrasWithoutDebuggable || (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) return this
+  val shown = ApplicationInfo(applicationInfo).apply { flags = flags or ApplicationInfo.FLAG_DEBUGGABLE }
+  return object : ContextWrapper(this) {
+    override fun getApplicationInfo(): ApplicationInfo = shown
+  }
+}
 
 /**
  * Gli interruttori a mano, nelle Impostazioni accanto all'aspetto: dove si cambia già il tema. Niente se la galleria

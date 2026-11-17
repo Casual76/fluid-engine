@@ -53,6 +53,10 @@ android {
     // pubblica.
     versionName '2.0.0'
     testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    // Gli extra di lancio (`gallery.page`, `plane.scene`, `gallery.tune`...) e la diagnostica li ammette, oltre alla
+    // build `debuggable`, anche la `bench` (vedi sotto). Falso di serie: la release dello store non ha scorciatoie, e
+    // la build di debug non ne ha bisogno (e' gia' `debuggable`, e i test provano proprio quel flag).
+    buildConfigField 'boolean', 'EXTRAS_WITHOUT_DEBUGGABLE', 'false'
   }
 
   signingConfigs {
@@ -87,6 +91,24 @@ android {
         signingConfig signingConfigs.debug
         println 'Fluid Glass: nessuna chiave in local.properties — release firmata DEBUG, non pubblicabile.'
       }
+    }
+    // La build «bench»: come la release (R8, risorse ridotte, non debuggable: Compose e ART si comportano come per
+    // gli utenti), ma installabile accanto alla galleria dello store e a quella di debug, guidabile dagli extra di
+    // lancio e profilabile da shell. Serve alle misure di fluidita' e di costo sul tablet: in debug (ART debuggable,
+    // niente R8) i fotogrammi lunghi sono in parte un artefatto della build. NON si pubblica mai.
+    //
+    // Dichiarata dopo `release`: `initWith` copia da quella com'e' a questo punto.
+    bench {
+      initWith release
+      // `initWith` copia anche la firma, e con la chiave in local.properties sarebbe quella dello store: mai. La bench
+      // e' firmata di debug sempre, e per questo non si installa sopra la vera (id diverso, firma diversa).
+      signingConfig = signingConfigs.debug
+      applicationIdSuffix '.bench'
+      debuggable = false
+      // I moduli dell'engine hanno solo debug e release: la bench prende la release (con R8 sul consumatore).
+      matchingFallbacks = ['release']
+      // Gli extra e la diagnostica della galleria valgono anche qui (un solo punto che li legge: `isDebuggableApp()`).
+      buildConfigField 'boolean', 'EXTRAS_WITHOUT_DEBUGGABLE', 'true'
     }
   }
 

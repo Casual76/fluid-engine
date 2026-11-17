@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.sample.measure
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.util.Log
 import android.view.Window
@@ -34,6 +33,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBarDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -66,8 +66,7 @@ internal fun MeasurePage(bottomInset: Dp, onBack: () -> Unit) {
   val context = LocalContext.current
   val activity = remember(context) { context.findActivity() }
   val launched = remember(activity) {
-    val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    if (debuggable && activity != null) MeasureConfig.parse { activity.intent?.getStringExtra(it) } else null
+    if (context.isDebuggableApp() && activity != null) MeasureConfig.parse { activity.intent?.getStringExtra(it) } else null
   }
   var picked by remember { mutableStateOf<MeasureConfig?>(null) }
   val config = launched ?: picked

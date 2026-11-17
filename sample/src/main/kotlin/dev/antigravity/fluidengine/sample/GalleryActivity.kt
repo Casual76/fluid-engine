@@ -1,7 +1,6 @@
 package dev.antigravity.fluidengine.sample
 
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -46,6 +45,7 @@ import dev.antigravity.fluidengine.sample.material.LocalGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.material.LocalGalleryPageOpener
 import dev.antigravity.fluidengine.sample.icons.IconsPage
 import dev.antigravity.fluidengine.sample.material.MaterialPage
+import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.measure.MeasurePage
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
@@ -127,9 +127,10 @@ class GalleryActivity : ComponentActivity() {
     // circa, su tutta la larghezza): sopra un foglio di vetro e' una fascia scura in fondo. La galleria disegna da
     // se' fino al bordo, quindi lo spegne (F1B.5: misurato sul Tab S9 in tema scuro).
     if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
-    // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug: servono al giro di
-    // verifica su emulatore, e la galleria pubblicata non ha scorciatoie nascoste.
-    val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug, e la `bench` (la release
+    // misurabile: non debuggable ma profilabile, vedi `build.gradle`): servono al giro di verifica su emulatore e sul
+    // tablet, e la galleria pubblicata non ha scorciatoie nascoste. Decide `isDebuggableApp()`, un punto solo.
+    val debuggable = isDebuggableApp()
     val launch = if (debuggable) GalleryLaunch.parse { intent?.getStringExtra(it) } else GalleryLaunch.None
     // Gli interruttori del vetro per tutta la galleria (F1A.9: `gallery.model`, `gallery.api`, `gallery.warmup`,
     // `gallery.tune`), solo nella build di debug. Livello simulato, riscaldamento e manopole valgono per cio' che entra
@@ -227,7 +228,7 @@ internal fun Gallery(
   // Solo nella build di debug: quante volte il vetro ricattura e quante registra il materiale che
   // pubblica per il vetro su vetro (`adb logcat -s FluidGlassDiag`). Una riga quando i numeri
   // cambiano, controllati una volta al secondo: a schermo fermo non deve uscirne nessuna.
-  val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+  val debuggable = context.isDebuggableApp()
   if (debuggable) {
     LaunchedEffect(Unit) {
       FluidGlassDiagnostics.enabled = true

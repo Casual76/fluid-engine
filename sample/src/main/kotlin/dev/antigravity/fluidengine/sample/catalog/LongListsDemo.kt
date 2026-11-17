@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.sample.catalog
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.ApplicationInfo
 import android.os.Handler
 import android.os.HandlerThread
 import android.view.FrameMetrics
@@ -46,6 +45,7 @@ import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.sample.LocalGalleryMatrix
 import dev.antigravity.fluidengine.sample.MatrixData
 import dev.antigravity.fluidengine.sample.MatrixTextScale
+import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.sample.matrixDemoSettings
 import dev.antigravity.fluidengine.sample.rememberMatrixFlag
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
@@ -177,7 +177,7 @@ private fun LongListsPage(
 ) {
   val listState = rememberLazyListState()
   val scope = rememberCoroutineScope()
-  val debuggable = LocalContext.current.isDebuggable()
+  val debuggable = LocalContext.current.isDebuggableApp()
 
   // Lo stato dei dati parte dalla matrice (vuoto, caricamento, errore) e resta libero come il segmentato.
   val matrixData = LocalGalleryMatrix.current?.data
@@ -492,8 +492,6 @@ private fun LongListsBench() {
     modifier = Modifier.padding(horizontal = 4.dp).testTag("demo-bench"),
   )
 }
-
-private fun Context.isDebuggable(): Boolean = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
   is Activity -> this

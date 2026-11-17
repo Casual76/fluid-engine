@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Accanto alla galleria vera sul tablet le due icone devono potersi distinguere a colpo d'occhio. -->
+  <string name="app_name">Fluid Glass bench</string>
+</resources>

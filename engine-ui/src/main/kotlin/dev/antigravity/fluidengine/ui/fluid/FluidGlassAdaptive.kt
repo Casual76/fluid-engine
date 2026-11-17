@@ -36,7 +36,6 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -431,8 +430,13 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
   private var body by mutableFloatStateOf(0f)
   private var ink by mutableFloatStateOf(0f)
 
-  /** Da che parte sta l'inchiostro, per la composizione: cambia una volta per giro. */
-  val inkOnDark: Boolean by derivedStateOf { GlassFlipLaw.inkOnDark(ink) }
+  /**
+   * Il lato per la composizione è quello già pubblicato da [noteInkSide] nel callback del frame.
+   * Derivarlo da [ink] avviava una passata condizionale del Recomposer a ogni passo, anche quando il valore
+   * booleano restava uguale e tutti i gruppi venivano poi saltati. [appearance] cambia solo all'attraversamento
+   * (o alla prima misura): il disegno continua invece a leggere l'inchiostro e il corpo animati.
+   */
+  val inkOnDark: Boolean get() = appearance.isDark
 
   /** La parte che il contenuto ha composto per ultima ([noteComposedInk]), letta in disegno. */
   // Stato dalla 4.0 (F2.3c): chi legge [inkAlpha] in disegno (un `graphicsLayer`) deve rileggerlo quando la composizione

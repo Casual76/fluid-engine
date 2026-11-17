@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.glass.field.trace
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
@@ -18,7 +19,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassPressedSlab
 import dev.antigravity.fluidengine.ui.fluid.fluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassContentJourney
 import dev.antigravity.fluidengine.ui.fluid.GlassContentLook
+import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassPieceContent
 import dev.antigravity.fluidengine.ui.fluid.GlassPieceContentRole
@@ -33,6 +36,7 @@ import dev.antigravity.fluidengine.ui.fluid.fluidGlassStagePlane
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassUnionIndices
 import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
 import dev.antigravity.fluidengine.ui.fluid.glassContentSigmaPx
+import dev.antigravity.fluidengine.ui.fluid.glassLabelLook
 import dev.antigravity.fluidengine.ui.fluid.glassPieceContentDone
 import dev.antigravity.fluidengine.ui.fluid.glassPieceContentFor
 import dev.antigravity.fluidengine.ui.fluid.glassPieceContentLook
@@ -99,7 +103,12 @@ internal object F38aTraces {
   const val Fps = 120
 
   /** Ciò che un pezzo porta scritto: un testo o un'icona. */
-  internal class Label(val text: String? = null, val icon: String? = null, val sizeDp: Float = 17f)
+  internal data class Label(
+    val text: String? = null,
+    val icon: String? = null,
+    val sizeDp: Float = 17f,
+    val lineBoxDp: Size? = null,
+  )
 
   /** Uno stato nuovo all'istante [atMs] (su un fotogramma: il viaggio parte lì). */
   internal class Step(val atMs: Double, val state: GlassPlaneState)
@@ -186,6 +195,7 @@ internal object F38aTraces {
     var flight: FluidGlassContentFlight? = null
     var attached = true
     var shown = true
+    var labelJourney: GlassContentJourney? = null
   }
 
   /** Un campo del palco, come lo tiene il contenitore dalla partenza all'arrivo del viaggio. */
@@ -306,9 +316,9 @@ internal object F38aTraces {
 
       val elements = ArrayList<Map<String, Any?>>()
       val layout = if (scene.layoutLeadFrames > 0) stateAt(glassTraceTimeMs(index + scene.layoutLeadFrames, Fps)) else null
-      fun layerFor(key: Any): Map<String, Any?>? = contents[key]?.let { content ->
-        layer(scene, key, content, pressing?.takeIf { key == pressedKey }, layout?.pieces?.find { it.key == key })
-      }
+      fun layersFor(key: Any): List<Map<String, Any?>> = contents[key]?.let { content ->
+        layers(scene, key, content, pressing?.takeIf { key == pressedKey }, layout?.pieces?.find { it.key == key }, time)
+      }.orEmpty()
       val rest = driver.rest
       if (rest != null) {
         val carrying = if (journey == null) rest.clusters else resting
@@ -334,7 +344,7 @@ internal object F38aTraces {
               )
             },
           )
-          val layers = cluster.pieces.mapNotNull { layerFor(it.key) }
+          val layers = cluster.pieces.flatMap { layersFor(it.key) }
           elements += tintedElements("riposo-${restName(cluster)}", shape, scene, null, layers,
             "riposo: il grappolo tiene il suo vetro", ordered.map(scene.tintOf))
         }
@@ -360,7 +370,7 @@ internal object F38aTraces {
           )
           if (shape.slabs.isEmpty()) continue
           val keys = field.flights.mapNotNull { it.targetKey ?: it.sourceKey }
-          val layers = keys.mapNotNull(::layerFor)
+          val layers = keys.flatMap(::layersFor)
           val element = element("palco-${field.index}", shape, scene, field.bounds, layers,
             "F3.8a: palco del contenitore (fluidGlassStagePlane), contenuto nel vetro (glassPieceContentLook)")
           element["_collo"] = round3(shape.neck)
@@ -418,21 +428,51 @@ internal object F38aTraces {
     else -> cluster.pieces.joinToString("+") { it.key.toString() }
   }
 
-  /** Lo strato del contenuto di un pezzo: il testo o l'icona al suo posto, con l'aspetto e il ritaglio di adesso. */
-  private fun layer(scene: Scene, key: Any, content: Content, press: FluidPressTransform?, layout: GlassPlanePiece?): Map<String, Any?>? {
+  /** Gli strati del pezzo al loro posto, anche quando il layout precede il palco. */
+  private fun layers(
+    scene: Scene, key: Any, content: Content, press: FluidPressTransform?, layout: GlassPlanePiece?, timeMs: Double,
+  ): List<Map<String, Any?>> {
     val current = layout?.bounds ?: content.place
-    val label = scene.labelAt?.invoke(key, current) ?: scene.labels[key] ?: return null
-    if (!content.shown) return null
-    val d = scene.density
+    val label = scene.labelAt?.invoke(key, current) ?: scene.labels[key] ?: return emptyList()
+    if (!content.shown) return emptyList()
     val flight = layout?.let { fluidGlassPendingResize(content.place, current, content.placeRadii, content.flight) } ?: content.flight
     val look = flight?.look ?: content.look
-    if (look.alpha <= 0.001f) return null
+    if (look.alpha <= 0.001f) return emptyList()
     // Il contenuto di un tasto premuto ha la pressione nel suo layer (giro di correzione di F3): scala attorno al suo
     // centro e deriva del dito, come il vetro.
     val pressShift = if (press != null) Offset(press.translationX, press.translationY) else Offset.Zero
     val place = current.translate((flight?.offset ?: Offset.Zero) + pressShift)
+    val clip = flight?.clip?.translate(current.topLeft)
+    val radii = flight?.radii ?: content.placeRadii
+    val d = scene.density
+    if (label.lineBoxDp == null) {
+      return listOf(layer(scene, "c-$key", label, place, look, clip, radii, GlassContentDefaults.BlurReference.value, press))
+    }
+
+    val journey = (content.labelJourney ?: GlassContentJourney.rest(label)).retarget(timeMs, label).pruned(timeMs)
+    val frame = journey.frame(timeMs)
+    var waitsForSpace = false
+    val layers = frame.layers.mapNotNull { ink ->
+      val text = ink.key as Label
+      val line = checkNotNull(text.lineBoxDp)
+      val box = Rect(place.center - Offset(line.width * d / 2f, line.height * d / 2f), line * d)
+      val shown = if (ink.role == GlassContentRole.Rest) ink.look else
+        glassLabelLook(ink.look, box, clip ?: current, radii, line.height * d)
+      if (ink.role != GlassContentRole.Exit && clip != null && shown.alpha < 1f) waitsForSpace = true
+      if (shown.alpha <= 0.001f) null else
+        layer(scene, "c-$key-${ink.id}", text, box, shown, clip ?: current, radii, line.height, press)
+    }
+    content.labelJourney = if (frame.finished && !waitsForSpace) journey.settle() else journey
+    return layers
+  }
+
+  private fun layer(
+    scene: Scene, name: String, label: Label, place: Rect, look: GlassContentLook,
+    clip: Rect?, radii: FluidCornerRadii, referenceDp: Float, press: FluidPressTransform?,
+  ): Map<String, Any?> {
+    val d = scene.density
     val out = linkedMapOf<String, Any?>(
-      "name" to "c-$key",
+      "name" to name,
       "x" to round3(place.left / d), "y" to round3(place.top / d),
       "w" to round3(place.width / d), "h" to round3(place.height / d),
       "color" to if (scene.dark) "#F2F2F7" else "#17171A",
@@ -446,7 +486,7 @@ internal object F38aTraces {
       out["iconSizeDp"] = label.sizeDp
     }
     if (look != GlassContentLook.Sharp) {
-      val sigmaPx = glassContentSigmaPx(look.blur, GlassContentDefaults.BlurReference.value * d)
+      val sigmaPx = glassContentSigmaPx(look.blur, referenceDp * d)
       if (sigmaPx > 0.05f) {
         // Il banco legge `blurDp` come il raggio di `BlurEffect`: lo stesso conto del contenitore.
         out["blurDp"] = round3(glassContentBlurRadiusPx(sigmaPx) / d)
@@ -454,18 +494,15 @@ internal object F38aTraces {
       }
       out["alpha"] = round3(look.alpha)
       val scale = look.scale * (press?.let { min(it.scaleX, it.scaleY) } ?: 1f)
-      out["scale"] = if (flight != null && look.scale != flight.naturalLook.scale) scale else round3(scale)
+      out["scale"] = round3(scale)
     } else if (press != null) {
       out["scale"] = round3(min(press.scaleX, press.scaleY))
     }
-    val clip = flight?.clip
     if (clip != null) {
-      // Il ritaglio è nelle coordinate del pezzo: sulla tela è spostato del suo posto (non del viaggio del contenuto).
-      val onCanvas = clip.translate(current.left, current.top)
       out["clip"] = linkedMapOf(
-        "x" to round3(onCanvas.left / d), "y" to round3(onCanvas.top / d),
-        "w" to round3(onCanvas.width / d), "h" to round3(onCanvas.height / d),
-        "radius" to round3(flight.radii.topLeft / d),
+        "x" to round3(clip.left / d), "y" to round3(clip.top / d),
+        "w" to round3(clip.width / d), "h" to round3(clip.height / d),
+        "radius" to round3(radii.topLeft / d),
       )
     }
     return out

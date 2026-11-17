@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Piano flottante (F3-testo). Le etichette dei pulsanti si scambiano con la sfocatura R7 e acquistano opacità quando entrano nella capsula visibile. Una scritta invariata conserva nitidezza, scala e ancora mentre il vetro cambia larghezza.
+
 - Piano flottante (F3-RIF3). La scritta centrata entra intera nella capsula durante il cambio di larghezza, i nati dallo stesso donatore conservano un solo distacco e il palco legge la pressione al disegno. L’alone senza tocco passa a 0,15.
 
 - piano e barre (f3-rif2): un vetro fermo senza cambi di contenuto mantiene la propria misura anche sul palco; la tinta di chi nasce o confluisce cambia nella finestra della sfocatura del suo contenuto, senza mezze capsule tinte sulle lastre coincidenti; le tracce del banco usano lo smoothing reale delle forme e includono principale tinta e ritorno al gruppo neutro.

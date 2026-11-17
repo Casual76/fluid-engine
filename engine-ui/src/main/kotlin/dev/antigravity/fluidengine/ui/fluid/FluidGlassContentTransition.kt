@@ -8,26 +8,38 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key as identity
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -980,6 +992,7 @@ internal fun <S> FluidGlassContentTransitionWithShape(
   contentColor: ((S) -> Color)? = null,
   contentAlignment: Alignment = Alignment.Center,
   shapeKey: Any? = null,
+  labelAnchor: FluidGlassLabelAnchor? = null,
   content: @Composable (S) -> Unit,
 ) {
   val policy = LocalFluidMotionPolicy.current
@@ -988,6 +1001,9 @@ internal fun <S> FluidGlassContentTransitionWithShape(
     GlassContentTiming(durationMs = GlassContentDefaults.DurationMs * policy.durationScale.coerceAtLeast(0.01f))
   }
   val targetKey = key(targetState)
+  val density = LocalDensity.current
+  val referencePx = with(density) { blurReference.toPx() }
+  val glyphPx = referencePx * GlassContentDefaults.GlyphFraction
 
   // Lo stato di ogni chiave: chi esce continua a disegnare il proprio contenuto anche quando lo stato è cambiato.
   val states = remember { HashMap<Any?, S>() }
@@ -1048,7 +1064,7 @@ internal fun <S> FluidGlassContentTransitionWithShape(
       }
       lastNanos = frameNanos
       val frame = journey.frame(nowMs)
-      if (frame.finished) {
+      if (frame.finished && labelAnchor?.waitsForSpace(referencePx) != true) {
         journey = journey.settle()
         nowMs = 0.0
         colorFrom = null
@@ -1058,19 +1074,29 @@ internal fun <S> FluidGlassContentTransitionWithShape(
     }
   }
 
-  val density = LocalDensity.current
-  val glyphPx = with(density) { blurReference.toPx() } * GlassContentDefaults.GlyphFraction
   // Il margine del layer: una gaussiana tagliata al bordo del riquadro darebbe una macchia squadrata.
   val marginPx = ceil(3f * GlassContentDefaults.PeakBlur * glyphPx).toInt()
   val marginDp = with(density) { marginPx.toDp() }
 
-  Box(modifier, contentAlignment = contentAlignment) {
+  val layers: @Composable () -> Unit = {
     for (layer in journey.layers) {
       if (layer.key == null) continue
       val state = states[layer.key] ?: continue
       identity(layer.id) {
+        val coordinates = if (labelAnchor == null) null else remember {
+          mutableStateOf<LayoutCoordinates?>(null, neverEqualPolicy())
+        }
+        val isTarget = layer.role != GlassContentRole.Exit
+        val labelModifier = when {
+          coordinates == null -> Modifier
+          isTarget -> Modifier.onPlaced {
+            coordinates.value = it
+            labelAnchor?.targetCoordinates = it
+          }
+          else -> Modifier.onPlaced { coordinates.value = it }.clearAndSetSemantics { hideFromAccessibility() }
+        }
         Box(
-          Modifier
+          labelModifier
             .layout { measurable, constraints ->
               // Il layer è più grande del contenuto di [marginPx] per lato, ma il layout non se ne accorge.
               val placeable = measurable.measure(constraints.offset(2 * marginPx, 2 * marginPx))
@@ -1079,7 +1105,9 @@ internal fun <S> FluidGlassContentTransitionWithShape(
               }
             }
             .graphicsLayer {
-              val look = journey.look(layer, nowMs)
+              val natural = journey.look(layer, nowMs)
+              val look = if (labelAnchor != null && layer.role != GlassContentRole.Rest)
+                labelAnchor.look(natural, coordinates?.value, referencePx) else natural
               alpha = look.alpha
               scaleX = look.scale
               scaleY = look.scale
@@ -1107,6 +1135,101 @@ internal fun <S> FluidGlassContentTransitionWithShape(
       }
     }
   }
+  if (labelAnchor == null) {
+    Box(modifier, contentAlignment = contentAlignment, content = { layers() })
+  } else {
+    // La Row riceve solo la misura dell'arrivo. Chi esce mantiene la sua misura ed è centrato nello stesso posto,
+    // anche quando è più largo: altrimenti terrebbe aperta la capsula finché non è sparito.
+    Layout(content = layers, modifier = modifier) { measurables, constraints ->
+      val children = measurables.map { it.measure(constraints) }
+      val target = children.last()
+      val extraRecordingPadding = IntSize(
+        (children.maxOf { it.width } - target.width + 1) / 2,
+        (children.maxOf { it.height } - target.height + 1) / 2,
+      )
+      layout(target.width, target.height) {
+        labelAnchor.recordingPadding = extraRecordingPadding
+        children.forEach { it.place((target.width - it.width) / 2, (target.height - it.height) / 2) }
+      }
+    }
+  }
+}
+
+/** Collega la misura dell'etichetta alla stessa sagoma che ritaglia la registrazione del pezzo. */
+@Stable
+internal class FluidGlassLabelAnchor {
+  var piece by mutableStateOf<FluidGlassPiece?>(null)
+  var targetCoordinates: LayoutCoordinates? = null
+  /** La registrazione che avvolge le etichette deve poter conservare anche il layer uscente. */
+  var recordingPadding by mutableStateOf(IntSize.Zero)
+
+  /** Se l'orologio si chiude in anticipo sul vetro, il gate resta attivo fino a quando il testo ha posto. */
+  fun waitsForSpace(referencePx: Float): Boolean {
+    val node = piece?.coordinates?.takeIf { it.isAttached } ?: return false
+    if (targetCoordinates?.isAttached != true || piece?.contentFlightForCurrentLayout(node.size.width.toFloat())?.clip == null)
+      return false
+    return look(GlassContentLook.Sharp, targetCoordinates, referencePx).alpha < 1f
+  }
+
+  fun look(look: GlassContentLook, coordinates: LayoutCoordinates?, referencePx: Float): GlassContentLook {
+    val piece = piece ?: return look.copy(alpha = 0f)
+    val node = piece.coordinates?.takeIf { it.isAttached } ?: return look.copy(alpha = 0f)
+    val label = coordinates?.takeIf { it.isAttached } ?: return look.copy(alpha = 0f)
+    val flight = piece.contentFlightForCurrentLayout(node.size.width.toFloat())
+    val origin = node.localPositionOf(label, Offset.Zero)
+    val end = node.localPositionOf(label, Offset(label.size.width.toFloat(), label.size.height.toFloat()))
+    val bounds = Rect(origin, end)
+    val shift = flight?.offset ?: Offset.Zero
+    val clip = flight?.clip ?: Rect(0f, 0f, node.size.width.toFloat(), node.size.height.toFloat())
+    return glassLabelLook(look, bounds.translate(shift), clip, flight?.radii ?: piece.content.placeRadii, referencePx)
+  }
+}
+
+/**
+ * La scritta diventa visibile quando la sua misura di layout, a scala R7, entra col margine della gaussiana.
+ * La rampa usa lo spazio libero dal punto più stretto della capsula, anche agli angoli. Vale nei due versi, così
+ * un'uscente ancora visibile si spegne prima che il bordo possa tagliarla. Il ritaglio resta la difesa finale.
+ */
+internal fun glassLabelLook(
+  look: GlassContentLook,
+  label: Rect,
+  clip: Rect,
+  radii: FluidCornerRadii,
+  referencePx: Float,
+): GlassContentLook {
+  // Un'entrante che ridiventa uscente non accumula le due riduzioni di scala.
+  val scale = max(look.scale, GlassContentDefaults.ExitScale)
+  if (look.alpha <= 0f || clip.isEmpty || !clip.isFinite || label.isEmpty || !label.isFinite) {
+    return look.copy(alpha = 0f, scale = scale)
+  }
+  val halfWidth = label.width * scale / 2f
+  val halfHeight = label.height * scale / 2f
+  val x = label.center.x - clip.center.x
+  val y = label.center.y - clip.center.y
+  val clipHalfWidth = clip.width / 2f
+  val clipHalfHeight = clip.height / 2f
+  fun clearance(dx: Float, dy: Float): Float {
+    val corner = if (dy < 0f) {
+      if (dx < 0f) radii.topLeft else radii.topRight
+    } else {
+      if (dx < 0f) radii.bottomLeft else radii.bottomRight
+    }
+    val radius = corner.coerceIn(0f, min(clipHalfWidth, clipHalfHeight))
+    val qx = abs(dx) - clipHalfWidth + radius
+    val qy = abs(dy) - clipHalfHeight + radius
+    val ox = max(qx, 0f)
+    val oy = max(qy, 0f)
+    return radius - sqrt(ox * ox + oy * oy) - min(max(qx, qy), 0f)
+  }
+  val space = min(
+    min(clearance(x - halfWidth, y - halfHeight), clearance(x + halfWidth, y - halfHeight)),
+    min(clearance(x - halfWidth, y + halfHeight), clearance(x + halfWidth, y + halfHeight)),
+  )
+  val sigma = glassContentSigmaPx(look.blur, referencePx)
+  // HWUI parte da σ 0,5 px per qualsiasi raggio positivo. Un pixel copre l'antialias del bordo.
+  val guard = 1f + if (sigma > 0.05f) 3f * max(sigma, 0.5f) else 0f
+  val fit = glassContentSmoothstep(guard, guard + max(1f, referencePx * GlassContentDefaults.PeakBlur), space)
+  return look.copy(alpha = look.alpha * fit, scale = scale)
 }
 
 private fun mixedColor(from: Color, to: Color, tint: Float): Color = lerp(from, to, tint.coerceIn(0f, 1f))

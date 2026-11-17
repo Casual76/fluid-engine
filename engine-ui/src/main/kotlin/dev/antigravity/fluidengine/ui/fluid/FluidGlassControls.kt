@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
@@ -247,6 +248,7 @@ internal fun Modifier.glassControlSurfaceInked(
    * Quelli scritti nella catena del vetro vincono.
    */
   forwardedAttributes: FluidGlassAttributes? = null,
+  labelAnchor: FluidGlassLabelAnchor? = null,
 ): Modifier {
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
@@ -340,6 +342,7 @@ internal fun Modifier.glassControlSurfaceInked(
       tracksOwnPress = pressState == null,
       reducedMotion = reducedMotion,
       ink = ink,
+      labelAnchor = labelAnchor,
     )
   }
   // La forma alla taglia del controllo (F1A, giro di correzione): una sola misura, per la scelta di qui e per il
@@ -469,6 +472,7 @@ private fun Modifier.glassControlPiece(
   tracksOwnPress: Boolean,
   reducedMotion: Boolean,
   ink: GlassInk?,
+  labelAnchor: FluidGlassLabelAnchor?,
 ): Modifier {
   val adaptive = container.adaptive
   if (ink != null) {
@@ -501,7 +505,7 @@ private fun Modifier.glassControlPiece(
   }
   return this
     .then(FluidGlassMarkerElement)
-    .fluidGlassPiece(container, look, attributes)
+    .fluidGlassPiece(container, look, attributes, labelAnchor)
     .then(if (layer != null) Modifier.graphicsLayer(layer) else Modifier)
     .then(if (interactive && tracksOwnPress) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
 }
@@ -943,6 +947,8 @@ fun FluidGlassButton(
   } else {
     MaterialTheme.typography.bodyLarge
   }
+  val plane = currentFluidGlassContainer(shape)
+  val labelAnchor = remember(plane) { plane?.let { FluidGlassLabelAnchor() } }
   Row(
     modifier = modifier
       .then(touchTarget)
@@ -959,6 +965,7 @@ fun FluidGlassButton(
         heldWhileMoving = NeverFrozen,
         pressState = press,
         ink = ink,
+        labelAnchor = labelAnchor,
       )
       .fluidPressable(
         onClick = onClick,
@@ -981,12 +988,21 @@ fun FluidGlassButton(
           CompositionLocalProvider(LocalFluidIconSize provides size.buttonLeading) { leading() }
         }
       }
-      Text(
-        text = text,
-        style = labelStyle.copy(fontWeight = FontWeight.SemiBold),
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-      )
+      val label: @Composable (String) -> Unit = { value ->
+        Text(
+          text = value,
+          style = labelStyle.copy(fontWeight = FontWeight.SemiBold),
+          maxLines = maxLines,
+          overflow = TextOverflow.Ellipsis,
+        )
+      }
+      if (labelAnchor == null) label(text) else {
+        val lineHeight = labelStyle.lineHeight
+        val reference = with(LocalDensity.current) {
+          if (lineHeight.isSp) lineHeight.toDp() else GlassContentDefaults.BlurReference
+        }
+        FluidGlassContentTransitionWithShape(text, blurReference = reference, labelAnchor = labelAnchor, content = label)
+      }
     }
   }
 }

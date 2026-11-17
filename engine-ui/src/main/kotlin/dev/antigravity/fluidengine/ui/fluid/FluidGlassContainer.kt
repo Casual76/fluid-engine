@@ -1730,8 +1730,7 @@ internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = fals
  * vetro»), e il contenuto di un pezzo che nasce stava fermo al posto d'arrivo mentre il vetro gli rimbalzava attorno;
  * in Apple i simboli stanno dentro il vetro e fanno il suo rimbalzo (`sessioni/f3-12a/misure.md`: superano il loro
  * posto di 0,15–0,20 D e tornano, e quelli di chi confluisce entrano nel vicino col loro vetro mentre svaniscono).
- * I simboli dei rilasci conservano la misura (invariante 23). Una registrazione centrata che cambia larghezza entra
- * intera grazie a [fluidGlassFittedLook]. Chi compare per lente cresce attorno al centro. Tutti sono ritagliati
+ * Le registrazioni conservano la misura (invariante 23). Chi compare per lente cresce attorno al centro. Tutti sono ritagliati
  * sulla lastra in volo, rigonfiata di [swell] (col rigonfiamento in più del pezzo) come la disegna il palco: mai un
  * contenuto fuori dal suo vetro. Di serie [anchor] è il centro, identico a F3.12a; un bordo (F4A.2b) conserva invece
  * il posto d'arrivo delle icone di un gruppo che cambia larghezza, salvo il rimbalzo di quel bordo. Pura.
@@ -1768,20 +1767,11 @@ internal fun fluidGlassContentFlightOf(
     }
   }
   return FluidGlassContentFlight(
-    look = if (flying.widthChanges && anchor == FluidGlassContentAnchor.Center)
-      fluidGlassFittedLook(look, place, grown.frame) else look,
+    look = look,
     offset = offset,
     clip = drawn.frame.translate(-place.left, -place.top),
     radii = drawn.cornerRadii,
-    naturalLook = look,
   )
-}
-
-/** Adatta tutta la registrazione al vetro disponibile, attorno al centro e senza deformare le lettere. */
-internal fun fluidGlassFittedLook(look: GlassContentLook, place: Rect, glass: Rect): GlassContentLook {
-  if (place.isEmpty) return look
-  val fit = min(glass.width / place.width, glass.height / place.height).coerceAtLeast(0f)
-  return if (fit < look.scale) look.copy(scale = fit) else look
 }
 
 /**
@@ -1936,7 +1926,6 @@ internal class FluidGlassContentFlight(
   val offset: Offset = Offset.Zero,
   val clip: Rect? = null,
   val radii: FluidCornerRadii = FluidCornerRadii.Zero,
-  val naturalLook: GlassContentLook = look,
 ) {
   companion object {
     /** Il contenuto di un pezzo che non si vede ancora. */
@@ -1987,7 +1976,7 @@ internal class FluidGlassPieceContent {
     val clip = current.clip ?: return current
     val press = pressure?.invoke() ?: return current
     val drawn = fluidGlassPressedSlab(FluidForm.Slab(clip, current.radii), press)
-    return FluidGlassContentFlight(current.look, current.offset, drawn.frame, drawn.cornerRadii, current.naturalLook)
+    return FluidGlassContentFlight(current.look, current.offset, drawn.frame, drawn.cornerRadii)
   }
 
   /**
@@ -3321,6 +3310,7 @@ internal fun Modifier.fluidGlassPiece(
   container: FluidGlassContainerState,
   look: FluidGlassLook,
   attributes: FluidGlassAttributes,
+  labelAnchor: FluidGlassLabelAnchor? = null,
 ): Modifier {
   val piece = remember(container) { FluidGlassPiece(container) }
   piece.look = look
@@ -3329,10 +3319,16 @@ internal fun Modifier.fluidGlassPiece(
     container.attach(piece)
     onDispose { container.detach(piece) }
   }
+  if (labelAnchor != null) {
+    DisposableEffect(piece, labelAnchor) {
+      labelAnchor.piece = piece
+      onDispose { if (labelAnchor.piece === piece) labelAnchor.piece = null }
+    }
+  }
   val minimum = (look.shape as? FluidConcentricShape)?.minimum
   return this
     .then(FluidGlassPieceElement(piece, minimum))
-    .then(FluidGlassPieceContentElement(piece))
+    .then(FluidGlassPieceContentElement(piece, labelAnchor))
 }
 
 private class FluidGlassPieceElement(
@@ -3415,17 +3411,16 @@ private class FluidGlassPiecePositionNode(var piece: FluidGlassPiece) : Modifier
   }
 }
 
-private class FluidGlassPieceContentElement(val piece: FluidGlassPiece) : ModifierNodeElement<FluidGlassPieceContentNode>() {
-  override fun create(): FluidGlassPieceContentNode = FluidGlassPieceContentNode(piece)
+private data class FluidGlassPieceContentElement(
+  val piece: FluidGlassPiece,
+  val labelAnchor: FluidGlassLabelAnchor?,
+) : ModifierNodeElement<FluidGlassPieceContentNode>() {
+  override fun create(): FluidGlassPieceContentNode = FluidGlassPieceContentNode(piece, labelAnchor)
 
   override fun update(node: FluidGlassPieceContentNode) {
     node.piece = piece
+    node.labelAnchor = labelAnchor
   }
-
-  override fun equals(other: Any?): Boolean =
-    this === other || other is FluidGlassPieceContentElement && other.piece === piece
-
-  override fun hashCode(): Int = System.identityHashCode(piece)
 
   override fun InspectorInfo.inspectableProperties() {
     name = "fluidGlassPieceContent"
@@ -3438,47 +3433,43 @@ private class FluidGlassPieceContentElement(val piece: FluidGlassPiece) : Modifi
  * e, in viaggio, con l'aspetto e il ritaglio di [FluidGlassPieceContent.flight]. Vale per ogni contenuto del pezzo, anche
  * una [FluidGlassContentTransition]. A riposo è il contenuto com'è, in un layer senza effetti.
  */
-private class FluidGlassPieceContentNode(var piece: FluidGlassPiece) : Modifier.Node(), DrawModifierNode {
+private class FluidGlassPieceContentNode(
+  var piece: FluidGlassPiece,
+  var labelAnchor: FluidGlassLabelAnchor?,
+) : Modifier.Node(), DrawModifierNode {
   private val path = Path()
 
   override fun ContentDrawScope.draw() {
     val content = piece.content
     val reference = GlassContentDefaults.BlurReference.toPx()
     // Il margine del layer: tre σ della sfocatura più larga, perché una gaussiana tagliata al bordo sarebbe una macchia
-    // squadrata. Fisso per la vita del pezzo: la taglia del layer non cambia quando la sfocatura arriva.
+    // squadrata. Il margine della sfocatura è fisso. Se il layout è già corto, teniamo anche lo spazio occupato
+    // dall'etichetta uscente, simmetrico per conservare il perno del layer.
     val margin = ceil(3f * glassContentSigmaPx(GlassContentDefaults.PeakBlur, reference)).toInt()
-    val recorded = IntSize(ceil(size.width).toInt() + 2 * margin, ceil(size.height).toInt() + 2 * margin)
+    val extra = labelAnchor?.recordingPadding ?: IntSize.Zero
+    val padX = margin + extra.width
+    val padY = margin + extra.height
+    val recorded = IntSize(ceil(size.width).toInt() + 2 * padX, ceil(size.height).toInt() + 2 * padY)
     val record: (GraphicsLayer) -> Unit = { layer ->
-      layer.topLeft = IntOffset(-margin, -margin)
+      layer.topLeft = IntOffset(-padX, -padY)
       recordLayer(this@FluidGlassPieceContentNode, layer, recorded) {
         // Rieseguita dopo che il pezzo se n'è andato (un canvas senza accelerazione rifà il blocco a ogni disegno), non ha
         // più un contenuto da disegnare.
-        if (content.attached) translate(margin.toFloat(), margin.toFloat()) { this@draw.drawContent() }
+        if (content.attached) translate(padX.toFloat(), padY.toFloat()) { this@draw.drawContent() }
       }
     }
     val context = requireGraphicsContext()
     // Giro di correzione di F3 (D 6): se il pezzo è già alla misura o al posto nuovi e il vetro li prende al fotogramma
     // dopo, si mostra il contenuto di prima dov'era, e i due cambiano insieme.
-    val pending = pendingResize()
-    val held = if (pending == null) heldOffset() else null
+    val flight = piece.contentFlightForCurrentLayout(size.width)
+    val held = if (flight == null) heldOffset() else null
     val shown = if (held == null) content.obtain(context).also(record) else content.hold(context, record)
     val fade = piece.container.contentFade().fastCoerceIn(0f, 1f)
     if (held == null) {
-      drawGlassPieceContent(content, shown, fade, path, reference, pending ?: content.drawnFlight())
+      drawGlassPieceContent(content, shown, fade, path, reference, flight)
     } else {
       translate(held.x, held.y) { drawGlassPieceContent(content, shown, fade, path, reference) }
     }
-  }
-
-  /** Il layout può precedere di più disegni la misura del palco, anche durante un'inversione. */
-  private fun ContentDrawScope.pendingResize(): FluidGlassContentFlight? {
-    val content = piece.content
-    if (piece.attributes.contentAnchor != FluidGlassContentAnchor.Center || content.place.isEmpty ||
-      abs(size.width - content.place.width) <= FluidGlassPlaneTolerancePx) return null
-    val node = piece.coordinates?.takeIf { it.isAttached } ?: return null
-    val box = piece.container.coordinates?.takeIf { it.isAttached } ?: return null
-    val now = box.localBoundingBoxOf(node, clipBounds = false)
-    return fluidGlassPendingResize(content.place, now, content.placeRadii, content.drawnFlight())
   }
 
   /**
@@ -3499,6 +3490,17 @@ private class FluidGlassPieceContentNode(var piece: FluidGlassPiece) : Modifier.
   }
 }
 
+/** Il ritaglio e l'ancora del fotogramma corrente, anche se il layout ha già anticipato la nuova larghezza. */
+internal fun FluidGlassPiece.contentFlightForCurrentLayout(width: Float): FluidGlassContentFlight? {
+  val flight = content.drawnFlight()
+  if (attributes.contentAnchor != FluidGlassContentAnchor.Center || content.place.isEmpty ||
+    abs(width - content.place.width) <= FluidGlassPlaneTolerancePx) return flight
+  val node = coordinates?.takeIf { it.isAttached } ?: return flight
+  val box = container.coordinates?.takeIf { it.isAttached } ?: return flight
+  val now = box.localBoundingBoxOf(node, clipBounds = false)
+  return fluidGlassPendingResize(content.place, now, content.placeRadii, flight) ?: flight
+}
+
 /**
  * Lo spostamento con cui il contenuto registrato quando il pezzo stava in [shown] (il posto che il vetro mostra) si
  * disegna nel nodo che adesso sta in [now], o null se i due coincidono entro mezzo pixel (o [shown] non c'è ancora):
@@ -3516,9 +3518,8 @@ internal fun fluidGlassPendingResize(
 ): FluidGlassContentFlight? {
   if (now.isEmpty || !now.isFinite || shown.isEmpty || abs(now.width - shown.width) <= FluidGlassPlaneTolerancePx) return null
   val glass = flight?.clip?.translate(shown.topLeft) ?: shown
-  val natural = flight?.naturalLook ?: GlassContentLook.Sharp
-  return FluidGlassContentFlight(fluidGlassFittedLook(natural, now, glass), glass.center - now.center,
-    glass.translate(-now.topLeft), flight?.radii ?: radii, natural)
+  return FluidGlassContentFlight(flight?.look ?: GlassContentLook.Sharp, glass.center - now.center,
+    glass.translate(-now.topLeft), flight?.radii ?: radii)
 }
 
 /** Vero se il contenuto di un pezzo, con l'aspetto [flight], non si vede: nascosto, o nato e non ancora comparso. Pura. */

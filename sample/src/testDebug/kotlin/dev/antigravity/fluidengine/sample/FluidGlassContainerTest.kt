@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
@@ -35,6 +36,7 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidConcentricRadiiState
 import dev.antigravity.fluidengine.ui.fluid.FluidConcentricShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassAppearance
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
@@ -145,6 +147,34 @@ class FluidGlassContainerTest {
   }
 
   private val backdropNodes: Int get() = FluidGlassDiagnostics.liveNodes.getValue(FluidGlassNodeKind.Backdrop)
+
+  @Test
+  fun `la capsula usa subito la misura e la semantica della sola etichetta di arrivo`() {
+    val short = "Salva"
+    val long = "Salva e chiudi la raccolta"
+    var label by mutableStateOf(long)
+    scene { backdrop ->
+      val ns = rememberFluidGlassNamespace()
+      FluidGlassContainer {
+        FluidGlassButton(label, onClick = {}, modifier = Modifier.testTag("salva").fluidGlassId("salva", ns),
+          backdrop = backdrop)
+      }
+    }
+    val button = compose.onNodeWithTag("salva")
+    val wide = button.fetchSemanticsNode().boundsInRoot.width
+    compose.mainClock.autoAdvance = false
+    change { label = short }
+    advance(64)
+    compose.onNodeWithText(short).assertExists()
+    compose.onNodeWithText(long).assertDoesNotExist()
+    assertTrue(button.fetchSemanticsNode().boundsInRoot.width < wide)
+
+    change { label = long }
+    advance(64)
+    compose.onNodeWithText(long).assertExists()
+    compose.onNodeWithText(short).assertDoesNotExist()
+    assertEquals(wide, button.fetchSemanticsNode().boundsInRoot.width, 1f)
+  }
 
   @Composable
   private fun Pieces(backdrop: GlassBackdropState, ns: FluidGlassNamespace, count: Int, spacing: Dp) {

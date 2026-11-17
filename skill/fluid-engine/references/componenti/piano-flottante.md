@@ -353,7 +353,7 @@ Per ogni vetro, in ogni fotogramma, c'è **una superficie sola** che lo disegna:
 
 | fotogramma | chi disegna |
 |---|---|
-| il fotogramma del cambio | il vetro mostra la geometria di prima. Per un semplice spostamento trattiene il contenuto al posto precedente. Per una scritta centrata già rimisurata adatta la registrazione nuova allo spazio visibile. La forma e il ritaglio del palco leggono la molla viva della pressione al disegno, come il layer del tasto al riposo. |
+| il fotogramma del cambio | il vetro mostra la geometria di prima. Per un semplice spostamento trattiene il contenuto al posto precedente. Nella capsula centrata la scritta segue il centro visibile anche se il layout ha già la larghezza nuova. La forma e il ritaglio del palco leggono la molla viva della pressione al disegno, come il layer del tasto al riposo. |
 | dal fotogramma dopo, per tutto il viaggio | il **palco**: una superficie di Fluid-physics per campo del viaggio, grande quanto il palco più il margine dell'ombra, guidata dal piano «a fotogramma» (`driveByFrame`: la forma di ogni fotogramma col suo collo, le unioni, la comparsa e il vetro in viaggio). I grappoli d'arrivo si montano spenti (niente disegno, niente cattura) dal secondo fotogramma del palco, per alleggerire il primo; il palco chiede al sistema la frequenza alta (`preferredFrameRate`, dall'API 35) |
 | l'ultimo fotogramma | i **grappoli d'arrivo** riprendono il vetro nella stessa composizione in cui il palco si smonta, dalla geometria d'arrivo (entro mezzo pixel) |
 
@@ -394,6 +394,14 @@ contenitore, che resta disegnabile quando il nodo del pezzo esce dalla composizi
 Sotto Android 12 non c'è la sfocatura: resta la dissolvenza, sempre dentro il vetro. Vale per ogni contenuto del
 pezzo, anche una `FluidGlassContentTransition`, che continua a occuparsi del contenuto che cambia **dentro** un vetro
 che resta. La diagnostica dice la parte di ognuno: `FluidGlassContainerDiagnostics.lastContents`.
+
+In un `FluidGlassButton` del piano la stringa identifica l'etichetta. Solo la stringa d'arrivo dà al tasto la sua misura e
+la sua semantica. La registrazione conserva spazio per la scritta uscente durante il restringimento. La precedente esce
+sfocandosi e quella nuova emerge sfocata con le curve R7 da 300 ms. La scala rimane
+tra 0,9 e 1 anche se il viaggio si inverte. Per entrambi gli strati, l'opacità sale gradualmente quando la riga entra
+nella sagoma del fotogramma con margine per tre σ e un pixel di antialias. Durante il restringimento la stessa regola
+fa svanire una scritta ancora in uscita prima che il bordo la tagli. A stringa uguale l'etichetta resta nitida, alla
+sua misura e con la stessa ancora.
 
 ## Il contenuto che si sfoca e si incrocia
 

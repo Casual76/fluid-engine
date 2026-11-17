@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [296, 120],
   "_": "F3.8a: la sagoma torna tre tasti: il collo si strozza e si rompe una volta",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

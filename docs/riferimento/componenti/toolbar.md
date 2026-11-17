@@ -107,6 +107,10 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   sua icona nell'accento, anche in un gruppo di più icone: non passa agli altri. La principale tinta accanto a un gruppo
   (a 12 dp, cioè nello stesso grappolo del piano) resta tinta: il contenitore disegna ogni tinta sulla sua striscia
   ([piano-flottante.md](piano-flottante.md), «L'unione»).
+  Quando la principale nasce dal gruppo, parte dalla tinta del donatore e prende la propria mentre il suo contenuto
+  è sfocato; quando vi confluisce, perde la tinta nella finestra della sfocatura del contenuto uscente (R7 A4,
+  f3-rif2). La geometria continua il viaggio: due lastre coincidenti hanno già la stessa tinta. Una ripartenza a metà
+  conserva il colore già mostrato.
 - **Il titolo**: `Large` (di serie) è il titolo grande che scorre e si aggancia, com'era; `Inline` è solo quello
   agganciato (nessun titolo nella lista); `None` nessuno. Il **sottotitolo** sta sotto il titolo grande e, agganciato,
   sotto quello della barra, più piccolo (il titolo sale di 16 dp per fargli posto). Gli **inset** del titolo agganciato
@@ -194,8 +198,11 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
 - `GlassPlaneLensIdentityTest`, `FluidToolbarExitTransitionTest` e `FluidToolbarAnchorsTest` (F4A.5): lente con un
   vicino, identità conservata fra figlie, ripartenza durante la lente, sottotitolo nell'host e modi `None`/`Principal`.
-- `F4aToolbarExportTest`: sei tracce a 120 Hz (tre stati nei due temi e nella variante «morbida», contesto, push/pop,
-  cambio interrotto), dai componenti puri della barra; esportazione solo con `GLASS_F4A5_DIR`.
+- `F4aToolbarExportTest`: otto tracce a 120 Hz (tre stati nei due temi e nella variante «morbida», contesto, push/pop,
+  cambio interrotto, principale tinta che nasce e confluisce nei due temi), dai componenti puri della barra;
+  esportazione solo con `GLASS_F4A5_DIR`. Lo smoothing è quello della forma sul dispositivo.
+- `FluidGlassTintJourneyTest`: tinta nella sfocatura del singolo contenuto, lastre coincidenti senza strisce, staffetta
+  con un colore solo e interruzione dal colore corrente.
 - `FluidToolbarKeptContentTest` (F4A.5b): la manopola `barkeep`, la forma che i posti ricevono (cambia solo se il gruppo
   cambia tasti, solo con la variante «morbida») e ciò che ogni vetro dichiara di portare.
 - `FluidToolbarContentAnchorTest` (engine, F4A.2b): gruppo 1→3→1 guidato dal conducente reale a 120 Hz, bordi iniziale

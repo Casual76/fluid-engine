@@ -33,6 +33,19 @@ Chi ha fretta legge «In dieci righe», l'esempio completo e «Per chi scrive le
 10. Ogni comando valida prima di rendere: uno uniform dimenticato, un numero non finito o un nome
     sbagliato fermano tutto, con il punto esatto.
 
+### Angoli e tinte del piano (f3-rif2)
+
+Gli esportatori del piano portano lo smoothing chiesto dalla forma (`_smoothing`, 0,6 per le forme continue di serie)
+nel piano fisico di produzione. `pieceSmooth` e `pieceRadii` sono i valori **effettivi** del campo: per una forma
+piccola il piano usa il raggio equivalente del dispositivo e smoothing zero; una capsula resta semicircolare.
+Non sostituire tutti i `pieceSmooth` con 0,6: si perderebbe la scelta per taglia. Anche le misure della sagoma in
+`glassmotion.py` leggono `pieces[].smooth` e usano le costanti del campo Kotlin.
+
+`drawClip` e' una lista di rettangoli `[left, top, right, bottom]` in dp, relativi all'elemento: ritaglia tutto il
+disegno, corpo, luce, ombra e contenuto. Serve alle superfici per tinta del piano e usa gli stessi tagli di
+`fluidGlassTintStrips`. Le tracce `f4a/barra-principale*` cambiano tinta nella finestra della sfocatura del contenuto,
+con `FluidGlassTintJourney`, e mantengono il viaggio della geometria indipendente.
+
 ## Comandi
 
 ```powershell

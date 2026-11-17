@@ -166,7 +166,8 @@ internal data class GlassPlanePieceFrame(
    */
   val swell: Float = 0f,
   /**
-   * Quanta parte del rigonfiamento **comune** del campo prende questo pezzo (F3.12c): uno per tutti, zero per chi fa parte
+   * Quanta parte del rigonfiamento **comune** del campo prende questo pezzo (F3.12c): zero per chi resta fermo senza
+   * cambiare contenuto (f3-rif2), anche quando il campo lo porta sul palco; zero anche per chi fa parte
    * della coreografia di una nascita o di una confluenza (chi nasce, chi confluisce, il donatore, chi accoglie), che ha il
    * suo ([swell]): il comune ha il colmo a 0,45 del viaggio per tutti, e in Apple il donatore si gonfia poco, chi nasce più
    * tardi e chi accoglie prima.
@@ -734,7 +735,8 @@ private class PlaneFlight(
   var choreographed = false
 
   /** Quanta parte del rigonfiamento comune prende il volo: vedi [GlassPlanePieceFrame.swellShare]. */
-  val swellShare: Float get() = if (motion.spec == null && (choreographed || course != PlaneCourse.Standard)) 0f else 1f
+  val swellShare: Float get() = if (still && !contentChanged ||
+    motion.spec == null && (choreographed || course != PlaneCourse.Standard)) 0f else 1f
 
   /**
    * Vero se questo volo può dondolare e aspettare: un vetro che c'era e c'è (chi si sposta soltanto, o i due gemelli di
@@ -971,7 +973,7 @@ private class PlaneFlight(
   fun carrySwell(commonSwell: Float) {
     if (motion.spec != null) return
     val common = if (commonSwell.isFinite()) commonSwell else 0f
-    swellEntry = carriedSwell + (carriedShare - swellShare) * common
+    swellEntry = carriedSwell + ((if (seed == null) swellShare else carriedShare) - swellShare) * common
   }
 
   /**
@@ -1283,7 +1285,7 @@ private class PlaneFlight(
    */
   val anchored: Boolean = pair.change == GlassPlaneChange.Matched && !unionChanged && initialAmount == targetAmount &&
     velocity.all { it == 0f } && (0..7).all { abs(target[it] - initial[it]) <= FluidMotion.PlaneSettlePx } &&
-    carriedSwell == 0f && carriedShare == 1f && carriedWaist == 1f
+    carriedSwell == 0f && (seed == null || seed.still || carriedShare == 1f) && carriedWaist == 1f
 
   /**
    * Fermo: [anchored] e senza dondolio. Un pezzo fermo non ha bisogno del palco. Il donatore di una nascita è al suo

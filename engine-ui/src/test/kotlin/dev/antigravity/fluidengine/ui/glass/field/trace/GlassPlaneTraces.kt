@@ -66,7 +66,7 @@ internal object GlassPlaneTraces {
       val frame = scenario.frame(max(time, 0.0))
       val elements = frame.fields.mapIndexed { fieldIndex, field ->
         val flying = field.flights.map { id -> frame.pieces.single { it.flightId == id } }
-        val slabs = flying.map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
+        val slabs = flying.map { FluidForm.Slab(it.bounds, it.radii, smoothing = dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape.IosSmoothing) }
         val plan = PhysicsRenderPlan()
         // Nessuna curva del collo duplicata: F3.3 riceve parentela e riquadri nel metadato `_piano`.
         val form = if (slabs.size == 1) slabs.single() else FluidForm.Group(slabs, blendRadius = 0f)

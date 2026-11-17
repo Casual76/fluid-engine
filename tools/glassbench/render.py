@@ -2373,6 +2373,21 @@ def render_material(ctx: Context, el, screen: skia.Canvas, backdrop: skia.Image,
 
 
 def render_element(ctx: Context, el, screen, backdrop, origin=(0.0, 0.0), tag="e") -> None:
+    # Le tinte del piano sono superfici intere ritagliate a strisce, come drawInStrips in Compose.
+    strips = el.get("drawClip")
+    if strips is not None:
+        x, y, _, _ = element_box(ctx, el, origin)
+        path = skia.Path()
+        for left, top, right, bottom in strips:
+            path.addRect(skia.Rect.MakeLTRB(x + ctx.px(left), y + ctx.px(top),
+                                           x + ctx.px(right), y + ctx.px(bottom)))
+        screen.save()
+        screen.clipPath(path, doAntiAlias=False)
+        try:
+            render_element(ctx, {k: v for k, v in el.items() if k != "drawClip"}, screen, backdrop, origin, tag)
+        finally:
+            screen.restore()
+        return
     kind = el.get("kind", "glass")
     if kind == "glass":
         render_glass(ctx, el, screen, backdrop, origin, tag)

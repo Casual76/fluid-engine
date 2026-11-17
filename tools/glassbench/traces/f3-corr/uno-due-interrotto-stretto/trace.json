@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [240, 120],
   "_": "F3.8a: «Fatto» nasce, a 150 ms se ne va, a 300 torna: nessuna scritta salta (F3-f) · contenitore stretto attorno alla riga, come in galleria (il palco fino alla finestra)",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

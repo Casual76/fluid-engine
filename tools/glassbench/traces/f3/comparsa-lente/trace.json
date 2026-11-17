@@ -609,7 +609,7 @@
             }
           },
           "_kernel": "One",
-          "_collo": 0.034,
+          "_collo": 0.001,
           "_moto": 0,
           "_piano": [
             {
@@ -694,7 +694,7 @@
             }
           },
           "_kernel": "One",
-          "_collo": 0.631,
+          "_collo": 0.398,
           "_moto": 0,
           "_piano": [
             {
@@ -779,7 +779,7 @@
             }
           },
           "_kernel": "One",
-          "_collo": 0.911,
+          "_collo": 0.83,
           "_moto": 0,
           "_piano": [
             {
@@ -864,7 +864,7 @@
             }
           },
           "_kernel": "One",
-          "_collo": 0.995,
+          "_collo": 0.989,
           "_moto": 0,
           "_piano": [
             {

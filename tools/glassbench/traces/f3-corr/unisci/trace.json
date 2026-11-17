@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [296, 120],
   "_": "F3.8a: tre tasti diventano una sagoma: il collo nasce e cresce, e pieno resta",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

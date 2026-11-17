@@ -53,6 +53,11 @@ class F4aToolbarExportTest {
     spacer()
     button("check", FluidIcons.Check, "Conferma neutra", onClick = noop)
   }
+  private fun primary(prominent: Boolean) = buildFluidToolbar(null) {
+    button("share", FluidIcons.IosShare, "Condividi", onClick = noop)
+    if (prominent) primary("heart", FluidIcons.Favorite, "Preferito", onClick = noop)
+    else button("heart", FluidIcons.Favorite, "Preferito", onClick = noop)
+  }
   private fun context(expanded: Boolean) = buildFluidToolbar(null) {
     button("a", if (expanded) FluidIcons.AttachFile else FluidIcons.Folder, "Primo",
       placement = FluidToolbarPlacement.Leading, onClick = noop)
@@ -103,7 +108,7 @@ class F4aToolbarExportTest {
   private fun face(item: FluidToolbarItem, dark: Boolean): Face {
     val icon = (item.symbol as ImageVector).name.substringAfter('.')
       .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2").lowercase(Locale.ROOT)
-    return Face("fluid:$icon", item.tintArgb?.let { String.format(Locale.ROOT, "#%06X", it and 0xFFFFFFL) }
+    return Face("fluid:$icon", if (item.isPrimary) "#FFFFFF" else item.tintArgb?.let { String.format(Locale.ROOT, "#%06X", it and 0xFFFFFFL) }
       ?: if (dark) "#F2F2F7" else "#17171A",
       fluidToolbarIconSize(item.role).value)
   }
@@ -119,11 +124,18 @@ class F4aToolbarExportTest {
     kept: FluidToolbarKeptContent = FluidToolbarKeptContent.Sharp,
   ): GlassTrace {
     val prepared = prepare(inputs)
+    val neutral = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
+    val tints = prepared.flatMap { state -> state.resolved.groups.map { group ->
+      val primary = group.items.singleOrNull()?.takeIf { it.isPrimary }
+      state.ids.getValue(group.id).toString() to if (primary == null) neutral else
+        fluidGlassTint(FluidGlass.Regular.tint(Color(primary.tintArgb ?: 0xFF007AFF)), neutral)
+    } }.toMap()
     val labels = prepared.flatMap { it.plane.pieces }.associate { it.key to F38aTraces.Label(icon = "plus") }
     val base = F38aTraces.build(F38aTraces.Scene(name, "barra dal modello Kotlin, contenitore e contenuto veri",
       width, height, dark, prepared.first().plane, prepared.drop(1).map { F38aTraces.Step(it.input.at, it.plane) },
       labels, last, density = density, spacingDp = 16f, phase = "f4a",
-      background = mapOf("kind" to "color", "color" to if (dark) "#24252A" else "#C4C7CE")))
+      background = mapOf("kind" to "color", "color" to if (dark) "#24252A" else "#C4C7CE"),
+      tintOf = { tints[it.key] ?: neutral }))
     val slots = LinkedHashMap<Pair<String, Any>, Slot>()
     val title = FluidBarTitleSwap(blurAvailable = true)
     var previous: Prepared? = null
@@ -266,13 +278,17 @@ class F4aToolbarExportTest {
       trace("barra-fra-pagine", listOf(Input(-100.0, "elenco", page(0)), Input(0.0, "dettaglio", page(1)),
         Input(1500.0, "elenco", page(0))), 360, pages = true),
       trace("barra-contesto-interrotta", listOf(Input(-100.0, "prima", context(false)), Input(0.0, "dopo", context(true)),
-        Input(150.0, "ripensamento", context(false))), 144))
+        Input(150.0, "ripensamento", context(false))), 144),
+      trace("barra-principale", listOf(Input(-100.0, "gruppo", primary(false)), Input(0.0, "principale", primary(true)),
+        Input(1200.0, "gruppo", primary(false))), 300),
+      trace("barra-principale-scuro", listOf(Input(-100.0, "gruppo", primary(false)), Input(0.0, "principale", primary(true)),
+        Input(1200.0, "gruppo", primary(false))), 300, dark = true))
   }
 
-  @Test fun `esporta le sei barre dal Kotlin di produzione e conserva le ventitre tracce del piano`() {
+  @Test fun `esporta le otto barre dal Kotlin di produzione e conserva le ventitre tracce del piano`() {
     val output = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4A5_DIR"))
     val all = traces()
-    assertEquals(6, all.size)
+    assertEquals(8, all.size)
     for (trace in all) {
       assertTrue(trace.frames.all { it.elements.isNotEmpty() })
       output?.let { trace.write(File(it, "${trace.name}/trace.json")) }

@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [280, 120],
   "_": "F3.8a: lo stesso tasto scompare: il simbolo via nei primi 130 ms, poi la lente, poi il contorno",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

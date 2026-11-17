@@ -2,6 +2,13 @@ package dev.antigravity.fluidengine.ui.glass.field.trace
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassTintJourney
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassTintStrips
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentFlight
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPlaneDriver
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSwell
@@ -152,7 +159,13 @@ internal object F38aTraces {
     val touch: Touch? = null,
     /** La fase del banco in cui si scrive la traccia (`traces/<fase>/<nome>`). */
     val phase: String = Phase,
+    /** La forma chiesta al contenitore: il piano fisico applica la stessa riduzione per taglia del dispositivo. */
+    val smoothing: Float = ContinuousCornerShape.IosSmoothing,
+    /** La pellicola del pezzo dichiarato, prima o dopo il cambio; neutra se non specificata. */
+    val tintOf: (GlassPlanePiece) -> GlassTint = { NeutralTint },
   )
+
+  private val NeutralTint = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
 
   private val Dunes: Map<String, Any?> = linkedMapOf(
     "kind" to "synthetic", "palette" to listOf("#4A2E17", "#8C6239", "#C49A6C", "#E6CBA2", "#6E4A2A"),
@@ -186,6 +199,7 @@ internal object F38aTraces {
     val motion = GlassPlaneMotion()
     val driver = FluidGlassPlaneDriver(character = { scene.journey })
     val contents = LinkedHashMap<Any, Content>()
+    val tintJourney = FluidGlassTintJourney()
     var stage: List<StageField> = emptyList()
     var resting: List<GlassPlaneCluster> = emptyList()
     var swell = FluidGlassSwell.None
@@ -218,6 +232,7 @@ internal object F38aTraces {
       }
       val pressedKey = scene.touch?.key
       if (journey == null || frame == null) {
+        tintJourney.rest(state.pieces.associate { it.key to scene.tintOf(it) })
         // A riposo: ogni contenuto è pieno e al suo posto, e niente resta di chi se n'è andato.
         stage = emptyList()
         resting = emptyList()
@@ -231,6 +246,7 @@ internal object F38aTraces {
         }
       } else {
         if (change == FluidGlassPlaneDriver.Change.Started || change == FluidGlassPlaneDriver.Change.Retargeted) {
+          tintJourney.start(frame, state.pieces.associate { it.key to scene.tintOf(it) })
           // La luce del dito: il vetro toccato, se la scena lo dice (`noteFinger` del contenitore). Al primo viaggio il
           // bagliore si vedeva sul vetro fermo se il pezzo era solo nel suo grappolo.
           val touch = scene.touch
@@ -295,7 +311,7 @@ internal object F38aTraces {
           val shape = PhysicsPlaneShape(
             // Il tasto premuto, fermo: la sua lastra come la scala il blocco del layer della pressione.
             slabs = ordered.map { piece ->
-              val slab = FluidForm.Slab(piece.bounds, piece.radii, smoothing = 0f)
+              val slab = FluidForm.Slab(piece.bounds, piece.radii, smoothing = scene.smoothing)
               if (pressing != null && piece.key == pressedKey) fluidGlassPressedSlab(slab, pressing) else slab
             },
             nominalBlend = spacingPx,
@@ -311,13 +327,15 @@ internal object F38aTraces {
           val layers = cluster.pieces.mapNotNull { piece ->
             contents[piece.key]?.let { layer(scene, piece.key, it, pressing?.takeIf { piece.key == pressedKey }) }
           }
-          elements += element("riposo-${restName(cluster)}", shape, scene, null, layers, "riposo: il grappolo tiene il suo vetro")
+          elements += tintedElements("riposo-${restName(cluster)}", shape, scene, null, layers,
+            "riposo: il grappolo tiene il suo vetro", ordered.map(scene.tintOf))
         }
       }
       if (journey != null && frame != null) {
+        val tints = tintJourney.frame(frame)
         for (field in stage) {
           val shape = fluidGlassStagePlane(
-            frame = frame, flights = field.flights, origin = Offset.Zero, smoothing = { 0f }, spacingPx = spacingPx,
+            frame = frame, flights = field.flights, origin = Offset.Zero, smoothing = { scene.smoothing }, spacingPx = spacingPx,
             neck = driver.neckNow(field.union), swell = if (field.lens) FluidGlassSwell.None else swell,
             density = d, movingMs = driver.movingMs.toFloat(),
             // F3.10: la luce del carattere e quella del dito, come `driveStage`.
@@ -362,13 +380,19 @@ internal object F38aTraces {
               )
             }
           }
-          elements += element
+          val members = dev.antigravity.fluidengine.ui.fluid.fluidGlassFieldSlabs(
+            frame, field.flights, Offset.Zero, { scene.smoothing }).members.take(shape.slabs.size)
+          val tinted = tintedElements("palco-${field.index}", shape, scene, field.bounds, layers,
+            "palco e tinta del contenitore", members.map { tints[it.flightId] ?: scene.tintOf(it.piece) })
+          tinted.first().putAll(element.filterKeys { it.startsWith("_") })
+          elements += tinted
         }
       }
       GlassTraceFrame(time, elements)
     }
     val head = linkedMapOf<String, Any?>(
       "_" to "F3.8a: ${scene.note}",
+      "_smoothing" to scene.smoothing,
       "palette" to "engine",
       "background" to scene.background,
     )
@@ -447,6 +471,7 @@ internal object F38aTraces {
     stage: Rect?,
     content: List<Map<String, Any?>>,
     note: String,
+    tint: GlassTint = NeutralTint,
   ): LinkedHashMap<String, Any?> {
     val d = scene.density
     val plan = PhysicsRenderPlan()
@@ -455,6 +480,8 @@ internal object F38aTraces {
     val recipe = glassRecipe(
       role = GlassRole.Interactive, widthDp = shortDp, heightDp = shortDp, darkSide = scene.dark, optics = ButtonOptics,
       intensity = 1f,
+      film = if (glassTintLiquidMode(tint) == GlassTintMode.Fixed) tint.overlay else Color.Unspecified,
+      tint = if (glassTintLiquidMode(tint) == GlassTintMode.Colored) tint.overlay else Color.Unspecified,
     )
     // Il vetro in viaggio (scelta B), il carattere del viaggio del palco (F3.10), poi la comparsa: l'ordine di
     // `physicsLiquidRecipe` e di `PhysicsLiquidSurface.fill`.
@@ -487,6 +514,26 @@ internal object F38aTraces {
     )
     if (shape.slabs.size == 1) narrowToOne(element)
     return element
+  }
+
+  /** Una superficie per tinta, con gli stessi tagli del contenitore; il banco ritaglia anche ombra e luce. */
+  private fun tintedElements(
+    name: String, shape: PhysicsPlaneShape, scene: Scene, stage: Rect?, content: List<Map<String, Any?>>,
+    note: String, tints: List<GlassTint>,
+  ): List<LinkedHashMap<String, Any?>> {
+    val distinct = tints.distinct()
+    if (distinct.size <= 1) return listOf(element(name, shape, scene, stage, content, note, distinct.firstOrNull() ?: NeutralTint))
+    val indices = tints.map { distinct.indexOf(it) }.toIntArray()
+    return distinct.mapIndexed { index, tint ->
+      val out = element(if (index == 0) name else "$name-tinta$index", shape, scene, stage, content, note, tint)
+      val x = (out.getValue("x") as Number).toFloat()
+      val y = (out.getValue("y") as Number).toFloat()
+      out["drawClip"] = fluidGlassTintStrips(shape.slabs.map { it.frame }, indices, index).map { strip ->
+        listOf(strip.left / scene.density - x, strip.top / scene.density - y,
+          strip.right / scene.density - x, strip.bottom / scene.density - y)
+      }
+      out
+    }
   }
 
   /** Lo scrittore fisico prepara otto caselle: `Body1` ha gli stessi uniform con una casella (come in F3.1 e F3.3). */

@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [240, 120],
   "_": "F3.8a: «Fatto» confluisce in «Modifica»: il testo si sfoca dov'era e il bordo lo copre · contenitore stretto attorno alla riga, come in galleria (il palco fino alla finestra)",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

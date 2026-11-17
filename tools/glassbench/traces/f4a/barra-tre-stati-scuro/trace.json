@@ -8,6 +8,7 @@
   "theme": "dark",
   "size": [400, 108],
   "_": "F3.8a: barra dal modello Kotlin, contenitore e contenuto veri",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "color",

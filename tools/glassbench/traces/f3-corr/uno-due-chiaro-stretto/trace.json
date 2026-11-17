@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [240, 120],
   "_": "F3.8a: «Modifica» fa nascere «Fatto»: il testo arriva sfocato dentro il vetro, mai prima · contenitore stretto attorno alla riga, come in galleria (il palco fino alla finestra)",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

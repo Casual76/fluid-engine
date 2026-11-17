@@ -84,7 +84,7 @@ CONTENT_KEYS = set(CONTENT_DRAW_KEYS) | {"name", "x", "y", "w", "h", "color", "b
 SCENE_CONTENT_KEYS = ("icon", "icons", "label", "rows", "items", "contentLayer", "contentColor")
 COMMON_KEYS = {"kind", "name", "x", "y", "w", "h", "radius", "corner", "smoothing", "theme",
                "palette", "pieces", "ring", "shadow", "shadowAmount", "content", "contentClip",
-               "marginDp", "clip"}
+               "marginDp", "clip", "drawClip"}
 CONTENT_CLIPS = ("auto", "shape", "alpha", "none", "pieces")
 APPLE_KEYS = ("name", "video", "t0Frame", "crop", "collage", "speed", "note")
 ELEMENT_KEYS = {
@@ -562,6 +562,11 @@ def check_element(rep: Report, sources: Sources, frame: int, el: dict, density: 
     if not check_box(rep, where, frame, el):
         return
     check_radius(rep, where, frame, el.get("radius"))
+    if "drawClip" in el:
+        strips = el["drawClip"]
+        if not isinstance(strips, list) or any(not isinstance(rect, list) or len(rect) != 4 or
+                not all(is_number(v) for v in rect) or rect[2] < rect[0] or rect[3] < rect[1] for rect in strips):
+            rep.err(where, "`drawClip` deve essere una lista di rettangoli [left, top, right, bottom]", frame)
     for key in SCENE_CONTENT_KEYS:
         if key in el:
             rep.err(where, f"`{key}` sta dentro una voce di `content`, non sull'elemento", frame)
@@ -2151,8 +2156,28 @@ def _piece_field(pieces: list[dict], ox: float, oy: float, density: float, size:
         rx, ry = xs - cx, ys - cy
         radius = np.where(rx >= 0, np.where(ry <= 0, tr, br), np.where(ry <= 0, tl, bl))
         radius = np.minimum(radius, min(hw, hh))
-        qx, qy = np.abs(rx) - (hw - radius), np.abs(ry) - (hh - radius)
-        sd = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - radius
+        # Gli uniform esportano lo smoothing effettivo, gia' risolto per taglia dal piano Kotlin.
+        # Anche le misure dei contorni devono vedere lo stesso campo di GlassFieldKernel.glassSlab.
+        smoothing = float(piece.get("smooth", 0.0))
+        if smoothing > 0.0:
+            effective = np.clip(np.minimum(smoothing, min(hw, hh) / np.maximum(radius, 1e-4) - 1.0), 0.0, 1.0)
+            reach = radius * (1 + effective ** 2 * (bench.field_number("GlassCornerReachSquare") +
+                                                   bench.field_number("GlassCornerReachCube") * effective))
+            power = 2 + effective ** 2 * (bench.field_number("GlassCornerPowerSquare") +
+                                         bench.field_number("GlassCornerPowerCube") * effective)
+            qx, qy = np.abs(rx) - (hw - reach), np.abs(ry) - (hh - reach)
+            px, py = np.maximum(qx, 0), np.maximum(qy, 0)
+            ax, ay = px ** (power - 1), py ** (power - 1)
+            total = np.maximum(ax * px + ay * py, 1e-20)
+            norm = total ** (1 / power)
+            slope = np.hypot(ax, ay) * norm / total
+            delta = norm - reach
+            mix = np.clip(-delta / np.maximum(reach, 1e-4), 0, 1)
+            curved = delta / np.maximum(slope * (1 - mix) + mix, 1e-20)
+            sd = np.where((qx <= 0) | (qy <= 0), np.maximum(qx, qy) - reach, curved)
+        else:
+            qx, qy = np.abs(rx) - (hw - radius), np.abs(ry) - (hh - radius)
+            sd = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - radius
         if d is None:
             d = sd
         else:
@@ -3344,6 +3369,21 @@ def cmd_selftest(args) -> int:
          int(shape.sum()) == 40 * 20 and shape[14, 12] and not shape[13, 12] and not shape[14, 11])
     polygon = element_silhouette(dict(slab, pieces=None, ring=[[4, 5], [24, 5], [24, 15], [4, 15]]), 2.0, (100, 80))
     test("sagoma del banco: un anello e' il suo poligono", abs(int(polygon.sum()) - 800) <= 4)
+    rounded = {"x": 6, "y": 6, "w": 80, "h": 60, "radius": 18}
+    circular = _piece_field([rounded], 0, 0, 3, (280, 220)) < 0
+    continuous = _piece_field([dict(rounded, smooth=0.6)], 0, 0, 3, (280, 220)) < 0
+    test("lo smoothing esportato cambia anche la sagoma misurata", not np.array_equal(circular, continuous))
+    capsule = dict(rounded, radius="capsule")
+    test("lo smoothing lascia una capsula esattamente tonda", np.array_equal(
+        _piece_field([capsule], 0, 0, 3, (280, 220)) < 0,
+        _piece_field([dict(capsule, smooth=0.6)], 0, 0, 3, (280, 220)) < 0))
+    test("gli uniform leggono lo smoothing del pezzo", field_values([dict(rounded, smooth=0.6)], None)["$pieceSmooth"] == [0.6])
+    clipped = bench.render_scene_full({"width": 40, "height": 20, "density": 1, "theme": "light",
+        "background": {"kind": "color", "color": "#FFFFFF"}, "elements": [{"kind": "shape", "name": "tinta",
+        "x": 0, "y": 0, "w": 40, "h": 20, "radius": 0, "color": "#007AFF", "drawClip": [[20, 0, 40, 20]]}]}, HERE)
+    pixels = np.asarray(clipped.image)
+    test("la striscia ritaglia tutto il disegno della tinta", np.all(pixels[10, 5, :3] == 255) and
+         not np.all(pixels[10, 30, :3] == 255))
     ev = area_events([0, 10, 20, 30, 40, 50, 60], [100, 100, 300, 500, 500, 500, 500], 100.0, 50, 50)
     test("istanti: primo movimento, meta' della corsa interpolata, picco e riposo di una rampa nota",
          ev["primo movimento"] == 20 and abs(ev["meta' della corsa"] - 20.0) < 1e-6 and ev["picco raggiunto"] == 30

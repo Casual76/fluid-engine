@@ -238,7 +238,7 @@ internal object F33Traces {
         frame.fields.forEachIndexed { fieldIndex, field ->
           val flying = field.flights.map { id -> frame.pieces.single { it.flightId == id } }
           // Un pezzo che è scomparso del tutto non si disegna: la sua lastra resta a zero nel campo, invisibile.
-          val slabs = flying.map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) }
+          val slabs = flying.map { FluidForm.Slab(it.bounds, it.radii, smoothing = dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape.IosSmoothing) }
           val amount = flying.minOf { it.materialize }
           val content = lane.symbol?.let { symbol ->
             flying.mapNotNull { symbolLayer(symbol, it.contentBounds, it.materialize, d) }
@@ -344,7 +344,7 @@ internal object F33Traces {
     GlassPlaneState(pieces.toList(), 12f * d, Rect(0f, 0f, widthDp * d, heightDp * d))
 
   private fun circle(d: Float, x: Float, y: Float, side: Float = 44f) =
-    FluidForm.Slab(Rect(x * d, y * d, (x + side) * d, (y + side) * d), FluidCornerRadii.all(side / 2f * d), smoothing = 0f)
+    FluidForm.Slab(Rect(x * d, y * d, (x + side) * d, (y + side) * d), FluidCornerRadii.all(side / 2f * d), smoothing = dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape.IosSmoothing)
 
   private fun text(dark: Boolean): Map<String, Any?> = linkedMapOf(
     "kind" to "text", "background" to if (dark) "#17171A" else "#E3E3E5", "color" to if (dark) "#F2F2F7" else "#17171A",

@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [280, 120],
   "_": "F3.8a: un tasto lontano compare per lente: i due fermi restano due, il simbolo si condensa senza pause",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

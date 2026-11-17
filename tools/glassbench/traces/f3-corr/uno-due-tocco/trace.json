@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [240, 120],
   "_": "F3.8a: «Modifica» premuto fa nascere «Fatto»: il palco parte dal tasto premuto e lo rilascia",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

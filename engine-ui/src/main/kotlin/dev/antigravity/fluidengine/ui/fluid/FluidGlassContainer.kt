@@ -51,6 +51,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Path
@@ -2089,6 +2090,64 @@ internal fun fluidGlassTintSplit(looks: List<FluidGlassLook>): FluidGlassTintSpl
   return FluidGlassTintSplit(distinct, indices)
 }
 
+/**
+ * La tinta è contenuto (R7 A4): chi nasce la prende dal donatore, chi confluisce la cede a chi lo accoglie, nella
+ * finestra della **sua** sfocatura. Le lastre possono così coincidere senza tagliare una capsula in due colori.
+ * Conserva il colore già mostrato quando un viaggio viene interrotto, come fa il conducente con la geometria.
+ */
+internal class FluidGlassTintJourney {
+  private var starts: Map<GlassPlaneFlightId, GlassTint> = emptyMap()
+  private var ends: Map<GlassPlaneFlightId, GlassTint> = emptyMap()
+  private val shown = HashMap<Any, GlassTint>()
+
+  fun rest(tints: Map<Any, GlassTint>) {
+    shown.clear()
+    shown.putAll(tints)
+  }
+
+  fun start(frame: GlassPlaneFrame, targets: Map<Any, GlassTint>) {
+    fun before(key: Any?): GlassTint? = shown[key] ?: targets[key]
+    starts = frame.pieces.mapNotNull { flying ->
+      val id = flying.flightId
+      val tint = before(id.sourceKey) ?: before(flying.bornFrom) ?: targets[id.targetKey]
+      tint?.let { id to it }
+    }.toMap()
+    ends = frame.pieces.mapNotNull { flying ->
+      val id = flying.flightId
+      val tint = targets[id.targetKey] ?: targets[flying.mergesInto] ?: starts[id]
+      tint?.let { id to it }
+    }.toMap()
+  }
+
+  fun frame(frame: GlassPlaneFrame): Map<GlassPlaneFlightId, GlassTint> = frame.pieces.mapNotNull { flying ->
+    val id = flying.flightId
+    val from = starts[id] ?: return@mapNotNull null
+    val to = ends[id] ?: from
+    val u = if (flying.relay) flying.phase / GlassPieceContentDefaults.ExitSpan else when (flying.change) {
+      GlassPlaneChange.BornFromNeighbour -> glassPieceBornU(flying.contentPhase)
+      GlassPlaneChange.MergeIntoNeighbour -> flying.contentPhase / if (flying.relay)
+        GlassPieceContentDefaults.ExitSpan else GlassPieceContentDefaults.MergeExitSpan
+      else -> flying.contentPhase
+    }
+    val tint = fluidGlassMixTint(from, to, GlassContentCurves.tint(u))
+    (id.targetKey ?: id.sourceKey)?.let { shown[it] = tint }
+    id to tint
+  }.toMap()
+}
+
+/** Il neutro non ha pellicola nel materiale nuovo: la tinta colorata si spegne in alfa sopra lo stesso velo. */
+internal fun fluidGlassMixTint(from: GlassTint, to: GlassTint, amount: Float): GlassTint {
+  if (amount <= 0f || from == to) return from
+  if (amount >= 1f) return to
+  val aNeutral = glassTintLiquidMode(from) == GlassTintMode.Neutral
+  val bNeutral = glassTintLiquidMode(to) == GlassTintMode.Neutral
+  val a = if (aNeutral) to.overlay.copy(alpha = 0f) else from.overlay
+  val b = if (bNeutral) from.overlay.copy(alpha = 0f) else to.overlay
+  return GlassTint(lerp(a, b, amount), lerp(from.fallback, to.fallback, amount),
+    lerp(from.hairline, to.hairline, amount),
+    if (aNeutral || bNeutral) GlassTintMode.Colored else glassTintLiquidMode(to))
+}
+
 /** Fin dove si estende una striscia di tinta fuori dalle lastre: il ritaglio non deve mai mordere ombra o alone. */
 private const val FluidGlassTintStripFar = 100_000f
 
@@ -2157,7 +2216,7 @@ private fun ContentDrawScope.drawInStrips(strips: List<Rect>?) {
 }
 
 /** Un campo del palco. */
-@Immutable
+@Stable
 internal class FluidGlassStageField(
   val index: Int,
   val node: Rect,
@@ -2174,7 +2233,10 @@ internal class FluidGlassStageField(
    * sulle strisce dei suoi pezzi in volo. La tinta di ogni lastra la scrive il passo ([FluidGlassContainerState.stageTintStrips]).
    */
   val tints: List<FluidGlassLook>? = null,
-)
+) {
+  /** Gli aspetti del fotogramma: le sole pellicole cambiano con la sfocatura, la geometria resta quella del palco. */
+  var liveTints: List<FluidGlassLook> by mutableStateOf(tints ?: listOf(look))
+}
 
 /**
  * Il palco di un viaggio: cambia quando il viaggio parte o riparte, non a ogni fotogramma. [resting] sono le chiavi delle
@@ -2258,6 +2320,7 @@ internal class FluidGlassContainerState {
    * scritta dal passo insieme alla forma, prima di lei, così chi la legge in disegno (dopo la forma) la trova allineata.
    */
   private val stageTints = HashMap<Int, IntArray>()
+  private val tintJourney = FluidGlassTintJourney()
 
   /** Il progresso del viaggio, letto in disegno: all'uno la superficie fisica è ferma. */
   private val travelProgress = mutableFloatStateOf(1f)
@@ -2595,6 +2658,7 @@ internal class FluidGlassContainerState {
     stageTints.clear()
     travelProgress.floatValue = 1f
     swell = FluidGlassSwell.None
+    tintJourney.rest(state.pieces.mapNotNull { piece -> looks[piece.key]?.let { piece.key to it.tint } }.toMap())
     publishRest(state)
     // Gli aspetti di chi se n'è andato non servono più: il viaggio che li portava è finito.
     looks.keys.retainAll(state.pieces.mapTo(HashSet()) { it.key })
@@ -2604,6 +2668,7 @@ internal class FluidGlassContainerState {
     // Un aspetto cambiato senza che il piano cambi: a riposo le superfici si rifanno; in viaggio aspetta l'arrivo.
     if (looksDirty && driver.journey == null) {
       looksDirty = false
+      tintJourney.rest(state.pieces.mapNotNull { piece -> looks[piece.key]?.let { piece.key to it.tint } }.toMap())
       publishRest(state)
     }
   }
@@ -2715,6 +2780,7 @@ internal class FluidGlassContainerState {
   private fun start(retarget: Boolean) {
     val journey = driver.journey ?: return
     val target = driver.rest ?: return
+    driver.frame?.let { tintJourney.start(it, looks.mapValues { entry -> entry.value.tint }) }
     // Il riposo d'arrivo si monta spento e riprenderà il vetro nella composizione in cui il palco lo lascia; ma **non in
     // questo fotogramma** (giro di correzione di F3, C R5): il primo fotogramma del palco compone già le superfici del
     // palco, e il riposo d'arrivo (una superficie nuova per ogni grappolo che cambia) serve solo alla fine. Si pubblica al
@@ -2738,7 +2804,7 @@ internal class FluidGlassContainerState {
       resting = resting.mapTo(HashSet()) { fluidGlassRestKey(it) },
     )
     stageShapes.keys.retainAll(stage!!.fields.mapTo(HashSet()) { it.index })
-    stageTints.keys.retainAll(stage!!.fields.filter { it.tints != null }.mapTo(HashSet()) { it.index })
+    stageTints.keys.retainAll(stage!!.fields.mapTo(HashSet()) { it.index })
     noteFinger(retarget)
     startContents()
     driveStage()
@@ -2818,13 +2884,16 @@ internal class FluidGlassContainerState {
    * La tinta di ogni lastra del campo [field] in [frame] (F4A.2), nell'ordine delle lastre della sua forma: lo stesso
    * filtro e lo stesso ordine di [fluidGlassFieldSlabs], fino al tetto delle lastre del campo.
    */
-  private fun stageSlabTints(frame: GlassPlaneFrame, field: FluidGlassStageField, tints: List<FluidGlassLook>): IntArray {
+  private fun updateStageTints(frame: GlassPlaneFrame, field: FluidGlassStageField, tints: Map<GlassPlaneFlightId, GlassTint>) {
     val members = fluidGlassFieldSlabs(frame, field.flights, field.node.topLeft, { 0f }).members
-    val count = minOf(members.size, FluidForm.Group.MaxPieces)
-    return IntArray(count) { slab ->
-      val tint = lookOf(members[slab].flightId)?.tint
-      tints.indexOfFirst { it.tint == tint }.coerceAtLeast(0)
+    val shown = members.take(FluidForm.Group.MaxPieces).map { member ->
+      val look = lookOf(member.flightId) ?: field.look
+      look.copy(tint = tints[member.flightId] ?: look.tint)
     }
+    if (shown.isEmpty()) return
+    val split = fluidGlassTintSplit(shown)
+    stageTints[field.index] = split?.slabTints ?: IntArray(shown.size)
+    field.liveTints = split?.looks ?: listOf(shown.first())
   }
 
   /**
@@ -2931,6 +3000,7 @@ internal class FluidGlassContainerState {
     val finger = driver.finger
     val glow = driver.fingerGlow
     val fill = driver.fingerFill
+    val tints = tintJourney.frame(frame)
     for (field in stage.fields) {
       val plane = fluidGlassStagePlane(
         frame = frame,
@@ -2950,7 +3020,7 @@ internal class FluidGlassContainerState {
         pressed = if (field.lens) NoPieceFramePress else pressFrames,
       )
       // Le tinte delle lastre prima della forma: chi le legge in disegno le trova allineate con lei.
-      field.tints?.let { stageTints[field.index] = stageSlabTints(frame, field, it) }
+      updateStageTints(frame, field, tints)
       val holder = stageShapes[field.index]
       if (holder == null) stageShapes[field.index] = mutableStateOf(plane) else holder.value = plane
       if (stageLog) {
@@ -3148,13 +3218,8 @@ private fun FluidGlassRestPlane(
 /** Un campo del palco: una superficie fisica guidata dal piano, per tutto il viaggio; una per tinta se ne ha più d'una. */
 @Composable
 private fun FluidGlassStageSurface(state: FluidGlassContainerState, field: FluidGlassStageField) {
-  val tints = field.tints
-  if (tints == null) {
-    FluidGlassStageTint(state, field, field.look, tint = -1)
-  } else {
-    // F4A.2 (D R4): ogni tinta sulla striscia dei suoi pezzi in volo, letta a ogni fotogramma con la forma.
-    for (tint in tints.indices) key(tint) { FluidGlassStageTint(state, field, tints[tint], tint) }
-  }
+  val tints = field.liveTints
+  for (tint in tints.indices) key(tint) { FluidGlassStageTint(state, field, tints[tint], tint) }
 }
 
 /**

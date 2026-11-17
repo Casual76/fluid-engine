@@ -8,6 +8,7 @@
   "theme": "light",
   "size": [240, 120],
   "_": "F3.8a: la confluenza di Apple a 4:59 con la sua geometria: la capsula torna nel tondo",
+  "_smoothing": 0.6,
   "palette": "engine",
   "background": {
     "kind": "synthetic",

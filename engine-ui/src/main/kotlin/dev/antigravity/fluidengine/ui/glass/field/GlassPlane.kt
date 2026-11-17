@@ -41,7 +41,7 @@ internal data class GlassPlanePiece(
   }
 }
 
-internal enum class GlassPlaneTransition { MatchedGeometry, Materialize, Identity }
+internal enum class GlassPlaneTransition { MatchedGeometry, Materialize, Identity, MaterializeWhenAlone }
 internal enum class GlassPlaneChange { Matched, BornFromNeighbour, MergeIntoNeighbour, Materialize, Dematerialize, Identity }
 internal enum class GlassPlaneMatch { Id, Role, Symbol, OutsideOrder }
 
@@ -536,7 +536,7 @@ private fun planePairs(from: GlassPlaneState, to: GlassPlaneState, seeds: Map<An
     val change = when (b.transition) {
       GlassPlaneTransition.Identity -> GlassPlaneChange.Identity
       GlassPlaneTransition.Materialize -> if (a.key in seeds) GlassPlaneChange.Matched else GlassPlaneChange.Materialize
-      GlassPlaneTransition.MatchedGeometry -> GlassPlaneChange.Matched
+      GlassPlaneTransition.MatchedGeometry, GlassPlaneTransition.MaterializeWhenAlone -> GlassPlaneChange.Matched
     }
     if (change == GlassPlaneChange.Materialize) return
     matched += PlanePair(a, b, change, by)

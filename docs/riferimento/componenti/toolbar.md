@@ -135,11 +135,16 @@ del contenitore:
 | lo stesso `id` (l'indietro comune, i tre puntini) | lo stesso vetro, fermo al pixel; l'icona uguale non si tocca |
 | lo stesso `id` con un'icona diversa | il vetro non si muove, le icone si incrociano sfocandosi (nessun viaggio del piano) |
 | un `id` nuovo accanto a un vetro | nasce dal fianco del vicino col collo (D3) |
-| un `id` nuovo senza vicini (l'indietro fra radice e figlia) | compare per lente, sul posto (R7 21) |
+| un `id` nuovo senza vicini | compare per lente, sul posto |
+| indietro o Chiudi che arrivano o se ne vanno | lente sul posto anche con altri tasti a sinistra; se l'`id` resta, lo stesso vetro fermo (`MaterializeWhenAlone`, R7 21) |
 | un `id` che se ne va | confluisce nel vicino, o scompare per lente |
 | icone separate che diventano un gruppo, o il contrario | lo stesso vetro che si fonde o si divide; le icone che restano nitide |
 | il titolo in linea | si scambia sfocandosi, con un passo di 8 dp nel verso della navigazione (nessuno fra schede) |
 | il titolo grande | è contenuto: viaggia nitido con la sua pagina |
+
+Il **sottotitolo agganciato** dichiarato con `title(…, subtitle = …)` o `subtitle(…)` arriva anche alla barra
+dell'host (`FluidPageBarSpec.subtitle`): il titolo sale di 16 dp, il sottotitolo usa gli stessi inset simmetrici,
+compare con la piega e segue passo, opacità e sfocatura del titolo fra pagine. `None` e `Principal` li tolgono entrambi.
 
 **Quando.** Al push e al pop col tasto, subito, sul tempo del piano (non sul progresso della pagina). Col **gesto
 indietro** solo al rilascio che conferma: durante il trascinamento la barra resta quella della pagina in cima, e
@@ -160,8 +165,13 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 
 - **Il menu «Altro»** è il menu contestuale dell'engine (senza un host dei modali non si apre: le azioni restano
   raggiungibili da TalkBack); il menu che nasce dal gruppo è di F5A.
-- **Dentro un host il sottotitolo** non si disegna ancora sotto il titolo agganciato della barra dell'host (c'è sotto
-  il titolo grande, nella lista): da portare quando la barra dell'host prende anche quella misura.
+- **I confronti sul PC** (`tools/glassbench/traces/f4a/`, F4A.5) eseguono risolutore, memoria e conducente Kotlin,
+  ricetta e viaggi del contenuto; non eseguono il disegno Compose né la GPU. Tempi e sagome contro Apple non sono
+  una qualifica sul dispositivo. I limiti misurati e le tavole a tempo vero sono nel rapporto F4A.5.
+- **Taratura del contesto, F4A.5:** la capsula si assesta intorno a 300 ms, mentre nel riferimento ingrandito a
+  16:02 continua ad allargarsi fino a circa 900 ms; il bordo sinistro di Fluid sporge durante il rigonfiamento,
+  invece di rientrare prima come Apple. La nascita fra pagine ha il collo e la rottura nell'ordine giusto, ma il
+  gruppo nuovo cresce più grosso e prima del riferimento 256. Sono differenze osservate, ancora da tarare.
 
 ## Cosa è verificato dai test
 
@@ -169,6 +179,10 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
   `onBack`, principale e conferma tinte e sole), il trabocco per priorità, l'identità dei vetri fra due stati (il gruppo
   che cresce, la divisione, «sfoglia ↔ seleziona» con l'indietro fermo), gli inset del titolo d'arrivo, la ricerca.
 - `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
+- `GlassPlaneLensIdentityTest`, `FluidToolbarExitTransitionTest` e `FluidToolbarAnchorsTest` (F4A.5): lente con un
+  vicino, identità conservata fra figlie, ripartenza durante la lente, sottotitolo nell'host e modi `None`/`Principal`.
+- `F4aToolbarExportTest`: cinque tracce a 120 Hz (tre stati nei due temi, contesto, push/pop, cambio interrotto),
+  dai componenti puri della barra; esportazione solo con `GLASS_F4A5_DIR`.
 - `FluidToolbarContentAnchorTest` (engine, F4A.2b): gruppo 1→3→1 guidato dal conducente reale a 120 Hz, bordi iniziale
   e finale, LTR/RTL, densità 1/1,5/2/3/3,5; icona che resta entro mezzo pixel, nitida, senza cambiare il ritaglio;
   centro di serie identico a F3.12a, ordine degli attributi, lente, parole italiane/inglesi e tracce del banco.

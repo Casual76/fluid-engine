@@ -63,6 +63,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassTransition
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassTransition
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
@@ -700,6 +702,12 @@ internal data class FluidToolbarGhost(
 
 /** Le misure della barra dichiarata che non sono già token di [FluidMetrics]. */
 internal object FluidToolbarDefaults {
+  /** Il titolo agganciato lascia questa altezza al sottotitolo (scelta F4A.2). */
+  val SubtitleLift: Dp = 16.dp
+
+  /** L'inchiostro secondario della barra (scelta F4A.2). */
+  const val SubtitleInk: Float = 0.6f
+
   /** Il margine di una scritta dentro il suo vetro: la scritta di Apple nella barra ha ~14–16 pt di aria per lato. */
   val TextPadding: Dp = 16.dp
 
@@ -728,29 +736,21 @@ internal data class FluidToolbarExtent(val startPx: Int, val endPx: Int)
  * confluiscono, compaiono per lente e le icone si incrociano sfocandosi, **senza che la pagina scriva altro**.
  *
  * [onExtent] riceve, a ogni stato risolto, quanto occupano i gruppi dal bordo ai due lati: la misura d'**arrivo**, non
- * il vetro in volo, così il titolo agganciato non balla mentre i gruppi cambiano larghezza. [exits] falso lascia fuori
- * indietro e Chiudi (dentro un host di pagine li disegna l'host, fino a F4A.3). [wrap] vero: la barra è larga quanto i
- * suoi gruppi invece che quanto la riga (la riga delle azioni dell'host, fino a F4A.3).
+ * il vetro in volo, così il titolo agganciato non balla mentre i gruppi cambiano larghezza.
  */
 @Composable
 internal fun FluidToolbarBar(
   declaration: FluidToolbarDeclaration,
   modifier: Modifier = Modifier,
   title: String? = null,
-  exits: Boolean = true,
-  wrap: Boolean = false,
   onExtent: ((FluidToolbarExtent) -> Unit)? = null,
 ) {
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val shown = if (exits) declaration else declaration.withoutExits()
-  val model = fluidToolbarModelOf(shown, title)
-  BoxWithConstraints(modifier.then(if (wrap) Modifier else Modifier.fillMaxWidth()).height(FluidMetrics.GlassButtonLens)) {
+  val model = fluidToolbarModelOf(declaration, title)
+  BoxWithConstraints(modifier.fillMaxWidth().height(FluidMetrics.GlassButtonLens)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
     val resolved = remember(model, width) { resolveFluidToolbar(model, width, metrics = fluidToolbarMetrics()) }
-    // Stretta ai suoi gruppi: si parte dal primo, e il contenitore è largo fin dove arriva l'ultimo.
-    val origin = if (wrap) resolved.groups.minOfOrNull { it.leftDp } ?: 0f else 0f
-    val span = if (wrap) (resolved.groups.maxOfOrNull { it.leftDp + it.widthDp } ?: 0f) - origin else 0f
     val memory = remember { FluidToolbarMemory() }
     memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full)
     val glassIds = memory.glassIds
@@ -759,8 +759,8 @@ internal fun FluidToolbarBar(
       SideEffect { onExtent(extent) }
     }
     val namespace = rememberFluidGlassNamespace()
-    FluidGlassContainer(if (wrap) Modifier.width(span.dp).fillMaxHeightOfRow() else Modifier.fillMaxSize()) {
-      Box(if (wrap) Modifier.width(span.dp).height(FluidMetrics.GlassButtonLens) else Modifier.fillMaxSize()) {
+    FluidGlassContainer(Modifier.fillMaxSize()) {
+      Box(Modifier.fillMaxSize()) {
         for (group in resolved.groups) {
           val glass = glassIds[group.id] ?: continue
           key(glass) {
@@ -768,10 +768,10 @@ internal fun FluidToolbarBar(
               group = group,
               glass = glass,
               namespace = namespace,
-              declaration = shown,
+              declaration = declaration,
               resolved = resolved,
               memory = memory,
-              modifier = Modifier.align(Alignment.CenterStart).offset(x = (group.leftDp - origin).dp),
+              modifier = Modifier.align(Alignment.CenterStart).offset(x = group.leftDp.dp),
             )
           }
         }
@@ -804,20 +804,6 @@ internal fun fluidToolbarModelOf(declaration: FluidToolbarDeclaration, title: St
 
 /** La larghezza su cui si risolve una barra senza limite (stretta ai suoi gruppi in una riga che non la limita). */
 private const val FluidToolbarUnboundedWidthDp = 10_000f
-
-private fun Modifier.fillMaxHeightOfRow(): Modifier = height(FluidMetrics.GlassButtonLens)
-
-/** La stessa dichiarazione senza indietro e Chiudi. */
-private fun FluidToolbarDeclaration.withoutExits(): FluidToolbarDeclaration {
-  fun strip(list: List<FluidToolbarEntry>): List<FluidToolbarEntry> = list.mapNotNull { entry ->
-    when (entry) {
-      is FluidToolbarButtonEntry -> entry.takeUnless { it.role == FluidToolbarRole.Back || it.role == FluidToolbarRole.Close }
-      is FluidToolbarGroupEntry -> FluidToolbarGroupEntry(entry.id, entry.placement, entry.priority, entry.overflow, entry.sharedBackground, strip(entry.children))
-      is FluidToolbarSpacerEntry -> entry
-    }
-  }
-  return FluidToolbarDeclaration(strip(entries), titleMode, subtitle, search, overflowLabel)
-}
 
 /**
  * Quanto occupano i gruppi dal bordo, ai due lati, nello stato [resolved] (in px): fino al bordo interno del gruppo più
@@ -862,6 +848,7 @@ private fun FluidToolbarGroupPiece(
   Row(
     modifier
       .fluidGlassId(glass, namespace)
+      .fluidGlassTransition(fluidToolbarGlassTransition(group))
       .fluidGlassContentAnchor(when (group.side) {
         FluidToolbarSide.Leading -> FluidGlassContentAnchor.Start
         FluidToolbarSide.Center -> FluidGlassContentAnchor.Center
@@ -891,6 +878,14 @@ private fun FluidToolbarGroupPiece(
     }
   }
 }
+
+/** Le uscite nascono per lente; se restano, l'identità continua a tenerle ferme. */
+internal fun fluidToolbarGlassTransition(group: FluidToolbarGroup): FluidGlassTransition =
+  if (group.items.any { it.role == FluidToolbarRole.Back || it.role == FluidToolbarRole.Close }) {
+    FluidGlassTransition.MaterializeWhenAlone
+  } else {
+    FluidGlassTransition.MatchedGeometry
+  }
 
 /** Quello che la faccia di un tasto mostra: la chiave dice quando si incrocia sfocandosi. */
 private data class FluidToolbarFace(

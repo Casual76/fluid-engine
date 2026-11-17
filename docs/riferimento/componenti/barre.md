@@ -55,6 +55,7 @@ I numeri che la pagina deve conoscere, in dp: `OpenHeight` 62 (`FluidMetrics.Tab
 | un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` — attenzione: `FluidSearchField` porta il **suo** pannello (vedi trappole) |
 | la barra superiore col titolo e le azioni | `FluidScreen` / `FluidBarAction` — [schermata.md](schermata.md) |
 | i tasti della barra superiore che cambiano con lo stato (sfoglia → seleziona, una conferma tinta, il menu «Altro») | `FluidScreen(toolbar = { … })` — [toolbar.md](toolbar.md) |
+| il sottotitolo sotto il titolo agganciato, anche nella barra unica dell'host | `toolbar { title(Inline, subtitle = …) }` oppure `subtitle(…)`; indietro e Chiudi conservano il vetro fra pagine e compaiono per lente anche con un vicino — [toolbar.md](toolbar.md) |
 | la barra di una pagina che non e' una `FluidScreen`, dentro un host di pagine | `FluidPageChrome` — [pagine.md](pagine.md) |
 | «Non cosi'»: `FluidTabBar` | deprecata: e' `FluidFloatingTabBar` a elenco senza ripiegamento. Usa `FluidFloatingTabBar` direttamente |
 | «Non cosi'»: `FluidFoldingTabBar` + `FluidBarFold` | deprecata: e' `FluidFloatingTabBar` con la piega guidata da te. Usa `FluidFloatingTabBar` e la sua connessione |

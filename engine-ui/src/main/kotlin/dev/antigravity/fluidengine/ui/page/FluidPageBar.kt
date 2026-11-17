@@ -55,6 +55,8 @@ internal data class FluidPageBarSpec(
    * contenitore (i tasti restano al loro posto e si trasformano). [actions] allora non conta.
    */
   val toolbar: FluidToolbarDeclaration? = null,
+  /** La dichiarazione è già registrata anche da FluidScreen: il sottotitolo arriva senza una seconda registrazione. */
+  val subtitle: String? = toolbar?.subtitle,
 )
 
 // ================================================================================================================

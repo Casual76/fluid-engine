@@ -222,6 +222,12 @@ enum class FluidGlassTransition {
 
   /** Nessuna transizione del vetro: c'è o non c'è. */
   Identity,
+
+  /**
+   * Senza predecessore compare e scompare per lente anche accanto a un altro vetro. Con lo stesso `id` resta invece
+   * lo stesso vetro: l'indietro fra due pagine non deve morire e rinascere a ogni cambio della barra (R7, riga 21).
+   */
+  MaterializeWhenAlone,
 }
 
 /**
@@ -2482,6 +2488,7 @@ internal class FluidGlassContainerState {
           FluidGlassTransition.MatchedGeometry -> GlassPlaneTransition.MatchedGeometry
           FluidGlassTransition.Materialize -> GlassPlaneTransition.Materialize
           FluidGlassTransition.Identity -> GlassPlaneTransition.Identity
+          FluidGlassTransition.MaterializeWhenAlone -> GlassPlaneTransition.MaterializeWhenAlone
         },
       ))
     }

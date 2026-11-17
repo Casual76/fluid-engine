@@ -32,6 +32,7 @@ fogli della 4.0 sono **clienti** del piano: lo usano, non lo riscrivono.
 | lo spazio dei nomi degli `id` | `rememberFluidGlassNamespace()` |
 | un blocco di tasti che è una cosa sola (azioni dello stesso gruppo, una capsula di comandi) | `Modifier.fluidGlassUnion(id, ns)` su ognuno, **prima** del vetro: una sagoma sola anche ferma (sotto, «L'unione») |
 | un vetro che compare sempre per lente, anche vicino a un altro | `Modifier.fluidGlassTransition(FluidGlassTransition.Materialize)` |
+| lente alla comparsa/scomparsa, stessa geometria se resta lo stesso `id` | `Modifier.fluidGlassTransition(FluidGlassTransition.MaterializeWhenAlone)` |
 | un vetro che c'è o non c'è, senza transizione | `FluidGlassTransition.Identity` |
 | un cambio senza viaggio, o con la mia molla | `FluidGlassContainer(animation = FluidGlassAnimation.None)` / `FluidGlassAnimation.Custom(spec)` |
 | le icone di una barra che cambiano contesto | una `FluidGlassContentTransition` **per posto**, con la chiave del contenuto |
@@ -82,7 +83,7 @@ fasi che li portano.
 | `@Namespace` | `rememberFluidGlassNamespace()` → `FluidGlassNamespace` |
 | `glassEffectID(_:in:)` | `Modifier.fluidGlassId(id, namespace)` |
 | `glassEffectUnion(id:namespace:)` | `Modifier.fluidGlassUnion(id, namespace)` |
-| `glassEffectTransition(_:)` | `Modifier.fluidGlassTransition(FluidGlassTransition.MatchedGeometry / Materialize / Identity)` |
+| `glassEffectTransition(_:)` | `Modifier.fluidGlassTransition(FluidGlassTransition.MatchedGeometry / Materialize / Identity / MaterializeWhenAlone)` |
 | `withAnimation` | niente: il contenitore anima da solo; `FluidGlassAnimation.Default / None / Custom(spec)` |
 | `blurReplace` dentro un vetro | `FluidGlassContentTransition(targetState, key = …) { stato -> … }` |
 | `ConcentricRectangle`, `containerShape(_:)` | `FluidConcentricShape(minimum)`, `Modifier.fluidContainerShape(shape)` |
@@ -222,6 +223,12 @@ non scorre, **esce per lente dal posto vecchio ed entra per lente nel nuovo**. U
 salta al posto nuovo senza viaggio. La transizione governa dunque anche lo spostamento, non solo l'inserzione e la
 rimozione come in `glassEffectTransition` di SwiftUI: `Materialize` va dato a chi compare davvero, non a un tasto che
 può essere spostato da un vicino che nasce.
+
+**`MaterializeWhenAlone` (F4A.5)** forza la lente soltanto per chi non ha predecessore/successore: non nasce dal
+vicino e non vi confluisce, ma lo stesso `id`, nello stesso contenitore e nella stessa variante, si accoppia come
+`MatchedGeometry` (anche se cambia il nodo). È la scelta della barra per indietro e Chiudi: fra due figlie il vetro
+resta, fra radice e figlia compare per lente anche quando la radice ha un altro tasto a sinistra. Senza `id` non
+usa le euristiche di ruolo/simbolo/ordine; l'incrocio esplicito degli `id` conserva il ripiego locale per lente.
 
 **I tempi sono quelli a vista** (F3.2c): la sagoma entra per sempre nello 0,5% della corsa al tempo della tabella (la
 capsula della traccia `contesto-capsule-curva` a ~294 ms, contro i 270–330 ms di Apple), e il viaggio finisce poco dopo,

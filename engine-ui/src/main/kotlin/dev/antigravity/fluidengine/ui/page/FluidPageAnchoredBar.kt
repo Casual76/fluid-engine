@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.offset
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidBackButton
 import dev.antigravity.fluidengine.ui.fluid.FluidBarEdgeInset
@@ -619,7 +622,7 @@ private fun BoxScope.BarTitle(
           }
         },
     ) {
-      FluidTopBarTitle(
+      val titleContent: @Composable () -> Unit = { FluidTopBarTitle(
         title = spec.title,
         collapseProgress = spec.collapseProgress,
         activeFacet = spec.activeFacet,
@@ -630,7 +633,32 @@ private fun BoxScope.BarTitle(
         reducedMotion = spec.reducedMotion,
         motion = motion,
         controls = controls,
-      )
+      ) }
+      val subtitle = spec.subtitle
+      if (subtitle == null) {
+        titleContent()
+      } else {
+        Box(Modifier.fillMaxSize().padding(bottom = FluidToolbarDefaults.SubtitleLift)) { titleContent() }
+        Box(
+          Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            .layout { measurable, constraints ->
+              val needed = maxOf(controls.startPx, controls.endPx) + FluidMetrics.GlassSpacing.roundToPx()
+              val inset = maxOf(FluidScreenDefaults.CompactTitleInset.roundToPx(), needed)
+                .coerceAtMost(constraints.maxWidth / 2)
+              val placeable = measurable.measure(constraints.offset(horizontal = -inset * 2))
+              layout(constraints.maxWidth, placeable.height) { placeable.place(inset, 0) }
+            }
+            .graphicsLayer {
+              alpha = smoothStep(spec.collapseProgress.value.coerceIn(0f, 1f)) * motion.chromeAlpha()
+              translationX = motion.chromeX()
+            },
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(subtitle, style = MaterialTheme.typography.bodySmall,
+            color = LocalContentColor.current.copy(alpha = FluidToolbarDefaults.SubtitleInk),
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+      }
     }
   }
     }

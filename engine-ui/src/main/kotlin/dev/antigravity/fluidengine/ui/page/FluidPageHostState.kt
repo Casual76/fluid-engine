@@ -468,7 +468,7 @@ class FluidPageHostState internal constructor() {
     // (`isDragging` col suo gettone e' falso) e beve il resto senza rilasciare niente.
     val handOver = takeOver && phase == Phase.Dragging
     if (!handOver && !canStartGesture()) return null
-    val interruptPush = phase == Phase.Pushing && upper == processed.lastOrNull() && canReverseTravel()
+    val interruptPush = phase == Phase.Pushing && resumesTravelOnDrag()
     if (handOver || phase == Phase.Cancelling || interruptPush) {
       // Ripresa al volo: corsa, verso e pagine restano quelli di prima.
       job?.cancel()
@@ -500,6 +500,13 @@ class FluidPageHostState internal constructor() {
 
   /** La pagina e' sotto un dito, o sta tornando a posto da un gesto: un back nuovo la prende da dov'e'. */
   internal fun isMovingByFinger(): Boolean = phase == Phase.Dragging || phase == Phase.Cancelling
+
+  /**
+   * Il primo evento deve misurarsi dal punto della presa quando beginDrag conserva la corsa.
+   * Non autorizza il contatto: bordo, barra e modalita' restano responsabilita' del riconoscitore.
+   */
+  internal fun resumesTravelOnDrag(): Boolean = isMovingByFinger() ||
+    (phase == Phase.Pushing && upper == processed.lastOrNull() && canReverseTravel())
 
   /** Snap sincrono: il dito non aspetta nessuna molla. */
   internal fun dragTo(token: Int, travel: Float) {

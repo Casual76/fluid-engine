@@ -88,11 +88,10 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
 
       // Una pagina che sta tornando a posto si riprende al volo, dal punto in cui e'.
       if (state.canGrab()) {
-        val startTravel = state.travelPx
         val token = state.beginDrag(state.direction)
         if (token != null) {
           down.consume()
-          trackDrag(state, token, down.id, down.position.x, startTravel, state.direction, null)
+          trackDrag(state, token, down.id, down.position.x, state.travelPx, state.direction, null)
           return@awaitEachGesture
         }
       }
@@ -117,9 +116,13 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
             if (handed > 0f) {
               // Lo scorrimento e' arrivato al suo inizio: il resto del dito e' della pagina, che
               // parte gia' spostata di quel resto e da qui segue il dito pixel per pixel.
+              val resumed = state.resumesTravelOnDrag()
               val token = state.beginDrag(dir) ?: return@awaitEachGesture
+              // Il push continua fino alla presa: aggiungergli anche il tratto gia' percorso dal
+              // dito farebbe un salto. Un gesto nuovo conserva invece il resto offerto dal figlio.
+              val anchorX = if (resumed) change.position.x else lastX - handed * state.direction
               change.consume()
-              trackDrag(state, token, down.id, lastX - handed * dir, 0f, dir, change)
+              trackDrag(state, token, down.id, anchorX, state.travelPx, state.direction, change)
               return@awaitEachGesture
             }
             lastX = change.position.x
@@ -139,9 +142,11 @@ internal fun Modifier.fluidPageBackSwipe(state: FluidPageHostState): Modifier =
           val abandoned = when {
             abs(dx) > slop && abs(dx) > abs(dy) -> {
               if (dx * dir > 0f) {
+                val resumed = state.resumesTravelOnDrag()
                 val token = state.beginDrag(dir) ?: return@awaitEachGesture
+                val anchorX = if (resumed) change.position.x else down.position.x
                 change.consume()
-                trackDrag(state, token, down.id, down.position.x, 0f, dir, change)
+                trackDrag(state, token, down.id, anchorX, state.travelPx, state.direction, change)
                 return@awaitEachGesture
               }
               true
@@ -281,10 +286,12 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
       NavigationEvent.EDGE_RIGHT -> FluidSwipeEdge.Right
       else -> FluidSwipeEdge.None
     }
-    // La pagina e' gia' in moto (il dito nell'app, o il ritorno di un annullo): si continua da li'.
-    val resumed = state.isMovingByFinger()
-    direction = if (resumed) state.direction else FluidPageMotion.systemDirection(edge, state.layoutDirectionSign)
-    val started = state.beginDrag(direction, takeOver = true) ?: return
+    // Anche il push riprendibile conserva il fotogramma. Expand resta un gesto nuovo, col ripiego.
+    val resumed = state.resumesTravelOnDrag()
+    val requestedDirection = FluidPageMotion.systemDirection(edge, state.layoutDirectionSign)
+    val started = state.beginDrag(requestedDirection, takeOver = true) ?: return
+    // Il bordo opposto non cambia il verso di una corsa che lo stato ha conservato.
+    direction = state.direction
     token = started
     anchor = if (resumed) {
       event.touchX - state.travelPx * direction
@@ -312,6 +319,7 @@ internal class FluidPageBackHandler(private val state: FluidPageHostState) :
       // Il dito c'era ancora: si riprende la pagina da dove la molla l'ha portata, e da li' la si
       // muove quanto il dito. Rimetterla sotto il punto di prima era un salto in avanti.
       val again = state.beginDrag(direction, takeOver = true) ?: return
+      direction = state.direction
       token = again
       cancelInferred = false
       anchor = event.touchX - state.travelPx * direction

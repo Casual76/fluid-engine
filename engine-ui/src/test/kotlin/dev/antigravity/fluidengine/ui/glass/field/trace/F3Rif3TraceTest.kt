@@ -1,6 +1,17 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package dev.antigravity.fluidengine.ui.glass.field.trace
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.BroadcastFrameClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPressGeometry
+import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSwell
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassStagePlane
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneJourney
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,10 +54,12 @@ internal class F3Rif3TraceTest {
   private val one = state(piece("seleziona", 0, 0, 251, 102))
   private val three = state(piece("seleziona", 222, 0, 251, 102), piece("condividi", 4, 4, 94, 94),
     piece("elimina", 115, 4, 94, 94))
-  private fun textScene(sameText: Boolean = false) = F38aTraces.Scene("testo", "Salva cambia misura nei due versi, con inversione in corsa",
-    332f, 96f, false, short, listOf(F38aTraces.Step(0.0, long), F38aTraces.Step(1000.0, short),
+  private fun textScene(sameText: Boolean = false, rapid: Boolean = false) = F38aTraces.Scene(if (rapid) "testo-150" else "testo", "Salva cambia misura nei due versi, con inversione in corsa",
+    332f, 96f, false, short, if (rapid) listOf(F38aTraces.Step(0.0, long),
+      F38aTraces.Step(150.0, short), F38aTraces.Step(300.0, long), F38aTraces.Step(450.0, short))
+    else listOf(F38aTraces.Step(0.0, long), F38aTraces.Step(1000.0, short),
       F38aTraces.Step(1150.0, long), F38aTraces.Step(2100.0, short)),
-    mapOf("indietro" to F38aTraces.Label(icon = "fluid:arrow_back_ios_new")), lastFrame = 360, density = density, phase = "f3-testo",
+    mapOf("indietro" to F38aTraces.Label(icon = "fluid:arrow_back_ios_new")), lastFrame = if (rapid) 180 else 360, density = density, phase = if (rapid) "f3-rif4" else "f3-testo",
     labelAt = { key, bounds ->
       if (key != "salva") null
       // Gli anticipi misurati da Skia a 17 dp, arrotondati in eccesso. Il line box della label è alto 24 dp.
@@ -60,6 +73,9 @@ internal class F3Rif3TraceTest {
       "elimina" to F38aTraces.Label(icon = "fluid:delete")), lastFrame = 120, density = density, phase = "f3-rif3")
 
   @Test fun export() {
+    GlassTraceOutput.requestedDir(System.getenv("GLASS_F3_RIF4_DIR"))?.let {
+      F38aTraces.build(textScene(rapid = true)).write(File(it, "testo-150/trace.json"))
+    }
     GlassTraceOutput.requestedDir(System.getenv("GLASS_RIF3_DIR"))?.let {
       F38aTraces.build(siblings()).write(File(it, "due-nati/trace.json"))
     }
@@ -95,6 +111,23 @@ internal class F3Rif3TraceTest {
       val glassCenter = (clip["x"] as Number).toDouble() + (clip["w"] as Number).toDouble() / 2
       assertEquals("testo decentrato a ${frame.tMs}", glassCenter, center, 0.003)
       assertTrue("scala a ${frame.tMs} ms: $ink", ((ink["scale"] as? Number)?.toDouble() ?: 1.0) in 0.9..1.0)
+    }
+  }
+
+  @Test fun returningShortLabelKeepsTheSameLayerAndImmediatelyRecovers() {
+    val swap = dev.antigravity.fluidengine.ui.fluid.GlassContentJourney.start("Salva", "Lunga")
+    val old = swap.frame(150.0).layers.single { it.key == "Salva" }
+    val back = swap.retarget(150.0, "Salva", resumeLabel = true)
+    val resumed = back.frame(150.0).layers.single { it.key == "Salva" }
+    assertEquals(old.id, resumed.id)
+    assertEquals(old.look.alpha, resumed.look.alpha, 0.00001f)
+    assertEquals(old.look.scale, resumed.look.scale, 0.00001f)
+    assertEquals(old.look.blur, resumed.look.blur, 0.00001f)
+    assertTrue(back.frame(158.33).layers.single { it.key == "Salva" }.look.alpha > resumed.look.alpha)
+    for (time in listOf(150.0, 450.0)) {
+      val frames = F38aTraces.build(textScene(rapid = true)).frames
+      assertTrue(frames.filter { it.tMs in (time + 9.0)..(time + 110.0) }
+        .all { frame -> frame.labels().any { it["label"] == "Salva" } })
     }
   }
 
@@ -159,6 +192,58 @@ internal class F3Rif3TraceTest {
       assertEquals("ritaglio a $ms ms", diameter, ink.drawnFlight()!!.clip!!.width, 0.0001f)
       assertTrue(stage.value === stage.value)
     }
+  }
+
+  @Test fun stageTakesTheLastVisibleDiameterEvenIfTheReleaseHasAdvanced() = runTest {
+    val clock = BroadcastFrameClock()
+    val press = FluidPressState(CoroutineScope(coroutineContext + clock), FluidPressFeedback.ExpandRound)
+    val geometry = FluidGlassPressGeometry(press, false)
+    var nanos = 1_000_000_000L
+    fun advance() {
+      runCurrent()
+      nanos += 8_333_333L
+      clock.sendFrame(nanos)
+      runCurrent()
+    }
+    val initial = state(piece("modifica", 4, 4, 94, 94))
+    val target = state(initial.pieces.single(), piece("fatto", 119, 4, 176, 94))
+    val journey = GlassPlaneJourney(initial, target)
+    val field = journey.fields.first { it.flights.any { id -> id.sourceKey == "modifica" } }
+    fun diameter(ms: Double, handoff: Boolean): Float {
+      val shape = fluidGlassStagePlane(journey.frame(ms), field.flights, Offset.Zero, { 0f },
+        PhysicsPlaneFusionDp * density, 0f, FluidGlassSwell.None, density, ms.toFloat(), pressed = { member ->
+          if (member.flightId.sourceKey != "modifica") null else if (handoff) geometry.stageAt(ms, 94f, 94f, density)
+          else fluidPressTransform(FluidPressFeedback.ExpandRound, press.progress, Offset.Zero, 94f, 94f, density, false)
+        })
+      return shape.slabs.first().frame.height / density
+    }
+    press.press()
+    repeat(36) { advance() }
+    geometry.recordRest()
+    val last = 94f * geometry.at(94f, 94f, density).scaleY / density
+    val lastPressure = press.progress
+    press.release()
+    // Durante la preparazione del palco la molla corre, ma viene ripresentato il layer precedente.
+    repeat(8) { advance() }
+    val raw = diameter(0.0, false)
+    val rows = mutableListOf("ms,pressione,diametro_diretto_dp,diametro_presentato_dp",
+      "-8.333,$lastPressure,$last,$last")
+    assertTrue("salto riprodotto: $last -> $raw", last - raw > 6f)
+    var previous = last
+    repeat(108) { index ->
+      val ms = index * 1000.0 / 120
+      val next = diameter(ms, true)
+      rows += "$ms,${press.progress},${diameter(ms, false)},$next"
+      assertTrue("a $ms ms: $previous -> $next", abs(previous - next) <= 6f)
+      if (index == 0) assertEquals(last, next, 0.001f)
+      previous = next
+      advance()
+    }
+    GlassTraceOutput.requestedDir(System.getenv("GLASS_F3_RIF4_DIR"))?.let { dir ->
+      dir.mkdirs()
+      File(dir, "pressione.csv").writeText(rows.joinToString("\n"))
+    }
+    assertEquals(94f / density, previous, 0.2f)
   }
 
   @Test fun siblingBridgeBreaksOnlyOnceInTheRenderedField() {

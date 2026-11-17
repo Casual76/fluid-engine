@@ -7,6 +7,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.fluidPressedBounds
 import dev.antigravity.fluidengine.ui.fluid.sanitized
@@ -232,6 +233,20 @@ internal fun liquidPhysicsElement(
   body["veilColor"] = glassColor(inputs.veilColor)
   body["veilAdapt"] = inputs.veilAdapt
   body["tintColor"] = glassColor(inputs.tintColor)
+  inputs.slabFilms?.let { films ->
+    body["filmModes"] = List(GlassFieldMaxPieces) { i ->
+      when (films.getOrNull(i)?.let(::glassTintLiquidMode)) {
+        GlassTintMode.Fixed -> -1
+        GlassTintMode.Colored -> 1
+        else -> 0
+      }
+    }
+    repeat(GlassFieldMaxPieces) { i ->
+      val film = films.getOrNull(i)
+      val color = if (film == null || glassTintLiquidMode(film) == GlassTintMode.Neutral) Color.Transparent else film.overlay
+      body["film$i"] = glassColor(color)
+    }
+  }
   body["tintMode"] = inputs.tintMode
   body["tintFollow"] = inputs.tintFollow
   body["bodyShade"] = glassColor(inputs.bodyShade)
@@ -242,7 +257,11 @@ internal fun liquidPhysicsElement(
   body["aa"] = inputs.aa
   body.putBodyLight(inputs, d, corner)
   element["body"] = linkedMapOf(
-    "source" to if (ring) "kotlin:GlassBodyRingShaderString" else "kotlin:GlassBody8ShaderString",
+    "source" to when {
+      ring -> "kotlin:GlassBodyRingShaderString"
+      inputs.slabFilms != null -> "kotlin:GlassBodyFilms8ShaderString"
+      else -> "kotlin:GlassBody8ShaderString"
+    },
     "uniforms" to body,
   )
 

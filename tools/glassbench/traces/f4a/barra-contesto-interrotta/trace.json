@@ -868,7 +868,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -889,7 +889,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -1173,7 +1173,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.997685,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0.024208,
               "marginDp": 12,
               "clip": {
@@ -1194,7 +1194,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.997685,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0.024208,
               "marginDp": 12,
               "clip": {
@@ -1478,7 +1478,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.99081,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0.093107,
               "marginDp": 12,
               "clip": {
@@ -1499,7 +1499,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.99081,
-              "scale": 0.666667,
+              "scale": 1,
               "blurDp": 0.093107,
               "marginDp": 12,
               "clip": {
@@ -1783,7 +1783,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.979481,
-              "scale": 0.66667,
+              "scale": 1,
               "blurDp": 0.201111,
               "marginDp": 12,
               "clip": {
@@ -1804,7 +1804,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.979481,
-              "scale": 0.66667,
+              "scale": 1,
               "blurDp": 0.201111,
               "marginDp": 12,
               "clip": {
@@ -2088,7 +2088,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.963801,
-              "scale": 0.668524,
+              "scale": 1,
               "blurDp": 0.350687,
               "marginDp": 12,
               "clip": {
@@ -2109,7 +2109,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.963801,
-              "scale": 0.668524,
+              "scale": 1,
               "blurDp": 0.350687,
               "marginDp": 12,
               "clip": {
@@ -2393,7 +2393,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.943877,
-              "scale": 0.67272,
+              "scale": 1,
               "blurDp": 0.666893,
               "marginDp": 12,
               "clip": {
@@ -2414,7 +2414,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.943877,
-              "scale": 0.67272,
+              "scale": 1,
               "blurDp": 0.666893,
               "marginDp": 12,
               "clip": {
@@ -2698,7 +2698,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919814,
-              "scale": 0.680176,
+              "scale": 1,
               "blurDp": 1.024797,
               "marginDp": 12,
               "clip": {
@@ -2719,7 +2719,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919814,
-              "scale": 0.680176,
+              "scale": 1,
               "blurDp": 1.024797,
               "marginDp": 12,
               "clip": {
@@ -3003,7 +3003,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.891715,
-              "scale": 0.688505,
+              "scale": 1,
               "blurDp": 1.413974,
               "marginDp": 12,
               "clip": {
@@ -3024,7 +3024,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.891715,
-              "scale": 0.688505,
+              "scale": 1,
               "blurDp": 1.413974,
               "marginDp": 12,
               "clip": {
@@ -3308,7 +3308,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.859688,
-              "scale": 0.699982,
+              "scale": 1,
               "blurDp": 1.824,
               "marginDp": 12,
               "clip": {
@@ -3329,7 +3329,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.859688,
-              "scale": 0.699982,
+              "scale": 1,
               "blurDp": 1.824,
               "marginDp": 12,
               "clip": {
@@ -3613,7 +3613,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.823836,
-              "scale": 0.71121,
+              "scale": 1,
               "blurDp": 2.24445,
               "marginDp": 12,
               "clip": {
@@ -3634,7 +3634,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.823836,
-              "scale": 0.71121,
+              "scale": 1,
               "blurDp": 2.24445,
               "marginDp": 12,
               "clip": {
@@ -3918,7 +3918,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.784264,
-              "scale": 0.713833,
+              "scale": 0.98409,
               "blurDp": 2.664901,
               "marginDp": 12,
               "clip": {
@@ -3939,7 +3939,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.784264,
-              "scale": 0.713833,
+              "scale": 0.98409,
               "blurDp": 2.664901,
               "marginDp": 12,
               "clip": {
@@ -4223,7 +4223,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.740866,
-              "scale": 0.70096,
+              "scale": 0.949242,
               "blurDp": 3.074926,
               "marginDp": 12,
               "clip": {
@@ -4244,7 +4244,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.740866,
-              "scale": 0.70096,
+              "scale": 0.949242,
               "blurDp": 3.074926,
               "marginDp": 12,
               "clip": {
@@ -4528,7 +4528,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.687594,
-              "scale": 0.689894,
+              "scale": 0.914781,
               "blurDp": 3.464103,
               "marginDp": 12,
               "clip": {
@@ -4549,7 +4549,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.687594,
-              "scale": 0.689894,
+              "scale": 0.914781,
               "blurDp": 3.464103,
               "marginDp": 12,
               "clip": {
@@ -4833,7 +4833,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.624339,
-              "scale": 0.691344,
+              "scale": 0.9,
               "blurDp": 3.822006,
               "marginDp": 12,
               "clip": {
@@ -4854,7 +4854,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.624339,
-              "scale": 0.691344,
+              "scale": 0.9,
               "blurDp": 3.822006,
               "marginDp": 12,
               "clip": {
@@ -5138,7 +5138,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.554775,
-              "scale": 0.70604,
+              "scale": 0.9,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5159,7 +5159,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.729574,
+              "scale": 0.93,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5180,7 +5180,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.554775,
-              "scale": 0.70604,
+              "scale": 0.9,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5201,7 +5201,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.729574,
+              "scale": 0.93,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5222,7 +5222,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.588366,
+              "scale": 0.75,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5527,7 +5527,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.482573,
-              "scale": 0.71878,
+              "scale": 0.9,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5548,7 +5548,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.742739,
+              "scale": 0.93,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5569,7 +5569,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.482573,
-              "scale": 0.71878,
+              "scale": 0.9,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5590,7 +5590,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.742739,
+              "scale": 0.93,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5611,7 +5611,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.598983,
+              "scale": 0.75,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5916,7 +5916,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.411405,
-              "scale": 0.733311,
+              "scale": 0.9,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5937,7 +5937,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.757755,
+              "scale": 0.93,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5958,7 +5958,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.411405,
-              "scale": 0.733311,
+              "scale": 0.9,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5979,7 +5979,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.757755,
+              "scale": 0.93,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -6000,7 +6000,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.611092,
+              "scale": 0.75,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -6305,7 +6305,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.344904,
-              "scale": 0.745617,
+              "scale": 0.9,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6326,7 +6326,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.770471,
+              "scale": 0.93,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6347,7 +6347,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.344904,
-              "scale": 0.745617,
+              "scale": 0.9,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6368,7 +6368,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.770471,
+              "scale": 0.93,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6389,7 +6389,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.621347,
+              "scale": 0.75,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6893,7 +6893,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.280054,
-              "scale": 0.759699,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -6914,7 +6914,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.280054,
-              "scale": 0.759699,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -6935,7 +6935,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.415665,
-              "scale": 0.785022,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7324,7 +7324,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.216325,
-              "scale": 0.749205,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7345,7 +7345,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.216325,
-              "scale": 0.749205,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7366,7 +7366,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.36967,
-              "scale": 0.774178,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7387,7 +7387,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.042974,
-              "scale": 0.774178,
+              "scale": 0.93,
               "blurDp": 4.126497,
               "marginDp": 12,
               "clip": {
@@ -7776,7 +7776,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.158413,
-              "scale": 0.746578,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7797,7 +7797,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.158413,
-              "scale": 0.746578,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7818,7 +7818,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.321829,
-              "scale": 0.771464,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7839,7 +7839,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.143985,
-              "scale": 0.771464,
+              "scale": 0.93,
               "blurDp": 4.392866,
               "marginDp": 12,
               "clip": {
@@ -8228,7 +8228,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.103786,
-              "scale": 0.749914,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8249,7 +8249,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.103786,
-              "scale": 0.749914,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8270,7 +8270,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.274575,
-              "scale": 0.774912,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8291,7 +8291,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.261163,
-              "scale": 0.774912,
+              "scale": 0.93,
               "blurDp": 4.597106,
               "marginDp": 12,
               "clip": {
@@ -8680,7 +8680,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.049765,
-              "scale": 0.757651,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8701,7 +8701,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.049765,
-              "scale": 0.757651,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8722,7 +8722,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.230338,
-              "scale": 0.782906,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8743,7 +8743,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.352683,
-              "scale": 0.782906,
+              "scale": 0.93,
               "blurDp": 4.728792,
               "marginDp": 12,
               "clip": {
@@ -9132,7 +9132,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.010689,
-              "scale": 0.768514,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9153,7 +9153,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.010689,
-              "scale": 0.768514,
+              "scale": 0.9,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9174,7 +9174,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.187382,
-              "scale": 0.794131,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9195,7 +9195,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.413464,
-              "scale": 0.794131,
+              "scale": 0.93,
               "blurDp": 4.777501,
               "marginDp": 12,
               "clip": {
@@ -9542,7 +9542,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.145045,
-              "scale": 0.807527,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9563,7 +9563,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.464173,
-              "scale": 0.807527,
+              "scale": 0.93,
               "blurDp": 4.507375,
               "marginDp": 12,
               "clip": {
@@ -9910,7 +9910,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.106439,
-              "scale": 0.823581,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9931,7 +9931,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.507807,
-              "scale": 0.823581,
+              "scale": 0.93,
               "blurDp": 4.225917,
               "marginDp": 12,
               "clip": {
@@ -10278,7 +10278,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.070304,
-              "scale": 0.838972,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -10299,7 +10299,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.547364,
-              "scale": 0.838972,
+              "scale": 0.93,
               "blurDp": 3.944459,
               "marginDp": 12,
               "clip": {
@@ -10646,7 +10646,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.034297,
-              "scale": 0.854437,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -10667,7 +10667,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.585837,
-              "scale": 0.854437,
+              "scale": 0.93,
               "blurDp": 3.663,
               "marginDp": 12,
               "clip": {
@@ -11014,7 +11014,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.00781,
-              "scale": 0.869576,
+              "scale": 0.93,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -11035,7 +11035,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.625186,
-              "scale": 0.870683,
+              "scale": 0.931184,
               "blurDp": 3.381542,
               "marginDp": 12,
               "clip": {
@@ -11319,7 +11319,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.663087,
-              "scale": 0.890656,
+              "scale": 0.936915,
               "blurDp": 3.100083,
               "marginDp": 12,
               "clip": {
@@ -11603,7 +11603,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.698684,
-              "scale": 0.912878,
+              "scale": 0.945695,
               "blurDp": 2.818625,
               "marginDp": 12,
               "clip": {
@@ -11887,7 +11887,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.731373,
-              "scale": 0.936536,
+              "scale": 0.955612,
               "blurDp": 2.537167,
               "marginDp": 12,
               "clip": {
@@ -12171,7 +12171,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.922807,
+              "scale": 0.93,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -12192,7 +12192,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.760548,
-              "scale": 0.95729,
+              "scale": 0.964751,
               "blurDp": 2.255708,
               "marginDp": 12,
               "clip": {
@@ -17966,7 +17966,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.860596,
-              "scale": 0.994393,
+              "scale": 0.994862,
               "blurDp": 0.5557,
               "marginDp": 12,
               "clip": {
@@ -17987,7 +17987,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999528,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18271,7 +18271,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.87215,
-              "scale": 0.996879,
+              "scale": 0.997615,
               "blurDp": 0.301666,
               "marginDp": 12,
               "clip": {
@@ -18292,7 +18292,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999262,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18576,7 +18576,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.884951,
-              "scale": 0.998997,
+              "scale": 0.999379,
               "blurDp": 0.150833,
               "marginDp": 12,
               "clip": {
@@ -18597,7 +18597,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999618,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18881,7 +18881,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.9,
-              "scale": 0.999834,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18902,7 +18902,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999834,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19186,7 +19186,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919976,
-              "scale": 0.999949,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19207,7 +19207,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999949,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19491,7 +19491,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.944078,
-              "scale": 0.999991,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19512,7 +19512,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999991,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19660,7 +19660,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999999,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19681,7 +19681,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 0.999999,
+              "scale": 1,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {

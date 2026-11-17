@@ -99,6 +99,9 @@ internal enum class GlassWarmStep {
   /** Il corpo a otto pezzi, sulla stessa catena a monte (già calda dopo [SlabBody]). */
   GroupBody,
 
+  /** La variante del corpo che mescola più pellicole sullo stesso campo. */
+  GroupFilms,
+
   /** La luce a otto pezzi, nei due modi di comporre. */
   GroupLight,
 
@@ -114,6 +117,7 @@ internal enum class GlassWarmStep {
       SlabBody -> GlassShaderSources.Body1
       SlabLight -> GlassShaderSources.Light1
       GroupBody -> GlassShaderSources.Body8
+      GroupFilms -> GlassShaderSources.BodyFilms8
       GroupLight -> GlassShaderSources.Light8
       RingBody -> GlassShaderSources.BodyRing
       EdgeBlur -> GlassShaderSources.EdgeBlur
@@ -139,7 +143,7 @@ internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
    * Fluid-physics che si disegna col materiale nuovo, quando entra in composizione (F1B.1). Si scalda anche con
    * `FluidGlassDiagnostics.warmUpNow`, ed è così che il test strumentato la prova.
    */
-  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody)),
+  Group(listOf(GlassWarmStep.GroupBody, GlassWarmStep.GroupLight, GlassWarmStep.RingBody, GlassWarmStep.GroupFilms)),
 
   /**
    * La striscia del bordo dello scorrimento (F2.4): il programma più caro a freddo (43–51 ms in S1). La chiede
@@ -702,11 +706,11 @@ internal object GlassOffscreenWarmer {
           frame.recordBody(effect.asAndroidRenderEffect(), scope.padding, scale)
         }
         GlassWarmStep.SlabLight -> frame.recordLight(d) { surface.onDrawLight(this) }
-        GlassWarmStep.GroupBody -> {
+        GlassWarmStep.GroupBody, GlassWarmStep.GroupFilms -> {
           val inputs = surface.drawInputs(nodeSize, scale = scale)
           val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
-          val body = RuntimeShaderCacheImpl().obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
-            ?: error("${GlassShaderSources.Body8.name} non è disponibile")
+          val body = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
+            ?: error("${step.source.name} non è disponibile")
           val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
           val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
           frame.recordBody(chain, inputs.paddingPx, scale)

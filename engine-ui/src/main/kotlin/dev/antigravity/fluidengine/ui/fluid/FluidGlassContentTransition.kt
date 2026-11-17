@@ -413,6 +413,7 @@ internal data class GlassContentLayer(
    * opaco e a scala 1 per tutto il tempo. Falso: fermo e nitido, com'era.
    */
   val soft: Boolean = false,
+  val recovering: Boolean = false,
 )
 
 /**
@@ -445,6 +446,12 @@ internal class GlassContentJourney private constructor(
     val u = u(layer, tMs)
     val role = layer.role
     val blurScale = if (blurAvailable) timing.peakBlur else 0f
+    if (layer.recovering && role == GlassContentRole.Enter) {
+      val peak = GlassContentDefaults.PeakAt
+      val remaining = (GlassContentCurves.blur(role, u) / GlassContentCurves.blur(role, peak)).coerceIn(0f, 1f)
+      return GlassContentLook(1f - (1f - layer.from.alpha) * remaining,
+        1f - (1f - layer.from.scale) * remaining, layer.from.blur * remaining)
+    }
     return when (role) {
       GlassContentRole.Rest -> if (!layer.soft) GlassContentLook.Sharp else
         GlassContentLook(1f, 1f, GlassContentCurves.softBlur(u) * blurScale * GlassContentDefaults.KeptSoftness)
@@ -496,7 +503,7 @@ internal class GlassContentJourney private constructor(
    *   compare mai di colpo (ci arriva al più a 0,36 T, dove la sua opacità è zero).
    * - Chiave `null`: il contenuto se ne va e non arriva niente. Da `null` a una chiave: il nuovo nasce (scala 0,75).
    */
-  fun retarget(tMs: Double, key: Any?): GlassContentJourney {
+  fun retarget(tMs: Double, key: Any?, resumeLabel: Boolean = false): GlassContentJourney {
     val current = layers.lastOrNull { it.role != GlassContentRole.Exit }
     if (current != null && current.key == key) return this
     if (current == null && key == null) return this
@@ -515,7 +522,16 @@ internal class GlassContentJourney private constructor(
     val predecessor = kept.any { it.role == GlassContentRole.Exit }
     if (key != null) {
       val role = if (predecessor) GlassContentRole.Enter else GlassContentRole.Born
-      kept += GlassContentLayer(id++, key, role, tMs, fromU)
+      val returning = if (resumeLabel) kept.find { it.key == key } else null
+      if (returning != null) {
+        kept.remove(returning)
+        kept += GlassContentLayer(returning.id, key, GlassContentRole.Enter, tMs, GlassContentDefaults.PeakAt,
+          look(returning, tMs), recovering = true)
+      } else if (resumeLabel && current != null && !done(current, tMs) && current.role != GlassContentRole.Rest) {
+        kept += GlassContentLayer(id++, key, GlassContentRole.Enter, tMs, GlassContentDefaults.PeakAt,
+          GlassContentLook(0f, GlassContentCurves.scale(role, GlassContentDefaults.PeakAt),
+            if (blurAvailable) timing.peakBlur else 0f), recovering = true)
+      } else kept += GlassContentLayer(id++, key, role, tMs, fromU)
     }
     return GlassContentJourney(kept, timing, blurAvailable, tMs, fromU, id)
   }
@@ -1042,7 +1058,7 @@ internal fun <S> FluidGlassContentTransitionWithShape(
       colorFrom = null
       GlassContentJourney.rest(targetKey, timing, blurAvailable)
     } else {
-      journey.retarget(nowMs, targetKey)
+      journey.retarget(nowMs, targetKey, resumeLabel = labelAnchor != null)
     }
   }
   // Le chiavi che nessuno strato disegna più non servono: la mappa non cresce con la storia degli stati.

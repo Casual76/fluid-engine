@@ -8,6 +8,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Pagine e barre (F4A, crash). Al ritorno di pagina la chrome non registra più la pagina in un layer già rilasciato da Compose: il ciclo di RenderNode che chiudeva l'app sul RenderThread (stack overflow in libhwui) non si forma più.
+
+- Piano flottante e barre (F3-RIF4). Le tinte sfumano nel collo e le icone mantenute hanno un solo posto anche fra pagine. Nelle inversioni la capsula conserva il varco e recupera la scritta già presente. Al passaggio sul palco il tasto eredita il diametro premuto. I pannelli dell’Assistente riservano spazio al vetro ancora visibile.
+
 - Piano flottante (F3-testo). Le etichette dei pulsanti si scambiano con la sfocatura R7 e acquistano opacità quando entrano nella capsula visibile. Una scritta invariata conserva nitidezza, scala e ancora mentre il vetro cambia larghezza.
 
 - Piano flottante (F3-RIF3). La scritta centrata entra intera nella capsula durante il cambio di larghezza, i nati dallo stesso donatore conservano un solo distacco e il palco legge la pressione al disegno. L’alone senza tocco passa a 0,15.

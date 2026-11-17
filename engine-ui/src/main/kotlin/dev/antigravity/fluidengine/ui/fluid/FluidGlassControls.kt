@@ -478,9 +478,6 @@ private fun Modifier.glassControlPiece(
   if (ink != null) {
     if (adaptive != null) ink.bind(adaptive, GlassDefaults.isDarkSurface()) else ink.unbind()
   }
-  val layer = remember(press, reducedMotion, interactive) {
-    if (interactive) fluidGlassPressLayer(press, reducedMotion) else null
-  }
   val touch = remember(press, reducedMotion, interactive) {
     if (interactive) fluidGlassTouchLight(press, reducedMotion) else null
   }
@@ -488,6 +485,18 @@ private fun Modifier.glassControlPiece(
   // sulla lastra del tasto in volo e rilascia con la sua molla, invece di tornare alla misura di riposo in un fotogramma.
   val pressGeometry = remember(press, reducedMotion, interactive) {
     if (interactive) FluidGlassPressGeometry(press, reducedMotion) else null
+  }
+  val layer = remember(pressGeometry) {
+    pressGeometry?.let { geometry ->
+      val block: GraphicsLayerScope.() -> Unit = {
+        val pose = geometry.at(size.width, size.height, density)
+        scaleX = pose.scaleX
+        scaleY = pose.scaleY
+        translationX = pose.translationX
+        translationY = pose.translationY
+      }
+      block
+    }
   }
   val look = remember(backdrop, tint, optics, shape, press, touch, layer, pressGeometry) {
     FluidGlassLook(

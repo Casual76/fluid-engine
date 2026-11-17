@@ -2,6 +2,11 @@ package dev.antigravity.fluidengine.sample.assistant
 
 import android.os.Looper
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -352,6 +357,33 @@ class AssistantPageTest {
     val rest = FluidGlassContainerDiagnostics.lastRest
     assertEquals("due pezzi nel contenitore dell'app: $rest", 2, rest.size)
     assertTrue("i due tasti vicini sono un grappolo: $rest", rest.all { it.clusterSize == 2 })
+  }
+
+  @Test
+  fun siblingBelowTheDockKeepsTheSpaceOfTheVisibleSurfaceDuringAShrink() {
+    var card by mutableStateOf(AssistantCardState.Answer)
+    var nextTop = 0f
+    showAlone { stage ->
+      Column {
+        FluidAssistantDock(sampleState(card), MicLevel(0f, false), null, stage,
+          FluidAssistantActions(onAskText = {}, onAskVoice = {}))
+        Box(Modifier.height(40.dp).onGloballyPositioned { nextTop = it.positionInParent().y })
+      }
+    }
+    compose.mainClock.autoAdvance = false
+    val tall = nextTop
+    val rows = mutableListOf("frame,fondo_vetro_px,inizio_fratello_px")
+    card = AssistantCardState.Working
+    Snapshot.sendApplyNotifications()
+    repeat(8) { index ->
+      advance(16)
+      val bottom = FluidGlassContainerDiagnostics.lastRest.single().bounds.bottom
+      rows += "$index,$bottom,$nextTop"
+      assertTrue("frame $index: fondo $bottom, fratello $nextTop", nextTop >= bottom - 0.5f)
+    }
+    assertTrue("il dock deve essersi accorciato: $tall -> $nextTop", nextTop < tall)
+    assertEquals(nextTop, FluidGlassContainerDiagnostics.lastRest.single().bounds.bottom, 0.5f)
+    System.getenv("GLASS_F3_RIF4_DIR")?.let { java.io.File(it, "dock.csv").writeText(rows.joinToString("\n")) }
   }
 
   @Test

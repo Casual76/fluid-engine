@@ -8,7 +8,6 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassTintJourney
-import dev.antigravity.fluidengine.ui.fluid.fluidGlassTintStrips
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentFlight
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPlaneDriver
@@ -207,7 +206,7 @@ internal object F38aTraces {
     val lens: Boolean,
   )
 
-  fun build(scene: Scene): GlassTrace {
+  fun build(scene: Scene, onFilms: ((Double, FluidGlassTintJourney) -> Unit)? = null): GlassTrace {
     val d = scene.density
     val spacingPx = scene.spacingDp * d
     val swellMaxPx = FluidMotion.PlaneSwellMaxDp * d
@@ -404,6 +403,7 @@ internal object F38aTraces {
           elements += tinted
         }
       }
+      onFilms?.invoke(time, tintJourney)
       GlassTraceFrame(time, elements)
     }
     val head = linkedMapOf<String, Any?>(
@@ -449,7 +449,7 @@ internal object F38aTraces {
       return listOf(layer(scene, "c-$key", label, place, look, clip, radii, GlassContentDefaults.BlurReference.value, press))
     }
 
-    val journey = (content.labelJourney ?: GlassContentJourney.rest(label)).retarget(timeMs, label).pruned(timeMs)
+    val journey = (content.labelJourney ?: GlassContentJourney.rest(label)).retarget(timeMs, label, resumeLabel = true).pruned(timeMs)
     val frame = journey.frame(timeMs)
     var waitsForSpace = false
     val layers = frame.layers.mapNotNull { ink ->
@@ -517,6 +517,7 @@ internal object F38aTraces {
     content: List<Map<String, Any?>>,
     note: String,
     tint: GlassTint = NeutralTint,
+    films: List<GlassTint>? = null,
   ): LinkedHashMap<String, Any?> {
     val d = scene.density
     val plan = PhysicsRenderPlan()
@@ -551,6 +552,7 @@ internal object F38aTraces {
       out = GlassDrawInputs(GlassFieldMaxPieces), neckPinch = shape.pinch,
     )
     // Il nodo del palco: fin dove arriva l'ombra (o l'alone del carattere), più il rigonfiamento al colmo.
+    inputs.slabFilms = films
     val reach = (glassTravelShadowReachDp(ButtonOptics, gain = 0f, journey = journey) + 2f + FluidMotion.PlaneSwellMaxDp) * d
     val union = stage ?: plan.bounds
     val box = Rect(union.left - reach, union.top - reach, union.right + reach, union.bottom + reach)
@@ -561,24 +563,14 @@ internal object F38aTraces {
     return element
   }
 
-  /** Una superficie per tinta, con gli stessi tagli del contenitore; il banco ritaglia anche ombra e luce. */
+  /** Il campo misto ha un solo corpo, con una pellicola per lastra anche nel banco. */
   private fun tintedElements(
     name: String, shape: PhysicsPlaneShape, scene: Scene, stage: Rect?, content: List<Map<String, Any?>>,
     note: String, tints: List<GlassTint>,
   ): List<LinkedHashMap<String, Any?>> {
     val distinct = tints.distinct()
     if (distinct.size <= 1) return listOf(element(name, shape, scene, stage, content, note, distinct.firstOrNull() ?: NeutralTint))
-    val indices = tints.map { distinct.indexOf(it) }.toIntArray()
-    return distinct.mapIndexed { index, tint ->
-      val out = element(if (index == 0) name else "$name-tinta$index", shape, scene, stage, content, note, tint)
-      val x = (out.getValue("x") as Number).toFloat()
-      val y = (out.getValue("y") as Number).toFloat()
-      out["drawClip"] = fluidGlassTintStrips(shape.slabs.map { it.frame }, indices, index).map { strip ->
-        listOf(strip.left / scene.density - x, strip.top / scene.density - y,
-          strip.right / scene.density - x, strip.bottom / scene.density - y)
-      }
-      out
-    }
+    return listOf(element(name, shape, scene, stage, content, note, films = tints))
   }
 
   /** Lo scrittore fisico prepara otto caselle: `Body1` ha gli stessi uniform con una casella (come in F3.1 e F3.3). */

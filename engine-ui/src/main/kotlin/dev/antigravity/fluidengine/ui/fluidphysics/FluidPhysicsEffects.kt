@@ -825,6 +825,8 @@ internal class PhysicsLiquidRecipes {
   val side = GlassRecipe()
 }
 
+private val NeutralPlaneFilm = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
+
 /**
  * La ricetta del materiale nuovo per una superficie fisica in un fotogramma: **quella di `glassSurface`** per lo
  * stesso ruolo, la stessa ottica, la stessa taglia e lo stesso lato, più ciò che è del viaggio.
@@ -1262,7 +1264,7 @@ internal class PhysicsLiquidSurface(
       amount = amount,
       quality = q,
       press = press,
-      tint = tint,
+      tint = if (planeShape?.slabFilms == null) tint else NeutralPlaneFilm,
       tintFrom = tintFrom,
       tintBlend = tintBlend(),
       nested = nested,
@@ -1310,6 +1312,7 @@ internal class PhysicsLiquidSurface(
       nodeClip = profile.travelNodeClip,
       out = inputs,
     )
+    inputs.slabFilms = planeShape?.slabFilms
     return true
   }
 

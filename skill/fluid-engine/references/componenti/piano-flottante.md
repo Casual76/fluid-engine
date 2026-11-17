@@ -178,20 +178,11 @@ serve); un vetro che **compare o scompare per lente** (mentre compare è un camp
 riposo); due **gruppi diversi** della stessa barra (12 dp, `FluidMetrics.GroupSpacing`): ognuno la sua unione, o
 nessuna. Un'unione resta un grappolo solo fino a otto pezzi; `fluidGlassUnion` va **prima** del vetro, come `fluidGlassId`.
 
-**Ogni pezzo ha la sua tinta, anche in un grappolo** (F4A.2, la correzione della review di F3, D R4). Fino a F4A.1 un
-grappolo di più pezzi si disegnava con la tinta del primo: la selezione di un `FluidGlassIconButton(selected = true)` in un
-blocco unito non si vedeva (o tingeva tutto il blocco), e un `FluidGlass.Regular.tint(…)` accanto a vetri non tinti
-perdeva la sua tinta o la dava agli altri. Ora, quando i pezzi di un grappolo (a riposo) o di un campo del palco (in
-viaggio) **non hanno tutti la stessa pellicola**, il contenitore disegna **una superficie per tinta**, ognuna ritagliata
-sulla **striscia dei suoi pezzi** lungo la riga: la sagoma resta una (stesse lastre, stesso collo, stessa unione), cambia
-solo la pellicola. Fra due pezzi distinti il taglio cade a metà del varco, dove non c'è vetro: ognuno ha la sua pellicola,
-intera. In un blocco unito cade nel collo: la selezione è la striscia del suo tasto, come la selezione dentro una capsula
-di Apple. In viaggio le strisce seguono le lastre a ogni fotogramma (chi nasce dentro il donatore porta la sua tinta da
-metà della parte in cui si sovrappongono). Il confronto è sulla sola **tinta**: pezzi con la stessa pellicola e ruolo o
-ottica diversi (un `fluidGlass` accanto a un tasto) restano un'unica superficie col ruolo e l'ottica del primo, com'erano.
-Il registro dice con che tinta si disegna ogni vetro (`FluidGlassPieceRecord.drawnTint`). Costa una superficie (una
-cattura) in più per ogni tinta in più, solo nei grappoli che ne hanno più d'una. È ciò che serve alla barra dichiarata
-([toolbar.md](toolbar.md)): l'azione principale tinta a 12 dp da un gruppo neutro è nello stesso grappolo.
+**Ogni pezzo mantiene la propria tinta nel grappolo.** Il corpo del campo miscela le pellicole usando la distanza
+dal contorno di ogni lastra. Il colore sfuma attraverso il collo e l’area di sovrapposizione. La lastra che confluisce
+cede il colore del suo vetro in proporzione alla parte già entrata nel vicino e alla fase dello scambio R7. Alla nascita
+la pellicola propria affiora con la parte che emerge dal donatore. Le lastre condividono la cattura, la luce e l’ombra.
+Il registro espone la tinta per pezzo in `FluidGlassPieceRecord.drawnTint`.
 
 ## Quando lo stato cambia
 
@@ -353,7 +344,7 @@ Per ogni vetro, in ogni fotogramma, c'è **una superficie sola** che lo disegna:
 
 | fotogramma | chi disegna |
 |---|---|
-| il fotogramma del cambio | il vetro mostra la geometria di prima. Per un semplice spostamento trattiene il contenuto al posto precedente. Nella capsula centrata la scritta segue il centro visibile anche se il layout ha già la larghezza nuova. La forma e il ritaglio del palco leggono la molla viva della pressione al disegno, come il layer del tasto al riposo. |
+| il fotogramma del cambio | il vetro mostra la geometria di prima. Per un semplice spostamento trattiene il contenuto al posto precedente. Nella capsula centrata la scritta segue il centro visibile anche se il layout ha già la larghezza nuova. Al rilascio di un tasto tondo il primo fotogramma del palco eredita la pressione letta dal layer che portava il vetro. Nei successivi raggiunge il campione corrente della molla entro il passo di rilascio. |
 | dal fotogramma dopo, per tutto il viaggio | il **palco**: una superficie di Fluid-physics per campo del viaggio, grande quanto il palco più il margine dell'ombra, guidata dal piano «a fotogramma» (`driveByFrame`: la forma di ogni fotogramma col suo collo, le unioni, la comparsa e il vetro in viaggio). I grappoli d'arrivo si montano spenti (niente disegno, niente cattura) dal secondo fotogramma del palco, per alleggerire il primo; il palco chiede al sistema la frequenza alta (`preferredFrameRate`, dall'API 35) |
 | l'ultimo fotogramma | i **grappoli d'arrivo** riprendono il vetro nella stessa composizione in cui il palco si smonta, dalla geometria d'arrivo (entro mezzo pixel) |
 
@@ -401,7 +392,9 @@ sfocandosi e quella nuova emerge sfocata con le curve R7 da 300 ms. La scala rim
 tra 0,9 e 1 anche se il viaggio si inverte. Per entrambi gli strati, l'opacità sale gradualmente quando la riga entra
 nella sagoma del fotogramma con margine per tre σ e un pixel di antialias. Durante il restringimento la stessa regola
 fa svanire una scritta ancora in uscita prima che il bordo la tagli. A stringa uguale l'etichetta resta nitida, alla
-sua misura e con la stessa ancora.
+sua misura e con la stessa ancora. Nell’inversione una scritta ancora presente conserva il proprio strato e recupera subito opacità,
+scala e nitidezza. La verifica dello spazio disponibile continua a valere in ogni fotogramma. Il bordo rivolto a un
+vicino fermo conserva il varco anche quando eredita velocità a metà del cambio di larghezza.
 
 ## Il contenuto che si sfoca e si incrocia
 
@@ -593,8 +586,6 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 - **Ruolo e ottica restano del primo pezzo** in un grappolo (la tinta no, dalla F4A.2: sopra, «L'unione»). Vale per i
   **pannelli**: un pannello e un tasto vicini con la stessa pellicola si disegnano col ruolo e l'ottica di chi viene
   prima; un pannello sta di solito da solo.
-- **La striscia di una tinta è dritta**: il taglio fra due tinte è una retta a metà fra i pezzi, non segue il collo. In un
-  blocco unito il passaggio di tinta è netto, a metà del collo; da guardare sul tablet (scena `tinta` di «Barre (prova)»).
 - Le tre tavole di gusto di F3.3 sono decise (Alessio, 2026-11-16): distanza di fusione media (16 dp), collo «spesso»
   (1/2), comparsa da 1,09. Il collo «spesso» vale per tutto l'engine: anche i viaggi di `morphTo` (menu, barre, pannelli)
   hanno l'esponente 1/2 (prima restavano a 2/3; `PhysicsNeckPinchExponent`, e `PhysicsPlaneNeckPinch` è lo stesso numero).
@@ -639,10 +630,12 @@ senza tocco). Le sonde vive: `FluidGlassProbeDiagnostics.liveProbes`; i ridisegn
 `totalSourceRedraws`. La pagina «Piano flottante» della galleria scrive tutto questo in
 logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine viaggio.
 
+Con un pannello singolo ad altezza variabile e `FluidGlassAnimation.None`, il contenitore riserva al pannello il posto
+occupato dalla superficie ancora posata. Il fratello successivo nella `Column` sale quando viene posata la superficie più corta.
+
 ## Cosa è verificato dai test
 
-- `FluidGlassTintSplitTest` (F4A.2): le tinte di un grappolo e le loro strisce (il taglio nel varco, la selezione in un
-  blocco unito, una colonna, chi nasce dentro il donatore). In galleria, `FluidToolbarBarTest`: in un blocco unito di tre
+- `FluidGlassTintSplitTest` verifica la corrispondenza tra tinte e indici delle lastre. In galleria, `FluidToolbarBarTest`: in un blocco unito di tre
   `FluidGlassIconButton` il selezionato si disegna con la sua tinta e gli altri no, anche quando la selezione si sposta; la
   conferma tinta accanto a un gruppo neutro resta tinta.
 - `GlassPlaneTest`: la logica pura del piano (registro, grappoli, accoppiamento, classificazione, palco, viaggio

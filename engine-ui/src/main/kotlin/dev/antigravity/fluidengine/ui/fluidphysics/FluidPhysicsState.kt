@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.runtime.Composable
@@ -878,6 +879,7 @@ internal class PhysicsPlaneShape(
   val journeyGlow: Float = journeyLight,
   /** Indice del donatore per un rilascio multiplo, l'indice del nato se il donatore è in un altro campo, -1 altrimenti. */
   val donorIndices: IntArray? = null,
+  val slabFilms: List<GlassTint>? = null,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()

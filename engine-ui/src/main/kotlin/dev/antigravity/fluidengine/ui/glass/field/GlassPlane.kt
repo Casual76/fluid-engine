@@ -383,6 +383,12 @@ internal class GlassPlaneJourney private constructor(
     val resizing = motion.spec == null && contexts.any { it.resizeToward != 0f }
     // La distanza sotto cui due vetri stanno nello stesso campo del viaggio: serve anche al trascinamento (f3-rifiniture).
     val spacing = max(from.spacing, to.spacing)
+    if (seeds.isNotEmpty() && !motion.joinStill) {
+      for (flight in contexts) for (other in flights) {
+        if (other !== flight && other.anchored && !other.lens && !other.unitedWith(flight) &&
+          other.pair.piece.sameField(flight.pair.piece)) flight.keepInterruptedGap(other.pair.piece.bounds, spacing)
+      }
+    }
     // Una spec dell'app porta il suo tempo: i bilanci sono quelli della molla di serie.
     if (contexts.isNotEmpty() && motion.spec == null) {
       val budget = if (resizing) motion.resizeMs - motion.resizeWaitMs else motion.contextMs
@@ -1480,6 +1486,11 @@ private class PlaneFlight(
         speed[high] = speed[low]
       }
     }
+    // Solo il lato rivolto al fermo ha un arresto. Il lato libero continua la sua molla e il suo dondolio.
+    if (value[0] < minLeft) { value[0] = minLeft; speed[0] = 0f }
+    if (value[1] < minTop) { value[1] = minTop; speed[1] = 0f }
+    if (value[2] > maxRight) { value[2] = maxRight; speed[2] = 0f }
+    if (value[3] > maxBottom) { value[3] = maxBottom; speed[3] = 0f }
     val rect = Rect(value[0], value[1], value[2], value[3])
     val half = rect.minDimension / 2f
     for (index in 4..7) {
@@ -1516,9 +1527,45 @@ private class PlaneFlight(
    */
   fun keepsGapTo(still: Rect): Boolean {
     if (course != PlaneCourse.Standard || pair.source == null || pair.target == null || lens) return false
+    // Il seme è il fotogramma presentato, con dondolio e velocità. Il bordo del posto
+    // precedente resta il riferimento per riconoscere un ridimensionamento sul lato opposto.
+    if (interruptedFixedEdge(still) != null) return true
     val reach = planeGap(still, freeBounds())
     return abs(planeGap(still, startRect) - reach) <= PlaneKeptGapPx &&
       abs(planeGap(still, endRect) - reach) <= PlaneKeptGapPx
+  }
+
+  private var minLeft = Float.NEGATIVE_INFINITY
+  private var maxRight = Float.POSITIVE_INFINITY
+  private var minTop = Float.NEGATIVE_INFINITY
+  private var maxBottom = Float.POSITIVE_INFINITY
+
+  private fun interruptedFixedEdge(still: Rect): Int? {
+    val old = seed?.takeIf { it.change == GlassPlaneChange.Matched }?.contentBounds ?: return null
+    if (pair.change != GlassPlaneChange.Matched || old.size == endRect.size) return null
+    return when {
+      old.top == endRect.top && old.bottom == endRect.bottom -> when {
+        old.left >= still.right && abs(old.left - endRect.left) <= PlaneKeptGapPx -> 0
+        old.right <= still.left && abs(old.right - endRect.right) <= PlaneKeptGapPx -> 2
+        else -> null
+      }
+      old.left == endRect.left && old.right == endRect.right -> when {
+        old.top >= still.bottom && abs(old.top - endRect.top) <= PlaneKeptGapPx -> 1
+        old.bottom <= still.top && abs(old.bottom - endRect.bottom) <= PlaneKeptGapPx -> 3
+        else -> null
+      }
+      else -> null
+    }
+  }
+
+  fun keepInterruptedGap(still: Rect, spacing: Float) {
+    if (planeGap(still, endRect) > spacing) return
+    when (interruptedFixedEdge(still)) {
+      0 -> minLeft = min(startRect.left, endRect.left)
+      1 -> minTop = min(startRect.top, endRect.top)
+      2 -> maxRight = max(startRect.right, endRect.right)
+      3 -> maxBottom = max(startRect.bottom, endRect.bottom)
+    }
   }
 
   /**

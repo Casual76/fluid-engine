@@ -67,6 +67,23 @@ class GlassPlaneStillNeighbourTest {
     assertEquals(long.bounds, journey.frame(journey.durationMs + 0.01).of("salva").bounds)
   }
 
+  @Test fun repeatedReversalsKeepTheBackButtonInItsOwnField() {
+    for (initial in listOf(short, long)) {
+      var target = if (initial == short) long else short
+      var journey = GlassPlaneJourney(state(back, initial), state(back, target))
+      repeat(4) {
+        val last = journey.frame(150.0).of("salva")
+        target = if (target == short) long else short
+        journey = journey.retarget(150.0, state(back, target))
+        val first = journey.frame(0.0).of("salva")
+        assertEquals(last.bounds, first.bounds)
+        assertEquals(last.velocity.bounds, first.velocity.bounds)
+        assertFalse("inversione $it", journey.together("indietro", "salva"))
+        assertTrue("varco $it: ${journey.narrowestGap()}", journey.narrowestGap() > 0f)
+      }
+    }
+  }
+
   @Test fun aLabelThatChangesByAFewLettersDoesNotBridgeTheStillRound() {
     // Sotto metà altezza non è un cambio di larghezza (nessun trascinamento): col solo campo comune il ponte c'era lo stesso.
     val journey = GlassPlaneJourney(state(back, label(180f)), state(back, label(220f)))

@@ -99,15 +99,13 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **Il contenuto che resta** (F4A.5b): l'icona che resta in un gruppo che cambia larghezza **si ammorbidisce come in
   Apple** (0,8 della sfocatura dello scambio, nitida a ~300 ms) e torna: è la scelta di Alessio del 17 novembre 2026
   («morbido, come Apple»), sulle clip del telefono a tempo vero. Con `gallery.tune barkeep=sharp` resta nitida (com'era
-  fino a F4A.5). La stessa icona in **due vetri diversi** resta nitida in tutte e due (D2).
-- **Selezione e tinta per tasto**: `selected` è una pellicola dietro **quel** tasto (`GlassDefaults.selectionTint`) e la
-  sua icona nell'accento, anche in un gruppo di più icone: non passa agli altri. La principale tinta accanto a un gruppo
-  (a 12 dp, cioè nello stesso grappolo del piano) resta tinta: il contenitore disegna ogni tinta sulla sua striscia
-  ([piano-flottante.md](piano-flottante.md), «L'unione»).
-  Quando la principale nasce dal gruppo, parte dalla tinta del donatore e prende la propria mentre il suo contenuto
-  è sfocato; quando vi confluisce, perde la tinta nella finestra della sfocatura del contenuto uscente (R7 A4,
-  f3-rif2). La geometria continua il viaggio: due lastre coincidenti hanno già la stessa tinta. Una ripartenza a metà
-  conserva il colore già mostrato.
+  fino a F4A.5). Un’icona che conserva ID e simbolo ha una sola copia visibile lungo tutto lo scambio.
+  Quando cambia gruppo, l’icona segue la lastra tra il posto iniziale e quello finale. Le icone mantenute nello stesso
+  gruppo seguono la larghezza effettiva del vetro tra i propri centri nella barra. Un centro uguale ai due capi resta fermo anche se il vetro rincula.
+- **Selezione e tinta per tasto.** `selected` colora lo sfondo del singolo posto e la sua icona. Il vetro di un’azione
+  principale ha la sua pellicola anche accanto a un gruppo neutro. La tinta sfuma attraverso il collo e si spegne
+  mentre la lastra entra nel vicino. Il simbolo assume il colore della nuova azione in proporzione alla pellicola visibile.
+  La selezione che cambia a vetro fermo interpola l’inchiostro sul posto. Una ripartenza del vetro conserva la pellicola già mostrata.
 - **Il titolo**: `Large` (di serie) è il titolo grande che scorre e si aggancia, com'era; `Inline` è solo quello
   agganciato (nessun titolo nella lista); `None` nessuno. Il **sottotitolo** sta sotto il titolo grande e, agganciato,
   sotto quello della barra, più piccolo (il titolo sale di 16 dp per fargli posto). Gli **inset** del titolo agganciato
@@ -192,7 +190,7 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `FluidToolbarDslTest` (engine): la DSL nel modello di F4A.1 (chiavi pure, larghezze misurate, l'indietro aggiunto da
   `onBack`, principale e conferma tinte e sole), il trabocco per priorità, l'identità dei vetri fra due stati (il gruppo
   che cresce, la divisione, «sfoglia ↔ seleziona» con l'indietro fermo), gli inset del titolo d'arrivo, la ricerca.
-- `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
+- `FluidGlassTintSplitTest` (engine): la corrispondenza fra lastra e pellicola nel grappolo.
 - `GlassPlaneLensIdentityTest`, `FluidToolbarExitTransitionTest` e `FluidToolbarAnchorsTest` (F4A.5): lente con un
   vicino, identità conservata fra figlie, ripartenza durante la lente, sottotitolo nell'host e modi `None`/`Principal`.
 - `F4aToolbarExportTest`: otto tracce a 120 Hz (tre stati nei due temi e nella variante «morbida», contesto, push/pop,

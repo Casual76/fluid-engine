@@ -7,7 +7,7 @@ import dev.antigravity.fluidengine.ui.glass.field.*
 import org.junit.Assert.*
 import org.junit.Test
 
-/** La tinta viene campionata dal viaggio vero, indipendentemente dalla distanza delle lastre. */
+/** Pellicola nel viaggio vero, anche durante la sovrapposizione e le inversioni. */
 class FluidGlassTintJourneyTest {
   private val neutral = GlassTint(Color.Transparent, Color.White, Color.Transparent, GlassTintMode.Neutral)
   private val blue = fluidGlassTint(FluidGlass.Regular.tint(Color(0xFF007AFF)), neutral)
@@ -41,8 +41,10 @@ class FluidGlassTintJourneyTest {
       val colors = tint.frame(frame)
       val color = colors.getValue(merging.flightId)
       if (color != neutral && color != blue) {
-        val role = glassPieceContentFor(GlassPieceArrival.MergesIntoNeighbour, GlassContentLook.Sharp, departed = true)
-        assertTrue("t=$ms: tinta solo mentre il suo simbolo sfoca", glassPieceContentLook(role, merging.contentPhase).blur > 0.04f)
+        val host = frame.pieces.single { it.flightId.targetKey == "group" }
+        val overlap = merging.bounds.intersect(host.bounds)
+        val cover = if (overlap.isEmpty) 0f else overlap.width * overlap.height / (merging.bounds.width * merging.bounds.height)
+        assertTrue("t=$ms, copertura=$cover", color.overlay.alpha <= 1f - cover + 0.005f)
         mixed++
       }
       val host = frame.pieces.single { it.flightId.targetKey == "group" }
@@ -64,7 +66,10 @@ class FluidGlassTintJourneyTest {
       val born = frame.pieces.single { it.flightId.targetKey == "primary" }
       val color = tint.frame(frame).getValue(born.flightId)
       if (color != neutral && color != blue) {
-        assertTrue(glassPieceContentLook(GlassPieceContent(GlassPieceContentRole.Born), born.contentPhase).blur > 0.04f)
+        val donor = frame.pieces.single { it.flightId.sourceKey == born.bornFrom }
+        val overlap = born.bounds.intersect(donor.bounds)
+        assertTrue(overlap.isEmpty || color.overlay.alpha <= 1f -
+          overlap.width * overlap.height / (born.bounds.width * born.bounds.height) + 0.005f)
         mixed++
       }
     }

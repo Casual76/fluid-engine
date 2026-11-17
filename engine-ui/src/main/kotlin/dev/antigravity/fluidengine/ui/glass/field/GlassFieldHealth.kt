@@ -95,6 +95,7 @@ internal object GlassShaderSources {
   // goccia, sagome libere). Tutti li scalda `GlassWarmUp` (F1A.7), ognuno nella sua famiglia.
   val Body1 = GlassShaderSource("GlassBody1ShaderString", GlassBody1ShaderString)
   val Body8 = GlassShaderSource("GlassBody8ShaderString", GlassBody8ShaderString)
+  val BodyFilms8 = GlassShaderSource("GlassBodyFilms8ShaderString", GlassBodyFilms8ShaderString)
   val BodyRing = GlassShaderSource("GlassBodyRingShaderString", GlassBodyRingShaderString)
   val Light1 = GlassShaderSource("GlassLight1ShaderString", GlassLight1ShaderString)
   val Light8 = GlassShaderSource("GlassLight8ShaderString", GlassLight8ShaderString)
@@ -121,7 +122,7 @@ internal object GlassShaderSources {
    * `ShaderSourceLintTest.everyRegisteredSourceIsOfTodayOrWarmedByExactlyOneFamily` fallisce se una sorgente
    * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) è entrata nel riscaldamento il giorno in cui si è registrata.
    */
-  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, BodyRing, Light1, Light8, EdgeBlur)
+  val liquid: List<GlassShaderSource> = listOf(Body1, Body8, BodyFilms8, BodyRing, Light1, Light8, EdgeBlur)
 
   /**
    * Ciò che serve a una superficie di Fluid-physics per disegnarsi col materiale nuovo (F1B.1): il corpo a otto

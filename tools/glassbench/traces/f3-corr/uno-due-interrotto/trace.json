@@ -8972,7 +8972,7 @@
               "blurDp": 0.039,
               "marginDp": 12,
               "alpha": 0.917,
-              "scale": 0.999723,
+              "scale": 1,
               "clip": {
                 "x": 128.125,
                 "y": 79.054,
@@ -9119,7 +9119,7 @@
               "blurDp": 0.028,
               "marginDp": 12,
               "alpha": 0.928,
-              "scale": 0.998064,
+              "scale": 1,
               "clip": {
                 "x": 128.432,
                 "y": 79.177,
@@ -9266,7 +9266,7 @@
               "blurDp": 0.018,
               "marginDp": 12,
               "alpha": 0.937,
-              "scale": 0.997059,
+              "scale": 1,
               "clip": {
                 "x": 128.674,
                 "y": 79.264,
@@ -9411,7 +9411,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.945,
-              "scale": 0.996901,
+              "scale": 1,
               "clip": {
                 "x": 128.83,
                 "y": 79.304,
@@ -9556,7 +9556,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.953,
-              "scale": 0.99763,
+              "scale": 1,
               "clip": {
                 "x": 128.932,
                 "y": 79.305,
@@ -9701,7 +9701,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.96,
-              "scale": 0.998354,
+              "scale": 1,
               "clip": {
                 "x": 129.007,
                 "y": 79.305,
@@ -9846,7 +9846,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.967,
-              "scale": 0.998934,
+              "scale": 1,
               "clip": {
                 "x": 129.057,
                 "y": 79.305,
@@ -9991,7 +9991,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.974,
-              "scale": 0.99947,
+              "scale": 1,
               "clip": {
                 "x": 129.093,
                 "y": 79.305,
@@ -10136,7 +10136,7 @@
               "labelSizeDp": 17,
               "labelWeight": 600,
               "alpha": 0.979,
-              "scale": 0.999842,
+              "scale": 1,
               "clip": {
                 "x": 129.112,
                 "y": 79.305,

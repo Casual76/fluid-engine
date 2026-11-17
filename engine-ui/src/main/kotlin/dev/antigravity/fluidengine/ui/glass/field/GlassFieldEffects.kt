@@ -20,6 +20,9 @@
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
+import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
+import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Shader
 import android.os.Build
@@ -136,6 +139,8 @@ internal class GlassDrawInputs(pieces: Int = 1) {
   var tintColor: Color = Color.Transparent
   var tintMode: Float = 0f
   var tintFollow: Float = 0f
+  var slabFilms: List<GlassTint>? = null
+  val filmModes = FloatArray(GlassFieldMaxPieces)
   var bodyShade: Color = Color.Transparent
   var bodyShadeDepth: Float = 0f
   var bodyShadeLeanX: Float = 0f
@@ -728,7 +733,9 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
   val upstream = chain.upstream(inputs.saturation, inputs.blurPx, inputs.mix)
-  val shader = when (inputs.kernel) {
+  val films = inputs.slabFilms?.takeIf { inputs.kernel == GlassBodyKernel.Eight }
+  val filmShader = if (films == null) null else obtainEngineShader("GlassBodyFilms8", GlassShaderSources.BodyFilms8)
+  val shader = filmShader ?: when (inputs.kernel) {
     GlassBodyKernel.One -> obtainEngineShader("GlassBody1", GlassShaderSources.Body1)
     GlassBodyKernel.Eight -> obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
     GlassBodyKernel.Ring -> obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
@@ -755,6 +762,18 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
     setColorUniform("tintColor", inputs.tintColor)
     setFloatUniform("tintMode", inputs.tintMode)
     setFloatUniform("tintFollow", inputs.tintFollow)
+    if (filmShader != null && films != null) {
+      for (i in films.indices) {
+        val mode = glassTintLiquidMode(films[i])
+        inputs.filmModes[i] = when (mode) {
+          GlassTintMode.Fixed -> -1f
+          GlassTintMode.Colored -> 1f
+          GlassTintMode.Neutral -> 0f
+        }
+        setColorUniform("film$i", if (mode == GlassTintMode.Neutral) Color.Transparent else films[i].overlay)
+      }
+      setFloatUniform("filmModes", inputs.filmModes)
+    }
     setColorUniform("bodyShade", inputs.bodyShade)
     setFloatUniform("bodyShadeDepth", inputs.bodyShadeDepth)
     setFloatUniform("bodyShadeLean", inputs.bodyShadeLeanX, inputs.bodyShadeLeanY)

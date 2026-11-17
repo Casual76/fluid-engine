@@ -252,6 +252,69 @@ uniform float aa;
 uniform float lightInBody;
 uniform float2 nodeClip;"""
 
+/** Con una sola pellicola il percorso a riposo conserva la composizione della ricetta. */
+@Language("AGSL")
+internal const val GlassSingleFilmBlock = """
+half4 glassFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    half follow = 1.0 - half(clamp(tintMode, 0.0, 1.0) * tintFollow) * (1.0 - luma);
+    half alpha = tintColor.a * amount;
+    return half4(tintColor.rgb * follow * alpha, alpha) + veiled * (1.0 - alpha);
+}"""
+
+/** Pesa le pellicole nello spazio del campo, prima di luce, copertura e ombra comuni. */
+@Language("AGSL")
+internal const val GlassSlabFilmBlock = """
+uniform float filmModes[$GlassFieldMaxPieces];
+layout(color) uniform half4 film0;
+layout(color) uniform half4 film1;
+layout(color) uniform half4 film2;
+layout(color) uniform half4 film3;
+layout(color) uniform half4 film4;
+layout(color) uniform half4 film5;
+layout(color) uniform half4 film6;
+layout(color) uniform half4 film7;
+
+half4 glassFilmAt(int i) {
+    if (i == 0) return film0;
+    if (i == 1) return film1;
+    if (i == 2) return film2;
+    if (i == 3) return film3;
+    if (i == 4) return film4;
+    if (i == 5) return film5;
+    if (i == 6) return film6;
+    return film7;
+}
+
+half4 glassGroupFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    float distance = 0.0;
+    half4 result = veiled;
+    for (int i = 0; i < $GlassFieldMaxPieces; ++i) {
+        if (float(i) >= pieceCount) break;
+        float sd = glassSlab(p - pieceRect[i].xy, pieceRect[i].zw, pieceRadii[i], pieceSmooth[i]).x;
+        half4 ink = glassFilmAt(i);
+        float mode = filmModes[i];
+        half follow = mode > 0.5 ? 1.0 - half(tintFollow) * (1.0 - luma) : 1.0;
+        half alpha = ink.a * amount;
+        half4 under = mode < -0.5 ? seen : veiled;
+        half4 layer = half4(ink.rgb * follow * alpha, alpha) + under * (1.0 - alpha);
+        if (i == 0) {
+            distance = sd;
+            result = layer;
+        } else {
+            float k = max(pieceBlend[i], 0.0001);
+            float width = max(k, pieceSoft[i]);
+            // Anche a collo rotto due lastre possono essere ancora sovrapposte.
+            width = max(width, min(0.5 * min(pieceRect[i].z, pieceRect[i].w), max(0.0, -max(sd, distance))));
+            float h = clamp(0.5 + 0.5 * (sd - distance) / width, 0.0, 1.0);
+            result = mix(layer, result, half(h));
+            float geo = clamp(0.5 + 0.5 * (sd - distance) / k, 0.0, 1.0);
+            distance = mix(sd, distance, geo) - k * geo * (1.0 - geo) *
+                (1.0 - smoothstep(0.0, k, -max(sd, distance)));
+        }
+    }
+    return result;
+}"""
+
 /**
  * Il corpo vero e proprio, uguale per le due varianti: cambia solo il nucleo che gli sta sopra.
  *
@@ -385,10 +448,7 @@ half4 glassBody(float2 coord) {
     half veil = clamp(veilColor.a * (1.0 + half(veilAdapt) * likeness * likeness), 0.0, 1.0) * half(amount);
     half4 body = glassBodyOver(half4(veilColor.rgb * veil, veil), seen);
 
-    // La tinta: pellicola fissa (tintMode 0) o colore la cui luminosita' segue lo sfondo (tintMode 1).
-    half follow = 1.0 - half(clamp(tintMode, 0.0, 1.0) * tintFollow) * (1.0 - backdropLuma);
-    half tinting = tintColor.a * half(amount);
-    body = glassBodyOver(half4(tintColor.rgb * follow * tinting, tinting), body);
+    body = glassSurfaceFilm(p, seen, body, backdropLuma, half(amount));
 
     // L'ombreggiatura: il corpo vira verso `bodyShade` avvicinandosi al contorno, di piu' sul lato di `bodyShadeLean`.
     float2 outward = normal / max(length(normal), 1.0);
@@ -440,6 +500,10 @@ $GlassLightBlock
 $GlassTravelShadowBlock
 $GlassShadowMask1
 $GlassTravelShadowFunctionBlock
+$GlassSingleFilmBlock
+half4 glassSurfaceFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    return glassFilm(p, seen, veiled, luma, amount);
+}
 $GlassBodyBlock
 
 half4 main(float2 coord) {
@@ -466,7 +530,7 @@ half4 main(float2 coord) {
  * su un pezzo solo uno.
  */
 @Language("AGSL")
-internal const val GlassBody8ShaderString = """
+internal const val GlassGroupPrelude = """
 uniform shader content;
 $GlassFieldKernel8
 $GlassBodyUniformsBlock
@@ -474,6 +538,29 @@ $GlassLightBlock
 $GlassTravelShadowBlock
 $GlassShadowMask8
 $GlassTravelShadowFunctionBlock
+"""
+
+@Language("AGSL")
+internal const val GlassBody8ShaderString = """
+$GlassGroupPrelude
+$GlassSingleFilmBlock
+half4 glassSurfaceFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    return glassFilm(p, seen, veiled, luma, amount);
+}
+$GlassBodyBlock
+
+half4 main(float2 coord) {
+    return glassBody(coord);
+}"""
+
+/** Specializzazione per i gruppi con pellicole diverse. Le altre superfici conservano il programma più piccolo. */
+@Language("AGSL")
+internal const val GlassBodyFilms8ShaderString = """
+$GlassGroupPrelude
+$GlassSlabFilmBlock
+half4 glassSurfaceFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    return glassGroupFilm(p, seen, veiled, luma, amount);
+}
 $GlassBodyBlock
 
 half4 main(float2 coord) {
@@ -502,6 +589,10 @@ $GlassLightBlock
 $GlassTravelShadowBlock
 $GlassShadowMaskRing
 $GlassTravelShadowFunctionBlock
+$GlassSingleFilmBlock
+half4 glassSurfaceFilm(float2 p, half4 seen, half4 veiled, half luma, half amount) {
+    return glassFilm(p, seen, veiled, luma, amount);
+}
 $GlassBodyBlock
 
 half4 main(float2 coord) {

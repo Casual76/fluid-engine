@@ -33,6 +33,12 @@ internal data class GlassPlanePiece(
   val transition: GlassPlaneTransition = GlassPlaneTransition.MatchedGeometry,
   val role: Any? = null,
   val symbol: Any? = null,
+  /**
+   * Ciò che il vetro porta, quando chi lo disegna lo dichiara (la barra, F4A.5b: le chiavi delle facce dei suoi tasti).
+   * Un vetro che resta della sua misura e cambia contenuto **respira** come in Apple (il tondo dell'elenco che diventa la
+   * lente: `FluidMotion.PlaneContentBreath`). Null: non dichiarato, il vetro non sa cosa porta e resta fermo, com'era.
+   */
+  val contentKey: Any? = null,
 ) {
   init {
     require(bounds.planeValues().all { it.isFinite() } && bounds.width > 0f && bounds.height > 0f)
@@ -241,9 +247,18 @@ internal data class GlassPlaneMotion(
    * bilancio del contesto, e lo segue se cambia.
    */
   val releaseMs: Double = contextMs * FluidMotion.PlaneReleaseMillis / FluidMotion.PlaneContextMillis,
+  /**
+   * Il riposo a vista di un viaggio con un **cambio di larghezza** (F4A.5b, [FluidMotion.PlaneResizeMillis]): l'orologio
+   * comune di tutti i vetri che si muovono, quando uno di loro è un gruppo che si stringe o si allarga col bordo fermo.
+   * Di serie sul bilancio del contesto, e lo segue se cambia.
+   */
+  val resizeMs: Double = contextMs * FluidMotion.PlaneResizeMillis / FluidMotion.PlaneContextMillis,
+  /** L'attesa con cui parte un viaggio con un cambio di larghezza ([FluidMotion.PlaneResizeWaitMillis]): vedi [resizeMs]. */
+  val resizeWaitMs: Double = contextMs * FluidMotion.PlaneResizeWaitMillis / FluidMotion.PlaneContextMillis,
 ) {
   init {
-    require(listOf(contextMs, appearMs, disappearMs, releaseMs).all { it.isFinite() && it > 0.0 })
+    require(listOf(contextMs, appearMs, disappearMs, releaseMs, resizeMs).all { it.isFinite() && it > 0.0 })
+    require(resizeWaitMs.isFinite() && resizeWaitMs >= 0.0 && resizeWaitMs < resizeMs)
     require(initialContourScale.isFinite() && initialContourScale >= 1f)
   }
 
@@ -358,10 +373,25 @@ internal class GlassPlaneJourney private constructor(
     // Un orologio comune per chi viaggia insieme: molle per lato con tempi diversi farebbero sorpassare
     // due pezzi che l'accoppiamento aveva ordinato correttamente.
     val contexts = flights.filter { it.pair.change in PlaneTravellingChanges }
+    // Un cambio di larghezza (F4A.5b) porta tutto il viaggio sul suo orologio: più lento, dopo un'attesa. Chi si sposta
+    // insieme a lui lo segue (l'orologio resta comune); chi riparte con una velocità non aspetta (invariante 16).
+    val resizing = motion.spec == null && contexts.any { it.resizeToward != 0f }
     // Una spec dell'app porta il suo tempo: i bilanci sono quelli della molla di serie.
     if (contexts.isNotEmpty() && motion.spec == null) {
-      val scale = planeTimeScale(contexts, motion.contextMs)
+      val budget = if (resizing) motion.resizeMs - motion.resizeWaitMs else motion.contextMs
+      val scale = planeTimeScale(contexts, budget)
       contexts.forEach { it.timeScale = scale }
+    }
+    if (resizing) {
+      contexts.filter { it.waits }.forEach { it.waitMs = motion.resizeWaitMs }
+      // Il trascinamento (il vetro intero va nel verso del bordo che si muove e torna) e il rigonfiamento suo, coi tempi di
+      // Apple: il comune avrebbe il colmo al 45% del riposo a vista, ~40 ms dopo.
+      for (flight in contexts) {
+        if (flight.resizeToward == 0f) continue
+        val sway = planeResizeSwayOf(flight, motion, to.room)
+        flight.sway = if (flight.sway == null) sway else flight.sway!! + sway
+        flight.choreographed = true
+      }
     }
     if (motion.spec == null) {
       flights.filter { it !in contexts }.forEach { flight ->
@@ -408,6 +438,14 @@ internal class GlassPlaneJourney private constructor(
       val sway = planeSwayOf(host, around, motion, waitMs, to.room) ?: continue
       host.sway = if (host.sway == null) sway else host.sway!! + sway
       twin?.let { it.sway = if (it.sway == null) sway else it.sway!! + sway }
+    }
+    // Il respiro di un vetro che resta della sua misura e cambia contenuto (F4A.5b): suo, al posto del comune, e solo per
+    // chi non ha già una coreografia (il donatore e chi accoglie hanno il loro).
+    for (flight in flights) {
+      if (!flight.contentChanged || !flight.anchored || flight.choreographed || motion.spec != null) continue
+      val breath = planeContentBreathOf(motion)
+      flight.sway = if (flight.sway == null) breath else flight.sway!! + breath
+      flight.choreographed = true
     }
     // Il rigonfiamento che ogni volo si porta da un viaggio interrotto, ora che si sa quanta parte del comune prende.
     flights.forEach { it.carrySwell(commonSwell) }
@@ -714,6 +752,47 @@ private class PlaneFlight(
     val short = endRect.minDimension
     if (!(short > 0f)) return 0f
     return (planeCenterDistance(startRect, endRect) / short).coerceIn(0f, 1f)
+  }
+
+  // ---- Il cambio di larghezza e il cambio di contenuto (F4A.5b) ---------------------------------------------------
+
+  /**
+   * Il verso del bordo che si muove, se il volo è un **cambio di larghezza**: +1 verso destra, −1 verso sinistra, zero se
+   * non lo è. Lo è un vetro che c'era e c'è (non una staffetta), con la molla di serie, della stessa altezza, la cui
+   * larghezza cambia almeno di [FluidMotion.PlaneResizeMinShare] della sua altezza mentre un bordo resta quasi fermo
+   * ([FluidMotion.PlaneResizeAnchorShare]): un gruppo di una barra, ancorato al suo margine, che perde o guadagna un tasto.
+   * Un vetro che si sposta mentre cambia misura viaggia come chi si sposta soltanto.
+   */
+  val resizeToward: Float = run {
+    if (motion.spec != null || pair.change != GlassPlaneChange.Matched || pair.relay) return@run 0f
+    if (pair.source == null || pair.target == null || initialAmount != 1f || targetAmount != 1f) return@run 0f
+    val high = endRect.height
+    if (!(high > 0f)) return@run 0f
+    if (abs(startRect.top - endRect.top) > FluidMotion.PlaneSettlePx ||
+      abs(startRect.bottom - endRect.bottom) > FluidMotion.PlaneSettlePx
+    ) return@run 0f
+    val left = endRect.left - startRect.left
+    val right = endRect.right - startRect.right
+    if (abs(right - left) < FluidMotion.PlaneResizeMinShare * high) return@run 0f
+    if (min(abs(left), abs(right)) > FluidMotion.PlaneResizeAnchorShare * high) return@run 0f
+    val moving = if (abs(left) >= abs(right)) left else right
+    if (moving > 0f) 1f else -1f
+  }
+
+  /** Vero se il cambio di larghezza allarga il vetro: il trascinamento parte col bordo, non dopo (vedi [planeResizeSwayOf]). */
+  val resizeGrows: Boolean get() = resizeToward != 0f && endRect.width > startRect.width
+
+  /** Quanta strada fa il centro del vetro, in pixel: la misura su cui si conta il tetto del trascinamento. */
+  val centerTravel: Float get() = abs(endRect.center.x - startRect.center.x)
+
+  /**
+   * Vero se il vetro **cambia contenuto**: chi lo disegna dichiara cosa porta ([GlassPlanePiece.contentKey]) prima e dopo,
+   * ed è cambiato. Un vetro fermo che cambia contenuto respira ([planeContentBreathOf]).
+   */
+  val contentChanged: Boolean = run {
+    val before = pair.source?.contentKey
+    val after = pair.target?.contentKey
+    pair.change == GlassPlaneChange.Matched && before != null && after != null && before != after
   }
 
   // ---- La coreografia della nascita e della confluenza (F3.11) ----------------------------------------------------
@@ -1782,6 +1861,73 @@ private fun planeSwayOf(
   }
   return if (terms.isEmpty()) null else PlaneSway(terms, end)
 }
+
+/**
+ * Il **trascinamento** di un cambio di larghezza (F4A.5b): tutto il vetro va nel verso del bordo che si muove, al colmo
+ * quando quel bordo ha fatto ~85% della strada, poi torna con un piccolo passaggio dall'altra parte e si ferma. Nelle due
+ * clip a tempo vero (`sessioni/f4a-5b/misure.md`) il «+» che resta va a destra di 0,16 H mentre la capsula si chiude su di
+ * lui e torna; nella clip di 16:02 il bordo fermo del gruppo che si allarga è tirato verso l'interno (il «rientro» di R4
+ * B2 (c)). Chi si stringe comincia a essere trascinato quando il bordo che si chiude è a un terzo della strada; chi si
+ * allarga dalla partenza (16:02: il bordo fermo si muove dal primo fotogramma). Nessun trascinamento porta il vetro fuori
+ * dal posto del palco ([limits]). Col trascinamento, il **rigonfiamento** suo ([FluidMotion.PlaneResizeBreath]), al posto
+ * del comune.
+ */
+private fun planeResizeSwayOf(flight: PlaneFlight, motion: GlassPlaneMotion, limits: Rect): PlaneSway {
+  val clock = motion.resizeMs
+  val terms = ArrayList<PlaneSwayTerm>()
+  // Il rigonfiamento suo (FluidMotion.PlaneResizeBreath): parte con l'attesa, colmo a ~200 ms, sotto a ~470, fermo a ~650.
+  terms += PlaneSwayTerm(
+    PlaneSwayBreath,
+    doubleArrayOf(motion.resizeWaitMs, clock * PlaneResizeBreathPeak, clock * PlaneResizeBreathLow, clock * PlaneResizeBreathEnd),
+    floatArrayOf(0f, FluidMotion.PlaneResizeBreath, -FluidMotion.PlaneResizeBreathUnder, 0f),
+  )
+  val place = flight.arrival
+  val high = place.height
+  val toward = flight.resizeToward
+  val amount = min(min(FluidMotion.PlaneResizeDrag * high, FluidMotion.PlaneResizeDragShare * flight.centerTravel),
+    planeRoom(place, limits, 0, toward))
+  if (high > 0f && toward != 0f && amount > PlaneSwayFloorPx) {
+    val back = min(amount * FluidMotion.PlaneResizeDragBack, planeRoom(place, limits, 0, -toward))
+    val from = if (flight.resizeGrows) motion.resizeWaitMs else clock * PlaneResizeDragFrom
+    val times = doubleArrayOf(from, clock * PlaneResizeDragPeak, clock * PlaneResizeDragBackAt, clock * PlaneResizeDragEnd)
+    terms += PlaneSwayTerm(0, times, floatArrayOf(0f, toward * amount, -toward * back, 0f))
+  }
+  return PlaneSway(terms, clock)
+}
+
+/**
+ * I tempi del trascinamento, in frazione del riposo a vista di un cambio di larghezza (F4A.5b, R4 B2 (a, b), due clip a
+ * tempo vero, [GlassPlaneMotion.resizeMs] di 535 ms): chi si stringe comincia a ~100 ms, il colmo a ~300, dall'altra parte
+ * a ~550, fermo a ~780.
+ */
+private const val PlaneResizeDragFrom = 0.187
+private const val PlaneResizeDragPeak = 0.561
+private const val PlaneResizeDragBackAt = 1.028
+private const val PlaneResizeDragEnd = 1.458
+
+/** I tempi del rigonfiamento di chi cambia larghezza, in frazione di [GlassPlaneMotion.resizeMs]: ~200, ~470, ~650 ms. */
+private const val PlaneResizeBreathPeak = 0.374
+private const val PlaneResizeBreathLow = 0.873
+private const val PlaneResizeBreathEnd = 1.215
+
+/**
+ * Il **respiro** di un vetro che resta della sua misura e cambia contenuto (F4A.5b, [FluidMotion.PlaneContentBreath]):
+ * comincia con l'attesa del cambio di larghezza, è al colmo a ~200 ms, un poco sotto la sua misura a ~490, fermo a ~760.
+ * Sull'orologio del cambio di larghezza ([GlassPlaneMotion.resizeMs]): nelle clip il tondo che cambia simbolo e la capsula
+ * che si chiude si gonfiano insieme.
+ */
+private fun planeContentBreathOf(motion: GlassPlaneMotion): PlaneSway {
+  val clock = motion.resizeMs
+  val times = doubleArrayOf(motion.resizeWaitMs, clock * PlaneContentBreathPeak, clock * PlaneContentBreathLow,
+    clock * PlaneContentBreathEnd)
+  val values = floatArrayOf(0f, FluidMotion.PlaneContentBreath, -FluidMotion.PlaneContentBreathUnder, 0f)
+  return PlaneSway(listOf(PlaneSwayTerm(PlaneSwayBreath, times, values)), clock)
+}
+
+/** I tempi del respiro di chi cambia contenuto, in frazione di [GlassPlaneMotion.resizeMs]: ~200, ~490, ~760 ms. */
+private const val PlaneContentBreathPeak = 0.374
+private const val PlaneContentBreathLow = 0.916
+private const val PlaneContentBreathEnd = 1.42
 
 /** Quanto posto ha [place] dentro [limits] dalla parte [direction] dell'asse [axis]; infinito senza un posto del palco. */
 private fun planeRoom(place: Rect, limits: Rect, axis: Int, direction: Float): Float {

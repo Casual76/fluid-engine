@@ -277,6 +277,14 @@ fun Modifier.fluidGlassContentAnchor(anchor: FluidGlassContentAnchor): Modifier 
   this then FluidGlassContentAnchorElement(anchor)
 
 /**
+ * Dichiara ciò che porta il vetro che segue (F4A.5b): quando la chiave cambia e il vetro resta della sua misura, il piano lo
+ * fa **respirare** come Apple fa col tondo di una barra che cambia simbolo (`FluidMotion.PlaneContentBreath`). Stesso
+ * ordine di [fluidGlassId]. Interno: lo usa la barra dichiarata, che sa quali facce porta ogni vetro.
+ */
+internal fun Modifier.fluidGlassContentKey(key: Any?): Modifier =
+  if (key == null) this else this then FluidGlassContentKeyElement(key)
+
+/**
  * Il contenitore del piano flottante: `GlassEffectContainer(spacing:)` di SwiftUI.
  *
  * Dentro, ogni [fluidGlass] (e ogni `glassControlSurface` dell'engine, i tasti di vetro compresi) è un **pezzo**: il
@@ -744,6 +752,8 @@ internal data class FluidGlassAttributes(
   val unionId: FluidGlassQualifiedId? = null,
   val transition: FluidGlassTransition = FluidGlassTransition.MatchedGeometry,
   val contentAnchor: FluidGlassContentAnchor = FluidGlassContentAnchor.Center,
+  /** Ciò che il vetro porta, se chi lo disegna lo dichiara ([fluidGlassContentKey], F4A.5b): `GlassPlanePiece.contentKey`. */
+  val contentKey: Any? = null,
 ) {
   companion object {
     val None = FluidGlassAttributes()
@@ -773,6 +783,7 @@ internal fun fluidGlassAttributesOf(chain: Modifier): FluidGlassAttributes {
       is FluidGlassUnionElement -> out.copy(unionId = FluidGlassQualifiedId(element.namespace, element.id))
       is FluidGlassTransitionElement -> out.copy(transition = element.transition)
       is FluidGlassContentAnchorElement -> out.copy(contentAnchor = element.anchor)
+      is FluidGlassContentKeyElement -> out.copy(contentKey = element.key)
     }
   }
   return out
@@ -836,6 +847,17 @@ internal class FluidGlassContentAnchorElement(val anchor: FluidGlassContentAncho
   override fun InspectorInfo.inspectableProperties() {
     name = "fluidGlassContentAnchor"
     properties["anchor"] = anchor
+  }
+}
+
+internal class FluidGlassContentKeyElement(val key: Any) : FluidGlassAttributeElement() {
+  override val label: String get() = "fluidGlassContentKey($key)"
+  override fun equals(other: Any?): Boolean =
+    this === other || other is FluidGlassContentKeyElement && other.key == key
+  override fun hashCode(): Int = key.hashCode()
+  override fun InspectorInfo.inspectableProperties() {
+    name = "fluidGlassContentKey"
+    properties["key"] = key
   }
 }
 
@@ -1152,7 +1174,10 @@ internal class FluidGlassPlaneDriver(
     val follows = resized && current != null && samePieces(current, measured)
     val instant = motion == null || !(durationScale > 0f) || follows
     if (running == null) {
-      if (current != null && planesAlike(current, measured)) return Change.Nothing
+      if (current != null && planesAlike(current, measured)) {
+        rest = planeWithContentOf(current, measured)
+        return Change.Nothing
+      }
       if (current == null || instant || current.pieces.isEmpty() && measured.pieces.isEmpty()) {
         rest = measured
         return Change.Rest
@@ -1223,6 +1248,8 @@ internal class FluidGlassPlaneDriver(
       startUnion(restarted, from = unionNow)
       return Change.Retargeted
     }
+    // Un cambio solo di contenuto a viaggio avviato non lo fa ripartire: l'arrivo lo sa, per il viaggio dopo (F4A.5b).
+    if (current != null) rest = planeWithContentOf(current, measured)
     val now = running.frame(elapsed)
     if (now.finished) {
       finish()
@@ -1368,6 +1395,22 @@ internal fun samePieces(a: GlassPlaneState, b: GlassPlaneState): Boolean {
     if (x.id != y.id || x.unionId != y.unionId || x.transition != y.transition || x.variant != y.variant) return false
   }
   return true
+}
+
+/**
+ * [rest] con ciò che portano i pezzi di [measured] (`GlassPlanePiece.contentKey`, F4A.5b), dove la chiave è la stessa;
+ * [rest] stesso se niente è cambiato. Un cambio **solo di contenuto** non è un viaggio ([planesAlike] non lo guarda: due
+ * tasti che cambiano solo icona restano vetri fermi, la scelta di F4A.3), ma il riposo deve saperlo: il vetro respira
+ * solo se cambia contenuto nello stesso viaggio di un altro (la barra che cambia contesto), mai per un cambio vecchio.
+ * Pura.
+ */
+internal fun planeWithContentOf(rest: GlassPlaneState, measured: GlassPlaneState): GlassPlaneState {
+  val now = measured.pieces.associateBy { it.key }
+  if (rest.pieces.all { piece -> now[piece.key]?.let { it.contentKey == piece.contentKey } != false }) return rest
+  return GlassPlaneState(
+    rest.pieces.map { piece -> now[piece.key]?.let { piece.copy(contentKey = it.contentKey) } ?: piece },
+    rest.spacing, rest.bounds, rest.preferredPieces, rest.room,
+  )
 }
 
 internal fun rectsAlike(a: Rect, b: Rect): Boolean =
@@ -2490,6 +2533,7 @@ internal class FluidGlassContainerState {
           FluidGlassTransition.Identity -> GlassPlaneTransition.Identity
           FluidGlassTransition.MaterializeWhenAlone -> GlassPlaneTransition.MaterializeWhenAlone
         },
+        contentKey = attributes.contentKey,
       ))
     }
     val bounds = Rect(0f, 0f, box.size.width.toFloat(), box.size.height.toFloat())

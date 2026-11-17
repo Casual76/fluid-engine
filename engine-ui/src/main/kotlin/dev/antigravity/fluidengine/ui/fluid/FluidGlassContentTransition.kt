@@ -136,6 +136,15 @@ internal object GlassContentDefaults {
 
   /** Scala di partenza di chi nasce senza predecessore (R7 A6: il «più», 0,75 → 1; fiducia media). */
   const val BornScale: Float = 0.75f
+
+  /**
+   * Quanto si sfoca, in frazione di [PeakBlur], un contenuto che **resta** in un vetro che cambia forma
+   * ([GlassContentLayer.soft], la variante «morbida» di F4A.5b): 0,8. Sulle due clip a tempo vero (219, il telefono a 4:44 e
+   * il render a 4:48) il «+» che resta mentre la capsula si chiude su di lui ha σ 0,13 e 0,17 della sagoma a 133 ms e torna
+   * nitido a ~300, con la stessa curva dello scambio: adattata con la curva di serie (T 300 ms), l'intensità è 0,80–0,86
+   * (`artifacts/liquid-glass/sessioni/f4a-5b/misure.md`, fiducia **alta** sulla forma, **media** sul numero).
+   */
+  const val KeptSoftness: Float = 0.8f
 }
 
 /** Che parte fa uno strato di contenuto nel cambio. */
@@ -149,7 +158,10 @@ internal enum class GlassContentRole {
   /** Il contenuto nuovo dove prima non c'era niente: come [Enter], ma da scala 0,75 (R7 A6). */
   Born,
 
-  /** Fermo: nitido, opaco, a scala 1. È anche il contenuto con la stessa chiave nei due stati (R7 A3). */
+  /**
+   * Fermo: nitido, opaco, a scala 1. È anche il contenuto con la stessa chiave nei due stati (R7 A3). Uno strato fermo
+   * **ammorbidito** ([GlassContentLayer.soft], F4A.5b) si sfoca appena e torna nitido senza smettere di essere fermo.
+   */
   Rest,
 }
 
@@ -276,9 +288,14 @@ internal object GlassContentCurves {
     GlassContentRole.Rest -> 0f
     // Chi esce non torna nitido mentre svanisce: dopo il massimo resta al massimo finché non è sparito.
     GlassContentRole.Exit -> blurRise(u)
-    GlassContentRole.Enter, GlassContentRole.Born ->
-      if (u <= GlassContentDefaults.PeakAt) blurRise(u) else blurFall(u)
+    GlassContentRole.Enter, GlassContentRole.Born -> softBlur(u)
   }
+
+  /**
+   * σ in frazione del massimo di uno strato che si sfoca e torna nitido senza svanire: la salita fino a metà T, la discesa
+   * fino a T. È la curva di chi entra, e quella del contenuto che resta in un vetro che cambia forma (F4A.5b).
+   */
+  fun softBlur(u: Float): Float = if (u <= GlassContentDefaults.PeakAt) blurRise(u) else blurFall(u)
 
   /**
    * L'opacità di chi esce (R7 A.3 e A4): 1 → 0,75 a 0,3 T, poi giù fino all'incrocio (α ≈ 0,35 a 0,47 T, dove la
@@ -345,12 +362,12 @@ internal object GlassContentCurves {
   }
 
   /**
-   * L'istante della salita di σ che ha la sfocatura [blur] (frazione del massimo), al più [GlassContentDefaults.EnterAt].
+   * L'istante della salita di σ che ha la sfocatura [blur] (frazione del massimo), al più [cap] (di serie
+   * [GlassContentDefaults.EnterAt]; il contenuto ammorbidito risale fino al massimo, [GlassContentDefaults.PeakAt]).
    * È il punto da cui riparte un cambio interrotto: il contenuto che diventa uscente ha già quella sfocatura, e il
    * nuovo arriva come se il cambio fosse partito lì.
    */
-  fun riseTimeFor(blur: Float): Float {
-    val cap = GlassContentDefaults.EnterAt
+  fun riseTimeFor(blur: Float, cap: Float = GlassContentDefaults.EnterAt): Float {
     if (blur >= blurRise(cap)) return cap
     if (blur <= 0f) return 0f
     var lo = 0f
@@ -378,6 +395,12 @@ internal data class GlassContentLayer(
   val startMs: Double,
   val fromU: Float = 0f,
   val from: GlassContentLook = GlassContentLook.Sharp,
+  /**
+   * Vero per uno strato fermo che il vetro, cambiando forma, **ammorbidisce** (F4A.5b, [GlassContentJourney.soften]): da
+   * [startMs] si sfoca con la curva dello scambio ([GlassContentDefaults.KeptSoftness] del massimo) e in T torna nitido,
+   * opaco e a scala 1 per tutto il tempo. Falso: fermo e nitido, com'era.
+   */
+  val soft: Boolean = false,
 )
 
 /**
@@ -411,7 +434,8 @@ internal class GlassContentJourney private constructor(
     val role = layer.role
     val blurScale = if (blurAvailable) timing.peakBlur else 0f
     return when (role) {
-      GlassContentRole.Rest -> GlassContentLook.Sharp
+      GlassContentRole.Rest -> if (!layer.soft) GlassContentLook.Sharp else
+        GlassContentLook(1f, 1f, GlassContentCurves.softBlur(u) * blurScale * GlassContentDefaults.KeptSoftness)
       GlassContentRole.Exit -> {
         // Chi esce parte dall'aspetto che aveva: l'opacità e la scala scendono in proporzione alla curva, la
         // sfocatura non torna mai indietro. Per un cambio nuovo (`from` nitido, `fromU` zero) è la curva pura.
@@ -430,7 +454,8 @@ internal class GlassContentJourney private constructor(
   }
 
   private fun done(layer: GlassContentLayer, tMs: Double): Boolean =
-    layer.role == GlassContentRole.Rest || u(layer, tMs) >= GlassContentCurves.end(layer.role)
+    if (layer.role == GlassContentRole.Rest) !layer.soft || u(layer, tMs) >= 1f
+    else u(layer, tMs) >= GlassContentCurves.end(layer.role)
 
   /** Il fotogramma all'istante [tMs] del viaggio (millisecondi dallo stesso zero di [start] e [retarget]). */
   fun frame(tMs: Double): GlassContentFrame {
@@ -483,13 +508,29 @@ internal class GlassContentJourney private constructor(
     return GlassContentJourney(kept, timing, blurAvailable, tMs, fromU, id)
   }
 
+  /**
+   * Il vetro attorno al contenuto d'arrivo **cambia forma** all'istante [tMs] (F4A.5b, la variante «morbida»): il contenuto
+   * che resta si sfoca appena e torna nitido ([GlassContentLayer.soft]), senza svanire. Riparte da dove si trova: un
+   * contenuto già sfocato dallo stesso motivo riprende la salita dal punto che ha la sua sfocatura di adesso. Un contenuto
+   * che sta ancora arrivando (sfocato perché nuovo) non cambia, e nemmeno il vuoto.
+   */
+  fun soften(tMs: Double): GlassContentJourney {
+    val current = layers.lastOrNull { it.role != GlassContentRole.Exit } ?: return this
+    if (current.role != GlassContentRole.Rest || current.key == null) return this
+    val reach = timing.peakBlur * GlassContentDefaults.KeptSoftness
+    val blurNow = look(current, tMs).blur
+    val fromU = if (reach > 0f) GlassContentCurves.riseTimeFor(blurNow / reach, GlassContentDefaults.PeakAt) else 0f
+    val kept = GlassContentLayer(current.id, current.key, GlassContentRole.Rest, tMs, fromU, soft = true)
+    return GlassContentJourney(layers.map { if (it === current) kept else it }, timing, blurAvailable, tintStartMs, tintFromU, nextId)
+  }
+
   /** Il viaggio finito: resta solo il contenuto d'arrivo, fermo. Il composable lo usa per smettere di contare il tempo. */
   fun settle(): GlassContentJourney {
     val target = layers.lastOrNull { it.role != GlassContentRole.Exit } ?: return GlassContentJourney(
       emptyList(), timing, blurAvailable, Double.NaN, 0f, nextId,
     )
     return GlassContentJourney(
-      listOf(target.copy(role = GlassContentRole.Rest, startMs = 0.0, fromU = 0f, from = GlassContentLook.Sharp)),
+      listOf(target.copy(role = GlassContentRole.Rest, startMs = 0.0, fromU = 0f, from = GlassContentLook.Sharp, soft = false)),
       timing, blurAvailable, Double.NaN, 0f, nextId,
     )
   }
@@ -501,7 +542,7 @@ internal class GlassContentJourney private constructor(
   fun withReducedMotion(reduced: Boolean): GlassContentJourney = if (reduced && !settled) settle() else this
 
   /** Fermo: nessuno strato si muove, e non serve contare il tempo. */
-  val settled: Boolean get() = layers.all { it.role == GlassContentRole.Rest }
+  val settled: Boolean get() = layers.all { it.role == GlassContentRole.Rest && !it.soft }
 
   /**
    * Lo stesso viaggio senza gli strati usciti del tutto all'istante [tMs]: il composable li toglie dalla composizione
@@ -920,6 +961,26 @@ fun <S> FluidGlassContentTransition(
   contentColor: ((S) -> Color)? = null,
   contentAlignment: Alignment = Alignment.Center,
   content: @Composable (S) -> Unit,
+) = FluidGlassContentTransitionWithShape(
+  targetState, modifier, key, blurReference, contentColor, contentAlignment, shapeKey = null, content = content,
+)
+
+/**
+ * [FluidGlassContentTransition] che sa anche **la forma del vetro** che porta il contenuto (F4A.5b): quando [shapeKey]
+ * cambia e il contenuto resta lo stesso, il contenuto si ammorbidisce e torna nitido ([GlassContentJourney.soften]), come
+ * il «+» della barra di Apple mentre la capsula si chiude su di lui. Null, o una chiave che non cambia: il comportamento
+ * di [FluidGlassContentTransition], al bit. Il primo valore non ammorbidisce niente: la pagina compare, non cambia.
+ */
+@Composable
+internal fun <S> FluidGlassContentTransitionWithShape(
+  targetState: S,
+  modifier: Modifier = Modifier,
+  key: (S) -> Any? = { it },
+  blurReference: Dp = GlassContentDefaults.BlurReference,
+  contentColor: ((S) -> Color)? = null,
+  contentAlignment: Alignment = Alignment.Center,
+  shapeKey: Any? = null,
+  content: @Composable (S) -> Unit,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val blurAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -947,6 +1008,12 @@ fun <S> FluidGlassContentTransition(
     nowMs = 0.0
     colorFrom = null
   }
+
+  // La forma vista per ultima: un contenitore, non uno stato (cambiarla non deve ricomporre).
+  val shapeSeen = remember { arrayOf(shapeKey) }
+  val reshaped = shapeSeen[0] != shapeKey
+  shapeSeen[0] = shapeKey
+  if (reshaped && !policy.reducedMotion && journey.targetKey == targetKey) journey = journey.soften(nowMs)
 
   if (journey.targetKey != targetKey) {
     val previous = journey.targetKey

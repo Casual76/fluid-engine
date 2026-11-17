@@ -40,14 +40,19 @@ class FluidToolbarContentAnchorTest {
 
   private fun anchor(side: FluidToolbarSide) = if (side == FluidToolbarSide.Leading) FluidGlassContentAnchor.Start else FluidGlassContentAnchor.End
 
-  @Test fun `un gruppo da una a tre icone e ritorno tiene ferma quella che resta entro mezzo pixel anche RTL`() {
+  @Test fun `un gruppo da una a tre icone e ritorno non fa scivolare quella che resta, che va solo col suo vetro, anche RTL`() {
+    // F4A.2b: l'icona che resta non scivola dentro il vetro che cambia larghezza (al centro scivolava di 44 dp). F4A.5b:
+    // il vetro intero è trascinato dal bordo che si muove e torna (`FluidMotion.PlaneResizeDrag`, le due clip di Apple a
+    // tempo vero: il «+» va a destra di 0,16 H e torna), e l'icona va con lui, non oltre; alla fine è al suo posto.
     for (direction in LayoutDirection.entries) for (side in listOf(FluidToolbarSide.Leading, FluidToolbarSide.Trailing)) {
       for (density in listOf(1f, 1.5f, 2f, 3f, 3.5f)) {
         val driver = FluidGlassPlaneDriver()
         val motion = GlassPlaneMotion()
         var peak = 0f
         var oldPeak = 0f
-        for (index in -3..240) {
+        var last = Offset.Zero
+        val drag = FluidMotion.PlaneResizeDrag * metrics.buttonWidthDp * density
+        for (index in -3..300) {
           val count = if (index in 0 until 120) 3 else 1
           val state = plane(count, side, density, direction)
           driver.step(10_000_000_000L + glassTraceTimeNanos(index, 120), state, motion)
@@ -57,13 +62,19 @@ class FluidToolbarContentAnchorTest {
             FluidGlassSwell.None, anchor = anchor(side), layoutDirection = direction)!!
           peak = maxOf(peak, abs(flight.offset.x), abs(flight.offset.y))
           oldPeak = maxOf(oldPeak, abs(flying.bounds.center.x - place.center.x))
+          last = flight.offset
           assertEquals(GlassContentLook.Sharp, flight.look)
           // L'ancora cambia solo il volo: il ritaglio continua a essere la lastra in viaggio.
           assertEquals(flying.bounds.translate(-place.left, -place.top), flight.clip)
+          // Il bordo d'ancoraggio non ha strada da fare: lo sposta solo il trascinamento, che sposta tutto il vetro.
+          val edge = if ((side == FluidToolbarSide.Leading) == (direction == LayoutDirection.Ltr)) flying.bounds.left - place.left
+            else flying.bounds.right - place.right
+          assertEquals("l'icona va col bordo del suo vetro", edge, flight.offset.x, 0.001f)
         }
-        assertTrue("$side $direction @$density: spostamento $peak px", peak <= 0.5f)
+        assertTrue("$side $direction @$density: spostamento $peak px, trascinamento al più $drag", peak <= drag + 0.5f)
+        assertTrue("alla fine al suo posto: $last", abs(last.x) <= 0.5f && abs(last.y) <= 0.5f)
         assertTrue("la controprova al centro deve riprodurre il difetto", oldPeak >= 43.9f * density)
-        println("1-3-1 $side $direction densita=$density: picco=$peak px, centro=$oldPeak px")
+        println("1-3-1 $side $direction densita=$density: picco=$peak px (trascinamento), centro=$oldPeak px")
       }
     }
   }

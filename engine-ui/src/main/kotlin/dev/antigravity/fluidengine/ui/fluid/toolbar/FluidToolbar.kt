@@ -57,6 +57,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlass
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransitionWithShape
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentKey
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
@@ -854,6 +856,8 @@ private fun FluidToolbarGroupPiece(
         FluidToolbarSide.Center -> FluidGlassContentAnchor.Center
         FluidToolbarSide.Trailing -> FluidGlassContentAnchor.End
       })
+      // Che cosa porta il vetro (F4A.5b): un tondo che cambia simbolo respira, come in Apple.
+      .fluidGlassContentKey(fluidToolbarGlassContentKey(group))
       .fluidGlass(surface, FluidCapsuleShape)
       .size(group.widthDp.dp, FluidMetrics.GlassButtonLens),
     verticalAlignment = Alignment.CenterVertically,
@@ -873,11 +877,27 @@ private fun FluidToolbarGroupPiece(
           onGlass = primary,
           // Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che arriva con un vetro nuovo lo porta il piano.
           entersBlurred = memory.settled && item.id !in memory.previousIds && glass in memory.previousGlass,
+          shapeKey = fluidToolbarSlotShapeKey(group, FluidToolbarTuning.keptContent),
         )
       }
     }
   }
 }
+
+/**
+ * Che cosa porta il vetro di [group] (F4A.5b, `fluidGlassContentKey`): le chiavi delle facce dei suoi tasti, nell'ordine.
+ * Se cambia e il vetro resta della sua misura (il tondo dell'elenco che diventa la lente), il piano lo fa respirare.
+ */
+internal fun fluidToolbarGlassContentKey(group: FluidToolbarGroup): Any =
+  group.items.map { Triple(it.content, it.tintArgb, it.selected) }
+
+/**
+ * La forma del vetro per i posti di [group] (F4A.5b): con la variante [FluidToolbarKeptContent.Soft], i tasti che ci sono
+ * (cambia quando il gruppo perde o guadagna un tasto, cioè quando il vetro cambia larghezza), e il contenuto che resta si
+ * ammorbidisce; con quella di serie null, e niente cambia.
+ */
+internal fun fluidToolbarSlotShapeKey(group: FluidToolbarGroup, kept: FluidToolbarKeptContent): Any? =
+  if (kept == FluidToolbarKeptContent.Soft) group.items.map { it.id } else null
 
 /** Le uscite nascono per lente; se restano, l'identità continua a tenerle ferme. */
 internal fun fluidToolbarGlassTransition(group: FluidToolbarGroup): FluidGlassTransition =
@@ -912,6 +932,8 @@ private fun FluidToolbarSlot(
   resolved: FluidToolbarResolved,
   onGlass: Boolean,
   entersBlurred: Boolean,
+  /** La forma del vetro, per la variante «morbida» (F4A.5b): vedi [fluidToolbarSlotShapeKey]. */
+  shapeKey: Any? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val labels = LocalFluidLabels.current
@@ -970,10 +992,11 @@ private fun FluidToolbarSlot(
           .background(GlassDefaults.selectionTint().overlay, FluidCapsuleShape),
       )
     }
-    FluidGlassContentTransition(
+    FluidGlassContentTransitionWithShape(
       targetState = if (arrived) face else null,
       key = { it?.key },
       blurReference = FluidMetrics.BarIconSize,
+      shapeKey = shapeKey,
       // Il nome lo dice il bersaglio (sotto): la faccia è muta, o TalkBack direbbe la scritta due volte.
       modifier = Modifier
         .clearAndSetSemantics { }

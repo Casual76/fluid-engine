@@ -91,6 +91,18 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   capsula cambia larghezza, il contenuto segue il bordo ancorato e ogni icona resta alla sua posizione d'arrivo,
   senza la deriva di metà variazione che produceva il centro. I bordi sono logici (anche RTL); un eventuale rimbalzo
   del bordo porta ancora il contenuto con sé. Fuori dalla barra l'ancora di serie è `Center`, identica al piano F3.12a.
+- **I tempi di un gruppo che cambia larghezza** (F4A.5b, misurati sulle due clip di Apple a tempo vero, il telefono a
+  4:44 e il render a 4:48, che coincidono): è un **cambio di larghezza** del piano (`FluidMotion.PlaneResizeMillis`,
+  535 ms a vista). Il bordo che si chiude o si apre parte dopo 24 ms e fa metà strada a ~175 ms (fino a F4A.5 a ~90);
+  il vetro intero è **trascinato** nel suo verso di 0,155 H, al colmo a ~300 ms, e torna (il «+» di Apple va a destra
+  di 0,16 H e torna; il «rientro» del bordo fermo del gruppo che si allarga è lo stesso trascinamento), e l'icona che
+  resta va col suo vetro, senza scivolarci dentro; il vetro si gonfia del 13,5% a ~200 ms. Il tondo che nello stesso
+  cambio **cambia solo simbolo** respira (+16,5% a ~200 ms): il gruppo dichiara al piano cosa porta
+  (`fluidGlassContentKey`, interno). Un cambio fatto **solo** di icone non muove i vetri.
+- **Il contenuto che resta** (F4A.5b): l'icona che resta in un gruppo che cambia larghezza **si ammorbidisce come in
+  Apple** (0,8 della sfocatura dello scambio, nitida a ~300 ms) e torna: è la scelta di Alessio del 17 novembre 2026
+  («morbido, come Apple»), sulle clip del telefono a tempo vero. Con `gallery.tune barkeep=sharp` resta nitida (com'era
+  fino a F4A.5). La stessa icona in **due vetri diversi** resta nitida in tutte e due (D2).
 - **Selezione e tinta per tasto**: `selected` è una pellicola dietro **quel** tasto (`GlassDefaults.selectionTint`) e la
   sua icona nell'accento, anche in un gruppo di più icone: non passa agli altri. La principale tinta accanto a un gruppo
   (a 12 dp, cioè nello stesso grappolo del piano) resta tinta: il contenitore disegna ogni tinta sulla sua striscia
@@ -133,7 +145,7 @@ del contenitore:
 | fra la pagina di partenza e quella d'arrivo | che cosa si vede |
 |---|---|
 | lo stesso `id` (l'indietro comune, i tre puntini) | lo stesso vetro, fermo al pixel; l'icona uguale non si tocca |
-| lo stesso `id` con un'icona diversa | il vetro non si muove, le icone si incrociano sfocandosi (nessun viaggio del piano) |
+| lo stesso `id` con un'icona diversa | il vetro non si muove, le icone si incrociano sfocandosi (nessun viaggio del piano); se nello stesso cambio un altro vetro cambia forma, respira con lui (F4A.5b) |
 | un `id` nuovo accanto a un vetro | nasce dal fianco del vicino col collo (D3) |
 | un `id` nuovo senza vicini | compare per lente, sul posto |
 | indietro o Chiudi che arrivano o se ne vanno | lente sul posto anche con altri tasti a sinistra; se l'`id` resta, lo stesso vetro fermo (`MaterializeWhenAlone`, R7 21) |
@@ -168,10 +180,11 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - **I confronti sul PC** (`tools/glassbench/traces/f4a/`, F4A.5) eseguono risolutore, memoria e conducente Kotlin,
   ricetta e viaggi del contenuto; non eseguono il disegno Compose né la GPU. Tempi e sagome contro Apple non sono
   una qualifica sul dispositivo. I limiti misurati e le tavole a tempo vero sono nel rapporto F4A.5.
-- **Taratura del contesto, F4A.5:** la capsula si assesta intorno a 300 ms, mentre nel riferimento ingrandito a
-  16:02 continua ad allargarsi fino a circa 900 ms; il bordo sinistro di Fluid sporge durante il rigonfiamento,
-  invece di rientrare prima come Apple. La nascita fra pagine ha il collo e la rottura nell'ordine giusto, ma il
-  gruppo nuovo cresce più grosso e prima del riferimento 256. Sono differenze osservate, ancora da tarare.
+- **Taratura del contesto** (F4A.5, poi F4A.5b): i tempi dei gruppi che cambiano larghezza sono quelli di Apple a
+  tempo vero (sopra). Restano diversi: il riferimento ingrandito di 16:02 è ~1,35 volte più lento (non è a tempo vero)
+  e lì la larghezza del gruppo che si allarga cresce più piano del suo bordo; da noi il bordo che si allarga supera il
+  suo posto di qualche punto in più. La nascita fra pagine (F3.12) ha il collo e la rottura nell'ordine giusto, ma il
+  gruppo nuovo cresce più grosso e prima del riferimento 256. Dettagli e tavole nel rapporto F4A.5b.
 
 ## Cosa è verificato dai test
 
@@ -181,10 +194,13 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
 - `GlassPlaneLensIdentityTest`, `FluidToolbarExitTransitionTest` e `FluidToolbarAnchorsTest` (F4A.5): lente con un
   vicino, identità conservata fra figlie, ripartenza durante la lente, sottotitolo nell'host e modi `None`/`Principal`.
-- `F4aToolbarExportTest`: cinque tracce a 120 Hz (tre stati nei due temi, contesto, push/pop, cambio interrotto),
-  dai componenti puri della barra; esportazione solo con `GLASS_F4A5_DIR`.
+- `F4aToolbarExportTest`: sei tracce a 120 Hz (tre stati nei due temi e nella variante «morbida», contesto, push/pop,
+  cambio interrotto), dai componenti puri della barra; esportazione solo con `GLASS_F4A5_DIR`.
+- `FluidToolbarKeptContentTest` (F4A.5b): la manopola `barkeep`, la forma che i posti ricevono (cambia solo se il gruppo
+  cambia tasti, solo con la variante «morbida») e ciò che ogni vetro dichiara di portare.
 - `FluidToolbarContentAnchorTest` (engine, F4A.2b): gruppo 1→3→1 guidato dal conducente reale a 120 Hz, bordi iniziale
-  e finale, LTR/RTL, densità 1/1,5/2/3/3,5; icona che resta entro mezzo pixel, nitida, senza cambiare il ritaglio;
+  e finale, LTR/RTL, densità 1/1,5/2/3/3,5; icona che resta col bordo del suo vetro (non scivola; da F4A.5b la sposta
+  solo il trascinamento, entro 0,155 H, ed è al suo posto alla fine), nitida, senza cambiare il ritaglio;
   centro di serie identico a F3.12a, ordine degli attributi, lente, parole italiane/inglesi e tracce del banco.
 - `FluidToolbarBarTest` (galleria, Robolectric): la barra vera da «sfoglia» a «seleziona» e ritorno (vetri, `id` nel
   registro del piano, semantica e bersagli da 48 dp, un viaggio senza animazioni della pagina), il tasto che diventa

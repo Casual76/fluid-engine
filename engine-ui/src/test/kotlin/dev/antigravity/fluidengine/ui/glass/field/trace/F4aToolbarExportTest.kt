@@ -91,7 +91,9 @@ class F4aToolbarExportTest {
           (group.leftDp + group.widthDp) * density, (top + metrics.buttonWidthDp) * density)
         GlassPlanePiece(id.toString(), bounds, FluidCornerRadii.all(bounds.height / 2), id = id,
           transition = if (fluidToolbarGlassTransition(group) == FluidGlassTransition.MaterializeWhenAlone)
-            GlassPlaneTransition.MaterializeWhenAlone else GlassPlaneTransition.MatchedGeometry)
+            GlassPlaneTransition.MaterializeWhenAlone else GlassPlaneTransition.MatchedGeometry,
+          // F4A.5b: ciò che il vetro porta, come lo dichiara FluidToolbarGroupPiece (il tondo che cambia simbolo respira).
+          contentKey = fluidToolbarGlassContentKey(group))
       }
       Prepared(input, resolved, memory.glassIds.toMap(), GlassPlaneState(pieces, 16f * density,
         Rect(0f, 0f, width * density, height * density)))
@@ -106,7 +108,16 @@ class F4aToolbarExportTest {
       fluidToolbarIconSize(item.role).value)
   }
 
-  private fun trace(name: String, inputs: List<Input>, last: Int, dark: Boolean = false, pages: Boolean = false): GlassTrace {
+  private fun trace(
+    name: String,
+    inputs: List<Input>,
+    last: Int,
+    dark: Boolean = false,
+    pages: Boolean = false,
+    /** La variante del contenuto che resta in un vetro che cambia forma (F4A.5b, `barkeep`): qui nitido, per tenere la traccia di confronto di F4A.5; di serie
+     * e' morbido (scelta di Alessio del 17/11/2026), la traccia `barra-tre-stati-morbido`. */
+    kept: FluidToolbarKeptContent = FluidToolbarKeptContent.Sharp,
+  ): GlassTrace {
     val prepared = prepare(inputs)
     val labels = prepared.flatMap { it.plane.pieces }.associate { it.key to F38aTraces.Label(icon = "plus") }
     val base = F38aTraces.build(F38aTraces.Scene(name, "barra dal modello Kotlin, contenitore e contenuto veri",
@@ -127,6 +138,15 @@ class F4aToolbarExportTest {
       if (changed) {
         if (pages) title.retarget(current.input.name, if (current.input.name == "elenco") -1 else 1, snap = false)
         slots.values.forEach { it.attached = false }
+        // I vetri che cambiano forma (F4A.5b): lo stesso vetro con altri tasti. È il cambio di `fluidToolbarSlotShapeKey`.
+        val old = previous
+        val reshaped = if (old == null) emptySet() else current.resolved.groups.mapNotNullTo(HashSet()) { group ->
+          val glass = current.ids.getValue(group.id)
+          val before = old.resolved.groups.firstOrNull { old.ids[it.id] == glass } ?: return@mapNotNullTo null
+          glass.toString().takeIf {
+            fluidToolbarSlotShapeKey(before, kept) != fluidToolbarSlotShapeKey(group, kept)
+          }
+        }
         for (group in current.resolved.groups) for (item in group.items) {
           val glass = current.ids.getValue(group.id).toString()
           val element = current.resolved.element(item.id)!!
@@ -141,6 +161,8 @@ class F4aToolbarExportTest {
             slot.x = element.leftDp - group.leftDp
             slot.w = element.widthDp
             slot.journey = slot.journey.retarget(time, target)
+            // La variante «morbida»: il contenuto che resta nel vetro che cambia forma si ammorbidisce, come in produzione.
+            if (glass in reshaped) slot.journey = slot.journey.soften(time)
             slot.attached = true
           }
         }
@@ -239,6 +261,7 @@ class F4aToolbarExportTest {
     val three = listOf(Input(-100.0, "sfoglia", browse()), Input(0.0, "seleziona-compatta", compact()),
       Input(1000.0, "modifica", edit()), Input(2000.0, "sfoglia", browse()))
     return listOf(trace("barra-tre-stati", three, 360), trace("barra-tre-stati-scuro", three, 360, dark = true),
+      trace("barra-tre-stati-morbido", three, 360, kept = FluidToolbarKeptContent.Soft),
       trace("barra-contesto", listOf(Input(-100.0, "prima", context(false)), Input(0.0, "dopo", context(true))), 144),
       trace("barra-fra-pagine", listOf(Input(-100.0, "elenco", page(0)), Input(0.0, "dettaglio", page(1)),
         Input(1500.0, "elenco", page(0))), 360, pages = true),
@@ -246,10 +269,10 @@ class F4aToolbarExportTest {
         Input(150.0, "ripensamento", context(false))), 144))
   }
 
-  @Test fun `esporta le cinque barre dal Kotlin di produzione e conserva le ventitre tracce del piano`() {
+  @Test fun `esporta le sei barre dal Kotlin di produzione e conserva le ventitre tracce del piano`() {
     val output = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4A5_DIR"))
     val all = traces()
-    assertEquals(5, all.size)
+    assertEquals(6, all.size)
     for (trace in all) {
       assertTrue(trace.frames.all { it.elements.isNotEmpty() })
       output?.let { trace.write(File(it, "${trace.name}/trace.json")) }

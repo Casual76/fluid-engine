@@ -306,7 +306,10 @@ object FluidGlassDiagnostics {
     // Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`, S3): comportamento del filtro e della legge
     // del giro, non numeri del profilo. Senza, il giro di serie.
     val flip = GlassAdaptiveTuning.apply(knobs)
-    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip
+    // La manopola della barra (`barkeep=sharp|soft`, F4A.5b): il contenuto che resta in un gruppo che cambia forma, nitido
+    // o ammorbidito come nel telefono di Apple. Comportamento della barra, non un numero del profilo. Senza, nitido.
+    val bar = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip + bar
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

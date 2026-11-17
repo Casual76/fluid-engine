@@ -200,6 +200,8 @@ Il piano confronta lo stato di prima e quello di adesso, una volta per cambio:
 | prima → adesso | che cosa fa | quanto dura |
 |---|---|---|
 | stesso `id` | **lo stesso vetro** si sposta e cambia forma; i vicini che si avvicinano si fondono passando per un collo, quelli che si allontanano si strozzano e si dividono | molla di serie, ferma a vista a `FluidMotion.PlaneContextMillis` (300 ms) |
+| stesso `id`, la larghezza cambia di almeno mezza altezza **con un bordo fermo** (un gruppo di una barra che perde o guadagna un tasto, F4A.5b) | **cambio di larghezza**: il bordo che si muove parte dopo 24 ms, più lento; **il vetro intero è trascinato** nel suo verso (0,155 H, colmo a ~300 ms) e torna con un piccolo passaggio dall'altra parte; si gonfia coi tempi suoi (+13,5% a ~200 ms). Chi viaggia con lui prende il suo orologio | `FluidMotion.PlaneResizeMillis` (535 ms a vista; il trascinamento fino a ~780) |
+| stesso `id`, stessa misura, **contenuto dichiarato diverso** (`fluidGlassContentKey`, solo la barra) nello stesso viaggio di un altro vetro | **respira**: +16,5% a ~200 ms, un poco sotto a ~490, fermo a ~760. Un cambio *solo* di contenuto non è un viaggio: il vetro resta fermo | — |
 | `id` nuovo entro `spacing` da un vetro di prima | **nasce da lui** (il vicino si misura dal posto di **prima**, quindi due nuovi dalla stessa parte nascono entrambi da un donatore solo se stanno entrambi entro lo `spacing` dal suo vecchio riquadro: un donatore largo che si sposta, scena `due-nati`): gli sta dentro, piccolo, e dopo un'attesa ne è **rilasciato** con una molla che supera il suo posto e torna, crescendo mentre esce (vedi «La nascita e la confluenza», sotto) | `FluidMotion.PlaneReleaseMillis` (540 ms a vista; la coda fino a ~850–900) |
 | `id` nuovo più lontano (o `Materialize`) | **compare per lente** al suo posto: la rifrazione sale, il contorno si stringe da `FluidMotion.PlaneAppearScale` (×1,09); il corpo non sfuma mai | `FluidMotion.PlaneAppearMillis` (430 ms) |
 | un vetro che se ne va vicino a un altro | **vi confluisce**: gli entra dentro subito, rimpicciolendosi, e lo spinge; quello torna al suo posto con un piccolo passaggio dall'altra parte | 540 ms a vista; la coda fino a ~900 |
@@ -413,6 +415,11 @@ resta nitido anche se il vetro intorno corre.
 - Sotto Android 12 (API 31) non c'è `RenderEffect`: il cambio è una dissolvenza senza sovrapposizione. Con il movimento
   ridotto il contenuto cambia di colpo. La scala delle animazioni di sistema allunga anche questo.
 - La forma del vetro non è affare suo: la cambia il contenitore. Il contenuto sta già al suo posto d'arrivo.
+- **Il contenuto che resta in un vetro che cambia forma** (F4A.5b): nelle clip di Apple a tempo vero il «+» che resta
+  mentre la capsula si chiude su di lui si sfoca anche lui (0,8 della sfocatura dello scambio, con la stessa curva) e torna
+  nitido. Nella barra è una variante da scegliere (`gallery.tune barkeep=soft`, di serie `sharp`: nitido, com'era); la
+  regola non è decisa. I tempi dello scambio restano quelli: misurati sulle due clip a tempo vero, coincidono con la curva
+  di serie entro il rumore (F4A.5b, `artifacts/liquid-glass/sessioni/f4a-5b/misure.md`).
 
 ## Le forme concentriche
 
@@ -631,7 +638,10 @@ logcat (`adb logcat -s FluidPiano`), una riga per cambio di stato e per fine via
   `FluidGlassIconButton` il selezionato si disegna con la sua tinta e gli altri no, anche quando la selezione si sposta; la
   conferma tinta accanto a un gruppo neutro resta tinta.
 - `GlassPlaneTest`: la logica pura del piano (registro, grappoli, accoppiamento, classificazione, palco, viaggio
-  interrompibile, riposo a vista dentro R4 B2, comparse in un campo a sé). `PhysicsPlaneNeckTest`: il collo del piano
+  interrompibile, riposo a vista dentro R4 B2, comparse in un campo a sé). `GlassPlaneResizeTest` (F4A.5b): il cambio di
+  larghezza (orologio, attesa, curva contro le due clip, trascinamento e suo tetto nel posto del palco, il gruppo che si
+  allarga tirato dalla partenza, chi viaggia con lui sul suo orologio, l'interruzione senza attesa) e il respiro del
+  vetro che cambia contenuto; `FluidGlassContentKeyTest`: un cambio solo di contenuto non parte ma il riposo lo sa. `PhysicsPlaneNeckTest`: il collo del piano
   (una rottura sola a tre quarti del viaggio, la riunione che si vede, l'esponente «spesso», l'unione che è una sagoma
   sola a riposo e i distinti separati).
 - `FluidGlassContainerDriverTest`, `FluidGlassContainerOrderTest`, `FluidGlassContainerProbeTest`,

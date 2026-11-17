@@ -1024,4 +1024,96 @@ object FluidMotion {
 
   /** Quanto il donatore va sotto la sua misura dopo il colmo, nelle stesse unità di [PlaneDonorBreath]: 0,17 (−2,5%). */
   const val PlaneDonorBreathUnder: Float = 0.17f
+
+  // --- Il cambio di larghezza (piano «iOS in Android», F4A.5b) ---
+  //
+  // Un gruppo di una barra che perde o guadagna un tasto: la capsula cambia larghezza con un bordo fermo (quello del
+  // margine) e uno che si muove. Fino a F4A.5 viaggiava con l'orologio di chi si sposta soltanto ([PlaneContextMillis]):
+  // il tondo del «+» era formato a ~167 ms, in Apple a ~300–367. Le misure sono in
+  // `artifacts/liquid-glass/sessioni/f4a-5b/misure.md`: le due clip **a tempo vero** di 219 (il telefono col dito a 4:44,
+  // t0 = f8551, e il render a 4:48, t0 = f8633), che coincidono entro un fotogramma. Il bordo che si chiude ha **la molla
+  // del piano**, più lenta e dopo un'attesa; **tutto il vetro è trascinato** nel verso di quel bordo e torna (il «+» va a
+  // destra di 0,16 H e torna, con un piccolo passaggio dall'altra parte); il vetro **si gonfia** del 13–14% a ~200 ms, coi
+  // tempi suoi ([PlaneResizeBreath]). La clip ingrandita di 16:02 (R4 B2 (c)) mostra lo stesso trascinamento, sul vetro
+  // che si allarga, con un orologio ~1,35 volte più lento: non è a tempo vero.
+
+  /**
+   * Il **riposo a vista** di un cambio di larghezza, in millisecondi: 535, nello stesso senso di [PlaneContextMillis] (la
+   * molla del piano stirata perché la sua busta scenda a [PlaneRestEnvelope] qui: il bordo resta poi entro lo 0,5% della
+   * corsa). R4 B2 (a, b) rimisurato in F4A.5b, fiducia **alta** (due clip a tempo vero, coincidono): tolto il
+   * trascinamento, il bordo che si chiude fa il 2, 11, 21, 35, 47, 61, 70, 81, 86, 91, 94, 97, 99% della corsa a 33…567
+   * ms; la molla di serie (smorzamento 0,9) che parte dopo [PlaneResizeWaitMillis] e arriva a vista qui fa 21, 61, 85, 96%
+   * a 100, 200, 300, 400 (scarto quadratico 0,011 sui diciassette campioni). Fino a F4A.5 la capsula viaggiava sui 300 ms
+   * del contesto: 27, 71, 92, 99%, cioè ~100 ms avanti a metà corsa. I «270–330 ms» di R4 B2 (a) erano il tondo che
+   * *sembra* formato e lo scambio delle icone, non il riposo del bordo. Con un cambio di larghezza nel viaggio, è
+   * l'orologio comune di tutti i vetri che si muovono.
+   */
+  const val PlaneResizeMillis: Int = 535
+
+  /**
+   * L'**attesa** di un cambio di larghezza, in millisecondi: 24. Il bordo che si chiude ha fatto il 2% della corsa a 33 ms
+   * e l'11% a 67 nelle due clip (anche nel render, che non ha un dito da alzare): una molla che parte subito è avanti di un
+   * fotogramma nei primi 100 ms (F4A.5b, fiducia **media**: la differenza è di un fotogramma). Un viaggio ripartito a metà
+   * non aspetta.
+   */
+  const val PlaneResizeWaitMillis: Int = 24
+
+  /**
+   * Da quanto un vetro che cambia larghezza è un «cambio di larghezza», in frazione della sua altezza: 0,5 (un tasto che
+   * entra o esce da un gruppo è 1). Sotto, una scritta che cambia di qualche lettera, resta il tempo di
+   * [PlaneContextMillis]. Scelta di F4A.5b.
+   */
+  const val PlaneResizeMinShare: Float = 0.5f
+
+  /**
+   * Quanto può muoversi il bordo **fermo** di un cambio di larghezza, in frazione dell'altezza: 0,25. Un vetro che si
+   * sposta mentre cambia larghezza non è un gruppo ancorato al margine: viaggia col tempo di chi si sposta. Scelta di F4A.5b.
+   */
+  const val PlaneResizeAnchorShare: Float = 0.25f
+
+  /**
+   * Il **trascinamento** di un cambio di larghezza, in frazione dell'altezza del vetro: 0,155. Tutto il vetro va nel verso
+   * del bordo che si muove, al colmo a ~300 ms, poi torna con un piccolo passaggio dall'altra parte
+   * ([PlaneResizeDragBack]) a ~550 ed è fermo a ~780. R4 B2 (a, b) in F4A.5b, fiducia **alta** (due clip a tempo vero): il centro
+   * del «+» va a +0,16 / +0,17 H a 300 ms e il bordo di destra a +0,20 / +0,22 H a 267 (con il rigonfiamento), poi
+   * −0,02…−0,04 H a ~550–580. È ciò che R4 B2 (c) leggeva come «il bordo sinistro rientra di 0,19 H prima di allargarsi»:
+   * il bordo non rientra, il vetro intero è tirato dal bordo che si allarga. Mai più di [PlaneResizeDragShare] della
+   * strada che fa il centro del vetro: un cambio piccolo trascina poco.
+   */
+  const val PlaneResizeDrag: Float = 0.155f
+
+  /** Il trascinamento non supera questa frazione della strada che fa il centro del vetro: 0,3. Scelta di F4A.5b. */
+  const val PlaneResizeDragShare: Float = 0.3f
+
+  /**
+   * Di quanto il vetro trascinato passa **dall'altra parte** tornando, in frazione del trascinamento: 0,2. R4 B2 (a, b),
+   * fiducia **media** (il passaggio è di 2–4 punti di H, vicino alla risoluzione della clip): −0,018 H rispetto al posto di
+   * prima, −0,04 rispetto a quello d'arrivo, a ~550–600 ms.
+   */
+  const val PlaneResizeDragBack: Float = 0.2f
+
+  /**
+   * Il **respiro** di un vetro che resta della sua misura ma **cambia contenuto** (il tondo dell'elenco che diventa la
+   * lente, F4A.5b), al colmo, in unità del rigonfiamento del carattere del viaggio: 1,1 (+16,5% di altezza) a ~200 ms, poi
+   * un poco sotto la sua misura ([PlaneContentBreathUnder]) a ~490 e fermo a ~760. R4 B2 (a, b) in F4A.5b, fiducia
+   * **alta** (due clip a tempo vero, il tondo di sinistra): +1,8 / 2,5, +5,3 / 6,6, +9,5 / 10,9, +13,2 / 14,7, **+16,7 /
+   * 16,3%** a 67…200 ms, −2,2 / −2,9% a ~490. Vale per i vetri che dichiarano il loro contenuto (la barra), non per un
+   * vetro qualsiasi: fino a F4A.5 il tondo era fermo e non entrava nel palco.
+   */
+  const val PlaneContentBreath: Float = 1.1f
+
+  /** Quanto il vetro che cambia contenuto va sotto la sua misura dopo il colmo, nelle unità di [PlaneContentBreath]: 0,17. */
+  const val PlaneContentBreathUnder: Float = 0.17f
+
+  /**
+   * Il **rigonfiamento** di un vetro che cambia larghezza, al colmo, in unità del rigonfiamento del carattere del viaggio:
+   * 0,9 (+13,5% di altezza) a ~200 ms, poi un poco sotto la sua misura ([PlaneResizeBreathUnder]) a ~470 e fermo a ~650. È
+   * suo, al posto del comune: il comune ha il colmo al 45% del riposo a vista, che qui cadrebbe a ~240 ms. R4 B2 (a, b) in
+   * F4A.5b, fiducia **alta** (due clip a tempo vero, rispetto all'altezza d'arrivo): +1,3 / 1,6, +4,1 / 5,3, +8,5 / 9,2,
+   * +10,1 / 12,5, **+13,2 / 13,8%** a 67…200 ms, +9,8 / 10,4 a 267, +3,1 / 4,2 a 334, **−3,0 / −2,6%** a ~467, zero a ~650.
+   */
+  const val PlaneResizeBreath: Float = 0.9f
+
+  /** Quanto il vetro che cambia larghezza va sotto la sua misura, nelle unità di [PlaneResizeBreath]: 0,2 (−3%). */
+  const val PlaneResizeBreathUnder: Float = 0.2f
 }

@@ -303,10 +303,12 @@ class GlassPlaneTest {
     assertEquals(430.0, GlassPlaneJourney(state(), state(piece("a", 20f))).settleMs, 0.5)
   }
 
-  @Test fun theVisibleRestFallsInsideTheR4WindowAndTheStartIsNotFrontLoaded() {
-    // Il rilievo di F3.3 (`contesto-capsule-curva`): la capsula da 200 a 88 dp a densità 3 si posava a vista a 133 ms e
-    // consumava il 39% della corsa nei primi 33. R4 B2: 270–330 ms. Il riposo a vista è lo 0,5% della corsa, la
-    // tolleranza di `glassmotion.py curve`.
+  @Test fun aClosingCapsuleRestsOnApplesRealTimeClockAndTheStartIsNotFrontLoaded() {
+    // Il rilievo di F3.3 (`contesto-capsule-curva`): la capsula da 200 a 88 dp a densità 3, col bordo destro fermo, si
+    // posava a vista a 133 ms e consumava il 39% della corsa nei primi 33; F3.2c l'aveva portata a 270–330 (R4 B2 (a)).
+    // È un **cambio di larghezza** (F4A.5b): sulle due clip a tempo vero di Apple il bordo che si chiude fa il 2, 19, 61,
+    // 84% della corsa a 33, 100, 200, 300 ms (tolto il trascinamento) e si posa a ~450 (1,5%). Il riposo a vista qui è lo
+    // 0,5% della larghezza, la tolleranza di `glassmotion.py curve`: la larghezza non sente il trascinamento.
     val d = 3f
     val wide = GlassPlaneState(
       listOf(GlassPlanePiece("c", Rect(120f * d, 58f * d, 320f * d, 102f * d), FluidCornerRadii.all(22f * d), id = "c")),
@@ -317,9 +319,11 @@ class GlassPlaneTest {
       12f * d, Rect(0f, 0f, 360f * d, 160f * d),
     )
     val journey = GlassPlaneJourney(wide, narrow)
+    assertEquals(FluidMotion.PlaneResizeMillis.toDouble(), journey.settleMs, 25.0)
     val start = 200f * d
     val end = 88f * d
     fun width(ms: Double) = journey.frame(ms).pieces.single().bounds.width
+    fun progress(ms: Double) = (start - width(ms)) / (start - end)
     val tolerance = 0.005f * abs(end - start)
     var rest = 0.0
     var ms = 0.0
@@ -327,9 +331,11 @@ class GlassPlaneTest {
       if (abs(width(ms) - end) > tolerance) rest = ms + 1.0
       ms += 1.0
     }
-    assertTrue("riposo a vista a $rest ms", rest in 270.0..330.0)
-    val early = (start - width(33.0)) / (start - end)
-    assertTrue("nei primi 33 ms il ${early * 100}% della corsa", early < 0.2f)
+    assertTrue("riposo a vista (0,5%) a $rest ms", rest in 470.0..600.0)
+    assertTrue("nei primi 33 ms il ${progress(33.0) * 100}% della corsa", progress(33.0) < 0.04f)
+    assertTrue("a 100 ms il ${progress(100.0) * 100}%", progress(100.0) in 0.12f..0.30f)
+    assertTrue("a 200 ms il ${progress(200.0) * 100}%", progress(200.0) in 0.52f..0.70f)
+    assertTrue("a 300 ms il ${progress(300.0) * 100}%", progress(300.0) in 0.78f..0.92f)
     val overshoot = (end - (0..journey.durationMs.toInt()).minOf { width(it.toDouble()) }) / abs(end - start)
     assertTrue("superamento ${overshoot * 100}%", overshoot <= 0.013f)
   }

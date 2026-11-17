@@ -6,6 +6,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentFlight
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPlaneDriver
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSwell
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.FluidPressTransform
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPressedSlab
+import dev.antigravity.fluidengine.ui.fluid.fluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassContentLook
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -56,8 +60,11 @@ import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelPaddingDp
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
+import androidx.compose.animation.core.FloatSpringSpec
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 /*
  * Le tracce di F3.8a (`GLASS_F38A_DIR`, fase `f3-8a`): il piano flottante **col contenuto**, come lo porta il
@@ -92,8 +99,37 @@ internal object F38aTraces {
   /**
    * Il tocco che fa partire il viaggio (F3.10): il pezzo [key], premuto ad [amount] quando lo stato cambia (il dito si è
    * appena alzato), col dito in ([u], [v]) del suo riquadro. Prima del cambio il vetro fermo mostra quel bagliore.
+   *
+   * Giro di correzione di F3: con [press] il tasto è anche **premuto** come un tasto tondo di vetro
+   * (`FluidPressFeedback.ExpandRound`, ×1,5 a pressione piena): fermo e premuto fino al rilascio, che comincia [releaseMs]
+   * prima del cambio (il click arriva al rilascio), poi la molla della pressione (`FluidPressSprings.ExpandOut`) lo
+   * riporta alla sua misura, sul riposo e sul palco. Il bagliore del dito parte allora dalla pressione al cambio.
    */
-  internal class Touch(val key: Any, val amount: Float, val u: Float = 0.5f, val v: Float = 0.5f)
+  internal class Touch(
+    val key: Any,
+    val amount: Float,
+    val u: Float = 0.5f,
+    val v: Float = 0.5f,
+    val press: Boolean = false,
+    val releaseMs: Double = 1000.0 / Fps,
+  ) {
+    /** Quanto è premuto il tasto a [tMs] dal cambio: uno fino al rilascio, poi la molla del rilascio. */
+    fun progress(tMs: Double): Float {
+      val since = tMs + releaseMs
+      if (since <= 0.0) return 1f
+      return PressRelease.getValueFromNanos((since * 1_000_000.0).toLong(), 1f, 0f, 0f)
+    }
+
+    /** La pressione del tasto a [tMs] per un pezzo largo [w] e alto [h] (px, [d] px per dp), o null se è a riposo. */
+    fun transform(tMs: Double, w: Float, h: Float, d: Float): FluidPressTransform? {
+      if (!press) return null
+      return fluidPressTransform(FluidPressFeedback.ExpandRound, progress(tMs), Offset.Zero, w, h, d, reducedMotion = false)
+        .takeUnless { it.isIdentity }
+    }
+  }
+
+  /** La molla del rilascio di un tasto che cresce: `FluidPressSprings.ExpandOut` (0,5, 300). */
+  private val PressRelease = FloatSpringSpec(0.5f, 300f, 0.001f)
 
   internal class Scene(
     val name: String,
@@ -175,6 +211,12 @@ internal object F38aTraces {
 
       val journey = driver.journey
       val frame: GlassPlaneFrame? = driver.frame
+      // La pressione del tasto toccato a questo istante (giro di correzione di F3), con la taglia del suo posto.
+      val pressing = scene.touch?.takeIf { it.press }?.let { t ->
+        val place = (contents[t.key]?.place ?: scene.initial.pieces.firstOrNull { it.key == t.key }?.bounds)
+        place?.let { t.transform(time, it.width, it.height, d) }
+      }
+      val pressedKey = scene.touch?.key
       if (journey == null || frame == null) {
         // A riposo: ogni contenuto è pieno e al suo posto, e niente resta di chi se n'è andato.
         stage = emptyList()
@@ -234,7 +276,8 @@ internal object F38aTraces {
             done += key
             continue
           }
-          content.flight = fluidGlassContentFlightOf(flying, content.role, content.look, content.place, swell)
+          val press = pressing?.takeIf { flying.flightId.sourceKey == pressedKey || flying.flightId.targetKey == pressedKey }
+          content.flight = fluidGlassContentFlightOf(flying, content.role, content.look, content.place, swell, press)
         }
         done.forEach { contents.remove(it) }
       }
@@ -250,7 +293,11 @@ internal object F38aTraces {
           val pressed = scene.touch?.takeIf { time < 0.0 && journey == null }
             ?.let { t -> ordered.firstOrNull { it.key == t.key }?.let { piece -> t to piece } }
           val shape = PhysicsPlaneShape(
-            slabs = ordered.map { FluidForm.Slab(it.bounds, it.radii, smoothing = 0f) },
+            // Il tasto premuto, fermo: la sua lastra come la scala il blocco del layer della pressione.
+            slabs = ordered.map { piece ->
+              val slab = FluidForm.Slab(piece.bounds, piece.radii, smoothing = 0f)
+              if (pressing != null && piece.key == pressedKey) fluidGlassPressedSlab(slab, pressing) else slab
+            },
             nominalBlend = spacingPx,
             neck = -1f,
             unions = fluidGlassUnionIndices(ordered),
@@ -261,7 +308,9 @@ internal object F38aTraces {
               )
             },
           )
-          val layers = cluster.pieces.mapNotNull { piece -> contents[piece.key]?.let { layer(scene, piece.key, it) } }
+          val layers = cluster.pieces.mapNotNull { piece ->
+            contents[piece.key]?.let { layer(scene, piece.key, it, pressing?.takeIf { piece.key == pressedKey }) }
+          }
           elements += element("riposo-${restName(cluster)}", shape, scene, null, layers, "riposo: il grappolo tiene il suo vetro")
         }
       }
@@ -278,10 +327,16 @@ internal object F38aTraces {
             ),
             // F3.12c: l'alone ha la sua curva, come `driveStage`.
             journeyGlow = if (field.lens) 0f else driver.journeyGlow,
+            // Giro di correzione di F3: il tasto premuto resta premuto sul palco e si rilascia con la sua molla.
+            pressed = { member ->
+              pressing?.takeIf { member.flightId.sourceKey == pressedKey || member.flightId.targetKey == pressedKey }
+            },
           )
           if (shape.slabs.isEmpty()) continue
           val keys = field.flights.mapNotNull { it.targetKey ?: it.sourceKey }
-          val layers = keys.mapNotNull { key -> contents[key]?.let { layer(scene, key, it) } }
+          val layers = keys.mapNotNull { key ->
+            contents[key]?.let { layer(scene, key, it, pressing?.takeIf { key == pressedKey }) }
+          }
           val element = element("palco-${field.index}", shape, scene, field.bounds, layers,
             "F3.8a: palco del contenitore (fluidGlassStagePlane), contenuto nel vetro (glassPieceContentLook)")
           element["_collo"] = round3(shape.neck)
@@ -296,6 +351,9 @@ internal object F38aTraces {
           element["_dito"] = round3(shape.touch?.amount ?: 0f)
           element["_riempito"] = round3(shape.touch?.fill ?: 0f)
           element["_unione"] = field.union.name
+          // Giro di correzione di F3: la vita della goccia (la più stretta del campo) e la pressione del tasto toccato.
+          element["_vita"] = round3(frame.pieces.filter { it.flightId in field.flights }.minOfOrNull { it.birthWaist } ?: 1f)
+          element["_premuto"] = round3(pressing?.scaleX ?: 1f)
           element["_contenuto"] = keys.mapNotNull { key ->
             contents[key]?.let { content ->
               linkedMapOf(
@@ -331,14 +389,17 @@ internal object F38aTraces {
   }
 
   /** Lo strato del contenuto di un pezzo: il testo o l'icona al suo posto, con l'aspetto e il ritaglio di adesso. */
-  private fun layer(scene: Scene, key: Any, content: Content): Map<String, Any?>? {
+  private fun layer(scene: Scene, key: Any, content: Content, press: FluidPressTransform? = null): Map<String, Any?>? {
     val label = scene.labels[key] ?: return null
     if (!content.shown) return null
     val d = scene.density
     val flight = content.flight
     val look = flight?.look ?: content.look
     if (look.alpha <= 0.001f) return null
-    val place = content.place.translate(flight?.offset ?: Offset.Zero)
+    // Il contenuto di un tasto premuto ha la pressione nel suo layer (giro di correzione di F3): scala attorno al suo
+    // centro e deriva del dito, come il vetro.
+    val pressShift = if (press != null) Offset(press.translationX, press.translationY) else Offset.Zero
+    val place = content.place.translate((flight?.offset ?: Offset.Zero) + pressShift)
     val out = linkedMapOf<String, Any?>(
       "name" to "c-$key",
       "x" to round3(place.left / d), "y" to round3(place.top / d),
@@ -361,7 +422,9 @@ internal object F38aTraces {
         out["marginDp"] = 12
       }
       out["alpha"] = round3(look.alpha)
-      out["scale"] = round3(look.scale)
+      out["scale"] = round3(look.scale * (press?.let { min(it.scaleX, it.scaleY) } ?: 1f))
+    } else if (press != null) {
+      out["scale"] = round3(min(press.scaleX, press.scaleY))
     }
     val clip = flight?.clip
     if (clip != null) {
@@ -600,6 +663,72 @@ internal object F38aTraces {
       ),
     )
   }
+
+  /**
+   * Il margine con cui un contenitore della galleria fascia la sua riga (giro di correzione di F3): un tasto tondo di
+   * vetro da 44 dp ha un bersaglio del tocco di 48, quindi 2 dp attorno; una capsula sta a filo della riga. È il
+   * contenitore di `OneTwo` in `PlanePage.kt` (logcat S4: «Modifica» [4,4 94×94] in 102×102, «Fatto» a filo a destra).
+   */
+  private const val WrapDp = 2f
+
+  /**
+   * [state] in un contenitore che **fascia la sua riga**, come in galleria e nelle barre (giro di correzione di F3, R3 di
+   * C, rilievo 2 di A): il riquadro è quello dei pezzi, coi 2 dp del bersaglio attorno ai tondi e in alto e in basso. Il
+   * posto del palco ([GlassPlaneState.room]) è la tela della scena, cioè la finestra; con [capped] è il riquadro stesso,
+   * il comportamento di F3.12c (il superamento e la spinta tagliati), per la prova differenziale.
+   */
+  fun wrapped(state: GlassPlaneState, capped: Boolean = false): GlassPlaneState {
+    if (state.pieces.isEmpty()) return state
+    val m = WrapDp * Density
+    fun round(p: GlassPlanePiece) = abs(p.bounds.width - p.bounds.height) < 0.5f
+    val box = Rect(
+      state.pieces.minOf { it.bounds.left - (if (round(it)) m else 0f) },
+      state.pieces.minOf { it.bounds.top } - m,
+      state.pieces.maxOf { it.bounds.right + (if (round(it)) m else 0f) },
+      state.pieces.maxOf { it.bounds.bottom } + m,
+    )
+    return GlassPlaneState(state.pieces, state.spacing, box, state.preferredPieces, room = if (capped) box else state.bounds)
+  }
+
+  /** [scene] col contenitore che fascia la riga ([wrapped]): `<nome>-stretto`, o `-stretto-f312c` col tetto di prima. */
+  fun narrow(scene: Scene, capped: Boolean = false): Scene = Scene(
+    name = scene.name + if (capped) "-stretto-f312c" else "-stretto",
+    note = scene.note + " · contenitore stretto attorno alla riga, come in galleria" +
+      if (capped) " (il tetto di F3.12c: superamento e spinta dentro il contenitore)" else " (il palco fino alla finestra)",
+    widthDp = scene.widthDp, heightDp = scene.heightDp, dark = scene.dark,
+    initial = wrapped(scene.initial, capped), steps = scene.steps.map { Step(it.atMs, wrapped(it.state, capped)) },
+    labels = scene.labels, lastFrame = scene.lastFrame, density = scene.density, firstFrame = scene.firstFrame,
+    spacingDp = scene.spacingDp, background = scene.background, apple = scene.apple, journey = scene.journey,
+    touch = scene.touch, phase = scene.phase,
+  )
+
+  /**
+   * Le scene del giro di correzione di F3 (fase `f3-corr`): una variante col contenitore stretto della galleria per ogni
+   * scena di nascita e di confluenza ([narrow]), e «uno-due» fatto partire da un **tocco** su «Modifica», premuto (la
+   * pressione che il palco eredita), nei due contenitori.
+   */
+  fun correctionScenes(): List<Scene> {
+    val births = setOf(
+      "uno-due-chiaro", "uno-due-scuro", "due-uno-chiaro", "uno-due-interrotto", "seleziona-fatto-chiaro",
+      "nascita-apple", "confluenza-apple",
+    )
+    val base = scenes().filter { it.name in births }
+    val touched = base.first { it.name == "uno-due-chiaro" }.let { s ->
+      Scene(
+        name = "uno-due-tocco", note = "«Modifica» premuto fa nascere «Fatto»: il palco parte dal tasto premuto e lo rilascia",
+        widthDp = s.widthDp, heightDp = s.heightDp, dark = false, initial = s.initial, steps = s.steps, labels = s.labels,
+        lastFrame = s.lastFrame, firstFrame = -12, apple = s.apple,
+        touch = Touch("modifica", amount = Touch("modifica", 1f, press = true).progress(0.0), press = true),
+      )
+    }
+    // Le scene larghe hanno già il loro nome nelle tracce di F3.8a: qui le varianti strette e il tocco.
+    return (base.map { narrow(it) } + listOf(touched, narrow(touched))).map { it.withPhase("f3-corr") }
+  }
+
+  private fun Scene.withPhase(phase: String): Scene = Scene(
+    name, note, widthDp, heightDp, dark, initial, steps, labels, lastFrame, density, firstFrame, spacingDp, background, apple,
+    journey, touch, phase,
+  )
 
   /** Il testo sotto il vetro delle tavole «sul testo» (lo stesso delle tracce di F3 e di F3.9). */
   private val Text: Map<String, Any?> = linkedMapOf(

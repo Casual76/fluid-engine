@@ -138,7 +138,10 @@ internal enum class FluidAssistantSurface(val role: GlassRole, val large: Boolea
  *
  * **Nessun viaggio** (`FluidGlassAnimation.None`): il pannello sta da solo, non ha vicini da cui nascere né in cui
  * confluire, e il suo contenuto cresce mentre la risposta arriva o la tastiera sale. Con la molla del piano il vetro
- * inseguirebbe il contenuto per un terzo di secondo, col testo fuori dal bordo; così lo segue nel fotogramma dopo.
+ * inseguirebbe il contenuto per un terzo di secondo, col testo fuori dal bordo; così lo segue nel fotogramma dopo, e
+ * dal giro di correzione di F3 **il contenuto con lui**: nel fotogramma in cui il pannello ha già la misura nuova e il
+ * vetro ancora quella di prima, il contenitore mostra il contenuto di prima dov'era (il «Chiedi qualcosa…» del dock non
+ * esce più dal vetro al cambio di card, S4 di F3), e vetro e contenuto nuovi arrivano insieme.
  */
 @Composable
 internal fun FluidAssistantPanelGlass(modifier: Modifier, panel: @Composable (Modifier) -> Unit) {

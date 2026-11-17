@@ -943,15 +943,114 @@ class GlassPlaneTest {
     assertTrue("il donatore continua subito", again.frame(8.0).target("done").bounds.right > live.target("done").bounds.right + 0.3f)
   }
 
-  @Test fun theOvershootOfAReleaseStaysInsideTheContainer() {
-    // Un vetro che nasce a due pixel dal bordo del contenitore non lo oltrepassa: il lato di testa si ferma lì.
+  @Test fun theOvershootOfAReleaseStaysInsideTheStageRoomNotTheContainer() {
+    // Giro di correzione di F3 (R3 di C, rilievo 2 di A). Fino a F3.12c il tetto era il riquadro del **contenitore**, e un
+    // contenitore che fascia la sua riga (la galleria, il KDoc, le barre di F4A) tagliava il superamento al 105% e la
+    // spinta a 1–2 dp. Ora il tetto è il **posto del palco** (`GlassPlaneState.room`, la finestra nel contenitore): un
+    // vetro che nasce a due pixel dal bordo della finestra non lo oltrepassa, uno che nasce a filo del contenitore sì.
     val a = piece("a", 258f)
     val b = piece("b", 310f, width = 88f)
     val journey = GlassPlaneJourney(state(a), state(a, b))
     val furthest = (0..journey.durationMs.toInt()).maxOf { journey.frame(it.toDouble()).target("b").bounds.right }
-    assertTrue("arriva a $furthest, il contenitore finisce a ${canvas.right}", furthest <= canvas.right + 0.01f)
+    assertTrue("arriva a $furthest, la finestra finisce a ${canvas.right}", furthest <= canvas.right + 0.01f)
     assertTrue(furthest > b.bounds.right)
     assertRect(b.bounds, journey.frame(journey.durationMs + 0.01).target("b").bounds, 0f)
+    // Lo stesso vetro in un contenitore che finisce col suo bordo, dentro una finestra larga: esce dal contenitore quanto
+    // in una scena larga, fino al 9,5% della molla.
+    val wide = Rect(0f, 0f, 800f, 180f)
+    fun wrapped(vararg p: GlassPlanePiece) = GlassPlaneState(p.toList(), 12f, Rect(256f, 38f, 398f, 86f), 4, room = wide)
+    val free = GlassPlaneJourney(wrapped(a), wrapped(a, b))
+    val beyond = (0..free.durationMs.toInt()).maxOf { free.frame(it.toDouble()).target("b").bounds.right }
+    val run = b.bounds.right - (a.bounds.center.x + a.bounds.width * FluidMotion.PlaneReleaseBud / 2f)
+    assertTrue("esce dal contenitore di ${beyond - 398f} px (corsa $run)", beyond - 398f > 0.06f * run)
+  }
+
+  @Test fun aWrappedContainerKeepsTheChoreographyOfAWideOne() {
+    // La prova differenziale (R3 di C): gli stessi pezzi in un contenitore che fascia la riga e in uno largo, con la stessa
+    // finestra, fanno lo **stesso viaggio**, fotogramma per fotogramma: il riquadro del contenitore non conta più per il
+    // superamento, la spinta e il rimbalzo del donatore. Col tetto di F3.12c (il posto del palco uguale al contenitore
+    // stretto) il superamento del nato era lo 0,5% della corsa e la spinta di chi accoglie quasi niente.
+    val window = Rect(0f, 0f, 800f, 300f)
+    val donor = piece("a", 100f)
+    val born = piece("b", 152f, width = 88f)
+    fun tight(capped: Boolean, vararg p: GlassPlanePiece): GlassPlaneState {
+      val box = Rect(p.minOf { it.bounds.left } - 4f, 36f, p.maxOf { it.bounds.right }, 88f)
+      return GlassPlaneState(p.toList(), 12f, box, 4, room = if (capped) box else window)
+    }
+    for ((before, after) in listOf(arrayOf(donor) to arrayOf(donor, born), arrayOf(donor, born) to arrayOf(donor))) {
+      val large = GlassPlaneJourney(
+        GlassPlaneState(before.toList(), 12f, window, 4), GlassPlaneState(after.toList(), 12f, window, 4),
+      )
+      val narrow = GlassPlaneJourney(tight(false, *before), tight(false, *after))
+      val capped = GlassPlaneJourney(tight(true, *before), tight(true, *after))
+      assertEquals(large.durationMs, narrow.durationMs, 0.0)
+      assertEquals(large.settleMs, narrow.settleMs, 0.0)
+      var ms = 0.0
+      while (ms <= large.durationMs + 1.0) {
+        val l = large.frame(ms).pieces
+        val n = narrow.frame(ms).pieces
+        assertEquals(l.size, n.size)
+        for (i in l.indices) {
+          assertEquals("t=$ms", l[i].bounds, n[i].bounds)
+          assertEquals("t=$ms", l[i].radii, n[i].radii)
+          assertEquals("t=$ms", l[i].swell, n[i].swell, 0f)
+        }
+        ms += 1.0
+      }
+      // E il tetto di prima tagliava davvero: il lato di testa del nato, o la spinta di chi accoglie.
+      if (after.size == 2) {
+        val free = (0..large.durationMs.toInt()).maxOf { large.frame(it.toDouble()).target("b").bounds.right }
+        val cut = (0..capped.durationMs.toInt()).maxOf { capped.frame(it.toDouble()).target("b").bounds.right }
+        val run = born.bounds.right - donor.bounds.center.x
+        assertTrue("superamento libero ${free - born.bounds.right} px", (free - born.bounds.right) / run > 0.05f)
+        assertTrue("col tetto di F3.12c ${cut - born.bounds.right} px", (cut - born.bounds.right) / run < 0.01f)
+      } else {
+        val push = (0..large.durationMs.toInt()).minOf { large.frame(it.toDouble()).target("a").bounds.left }
+        val pinned = (0..capped.durationMs.toInt()).minOf { capped.frame(it.toDouble()).target("a").bounds.left }
+        assertTrue("spinta libera ${donor.bounds.left - push} px", donor.bounds.left - push > 6f)
+        assertTrue("col tetto di F3.12c ${donor.bounds.left - pinned} px", donor.bounds.left - pinned <= 4.01f)
+      }
+    }
+  }
+
+  @Test fun theBirthWaistNarrowsMonotonicallyUntilTheBreakAndNeverReopens() {
+    // Giro di correzione di F3, punto 10 (scelta di Alessio: «C corretta»). La vita della goccia si stringe da ~200 ms
+    // (0,31 del mezzo periodo dopo il rilascio) fino a ~350 (0,93) e poi resta stretta fino alla rottura: il prototipo C
+    // tornava a uno a 367 ms e la vita si riallargava. Chi non nasce non ha vita, e una spec dell'app nemmeno.
+    val a = piece("a", 100f)
+    val b = piece("b", 152f, width = 88f)
+    val journey = GlassPlaneJourney(state(a), state(a, b))
+    val delay = journey.releaseDelays.getValue("b")
+    val half = FluidMotion.PlaneReleaseSwing * (FluidMotion.PlaneReleaseMillis - delay)
+    val from = delay + FluidMotion.PlaneReleaseWaistFrom * half
+    val to = delay + FluidMotion.PlaneReleaseWaistTo * half
+    assertEquals("comincia a ~200 ms", 200.0, from, 3.0)
+    assertEquals("ed è al più stretto a ~350 ms", 350.0, to, 3.0)
+    var previous = 1f
+    var ms = 0.0
+    while (ms <= journey.durationMs) {
+      val frame = journey.frame(ms)
+      val waist = frame.target("b").birthWaist
+      assertTrue("t=$ms: la vita non si riapre ($previous -> $waist)", waist <= previous + 1e-6f)
+      if (ms <= from) assertEquals("t=$ms", 1f, waist, 0f)
+      if (ms >= to) assertEquals("t=$ms", FluidMotion.PlaneReleaseWaist, waist, 1e-6f)
+      assertEquals("il donatore non ha vita sua", 1f, frame.target("a").birthWaist, 0f)
+      previous = waist
+      ms += 1.0
+    }
+    val custom = GlassPlaneJourney(state(a), state(a, b), GlassPlaneMotion(spec = androidx.compose.animation.core.tween(300)))
+    assertTrue((0..300).all { custom.frame(it.toDouble()).target("b").birthWaist == 1f })
+    // Un viaggio che riparte porta la vita che c'era e la riapre piano: nessun salto al primo fotogramma.
+    for (at in listOf(250.0, 330.0, 400.0)) {
+      val live = journey.frame(at).target("b").birthWaist
+      for (next in listOf(state(a), state(a, b))) {
+        val again = journey.retarget(at, next)
+        val first = again.frame(0.0).pieces.single { it.piece.key == "b" }
+        assertEquals("ripartito a $at", live, first.birthWaist, 0f)
+        val later = again.frame(40.0).pieces.single { it.piece.key == "b" }.birthWaist
+        assertTrue("si riapre piano: $live -> $later", later >= live && later - live < 0.2f)
+      }
+    }
   }
 
   @Test fun aReleaseInterruptedHalfwayRestartsFromEverySideAndItsVelocity() {

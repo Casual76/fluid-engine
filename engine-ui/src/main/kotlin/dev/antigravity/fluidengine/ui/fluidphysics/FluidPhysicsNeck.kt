@@ -149,15 +149,23 @@ internal fun physicsNeckSanitize(fusion: Float): Float = when {
  * Al primo istante vale [start], qualunque sia [breakAt]: la strozzatura non comincia mai prima della partenza
  * (per questo la sua mezza larghezza è al più [breakAt]). È ciò che fa ripartire un viaggio interrotto o invertito dal
  * collo che c'era.
+ *
+ * [bridgeFromZero] (solo il piano flottante, [PhysicsPlaneNeck]): in una salita che parte da pezzi staccati ([start] ≤ 0)
+ * la parte positiva della salita va al quadrato. La vita del collo è la radice della coordinata (l'esponente «spesso»),
+ * quindi senza il quadrato il ponte appena nato passava da zero a quattro decimi della vita piena in un fotogramma (il
+ * ponte della confluenza «pieno in due fotogrammi» e le capsule accostate unite al primo fotogramma, S4 di F3); col
+ * quadrato la vita cresce come la coordinata, da zero e con continuità. Lo zero (il ponte che nasce) e l'uno restano dove
+ * sono, e la strozzatura e la rottura non cambiano. Falso di serie: i viaggi di `morphTo` restano com'erano, al bit.
  */
-internal fun physicsNeckAt(elapsed: Float, start: Float, breakAt: Float): Float {
+internal fun physicsNeckAt(elapsed: Float, start: Float, breakAt: Float, bridgeFromZero: Boolean = false): Float {
   if (!elapsed.isFinite()) return -1f
   val x = elapsed.coerceIn(0f, 1f)
   val s = if (start.isFinite()) start.coerceIn(-1f, 1f) else -1f
   val b = if (breakAt.isFinite()) breakAt.coerceIn(0.05f, 0.5f) else 0.32f
   val h = min(PhysicsNeckPinch, b)
   val r = (x / PhysicsNeckRise).coerceIn(0f, 1f)
-  val risen = s + (1f - s) * (1f - (1f - r) * (1f - r) * (1f - r))
+  var risen = s + (1f - s) * (1f - (1f - r) * (1f - r) * (1f - r))
+  if (bridgeFromZero && s <= 0f && risen > 0f) risen *= risen
   val u = (x - (b - h)) / (2f * h)
   val fall = 1f - physicsNeckPinchEase(u)
   return (-1f + (risen + 1f) * fall).coerceIn(-1f, 1f)
@@ -286,6 +294,9 @@ internal fun physicsPlaneNeckMs(settleMs: Double): Double = settleMs * PhysicsPl
  *
  * Un viaggio interrotto riparte dal collo che c'era ([retarget]): è l'invariante 16, come per `morphTo`.
  *
+ * Il ponte che nasce fra due pezzi staccati cresce **da zero** (giro di correzione di F3): la salita usa
+ * `physicsNeckAt(…, bridgeFromZero = true)`, che porta al quadrato la parte positiva di una salita da pezzi staccati.
+ *
  * @param start la coordinata del collo alla partenza: -1 da fermi.
  * @param durationMs quanto dura il viaggio, in millisecondi; zero o meno: un viaggio senza tempo, sempre a riposo.
  * @param breakAt a che frazione del tempo il collo si rompe.
@@ -299,7 +310,7 @@ internal class PhysicsPlaneNeck(
   /** La coordinata del collo a [tMs] dalla partenza: [start] a zero, -1 dalla fine del viaggio in poi. */
   fun at(tMs: Double): Float {
     if (!(durationMs > 0.0) || !tMs.isFinite()) return -1f
-    return physicsNeckAt((tMs / durationMs).toFloat(), start, breakAt)
+    return physicsNeckAt((tMs / durationMs).toFloat(), start, breakAt, bridgeFromZero = true)
   }
 
   /** L'orologio del viaggio che interrompe questo a [atMs] e dura [nextDurationMs]: parte dal collo di adesso. */

@@ -903,6 +903,33 @@ object FluidMotion {
   const val PlaneReleaseSwell: Float = 1.27f
 
   /**
+   * La **vita** della goccia che nasce (giro di correzione di F3, scelta di Alessio del 17 novembre: «C corretta», la
+   * variante `SoftWaist` di `sessioni/esplora-vita/`): quanto è larga la vita del collo fra il donatore e chi nasce, al
+   * più stretto, in frazione di quella del collo scelto. Il collo resta quello (forma A, «spesso», esponente 1/2, rottura
+   * a 0,38 del suo orologio, ~415 ms): questo restringe solo la **vita prima della rottura**, che in Apple è profonda
+   * mentre il nato esce. Da [PlaneReleaseWaistFrom] a [PlaneReleaseWaistTo] la vita si stringe, poi resta stretta fino
+   * alla rottura: **mai una riapertura** (il prototipo C tornava al collo di prima a 367 ms e la vita si riallargava da
+   * 0,60 a 0,71 H, mentre in Apple continua a stringersi). R4 B2 (b), fiducia **media** (due clip, il contorno alto,
+   * `esplora-vita/misure/`): la sezione della vita è 0,72–0,75 H a 267 ms, 0,63–0,67 a 300, 0,54–0,59 a 333, 0,42–0,48 a
+   * 367; F3.12c era 0,89, 0,84, 0,86, 0,71.
+   */
+  const val PlaneReleaseWaist: Float = 0.64f
+
+  /**
+   * Quando la vita della goccia ([PlaneReleaseWaist]) comincia a stringersi, dopo il rilascio, in frazione del mezzo
+   * periodo della molla di rilascio: 0,31 (~200 ms in una nascita da un donatore fermo, quando il lobo è appena uscito).
+   * Sull'orologio di chi nasce: un fratello rilasciato dopo stringe dopo.
+   */
+  const val PlaneReleaseWaistFrom: Float = 0.31f
+
+  /**
+   * Quando la vita della goccia è al suo più stretto ([PlaneReleaseWaist]), dopo il rilascio, in frazione del mezzo
+   * periodo della molla di rilascio: 0,93 (~350 ms in una nascita da un donatore fermo, fra il colmo e la rottura). Fra
+   * [PlaneReleaseWaistFrom] e qui con uno smoothstep; da qui alla rottura resta stretta.
+   */
+  const val PlaneReleaseWaistTo: Float = 0.93f
+
+  /**
    * Lo smorzamento di un vetro che confluisce in un vicino: 0,62, cioè un superamento dell'8,4%. R4 B2 (b), fiducia
    * **alta**: 8,4% e 8,4% sul bordo lontano nelle due confluenze di classe B. Quel superamento non esce dall'altra parte
    * del vicino: è la **spinta** che sposta chi accoglie, tutto intero (F3.12a; in F3.11 si gonfiava un lato).

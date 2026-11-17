@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.GlassContentCurve
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import kotlin.math.abs
 import kotlin.math.atan
 import kotlin.math.cos
@@ -47,12 +48,23 @@ internal enum class GlassPlaneMatch { Id, Role, Symbol, OutsideOrder }
 /** Quattro è una preferenza di partizione; otto resta il limite del programma anche durante un viaggio. */
 internal const val GlassPlanePreferredPieces = 4
 
-/** Snapshot copiato dal registro: una modifica successiva del layout non riscrive la partenza del viaggio. */
+/**
+ * Snapshot copiato dal registro: una modifica successiva del layout non riscrive la partenza del viaggio.
+ *
+ * [bounds] è il riquadro del contenitore: decide da che parte sta un pezzo senza identità ([planePairs]). [room] è il
+ * **posto del palco** (giro di correzione di F3, R3 di C, rilievo 2 di A): fin dove il vetro di un viaggio può arrivare
+ * col superamento di chi nasce e con la spinta di chi accoglie. Il contenitore ci mette la **finestra** (il riquadro della
+ * radice della composizione, nelle sue coordinate), perché il palco disegna già oltre il suo nodo (ombra, alone) e un
+ * contenitore che fascia la sua riga, come quello della scheda e delle barre, non deve tagliare la coreografia di Apple:
+ * fino a F3.12c il tetto era il riquadro del contenitore, e sul tablet il colmo di «Fatto» era il 105,1% invece del 113% e
+ * la spinta 1–2 dp invece di ~8. Di serie è [bounds], com'era: lo usano le prove e le tracce che non hanno una finestra.
+ */
 internal class GlassPlaneState(
   pieces: List<GlassPlanePiece>,
   val spacing: Float,
   val bounds: Rect,
   val preferredPieces: Int = GlassPlanePreferredPieces,
+  val room: Rect = bounds,
 ) {
   val pieces: List<GlassPlanePiece> = pieces.toList()
   val clusters: List<GlassPlaneCluster>
@@ -60,6 +72,7 @@ internal class GlassPlaneState(
   init {
     require(spacing.isFinite() && spacing >= 0f)
     require(bounds.planeValues().all { it.isFinite() } && bounds.width >= 0f && bounds.height >= 0f)
+    require(room.planeValues().all { it.isFinite() } && room.width >= 0f && room.height >= 0f)
     require(preferredPieces in 1..GlassFieldMaxPieces)
     require(this.pieces.map { it.key }.distinct().size == this.pieces.size) { "chiavi di registrazione duplicate" }
     val identified = this.pieces.filter { it.id != null }.map { it.containerId to it.id }
@@ -88,8 +101,12 @@ internal class GlassPlaneRegistry {
 
   fun put(piece: GlassPlanePiece) { pieces[piece.key] = piece }
   fun remove(key: Any): Boolean = pieces.remove(key) != null
-  fun snapshot(spacing: Float, bounds: Rect, preferredPieces: Int = GlassPlanePreferredPieces): GlassPlaneState =
-    GlassPlaneState(pieces.values.toList(), spacing, bounds, preferredPieces)
+  fun snapshot(
+    spacing: Float,
+    bounds: Rect,
+    preferredPieces: Int = GlassPlanePreferredPieces,
+    room: Rect = bounds,
+  ): GlassPlaneState = GlassPlaneState(pieces.values.toList(), spacing, bounds, preferredPieces, room)
 }
 
 internal data class GlassPlaneVelocity(
@@ -157,6 +174,14 @@ internal data class GlassPlanePieceFrame(
    * questa che il contenitore dà a `glassPieceContentLook`.
    */
   val contentPhase: Float = phase,
+  /**
+   * La **vita** della goccia (giro di correzione di F3, [FluidMotion.PlaneReleaseWaist]): quanto stretta, in frazione
+   * della vita del collo dell'orologio, è la vita fra questo pezzo e il suo donatore. Uno per tutti; chi nasce da un vicino
+   * la stringe mentre esce e la tiene stretta fino alla rottura. Un viaggio che riparte la porta con sé e la riapre
+   * piano, come il collo che riparte da dov'era. Chi disegna il campo la applica alla sola parte positiva del collo
+   * (`fluidGlassStagePlane`): lo zero, cioè l'istante della rottura, non si sposta.
+   */
+  val birthWaist: Float = 1f,
 )
 
 /** Che cosa fa l'unione dentro un campo in un viaggio (F3.8a): niente, nasce (il collo cresce) o si scioglie (si rompe). */
@@ -309,7 +334,8 @@ internal class GlassPlaneJourney private constructor(
   init {
     val pairing = planePairs(from, to, seeds)
     crossingIds = pairing.crossingIds
-    flights = pairing.pairs.map { pair -> PlaneFlight(pair, seeds, motion, to.bounds) }
+    // Il superamento e la spinta stanno nel posto del palco ([GlassPlaneState.room]), non nel riquadro del contenitore.
+    flights = pairing.pairs.map { pair -> PlaneFlight(pair, seeds, motion, to.room) }
     // Chi nasce da un vicino segue il volo di quel vicino finché non ne è rilasciato, e chi confluisce segue il volo di
     // chi lo accoglie (F3.11). Una catena che torna su se stessa non ha un capo da seguire: quei voli restano com'erano.
     for (flight in flights) {
@@ -379,7 +405,7 @@ internal class GlassPlaneJourney private constructor(
         host.waitMs = waitMs
         twin?.waitMs = waitMs
       }
-      val sway = planeSwayOf(host, around, motion, waitMs, to.bounds) ?: continue
+      val sway = planeSwayOf(host, around, motion, waitMs, to.room) ?: continue
       host.sway = if (host.sway == null) sway else host.sway!! + sway
       twin?.let { it.sway = if (it.sway == null) sway else it.sway!! + sway }
     }
@@ -416,28 +442,34 @@ internal class GlassPlaneJourney private constructor(
     // campo comune il collo dell'orologio nasceva pieno fra loro al primo fotogramma del palco e se ne andava a metà
     // viaggio («cerca» e «preferiti» mentre «play» compare, S3). Un pezzo fermo entra nel campo di uno che cambia, e due
     // della stessa unione (prima o dopo il cambio) stanno sempre insieme.
-    fields = planeComponents(flights) { a, b ->
-      a.pair.piece.sameField(b.pair.piece) && !a.lens && !b.lens &&
-        (a.unitedWith(b) || planeFlightsMeet(a, b, spacing, motion.joinStill))
-    }.flatMap { component ->
-      planePartition(component, { it.sweptBounds() }, max(from.preferredPieces, to.preferredPieces),
-        { a, b -> a.unitedWith(b) })
-    }.map { group ->
-      // Solo fra vetri che c'erano e ci sono: chi nasce in un'unione o vi confluisce ha il collo pieno, come prima.
-      val kept = group.filter { it.pair.source != null && it.pair.target != null }
-      val forming = kept.any { a -> kept.any { b -> a !== b && a.unitedAfter(b) && !a.unitedBefore(b) } }
-      val dissolving = kept.any { a -> kept.any { b -> a !== b && a.unitedBefore(b) && !a.unitedAfter(b) } }
-      GlassPlaneField(
-        group.map { it.id }, planeBounds(group.map { it.sweptBounds() }),
-        if (group.size == 1) GlassBodyKernel.One else GlassBodyKernel.Eight,
-        group.first().pair.piece.variant,
-        union = when {
-          forming -> GlassPlaneUnionChange.Forming
-          dissolving -> GlassPlaneUnionChange.Dissolving
-          else -> GlassPlaneUnionChange.None
-        },
-        still = group.all { it.still },
-      )
+    //
+    // Qui si campionano le traiettorie dei voli rilasciati e di chi confluisce (`PlaneFlight.flownBounds`, ogni 4 ms): è la
+    // parte del costruttore da misurare sul tablet (giro di correzione di F3, `f3-corr-giro/partenza.md`), con la
+    // diagnostica spenta di serie del «giro» (`log.tag.FluidGlassFrame`, sezione `Glass.journeyFields`).
+    fields = GlassFrameDiagnostics.span("journeyFields", this) {
+      planeComponents(flights) { a, b ->
+        a.pair.piece.sameField(b.pair.piece) && !a.lens && !b.lens &&
+          (a.unitedWith(b) || planeFlightsMeet(a, b, spacing, motion.joinStill))
+      }.flatMap { component ->
+        planePartition(component, { it.sweptBounds() }, max(from.preferredPieces, to.preferredPieces),
+          { a, b -> a.unitedWith(b) })
+      }.map { group ->
+        // Solo fra vetri che c'erano e ci sono: chi nasce in un'unione o vi confluisce ha il collo pieno, come prima.
+        val kept = group.filter { it.pair.source != null && it.pair.target != null }
+        val forming = kept.any { a -> kept.any { b -> a !== b && a.unitedAfter(b) && !a.unitedBefore(b) } }
+        val dissolving = kept.any { a -> kept.any { b -> a !== b && a.unitedBefore(b) && !a.unitedAfter(b) } }
+        GlassPlaneField(
+          group.map { it.id }, planeBounds(group.map { it.sweptBounds() }),
+          if (group.size == 1) GlassBodyKernel.One else GlassBodyKernel.Eight,
+          group.first().pair.piece.variant,
+          union = when {
+            forming -> GlassPlaneUnionChange.Forming
+            dissolving -> GlassPlaneUnionChange.Dissolving
+            else -> GlassPlaneUnionChange.None
+          },
+          still = group.all { it.still },
+        )
+      }
     }
   }
 
@@ -458,7 +490,7 @@ internal class GlassPlaneJourney private constructor(
     val live = current.pieces.filter { it.materialize > 0f || it.change != GlassPlaneChange.Dematerialize }
     val snapshot = GlassPlaneState(
       live.map { it.piece.copy(bounds = it.bounds, radii = it.radii) },
-      to.spacing, to.bounds, to.preferredPieces,
+      to.spacing, to.bounds, to.preferredPieces, to.room,
     )
     val common = if (commonSwell.isFinite()) commonSwell else 0f
     return GlassPlaneJourney(snapshot, state, motion, live.associateBy { it.piece.key }, common)
@@ -609,7 +641,7 @@ private class PlaneFlight(
   val pair: PlanePair,
   seeds: Map<Any, GlassPlanePieceFrame>,
   private val motion: GlassPlaneMotion,
-  /** Il riquadro del contenitore: il superamento di un rilascio non ne esce (vedi [prepare]). */
+  /** Il posto del palco ([GlassPlaneState.room]): il superamento di un rilascio non ne esce (vedi [prepare]). */
   private val limits: Rect,
 ) {
   val id = GlassPlaneFlightId(pair.source?.key, pair.target?.key, pair.change)
@@ -818,6 +850,31 @@ private class PlaneFlight(
   private var swellEntry = 0f
   private val swellFadeMs: Double get() = if (swellEntry != 0f) motion.releaseMs * PlaneSwellCarry else 0.0
 
+  /** La vita della goccia che il volo aveva all'interruzione: si riapre in [PlaneSwellCarry] del bilancio (vedi [waistAt]). */
+  private val carriedWaist: Float = seed?.birthWaist?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f
+
+  /**
+   * La vita della goccia a [tMs] ([GlassPlanePieceFrame.birthWaist]): quella ereditata da un viaggio interrotto, che si
+   * riapre in [PlaneSwellCarry] del bilancio da dov'era; e per chi è rilasciato da un donatore la sua, che si stringe da
+   * [FluidMotion.PlaneReleaseWaistFrom] a [FluidMotion.PlaneReleaseWaistTo] del mezzo periodo della sua molla e poi resta
+   * stretta (mai una riapertura prima della rottura). La più stretta delle due.
+   */
+  private fun waistAt(tMs: Double): Float {
+    var waist = 1f
+    if (carriedWaist < 1f) {
+      val span = motion.releaseMs * PlaneSwellCarry
+      val u = if (span > 0.0) (tMs / span).toFloat().coerceIn(0f, 1f) else 1f
+      waist = carriedWaist + (1f - carriedWaist) * planeSmoothstep(u)
+    }
+    if (course == PlaneCourse.Released && travels && halfMs > 0.0) {
+      val from = delayMs + FluidMotion.PlaneReleaseWaistFrom * halfMs
+      val to = delayMs + FluidMotion.PlaneReleaseWaistTo * halfMs
+      val u = if (to > from) ((tMs - from) / (to - from)).toFloat().coerceIn(0f, 1f) else 1f
+      waist = min(waist, 1f - (1f - FluidMotion.PlaneReleaseWaist) * planeSmoothstep(u))
+    }
+    return waist
+  }
+
   /** Il rigonfiamento che il volo ha avuto all'interruzione, e quanta parte del comune prendeva: vedi [carrySwell]. */
   private val carriedSwell: Float = if (motion.spec != null) 0f else seed?.swell?.takeIf { it.isFinite() } ?: 0f
   private val carriedShare: Float = seed?.swellShare?.takeIf { it.isFinite() } ?: 1f
@@ -839,7 +896,8 @@ private class PlaneFlight(
    *
    * Chi è rilasciato viaggia **rigido** (F3.12a): tutti i lati e i raggi hanno la stessa molla
    * ([FluidMotion.PlaneReleaseDamping]) e superano l'arrivo insieme, quindi il centro del vetro, dove sta il contenuto,
-   * rimbalza col vetro. Il **lato di testa** (quello dalla parte in cui va il centro) non esce dal contenitore. Chi
+   * rimbalza col vetro. Il **lato di testa** (quello dalla parte in cui va il centro) non esce dal posto del palco
+   * ([GlassPlaneState.room], la finestra nel contenitore): oltre il riquadro del contenitore sì, come in Apple. Chi
    * confluisce non esce dal vicino: la sua spinta la prende il vicino, che si sposta tutto ([PlaneSway]).
    */
   fun prepare() {
@@ -878,7 +936,7 @@ private class PlaneFlight(
             2 -> limits.right - target[2]
             else -> limits.bottom - target[3]
           }
-          // Un pezzo che sta già fuori dal riquadro del contenitore non ha un tetto da quello.
+          // Un pezzo che sta già fuori dal posto del palco non ha un tetto da quello.
           val inside = limits.width > 0f && limits.height > 0f && room >= 0f
           overshootCap[lead] = if (inside && run > 0f && room < run * overshoot) max(room / run, PlaneOvershootFloor)
             else Float.POSITIVE_INFINITY
@@ -1141,7 +1199,7 @@ private class PlaneFlight(
    */
   val anchored: Boolean = pair.change == GlassPlaneChange.Matched && !unionChanged && initialAmount == targetAmount &&
     velocity.all { it == 0f } && (0..7).all { abs(target[it] - initial[it]) <= FluidMotion.PlaneSettlePx } &&
-    carriedSwell == 0f && carriedShare == 1f
+    carriedSwell == 0f && carriedShare == 1f && carriedWaist == 1f
 
   /**
    * Fermo: [anchored] e senza dondolio. Un pezzo fermo non ha bisogno del palco. Il donatore di una nascita è al suo
@@ -1341,6 +1399,7 @@ private class PlaneFlight(
       pair.neighbour?.key.takeIf { pair.change == GlassPlaneChange.MergeIntoNeighbour }, pair.target?.bounds ?: pair.source!!.bounds,
       phase = phaseAt(tMs), still = still, unionFrom = pair.source?.unionId, unionTo = pair.target?.unionId,
       relay = pair.relay, swell = courseSwell(tMs), swellShare = swellShare, contentPhase = phaseAt(tMs + contentLeadMs),
+      birthWaist = waistAt(tMs),
     )
   }
 
@@ -1452,7 +1511,7 @@ private const val PlaneFlownStepMs = 4.0
 /** Il ritardo più lungo di un rilascio, in frazione del suo bilancio: oltre, la molla non avrebbe il tempo di tornare. */
 private const val PlaneReleaseDelayCap = 0.5f
 
-/** Il tetto più basso al superamento di un lato di testa stretto contro il bordo del contenitore: mai una fermata secca. */
+/** Il tetto più basso al superamento di un lato di testa stretto contro il bordo del palco: mai una fermata secca. */
 private const val PlaneOvershootFloor = 0.005f
 
 /**
@@ -1634,7 +1693,8 @@ private class PlaneSwayTerm(val axis: Int, private val times: DoubleArray, priva
  *
  * Più nati dalla stessa parte tirano insieme, fino a [PlaneSwayGuests] (nel render «Select → Done» il donatore, con due
  * nati, rimbalza del 9% della sua corsa: due volte il rimbalzo di una nascita sola). Chi accoglie più vetri prende una
- * spinta sola: non c'è una clip che dica di più. Nessun dondolio porta il vetro fuori dal contenitore ([limits]).
+ * spinta sola: non c'è una clip che dica di più. Nessun dondolio porta il vetro fuori dal posto del palco ([limits],
+ * [GlassPlaneState.room]: la finestra, non il riquadro del contenitore).
  */
 private fun planeSwayOf(
   host: PlaneFlight,
@@ -1723,7 +1783,7 @@ private fun planeSwayOf(
   return if (terms.isEmpty()) null else PlaneSway(terms, end)
 }
 
-/** Quanto posto ha [place] dentro [limits] dalla parte [direction] dell'asse [axis]; infinito senza un contenitore. */
+/** Quanto posto ha [place] dentro [limits] dalla parte [direction] dell'asse [axis]; infinito senza un posto del palco. */
 private fun planeRoom(place: Rect, limits: Rect, axis: Int, direction: Float): Float {
   if (!(limits.width > 0f && limits.height > 0f)) return Float.POSITIVE_INFINITY
   val room = when {
@@ -1732,7 +1792,7 @@ private fun planeRoom(place: Rect, limits: Rect, axis: Int, direction: Float): F
     direction < 0f -> place.top - limits.top
     else -> limits.bottom - place.bottom
   }
-  // Un pezzo che sta già fuori dal riquadro del contenitore non ha un tetto da quello.
+  // Un pezzo che sta già fuori dal posto del palco non ha un tetto da quello.
   return if (room >= 0f) room else Float.POSITIVE_INFINITY
 }
 

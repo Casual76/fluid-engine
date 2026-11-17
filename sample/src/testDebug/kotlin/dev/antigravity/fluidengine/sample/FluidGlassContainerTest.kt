@@ -7,6 +7,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -329,5 +338,64 @@ class FluidGlassContainerTest {
     assertEquals("il tasto non sonda: la sonda è del contenitore", 1, FluidGlassProbeDiagnostics.liveProbes)
     assertNull("fuori dal contenitore nessun vetro dà l'aspetto", outside)
     assertNotNull("dentro il contenitore il contenuto riceve l'aspetto del vetro", appearance)
+  }
+
+  @Test
+  fun `un contenitore che cambia misura con gli stessi pezzi non viaggia, e i vetri lo seguono`() {
+    // Giro di correzione di F3 (D R5): una rotazione senza ricreazione, lo schermo diviso, una riga che si allarga. Il
+    // genitore dà al contenitore un posto nuovo, i pezzi si spostano col layout: nessun viaggio, nessuna luce, il riposo
+    // alla misura nuova.
+    var wide by mutableStateOf(false)
+    scene { backdrop ->
+      val ns = rememberFluidGlassNamespace()
+      Box(Modifier.width(if (wide) 340.dp else 220.dp)) {
+        FluidGlassContainer(Modifier.fillMaxWidth()) {
+          Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Box(Modifier.size(44.dp).fluidGlassId("sinistra", ns).fluidGlass(backdrop = backdrop))
+            Box(Modifier.size(44.dp).fluidGlassId("destra", ns).fluidGlass(backdrop = backdrop))
+          }
+        }
+      }
+    }
+    val before = FluidGlassContainerDiagnostics.lastRest.single { it.id == "destra" }.bounds
+    change { wide = true }
+    advance(64)
+    assertEquals("nessun viaggio", 0L, FluidGlassContainerDiagnostics.totalJourneys)
+    val after = FluidGlassContainerDiagnostics.lastRest.single { it.id == "destra" }.bounds
+    // xhdpi: 120 dp in più sono 240 px.
+    assertEquals("il vetro di destra è al posto nuovo: $before -> $after", before.left + 240f, after.left, 1f)
+    change { wide = false }
+    advance(64)
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(before.left, FluidGlassContainerDiagnostics.lastRest.single { it.id == "destra" }.bounds.left, 1f)
+  }
+
+  @Test
+  fun `col vetro di prima il contenitore non viaggia e ogni pezzo e' il vetro di sempre`() {
+    // Giro di correzione di F3 (B 9): `Classic` dentro un contenitore. Il contenitore c'è ma non disegna: nessun riposo
+    // pubblicato, nessun viaggio, e un tasto che arriva si tocca subito (non è un pezzo del piano).
+    var two by mutableStateOf(false)
+    var clicks = 0
+    scene { backdrop ->
+      CompositionLocalProvider(LocalFluidGlassModel provides FluidGlassModel.Classic) {
+        val ns = rememberFluidGlassNamespace()
+        FluidGlassContainer {
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(44.dp).fluidGlassId("uno", ns).fluidGlass(backdrop = backdrop))
+            if (two) {
+              FluidGlassIconButton(onClick = { clicks++ }, modifier = Modifier.fluidGlassId("due", ns).testTag("due")) {}
+            }
+          }
+        }
+      }
+    }
+    assertTrue("nessun riposo del piano: ${FluidGlassContainerDiagnostics.lastRest}", FluidGlassContainerDiagnostics.lastRest.isEmpty())
+    change { two = true }
+    advance(48)
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalJourneys)
+    compose.onNodeWithTag("due").performTouchInput { click(center) }
+    advance(16)
+    assertEquals("il tasto di sempre si tocca subito", 1, clicks)
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalOrderWarnings)
   }
 }

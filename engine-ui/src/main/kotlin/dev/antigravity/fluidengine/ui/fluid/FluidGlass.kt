@@ -140,7 +140,7 @@ internal val FluidGlass.recipeTint: Color
  * ```
  * Icon(FluidIcons.Play, null, Modifier.size(44.dp).fluidGlass())                  // una capsula di vetro di serie
  * Text("Fatto", Modifier.fluidGlass(FluidGlass.Regular.tint(accent).interactive()))
- * Box(Modifier.fluidGlass(FluidGlass.Clear, RoundedCornerShape(24.dp))) { … }      // limpido, sopra una foto
+ * Box(Modifier.fluidGlass(FluidGlass.Clear, ContinuousCornerShape(24.dp))) { … }   // limpido, sopra una foto
  * ```
  *
  * **Dentro un [FluidGlassContainer]** l'elemento è un pezzo del piano: il vetro lo disegna il contenitore (dietro al

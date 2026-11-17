@@ -451,7 +451,8 @@ internal fun Modifier.glassControlSurfaceInked(
 /**
  * Un tasto di vetro dentro un `FluidGlassContainer` (4.0, F3.2): si iscrive al piano come pezzo, e il suo vetro lo
  * disegna il contenitore con la stessa tinta, la stessa ottica, la stessa pressione e lo stesso bagliore (il blocco
- * della pressione arriva alla lastra come `layerBlock`, e al contenuto come layer suo). Non sonda: il lato è del
+ * della pressione arriva alla lastra come `layerBlock`, al contenuto come layer suo, e al palco di un viaggio come
+ * `FluidGlassPressGeometry`: il tasto premuto che fa partire un viaggio lo comincia premuto, giro di correzione di F3). Non sonda: il lato è del
  * contenitore, e **il tasto annidato prende il lato del contenitore** anche col suo inchiostro ([ink] si lega alla
  * decisione del contenitore). `depth`, `frozen` e `heldWhileMoving` li decide il contenitore.
  */
@@ -479,7 +480,12 @@ private fun Modifier.glassControlPiece(
   val touch = remember(press, reducedMotion, interactive) {
     if (interactive) fluidGlassTouchLight(press, reducedMotion) else null
   }
-  val look = remember(backdrop, tint, optics, shape, press, touch, layer) {
+  // La pressione come la vede il palco (giro di correzione di F3): la stessa trasformazione del layer, che il palco porta
+  // sulla lastra del tasto in volo e rilascia con la sua molla, invece di tornare alla misura di riposo in un fotogramma.
+  val pressGeometry = remember(press, reducedMotion, interactive) {
+    if (interactive) FluidGlassPressGeometry(press, reducedMotion) else null
+  }
+  val look = remember(backdrop, tint, optics, shape, press, touch, layer, pressGeometry) {
     FluidGlassLook(
       backdrop = backdrop,
       tint = tint,
@@ -490,6 +496,7 @@ private fun Modifier.glassControlPiece(
       press = press,
       touch = touch,
       layerBlock = layer,
+      pressGeometry = pressGeometry,
     )
   }
   return this

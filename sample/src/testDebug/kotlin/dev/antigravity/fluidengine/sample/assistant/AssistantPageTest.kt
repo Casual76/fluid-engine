@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -348,5 +352,36 @@ class AssistantPageTest {
     val rest = FluidGlassContainerDiagnostics.lastRest
     assertEquals("due pezzi nel contenitore dell'app: $rest", 2, rest.size)
     assertTrue("i due tasti vicini sono un grappolo: $rest", rest.all { it.clusterSize == 2 })
+  }
+
+  @Test
+  fun `il dock che cambia card non viaggia, e vetro e riposo prendono la misura nuova al fotogramma dopo`() {
+    // Giro di correzione di F3 (A 10, C R7, S4 difetto 5): al cambio di card «Chiedi qualcosa…» restava fuori dal vetro per
+    // ~41 ms. Il dock è un pannello da solo senza viaggio (`None`): cambia misura senza viaggi, e il riposo del contenitore
+    // ha la misura nuova al primo passo dopo il layout. Che nel fotogramma del layout il contenuto mostri quello di prima
+    // dov'era (`FluidGlassPieceContent.hold`) lo prova `FluidGlassContainerCorrectionTest` (Robolectric non disegna), e
+    // lo si guarda sul tablet (`sessioni/f3-corr-nucleo/riprese.md`).
+    var card by mutableStateOf(AssistantCardState.Working)
+    showAlone { stage ->
+      FluidAssistantDock(
+        state = sampleState(card),
+        micLevel = MicLevel(0f, speaking = false),
+        pending = null,
+        backdrop = stage,
+        actions = FluidAssistantActions(onAskText = {}, onAskVoice = {}),
+      )
+    }
+    val before = FluidGlassContainerDiagnostics.lastRest.single().bounds
+    card = AssistantCardState.Answer
+    Snapshot.sendApplyNotifications()
+    advance(48)
+    val after = FluidGlassContainerDiagnostics.lastRest.single().bounds
+    assertTrue("la card nuova cambia la misura del dock: $before -> $after", after.height != before.height)
+    assertEquals("nessun viaggio", 0L, FluidGlassContainerDiagnostics.totalJourneys)
+    card = AssistantCardState.Working
+    Snapshot.sendApplyNotifications()
+    advance(48)
+    assertEquals(before, FluidGlassContainerDiagnostics.lastRest.single().bounds)
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalJourneys)
   }
 }

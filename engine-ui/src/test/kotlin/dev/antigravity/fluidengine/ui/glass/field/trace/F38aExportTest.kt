@@ -91,7 +91,8 @@ class F38aExportTest {
       // 0,42 del viaggio (~227 ms), dentro il vetro che sta arrivando. In Apple a tempo vero il «1 +» si vede, sfocato, da
       // ~200–233 ms. La messa a fuoco va sul tempo di quelle clip: morbido ma leggibile a ~300 ms, nitido dal colmo del
       // superamento; e senza scalino (fino a F3.12a la sfocatura finiva di colpo, in due fotogrammi).
-      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 215.0..240.0)
+      // Correzione F3: solo α anticipata di ~30 ms; i controlli di ritaglio, leggibilità e fuoco restano sotto.
+      assertTrue("$name: «Fatto» compare a $firstSeen ms", firstSeen in 185.0..210.0)
       val early = layer(trace.frames.first { it.tMs >= 250.0 }, "c-fatto")!!
       assertTrue("a 250 ms è sfocato", number(early, "blurDp", 0.0) > 1.0)
       assertTrue("e traslucido", number(early, "alpha", 1.0) < 0.7)
@@ -151,7 +152,7 @@ class F38aExportTest {
       assertNull("$name: a riposo non resta niente del vecchio", layer(trace.frames.last(), "c-seleziona"))
       for (key in listOf("c-cerchio", "c-triangolo", "c-fatto")) {
         val first = trace.frames.first { it.tMs >= 0.0 && layer(it, key) != null }
-        assertTrue("$name: $key compare a ${first.tMs} ms", first.tMs in 250.0..290.0)
+        assertTrue("$name: $key compare a ${first.tMs} ms", first.tMs in 215.0..250.0)
         val born = layer(first, key)!!
         assertTrue("$name: $key arriva sfocato", number(born, "blurDp", 0.0) > 1.0)
         assertNotNull("$name: $key arriva dentro il vetro", born["clip"])
@@ -257,9 +258,13 @@ class F38aExportTest {
     for (frame in trace.frames.filter { it.tMs in 116.0..300.0 }) {
       val symbol = layer(frame, "c-play")!!
       val now = number(symbol, "scale", 1.0)
-      assertTrue("t=${frame.tMs}: la scala scende sempre ($scale -> $now)", now < scale)
+      // La traccia arrotonda a tre decimali: una contrazione lenta può ripetere lo stesso valore serializzato.
+      assertTrue("t=${frame.tMs}: la scala non risale ($scale -> $now)", now <= scale)
       scale = now
     }
+    val large = layer(trace.frames.first { it.tMs >= 167.0 }, "c-play")!!
+    assertTrue("il 2x si vede ancora", number(large, "scale", 1.0) > 1.95 && number(large, "alpha", 0.0) > 0.2)
+    assertTrue("poi si contrae", scale < 1.4)
     val full = layer(trace.frames.first { it.tMs >= 430.0 }, "c-play")!!
     assertEquals(1.0, number(full, "scale", 1.0), 0.0)
     assertNull(full["blurDp"])

@@ -376,6 +376,8 @@ internal class GlassPlaneJourney private constructor(
     // Un cambio di larghezza (F4A.5b) porta tutto il viaggio sul suo orologio: più lento, dopo un'attesa. Chi si sposta
     // insieme a lui lo segue (l'orologio resta comune); chi riparte con una velocità non aspetta (invariante 16).
     val resizing = motion.spec == null && contexts.any { it.resizeToward != 0f }
+    // La distanza sotto cui due vetri stanno nello stesso campo del viaggio: serve anche al trascinamento (f3-rifiniture).
+    val spacing = max(from.spacing, to.spacing)
     // Una spec dell'app porta il suo tempo: i bilanci sono quelli della molla di serie.
     if (contexts.isNotEmpty() && motion.spec == null) {
       val budget = if (resizing) motion.resizeMs - motion.resizeWaitMs else motion.contextMs
@@ -385,10 +387,13 @@ internal class GlassPlaneJourney private constructor(
     if (resizing) {
       contexts.filter { it.waits }.forEach { it.waitMs = motion.resizeWaitMs }
       // Il trascinamento (il vetro intero va nel verso del bordo che si muove e torna) e il rigonfiamento suo, coi tempi di
-      // Apple: il comune avrebbe il colmo al 45% del riposo a vista, ~40 ms dopo.
+      // Apple: il comune avrebbe il colmo al 45% del riposo a vista, ~40 ms dopo. Il trascinamento si ferma prima di un
+      // vicino fermo che resterebbe fuori dal campo (f3-rifiniture: vedi [planeResizeDragRoom]).
       for (flight in contexts) {
         if (flight.resizeToward == 0f) continue
-        val sway = planeResizeSwayOf(flight, motion, to.room)
+        val forward = planeResizeDragRoom(flight, flights, spacing, motion.joinStill, flight.resizeToward)
+        val backward = planeResizeDragRoom(flight, flights, spacing, motion.joinStill, -flight.resizeToward)
+        val sway = planeResizeSwayOf(flight, motion, to.room, forward, backward)
         flight.sway = if (flight.sway == null) sway else flight.sway!! + sway
         flight.choreographed = true
       }
@@ -470,7 +475,6 @@ internal class GlassPlaneJourney private constructor(
     // La fase di ogni volo: chi compare o scompare per lente conta sul suo bilancio, chi viaggia sul riposo a vista.
     flights.forEach { it.setPhaseClock(settle, contentLeadMs) }
     stillKeys = flights.filter { it.still }.mapNotNullTo(HashSet()) { it.pair.target?.key }
-    val spacing = max(from.spacing, to.spacing)
     // Chi compare o scompare per lente è un campo a sé (F3.2c): lo shader ha un `materialize` per campo, e un vetro che
     // compare accanto a uno che si sposta, nello stesso campo, non poteva avere la sua comparsa (F3.2 la approssimava col
     // contorno che si stringe e una soglia del 5%). In un campo suo l'ha esatta: contorno, poi lente, poi simbolo. Non si
@@ -478,8 +482,9 @@ internal class GlassPlaneJourney private constructor(
     //
     // Due pezzi **fermi** non si uniscono in un campo solo perché sono vicini (F3.8a): a riposo sono separati, e in un
     // campo comune il collo dell'orologio nasceva pieno fra loro al primo fotogramma del palco e se ne andava a metà
-    // viaggio («cerca» e «preferiti» mentre «play» compare, S3). Un pezzo fermo entra nel campo di uno che cambia, e due
-    // della stessa unione (prima o dopo il cambio) stanno sempre insieme.
+    // viaggio («cerca» e «preferiti» mentre «play» compare, S3). Un pezzo fermo entra nel campo di uno che cambia (se non
+    // gli resta a distanza costante: [planeFlightsMeet]), e due della stessa unione (prima o dopo il cambio) stanno
+    // sempre insieme.
     //
     // Qui si campionano le traiettorie dei voli rilasciati e di chi confluisce (`PlaneFlight.flownBounds`, ogni 4 ms): è la
     // parte del costruttore da misurare sul tablet (giro di correzione di F3, `f3-corr-giro/partenza.md`), con la
@@ -1430,6 +1435,7 @@ private class PlaneFlight(
         else (spring.getVelocityFromNanos(nanos, a, b, v).value * timeScale).toFloat() * tail
     }
     if (course != PlaneCourse.Standard) courseGeometry(tMs, value, speed)
+    if (course == PlaneCourse.Released) releasedRadii(value, speed)
     // Il dondolio sposta il vetro tutto intero (R4 B2 (b): «si sposta tutto il tondo, non si gonfia un lato»).
     sway?.let { rocking ->
       val shift = FloatArray(4)
@@ -1484,6 +1490,50 @@ private class PlaneFlight(
 
   /** Il vicino da cui il vetro nasce o in cui confluisce, se ne ha uno. */
   val neighbourKey: Any? get() = pair.neighbour?.key
+
+  /**
+   * Se questo volo resta alla **stessa distanza** da [still] (il riquadro di un vetro fermo) per tutto il viaggio, entro
+   * [PlaneKeptGapPx]: alla partenza, all'arrivo e in ciò che spazza ([freeBounds]). È un vetro che c'era e c'è (non chi
+   * nasce o confluisce, né chi compare o scompare per lente) e che cambia **dall'altra parte** del fermo che ha accanto,
+   * come la capsula di `testo` che si allunga o si accorcia col bordo verso il tondo fermo (f3-rifiniture): non gli va
+   * incontro e non se ne allontana, e non gli tira un collo ([planeFlightsMeet]).
+   */
+  fun keepsGapTo(still: Rect): Boolean {
+    if (course != PlaneCourse.Standard || pair.source == null || pair.target == null || lens) return false
+    val reach = planeGap(still, freeBounds())
+    return abs(planeGap(still, startRect) - reach) <= PlaneKeptGapPx &&
+      abs(planeGap(still, endRect) - reach) <= PlaneKeptGapPx
+  }
+
+  /**
+   * Chi è rilasciato e arriva **capsula** resta capsula per tutto il volo (f3-rifiniture). Chi nasce esce dal donatore
+   * piccolo coi raggi d'arrivo, o con quelli del donatore se sono più larghi ([nest]: mai più stretti di quelli del capo),
+   * e la molla porta quel canale al raggio d'arrivo mentre i lati superano l'arrivo: al colmo il vetro era più grande del
+   * suo posto col raggio del posto, o anche sotto, cioè meno di mezzo lato corto (`bordo` sul tablet: una lastra di
+   * 113,8 px col raggio 56,1, 0,8 px sotto). Il campo rende una forma continua piccola che non è una capsula al raggio
+   * **equivalente** (`glassSlabGeometry`, per 0,82): da un cerchio a un quadrato arrotondato per meno di un pixel, e la
+   * testa del tondo diventava un lato quasi diritto per ~100 ms (S5, difetto 6). Sul banco no, perché le tracce hanno il
+   * posto del palco uguale al contenitore e la testa non supera. Chi arriva con angoli più stretti di mezzo lato non ha
+   * questo salto (il campo lo rende sempre al raggio equivalente) e resta com'era.
+   */
+  private fun releasedRadii(value: FloatArray, speed: FloatArray) {
+    if (!arrivesAsCapsule) return
+    val width = value[2] - value[0]
+    val height = value[3] - value[1]
+    val half = min(width, height) / 2f
+    if (!(half > 0f)) return
+    val halfSpeed = (if (width <= height) speed[2] - speed[0] else speed[3] - speed[1]) / 2f
+    for (i in 4..7) if (value[i] < half) {
+      value[i] = half
+      speed[i] = halfSpeed
+    }
+  }
+
+  /** Vero se il vetro arriva capsula: ogni raggio d'arrivo a mezzo lato corto (vedi [releasedRadii]). */
+  private val arrivesAsCapsule: Boolean = run {
+    val half = endRect.minDimension / 2f
+    half > 0f && (4..7).all { target[it] >= half * (1f - PlaneCapsuleTolerance) }
+  }
 
   /**
    * Dove il vetro sta **per conto suo**: per chi nasce da un vicino il posto d'arrivo, per chi vi confluisce quello di
@@ -1869,10 +1919,19 @@ private fun planeSwayOf(
  * lui e torna; nella clip di 16:02 il bordo fermo del gruppo che si allarga è tirato verso l'interno (il «rientro» di R4
  * B2 (c)). Chi si stringe comincia a essere trascinato quando il bordo che si chiude è a un terzo della strada; chi si
  * allarga dalla partenza (16:02: il bordo fermo si muove dal primo fotogramma). Nessun trascinamento porta il vetro fuori
- * dal posto del palco ([limits]). Col trascinamento, il **rigonfiamento** suo ([FluidMotion.PlaneResizeBreath]), al posto
- * del comune.
+ * dal posto del palco ([limits]), e nessuno lo porta nel campo di un vicino fermo che ne resterebbe fuori: [forward] e
+ * [backward] sono il posto che i vicini lasciano nel verso del bordo che si muove e dall'altra parte
+ * ([planeResizeDragRoom], f3-rifiniture: la capsula di `testo` che si accorciava andava addosso al tondo «Indietro»,
+ * ~16 px su 13, e il campo comune ci tirava un ponte per ~400 ms). Dove c'è posto il trascinamento è quello di F4A.5b. Col
+ * trascinamento, il **rigonfiamento** suo ([FluidMotion.PlaneResizeBreath]), al posto del comune, che non cambia.
  */
-private fun planeResizeSwayOf(flight: PlaneFlight, motion: GlassPlaneMotion, limits: Rect): PlaneSway {
+private fun planeResizeSwayOf(
+  flight: PlaneFlight,
+  motion: GlassPlaneMotion,
+  limits: Rect,
+  forward: Float = Float.POSITIVE_INFINITY,
+  backward: Float = Float.POSITIVE_INFINITY,
+): PlaneSway {
   val clock = motion.resizeMs
   val terms = ArrayList<PlaneSwayTerm>()
   // Il rigonfiamento suo (FluidMotion.PlaneResizeBreath): parte con l'attesa, colmo a ~200 ms, sotto a ~470, fermo a ~650.
@@ -1885,9 +1944,9 @@ private fun planeResizeSwayOf(flight: PlaneFlight, motion: GlassPlaneMotion, lim
   val high = place.height
   val toward = flight.resizeToward
   val amount = min(min(FluidMotion.PlaneResizeDrag * high, FluidMotion.PlaneResizeDragShare * flight.centerTravel),
-    planeRoom(place, limits, 0, toward))
+    min(planeRoom(place, limits, 0, toward), forward))
   if (high > 0f && toward != 0f && amount > PlaneSwayFloorPx) {
-    val back = min(amount * FluidMotion.PlaneResizeDragBack, planeRoom(place, limits, 0, -toward))
+    val back = min(amount * FluidMotion.PlaneResizeDragBack, min(planeRoom(place, limits, 0, -toward), backward))
     val from = if (flight.resizeGrows) motion.resizeWaitMs else clock * PlaneResizeDragFrom
     val times = doubleArrayOf(from, clock * PlaneResizeDragPeak, clock * PlaneResizeDragBackAt, clock * PlaneResizeDragEnd)
     terms += PlaneSwayTerm(0, times, floatArrayOf(0f, toward * amount, -toward * back, 0f))
@@ -2070,6 +2129,12 @@ private fun planeSmoothstep(x: Float): Float {
  * che cambia: se il fermo è il vicino da cui l'altro nasce o in cui confluisce, o se l'altro gli arriva entro [spacing]
  * **per conto suo** ([PlaneFlight.freeBounds]): un vetro che nasce dal secondo tasto di una barra parte sovrapposto a lui,
  * e non per questo è vicino al primo.
+ *
+ * E non se l'altro gli resta **a distanza costante** ([PlaneFlight.keepsGapTo], f3-rifiniture): un vetro che cambia
+ * dall'altra parte non gli va incontro, e nel campo comune l'orologio del collo gli tirava un ponte anche fermo. Nella
+ * scena `testo` il tondo «Indietro» sta a 13 px da «Salva» (6 dp, sotto i 16 dello spacing): col solo trascinamento
+ * fermato davanti a lui il ponte restava, perché il campo era lo stesso; con la sola regola del campo il trascinamento
+ * portava «Salva» sul tondo e la distanza non era più costante ([planeResizeDragRoom] li tiene insieme).
  */
 private fun planeFlightsMeet(a: PlaneFlight, b: PlaneFlight, spacing: Float, joinStill: Boolean): Boolean {
   // Conta chi è al suo posto ([PlaneFlight.anchored]), anche se dondola (F3.12a): il donatore di una nascita che
@@ -2079,8 +2144,59 @@ private fun planeFlightsMeet(a: PlaneFlight, b: PlaneFlight, spacing: Float, joi
   val still = if (a.anchored) a else b
   val moving = if (a.anchored) b else a
   if (moving.neighbourKey != null && moving.neighbourKey == still.pair.piece.key) return true
-  return planeGap(still.sweptBounds(), moving.freeBounds()) <= spacing
+  val stillBounds = still.sweptBounds()
+  return planeGap(stillBounds, moving.freeBounds()) <= spacing && !moving.keepsGapTo(stillBounds)
 }
+
+/** Mezzo pixel: sotto, la distanza fra un vetro fermo e uno che cambia accanto a lui è la stessa (f3-rifiniture). */
+private const val PlaneKeptGapPx = 0.5f
+
+/** Di quanto un raggio d'arrivo può stare sotto mezzo lato corto ed essere ancora quello di una capsula. */
+private const val PlaneCapsuleTolerance = 1e-4f
+
+/**
+ * Fin dove il **trascinamento** di un cambio di larghezza ([planeResizeSwayOf]) può portare [flight] lungo x nel verso
+ * [direction], in pixel, senza farlo entrare nel campo di un vicino **fermo e indipendente** (f3-rifiniture, decisione
+ * (a) dell'orchestratore sul ponte di `testo`): un vetro al suo posto ([PlaneFlight.anchored]), dello stesso campo, non
+ * unito a lui e che senza il trascinamento ne resterebbe fuori ([planeFlightsMeet]). Infinito se non ce n'è: il
+ * trascinamento è quello di F4A.5b dove c'è posto, e con un vicino che è già nel campo (che il vetro raggiunge o lascia)
+ * il campo li fonde comunque, e non c'è niente da tenere separato.
+ */
+private fun planeResizeDragRoom(
+  flight: PlaneFlight,
+  flights: List<PlaneFlight>,
+  spacing: Float,
+  joinStill: Boolean,
+  direction: Float,
+): Float {
+  val swept = flight.sweptBounds()
+  var room = Float.POSITIVE_INFINITY
+  for (other in flights) {
+    if (other === flight || !other.anchored || other.lens || !other.pair.piece.sameField(flight.pair.piece)) continue
+    if (other.unitedWith(flight) || planeFlightsMeet(other, flight, spacing, joinStill)) continue
+    room = min(room, planeShiftRoom(other.sweptBounds(), swept, direction, spacing))
+  }
+  return room
+}
+
+/**
+ * Di quanto [moving] può spostarsi lungo x nel verso [direction] prima che il suo varco da [still] scenda sotto quello
+ * che lo tiene fuori dal campo: oltre [spacing] di [PlaneDragMarginPx] se ci stava; se gli sta già più vicino (fuori
+ * dal campo solo perché la distanza resta costante, [PlaneFlight.keepsGapTo]) quello che ha, cioè niente. Infinito se
+ * lo spostamento non lo avvicina (il fermo non è da quella parte, o il varco è tutto in verticale).
+ */
+private fun planeShiftRoom(still: Rect, moving: Rect, direction: Float, spacing: Float): Float {
+  val dx = if (direction < 0f) moving.left - still.right else still.left - moving.right
+  if (dx < 0f) return Float.POSITIVE_INFINITY
+  val dy = max(0f, max(still.top - moving.bottom, moving.top - still.bottom))
+  val gap = hypot(dx, dy)
+  val keep = if (gap > spacing) spacing + PlaneDragMarginPx else gap
+  if (dy >= keep) return Float.POSITIVE_INFINITY
+  return max(0f, dx - sqrt(keep * keep - dy * dy))
+}
+
+/** Quanto il trascinamento resta fuori dallo spacing di un vicino fermo, in pixel: il mezzo pixel del fermo. */
+private const val PlaneDragMarginPx = FluidMotion.PlaneSettlePx
 
 private fun planeShareUnion(a: GlassPlanePiece?, b: GlassPlanePiece?): Boolean =
   a != null && b != null && a.unionId != null && a.unionId == b.unionId

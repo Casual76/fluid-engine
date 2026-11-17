@@ -19,7 +19,8 @@
  *     (:128-131, :165-177, :236-249): la velocita' del dito non va persa al rilascio;
  *   - un gesto confermato chiama `onBack()` *prima* della molla e la molla continua mentre la pila
  *     si accorcia: niente canale di richieste (:139-149), l'host fa il diff della pila;
- *   - push e pop a meta' finiscono subito e parte quello nuovo; un dito riprende un annullo a meta';
+ *   - sulla stessa pagina Slide e ShrinkSlide invertono push e pop senza perdere corsa e velocita';
+ *     Expand finisce prima l'apertura; un dito riprende anche un annullo a meta';
  *     durante una conferma la pagina che esce non prende tocchi;
  *   - la pagina sotto non si disegna mentre e' coperta, i passi fra schede restano quelli di prima.
  */
@@ -278,6 +279,14 @@ class FluidPageHostState internal constructor() {
   }
 
   private fun beginPush(from: Any, to: Any) {
+    if (phase == Phase.Popping && upper == to && lower == from && canReverseTravel() && renderable(to)) {
+      // La stessa voce torna in cima prima di essere uscita: cambia il bersaglio, non il fotogramma.
+      opening = true
+      show(FluidPageMove.Push, from = from, to = to)
+      phase = Phase.Pushing
+      animateTravel(0f, FluidPageMotion.page(), velocityPx) { settle() }
+      return
+    }
     finishNow()
     upperTransition = transitionOf(to)
     upper = to
@@ -298,6 +307,15 @@ class FluidPageHostState internal constructor() {
       if (phase != Phase.Committing) commit(velocityPx)
       return
     }
+    if (phase == Phase.Pushing && upper == from && canReverseTravel() && renderable(from)) {
+      // Nessun settle intermedio: le voci del push restano in transizione fino al vero riposo.
+      lower = to.takeIf(renderable)
+      opening = false
+      show(FluidPageMove.Pop, from = from, to = to)
+      phase = Phase.Popping
+      animateTravel(exitTravel(), FluidPageMotion.page(), velocityPx) { settle() }
+      return
+    }
     finishNow()
     if (!renderable(from)) {
       // Una pagina gia' distrutta (tolta senza transizione) non si disegna: si va a riposo.
@@ -313,6 +331,13 @@ class FluidPageHostState internal constructor() {
     travelPx = 0f
     phase = Phase.Popping
     animateTravel(exitTravel(), FluidPageMotion.page(), 0f) { settle() }
+  }
+
+  /** Expand cambia scala e origine fra i due versi: nessuna corsa di chiusura ricrea l'apertura. */
+  private fun canReverseTravel(): Boolean = when (upperTransition) {
+    // Questi stili ignorano opening in pageFrame: la corsa di ripresa e' gia' quella corretta.
+    FluidPageTransition.Slide, FluidPageTransition.ShrinkSlide -> true
+    FluidPageTransition.Expand -> false
   }
 
   private fun beginPeer(from: Any, to: Any, peer: Int) {
@@ -443,10 +468,15 @@ class FluidPageHostState internal constructor() {
     // (`isDragging` col suo gettone e' falso) e beve il resto senza rilasciare niente.
     val handOver = takeOver && phase == Phase.Dragging
     if (!handOver && !canStartGesture()) return null
-    if (handOver || phase == Phase.Cancelling) {
+    val interruptPush = phase == Phase.Pushing && upper == processed.lastOrNull() && canReverseTravel()
+    if (handOver || phase == Phase.Cancelling || interruptPush) {
       // Ripresa al volo: corsa, verso e pagine restano quelli di prima.
       job?.cancel()
       job = null
+      if (interruptPush) {
+        opening = false
+        onTransitionStart(listOfNotNull(upper, lower))
+      }
     } else {
       finishNow()
       val top = processed.last()
@@ -462,7 +492,7 @@ class FluidPageHostState internal constructor() {
     phase = Phase.Dragging
     show(FluidPageMove.Back, from = upper, to = lower)
     isInteractive = true
-    velocityPx = 0f
+    if (!interruptPush) velocityPx = 0f
     return ++dragToken
   }
 

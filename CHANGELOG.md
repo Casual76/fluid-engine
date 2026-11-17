@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Piano flottante (F3-RIF3). La scritta centrata entra intera nella capsula durante il cambio di larghezza, i nati dallo stesso donatore conservano un solo distacco e il palco legge la pressione al disegno. L’alone senza tocco passa a 0,15.
+
 - piano e barre (f3-rif2): un vetro fermo senza cambi di contenuto mantiene la propria misura anche sul palco; la tinta di chi nasce o confluisce cambia nella finestra della sfocatura del suo contenuto, senza mezze capsule tinte sulle lastre coincidenti; le tracce del banco usano lo smoothing reale delle forme e includono principale tinta e ritorno al gruppo neutro.
 - piano flottante, rifiniture F3/F4A (f3-rifiniture): un vetro **fermo** accanto a uno che cambia dall'altra parte, a distanza costante, resta fuori dal suo campo, e il trascinamento di un cambio di larghezza si ferma prima di un vicino fermo che ne resterebbe fuori (niente più ponte fra «Indietro» e «Salva» nella scena `testo`; dove c'è posto il trascinamento è quello di F4A.5b); chi nasce e arriva capsula **resta capsula** anche al colmo del superamento (niente più testa piatta in `bordo`).
 - piano flottante, correzione urgente F3 (f3-corpo): sopra un fondo fermo il **corpo del palco segue di nuovo il viaggio** a ogni fotogramma (nascita col collo, confluenza, bordo, comparsa per lente); la catena degli effetti si costruisce anche nel pre-draw della finestra quando il nodo non viene ridisegnato, una volta per fotogramma. Diagnostica: `FluidGlassContainerDiagnostics.totalArrivals` (l'arrivo vero), e il `FINE` della galleria non scatta più a 20–44 ms.

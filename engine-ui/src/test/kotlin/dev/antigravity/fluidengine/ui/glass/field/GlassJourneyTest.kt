@@ -495,6 +495,7 @@ class GlassJourneyTest {
     assertSame(GlassLiquidJourneys.Shipped, GlassLiquidProfile.Shipped.journey)
     // La proposta: a metà, col rigonfiamento misurato di Apple.
     assertEquals(GlassLiquidJourneys.Half.copy(swell = GlassJourneySwellApple, glow = GlassJourneyGlowQuiet), GlassLiquidJourneys.Shipped)
+    assertEquals(0.15f, GlassLiquidJourneys.Shipped.glow, 0f)
     // Il viaggio dei menu (la scelta B) non c'entra.
     assertSame(GlassLiquidTravels.Soft, GlassLiquidProfile.Shipped.travel)
   }

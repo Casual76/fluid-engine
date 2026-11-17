@@ -303,8 +303,8 @@ poco sotto la misura del vetro. La manopola è `travelswell` (o `journey=off`, c
 
 **La luce del viaggio** (F3.9, agganciata al palco da F3.10; scelta di Alessio del 16 novembre: «a metà, col
 rigonfiamento di Apple, più la luce del dito»). Nello stesso viaggio il vetro **si illumina e si fa lattiginoso**: il
-velo va a metà verso il bianco, l'ombra sotto la sagoma diventa un alone di luce **appena visibile senza tocco**
-(alfa 0,04, scelta di Alessio del 17 novembre 2026; prima 0,50), pieno col dito e dimezzato al buio; la sfocatura raddoppia e la
+velo va a metà verso il bianco, l'ombra sotto la sagoma diventa un alone di luce **a 0,15 senza tocco**
+(scelta di Alessio sulla tavola S5bis del 17 novembre 2026), pieno col dito e dimezzato al buio. La sfocatura raddoppia e la
 limpidezza del vetro in viaggio cede allo smerigliato. Sale in ~70 ms, resta piena fino a metà viaggio e si spegne con
 una coda lunga entro il 90%: alla partenza e all'arrivo il vetro è quello di riposo al bit. **L'alone ha i suoi tempi**
 (F3.12c, `GlassLiquidJourney.glowLevel`, come nel render di Apple): sale con la luce, è pieno fino a 0,31 del viaggio e si
@@ -356,7 +356,7 @@ Per ogni vetro, in ogni fotogramma, c'è **una superficie sola** che lo disegna:
 
 | fotogramma | chi disegna |
 |---|---|
-| il fotogramma del cambio | il **riposo di prima**, col **contenuto di prima dov'era** (giro di correzione di F3: il pezzo è già al posto nuovo nel layout, e il contenitore mostra la registrazione di prima finché il vetro non lo raggiunge, un fotogramma): è il primo fotogramma del viaggio, che parte esattamente da lì, **compresa la pressione** del tasto toccato (la lastra premuta, che il palco rilascia con la molla della pressione) |
+| il fotogramma del cambio | il vetro mostra la geometria di prima. Per un semplice spostamento trattiene il contenuto al posto precedente. Per una scritta centrata già rimisurata adatta la registrazione nuova allo spazio visibile. La forma e il ritaglio del palco leggono la molla viva della pressione al disegno, come il layer del tasto al riposo. |
 | dal fotogramma dopo, per tutto il viaggio | il **palco**: una superficie di Fluid-physics per campo del viaggio, grande quanto il palco più il margine dell'ombra, guidata dal piano «a fotogramma» (`driveByFrame`: la forma di ogni fotogramma col suo collo, le unioni, la comparsa e il vetro in viaggio). I grappoli d'arrivo si montano spenti (niente disegno, niente cattura) dal secondo fotogramma del palco, per alleggerire il primo; il palco chiede al sistema la frequenza alta (`preferredFrameRate`, dall'API 35) |
 | l'ultimo fotogramma | i **grappoli d'arrivo** riprendono il vetro nella stessa composizione in cui il palco si smonta, dalla geometria d'arrivo (entro mezzo pixel) |
 
@@ -570,15 +570,15 @@ il limpido è il vetro di serie. `Clear` e `Regular` nello stesso contenitore no
 - **La luce del dito nei grappoli**: un pezzo di un grappolo di più pezzi a riposo non mostra ancora il bagliore della
   pressione (F6.1); toccato, il suo viaggio porta il bagliore da zero, in ~70 ms, invece che da quello del vetro fermo.
   Un `fluidGlassPanel` non è interattivo: il suo tocco non porta luce.
-- **Una scritta che cambia lunghezza** (stesso `id`, la capsula cambia taglia per il testo, scena `testo`): il contenuto
-  nuovo è già della misura d'arrivo mentre il vetro è ancora in viaggio, e il contenitore lo ritaglia sulla sagoma in volo,
-  quindi per qualche decina di ms la scritta lunga può comparire tagliata ai bordi della capsula che si allarga. Non ancora
-  visto sul tablet: da riprendere, e da dire qui com'è.
+- **Una scritta centrata che cambia lunghezza** (stesso `id`, scena `testo`). Il layout misura la nuova scritta subito.
+  Dal primo disegno il piano la centra sul vetro visibile e riduce in proporzione la registrazione finché entra intera.
+  Quando c'è spazio sufficiente la scritta torna alla sua taglia naturale. Vale anche per un'inversione durante il viaggio.
+- **Più nati dallo stesso donatore**. Il campo unisce prima il donatore al nato che gli resta più vicino all'arrivo.
+  Ciascun altro nato usa la distanza dal proprio donatore per il raccordo, così il rimbalzo dei fratelli lascia aperto il varco.
 - **Il rientro iniziale** di una capsula che si allarga (R4 B2 (c): il bordo rientra di 0,19 H prima di allargarsi) non
   c'è: le molle per lato partono ferme e non anticipano.
-- **Il contenuto di un pezzo che cambia larghezza viaggia col centro del vetro**: in una capsula ancorata a un bordo che
-  si allarga (un gruppo della barra che guadagna un'icona) il contenuto che resta si sposta per un attimo verso il bordo e
-  torna, ritagliato. Da guardare sul tablet; un contenuto ancorato al bordo fermo è una proposta per la barra (F4A.2).
+- **Le icone dei gruppi della barra** seguono il bordo scelto con `fluidGlassContentAnchor`. L'icona che resta
+  conserva la sua misura e segue il trascinamento del gruppo anche in RTL.
 - **Altri componenti** che posano il `modifier` dell'app fuori dal vetro non inoltrano ancora gli attributi del piano:
   `FluidGlassMenuButton`, il tasto di `FluidMorphMenuButton` e i controlli di `FluidControls.kt`. Lì un `fluidGlassId` non
   ha effetto e in debug il log lo dice; arrivano con barre e menu (F4A, F5A).

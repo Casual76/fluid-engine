@@ -25,6 +25,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassPieceContentRole
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassArrivalOf
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentFlightOf
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassPendingResize
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassFingerTouch
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassRestKey
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassRestingClusters
@@ -163,6 +164,9 @@ internal object F38aTraces {
     val smoothing: Float = ContinuousCornerShape.IosSmoothing,
     /** La pellicola del pezzo dichiarato, prima o dopo il cambio; neutra se non specificata. */
     val tintOf: (GlassPlanePiece) -> GlassTint = { NeutralTint },
+    val labelAt: ((Any, Rect) -> Label?)? = null,
+    /** Di quanti disegni il layout precede la misura del palco, all'inizio o durante un'inversione. */
+    val layoutLeadFrames: Int = 0,
   )
 
   private val NeutralTint = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
@@ -176,6 +180,7 @@ internal object F38aTraces {
 
   /** Il contenuto di un pezzo nel giro della traccia: ciò che nel contenitore sta in `FluidGlassPieceContent`. */
   private class Content(var place: Rect) {
+    var placeRadii = FluidCornerRadii.Zero
     var role: GlassPieceContent = GlassPieceContent.Rest
     var look: GlassContentLook = GlassContentLook.Sharp
     var flight: FluidGlassContentFlight? = null
@@ -219,6 +224,7 @@ internal object F38aTraces {
           Content(piece.bounds).also { if (index > scene.firstFrame) it.shown = false }
         }
         content.place = piece.bounds
+        content.placeRadii = piece.radii
         content.attached = true
       }
       for ((key, content) in contents) if (state.pieces.none { it.key == key }) content.attached = false
@@ -299,6 +305,10 @@ internal object F38aTraces {
       }
 
       val elements = ArrayList<Map<String, Any?>>()
+      val layout = if (scene.layoutLeadFrames > 0) stateAt(glassTraceTimeMs(index + scene.layoutLeadFrames, Fps)) else null
+      fun layerFor(key: Any): Map<String, Any?>? = contents[key]?.let { content ->
+        layer(scene, key, content, pressing?.takeIf { key == pressedKey }, layout?.pieces?.find { it.key == key })
+      }
       val rest = driver.rest
       if (rest != null) {
         val carrying = if (journey == null) rest.clusters else resting
@@ -324,9 +334,7 @@ internal object F38aTraces {
               )
             },
           )
-          val layers = cluster.pieces.mapNotNull { piece ->
-            contents[piece.key]?.let { layer(scene, piece.key, it, pressing?.takeIf { piece.key == pressedKey }) }
-          }
+          val layers = cluster.pieces.mapNotNull { layerFor(it.key) }
           elements += tintedElements("riposo-${restName(cluster)}", shape, scene, null, layers,
             "riposo: il grappolo tiene il suo vetro", ordered.map(scene.tintOf))
         }
@@ -352,9 +360,7 @@ internal object F38aTraces {
           )
           if (shape.slabs.isEmpty()) continue
           val keys = field.flights.mapNotNull { it.targetKey ?: it.sourceKey }
-          val layers = keys.mapNotNull { key ->
-            contents[key]?.let { layer(scene, key, it, pressing?.takeIf { key == pressedKey }) }
-          }
+          val layers = keys.mapNotNull(::layerFor)
           val element = element("palco-${field.index}", shape, scene, field.bounds, layers,
             "F3.8a: palco del contenitore (fluidGlassStagePlane), contenuto nel vetro (glassPieceContentLook)")
           element["_collo"] = round3(shape.neck)
@@ -413,17 +419,18 @@ internal object F38aTraces {
   }
 
   /** Lo strato del contenuto di un pezzo: il testo o l'icona al suo posto, con l'aspetto e il ritaglio di adesso. */
-  private fun layer(scene: Scene, key: Any, content: Content, press: FluidPressTransform? = null): Map<String, Any?>? {
-    val label = scene.labels[key] ?: return null
+  private fun layer(scene: Scene, key: Any, content: Content, press: FluidPressTransform?, layout: GlassPlanePiece?): Map<String, Any?>? {
+    val current = layout?.bounds ?: content.place
+    val label = scene.labelAt?.invoke(key, current) ?: scene.labels[key] ?: return null
     if (!content.shown) return null
     val d = scene.density
-    val flight = content.flight
+    val flight = layout?.let { fluidGlassPendingResize(content.place, current, content.placeRadii, content.flight) } ?: content.flight
     val look = flight?.look ?: content.look
     if (look.alpha <= 0.001f) return null
     // Il contenuto di un tasto premuto ha la pressione nel suo layer (giro di correzione di F3): scala attorno al suo
     // centro e deriva del dito, come il vetro.
     val pressShift = if (press != null) Offset(press.translationX, press.translationY) else Offset.Zero
-    val place = content.place.translate((flight?.offset ?: Offset.Zero) + pressShift)
+    val place = current.translate((flight?.offset ?: Offset.Zero) + pressShift)
     val out = linkedMapOf<String, Any?>(
       "name" to "c-$key",
       "x" to round3(place.left / d), "y" to round3(place.top / d),
@@ -446,14 +453,15 @@ internal object F38aTraces {
         out["marginDp"] = 12
       }
       out["alpha"] = round3(look.alpha)
-      out["scale"] = round3(look.scale * (press?.let { min(it.scaleX, it.scaleY) } ?: 1f))
+      val scale = look.scale * (press?.let { min(it.scaleX, it.scaleY) } ?: 1f)
+      out["scale"] = if (flight != null && look.scale != flight.naturalLook.scale) scale else round3(scale)
     } else if (press != null) {
       out["scale"] = round3(min(press.scaleX, press.scaleY))
     }
     val clip = flight?.clip
     if (clip != null) {
       // Il ritaglio è nelle coordinate del pezzo: sulla tela è spostato del suo posto (non del viaggio del contenuto).
-      val onCanvas = clip.translate(content.place.left, content.place.top)
+      val onCanvas = clip.translate(current.left, current.top)
       out["clip"] = linkedMapOf(
         "x" to round3(onCanvas.left / d), "y" to round3(onCanvas.top / d),
         "w" to round3(onCanvas.width / d), "h" to round3(onCanvas.height / d),

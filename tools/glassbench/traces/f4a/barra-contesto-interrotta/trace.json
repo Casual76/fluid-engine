@@ -868,7 +868,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -889,7 +889,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -1156,10 +1156,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.839dp"],
-              "shadowRadii": ["0.274dp", "33.669dp"],
-              "shadowAlphas": [0.001566, 0.086477],
-              "shadowColor": "#050505FF"
+              "shadowOffset": ["0dp", "7.197dp"],
+              "shadowRadii": ["0.979dp", "32.817dp"],
+              "shadowAlphas": [0.005871, 0.086477],
+              "shadowColor": "#101010FF"
             }
           },
           "content": [
@@ -1173,7 +1173,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.997685,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0.024208,
               "marginDp": 12,
               "clip": {
@@ -1194,7 +1194,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.997685,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0.024208,
               "marginDp": 12,
               "clip": {
@@ -1292,10 +1292,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.839dp"],
-              "shadowRadii": ["0.274dp", "33.669dp"],
-              "shadowAlphas": [0.001566, 0.086477],
-              "shadowColor": "#050505FF"
+              "shadowOffset": ["0dp", "7.197dp"],
+              "shadowRadii": ["0.979dp", "32.817dp"],
+              "shadowAlphas": [0.005871, 0.086477],
+              "shadowColor": "#101010FF"
             }
           },
           "content": [
@@ -1461,10 +1461,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.24dp"],
-              "shadowRadii": ["1.064dp", "32.715dp"],
-              "shadowAlphas": [0.005723, 0.077123],
-              "shadowColor": "#121212FF"
+              "shadowOffset": ["0dp", "8.402dp"],
+              "shadowRadii": ["3.352dp", "29.951dp"],
+              "shadowAlphas": [0.021461, 0.077123],
+              "shadowColor": "#383838FF"
             }
           },
           "content": [
@@ -1478,7 +1478,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.99081,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0.093107,
               "marginDp": 12,
               "clip": {
@@ -1499,7 +1499,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.99081,
-              "scale": 1,
+              "scale": 0.666667,
               "blurDp": 0.093107,
               "marginDp": 12,
               "clip": {
@@ -1597,10 +1597,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.24dp"],
-              "shadowRadii": ["1.064dp", "32.715dp"],
-              "shadowAlphas": [0.005723, 0.077123],
-              "shadowColor": "#121212FF"
+              "shadowOffset": ["0dp", "8.402dp"],
+              "shadowRadii": ["3.352dp", "29.951dp"],
+              "shadowAlphas": [0.021461, 0.077123],
+              "shadowColor": "#383838FF"
             }
           },
           "content": [
@@ -1766,10 +1766,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.909dp"],
-              "shadowRadii": ["2.381dp", "31.124dp"],
-              "shadowAlphas": [0.011662, 0.063761],
-              "shadowColor": "#272727FF"
+              "shadowOffset": ["0dp", "9.882dp"],
+              "shadowRadii": ["6.265dp", "26.433dp"],
+              "shadowAlphas": [0.043732, 0.063761],
+              "shadowColor": "#686868FF"
             }
           },
           "content": [
@@ -1783,7 +1783,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.979481,
-              "scale": 1,
+              "scale": 0.66667,
               "blurDp": 0.201111,
               "marginDp": 12,
               "clip": {
@@ -1804,7 +1804,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.979481,
-              "scale": 1,
+              "scale": 0.66667,
               "blurDp": 0.201111,
               "marginDp": 12,
               "clip": {
@@ -1902,10 +1902,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.909dp"],
-              "shadowRadii": ["2.381dp", "31.124dp"],
-              "shadowAlphas": [0.011662, 0.063761],
-              "shadowColor": "#272727FF"
+              "shadowOffset": ["0dp", "9.882dp"],
+              "shadowRadii": ["6.265dp", "26.433dp"],
+              "shadowAlphas": [0.043732, 0.063761],
+              "shadowColor": "#686868FF"
             }
           },
           "content": [
@@ -2071,10 +2071,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.878dp"],
-              "shadowRadii": ["4.287dp", "28.831dp"],
-              "shadowAlphas": [0.018573, 0.048212],
-              "shadowColor": "#474747FF"
+              "shadowOffset": ["0dp", "11.329dp"],
+              "shadowRadii": ["9.109dp", "23.017dp"],
+              "shadowAlphas": [0.069647, 0.048212],
+              "shadowColor": "#979797FF"
             }
           },
           "content": [
@@ -2088,7 +2088,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.963801,
-              "scale": 1,
+              "scale": 0.668524,
               "blurDp": 0.350687,
               "marginDp": 12,
               "clip": {
@@ -2109,7 +2109,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.963801,
-              "scale": 1,
+              "scale": 0.668524,
               "blurDp": 0.350687,
               "marginDp": 12,
               "clip": {
@@ -2207,10 +2207,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.878dp"],
-              "shadowRadii": ["4.287dp", "28.831dp"],
-              "shadowAlphas": [0.018573, 0.048212],
-              "shadowColor": "#474747FF"
+              "shadowOffset": ["0dp", "11.329dp"],
+              "shadowRadii": ["9.109dp", "23.017dp"],
+              "shadowAlphas": [0.069647, 0.048212],
+              "shadowColor": "#979797FF"
             }
           },
           "content": [
@@ -2376,10 +2376,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "10.182dp"],
-              "shadowRadii": ["6.839dp", "25.791dp"],
-              "shadowAlphas": [0.025645, 0.032298],
-              "shadowColor": "#717171FF"
+              "shadowOffset": ["0dp", "12.59dp"],
+              "shadowRadii": ["11.567dp", "20.115dp"],
+              "shadowAlphas": [0.096169, 0.032298],
+              "shadowColor": "#BFBFBFFF"
             }
           },
           "content": [
@@ -2393,7 +2393,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.943877,
-              "scale": 1,
+              "scale": 0.67272,
               "blurDp": 0.666893,
               "marginDp": 12,
               "clip": {
@@ -2414,7 +2414,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.943877,
-              "scale": 1,
+              "scale": 0.67272,
               "blurDp": 0.666893,
               "marginDp": 12,
               "clip": {
@@ -2512,10 +2512,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "10.182dp"],
-              "shadowRadii": ["6.839dp", "25.791dp"],
-              "shadowAlphas": [0.025645, 0.032298],
-              "shadowColor": "#717171FF"
+              "shadowOffset": ["0dp", "12.59dp"],
+              "shadowRadii": ["11.567dp", "20.115dp"],
+              "shadowAlphas": [0.096169, 0.032298],
+              "shadowColor": "#BFBFBFFF"
             }
           },
           "content": [
@@ -2681,10 +2681,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.791dp"],
-              "shadowRadii": ["9.965dp", "22.12dp"],
-              "shadowAlphas": [0.03207, 0.017843],
-              "shadowColor": "#A4A4A4FF"
+              "shadowOffset": ["0dp", "13.6dp"],
+              "shadowRadii": ["13.506dp", "17.899dp"],
+              "shadowAlphas": [0.120262, 0.017843],
+              "shadowColor": "#DEDEDEFF"
             }
           },
           "content": [
@@ -2698,7 +2698,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919814,
-              "scale": 1,
+              "scale": 0.680176,
               "blurDp": 1.024797,
               "marginDp": 12,
               "clip": {
@@ -2719,7 +2719,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919814,
-              "scale": 1,
+              "scale": 0.680176,
               "blurDp": 1.024797,
               "marginDp": 12,
               "clip": {
@@ -2817,10 +2817,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.791dp"],
-              "shadowRadii": ["9.965dp", "22.12dp"],
-              "shadowAlphas": [0.03207, 0.017843],
-              "shadowColor": "#A4A4A4FF"
+              "shadowOffset": ["0dp", "13.6dp"],
+              "shadowRadii": ["13.506dp", "17.899dp"],
+              "shadowAlphas": [0.120262, 0.017843],
+              "shadowColor": "#DEDEDEFF"
             }
           },
           "content": [
@@ -2986,10 +2986,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.478dp"],
-              "shadowRadii": ["13.211dp", "18.397dp"],
-              "shadowAlphas": [0.037037, 0.006667],
-              "shadowColor": "#D8D8D8FF"
+              "shadowOffset": ["0dp", "14.332dp"],
+              "shadowRadii": ["14.875dp", "16.432dp"],
+              "shadowAlphas": [0.138889, 0.006667],
+              "shadowColor": "#F3F3F3FF"
             }
           },
           "content": [
@@ -3003,7 +3003,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.891715,
-              "scale": 1,
+              "scale": 0.688505,
               "blurDp": 1.413974,
               "marginDp": 12,
               "clip": {
@@ -3024,7 +3024,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.891715,
-              "scale": 1,
+              "scale": 0.688505,
               "blurDp": 1.413974,
               "marginDp": 12,
               "clip": {
@@ -3122,10 +3122,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.478dp"],
-              "shadowRadii": ["13.211dp", "18.397dp"],
-              "shadowAlphas": [0.037037, 0.006667],
-              "shadowColor": "#D8D8D8FF"
+              "shadowOffset": ["0dp", "14.332dp"],
+              "shadowRadii": ["14.875dp", "16.432dp"],
+              "shadowAlphas": [0.138889, 0.006667],
+              "shadowColor": "#F3F3F3FF"
             }
           },
           "content": [
@@ -3291,10 +3291,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "14.672dp"],
-              "shadowRadii": ["15.456dp", "15.956dp"],
-              "shadowAlphas": [0.039737, 0.000593],
-              "shadowColor": "#FBFBFBFF"
+              "shadowOffset": ["0dp", "14.758dp"],
+              "shadowRadii": ["15.625dp", "15.759dp"],
+              "shadowAlphas": [0.149012, 0.000593],
+              "shadowColor": "#FEFEFEFF"
             }
           },
           "content": [
@@ -3308,7 +3308,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.859688,
-              "scale": 1,
+              "scale": 0.699982,
               "blurDp": 1.824,
               "marginDp": 12,
               "clip": {
@@ -3329,7 +3329,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.859688,
-              "scale": 1,
+              "scale": 0.699982,
               "blurDp": 1.824,
               "marginDp": 12,
               "clip": {
@@ -3427,10 +3427,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "14.672dp"],
-              "shadowRadii": ["15.456dp", "15.956dp"],
-              "shadowAlphas": [0.039737, 0.000593],
-              "shadowColor": "#FBFBFBFF"
+              "shadowOffset": ["0dp", "14.758dp"],
+              "shadowRadii": ["15.625dp", "15.759dp"],
+              "shadowAlphas": [0.149012, 0.000593],
+              "shadowColor": "#FEFEFEFF"
             }
           },
           "content": [
@@ -3598,7 +3598,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "14.898dp"],
               "shadowRadii": ["15.801dp", "15.801dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -3613,7 +3613,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.823836,
-              "scale": 1,
+              "scale": 0.71121,
               "blurDp": 2.24445,
               "marginDp": 12,
               "clip": {
@@ -3634,7 +3634,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.823836,
-              "scale": 1,
+              "scale": 0.71121,
               "blurDp": 2.24445,
               "marginDp": 12,
               "clip": {
@@ -3734,7 +3734,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "14.898dp"],
               "shadowRadii": ["15.801dp", "15.801dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -3903,7 +3903,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.02dp"],
               "shadowRadii": ["15.93dp", "15.93dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -3918,7 +3918,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.784264,
-              "scale": 0.98409,
+              "scale": 0.713833,
               "blurDp": 2.664901,
               "marginDp": 12,
               "clip": {
@@ -3939,7 +3939,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.784264,
-              "scale": 0.98409,
+              "scale": 0.713833,
               "blurDp": 2.664901,
               "marginDp": 12,
               "clip": {
@@ -4039,7 +4039,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.02dp"],
               "shadowRadii": ["15.93dp", "15.93dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4208,7 +4208,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.152dp"],
               "shadowRadii": ["16.07dp", "16.07dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4223,7 +4223,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.740866,
-              "scale": 0.949242,
+              "scale": 0.70096,
               "blurDp": 3.074926,
               "marginDp": 12,
               "clip": {
@@ -4244,7 +4244,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.740866,
-              "scale": 0.949242,
+              "scale": 0.70096,
               "blurDp": 3.074926,
               "marginDp": 12,
               "clip": {
@@ -4344,7 +4344,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.152dp"],
               "shadowRadii": ["16.07dp", "16.07dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4513,7 +4513,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.291dp"],
               "shadowRadii": ["16.218dp", "16.218dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4528,7 +4528,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.687594,
-              "scale": 0.914781,
+              "scale": 0.689894,
               "blurDp": 3.464103,
               "marginDp": 12,
               "clip": {
@@ -4549,7 +4549,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.687594,
-              "scale": 0.914781,
+              "scale": 0.689894,
               "blurDp": 3.464103,
               "marginDp": 12,
               "clip": {
@@ -4649,7 +4649,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.291dp"],
               "shadowRadii": ["16.218dp", "16.218dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4818,7 +4818,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.435dp"],
               "shadowRadii": ["16.371dp", "16.371dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -4833,7 +4833,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.624339,
-              "scale": 0.9,
+              "scale": 0.691344,
               "blurDp": 3.822006,
               "marginDp": 12,
               "clip": {
@@ -4854,7 +4854,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.624339,
-              "scale": 0.9,
+              "scale": 0.691344,
               "blurDp": 3.822006,
               "marginDp": 12,
               "clip": {
@@ -4954,7 +4954,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.435dp"],
               "shadowRadii": ["16.371dp", "16.371dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5123,7 +5123,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.581dp"],
               "shadowRadii": ["16.525dp", "16.525dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5138,7 +5138,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.554775,
-              "scale": 0.9,
+              "scale": 0.70604,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5159,7 +5159,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.93,
+              "scale": 0.729574,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5180,7 +5180,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.554775,
-              "scale": 0.9,
+              "scale": 0.70604,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5201,7 +5201,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.93,
+              "scale": 0.729574,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5222,7 +5222,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.75,
+              "scale": 0.588366,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -5322,7 +5322,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.581dp"],
               "shadowRadii": ["16.525dp", "16.525dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5512,7 +5512,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.725dp"],
               "shadowRadii": ["16.678dp", "16.678dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5527,7 +5527,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.482573,
-              "scale": 0.9,
+              "scale": 0.71878,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5548,7 +5548,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.93,
+              "scale": 0.742739,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5569,7 +5569,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.482573,
-              "scale": 0.9,
+              "scale": 0.71878,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5590,7 +5590,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.93,
+              "scale": 0.742739,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5611,7 +5611,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.14864,
-              "scale": 0.75,
+              "scale": 0.598983,
               "blurDp": 4.402297,
               "marginDp": 12,
               "clip": {
@@ -5711,7 +5711,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.725dp"],
               "shadowRadii": ["16.678dp", "16.678dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5901,7 +5901,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.863dp"],
               "shadowRadii": ["16.825dp", "16.825dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5916,7 +5916,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.411405,
-              "scale": 0.9,
+              "scale": 0.733311,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5937,7 +5937,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.93,
+              "scale": 0.757755,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5958,7 +5958,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.411405,
-              "scale": 0.9,
+              "scale": 0.733311,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -5979,7 +5979,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.93,
+              "scale": 0.757755,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -6000,7 +6000,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.265594,
-              "scale": 0.75,
+              "scale": 0.611092,
               "blurDp": 4.603836,
               "marginDp": 12,
               "clip": {
@@ -6100,7 +6100,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.863dp"],
               "shadowRadii": ["16.825dp", "16.825dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -6290,7 +6290,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.994dp"],
               "shadowRadii": ["16.964dp", "16.964dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -6305,7 +6305,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.344904,
-              "scale": 0.9,
+              "scale": 0.745617,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6326,7 +6326,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.93,
+              "scale": 0.770471,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6347,7 +6347,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.344904,
-              "scale": 0.9,
+              "scale": 0.745617,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6368,7 +6368,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.93,
+              "scale": 0.770471,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6389,7 +6389,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.355345,
-              "scale": 0.75,
+              "scale": 0.621347,
               "blurDp": 4.732403,
               "marginDp": 12,
               "clip": {
@@ -6489,7 +6489,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "15.994dp"],
               "shadowRadii": ["16.964dp", "16.964dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -6679,7 +6679,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.114dp"],
               "shadowRadii": ["17.091dp", "17.091dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -6878,7 +6878,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.114dp"],
               "shadowRadii": ["17.091dp", "17.091dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -6893,7 +6893,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.280054,
-              "scale": 0.9,
+              "scale": 0.759699,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -6914,7 +6914,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.280054,
-              "scale": 0.9,
+              "scale": 0.759699,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -6935,7 +6935,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.415665,
-              "scale": 0.93,
+              "scale": 0.785022,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7068,7 +7068,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.121dp"],
               "shadowRadii": ["17.098dp", "17.098dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -7309,7 +7309,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.121dp"],
               "shadowRadii": ["17.098dp", "17.098dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -7324,7 +7324,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.216325,
-              "scale": 0.9,
+              "scale": 0.749205,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7345,7 +7345,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.216325,
-              "scale": 0.9,
+              "scale": 0.749205,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7366,7 +7366,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.36967,
-              "scale": 0.93,
+              "scale": 0.774178,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7387,7 +7387,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.042974,
-              "scale": 0.93,
+              "scale": 0.774178,
               "blurDp": 4.126497,
               "marginDp": 12,
               "clip": {
@@ -7520,7 +7520,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.14dp"],
               "shadowRadii": ["17.118dp", "17.118dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -7761,7 +7761,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.14dp"],
               "shadowRadii": ["17.118dp", "17.118dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -7776,7 +7776,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.158413,
-              "scale": 0.9,
+              "scale": 0.746578,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7797,7 +7797,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.158413,
-              "scale": 0.9,
+              "scale": 0.746578,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7818,7 +7818,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.321829,
-              "scale": 0.93,
+              "scale": 0.771464,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -7839,7 +7839,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.143985,
-              "scale": 0.93,
+              "scale": 0.771464,
               "blurDp": 4.392866,
               "marginDp": 12,
               "clip": {
@@ -7972,7 +7972,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.17dp"],
               "shadowRadii": ["17.15dp", "17.15dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -8213,7 +8213,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.17dp"],
               "shadowRadii": ["17.15dp", "17.15dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -8228,7 +8228,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.103786,
-              "scale": 0.9,
+              "scale": 0.749914,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8249,7 +8249,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.103786,
-              "scale": 0.9,
+              "scale": 0.749914,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8270,7 +8270,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.274575,
-              "scale": 0.93,
+              "scale": 0.774912,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8291,7 +8291,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.261163,
-              "scale": 0.93,
+              "scale": 0.774912,
               "blurDp": 4.597106,
               "marginDp": 12,
               "clip": {
@@ -8424,7 +8424,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.209dp"],
               "shadowRadii": ["17.191dp", "17.191dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -8665,7 +8665,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.209dp"],
               "shadowRadii": ["17.191dp", "17.191dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -8680,7 +8680,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.049765,
-              "scale": 0.9,
+              "scale": 0.757651,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8701,7 +8701,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.049765,
-              "scale": 0.9,
+              "scale": 0.757651,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8722,7 +8722,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.230338,
-              "scale": 0.93,
+              "scale": 0.782906,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -8743,7 +8743,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.352683,
-              "scale": 0.93,
+              "scale": 0.782906,
               "blurDp": 4.728792,
               "marginDp": 12,
               "clip": {
@@ -8876,7 +8876,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.254dp"],
               "shadowRadii": ["17.239dp", "17.239dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9117,7 +9117,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.254dp"],
               "shadowRadii": ["17.239dp", "17.239dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9132,7 +9132,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.010689,
-              "scale": 0.9,
+              "scale": 0.768514,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9153,7 +9153,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.010689,
-              "scale": 0.9,
+              "scale": 0.768514,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9174,7 +9174,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.187382,
-              "scale": 0.93,
+              "scale": 0.794131,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9195,7 +9195,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.413464,
-              "scale": 0.93,
+              "scale": 0.794131,
               "blurDp": 4.777501,
               "marginDp": 12,
               "clip": {
@@ -9328,7 +9328,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.305dp"],
               "shadowRadii": ["17.293dp", "17.293dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9527,7 +9527,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.305dp"],
               "shadowRadii": ["17.293dp", "17.293dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9542,7 +9542,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.145045,
-              "scale": 0.93,
+              "scale": 0.807527,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9563,7 +9563,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.464173,
-              "scale": 0.93,
+              "scale": 0.807527,
               "blurDp": 4.507375,
               "marginDp": 12,
               "clip": {
@@ -9696,7 +9696,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.36dp"],
               "shadowRadii": ["17.351dp", "17.351dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9895,7 +9895,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.36dp"],
               "shadowRadii": ["17.351dp", "17.351dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -9910,7 +9910,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.106439,
-              "scale": 0.93,
+              "scale": 0.823581,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -9931,7 +9931,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.507807,
-              "scale": 0.93,
+              "scale": 0.823581,
               "blurDp": 4.225917,
               "marginDp": 12,
               "clip": {
@@ -10064,7 +10064,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.415dp"],
               "shadowRadii": ["17.41dp", "17.41dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -10263,7 +10263,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.415dp"],
               "shadowRadii": ["17.41dp", "17.41dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -10278,7 +10278,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.070304,
-              "scale": 0.93,
+              "scale": 0.838972,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -10299,7 +10299,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.547364,
-              "scale": 0.93,
+              "scale": 0.838972,
               "blurDp": 3.944459,
               "marginDp": 12,
               "clip": {
@@ -10432,7 +10432,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.471dp"],
               "shadowRadii": ["17.47dp", "17.47dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -10631,7 +10631,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.471dp"],
               "shadowRadii": ["17.47dp", "17.47dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -10646,7 +10646,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.034297,
-              "scale": 0.93,
+              "scale": 0.854437,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -10667,7 +10667,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.585837,
-              "scale": 0.93,
+              "scale": 0.854437,
               "blurDp": 3.663,
               "marginDp": 12,
               "clip": {
@@ -10800,7 +10800,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.525dp"],
               "shadowRadii": ["17.527dp", "17.527dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -10999,7 +10999,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.525dp"],
               "shadowRadii": ["17.527dp", "17.527dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -11014,7 +11014,7 @@
               "iconSizeDp": 26,
               "color": "#007AFF",
               "alpha": 0.00781,
-              "scale": 0.93,
+              "scale": 0.869576,
               "blurDp": 4.777576,
               "marginDp": 12,
               "clip": {
@@ -11035,7 +11035,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.625186,
-              "scale": 0.931184,
+              "scale": 0.870683,
               "blurDp": 3.381542,
               "marginDp": 12,
               "clip": {
@@ -11168,7 +11168,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.575dp"],
               "shadowRadii": ["17.58dp", "17.58dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -11304,7 +11304,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "16.575dp"],
               "shadowRadii": ["17.58dp", "17.58dp"],
-              "shadowAlphas": [0.04, 0],
+              "shadowAlphas": [0.15, 0],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -11319,7 +11319,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.663087,
-              "scale": 0.936915,
+              "scale": 0.890656,
               "blurDp": 3.100083,
               "marginDp": 12,
               "clip": {
@@ -11450,10 +11450,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "16.365dp"],
-              "shadowRadii": ["17.175dp", "18.047dp"],
-              "shadowAlphas": [0.039537, 0.001041],
-              "shadowColor": "#F8F8F8FF"
+              "shadowOffset": ["0dp", "16.551dp"],
+              "shadowRadii": ["17.504dp", "17.741dp"],
+              "shadowAlphas": [0.148264, 0.001041],
+              "shadowColor": "#FDFDFDFF"
             }
           },
           "content": [
@@ -11586,10 +11586,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "16.365dp"],
-              "shadowRadii": ["17.175dp", "18.047dp"],
-              "shadowAlphas": [0.039537, 0.001041],
-              "shadowColor": "#F8F8F8FF"
+              "shadowOffset": ["0dp", "16.551dp"],
+              "shadowRadii": ["17.504dp", "17.741dp"],
+              "shadowAlphas": [0.148264, 0.001041],
+              "shadowColor": "#FDFDFDFF"
             }
           },
           "content": [
@@ -11603,7 +11603,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.698684,
-              "scale": 0.945695,
+              "scale": 0.912878,
               "blurDp": 2.818625,
               "marginDp": 12,
               "clip": {
@@ -11734,10 +11734,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "15.584dp"],
-              "shadowRadii": ["15.762dp", "19.428dp"],
-              "shadowAlphas": [0.037961, 0.004588],
-              "shadowColor": "#E4E4E4FF"
+              "shadowOffset": ["0dp", "16.346dp"],
+              "shadowRadii": ["17.115dp", "18.177dp"],
+              "shadowAlphas": [0.142354, 0.004588],
+              "shadowColor": "#F7F7F7FF"
             }
           },
           "content": [
@@ -11870,10 +11870,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "15.584dp"],
-              "shadowRadii": ["15.762dp", "19.428dp"],
-              "shadowAlphas": [0.037961, 0.004588],
-              "shadowColor": "#E4E4E4FF"
+              "shadowOffset": ["0dp", "16.346dp"],
+              "shadowRadii": ["17.115dp", "18.177dp"],
+              "shadowAlphas": [0.142354, 0.004588],
+              "shadowColor": "#F7F7F7FF"
             }
           },
           "content": [
@@ -11887,7 +11887,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.731373,
-              "scale": 0.955612,
+              "scale": 0.936536,
               "blurDp": 2.537167,
               "marginDp": 12,
               "clip": {
@@ -12018,10 +12018,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "14.447dp"],
-              "shadowRadii": ["13.73dp", "21.351dp"],
-              "shadowAlphas": [0.035449, 0.010241],
-              "shadowColor": "#C6C6C6FF"
+              "shadowOffset": ["0dp", "15.971dp"],
+              "shadowRadii": ["16.431dp", "18.863dp"],
+              "shadowAlphas": [0.132932, 0.010241],
+              "shadowColor": "#EDEDEDFF"
             }
           },
           "content": [
@@ -12154,10 +12154,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "14.447dp"],
-              "shadowRadii": ["13.73dp", "21.351dp"],
-              "shadowAlphas": [0.035449, 0.010241],
-              "shadowColor": "#C6C6C6FF"
+              "shadowOffset": ["0dp", "15.971dp"],
+              "shadowRadii": ["16.431dp", "18.863dp"],
+              "shadowAlphas": [0.132932, 0.010241],
+              "shadowColor": "#EDEDEDFF"
             }
           },
           "content": [
@@ -12171,7 +12171,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.046179,
-              "scale": 0.93,
+              "scale": 0.922807,
               "blurDp": 4.138213,
               "marginDp": 12,
               "clip": {
@@ -12192,7 +12192,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.760548,
-              "scale": 0.964751,
+              "scale": 0.95729,
               "blurDp": 2.255708,
               "marginDp": 12,
               "clip": {
@@ -12323,10 +12323,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.17dp"],
-              "shadowRadii": ["11.459dp", "23.466dp"],
-              "shadowAlphas": [0.032189, 0.017575],
-              "shadowColor": "#A5A5A5FF"
+              "shadowOffset": ["0dp", "15.431dp"],
+              "shadowRadii": ["15.463dp", "19.784dp"],
+              "shadowAlphas": [0.120709, 0.017575],
+              "shadowColor": "#DFDFDFFF"
             }
           },
           "content": [
@@ -12459,10 +12459,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.17dp"],
-              "shadowRadii": ["11.459dp", "23.466dp"],
-              "shadowAlphas": [0.032189, 0.017575],
-              "shadowColor": "#A5A5A5FF"
+              "shadowOffset": ["0dp", "15.431dp"],
+              "shadowRadii": ["15.463dp", "19.784dp"],
+              "shadowAlphas": [0.120709, 0.017575],
+              "shadowColor": "#DFDFDFFF"
             }
           },
           "content": [
@@ -12628,10 +12628,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.906dp"],
-              "shadowRadii": ["9.218dp", "25.531dp"],
-              "shadowAlphas": [0.028371, 0.026165],
-              "shadowColor": "#858585FF"
+              "shadowOffset": ["0dp", "14.732dp"],
+              "shadowRadii": ["14.222dp", "20.933dp"],
+              "shadowAlphas": [0.106391, 0.026165],
+              "shadowColor": "#CDCDCDFF"
             }
           },
           "content": [
@@ -12764,10 +12764,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.906dp"],
-              "shadowRadii": ["9.218dp", "25.531dp"],
-              "shadowAlphas": [0.028371, 0.026165],
-              "shadowColor": "#858585FF"
+              "shadowOffset": ["0dp", "14.732dp"],
+              "shadowRadii": ["14.222dp", "20.933dp"],
+              "shadowAlphas": [0.106391, 0.026165],
+              "shadowColor": "#CDCDCDFF"
             }
           },
           "content": [
@@ -12933,10 +12933,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "10.742dp"],
-              "shadowRadii": ["7.162dp", "27.405dp"],
-              "shadowAlphas": [0.024183, 0.035588],
-              "shadowColor": "#676767FF"
+              "shadowOffset": ["0dp", "13.874dp"],
+              "shadowRadii": ["12.712dp", "22.294dp"],
+              "shadowAlphas": [0.090687, 0.035588],
+              "shadowColor": "#B7B7B7FF"
             }
           },
           "content": [
@@ -13069,10 +13069,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "10.742dp"],
-              "shadowRadii": ["7.162dp", "27.405dp"],
-              "shadowAlphas": [0.024183, 0.035588],
-              "shadowColor": "#676767FF"
+              "shadowOffset": ["0dp", "13.874dp"],
+              "shadowRadii": ["12.712dp", "22.294dp"],
+              "shadowAlphas": [0.090687, 0.035588],
+              "shadowColor": "#B7B7B7FF"
             }
           },
           "content": [
@@ -13238,10 +13238,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "9.718dp"],
-              "shadowRadii": ["5.36dp", "29.032dp"],
-              "shadowAlphas": [0.019815, 0.045417],
-              "shadowColor": "#4D4D4DFF"
+              "shadowOffset": ["0dp", "12.867dp"],
+              "shadowRadii": ["10.951dp", "23.849dp"],
+              "shadowAlphas": [0.074305, 0.045417],
+              "shadowColor": "#9E9E9EFF"
             }
           },
           "content": [
@@ -13374,10 +13374,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "9.718dp"],
-              "shadowRadii": ["5.36dp", "29.032dp"],
-              "shadowAlphas": [0.019815, 0.045417],
-              "shadowColor": "#4D4D4DFF"
+              "shadowOffset": ["0dp", "12.867dp"],
+              "shadowRadii": ["10.951dp", "23.849dp"],
+              "shadowAlphas": [0.074305, 0.045417],
+              "shadowColor": "#9E9E9EFF"
             }
           },
           "content": [
@@ -13543,10 +13543,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.854dp"],
-              "shadowRadii": ["3.838dp", "30.405dp"],
-              "shadowAlphas": [0.015454, 0.055229],
-              "shadowColor": "#383838FF"
+              "shadowOffset": ["0dp", "11.745dp"],
+              "shadowRadii": ["8.989dp", "25.58dp"],
+              "shadowAlphas": [0.057952, 0.055229],
+              "shadowColor": "#838383FF"
             }
           },
           "content": [
@@ -13679,10 +13679,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.854dp"],
-              "shadowRadii": ["3.838dp", "30.405dp"],
-              "shadowAlphas": [0.015454, 0.055229],
-              "shadowColor": "#383838FF"
+              "shadowOffset": ["0dp", "11.745dp"],
+              "shadowRadii": ["8.989dp", "25.58dp"],
+              "shadowAlphas": [0.057952, 0.055229],
+              "shadowColor": "#838383FF"
             }
           },
           "content": [
@@ -13848,10 +13848,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.149dp"],
-              "shadowRadii": ["2.594dp", "31.536dp"],
-              "shadowAlphas": [0.01129, 0.064597],
-              "shadowColor": "#262626FF"
+              "shadowOffset": ["0dp", "10.557dp"],
+              "shadowRadii": ["6.904dp", "27.443dp"],
+              "shadowAlphas": [0.042338, 0.064597],
+              "shadowColor": "#656565FF"
             }
           },
           "content": [
@@ -13984,10 +13984,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.149dp"],
-              "shadowRadii": ["2.594dp", "31.536dp"],
-              "shadowAlphas": [0.01129, 0.064597],
-              "shadowColor": "#262626FF"
+              "shadowOffset": ["0dp", "10.557dp"],
+              "shadowRadii": ["6.904dp", "27.443dp"],
+              "shadowAlphas": [0.042338, 0.064597],
+              "shadowColor": "#656565FF"
             }
           },
           "content": [
@@ -14153,10 +14153,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.595dp"],
-              "shadowRadii": ["1.612dp", "32.444dp"],
-              "shadowAlphas": [0.007512, 0.073098],
-              "shadowColor": "#181818FF"
+              "shadowOffset": ["0dp", "9.373dp"],
+              "shadowRadii": ["4.812dp", "29.354dp"],
+              "shadowAlphas": [0.028169, 0.073098],
+              "shadowColor": "#474747FF"
             }
           },
           "content": [
@@ -14289,10 +14289,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.595dp"],
-              "shadowRadii": ["1.612dp", "32.444dp"],
-              "shadowAlphas": [0.007512, 0.073098],
-              "shadowColor": "#181818FF"
+              "shadowOffset": ["0dp", "9.373dp"],
+              "shadowRadii": ["4.812dp", "29.354dp"],
+              "shadowAlphas": [0.028169, 0.073098],
+              "shadowColor": "#474747FF"
             }
           },
           "content": [
@@ -14458,10 +14458,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.181dp"],
-              "shadowRadii": ["0.872dp", "33.141dp"],
-              "shadowAlphas": [0.004308, 0.080307],
-              "shadowColor": "#0D0D0DFF"
+              "shadowOffset": ["0dp", "8.284dp"],
+              "shadowRadii": ["2.87dp", "31.176dp"],
+              "shadowAlphas": [0.016155, 0.080307],
+              "shadowColor": "#2B2B2BFF"
             }
           },
           "content": [
@@ -14594,10 +14594,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.181dp"],
-              "shadowRadii": ["0.872dp", "33.141dp"],
-              "shadowAlphas": [0.004308, 0.080307],
-              "shadowColor": "#0D0D0DFF"
+              "shadowOffset": ["0dp", "8.284dp"],
+              "shadowRadii": ["2.87dp", "31.176dp"],
+              "shadowAlphas": [0.016155, 0.080307],
+              "shadowColor": "#2B2B2BFF"
             }
           },
           "content": [
@@ -14763,10 +14763,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.898dp"],
-              "shadowRadii": ["0.361dp", "33.637dp"],
-              "shadowAlphas": [0.001867, 0.085799],
-              "shadowColor": "#050505FF"
+              "shadowOffset": ["0dp", "7.401dp"],
+              "shadowRadii": ["1.28dp", "32.714dp"],
+              "shadowAlphas": [0.007002, 0.085799],
+              "shadowColor": "#131313FF"
             }
           },
           "content": [
@@ -14899,10 +14899,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.898dp"],
-              "shadowRadii": ["0.361dp", "33.637dp"],
-              "shadowAlphas": [0.001867, 0.085799],
-              "shadowColor": "#050505FF"
+              "shadowOffset": ["0dp", "7.401dp"],
+              "shadowRadii": ["1.28dp", "32.714dp"],
+              "shadowAlphas": [0.007002, 0.085799],
+              "shadowColor": "#131313FF"
             }
           },
           "content": [
@@ -15068,10 +15068,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.739dp"],
-              "shadowRadii": ["0.071dp", "33.927dp"],
-              "shadowAlphas": [0.000379, 0.089148],
-              "shadowColor": "#010101FF"
+              "shadowOffset": ["0dp", "6.843dp"],
+              "shadowRadii": ["0.263dp", "33.73dp"],
+              "shadowAlphas": [0.00142, 0.089148],
+              "shadowColor": "#040404FF"
             }
           },
           "content": [
@@ -15204,10 +15204,10 @@
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.739dp"],
-              "shadowRadii": ["0.071dp", "33.927dp"],
-              "shadowAlphas": [0.000379, 0.089148],
-              "shadowColor": "#010101FF"
+              "shadowOffset": ["0dp", "6.843dp"],
+              "shadowRadii": ["0.263dp", "33.73dp"],
+              "shadowAlphas": [0.00142, 0.089148],
+              "shadowColor": "#040404FF"
             }
           },
           "content": [
@@ -17966,7 +17966,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.860596,
-              "scale": 0.994862,
+              "scale": 0.994393,
               "blurDp": 0.5557,
               "marginDp": 12,
               "clip": {
@@ -17987,7 +17987,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999528,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18271,7 +18271,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.87215,
-              "scale": 0.997615,
+              "scale": 0.996879,
               "blurDp": 0.301666,
               "marginDp": 12,
               "clip": {
@@ -18292,7 +18292,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999262,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18576,7 +18576,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.884951,
-              "scale": 0.999379,
+              "scale": 0.998997,
               "blurDp": 0.150833,
               "marginDp": 12,
               "clip": {
@@ -18597,7 +18597,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999618,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18881,7 +18881,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.9,
-              "scale": 1,
+              "scale": 0.999834,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -18902,7 +18902,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999834,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19186,7 +19186,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.919976,
-              "scale": 1,
+              "scale": 0.999949,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19207,7 +19207,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999949,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19491,7 +19491,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 0.944078,
-              "scale": 1,
+              "scale": 0.999991,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19512,7 +19512,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999991,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19660,7 +19660,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999999,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {
@@ -19681,7 +19681,7 @@
               "iconSizeDp": 26,
               "color": "#17171A",
               "alpha": 1,
-              "scale": 1,
+              "scale": 0.999999,
               "blurDp": 0,
               "marginDp": 12,
               "clip": {

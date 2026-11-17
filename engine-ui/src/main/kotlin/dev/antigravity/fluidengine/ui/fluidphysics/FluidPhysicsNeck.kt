@@ -437,13 +437,15 @@ internal fun physicsTimedNeckBlend(
   index: Int,
   neck: Float,
   pinch: Float = PhysicsNeckPinchExponent,
+  donor: Int = -1,
 ): Float {
   val nominal = plan.nominalBlend
   if (!(nominal > 0f) || index <= 0) return 0f
   val at = index * 4
   var best = Float.NEGATIVE_INFINITY
   var bestEnds = 0f
-  for (j in 0 until index) {
+  val candidates = if (donor in 0 until index) donor..donor else 0 until index
+  for (j in candidates) {
     val bt = j * 4
     val dx = abs(plan.pieceRects[at] - plan.pieceRects[bt])
     val dy = abs(plan.pieceRects[at + 1] - plan.pieceRects[bt + 1])
@@ -479,7 +481,9 @@ internal fun physicsPlaneNeckBlend(plan: PhysicsRenderPlan, index: Int, neck: Fl
   val nominal = plan.nominalBlend
   if (!(nominal > 0f) || index <= 0) return 0f
   val union = plan.pieceUnion[index]
-  if (union < 0) return physicsTimedNeckBlend(plan, index, neck, pinch)
+  val donor = plan.donorIndices?.getOrNull(index) ?: -1
+  if (union < 0 && donor == index) return 0f
+  if (union < 0) return physicsTimedNeckBlend(plan, index, neck, pinch, donor)
   val at = index * 4
   var mateDepth = Float.NEGATIVE_INFINITY
   var mateEnds = 0f

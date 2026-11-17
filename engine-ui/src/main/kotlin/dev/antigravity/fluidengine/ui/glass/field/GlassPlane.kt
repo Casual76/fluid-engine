@@ -189,6 +189,10 @@ internal data class GlassPlanePieceFrame(
    * (`fluidGlassStagePlane`): lo zero, cioè l'istante della rottura, non si sposta.
    */
   val birthWaist: Float = 1f,
+  /** Ordine di fusione dei nati da [bornFrom], dal più vicino al più lontano all'arrivo. Zero fuori dai rilasci multipli. */
+  val siblingRank: Int = 0,
+  /** Un pezzo conservato cambia larghezza: l'inchiostro già misurato all'arrivo deve entrare nella lastra di adesso. */
+  val widthChanges: Boolean = false,
 )
 
 /** Che cosa fa l'unione dentro un campo in un viaggio (F3.8a): niente, nasce (il collo cresce) o si scioglie (si rompe). */
@@ -456,6 +460,13 @@ internal class GlassPlaneJourney private constructor(
     // Il rigonfiamento che ogni volo si porta da un viaggio interrotto, ora che si sa quanta parte del comune prende.
     flights.forEach { it.carrySwell(commonSwell) }
     flights.forEach { it.prepare() }
+    // Il campo unisce ogni lastra a tutto ciò che ha già disegnato. Con più nati lo si costruisce dal
+    // donatore verso l'esterno: quello lontano non può prendere in prestito il collo di quello vicino.
+    for (family in released.filter { it.host != null && it.pair.piece.unionId == null }.groupBy { it.host }.values) {
+      if (family.size > 1) family.sortedBy { it.releaseReach() }.forEachIndexed { rank, child ->
+        child.siblingRank = rank + 1
+      }
+    }
     releaseDelays =flights.filter { it.course == PlaneCourse.Released }.associate { it.pair.target!!.key to it.delayMs }
     var duration = flights.maxOfOrNull { it.durationMs() } ?: 0.0
     var settle = if (motion.spec != null) {
@@ -715,6 +726,7 @@ private class PlaneFlight(
     it.bounds.planeValues() + it.radii.planeValues() + it.materialize
   } ?: FloatArray(9)
   var timeScale = 1.0
+  var siblingRank = 0
 
   // ---- Il donatore e chi accoglie (F3.12a) --------------------------------------------------------------------------
 
@@ -1487,6 +1499,8 @@ private class PlaneFlight(
       phase = phaseAt(tMs), still = still, unionFrom = pair.source?.unionId, unionTo = pair.target?.unionId,
       relay = pair.relay, swell = courseSwell(tMs), swellShare = swellShare, contentPhase = phaseAt(tMs + contentLeadMs),
       birthWaist = waistAt(tMs),
+      siblingRank = siblingRank,
+      widthChanges = pair.change == GlassPlaneChange.Matched && startRect.width != endRect.width,
     )
   }
 

@@ -1276,9 +1276,9 @@
               "glow": 0.2478,
               "glowFill": 0.401679,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.167dp"],
-              "shadowRadii": ["6.939dp", "30.407dp"],
-              "shadowAlphas": [0.038812, 0.086478],
+              "shadowOffset": ["0dp", "11.17dp"],
+              "shadowRadii": ["6.944dp", "30.405dp"],
+              "shadowAlphas": [0.03885, 0.086478],
               "shadowColor": "#4F4F4FFF"
             }
           },
@@ -1402,9 +1402,9 @@
               "glow": 0.248038,
               "glowFill": 0.406576,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "16.045dp"],
-              "shadowRadii": ["14.516dp", "26.483dp"],
-              "shadowAlphas": [0.141995, 0.077123],
+              "shadowOffset": ["0dp", "16.047dp"],
+              "shadowRadii": ["14.52dp", "26.481dp"],
+              "shadowAlphas": [0.142119, 0.077123],
               "shadowColor": "#A5A5A5FF"
             }
           },
@@ -1528,9 +1528,9 @@
               "glow": 0.248378,
               "glowFill": 0.414479,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "18.286dp"],
-              "shadowRadii": ["18.113dp", "24.245dp"],
-              "shadowAlphas": [0.28973, 0.063761],
+              "shadowOffset": ["0dp", "18.288dp"],
+              "shadowRadii": ["18.115dp", "24.244dp"],
+              "shadowAlphas": [0.289938, 0.063761],
               "shadowColor": "#D1D1D1FF"
             }
           },
@@ -1655,8 +1655,8 @@
               "glowFill": 0.425177,
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "19.112dp"],
-              "shadowRadii": ["19.599dp", "22.811dp"],
-              "shadowAlphas": [0.462126, 0.048212],
+              "shadowRadii": ["19.6dp", "22.81dp"],
+              "shadowAlphas": [0.462377, 0.048212],
               "shadowColor": "#E7E7E7FF"
             }
           },
@@ -1781,8 +1781,8 @@
               "glowFill": 0.438457,
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "19.235dp"],
-              "shadowRadii": ["20.059dp", "21.695dp"],
-              "shadowAlphas": [0.639107, 0.032298],
+              "shadowRadii": ["20.059dp", "21.694dp"],
+              "shadowAlphas": [0.639339, 0.032298],
               "shadowColor": "#F3F3F3FF"
             }
           },
@@ -1906,9 +1906,9 @@
               "glow": 0.249546,
               "glowFill": 0.454108,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "19.085dp"],
+              "shadowOffset": ["0dp", "19.086dp"],
               "shadowRadii": ["20.087dp", "20.829dp"],
-              "shadowAlphas": [0.800352, 0.017843],
+              "shadowAlphas": [0.800512, 0.017843],
               "shadowColor": "#F9F9F9FF"
             }
           },
@@ -2034,7 +2034,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "18.753dp"],
               "shadowRadii": ["19.838dp", "20.081dp"],
-              "shadowAlphas": [0.925323, 0.006667],
+              "shadowAlphas": [0.925392, 0.006667],
               "shadowColor": "#FDFDFDFF"
             }
           },
@@ -2160,7 +2160,7 @@
               "lightColor": "#FFFFFFFF",
               "shadowOffset": ["0dp", "18.237dp"],
               "shadowRadii": ["19.339dp", "19.359dp"],
-              "shadowAlphas": [0.993356, 0.000593],
+              "shadowAlphas": [0.993362, 0.000593],
               "shadowColor": "#FFFFFFFF"
             }
           },
@@ -5528,9 +5528,9 @@
               "glow": 0.249221,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.734dp"],
-              "shadowRadii": ["13.897dp", "17.103dp"],
-              "shadowAlphas": [0.462092, 0.048287],
+              "shadowOffset": ["0dp", "13.735dp"],
+              "shadowRadii": ["13.897dp", "17.102dp"],
+              "shadowAlphas": [0.462251, 0.048287],
               "shadowColor": "#E7E7E7FF"
             }
           },
@@ -5676,10 +5676,10 @@
               "glow": 0.244744,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.614dp"],
-              "shadowRadii": ["13.589dp", "17.66dp"],
-              "shadowAlphas": [0.394947, 0.053723],
-              "shadowColor": "#E0E0E0FF"
+              "shadowOffset": ["0dp", "13.616dp"],
+              "shadowRadii": ["13.592dp", "17.655dp"],
+              "shadowAlphas": [0.39588, 0.053723],
+              "shadowColor": "#E1E1E1FF"
             }
           },
           "content": [
@@ -5824,9 +5824,9 @@
               "glow": 0.23685,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.427dp"],
-              "shadowRadii": ["13.153dp", "18.358dp"],
-              "shadowAlphas": [0.326603, 0.059043],
+              "shadowOffset": ["0dp", "13.433dp"],
+              "shadowRadii": ["13.165dp", "18.344dp"],
+              "shadowAlphas": [0.328593, 0.059042],
               "shadowColor": "#D8D8D8FF"
             }
           },
@@ -5972,9 +5972,9 @@
               "glow": 0.226144,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.373dp"],
-              "shadowRadii": ["12.78dp", "19.497dp"],
-              "shadowAlphas": [0.260665, 0.064174],
+              "shadowOffset": ["0dp", "13.388dp"],
+              "shadowRadii": ["12.809dp", "19.464dp"],
+              "shadowAlphas": [0.263677, 0.064174],
               "shadowColor": "#CDCDCDFF"
             }
           },
@@ -6120,9 +6120,9 @@
               "glow": 0.213192,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.379dp"],
-              "shadowRadii": ["12.366dp", "21.094dp"],
-              "shadowAlphas": [0.199916, 0.069046],
+              "shadowOffset": ["0dp", "13.411dp"],
+              "shadowRadii": ["12.425dp", "21.033dp"],
+              "shadowAlphas": [0.203687, 0.069046],
               "shadowColor": "#BEBEBEFF"
             }
           },
@@ -6268,10 +6268,10 @@
               "glow": 0.198519,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "13.135dp"],
-              "shadowRadii": ["11.553dp", "22.929dp"],
-              "shadowAlphas": [0.146337, 0.073585],
-              "shadowColor": "#AAAAAAFF"
+              "shadowOffset": ["0dp", "13.194dp"],
+              "shadowRadii": ["11.66dp", "22.827dp"],
+              "shadowAlphas": [0.150468, 0.073585],
+              "shadowColor": "#ABABABFF"
             }
           },
           "content": [
@@ -6416,10 +6416,10 @@
               "glow": 0.182611,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "12.394dp"],
-              "shadowRadii": ["10.057dp", "24.83dp"],
-              "shadowAlphas": [0.101151, 0.077718],
-              "shadowColor": "#909090FF"
+              "shadowOffset": ["0dp", "12.491dp"],
+              "shadowRadii": ["10.228dp", "24.675dp"],
+              "shadowAlphas": [0.105197, 0.077718],
+              "shadowColor": "#939393FF"
             }
           },
           "content": [
@@ -6564,10 +6564,10 @@
               "glow": 0.165914,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "11.284dp"],
-              "shadowRadii": ["8.015dp", "26.93dp"],
-              "shadowAlphas": [0.064894, 0.081374],
-              "shadowColor": "#717171FF"
+              "shadowOffset": ["0dp", "11.42dp"],
+              "shadowRadii": ["8.253dp", "26.72dp"],
+              "shadowAlphas": [0.06844, 0.081374],
+              "shadowColor": "#747474FF"
             }
           },
           "content": [
@@ -6712,10 +6712,10 @@
               "glow": 0.148834,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "9.94dp"],
-              "shadowRadii": ["5.621dp", "29.169dp"],
-              "shadowAlphas": [0.0375, 0.084481],
-              "shadowColor": "#4E4E4EFF"
+              "shadowOffset": ["0dp", "10.1dp"],
+              "shadowRadii": ["5.898dp", "28.93dp"],
+              "shadowAlphas": [0.04023, 0.084481],
+              "shadowColor": "#525252FF"
             }
           },
           "content": [
@@ -6860,10 +6860,10 @@
               "glow": 0.131737,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "8.568dp"],
-              "shadowRadii": ["3.222dp", "31.283dp"],
-              "shadowAlphas": [0.018406, 0.086965],
-              "shadowColor": "#2D2D2DFF"
+              "shadowOffset": ["0dp", "8.713dp"],
+              "shadowRadii": ["3.472dp", "31.073dp"],
+              "shadowAlphas": [0.02016, 0.086965],
+              "shadowColor": "#303030FF"
             }
           },
           "content": [
@@ -7008,10 +7008,10 @@
               "glow": 0.114948,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "7.453dp"],
-              "shadowRadii": ["1.295dp", "32.923dp"],
-              "shadowAlphas": [0.006657, 0.088755],
-              "shadowColor": "#121212FF"
+              "shadowOffset": ["0dp", "7.539dp"],
+              "shadowRadii": ["1.442dp", "32.8dp"],
+              "shadowAlphas": [0.007479, 0.088755],
+              "shadowColor": "#141414FF"
             }
           },
           "content": [
@@ -7156,9 +7156,9 @@
               "glow": 0.098755,
               "glowFill": 1,
               "lightColor": "#FFFFFFFF",
-              "shadowOffset": ["0dp", "6.823dp"],
-              "shadowRadii": ["0.211dp", "33.825dp"],
-              "shadowAlphas": [0.001031, 0.089779],
+              "shadowOffset": ["0dp", "6.843dp"],
+              "shadowRadii": ["0.245dp", "33.798dp"],
+              "shadowAlphas": [0.001195, 0.089779],
               "shadowColor": "#030303FF"
             }
           },

@@ -951,11 +951,10 @@ internal const val GlassJourneyLightApple: Float = 1f
 internal const val GlassJourneyGlowApple: Float = 1f
 
 /**
- * Alone senza tocco «appena visibile»: scelta di Alessio del 17 novembre 2026, dopo S4 e la review F3.
- * Il 4% sostituisce il 50% che sulla foto chiara faceva una gonna bianca. Cambia solo la luce esterna del piano:
- * col dito resta [GlassJourneyGlowFinger], al buio entrambe ricevono [GlassJourneyDarkLight]. Taratura sul banco.
+ * Sulla tavola S5bis del 17 novembre 2026 Alessio ha scelto 0,15 fra 0,04, 0,10 e 0,15 per la
+ * luce esterna del piano senza tocco. Col dito resta [GlassJourneyGlowFinger], al buio vale [GlassJourneyDarkLight].
  */
-internal const val GlassJourneyGlowQuiet: Float = 0.04f
+internal const val GlassJourneyGlowQuiet: Float = 0.15f
 
 /**
  * Di quanto l'alone scende sotto la sagoma (F3.12b), in frazione del lato corto **di adesso** (rigonfiamento compreso):
@@ -1273,7 +1272,7 @@ internal object GlassLiquidJourneys {
 
   /**
    * **Di serie**, la scelta di Alessio del 16 novembre: [Half] col rigonfiamento di [Apple], **più la luce del dito**;
-   * dal 17 novembre l'alone senza tocco è soltanto [GlassJourneyGlowQuiet] («appena visibile», dopo S4).
+   * dal 17 novembre l'alone senza tocco segue [GlassJourneyGlowQuiet] (scelta sulla tavola S5bis).
    * Il rigonfiamento è l'unica cosa che Apple fa in tutte le clip, e si misura (classe B); luce, alone e
    * smerigliatura pieni sono di un solo render, e sul testo e al buio «come Apple» copre tutto: a metà il vetro si
    * illumina e si fa lattiginoso senza sparire. Quando il cambio parte da un tocco su un vetro del contenitore, il

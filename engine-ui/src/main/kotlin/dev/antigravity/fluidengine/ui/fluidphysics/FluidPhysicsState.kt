@@ -876,6 +876,8 @@ internal class PhysicsPlaneShape(
   val journeyLight: Float = 0f,
   val touch: PhysicsPlaneTouch? = null,
   val journeyGlow: Float = journeyLight,
+  /** Indice del donatore per un rilascio multiplo, l'indice del nato se il donatore è in un altro campo, -1 altrimenti. */
+  val donorIndices: IntArray? = null,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()
@@ -1218,6 +1220,7 @@ internal class PhysicsRenderPlan {
 
   /** L'unione di ogni pezzo, -1 se non ne ha: vedi [planeNeck]. */
   val pieceUnion = IntArray(PhysicsMaxPieces) { -1 }
+  var donorIndices: IntArray? = null
 
   /** L'esponente della vita del collo nel tempo di questo piano: [PhysicsNeckPinchExponent], uno solo per tutto l'engine (il collo «spesso», 1/2, scelta di Alessio del 2026-11-16). */
   var neckPinch: Float = PhysicsNeckPinchExponent
@@ -1639,6 +1642,7 @@ internal fun buildPlanePlan(plan: PhysicsRenderPlan, shape: PhysicsPlaneShape) {
     }
   }
   plan.finishSlabs(count, shape.nominalBlend)
+  plan.donorIndices = shape.donorIndices
   if (count > 1) {
     plan.fusion = physicsNeckEncode(shape.neck)
     plan.planeNeck = true

@@ -32,7 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1454,7 +1454,9 @@ internal fun fluidGlassFieldSlabs(
   val lens = members.isNotEmpty() &&
     members.all { it.change == GlassPlaneChange.Materialize || it.change == GlassPlaneChange.Dematerialize }
   val amount = if (lens) members.maxOf { it.materialize } else 1f
-  val drawn = (if (lens) members else members.filter { it.materialize > 0f }).unionsFirst { it.piece }
+  val visible = if (lens) members else members.filter { it.materialize > 0f }
+  val ordered = if (visible.any { it.siblingRank > 0 }) visible.sortedBy { it.siblingRank } else visible
+  val drawn = ordered.unionsFirst { it.piece }
   val slabs = drawn.map {
     FluidForm.Slab(it.bounds.translate(-origin.x, -origin.y), it.radii, smoothing(it.piece))
   }
@@ -1597,6 +1599,12 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
   }
 }
 
+/** Il palco e il layer a riposo leggono la molla nella stessa fase. Una nuova pressione invalida anche a volo fermo. */
+internal class FluidGlassStageShape(read: () -> PhysicsPlaneShape) {
+  var sample by mutableStateOf(read)
+  val value by derivedStateOf { sample() }
+}
+
 /**
  * [slab] più piccola di [insetPx] su ogni lato, raggi compresi e mai oltre il mezzo lato nuovo: il contrario di
  * `glassJourneySwollen` (F3.12c, un pezzo che dopo il suo colmo va un poco sotto la sua misura). Mai sotto un pixel di
@@ -1685,6 +1693,11 @@ internal fun fluidGlassStagePlane(
     nominalBlend = spacingPx,
     neck = shapedNeck,
     unions = fluidGlassStableUnionIndices(shape.members),
+    donorIndices = if (shape.members.none { it.siblingRank > 0 }) null else IntArray(slabs.size) { i ->
+      val donor = shape.members[i].bornFrom.takeIf { shape.members[i].siblingRank > 0 }
+      // Se il tetto del campo ha diviso la famiglia, nessuna lastra precedente può prestare il suo raccordo.
+      if (donor == null) -1 else (0 until i).firstOrNull { shape.members[it].flightId.sourceKey == donor } ?: i
+    },
     materialize = shape.materialize,
     motion = physicsPlaneMotion(speedPx / density, movingMs),
     journeyLight = journeyLight,
@@ -1716,9 +1729,9 @@ internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = fals
  * in cui il contenuto è stato composto. Fino a F3.11 valeva solo per chi resta (R7 A3: «nitido, si sposta col suo
  * vetro»), e il contenuto di un pezzo che nasce stava fermo al posto d'arrivo mentre il vetro gli rimbalzava attorno;
  * in Apple i simboli stanno dentro il vetro e fanno il suo rimbalzo (`sessioni/f3-12a/misure.md`: superano il loro
- * posto di 0,15–0,20 D e tornano, e quelli di chi confluisce entrano nel vicino col loro vetro mentre svaniscono), e
- * **non cambiano misura** (la larghezza di un simbolo resta entro l'1%): il contenuto trasla, non si stira (invariante
- * 23). Chi compare o scompare per lente non si sposta: la sua lastra cresce attorno al centro. Tutti sono ritagliati
+ * posto di 0,15–0,20 D e tornano, e quelli di chi confluisce entrano nel vicino col loro vetro mentre svaniscono).
+ * I simboli dei rilasci conservano la misura (invariante 23). Una registrazione centrata che cambia larghezza entra
+ * intera grazie a [fluidGlassFittedLook]. Chi compare per lente cresce attorno al centro. Tutti sono ritagliati
  * sulla lastra in volo, rigonfiata di [swell] (col rigonfiamento in più del pezzo) come la disegna il palco: mai un
  * contenuto fuori dal suo vetro. Di serie [anchor] è il centro, identico a F3.12a; un bordo (F4A.2b) conserva invece
  * il posto d'arrivo delle icone di un gruppo che cambia larghezza, salvo il rimbalzo di quel bordo. Pura.
@@ -1755,11 +1768,20 @@ internal fun fluidGlassContentFlightOf(
     }
   }
   return FluidGlassContentFlight(
-    look = look,
+    look = if (flying.widthChanges && anchor == FluidGlassContentAnchor.Center)
+      fluidGlassFittedLook(look, place, grown.frame) else look,
     offset = offset,
     clip = drawn.frame.translate(-place.left, -place.top),
     radii = drawn.cornerRadii,
+    naturalLook = look,
   )
+}
+
+/** Adatta tutta la registrazione al vetro disponibile, attorno al centro e senza deformare le lettere. */
+internal fun fluidGlassFittedLook(look: GlassContentLook, place: Rect, glass: Rect): GlassContentLook {
+  if (place.isEmpty) return look
+  val fit = min(glass.width / place.width, glass.height / place.height).coerceAtLeast(0f)
+  return if (fit < look.scale) look.copy(scale = fit) else look
 }
 
 /**
@@ -1914,6 +1936,7 @@ internal class FluidGlassContentFlight(
   val offset: Offset = Offset.Zero,
   val clip: Rect? = null,
   val radii: FluidCornerRadii = FluidCornerRadii.Zero,
+  val naturalLook: GlassContentLook = look,
 ) {
   companion object {
     /** Il contenuto di un pezzo che non si vede ancora. */
@@ -1948,7 +1971,8 @@ internal class FluidGlassPieceContent {
   var attached: Boolean = false
 
   /** Dove sta il pezzo nel contenitore, all'ultima misura: è lì che il suo contenuto esce quando il pezzo se ne va. */
-  var place: Rect = Rect.Zero
+  var place by mutableStateOf(Rect.Zero)
+  var placeRadii: FluidCornerRadii = FluidCornerRadii.Zero
 
   /** La parte che il contenuto fa nel viaggio in corso, e l'ultimo aspetto calcolato. */
   var role: GlassPieceContent = GlassPieceContent.Rest
@@ -1956,6 +1980,15 @@ internal class FluidGlassPieceContent {
 
   /** L'aspetto di adesso, letto in disegno: null a riposo (nitido, al suo posto, senza ritaglio). Si scrive con [show]. */
   val flight = mutableStateOf<FluidGlassContentFlight?>(null)
+  private var pressure: (() -> FluidPressTransform?)? = null
+
+  fun drawnFlight(): FluidGlassContentFlight? {
+    val current = flight.value ?: return null
+    val clip = current.clip ?: return current
+    val press = pressure?.invoke() ?: return current
+    val drawn = fluidGlassPressedSlab(FluidForm.Slab(clip, current.radii), press)
+    return FluidGlassContentFlight(current.look, current.offset, drawn.frame, drawn.cornerRadii, current.naturalLook)
+  }
 
   /**
    * Vero se il contenuto adesso non si vede ([fluidGlassContentHidden]): chi nasce, finché il suo contenuto non compare.
@@ -1965,7 +1998,8 @@ internal class FluidGlassPieceContent {
     private set
 
   /** Scrive l'aspetto di adesso, e [hidden]. */
-  fun show(next: FluidGlassContentFlight?) {
+  fun show(next: FluidGlassContentFlight?, livePress: (() -> FluidPressTransform?)? = null) {
+    pressure = livePress
     if (flight.value != next) flight.value = next
     hidden = fluidGlassContentHidden(next)
   }
@@ -2313,7 +2347,7 @@ internal class FluidGlassContainerState {
    * La forma di ogni campo del palco (F3.2c): scritta a ogni fotogramma dal passo del contenitore, letta in disegno dalla
    * superficie fisica del campo ([FluidPhysicsState.driveByFrame]). Una forma nuova solo quando qualcosa cambia.
    */
-  private val stageShapes = HashMap<Int, MutableState<PhysicsPlaneShape>>()
+  private val stageShapes = HashMap<Int, FluidGlassStageShape>()
 
   /**
    * La tinta di ogni lastra dei campi del palco con più tinte (F4A.2), nell'ordine delle lastre della forma di adesso:
@@ -2598,10 +2632,12 @@ internal class FluidGlassContainerState {
       val id = attributes.id?.takeIf { seenIds.add(it) }
       looks[piece] = look
       piece.content.place = rect
+      val radii = radiiOf(piece, look, rect)
+      piece.content.placeRadii = radii
       registry.put(GlassPlanePiece(
         key = piece,
         bounds = rect,
-        radii = radiiOf(piece, look, rect),
+        radii = radii,
         containerId = this,
         variant = look.variant,
         id = id,
@@ -3002,15 +3038,17 @@ internal class FluidGlassContainerState {
     val fill = driver.fingerFill
     val tints = tintJourney.frame(frame)
     for (field in stage.fields) {
-      val plane = fluidGlassStagePlane(
+      val fieldSwell = if (field.lens) FluidGlassSwell.None else swell
+      val neck = if (restFused) 1f else driver.neckNow(field.union)
+      val sample = { fluidGlassStagePlane(
         frame = frame,
         flights = field.flights,
         origin = field.node.topLeft,
         smoothing = { smoothingOf(it) },
         spacingPx = spacingPx,
         // Il collo dell'orologio, o quello dell'unione che in questo campo nasce o si scioglie.
-        neck = if (restFused) 1f else driver.neckNow(field.union),
-        swell = if (field.lens) FluidGlassSwell.None else swell,
+        neck = neck,
+        swell = fieldSwell,
         density = density.density,
         movingMs = movingMs,
         journeyLight = if (field.lens) 0f else light,
@@ -3018,12 +3056,13 @@ internal class FluidGlassContainerState {
         journeyGlow = if (field.lens) 0f else halo,
         // Il tasto premuto che ha fatto partire il viaggio resta premuto e si rilascia con la sua molla (R2 di C).
         pressed = if (field.lens) NoPieceFramePress else pressFrames,
-      )
+      ) }
       // Le tinte delle lastre prima della forma: chi le legge in disegno le trova allineate con lei.
       updateStageTints(frame, field, tints)
-      val holder = stageShapes[field.index]
-      if (holder == null) stageShapes[field.index] = mutableStateOf(plane) else holder.value = plane
+      val holder = stageShapes.getOrPut(field.index) { FluidGlassStageShape(sample) }
+      holder.sample = sample
       if (stageLog) {
+        val plane = holder.value
         Log.v(
           FluidGlassLogTag,
           "PALCO t=${"%.1f".format(java.util.Locale.ROOT, driver.elapsedMs)} campo=${field.index} nodo=${field.node} " +
@@ -3062,9 +3101,9 @@ internal class FluidGlassContainerState {
         continue
       }
       val flight = fluidGlassContentFlightOf(
-        flying, role, look, content.place, swell, pressOf(flying), piece.attributes.contentAnchor, layoutDirection,
+        flying, role, look, content.place, swell, anchor = piece.attributes.contentAnchor, layoutDirection = layoutDirection,
       )
-      if (flight != null || content.flight.value != null) content.show(flight)
+      if (flight != null || content.flight.value != null) content.show(flight) { pressOf(flying) }
     }
     finished?.let { done -> dropDeparted { it in done } }
   }
@@ -3420,14 +3459,26 @@ private class FluidGlassPieceContentNode(var piece: FluidGlassPiece) : Modifier.
     val context = requireGraphicsContext()
     // Giro di correzione di F3 (D 6): se il pezzo è già alla misura o al posto nuovi e il vetro li prende al fotogramma
     // dopo, si mostra il contenuto di prima dov'era, e i due cambiano insieme.
-    val held = heldOffset()
+    val pending = pendingResize()
+    val held = if (pending == null) heldOffset() else null
     val shown = if (held == null) content.obtain(context).also(record) else content.hold(context, record)
     val fade = piece.container.contentFade().fastCoerceIn(0f, 1f)
     if (held == null) {
-      drawGlassPieceContent(content, shown, fade, path, reference)
+      drawGlassPieceContent(content, shown, fade, path, reference, pending ?: content.drawnFlight())
     } else {
       translate(held.x, held.y) { drawGlassPieceContent(content, shown, fade, path, reference) }
     }
+  }
+
+  /** Il layout può precedere di più disegni la misura del palco, anche durante un'inversione. */
+  private fun ContentDrawScope.pendingResize(): FluidGlassContentFlight? {
+    val content = piece.content
+    if (piece.attributes.contentAnchor != FluidGlassContentAnchor.Center || content.place.isEmpty ||
+      abs(size.width - content.place.width) <= FluidGlassPlaneTolerancePx) return null
+    val node = piece.coordinates?.takeIf { it.isAttached } ?: return null
+    val box = piece.container.coordinates?.takeIf { it.isAttached } ?: return null
+    val now = box.localBoundingBoxOf(node, clipBounds = false)
+    return fluidGlassPendingResize(content.place, now, content.placeRadii, content.drawnFlight())
   }
 
   /**
@@ -3459,6 +3510,17 @@ internal fun fluidGlassContentHold(shown: Rect, now: Rect): Offset? {
   return Offset(shown.left - now.left, shown.top - now.top)
 }
 
+/** Porta la misura nuova nel vetro dell'ultimo fotogramma pubblicato, anche se l'origine del nodo è cambiata. */
+internal fun fluidGlassPendingResize(
+  shown: Rect, now: Rect, radii: FluidCornerRadii, flight: FluidGlassContentFlight?,
+): FluidGlassContentFlight? {
+  if (now.isEmpty || !now.isFinite || shown.isEmpty || abs(now.width - shown.width) <= FluidGlassPlaneTolerancePx) return null
+  val glass = flight?.clip?.translate(shown.topLeft) ?: shown
+  val natural = flight?.naturalLook ?: GlassContentLook.Sharp
+  return FluidGlassContentFlight(fluidGlassFittedLook(natural, now, glass), glass.center - now.center,
+    glass.translate(-now.topLeft), flight?.radii ?: radii, natural)
+}
+
 /** Vero se il contenuto di un pezzo, con l'aspetto [flight], non si vede: nascosto, o nato e non ancora comparso. Pura. */
 internal fun fluidGlassContentHidden(flight: FluidGlassContentFlight?): Boolean =
   flight != null && flight.look.alpha <= FluidGlassContentInvisibleAlpha
@@ -3477,9 +3539,9 @@ private fun DrawScope.drawGlassPieceContent(
   fade: Float,
   path: Path,
   referencePx: Float,
+  flight: FluidGlassContentFlight? = content.drawnFlight(),
 ) {
   layer ?: return
-  val flight = content.flight.value
   val look = flight?.look ?: GlassContentLook.Sharp
   val alpha = (look.alpha * fade).fastCoerceIn(0f, 1f)
   if (alpha <= FluidGlassContentInvisibleAlpha) return

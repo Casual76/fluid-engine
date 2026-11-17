@@ -951,6 +951,13 @@ internal const val GlassJourneyLightApple: Float = 1f
 internal const val GlassJourneyGlowApple: Float = 1f
 
 /**
+ * Alone senza tocco «appena visibile»: scelta di Alessio del 17 novembre 2026, dopo S4 e la review F3.
+ * Il 4% sostituisce il 50% che sulla foto chiara faceva una gonna bianca. Cambia solo la luce esterna del piano:
+ * col dito resta [GlassJourneyGlowFinger], al buio entrambe ricevono [GlassJourneyDarkLight]. Taratura sul banco.
+ */
+internal const val GlassJourneyGlowQuiet: Float = 0.04f
+
+/**
  * Di quanto l'alone scende sotto la sagoma (F3.12b), in frazione del lato corto **di adesso** (rigonfiamento compreso):
  * l'alone è la sagoma spostata in giù di tanto e sfocata di [GlassJourneyGlowRadius], come l'ombra d'ambiente.
  *
@@ -1265,14 +1272,15 @@ internal object GlassLiquidJourneys {
   val Gentle: GlassLiquidJourney = Apple.scaled(0.25f)
 
   /**
-   * **Di serie**, la scelta di Alessio del 16 novembre: [Half] col rigonfiamento di [Apple], **più la luce del dito**
-   * (F3.10). Il rigonfiamento è l'unica cosa che Apple fa in tutte le clip, e si misura (classe B); luce, alone e
+   * **Di serie**, la scelta di Alessio del 16 novembre: [Half] col rigonfiamento di [Apple], **più la luce del dito**;
+   * dal 17 novembre l'alone senza tocco è soltanto [GlassJourneyGlowQuiet] («appena visibile», dopo S4).
+   * Il rigonfiamento è l'unica cosa che Apple fa in tutte le clip, e si misura (classe B); luce, alone e
    * smerigliatura pieni sono di un solo render, e sul testo e al buio «come Apple» copre tutto: a metà il vetro si
    * illumina e si fa lattiginoso senza sparire. Quando il cambio parte da un tocco su un vetro del contenitore, il
    * bagliore della pressione riempie quel vetro e lo accompagna nel viaggio. Agisce solo sul palco del piano flottante
    * (`FluidGlassContainer`): menu e Fluid-physics fuori dal piano restano «un po' limpidi» (la scelta B di F1B).
    */
-  val Shipped: GlassLiquidJourney = Half.copy(swell = GlassJourneySwellApple)
+  val Shipped: GlassLiquidJourney = Half.copy(swell = GlassJourneySwellApple, glow = GlassJourneyGlowQuiet)
 
   private fun GlassLiquidJourney.scaled(by: Float): GlassLiquidJourney =
     copy(light = light * by, glow = glow * by, frost = frost * by, swell = swell * by)

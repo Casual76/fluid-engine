@@ -335,7 +335,7 @@ class FluidGlassContentTransitionTest {
 
   @Test fun theContentOfABornGlassArrivesBlurredInsideItAndSharpensLast() {
     // Apple, «Select» → «Done»: al 50% il vetro è vuoto, al 60% «Done» è una macchia, al 70% quasi nitido, all'80% nitido.
-    for (phase in listOf(0f, 0.08f, 0.25f, 0.4f, 0.5f)) {
+    for (phase in listOf(0f, 0.08f, 0.25f, 0.4f, GlassPieceContentDefaults.BornAlphaAt)) {
       assertEquals("niente contenuto prima del vetro, a $phase", 0f, pieceLook(GlassPieceContentRole.Born, phase).alpha, 0f)
     }
     val early = pieceLook(GlassPieceContentRole.Born, 0.6f)
@@ -370,17 +370,18 @@ class FluidGlassContentTransitionTest {
     }
     assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 0.8f))
     assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), 0.95f))
-    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), GlassPieceContentDefaults.BornFocusEnd))
+    assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), GlassPieceContentDefaults.BornFocusEnd))
+    assertTrue(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Born), GlassPieceContentDefaults.BornAlphaEnd))
   }
 
   @Test fun theSymbolOfALensAppearanceCondensesWithoutAPause() {
-    // R7 A8: fra 0,25 e 0,85 della comparsa, da 2× e sfocato a 1× e nitido. S3: una pausa di ~50 ms col simbolo fermo a 2×.
+    // R4 B3: il 2× si deve ancora vedere mentre l'opacità è salita, non solo all'istante in cui è invisibile.
     assertEquals(0f, pieceLook(GlassPieceContentRole.Lens, 0.25f).alpha, 0f)
     val start = pieceLook(GlassPieceContentRole.Lens, 0.26f)
     assertTrue(start.scale > 1.9f && start.blur > 0.95f * peak && start.alpha < 0.05f)
     var previous = start
     var phase = 0.27f
-    while (phase <= 0.85f) {
+    while (phase < 1f) {
       val now = pieceLook(GlassPieceContentRole.Lens, phase)
       assertTrue("la scala scende sempre, a $phase", now.scale < previous.scale)
       assertTrue("l'opacità non si ferma finché non è piena, a $phase", now.alpha > previous.alpha || now.alpha == 1f)
@@ -388,8 +389,54 @@ class FluidGlassContentTransitionTest {
       previous = now
       phase += 0.01f
     }
-    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 0.85f))
+    assertTrue(pieceLook(GlassPieceContentRole.Lens, 0.85f).scale > 1f)
     assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 1f))
+  }
+
+  @Test fun lensSymbolIsStillTwiceSizeWhenItBecomesVisibleOnTheAppleClock() {
+    for (ms in listOf(167f, 200f, 234f)) {
+      val look = pieceLook(GlassPieceContentRole.Lens, ms / FluidMotion.PlaneAppearMillis)
+      assertTrue("2x visibile a $ms ms: $look", look.scale in 1.89f..2f && look.alpha in 0.20f..0.42f)
+      assertTrue("simbolo riconoscibile, non una macchia a $ms ms", look.blur <= peak * 0.52f)
+    }
+    val at367 = pieceLook(GlassPieceContentRole.Lens, 367f / FluidMotion.PlaneAppearMillis)
+    assertTrue(at367.scale < 1.06f && at367.alpha > 0.94f && at367.blur < 0.001f)
+    assertFalse(glassPieceContentDone(GlassPieceContent(GlassPieceContentRole.Lens), 400f / FluidMotion.PlaneAppearMillis))
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Lens, 1f))
+  }
+
+  @Test fun bornAlphaStartsEarlierWhileScaleAndFocusKeepTheirClock() {
+    val early = pieceLook(GlassPieceContentRole.Born, 0.46f)
+    assertTrue(early.alpha > 0f && early.alpha < 0.12f)
+    assertEquals(GlassContentDefaults.BornScale, early.scale, 0f)
+    assertEquals(glassPieceBornBlur(GlassPieceContentDefaults.BornAt) * peak, early.blur, 1e-6f)
+    for (phase in listOf(0.5f, 0.6f, 0.7f, 0.78f, 1f)) {
+      val look = pieceLook(GlassPieceContentRole.Born, phase)
+      assertEquals(glassPieceBornBlur(phase) * peak, look.blur, 1e-6f)
+      assertEquals(GlassContentCurves.scale(GlassContentRole.Born, glassPieceBornU(phase)), look.scale, 1e-6f)
+    }
+    assertTrue(pieceLook(GlassPieceContentRole.Born, 0.6f).alpha in 0.4f..0.5f)
+    assertTrue(pieceLook(GlassPieceContentRole.Born, 1f).alpha < 1f)
+    assertEquals(GlassContentLook.Sharp, pieceLook(GlassPieceContentRole.Born, GlassPieceContentDefaults.BornAlphaEnd))
+  }
+
+  @Test fun reducingMotionMidFlightSettlesWithoutANewKeyOrAClockStep() {
+    for (blur in listOf(true, false)) for ((from, to) in listOf("old" to "new", null to "new", "old" to null)) {
+      var running = GlassContentJourney.start(from, to, clip, blur)
+      for (ms in listOf(0.0, 50.0, 150.0, 250.0)) {
+        assertSame(running, running.withReducedMotion(false))
+        val stopped = running.withReducedMotion(true)
+        assertTrue(stopped.settled)
+        assertEquals(to, stopped.targetKey)
+        assertEquals(if (to == null) emptyList<Any?>() else listOf(to), stopped.layers.map { it.key })
+        assertTrue(stopped.frame(ms).layers.all { it.look == GlassContentLook.Sharp })
+        assertSame(stopped, stopped.withReducedMotion(false))
+        running = running.pruned(ms)
+      }
+    }
+    val interrupted = GlassContentJourney.start("a", "b", clip).retarget(200.0, "c").withReducedMotion(true)
+    assertEquals(listOf("c"), interrupted.layers.map { it.key })
+    assertTrue(interrupted.frame(200.0).finished)
   }
 
   @Test fun theContentOfAGlassThatLeavesBlursAwayInTheFirstSixthOfItsFlight() {
@@ -409,7 +456,8 @@ class FluidGlassContentTransitionTest {
     assertEquals(130f, 470f * GlassPieceContentDefaults.LensExitSpan * GlassContentDefaults.ExitEnd, 8f)
     val lens = GlassPieceContent(GlassPieceContentRole.Exit, span = GlassPieceContentDefaults.LensExitSpan)
     assertTrue(glassPieceContentLook(lens, 0.2f).alpha > 0f)
-    assertTrue(glassPieceContentDone(lens, 0.27f))
+    assertFalse(glassPieceContentDone(lens, 0.27f))
+    assertTrue(glassPieceContentDone(lens, 0.30f))
     // Riparte dall'aspetto che aveva (un contenuto che stava entrando e ora se ne va): nessuno scalino.
     val half = GlassContentLook(alpha = 0.5f, scale = 0.85f, blur = 0.1f)
     assertEquals(half, pieceLook(GlassPieceContentRole.Exit, 0f, half))

@@ -494,6 +494,12 @@ internal class GlassContentJourney private constructor(
     )
   }
 
+  /**
+   * La policy vale anche a chiave invariata durante una corsa: spegnere il movimento porta subito all'arrivo.
+   * Non legge né divide il tempo, quindi vale anche passando alla scala di sistema zero fra due fotogrammi.
+   */
+  fun withReducedMotion(reduced: Boolean): GlassContentJourney = if (reduced && !settled) settle() else this
+
   /** Fermo: nessuno strato si muove, e non serve contare il tempo. */
   val settled: Boolean get() = layers.all { it.role == GlassContentRole.Rest }
 
@@ -553,8 +559,8 @@ internal fun glassContentFrame(
 //    suo rimbalzo (fino a F3.11 restava fermo al posto d'arrivo e il vetro gli oscillava attorno): in Apple i simboli di
 //    un pezzo che nasce superano il loro posto di 0,15–0,20 D col vetro e tornano, senza cambiare misura
 //    (`artifacts/liquid-glass/sessioni/f3-12a/misure.md`);
-//  - **chi compare per lente** (A8): il simbolo si condensa da 2× e sfocato a 1× e nitido fra 0,25 e 0,85 della comparsa,
-//    senza pause;
+//  - **chi compare per lente** (A8): da 0,25 il simbolo diventa visibile ancora a 2×, traslucido; si contrae soprattutto
+//    fra 234 e 367 ms, con l'ultimo assestamento fino a 430 ms (correzione F3 del 17 novembre 2026);
 //  - **chi se ne va** (A5, A8): si sfoca e svanisce nel primo 30% del volo (i 130 ms di R4 B3 su 470), e il bordo che si
 //    ritira lo copre. Chi scompare per lente resta dov'era; chi **confluisce** in un vicino ci entra col suo vetro
 //    mentre svanisce (F3.12a: R4 B2 (b), 4:51 e 4:59);
@@ -585,7 +591,16 @@ internal enum class GlassPieceContentRole {
 /** Le fasi della grammatica del contenuto di un pezzo, con la loro scheda. Numeri di gusto, fiducia media. */
 internal object GlassPieceContentDefaults {
   /**
-   * La fase in cui il contenuto di chi nasce comincia a esserci: 0,5. Nella tavola «Select» → «Done» (classe C,
+   * F3, correzione del 17 novembre 2026: anticipo della sola opacità di chi nasce. Sull'orologio del rilascio di
+   * F3.12c, 0,08 di fase vale circa 30 ms: prima traccia a ~200, leggibilità a ~267–300. Fuoco e scala tengono il
+   * proprio orologio; l'opacità cresce più piano e finisce a 1,30 (~630 ms), come la massa dei simboli R4 B2 (b).
+   */
+  const val BornAlphaAt: Float = 0.42f
+  const val BornAlphaEnd: Float = 1.30f
+
+  /**
+   * La fase di riferimento di scala e fuoco di chi nasce: 0,5. Fino a F3.12c iniziava qui anche l'opacità; ora parte
+   * prima, da [BornAlphaAt], senza anticipare il fuoco. Nella tavola «Select» → «Done» (classe C,
    * rallentata: vale l'ordine delle fasi) al 50% il vetro è ancora vuoto e al 60% «Done» è una macchia chiara. A quella
    * fase la lastra che nasce ha già coperto il posto d'arrivo (la molla del piano fa più del 90% della corsa nella prima
    * metà del tempo), quindi il contenuto non compare mai fuori dal vetro; il ritaglio sulla sagoma lo garantisce comunque.
@@ -638,11 +653,11 @@ internal object GlassPieceContentDefaults {
   /** La forma della coda lenta della sfocatura di chi nasce: vedi [BornFocusTail]. */
   const val BornFocusTailPower: Float = 1.5f
 
-  /** Da dove a dove della comparsa per lente il simbolo si condensa (R7 A8: fra 0,25 e 0,85). */
+  /** Inizio del simbolo nella comparsa per lente (R4 B3, fiducia media: ~107 ms sui 430). */
   const val LensFrom: Float = 0.25f
 
   /** Vedi [LensFrom]. */
-  const val LensTo: Float = 0.85f
+  const val LensTo: Float = 1f
 
   /** La scala da cui il simbolo si condensa (R4 B3: ≈2×). */
   const val LensScale: Float = 2f
@@ -657,10 +672,11 @@ internal object GlassPieceContentDefaults {
   const val ExitSpan: Float = 0.24f
 
   /**
-   * Lo stesso per il simbolo di un vetro che **scompare per lente** (R4 B3): 0,4, cioè via a 0,26 del volo, 124 ms sui
-   * 470 di una scomparsa («simbolo via in 130 ms»). È la scheda che lo misura, e non è quella del cambio di contesto.
+   * Il simbolo che **scompare per lente** (R4 B3): 0,44, zero a ~136 ms sui 470. La coda traslucida diventa invisibile
+   * prima dello zero: con 0,40 S4 lo vedeva già sparito a 101–118 ms, contro ~130 di Apple. Correzione del 17 novembre
+   * 2026; la durata visibile effettiva va confermata in mano. Il cambio di contesto conserva la sua curva.
    */
-  const val LensExitSpan: Float = 0.4f
+  const val LensExitSpan: Float = 0.44f
 
   /**
    * Lo stesso per il contenuto di un vetro che **confluisce in un vicino** (F3.12c): 0,65, cioè via a 0,43 del volo (~230
@@ -675,6 +691,30 @@ internal object GlassPieceContentDefaults {
 
   /** In quanta parte del volo un contenuto che resta torna nitido dall'aspetto che aveva. */
   const val RecoverSpan: Float = 0.5f
+}
+
+/**
+ * Curve separate perché il 2× deve essere visibile, non consumarsi mentre α è ancora zero (review F3, C R8).
+ * R4 B3 e fotogrammi f5404–f5412: a 167–234 ms il simbolo è ancora grande e traslucido, a ~367 quasi contratto;
+ * l'ultimo assestamento arriva al bilancio di 430 ms. Numeri tarati sul banco il 17 novembre 2026, fiducia media.
+ */
+internal object GlassPieceContentCurves {
+  val lensScale = GlassContentCurve(
+    floatArrayOf(GlassPieceContentDefaults.LensFrom, 0.39f, 0.545f, 0.70f, 0.86f, GlassPieceContentDefaults.LensTo),
+    floatArrayOf(GlassPieceContentDefaults.LensScale, 1.99f, 1.90f, 1.35f, 1.04f, 1f),
+  )
+  val lensAlpha = GlassContentCurve(
+    floatArrayOf(GlassPieceContentDefaults.LensFrom, 0.39f, 0.545f, 0.70f, 0.86f, GlassPieceContentDefaults.LensTo),
+    floatArrayOf(0f, 0.22f, 0.40f, 0.72f, 0.96f, 1f),
+  )
+  val lensBlur = GlassContentCurve(
+    floatArrayOf(GlassPieceContentDefaults.LensFrom, 0.39f, 0.545f, 0.70f, 0.86f, GlassPieceContentDefaults.LensTo),
+    floatArrayOf(1f, 0.12f, 0.08f, 0.02f, 0f, 0f),
+  )
+  val bornAlpha = GlassContentCurve(
+    floatArrayOf(GlassPieceContentDefaults.BornAlphaAt, 0.50f, 0.60f, 0.70f, 0.78f, 1f, GlassPieceContentDefaults.BornAlphaEnd),
+    floatArrayOf(0f, 0.12f, 0.42f, 0.78f, 0.87f, 0.96f, 1f),
+  )
 }
 
 /**
@@ -718,30 +758,27 @@ internal fun glassPieceContentLook(
     GlassPieceContentRole.Rest -> GlassContentLook.Sharp
     GlassPieceContentRole.Hidden -> GlassContentInvisible
     GlassPieceContentRole.Born -> {
-      // La curva di chi nasce di F3.4 (opacità, scala da 0,75), portata sulla finestra del volo; la sfocatura sale come
-      // quella di F3.4 e poi scende con la sua rampa fino a `BornFocusEnd` (F3.12c, [glassPieceBornBlur]).
+      // Solo l'opacità è anticipata e più lenta (correzione F3); scala e fuoco tengono l'orologio di F3.12c.
       val u = glassPieceBornU(p)
-      if (p < GlassPieceContentDefaults.BornAt) {
+      if (p <= GlassPieceContentDefaults.BornAlphaAt) {
         GlassContentInvisible
       } else {
         GlassContentLook(
-          alpha = GlassContentCurves.alpha(GlassContentRole.Born, u, blurAvailable),
+          alpha = if (blurAvailable) GlassPieceContentCurves.bornAlpha.at(p)
+            else GlassContentCurves.alpha(GlassContentRole.Born, u, false),
           scale = GlassContentCurves.scale(GlassContentRole.Born, u),
-          blur = glassPieceBornBlur(p) * peak,
+          blur = glassPieceBornBlur(max(p, GlassPieceContentDefaults.BornAt)) * peak,
         )
       }
     }
     GlassPieceContentRole.Lens -> {
-      val w = ((p - GlassPieceContentDefaults.LensFrom) /
-        (GlassPieceContentDefaults.LensTo - GlassPieceContentDefaults.LensFrom)).coerceIn(0f, 1f)
       if (p <= GlassPieceContentDefaults.LensFrom) {
         GlassContentInvisible
       } else {
-        val shrink = (1f - w) * (1f - w) * (1f - w)
         GlassContentLook(
-          alpha = glassContentSmoothstep(0f, 0.8f, w),
-          scale = 1f + (GlassPieceContentDefaults.LensScale - 1f) * shrink,
-          blur = peak * (1f - glassContentSmoothstep(0f, 1f, w)),
+          alpha = GlassPieceContentCurves.lensAlpha.at(p),
+          scale = GlassPieceContentCurves.lensScale.at(p),
+          blur = peak * GlassPieceContentCurves.lensBlur.at(p),
         )
       }
     }
@@ -793,7 +830,7 @@ internal fun glassPieceBornBlur(phase: Float): Float {
 /** Vero quando [content] ha finito di muoversi alla [phase]: da lì è fermo (o sparito, per chi esce). */
 internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Boolean = when (content.role) {
   GlassPieceContentRole.Rest, GlassPieceContentRole.Hidden -> true
-  GlassPieceContentRole.Born -> glassPieceBornU(phase) >= GlassContentDefaults.EnterEnd &&
+  GlassPieceContentRole.Born -> phase >= GlassPieceContentDefaults.BornAlphaEnd &&
     phase >= GlassPieceContentDefaults.BornFocusEnd
   GlassPieceContentRole.Lens -> phase >= GlassPieceContentDefaults.LensTo
   GlassPieceContentRole.Exit -> phase / glassPieceExitSpan(content) >= GlassContentDefaults.ExitEnd
@@ -901,6 +938,15 @@ fun <S> FluidGlassContentTransition(
   var nowMs by remember { mutableDoubleStateOf(0.0) }
   // Il colore da cui parte il cambio di colore in corso; `null` quando non ce n'è uno.
   var colorFrom by remember { mutableStateOf<Color?>(null) }
+
+  // Va consultata a ogni cambio di policy, anche senza una nuova chiave. L'effetto con `running = false` cancella
+  // l'orologio in corso; nessun fotogramma della vecchia corsa può rimettere strati o tinta dopo l'arrivo.
+  val policyJourney = journey.withReducedMotion(policy.reducedMotion)
+  if (policyJourney !== journey) {
+    journey = policyJourney
+    nowMs = 0.0
+    colorFrom = null
+  }
 
   if (journey.targetKey != targetKey) {
     val previous = journey.targetKey

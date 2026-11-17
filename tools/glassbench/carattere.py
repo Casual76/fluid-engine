@@ -76,6 +76,7 @@ def journeys() -> dict[str, dict[str, float]]:
 
     shipped = scaled(0.5)
     shipped["swell"] = apple["swell"]  # GlassLiquidJourneys.Shipped: Half col rigonfiamento di Apple
+    shipped["glow"] = number("GlassJourneyGlowQuiet")  # Alessio, 2026-11-17: senza dito appena visibile
     off = dict(apple)
     off.update(light=0.0, darkLight=0.0, glow=0.0, frost=0.0, swell=0.0, finger=0.0)
     return {"off": off, "apple": apple, "half": scaled(0.5), "gentle": scaled(0.25), "shipped": shipped}
@@ -448,9 +449,10 @@ def selftest() -> int:
     check("alone: tetto del lato", glow_side(200.0), number("GlassJourneyGlowSideMaxDp"))
     check("alone: senza lato", glow_side(float("nan")), 0.0)
     shipped = journeys()["shipped"]
-    check("alone a meta' senza dito", glow_with(shipped, 0.0), 0.5)
+    check("alone appena visibile senza dito", glow_with(shipped, 0.0), number("GlassJourneyGlowQuiet"))
     check("alone a meta' col dito pieno", glow_with(shipped, 1.0), number("GlassJourneyGlowFinger"))
-    check("alone a meta' col dito a meta'", glow_with(shipped, 0.5), 0.75)
+    check("alone a meta' col dito a meta'", glow_with(shipped, 0.5),
+          (number("GlassJourneyGlowQuiet") + number("GlassJourneyGlowFinger")) / 2)
     touched = copy.deepcopy(el)
     journey_recipe(touched, shipped, 1.0, False, 44.0, 1.0)
     check("a meta' col dito: alfa dell'alone", sum(touched["body"]["uniforms"]["shadowAlphas"]), 1.0)

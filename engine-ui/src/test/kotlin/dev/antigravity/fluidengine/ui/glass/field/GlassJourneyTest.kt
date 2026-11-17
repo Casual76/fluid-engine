@@ -283,7 +283,8 @@ class GlassJourneyTest {
     assertEquals(half.glow,
       glowOf(glassJourneyRecipe(button(), half.copy(finger = 0f), 1f, false, shortDp = 44f, finger = 1f)), 1e-6f)
     // Mai sotto l'alone del carattere, e un tocco non finito vale niente.
-    assertEquals(0.5f, half.copy(glowFinger = 0.2f).glowWith(1f), 0f)
+    assertEquals(0.2f, half.copy(glowFinger = 0.2f).glowWith(1f), 1e-6f)
+    assertEquals(0.5f, GlassLiquidJourneys.Half.copy(glowFinger = 0.2f).glowWith(1f), 0f)
     assertEquals(half.glow, half.glowWith(Float.NaN), 0f)
     // Al buio la metà, come la luce (F3.9): l'alfa dell'alone per `darkLight`.
     assertEquals(GlassJourneyGlowFinger * half.darkLight,
@@ -493,7 +494,7 @@ class GlassJourneyTest {
     assertEquals(apple.darkLight, GlassLiquidJourneys.Gentle.darkLight, 0f)
     assertSame(GlassLiquidJourneys.Shipped, GlassLiquidProfile.Shipped.journey)
     // La proposta: a metà, col rigonfiamento misurato di Apple.
-    assertEquals(GlassLiquidJourneys.Half.copy(swell = GlassJourneySwellApple), GlassLiquidJourneys.Shipped)
+    assertEquals(GlassLiquidJourneys.Half.copy(swell = GlassJourneySwellApple, glow = GlassJourneyGlowQuiet), GlassLiquidJourneys.Shipped)
     // Il viaggio dei menu (la scelta B) non c'entra.
     assertSame(GlassLiquidTravels.Soft, GlassLiquidProfile.Shipped.travel)
   }

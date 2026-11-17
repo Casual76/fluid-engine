@@ -692,7 +692,8 @@ della 4.0:
   `journey=off|gentle|half|apple` (niente, un quarto, a metà, come il render di Apple; di serie `half` col rigonfiamento
   di Apple) e `finger=on|off` (la luce del dito: il bagliore della pressione che ha fatto partire il viaggio riempie il
   vetro toccato, di serie `on`), e i numeri `travellight` (quanto il velo va verso la luce al colmo, 0..1),
-  `travelglow` (l'alone che prende il posto dell'ombra, 0..1), `travelfrost` (di quanto cresce il raggio della
+  `travelglow` (l'alone che prende il posto dell'ombra, 0..1; di serie **0,04 senza tocco**, «appena visibile», scelta
+  di Alessio del 17 novembre 2026; col dito pieno, al buio la metà), `travelfrost` (di quanto cresce il raggio della
   smerigliatura, 0..4), `travelswell` (il rigonfiamento in frazione del lato corto, 0..0,3) e `travelfinger` (quanto del
   bagliore del tocco il vetro si porta nel viaggio, 0..1). Valgono solo sul palco del contenitore: menu e Fluid-physics
   fuori dal piano non li leggono),

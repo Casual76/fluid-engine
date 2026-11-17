@@ -30,8 +30,8 @@ import org.junit.Test
  * Quando `DrawBackdropNode` rifà gli effetti (giro di correzione unico di F1B; voce 20 di `LICENSES/AndroidLiquidGlass.md`;
  * rilievi R1 del critico C e 7 del critico D).
  *
- * Il nodo fa girare gli effetti all'attacco (la taglia non c'è ancora), quando cambia uno stato letto in un giro
- * osservato, e nel disegno quando lo scope prende la taglia. A monte quest'ultimo giro non era osservato: gli ingressi
+ * F3: attacco e notifiche segnano gli effetti come sporchi; il draw li costruisce una sola volta con la taglia e
+ * l'ultimo campione. In F1B si costruivano anche all'attacco e a ogni notifica. A monte il giro del draw non era osservato: gli ingressi
  * che un effetto legge solo **dopo** la taglia (il corpo del vetro nuovo esce senza leggere niente finché la taglia
  * manca; la superficie fisica, a intensità zero, esce prima del resto) non rifacevano mai la catena. Qui una superficie
  * **stabile** (stesso elemento, stessa taglia, stesso fondale) cambia **un ingresso alla volta**, e ogni cambio deve
@@ -41,6 +41,8 @@ import org.junit.Test
  * con un [SnapshotStateObserver] di Compose al posto di `observeReads` e le superfici vere ([GlassLiquidSurface],
  * [PhysicsLiquidSurface]). Togliere la correzione (in `onDraw`, `rebuild()` invece di `refresh()`) fa fallire i primi
  * tre test; l'ultimo prova che la regola di monte, scritta qui accanto, li perde.
+ * I due casi di F3 applicano più campioni prima di un draw e cambiano insieme scope e stato: il nodo deve
+ * installare l'ultimo effetto una volta sola, conservando l'osservazione degli ingressi per il frame successivo.
  */
 class BackdropEffectsUpdatesTest {
 
@@ -68,7 +70,7 @@ class BackdropEffectsUpdatesTest {
     val updates = BackdropEffectsUpdates(observe = { block -> observer.observeReads(this, onChanged, block) }, rebuild = rebuild)
 
     /** `onAttach` → `observeEffects`. */
-    fun attach() = updates.refresh()
+    fun attach() = updates.invalidate()
 
     /** `draw`: lo scope prende la taglia (cambiata solo al primo disegno). */
     fun draw(size: Size) {
@@ -82,7 +84,7 @@ class BackdropEffectsUpdatesTest {
     }
 
     /** `onObservedReadsChanged` → `invalidateDrawCache` → `observeEffects`. */
-    fun onObservedReadsChanged() = updates.refresh()
+    fun onObservedReadsChanged() = updates.invalidate()
   }
 
   /** Compose applica: gli osservatori di ciò che è cambiato rifanno i loro giri. */
@@ -110,6 +112,41 @@ class BackdropEffectsUpdatesTest {
     applyChanges()
     node.draw(Size(600f, 300f))
     assertTrue("$what: cambiato a taglia, elemento e fondale fermi, la catena non si è rifatta", node.rebuilds > before)
+  }
+
+  @Test
+  fun severalAppliedSamplesBeforeADrawInstallOnlyTheLatestEffect() {
+    val body = mutableFloatStateOf(0f)
+    var installedBody = Float.NaN
+    val node = Node({ installedBody = body.floatValue }).apply { settle() }
+    val before = node.rebuilds
+    for (sample in listOf(0.1f, 0.3f, 0.7f)) {
+      body.floatValue = sample
+      applyChanges()
+    }
+    assertEquals("nessuna catena intermedia prima del draw", before, node.rebuilds)
+    node.draw(Size(600f, 300f))
+    assertEquals("una sola installazione per il frame", before + 1, node.rebuilds)
+    assertEquals("il corpo installato è il campione più recente", 0.7f, installedBody, 0f)
+    node.draw(Size(600f, 300f))
+    assertEquals("a riposo non ricostruisce", before + 1, node.rebuilds)
+    body.floatValue = 0.8f
+    applyChanges()
+    node.draw(Size(600f, 300f))
+    assertEquals("dopo il draw resta iscritto agli ingressi", 0.8f, installedBody, 0f)
+  }
+
+  @Test
+  fun aChangedScopeAndPendingSampleShareOneObservedBuild() {
+    val body = mutableFloatStateOf(0f)
+    var installedBody = Float.NaN
+    val node = Node({ installedBody = body.floatValue }).apply { settle() }
+    val before = node.rebuilds
+    body.floatValue = 1f
+    applyChanges()
+    node.draw(Size(620f, 300f))
+    assertEquals("taglia e stato non producono due catene nello stesso frame", before + 1, node.rebuilds)
+    assertEquals(1f, installedBody, 0f)
   }
 
   // ---- Il vetro nuovo fermo (`glassSurface`, la goccia, la pillola: tutti passano da GlassLiquidSurface) ------------

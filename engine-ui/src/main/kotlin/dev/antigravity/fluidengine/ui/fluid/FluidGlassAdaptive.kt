@@ -48,6 +48,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTarget
@@ -454,6 +455,7 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
    */
   fun fill(out: GlassAdaptiveMaterial, profile: GlassLiquidProfile = GlassLiquidProfile.Default): GlassAdaptiveMaterial {
     val side = sideNow
+    GlassFrameDiagnostics.event("fill", this) { "body=$side ink=$ink" }
     if (!measured) {
       out.unmeasured()
     } else {
@@ -486,6 +488,7 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
 
   /** Il contenuto ha composto l'inchiostro della parte [onDark]. Da un `SideEffect`, prima del disegno. */
   fun noteComposedInk(onDark: Boolean) {
+    GlassFrameDiagnostics.event("inkComposed", this) { "dark=$onDark ink=$ink" }
     composedInkOnDark = onDark
   }
 
@@ -563,18 +566,20 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
    */
   private suspend fun chase() {
     while (true) {
-      val now = withFrameMillis { it }
-      val step = if (chasedAt == Long.MIN_VALUE) 0L else (now - chasedAt).coerceIn(0L, GlassChaseMaxStepMillis)
-      chasedAt = now
-      var moving = false
-      for (chase in chases) {
-        chase.step(step)
-        if (!chase.settled) moving = true
+      // Scrive nel callback: la continuazione del collectLatest può riprendere dopo la passata di Compose.
+      // Restituire soltanto l'istante qui lasciava il materiale un frame indietro (o più, con UI occupata).
+      val moving = withFrameMillis { now ->
+        val step = if (chasedAt == Long.MIN_VALUE) 0L else (now - chasedAt).coerceIn(0L, GlassChaseMaxStepMillis)
+        chasedAt = now
+        var pending = false
+        for (chase in chases) {
+          chase.step(step)
+          if (!chase.settled) pending = true
+        }
+        if (!pending) chasedAt = Long.MIN_VALUE
+        pending
       }
-      if (!moving) {
-        chasedAt = Long.MIN_VALUE
-        return
-      }
+      if (!moving) return
     }
   }
 
@@ -677,16 +682,23 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
       noteInkSide(luminance())
       return
     }
-    val start = withFrameMillis { it }
-    if (!law.turn(start, dark)) return
-    var now = start
-    while (true) {
-      body = law.body(now)
-      ink = law.ink(now)
-      noteInkSide(luminance())
-      if (law.settled(now)) break
-      now = withFrameMillis { it }
+    // Corpo, alfa e lato da ricomporre vanno pubblicati prima che il Recomposer applichi il frame. Riprendere
+    // fuori dal callback rinviava le scritture alla coda del dispatcher: pochi campioni e inchiostro a zero
+    // mentre la composizione aspettava ancora il lato nuovo. La legge e i suoi tempi restano gli stessi.
+    var settled = withFrameMillis { now ->
+      if (!law.turn(now, dark)) true else advanceTurn(now, luminance)
     }
+    while (!settled) {
+      settled = withFrameMillis { now -> advanceTurn(now, luminance) }
+    }
+  }
+
+  private fun advanceTurn(now: Long, luminance: () -> Float): Boolean {
+    body = law.body(now)
+    ink = law.ink(now)
+    noteInkSide(luminance())
+    GlassFrameDiagnostics.event("turn", this) { "frame=${now * 1_000_000} body=$body ink=$ink alpha=${inkAlpha()}" }
+    return law.settled(now)
   }
 
   private fun Color.isSpecifiedColor(): Boolean = this != Color.Unspecified

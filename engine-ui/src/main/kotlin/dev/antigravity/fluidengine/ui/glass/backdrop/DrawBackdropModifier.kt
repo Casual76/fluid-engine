@@ -1008,6 +1008,7 @@ private class DrawBackdropNode(
         )
         // LOCAL CHANGE (F1B, voce 20): a monte `if (update) updateEffects()`, fuori dall'osservazione.
         effectsUpdates.onDraw(scopeChanged = effectScope.update(this, effectiveScale))
+        GlassFrameDiagnostics.event("draw", this@DrawBackdropNode)
 
         refreshCapture()
         onDrawBehind?.invoke(this)
@@ -1085,7 +1086,10 @@ private class DrawBackdropNode(
     }
 
     private fun observeEffects() {
-        effectsUpdates.refresh() // LOCAL CHANGE (F1B, voce 20): a monte `observeReads { updateEffects() }`, uguale.
+        // F3: accorpa le notifiche prima del prossimo draw. Gli effetti immutabili prendono l'ultimo campione
+        // del frame, insieme alla luce; nessuna catena intermedia viene installata fra due disegni.
+        effectsUpdates.invalidate()
+        if (isAttached) invalidateDraw()
     }
 
     private fun updateEffects() {
@@ -1093,6 +1097,7 @@ private class DrawBackdropNode(
 
         effectScope.apply(effects)
         graphicsLayer?.renderEffect = effectScope.renderEffect
+        GlassFrameDiagnostics.event("installed", this) { "effect=${System.identityHashCode(effectScope.renderEffect)}" }
         val newPadding = effectScope.padding
         // Only the *padding* invalidates a capture. The `RenderEffect` itself is applied to the layer
         // at draw time, so a chain that changes its numbers — a bar's blur ramping up with a scroll,
@@ -1415,6 +1420,11 @@ private fun sameSampling(a: Backdrop, b: Backdrop): Boolean {
  * sempre quelle dell'ultimo giro. Per il vetro di sempre (`Classic`) gli effetti producono la stessa catena di prima a
  * parità di stato: cambia solo che, quando uno stato letto dopo la taglia cambia, la catena si rifà.
  *
+ * F3: le notifiche segnano la catena come sporca e il nodo chiede un draw. La costruzione si fa una volta sola
+ * nel draw, dopo l'aggiornamento dello scope: più scritture applicate fra due frame non costruiscono catene
+ * intermedie. Il giro resta osservato anche quando il ramo degli effetti cambia. La cattura si invalida solo
+ * se cambia il padding, come prima: un nuovo uniform non fa registrare di nuovo lo sfondo.
+ *
  * Una classe e non due righe nel nodo perché la regola si prova sul JVM con un osservatore vero
  * (`BackdropEffectsUpdatesTest`), senza un nodo attaccato.
  *
@@ -1425,11 +1435,23 @@ internal class BackdropEffectsUpdates(
     private val observe: (block: () -> Unit) -> Unit,
     private val rebuild: () -> Unit,
 ) {
-    /** All'attacco, e quando cambia uno stato letto nell'ultimo giro. */
-    fun refresh() = observe(rebuild)
+    private var dirty = true
 
-    /** Nel disegno: se lo scope è cambiato, un giro **osservato**. A monte era `rebuild()` nudo. */
+    /** All'attacco, all'aggiornamento del nodo o quando cambia un ingresso; il chiamante chiede il draw. */
+    fun invalidate() {
+        dirty = true
+    }
+
+    /** La costruzione osservata; il nodo la raggiunge solo da [onDraw]. Resta disponibile ai modelli di test. */
+    fun refresh() {
+        dirty = false
+        observe(rebuild)
+    }
+
+    /** L'ultimo campione e la taglia del frame, in un solo giro **osservato** prima di disegnare il corpo. */
     fun onDraw(scopeChanged: Boolean) {
-        if (scopeChanged) refresh()
+        if (dirty || scopeChanged) {
+            refresh()
+        }
     }
 }

@@ -809,6 +809,8 @@ class GlassRecipeParityTest {
 
   /** Il codice senza commenti e senza stringhe: solo ciò che si esegue. */
   private fun code(file: File): String = file.readText()
+    // Le espressioni che delimitano le funzioni valgono anche nei checkout Windows con autocrlf.
+    .replace("\r\n", "\n")
     .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "")
     .replace(Regex("//[^\\n]*"), "")
     // Forma «srotolata»: quella con l'alternativa dentro la stella ricorre una volta per carattere, e su una stringa

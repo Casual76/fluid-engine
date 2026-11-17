@@ -217,6 +217,11 @@ Le modifiche fatte finora:
     cambia solo che, quando uno stato letto dopo la taglia cambia, la catena si rifa'. La prova e'
     `BackdropEffectsUpdatesTest` (sul JVM, con un osservatore di snapshot vero e le superfici del materiale nuovo): con
     la regola di monte fallisce.
+    Nel giro di correzione di F3 la stessa classe **accorpa** i rifacimenti: attacco, aggiornamenti e avvisi segnano gli
+    effetti come da rifare e chiedono un disegno, e il disegno costruisce **una sola** catena osservata con l'ultimo stato
+    e la installa prima del corpo (prima un giro chiaro↔scuro poteva costruire piu' catene intermedie fra due disegni). A
+    stato e scope invariati il disegno non ricostruisce; la cattura si invalida come prima. Stessi punti marcati, nessuna
+    firma pubblica cambia; la prova sono i due casi nuovi di `BackdropEffectsUpdatesTest`.
 
 21. **Le sorgenti dicono quando si registrano di nuovo** (4.0.0, `LayerBackdrop.kt`, `LayerBackdropModifier.kt`, F2.1).
     Una superficie che campiona un layer non ricattura quando il layer cambia: sotto un vetro fermo lo sfondo puo'

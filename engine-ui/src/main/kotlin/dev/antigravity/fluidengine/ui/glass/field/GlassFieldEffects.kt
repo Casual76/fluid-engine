@@ -723,6 +723,7 @@ private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, of
 internal var glassBodyProbe: ((scope: BackdropEffectScope, inputs: GlassDrawInputs) -> Unit)? = null
 
 internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: GlassBodyChain) {
+  dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("bodyEffect", this) { "veil=${inputs.veilColor} shade=${inputs.bodyShade} dim=${inputs.dim}" }
   glassBodyProbe?.invoke(this, inputs)
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx

@@ -353,9 +353,11 @@ internal const val LayerFallbackWriterKey: String = "dev.antigravity.fluidengine
 
 /**
  * Fluid Engine addition (4.0.0, F2.3c): se la chrome registra [this] come riserva: qualcuno fuori dalla pagina lo
- * campiona ([adopted]) e nessuna pagina lo registra. Pura, per i test.
+ * campiona ([adopted]) e nessuna pagina lo registra. Dopo il rilascio di Compose, una cattura può ancora tenere
+ * il vecchio layer per riferimento. Registrarci l'intera pagina che contiene quella cattura chiuderebbe un ciclo.
  */
-internal fun chromeWritesFallback(adopted: Boolean, hasPageWriter: Boolean): Boolean = adopted && !hasPageWriter
+internal fun chromeWritesFallback(adopted: Boolean, hasPageWriter: Boolean, released: Boolean): Boolean =
+    adopted && !hasPageWriter && !released
 
 /**
  * Fluid Engine addition (4.0.0, G1): il moto recente dello scorrimento di un layer, per le varianti «cosa fa il vetro

@@ -139,8 +139,17 @@ internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, G
     for (layer in adopted.keys) {
       // Uno scrittore c'è se una pagina lo registra (`hasPageWriter`, stato: arriva e se ne va) o se è l'export di un
       // pannello (`ownerNode`). Sono su richiesta tutti e due, quindi `onDemand` non li distingue.
-      if (chromeWritesFallback(adopted = true, hasPageWriter = layer.hasPageWriter || layer.ownerNode != null)) {
+      val needsFallback = chromeWritesFallback(
+        adopted = true,
+        hasPageWriter = layer.hasPageWriter || layer.ownerNode != null,
+        released = layer.graphicsLayer.isReleased,
+      )
+      if (needsFallback) {
         out += layer
+      } else if (layer.graphicsLayer.isReleased) {
+        // Rilasciato da Compose (f4a-crash): una cattura può ancora tenerlo, e registrarci la pagina che la contiene
+        // chiuderebbe un ciclo di RenderNode. Lascia del tutto, coordinate comprese.
+        leave(layer)
       } else if (layer.fallbackWriter === this) {
         // Una pagina lo registra adesso: lascia (le coordinate le scrive lei).
         layer.fallbackWriter = null

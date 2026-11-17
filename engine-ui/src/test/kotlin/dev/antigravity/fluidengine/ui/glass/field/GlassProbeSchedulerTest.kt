@@ -552,9 +552,16 @@ class GlassProbeSchedulerTest {
 
   @Test
   fun `la chrome registra un layer solo se un vetro fuori lo campiona e nessuna pagina lo registra`() {
-    assertTrue(chromeWritesFallback(adopted = true, hasPageWriter = false))
-    assertFalse("una pagina lo registra: è lei lo scrittore", chromeWritesFallback(adopted = true, hasPageWriter = true))
-    assertFalse("nessuno lo campiona: niente da registrare", chromeWritesFallback(adopted = false, hasPageWriter = false))
+    assertTrue(chromeWritesFallback(adopted = true, hasPageWriter = false, released = false))
+    assertFalse("una pagina lo registra: è lei lo scrittore", chromeWritesFallback(adopted = true, hasPageWriter = true, released = false))
+    assertFalse("nessuno lo campiona: niente da registrare", chromeWritesFallback(adopted = false, hasPageWriter = false, released = false))
+  }
+
+  @Test
+  fun `al pop una cattura che tiene il layer dismesso non autorizza a registrarci la pagina`() {
+    // La pagina è uscita, la cattura della barra la riferisce ancora: scriverle la pagina intera
+    // aggiungerebbe l'arco inverso, dal vecchio fondale al vetro che lo disegna.
+    assertFalse(chromeWritesFallback(adopted = true, hasPageWriter = false, released = true))
   }
 
   @Test

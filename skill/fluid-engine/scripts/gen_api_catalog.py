@@ -41,6 +41,8 @@ UI_FLUID_FILES = {
     "barre": [
         "FluidFloatingTabBar", "FluidFoldingTabBar", "FluidTabBar", "FluidFloatingCapsule",
         "FluidSearchField",
+        # il contratto della ricerca (F4A.1: solo dichiarazioni; F4A.2 la cabla, F4B.2 la riscrive)
+        "FluidSearch",
     ],
     # righe, card, liste, testo ricco
     "contenuto": [
@@ -103,6 +105,8 @@ UI_FLUID_DIRS = {
     # il set FluidIcons: un file scritto a mano e due generati da tools/icons/gen_fluid_icons.py.
     # Le icone si elencano in tabella, una riga per icona (render_icons), non una per dichiarazione.
     "ui/fluid/icons": "icone",
+    # il modello della barra (F4A.1) e, da F4A.2, la DSL e la resa
+    "ui/fluid/toolbar": "barre",
 }
 
 # cartella (sotto .../fluidengine/) -> famiglia; vale per tutto cio' che non e' in ui/fluid

@@ -8,6 +8,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- barre (F4A.1): modello puro con gruppi, priorità, trabocco e corrispondenze fra stati per identità; dichiarazioni della ricerca condivise dalla futura DSL. Matrice R7 e 49 incroci coperti dai test; resa e integrazione nelle barre in F4A.2/F4A.3.
 - pagine (F4A.6): lo stato riprende un push interrotto da gesto o pop conservando posizione e velocità per `Slide` e `ShrinkSlide`, anche nel verso pop → push della stessa voce; `Expand` completa prima l'apertura. Aggancio del primo evento del dito in `FluidPageInput` ancora da adeguare; verifica sul tablet pendente.
 - vetro adattivo, correzione F3: il lato dell'inchiostro in composizione legge l'aspetto discreto pubblicato nel callback; eliminati i passaggi condizionali del Recomposer a ogni passo del giro, anche quando i gruppi venivano saltati. Legge e tempi invariati; regressione PC con tre vetri nel contenitore e un vetro autonomo, conferma della cadenza sul tablet pendente.
 - piano flottante, correzione F3: alone senza tocco appena visibile (0,04, pieno col dito e metà al buio); simbolo della lente ancora ~2× e traslucido a 167–234 ms; scritta nuova anticipata con opacità più lenta; movimento ridotto applicato anche in corsa a chiave invariata. Taratura PC, conferma tablet pendente; gradino finale di `BlurEffect` rimandato a F6.4.

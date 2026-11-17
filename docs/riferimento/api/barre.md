@@ -86,6 +86,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun foldNow()`
 - `@Composable fun rememberFluidBarFold(): FluidBarFold`
 
+## `engine-ui/ui/fluid/FluidSearch.kt`
+
+- `enum class FluidSearchPlacement` — La ricerca appartiene alla barra: Automatic sceglierà basso su telefono e alto su tablet (F4B.2).
+- `enum class FluidSearchBehavior` — L'app può chiedere il campo sempre visibile o il tasto iniziale, senza animarlo da sola.
+- `enum class FluidSearchPurpose` — Distingue ricerca e inserimento generico mantenendo un solo contratto per la DSL (piano F4B).
+- `enum class FluidSearchExpansion` — In alto il campo può inglobare i vicini oppure raggiungere la tastiera; il viaggio nasce in F4B.2.
+- `data class FluidSearchSpec(val query: String, val onQueryChange: (String) -> Unit, val placement: FluidSearchPlacement = FluidSearchPlacement.Automatic, val behavior: FluidSearchBehavior = FluidSearchBehavior.Automatic, val prompt: String? = null, val onSearch: (() -> Unit)? = null, val suggestions: (@Composable () -> Unit)? = null, val scopes: (@Composable () -> Unit)? = null, val purpose: FluidSearchPurpose = FluidSearchPurpose.Search, val expansion: FluidSearchExpansion = FluidSearchExpansion.Automatic, val active: Boolean = false, val onActiveChange: ((Boolean) -> Unit)? = null)` — Dichiarazione del campo, condivisa da schermata e toolbar: F4A.2 la posa, F4B.2 ne possiede il comportamento.
+
 ## `engine-ui/ui/fluid/FluidSearchField.kt`
 
 - `object FluidSearchFieldDefaults` — Le misure del [FluidSearchField].
@@ -116,3 +124,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidTabRail(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, backdrop: GlassBackdropState, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {})` — Wide-screen variant: the same material and the same drop, stood on its side.
 - `@Composable fun FluidTabRail(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, backdrop: GlassBackdropState, header: (@Composable ColumnScope.() -> Unit)?, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {})` — Il rail **con un'intestazione** (3.1.0, pm-f1/ge): come l'altro [FluidTabRail], piu' [header].
 - `@Composable fun fluidTabBarPadding(): PaddingValues` — Padding a floating tab bar needs around itself.
+
+## `engine-ui/ui/fluid/toolbar/FluidToolbarModel.kt`
+
+- `enum class FluidToolbarPlacement` — Posizioni semantiche: la pagina dichiara l'intento e la barra sceglie il lato, anche nel trabocco.
+- `enum class FluidToolbarPriority` — Il posto si libera dal meno importante; a parità resta prima il tasto più esterno (R5 B11).
+- `enum class FluidToolbarSpacing` — Il fisso separa due vetri, il flessibile distribuisce i comandi agli estremi (R1 B2).
+- `enum class FluidButtonRole` — Il ruolo mantiene riconoscibili conferma, uscita e azioni distruttive senza imporre icone all'app.

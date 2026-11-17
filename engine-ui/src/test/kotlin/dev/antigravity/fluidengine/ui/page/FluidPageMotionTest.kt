@@ -408,6 +408,58 @@ class FluidPageMotionTest {
     assertEquals(null, FluidPageMotion.barPieceJourney(emptyList(), emptyList(), 720f))
   }
 
+  // --- La barra disegnata dal modello (F4A.3) ---------------------------------------------------------------------
+
+  @Test
+  fun `il titolo nuovo arriva dal lato della sua pagina, e in un cambio di scheda senza passo`() {
+    assertEquals(1, FluidPageMotion.barTitleStepSign(FluidPageMove.Push, direction = 1))
+    assertEquals(-1, FluidPageMotion.barTitleStepSign(FluidPageMove.Push, direction = -1))
+    assertEquals(-1, FluidPageMotion.barTitleStepSign(FluidPageMove.Pop, direction = 1))
+    assertEquals(-1, FluidPageMotion.barTitleStepSign(FluidPageMove.Back, direction = 1))
+    assertEquals(1, FluidPageMotion.barTitleStepSign(FluidPageMove.Back, direction = -1))
+    assertEquals(0, FluidPageMotion.barTitleStepSign(FluidPageMove.Peer, direction = 1))
+    assertEquals(0, FluidPageMotion.barTitleStepSign(FluidPageMove.None, direction = 1))
+    // Al piu' 8 dp (R7 26, A9): il passo e' piccolo, la sfocatura fa il resto.
+    assertTrue(FluidPageMotion.BarTitleStepDp <= 8f)
+  }
+
+  @Test
+  fun `il passo del titolo che arriva parte quando si vede e finisce fermo, quello che esce va dall'altra parte`() {
+    assertEquals(1f, FluidPageMotion.barTitleEnterStep(0f), 0f)
+    assertEquals(1f, FluidPageMotion.barTitleEnterStep(0.36f), 0.0001f)
+    assertEquals(0f, FluidPageMotion.barTitleEnterStep(1f), 0f)
+    var last = 1f
+    for (i in 0..100) {
+      val step = FluidPageMotion.barTitleEnterStep(i / 100f)
+      assertTrue("monotono", step <= last + 1e-6f)
+      last = step
+    }
+    assertEquals(0f, FluidPageMotion.barTitleExitStep(0f, from = 0f), 0f)
+    assertEquals(-1f, FluidPageMotion.barTitleExitStep(0.66f, from = 0f), 0.0001f)
+    // Un titolo che stava ancora arrivando (a meta' passo) se ne va da li', senza salti.
+    assertEquals(0.5f, FluidPageMotion.barTitleExitStep(0f, from = 0.5f), 0f)
+    assertEquals(-1f, FluidPageMotion.barTitleExitStep(1f, from = 0.5f), 0f)
+  }
+
+  @Test
+  fun `nella variante che segue il dito i vetri si accoppiano per identita', non per lato`() {
+    val back = lens(16f)
+    // Il vetro "a" e' a destra in una pagina e piu' a sinistra nell'altra: lo stesso pezzo, dovunque stia.
+    val from = linkedMapOf<Any, androidx.compose.ui.geometry.Rect>("back" to back, "a" to lens(660f))
+    val to = linkedMapOf<Any, androidx.compose.ui.geometry.Rect>("back" to back, "a" to lens(560f), "b" to lens(660f))
+    val pairs = FluidPageMotion.barModelPieceJourney(from, to)!!
+    assertEquals(3, pairs.size)
+    assertTrue(pairs.contains(back to back))
+    assertTrue(pairs.contains(lens(660f) to lens(560f)))
+    val born = pairs.single { it.second == lens(660f) }.first
+    assertEquals(lens(660f).center, born.center)
+    assertEquals(1f, born.width, 0.0001f)
+    // Oltre otto pezzi il campo fuso non li porta: la variante aspetta la conferma come quella di serie.
+    val many = (0 until 9).associate<Int, Any, androidx.compose.ui.geometry.Rect> { it to lens(200f + it * 50f) }
+    assertEquals(null, FluidPageMotion.barModelPieceJourney(many, many))
+    assertEquals(null, FluidPageMotion.barModelPieceJourney(emptyMap(), emptyMap()))
+  }
+
   @Test
   fun `le molle delle pagine sono criticamente smorzate`() {
     assertEquals(1f, FluidPageMotion.page().dampingRatio, 0f)

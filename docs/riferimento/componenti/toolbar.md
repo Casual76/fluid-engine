@@ -73,8 +73,9 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   si **divide** quando un suo tasto diventa principale, e torna unito quando smette.
 - **Le misure** (R6, `FluidMetrics`): icone a 26 dp, vetro alto 44, passo 44 dp dentro un gruppo, 12 dp fra due gruppi,
   16 dp dai bordi. L'indietro sta esattamente dove stava quello della barra di sempre.
-- **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso** (e, nel modello di F4A.1, anche l'indietro: vedi
-  «Limiti»); quando il posto non basta escono prima i tasti `Low`, poi `Automatic`, poi `High`, a parità i più interni.
+- **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso**, oltre ai vetri d'uscita (indietro e Chiudi): su
+  iPhone si vedono indietro più tre vetri. Le uscite occupano comunque larghezza; quando il posto non basta escono prima
+  i tasti `Low`, poi `Automatic`, poi `High`, a parità i più interni.
   Indietro, Chiudi e principale non escono mai. Il tasto «Altro» apre un menu con le azioni nascoste (il menu
   contestuale dell'engine; il menu di un gruppo vero arriva con F5A) e, per TalkBack, le offre come azioni del tasto.
 - **Il piano**: la barra è un `FluidGlassContainer` alto quanto la riga; ogni gruppo è un pezzo con l'identità del suo
@@ -86,6 +87,10 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   `FluidGlassContentTransition` sua: un tasto che cambia icona la incrocia sfocandosi e il vetro non si muove; quello che
   resta resta nitido. Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che esce da un vetro che resta si sfoca
   dove era, senza occupare posto, mentre il vetro si chiude. Chi arriva o se ne va con un vetro suo lo porta il piano.
+  Il pezzo del gruppo passa `fluidGlassContentAnchor(Start/End)` secondo il lato (`Center` al centro): mentre la
+  capsula cambia larghezza, il contenuto segue il bordo ancorato e ogni icona resta alla sua posizione d'arrivo,
+  senza la deriva di metà variazione che produceva il centro. I bordi sono logici (anche RTL); un eventuale rimbalzo
+  del bordo porta ancora il contenuto con sé. Fuori dalla barra l'ancora di serie è `Center`, identica al piano F3.12a.
 - **Selezione e tinta per tasto**: `selected` è una pellicola dietro **quel** tasto (`GlassDefaults.selectionTint`) e la
   sua icona nell'accento, anche in un gruppo di più icone: non passa agli altri. La principale tinta accanto a un gruppo
   (a 12 dp, cioè nello stesso grappolo del piano) resta tinta: il contenitore disegna ogni tinta sulla sua striscia
@@ -97,6 +102,8 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **Semantica e bersagli**: ogni tasto ha il suo nome (`label`; indietro, Chiudi, conferma e «Altro» con le parole
   dell'engine) e il ruolo di pulsante, la selezione e il numero del badge come stato; il bersaglio è almeno 48 × 48 dp,
   centrato sul tasto, senza cambiare il vetro. Un tasto spento ha il contenuto al 38%.
+  Le parole di serie vengono da `LocalFluidLabels`: `back`, `close`, **`confirm`** («Conferma» / «Confirm») e
+  **`more`** («Altro» / «More»), personalizzabili alla radice e indipendenti da `dateTimeConfirm` e `actions`.
 
 ## La ricerca
 
@@ -112,22 +119,49 @@ nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, 
 - `FluidScreen(toolbar = { … })`: la barra in alto della schermata.
 - `FluidCollapsingTopBar(toolbar = { … })`: la barra di chi ha la sua lista; il titolo segue la piega di `collapse`
   (`Large` e `Inline` lì sono lo stesso), `None` lo toglie.
-- **Dentro un `FluidPageHost`** la barra la disegna l'host (una per host). Fino a F4A.3 l'host conosce solo l'indietro e
-  una riga di azioni: la barra dichiarata gli passa il suo indietro e i suoi gruppi (senza indietro e Chiudi) in quella
-  riga, sul piano. Il viaggio dei tasti **fra due pagine** per `id` arriva con F4A.3.
+- `FluidPageChrome(toolbar = { … })` (4.0, F4A.3): la barra di una pagina che non è una `FluidScreen`.
+- **Dentro un `FluidPageHost`** (o `FluidNavHost`) la barra la disegna l'host, **una sola, dal modello** (F4A.3): sotto,
+  «Fra pagine».
+
+## Fra pagine (F4A.3)
+
+Dentro un host la barra dichiarata non entra ed esce con la sua pagina: l'host disegna **una barra sola dal modello
+della cima della pila richiesta**, e quando la cima cambia i tasti **restano al loro posto e si trasformano** in quelli
+della pagina d'arrivo. Le regole sono quelle di un cambio di stato nella stessa pagina, perché **è** un cambio di stato
+del contenitore:
+
+| fra la pagina di partenza e quella d'arrivo | che cosa si vede |
+|---|---|
+| lo stesso `id` (l'indietro comune, i tre puntini) | lo stesso vetro, fermo al pixel; l'icona uguale non si tocca |
+| lo stesso `id` con un'icona diversa | il vetro non si muove, le icone si incrociano sfocandosi (nessun viaggio del piano) |
+| un `id` nuovo accanto a un vetro | nasce dal fianco del vicino col collo (D3) |
+| un `id` nuovo senza vicini (l'indietro fra radice e figlia) | compare per lente, sul posto (R7 21) |
+| un `id` che se ne va | confluisce nel vicino, o scompare per lente |
+| icone separate che diventano un gruppo, o il contrario | lo stesso vetro che si fonde o si divide; le icone che restano nitide |
+| il titolo in linea | si scambia sfocandosi, con un passo di 8 dp nel verso della navigazione (nessuno fra schede) |
+| il titolo grande | è contenuto: viaggia nitido con la sua pagina |
+
+**Quando.** Al push e al pop col tasto, subito, sul tempo del piano (non sul progresso della pagina). Col **gesto
+indietro** solo al rilascio che conferma: durante il trascinamento la barra resta quella della pagina in cima, e
+all'annullo non succede niente (D1). Un cambio di scheda è come un cambio di stato, senza verso (D4). Un cambio che
+arriva a metà riparte da dove si trova.
+
+**Perché funzioni, gli `id`.** Lo stesso tasto ha lo stesso `id` in tutte le pagine: `FluidToolbarIds.Back` lo dà la
+DSL all'indietro di ogni pagina, gli altri li sceglie l'app. Per Chiudi al posto dell'indietro nello stesso vetro (un
+foglio sopra una figlia), `close(onClick, id = FluidToolbarIds.Back)`.
+
+**Le pagine con lo slot `actions` di sempre** non cambiano finché l'host non mostra una barra dichiarata: un host di sole
+pagine di sempre è quello di prima. Da quando ne mostra una, l'indietro di ogni pagina è del modello (fermo al pixel) e le
+azioni delle pagine di sempre restano nella loro riga, come prima. Dettagli, la variante del gesto che segue il dito (solo prove) e le trappole:
+[pagine-back-e-barra.md](pagine-back-e-barra.md), «La barra disegnata dal modello». La prova in galleria è «Barre fra
+pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `pages.start`).
 
 ## Limiti noti
 
-- **Il contenuto di un vetro che cambia larghezza viaggia col centro del vetro** (la regola del piano: «il contenuto
-  viaggia col suo vetro»). In un gruppo ancorato al bordo che si allarga, le icone che restano si spostano per un attimo
-  verso il bordo e tornano, ritagliate dal vetro in volo, invece di stare ferme. Da vedere sul tablet; la proposta è un
-  contenuto ancorato al bordo fermo per i pezzi della barra (fuori dal perimetro di F4A.2).
-- **«Al più tre gruppi» conta anche l'indietro** (modello di F4A.1), mentre su iPhone (R5 B11) si vede l'indietro più
-  tre vetri. Una pagina con l'indietro ha quindi al più due gruppi suoi più «Altro». Da decidere.
 - **Il menu «Altro»** è il menu contestuale dell'engine (senza un host dei modali non si apre: le azioni restano
   raggiungibili da TalkBack); il menu che nasce dal gruppo è di F5A.
-- **Dentro un host** i gruppi stanno nella riga delle azioni dell'host: un elemento a sinistra che non sia l'indietro
-  finisce a destra fino a F4A.3.
+- **Dentro un host il sottotitolo** non si disegna ancora sotto il titolo agganciato della barra dell'host (c'è sotto
+  il titolo grande, nella lista): da portare quando la barra dell'host prende anche quella misura.
 
 ## Cosa è verificato dai test
 
@@ -135,10 +169,18 @@ nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, 
   `onBack`, principale e conferma tinte e sole), il trabocco per priorità, l'identità dei vetri fra due stati (il gruppo
   che cresce, la divisione, «sfoglia ↔ seleziona» con l'indietro fermo), gli inset del titolo d'arrivo, la ricerca.
 - `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
+- `FluidToolbarContentAnchorTest` (engine, F4A.2b): gruppo 1→3→1 guidato dal conducente reale a 120 Hz, bordi iniziale
+  e finale, LTR/RTL, densità 1/1,5/2/3/3,5; icona che resta entro mezzo pixel, nitida, senza cambiare il ritaglio;
+  centro di serie identico a F3.12a, ordine degli attributi, lente, parole italiane/inglesi e tracce del banco.
 - `FluidToolbarBarTest` (galleria, Robolectric): la barra vera da «sfoglia» a «seleziona» e ritorno (vetri, `id` nel
   registro del piano, semantica e bersagli da 48 dp, un viaggio senza animazioni della pagina), il tasto che diventa
   principale, il trabocco, la selezione per tasto, la tinta per pezzo in un blocco unito, e una pagina con `actions`
   che non crea contenitori e ha i tasti dove li aveva (il suo indietro dove sta quello della barra dichiarata).
+  Da F4A.2b il trabocco prova indietro più tre vetri, e le parole della barra seguono `more` e `confirm` personalizzati.
+- `FluidPageBarModelTest` (engine, F4A.3) e `FluidToolbarPagesTest` (galleria, Robolectric, F4A.3): la barra dell'host fra
+  pagine (chi dà i tasti in ogni fotogramma di push, pop, gesto tenuto/annullato/confermato, cambio di scheda; gli stessi
+  pezzi del piano fra due pagine; il viaggio che parte al push; il titolo che si scambia sul tempo suo). Elenco in
+  [pagine-back-e-barra.md](pagine-back-e-barra.md).
 - **Non verificato dai test**: come si vede. I viaggi si guardano sul tablet (`--es gallery.page toolbar --es
   toolbar.scene sfoglia-seleziona --es toolbar.auto true`, `adb logcat -s FluidBarre`).
 
@@ -148,4 +190,5 @@ nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, 
 - `…/ui/fluid/toolbar/FluidToolbarModel.kt`: il modello puro di F4A.1 (gruppi, priorità, trabocco, differenze).
 - `…/ui/fluid/toolbar/FluidToolbarSearch.kt`: il punto unico della ricerca.
 - `…/ui/fluid/FluidScreen.kt`: `toolbar`, `search`, il modo del titolo, il sottotitolo agganciato.
-- La galleria: `sample/…/toolbar/` (pagina «Barre (prova)», cinque scene).
+- La galleria: `sample/…/toolbar/` (pagina «Barre (prova)», cinque scene; pagina «Barre fra pagine», F4A.3).
+- `…/ui/page/FluidPageAnchoredBar.kt` e `FluidPageBar.kt`: la barra dell'host disegnata dal modello (F4A.3).

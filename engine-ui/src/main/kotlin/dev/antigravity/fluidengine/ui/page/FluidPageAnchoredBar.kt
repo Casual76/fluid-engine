@@ -1,6 +1,49 @@
 package dev.antigravity.fluidengine.ui.page
 
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
+import android.os.Build
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.GlassContentJourney
+import dev.antigravity.fluidengine.ui.fluid.GlassContentLayer
+import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
+import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
+import dev.antigravity.fluidengine.ui.fluid.smoothStep
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDefaults
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarExtent
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarGlassId
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarGroupId
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarResolved
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
+import dev.antigravity.fluidengine.ui.fluid.toolbar.diffFluidToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarGlassIds
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarIconSize
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMetrics
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarModelOf
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarTint
+import dev.antigravity.fluidengine.ui.fluid.toolbar.resolveFluidToolbar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -108,6 +151,20 @@ import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
  *    un controllo che non e' una capsula di vetro, le icone si incrociano e basta;
  *  - **i controlli restano disponibili**: durante il movimento risponde la cima della pila richiesta;
  *    la pagina uscente continua a disegnarsi senza poter eseguire azioni.
+ *
+ * **Dalla 4.0 (F4A.3), quando una delle pagine ha dichiarato la sua barra** (`FluidScreen(toolbar = …)`), i tasti non
+ * sono più «ancorati alla pagina»: la barra è **una sola, disegnata dal modello** della pagina che le dà i tasti
+ * ([fluidPageBarPage]: la cima della pila richiesta), un elemento per `id`, sul piano flottante. Quando quella pagina
+ * cambia (push, pop, conferma del gesto indietro, cambio di scheda) la differenza fra i due modelli è un **cambio di
+ * stato del suo contenitore**: lo stesso `id` è lo stesso vetro, che resta al suo posto (l'indietro comune fermo al
+ * pixel); un'icona diversa si incrocia sfocandosi nel vetro fermo; un'icona uguale non si tocca; un tasto nuovo nasce dal
+ * fianco del vicino col collo, o per lente se non ne ha uno; uno che se ne va confluisce o scompare per lente. Il tempo è
+ * **quello del piano**, non il progresso della pagina: parte al push (o al rilascio che conferma) e un cambio a metà
+ * riparte da dove si trova. Il gesto indietro non tocca i tasti finché non è confermato (D1); l'annullo non fa niente.
+ * Il titolo agganciato si scambia sfocandosi, con un passo di 8 dp nel verso della navigazione ([FluidBarTitleSwap]).
+ * Un host che non ha mai mostrato una barra dichiarata è quello di prima, identico. Da quando ne mostra una disegna dal
+ * modello per sempre: una pagina con le `actions` di sempre porta nel modello solo il suo indietro, e le sue azioni
+ * restano nella loro riga come prima ([FluidPageBarTargetMemory.hostModel]).
  */
 @Composable
 internal fun FluidAnchoredBar(
@@ -119,6 +176,32 @@ internal fun FluidAnchoredBar(
   val moving = state.isMoving
   val upperSpec = upperKey?.let { registry[it]?.spec }
   val lowerSpec = if (moving) lowerKey?.let { registry[it]?.spec } else null
+  // F4A.3: la pagina che dà i tasti alla barra (la cima della pila richiesta), e se la barra si disegna dal modello.
+  val barPage = fluidPageBarPage(state.interactionPage, upperKey)
+  val barSlot = barPage?.let { registry[it] }
+  val barSpec = barSlot?.spec
+  val modelMode = fluidPageBarUsesModel(listOf(upperSpec, lowerSpec, barSpec))
+  // Ricordate prima di ogni uscita anticipata: la memoria della barra disegnata dal modello e lo scambio del titolo
+  // sopravvivono a un fotogramma senza barra.
+  val target = remember(state) { FluidPageBarTargetMemory() }
+  // L'host disegna dal modello da quando ha visto la prima barra dichiarata, e da lì in poi sempre (vedi
+  // [FluidPageBarTargetMemory.hostModel]): un host che non ne ha mai vista una è quello di prima, identico.
+  val hostModel = target.noteModel(modelMode)
+  val declaration = target.update(barPage, barSlot != null, barSpec, moving)
+  val swap = remember(state) { FluidBarTitleSwap() }
+  val finger = remember(state) { FluidBarFingerMorph(state) }
+  val followFinger = FluidPageBarDiagnostics.gestureFollowsFinger
+  val policy = LocalFluidMotionPolicy.current
+  SideEffect {
+    // Il titolo agganciato cambia quando cambia la pagina della barra, sul tempo suo; nella variante che segue il dito
+    // il titolo lo porta la corsa, e lo scambio arriva già fatto.
+    swap.retarget(
+      page = barPage,
+      step = FluidPageMotion.barTitleStepSign(state.kind, state.direction),
+      snap = policy.reducedMotion || (followFinger && state.kind == FluidPageMove.Back),
+    )
+  }
+  FluidBarTitleClock(swap, policy.durationScale)
   val density = LocalDensity.current
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val hasBar = upperSpec != null || lowerSpec != null
@@ -201,11 +284,25 @@ internal fun FluidAnchoredBar(
   SideEffect {
     journey.backKeys = backKeys
     journey.knownPages = shown.mapTo(HashSet()) { it.first }
+    // Col modello la barra di prima non viaggia: i tasti li trasforma il piano (F4A.3).
+    journey.enabled = !modelMode
+    // In un host che usa il modello l'indietro è del modello anche fra due pagine di sempre: la barra di prima porta solo
+    // le loro azioni.
+    if (hostModel) journey.backKeys = emptySet()
     journey.recompute()
   }
   val shiftPx = with(density) { FluidPageMotion.BarTitleShiftDp.dp.toPx() }
-  // Quanto occupano il tasto indietro e le azioni: il titolo agganciato si ferma prima (3.0.1).
+  val stepPx = with(density) { FluidPageMotion.BarTitleStepDp.dp.toPx() }
+  // Quanto occupano il tasto indietro e le azioni: il titolo agganciato si ferma prima (3.0.1). Col modello lo dice la
+  // misura d'arrivo dei gruppi (F4A.3): il titolo segue il bersaglio, non il vetro in volo.
   val controls = remember { FluidTopBarControls() }
+  val insets = remember(controls) { FluidBarInsets(controls) }
+  val legacyRows = hostModel && shown.any { it.second.toolbar == null }
+  SideEffect {
+    insets.model = hostModel
+    insets.legacyRows = legacyRows
+    insets.push()
+  }
   // In un pop upper e' la pagina uscente: non deve conservare i callback della barra.
   val activeSpec = state.interactionPage?.let { registry[it]?.spec }
   val scrollEdge = fluidChromeScrollEdge()
@@ -214,6 +311,10 @@ internal fun FluidAnchoredBar(
   } else {
     NoScrollEdgeShade
   }
+  // La variante del gesto che segue il dito (interruttore delle prove, spento di serie): solo col modello, solo mentre
+  // il dito tiene la pagina, e solo fra due pagine che la barra conosce.
+  val fingerLayer = followFinger && modelMode && moving && state.kind == FluidPageMove.Back &&
+    upperSpec != null && lowerSpec != null
 
   Box(
     modifier = Modifier
@@ -256,7 +357,7 @@ internal fun FluidAnchoredBar(
       FluidTopBarRow(
         onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
       ) {
-        if (moving) {
+        if (moving && !modelMode) {
           // Fra il vetro della barra e le icone: i pezzi che viaggiano. Composta per tutto il movimento, disegna
           // solo mentre porta il vetro.
           //
@@ -300,15 +401,38 @@ internal fun FluidAnchoredBar(
               ),
           )
         }
+        if (fingerLayer) {
+          BarFingerMorph(
+            finger = finger,
+            upper = upperSpec!!,
+            lower = lowerSpec!!,
+            barIsLower = barPage == lowerKey,
+            controlBackdrop = controlBackdrop,
+            growPx = travelShadowGrowPx,
+            shade = shade,
+          )
+        }
         for ((page, spec) in shown) {
-          key(page) { BarTitle(state, page, spec, shiftPx, controls, shade) }
+          key(page) {
+            BarTitle(
+              state = state,
+              page = page,
+              spec = spec,
+              shiftPx = shiftPx,
+              controls = controls,
+              shade = shade,
+              swap = swap.takeIf { modelMode },
+              stepPx = stepPx,
+              followsFinger = followFinger,
+            )
+          }
         }
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          Box(modifier = Modifier.onSizeChanged { controls.startPx = it.width }) {
-            if (backKeys.isNotEmpty()) {
+          Box(modifier = Modifier.onSizeChanged { insets.rowStart(it.width) }) {
+            if (!hostModel && backKeys.isNotEmpty()) {
               Box(if (activeSpec?.onBack == null) Modifier.clearAndSetSemantics { } else Modifier) {
                 BarBackButton(state, journey) { state.interactionPage?.let { registry[it]?.spec?.onBack }?.invoke() }
               }
@@ -317,16 +441,32 @@ internal fun FluidAnchoredBar(
             }
           }
           Spacer(Modifier.weight(1f))
-          Row(modifier = Modifier.onSizeChanged { controls.endPx = it.width }, verticalAlignment = Alignment.CenterVertically) {
+          Row(modifier = Modifier.onSizeChanged { insets.rowEnd(it.width) }, verticalAlignment = Alignment.CenterVertically) {
             Box(contentAlignment = Alignment.CenterEnd) {
               // L'azione della destinazione corrente deve vincere anche l'hit test fra due icone.
               for ((page, spec) in shown.sortedBy { it.first == state.interactionPage }) {
-                key(page) { BarActions(state, page, spec, controlBackdrop, journey, shade) }
+                // Col modello qui restano solo le azioni delle pagine con lo slot di sempre (F4A.3), nello stesso
+                // posto dell'albero: la stessa composizione prima, durante e dopo il passaggio a una pagina dichiarata.
+                if (!hostModel || spec.toolbar == null) {
+                  key(page) { BarActions(state, page, spec, controlBackdrop, journey, shade) }
+                }
               }
             }
             // Il vetro dell'ultima azione a 16 dp dal bordo (4.0, R6), come in `FluidScreen`.
             Spacer(Modifier.width(FluidBarEdgeInset))
           }
+        }
+        if (hostModel) {
+          HostModelBar(
+            declaration = declaration,
+            title = (barSpec ?: upperSpec)?.title,
+            context = target.context ?: currentCompositionLocalContext,
+            controlBackdrop = controlBackdrop,
+            shade = shade,
+            insets = insets,
+            hidden = finger::overlay,
+            snap = fingerLayer,
+          )
         }
       }
       }
@@ -393,7 +533,15 @@ internal fun anchoredBarPageWeight(role: PageRole, frontFraction: Float): Float 
   PageRole.Gone -> 0f
 }
 
-/** Il titolo di una pagina nella barra, con il suo moto e, per quella sotto, la parte che si vede. */
+/**
+ * Il titolo di una pagina nella barra, con il suo moto e, per quella sotto, la parte che si vede.
+ *
+ * Con il modello ([swap] non null, F4A.3) il titolo **agganciato** non segue più la corsa della pagina: si scambia
+ * sfocandosi sul tempo suo quando cambia la pagina della barra, con un passo di [stepPx] nel verso della navigazione
+ * (R7 26, A9); la sfocatura vale quanto il titolo è agganciato (il titolo grande è contenuto e viaggia nitido con la sua
+ * pagina, R7 27). Nella variante che segue il dito, mentre il dito tiene la pagina, torna il moto legato alla corsa.
+ * Una barra dichiarata senza titolo (`FluidToolbarTitleMode.None`, o un elemento al centro) non ne disegna.
+ */
 @Composable
 private fun BoxScope.BarTitle(
   state: FluidPageHostState,
@@ -402,16 +550,26 @@ private fun BoxScope.BarTitle(
   shiftPx: Float,
   controls: FluidTopBarControls,
   shade: FluidScrollEdgeShade,
+  swap: FluidBarTitleSwap?,
+  stepPx: Float,
+  followsFinger: Boolean,
 ) {
-  val motion = remember(state, page, shiftPx) {
+  val toolbar = spec.toolbar
+  if (toolbar != null && (toolbar.titleMode == FluidToolbarTitleMode.None || toolbar.hasPrincipal)) return
+  // Il moto legato alla corsa vale per le pagine di sempre e, nella variante delle prove, mentre il dito tiene la pagina.
+  val byTravel: () -> Boolean = remember(state, swap, followsFinger) {
+    { swap == null || (followsFinger && state.kind == FluidPageMove.Back) }
+  }
+  val motion = remember(state, page, shiftPx, swap, stepPx, byTravel) {
     FluidBarTitleMotion(
       pageX = { state.pageOffsetX(state.roleOf(page)) },
       pageScale = { state.pageScale(state.roleOf(page)) },
       pageCenter = { Offset(state.width / 2f, state.height / 2f) },
-      chromeX = { barTitleChrome(state, page, shiftPx).second },
-      chromeAlpha = { barTitleChrome(state, page, shiftPx).first },
+      chromeX = { if (byTravel()) barTitleChrome(state, page, shiftPx).second else swap!!.step(page) * stepPx },
+      chromeAlpha = { if (byTravel()) barTitleChrome(state, page, shiftPx).first else swap!!.alpha(page) },
     )
   }
+  val glyphPx = with(LocalDensity.current) { spec.compactStyle.fontSize.toPx() }
   CompositionLocalProvider(spec.context) {
     // Il titolo segue il lato della striscia della barra anche col contesto della pagina (dal seguito di F2.5).
     CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
@@ -419,14 +577,31 @@ private fun BoxScope.BarTitle(
       modifier = Modifier
         .matchParentSize()
         // F2.3c: il titolo svanisce e risale con l'inchiostro della barra quando la barra cambia lato.
-        .graphicsLayer { alpha = shade.fade() }
+        .graphicsLayer {
+          alpha = shade.fade()
+          // F4A.3: la sfocatura dello scambio, quanto il titolo è agganciato (è chrome solo lì).
+          val sigmaPx = if (swap == null || byTravel() || !FluidBarTitleBlur) {
+            0f
+          } else {
+            swap.blur(page) * glyphPx * smoothStep(spec.collapseProgress.value.coerceIn(0f, 1f))
+          }
+          renderEffect = if (sigmaPx > 0.05f) {
+            val radius = glassContentBlurRadiusPx(sigmaPx)
+            BlurEffect(radius, radius, TileMode.Decal)
+          } else {
+            null
+          }
+        }
         .drawWithContent {
           when (state.roleOf(page)) {
             PageRole.Gone -> Unit
             PageRole.Upper -> drawContent()
-            PageRole.Lower -> if (state.kind != FluidPageMove.None) {
-              // Il titolo grande della pagina sotto e' suo contenuto: dove la pagina sopra la copre,
-              // lo copre anche lui. La barra sta sopra tutte e due, quindi il taglio lo fa qui.
+            // Il titolo grande della pagina sotto e' suo contenuto: dove la pagina sopra la copre, lo copre anche
+            // lui. Col modello il titolo agganciato invece e' della barra (F4A.3): non si taglia con la pagina.
+            PageRole.Lower -> if (state.kind != FluidPageMove.None &&
+              (byTravel() || smoothStep(spec.collapseProgress.value.coerceIn(0f, 1f)) < 0.5f)
+            ) {
+              // La barra sta sopra tutte e due, quindi il taglio lo fa qui.
               val (left, right) = state.upperCoverage()
               val far = size.width * 4f + size.height * 4f
               if (left > 0.5f) {
@@ -438,6 +613,8 @@ private fun BoxScope.BarTitle(
                   this@drawWithContent.drawContent()
                 }
               }
+            } else if (state.kind != FluidPageMove.None) {
+              drawContent()
             }
           }
         },
@@ -458,6 +635,9 @@ private fun BoxScope.BarTitle(
   }
     }
 }
+
+/** La sfocatura c'è da Android 12 (`RenderEffect`); sotto resta la dissolvenza col passo. */
+private val FluidBarTitleBlur: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 /** (alpha, traslazione x) del titolo agganciato di [page] in questo fotogramma. */
 private fun barTitleChrome(state: FluidPageHostState, page: Any, shiftPx: Float): Pair<Float, Float> {
@@ -592,6 +772,9 @@ internal class FluidBarJourney(
   var knownPages: Set<Any> = emptySet()
   var blendPx: Float = 0f
 
+  /** Falso quando la barra si disegna dal modello (F4A.3): i tasti li trasforma il piano, e questa non viaggia. */
+  var enabled: Boolean = true
+
   /**
    * Se i pezzi delle due pagine sono raccolti e la superficie fisica è guidata fra loro. Lo scrive [recompute], che
    * gira dopo la composizione (nel `SideEffect` della barra e al posizionamento della superficie): da solo non
@@ -633,7 +816,7 @@ internal class FluidBarJourney(
 
   fun recompute() {
     val node = node?.takeIf { it.isAttached }
-    if (node == null || !state.isMoving) {
+    if (node == null || !state.isMoving || !enabled) {
       ready = false
       return
     }
@@ -700,6 +883,11 @@ internal class FluidBarJourney(
  *
  * [barTint] e' **deprecato dalla 4.0** (piano «iOS in Android» 3.11): col materiale `Liquid` e' ignorato (la striscia
  * non ha pellicola) e vale solo per la fascia di ripiego. Kotlin non sa deprecare un parametro solo: lo dice qui.
+ *
+ * [toolbar] (dalla 4.0, F4A.3) e' la barra **dichiarata**, la stessa DSL di `FluidScreen(toolbar = …)`: se c'e' vince su
+ * [actions] e su [onBack] (che aggiunge l'indietro se la barra non dichiara un `back` o un `close`). Dentro un host i
+ * suoi tasti restano al loro posto e si trasformano in quelli della pagina d'arrivo; fuori i gruppi stanno sul piano
+ * flottante come in `FluidScreen`.
  */
 @Composable
 fun FluidPageChrome(
@@ -708,6 +896,7 @@ fun FluidPageChrome(
   onBack: (() -> Unit)? = null,
   backdrop: GlassBackdropState? = null,
   barTint: GlassTint? = null,
+  toolbar: (FluidToolbarScope.() -> Unit)? = null,
   actions: @Composable RowScope.() -> Unit = {},
 ) {
   // Il colore del titolo e dei tasti PRIMA di registrarsi (3.0.1), come fa `FluidScreen`: l'host disegna
@@ -715,7 +904,7 @@ fun FluidPageChrome(
   // non e' una `FluidScreen` non ha mai detto il colore del testo: fuori da una `Surface` vale nero, e il
   // titolo agganciato era nero sul tema scuro. Il fondo sotto la barra e' quello della pagina.
   CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-    FluidPageChromeContent(title, modifier, onBack, backdrop, barTint, actions)
+    FluidPageChromeContent(title, modifier, onBack, backdrop, barTint, toolbar?.let { buildFluidToolbar(onBack, it) }, actions)
   }
 }
 
@@ -726,6 +915,7 @@ private fun FluidPageChromeContent(
   onBack: (() -> Unit)?,
   backdrop: GlassBackdropState?,
   barTint: GlassTint?,
+  toolbar: FluidToolbarDeclaration?,
   actions: @Composable RowScope.() -> Unit,
 ) {
   val docked: State<Float> = remember { mutableFloatStateOf(1f) }
@@ -755,6 +945,7 @@ private fun FluidPageChromeContent(
         onTapTitle = null,
         barTint = barTint,
         backdrop = backdrop,
+        toolbar = toolbar,
       ),
     )
     return
@@ -788,17 +979,32 @@ private fun FluidPageChromeContent(
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
       val controls = remember { FluidTopBarControls() }
       FluidTopBarRow(onTapTitle = null) {
-        FluidTopBarTitle(
-          title = title,
-          collapseProgress = docked,
-          activeFacet = facet,
-          morphState = null,
-          compactStyle = compactStyle,
-          contentTranslation = NoTranslation,
-          fontScale = density.fontScale,
-          reducedMotion = reducedMotion,
-          controls = controls,
-        )
+        val showsTitle = toolbar == null || (toolbar.titleMode != FluidToolbarTitleMode.None && !toolbar.hasPrincipal)
+        if (showsTitle) {
+          FluidTopBarTitle(
+            title = title,
+            collapseProgress = docked,
+            activeFacet = facet,
+            morphState = null,
+            compactStyle = compactStyle,
+            contentTranslation = NoTranslation,
+            fontScale = density.fontScale,
+            reducedMotion = reducedMotion,
+            controls = controls,
+          )
+        }
+        if (toolbar != null) {
+          // La barra dichiarata (F4A.3): i gruppi sul piano flottante, gli inset del titolo dalla misura d'arrivo.
+          FluidToolbarBar(
+            declaration = toolbar,
+            title = title.takeIf { showsTitle },
+            onExtent = { extent ->
+              controls.startPx = extent.startPx
+              controls.endPx = extent.endPx
+            },
+          )
+          return@FluidTopBarRow
+        }
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
@@ -829,3 +1035,430 @@ private val FullBarIntensity: () -> Float = { 1f }
 /** L'intensità della superficie che viaggia: piena mentre porta il vetro, zero quando lo portano i tasti. */
 private val BarTravelFull: () -> Float = { 1f }
 private val BarTravelOff: () -> Float = { 0f }
+
+// ================================================================================================================
+// La barra disegnata dal modello (F4A.3)
+// ================================================================================================================
+
+/**
+ * Gli interruttori delle prove della barra dell'host (la galleria, le sessioni sul tablet): **non sono API per le app**,
+ * come `FluidGlassContainerDiagnostics.fusionPreview`. Spenti di serie.
+ */
+object FluidPageBarDiagnostics {
+  /**
+   * La variante del gesto indietro che **segue il dito** (R7 B.7, strada B), da mostrare ad Alessio accanto a quella di
+   * serie (D1: i tasti aspettano la conferma). Accesa, mentre il dito tiene una pagina i vetri della barra dichiarata si
+   * trasformano col progresso del gesto (una superficie di Fluid-physics fra i vetri delle due pagine, accoppiati per
+   * identità) e le icone si incrociano in dissolvenza; il rilascio finisce da dove è arrivato, l'annullo torna indietro.
+   * Solo fra pagine con la barra dichiarata e con al più otto vetri; altrimenti vale quella di serie.
+   */
+  var gestureFollowsFinger: Boolean by mutableStateOf(false)
+}
+
+/**
+ * Gli inset del titolo agganciato della barra dell'host: con le `actions` di sempre la misura della riga (com'era), col
+ * modello la misura d'**arrivo** dei gruppi (F4A.3: il titolo segue il bersaglio, non il vetro in volo) e, fra una pagina
+ * dichiarata e una di prima, il più largo dei due lati.
+ */
+internal class FluidBarInsets(private val controls: FluidTopBarControls) {
+  var model = false
+  var legacyRows = false
+  private var modelStart = 0
+  private var modelEnd = 0
+  private var rowStart = 0
+  private var rowEnd = 0
+
+  fun modelExtent(extent: FluidToolbarExtent) {
+    modelStart = extent.startPx
+    modelEnd = extent.endPx
+    push()
+  }
+
+  fun rowStart(px: Int) {
+    rowStart = px
+    push()
+  }
+
+  fun rowEnd(px: Int) {
+    rowEnd = px
+    push()
+  }
+
+  fun push() {
+    if (model) {
+      controls.startPx = modelStart
+      controls.endPx = if (legacyRows) maxOf(modelEnd, rowEnd) else modelEnd
+    } else {
+      controls.startPx = rowStart
+      controls.endPx = rowEnd
+    }
+  }
+}
+
+/**
+ * Lo scambio del titolo agganciato fra due pagine (F4A.3, R7 26): **sfocatura uniforme** come le icone (A1, sul testo
+ * per A9), un passo di al più 8 dp nel verso della navigazione, **sul tempo suo** (quello del contenuto,
+ * [GlassContentTiming]: 300 ms) e non sul progresso della pagina. Parte quando cambia la pagina della barra
+ * ([fluidPageBarPage]: al push, al pop col tasto, al rilascio che conferma il gesto, al cambio di scheda senza passo) e,
+ * se arriva un altro cambio a metà, riparte dall'aspetto che ha ([GlassContentJourney.retarget], invariante 16).
+ *
+ * Il viaggio ha per chiavi le pagine: ogni titolo legge la sua parte ([alpha], [blur], [step]) in disegno.
+ */
+@Stable
+internal class FluidBarTitleSwap(
+  /** Sotto Android 12 non c'è sfocatura: lo scambio usa le curve senza sovrapposizione di [GlassContentJourney]. */
+  private val blurAvailable: Boolean = FluidBarTitleBlur,
+) {
+  private var journey by mutableStateOf(GlassContentJourney.rest(null, blurAvailable = blurAvailable))
+
+  /** Il tempo del viaggio, in ms: avanza solo mentre qualcosa si muove (vedi [FluidBarTitleClock]). */
+  private var now by mutableDoubleStateOf(0.0)
+
+  /** Cambia a ogni scambio che parte: l'orologio riparte con lui. */
+  var generation by mutableIntStateOf(0)
+    private set
+
+  private var started = false
+  private var target: Any? = null
+
+  /** Per ogni strato: il segno del lato da cui è arrivato, il segno del passo d'uscita, il passo che aveva all'uscita. */
+  private val enterSign = HashMap<Long, Float>()
+  private val exitSign = HashMap<Long, Float>()
+  private val exitFrom = HashMap<Long, Float>()
+
+  val finished: Boolean get() = journey.frame(now).finished
+
+  /**
+   * La pagina della barra è [page]. [step] è il segno del lato da cui arriva il titolo nuovo (0: nessun passo).
+   * [snap]: niente scambio, il titolo nuovo c'è subito (movimento ridotto, la variante che segue il dito).
+   */
+  fun retarget(page: Any?, step: Int, snap: Boolean) {
+    if (started && page == target) return
+    target = page
+    if (!started || snap) {
+      started = true
+      journey = GlassContentJourney.rest(page, blurAvailable = blurAvailable)
+      enterSign.clear()
+      exitSign.clear()
+      exitFrom.clear()
+      generation++
+      return
+    }
+    val current = journey.layers.lastOrNull { it.role != GlassContentRole.Exit }
+    val currentStep = current?.let { stepOf(it) } ?: 0f
+    journey = journey.retarget(now, page)
+    if (current != null) {
+      exitSign[current.id] = step.toFloat()
+      exitFrom[current.id] = currentStep
+    }
+    val arriving = journey.layers.lastOrNull { it.role != GlassContentRole.Exit }
+    if (arriving != null && arriving.key == page) enterSign[arriving.id] = step.toFloat()
+    generation++
+  }
+
+  /** L'orologio avanza di [ms]. */
+  fun advance(ms: Double) {
+    now += ms
+  }
+
+  /** Lo scambio è finito: resta il titolo d'arrivo, fermo. */
+  fun settle() {
+    journey = journey.settle()
+    enterSign.clear()
+    exitSign.clear()
+    exitFrom.clear()
+  }
+
+  private fun layerOf(page: Any): GlassContentLayer? = journey.layers.lastOrNull { it.key == page }
+
+  /** L'opacità del titolo agganciato di [page]: 1 per la pagina della barra a riposo, 0 per chi non c'è. */
+  fun alpha(page: Any): Float {
+    val layer = layerOf(page) ?: return 0f
+    return journey.look(layer, now).alpha
+  }
+
+  /** La σ del titolo di [page] in frazione dell'altezza del carattere. */
+  fun blur(page: Any): Float {
+    val layer = layerOf(page) ?: return 0f
+    return journey.look(layer, now).blur
+  }
+
+  /** Il passo del titolo di [page] in frazioni di [FluidPageMotion.BarTitleStepDp], col segno. */
+  fun step(page: Any): Float = layerOf(page)?.let(::stepOf) ?: 0f
+
+  private fun stepOf(layer: GlassContentLayer): Float {
+    val elapsed = ((now - layer.startMs) / journey.timing.durationMs).toFloat().coerceAtLeast(0f)
+    return when (layer.role) {
+      GlassContentRole.Rest -> 0f
+      GlassContentRole.Exit -> {
+        val sign = exitSign[layer.id] ?: 0f
+        if (sign == 0f) exitFrom[layer.id] ?: 0f
+        else sign * FluidPageMotion.barTitleExitStep(elapsed, (exitFrom[layer.id] ?: 0f) * sign)
+      }
+      GlassContentRole.Enter, GlassContentRole.Born ->
+        (enterSign[layer.id] ?: 0f) * FluidPageMotion.barTitleEnterStep(layer.fromU + elapsed)
+    }
+  }
+}
+
+/** L'orologio di [swap]: conta i fotogrammi solo mentre uno scambio è in corso, alla scala delle animazioni. */
+@Composable
+private fun FluidBarTitleClock(swap: FluidBarTitleSwap, durationScale: Float) {
+  val generation = swap.generation
+  LaunchedEffect(swap, generation, durationScale) {
+    if (durationScale <= 0f) {
+      swap.settle()
+      return@LaunchedEffect
+    }
+    var last = -1L
+    while (!swap.finished) {
+      val nanos = withFrameNanos { it }
+      if (last >= 0L) swap.advance((nanos - last) / 1_000_000.0 / durationScale)
+      last = nanos
+    }
+    swap.settle()
+  }
+}
+
+/**
+ * La barra dell'host disegnata dal modello (F4A.3): la barra dichiarata di [FluidToolbarBar], **una sola**, nel contesto
+ * della pagina che le dà i tasti ([context]: tema, ViewModel della voce, host dei modali) e sul vetro della barra. Il suo
+ * contenitore e la sua memoria vivono quanto l'host: cambiare pagina è cambiare il suo stato, e il piano lo trasforma.
+ *
+ * [hidden] la nasconde mentre la variante che segue il dito porta il vetro; [snap] le toglie il viaggio (il cambio che
+ * arriva mentre la variante la tiene nascosta va al posto nuovo nel fotogramma dopo).
+ */
+@Composable
+private fun HostModelBar(
+  declaration: FluidToolbarDeclaration,
+  title: String?,
+  context: CompositionLocalContext,
+  controlBackdrop: GlassBackdropState,
+  shade: FluidScrollEdgeShade,
+  insets: FluidBarInsets,
+  hidden: () -> Boolean,
+  snap: Boolean,
+) {
+  CompositionLocalProvider(context) {
+    val policy = LocalFluidMotionPolicy.current
+    CompositionLocalProvider(
+      LocalGlassBackdrop provides controlBackdrop,
+      // L'inchiostro della striscia della barra, dopo il contesto della pagina (come il titolo).
+      LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade),
+      LocalFluidScrollEdgeShade provides shade,
+      LocalGlassSharedHost provides shade.shared,
+      LocalFluidCanvasBackdrop provides null,
+      // I tasti della barra restano a qualità piena mentre le pagine si muovono (vedi `BarActions`).
+      LocalFluidGlassQuality provides null,
+      LocalFluidMotionPolicy provides if (snap) FluidMotionPolicy(durationScale = 0f) else policy,
+    ) {
+      FluidToolbarBar(
+        declaration = declaration,
+        modifier = Modifier.graphicsLayer { alpha = if (hidden()) 0f else 1f },
+        title = title,
+        onExtent = insets::modelExtent,
+      )
+    }
+  }
+}
+
+/**
+ * La variante del gesto indietro che segue il dito (interruttore [FluidPageBarDiagnostics.gestureFollowsFinger]): mentre
+ * il dito tiene la pagina una superficie di Fluid-physics porta i vetri della barra della pagina in cima su quelli della
+ * pagina sotto col progresso del gesto ([FluidPageMotion.barMorph]), e le icone delle due si incrociano in dissolvenza
+ * ([FluidPageMotion.barIconAlpha]); intanto la barra del modello è nascosta. È la barra di prima, con i vetri accoppiati
+ * per identità invece che per lato.
+ */
+@Stable
+internal class FluidBarFingerMorph(private val state: FluidPageHostState) {
+  private var ready by mutableStateOf(false)
+
+  /** La pagina della barra è già quella sotto (dopo la conferma), e la barra del modello ha avuto il tempo di arrivarci. */
+  var barIsLower by mutableStateOf(false)
+  internal var physics: FluidPhysicsState? = null
+  internal var node: LayoutCoordinates? = null
+  internal var from: Map<Any, Rect> = emptyMap()
+  internal var to: Map<Any, Rect> = emptyMap()
+  internal var blendPx: Float = 0f
+
+  fun m(): Float = FluidPageMotion.barMorph(state.frontFraction())
+
+  /** Se la superficie porta il vetro adesso (letto in disegno): il dito guida, la forma è partita e non è ancora arrivata. */
+  fun overlay(): Boolean {
+    if (!ready || state.kind != FluidPageMove.Back) return false
+    val m = m()
+    return m > 0f && !(m >= 1f && barIsLower)
+  }
+
+  fun recompute() {
+    val node = node?.takeIf { it.isAttached }
+    val physics = physics
+    val pairs = if (node != null && physics != null) FluidPageMotion.barModelPieceJourney(from, to) else null
+    if (pairs == null || physics == null) {
+      ready = false
+      return
+    }
+    physics.driveExternally(
+      from = formOf(pairs.map { it.first }),
+      to = formOf(pairs.map { it.second }),
+      progress = { FluidPageMotion.barMorph(state.frontFraction()) },
+    )
+    ready = true
+  }
+
+  fun release() {
+    ready = false
+  }
+
+  private fun formOf(rects: List<Rect>): FluidForm {
+    val slabs = rects.map { FluidForm.Slab(it, FluidCornerRadii.all(it.minDimension / 2f)) }
+    return slabs.singleOrNull() ?: FluidForm.Group(slabs, blendRadius = blendPx)
+  }
+}
+
+/** I riquadri dei vetri di [resolved] nel nodo della superficie (in px, allargato di [growPx] in alto), per identità. */
+private fun fingerRects(
+  resolved: FluidToolbarResolved,
+  ids: Map<FluidToolbarGroupId, FluidToolbarGlassId>,
+  density: Float,
+  growPx: Int,
+  rtl: Boolean,
+): Map<Any, Rect> {
+  val height = FluidMetrics.GlassButtonLens.value * density
+  val out = LinkedHashMap<Any, Rect>()
+  for (group in resolved.groups) {
+    if (!group.sharedBackground) continue
+    val left = if (rtl) resolved.widthDp - group.leftDp - group.widthDp else group.leftDp
+    val id = ids[group.id] ?: continue
+    out[id] = Rect(left * density, growPx.toFloat(), (left + group.widthDp) * density, growPx + height)
+  }
+  return out
+}
+
+@Composable
+private fun BoxScope.BarFingerMorph(
+  finger: FluidBarFingerMorph,
+  upper: FluidPageBarSpec,
+  lower: FluidPageBarSpec,
+  barIsLower: Boolean,
+  controlBackdrop: GlassBackdropState,
+  growPx: Int,
+  shade: FluidScrollEdgeShade,
+) {
+  val density = LocalDensity.current
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val physics = rememberFluidPhysicsState(FluidForm.Slab(Rect(0f, 0f, 1f, 1f)))
+  val fromDeclaration = fluidPageBarDeclaration(upper)
+  val toDeclaration = fluidPageBarDeclaration(lower)
+  val fromModel = fluidToolbarModelOf(fromDeclaration, upper.title)
+  val toModel = fluidToolbarModelOf(toDeclaration, lower.title)
+  // La conferma arriva alla barra del modello un fotogramma dopo, e il suo contenitore la posa al fotogramma dopo
+  // ancora: la superficie lascia il vetro solo quando la barra è davvero arrivata.
+  LaunchedEffect(finger, barIsLower) {
+    if (barIsLower) repeat(2) { withFrameNanos { } }
+    finger.barIsLower = barIsLower
+  }
+  DisposableEffect(finger, physics) {
+    finger.physics = physics
+    onDispose {
+      finger.release()
+      if (finger.physics === physics) finger.physics = null
+      finger.barIsLower = false
+    }
+  }
+  BoxWithConstraints(Modifier.matchParentSize()) {
+    val width = maxWidth.value
+    val metrics = fluidToolbarMetrics()
+    val fromResolved = remember(fromModel, width) { resolveFluidToolbar(fromModel, width, metrics = metrics) }
+    val toResolved = remember(toModel, width) { resolveFluidToolbar(toModel, width, metrics = metrics) }
+    val fromIds = remember(fromResolved) { fluidToolbarGlassIds(fromResolved) }
+    val toIds = remember(fromResolved, toResolved, fromIds) {
+      fluidToolbarGlassIds(toResolved, fromIds, fromResolved, diffFluidToolbar(fromResolved, toResolved))
+    }
+    SideEffect {
+      finger.from = fingerRects(fromResolved, fromIds, density.density, growPx, rtl)
+      finger.to = fingerRects(toResolved, toIds, density.density, growPx, rtl)
+      finger.blendPx = with(density) { 4.dp.toPx() }
+      finger.recompute()
+    }
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .layout { measurable, constraints ->
+          val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight + 2 * growPx))
+          layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -growPx) }
+        }
+        .onGloballyPositioned { coordinates ->
+          finger.node = coordinates
+          finger.recompute()
+        }
+        .drawWithContent { if (finger.overlay()) drawContent() }
+        .fluidPhysicsSurface(
+          state = physics,
+          backdrop = controlBackdrop,
+          tint = GlassDefaults.controlTint(),
+          role = GlassRole.Interactive,
+          optics = GlassDefaults.buttonOptics(),
+          intensity = { if (finger.overlay()) 1f else 0f },
+        ),
+    )
+    CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
+      FingerFaces(fromResolved, fromDeclaration, upper.context) {
+        if (finger.overlay()) FluidPageMotion.barIconAlpha(finger.m(), ofLower = false) else 0f
+      }
+      FingerFaces(toResolved, toDeclaration, lower.context) {
+        if (finger.overlay()) FluidPageMotion.barIconAlpha(finger.m(), ofLower = true) else 0f
+      }
+    }
+  }
+}
+
+/** Le icone e le scritte di una barra risolta, ferme ai loro posti, senza vetro: la variante che segue il dito. */
+@Composable
+private fun FingerFaces(
+  resolved: FluidToolbarResolved,
+  declaration: FluidToolbarDeclaration,
+  context: CompositionLocalContext,
+  alpha: () -> Float,
+) {
+  val ink = LocalContentColor.current
+  CompositionLocalProvider(context) {
+    val scheme = MaterialTheme.colorScheme
+    val textStyle = FluidToolbarDefaults.textStyle()
+    Box(
+      Modifier
+        .fillMaxWidth()
+        .height(FluidMetrics.GlassButtonLens)
+        .clearAndSetSemantics { }
+        .graphicsLayer { this.alpha = alpha() },
+    ) {
+      for (element in resolved.elements) {
+        if (element.inOverflow) continue
+        val item = element.item
+        val entry = declaration.buttons[item.id]
+        val overflow = item.role == FluidToolbarRole.Overflow
+        val tint = entry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: Color.Unspecified
+        val color = when {
+          item.selected -> scheme.primary
+          tint != Color.Unspecified -> tint
+          else -> ink
+        }
+        Box(
+          Modifier
+            .align(Alignment.CenterStart)
+            .offset(x = element.leftDp.dp)
+            .width(element.widthDp.dp)
+            .height(FluidMetrics.GlassButtonLens),
+          contentAlignment = Alignment.Center,
+        ) {
+          val icon = if (overflow) FluidIcons.MoreHoriz else entry?.icon
+          when {
+            entry?.custom != null -> entry.custom.invoke()
+            entry?.text != null -> Text(entry.text, style = textStyle, color = color, maxLines = 1, softWrap = false)
+            icon != null -> FluidIcon(icon, contentDescription = null, tint = color, size = fluidToolbarIconSize(item.role))
+          }
+        }
+      }
+    }
+  }
+}

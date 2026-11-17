@@ -52,6 +52,11 @@ Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../re
    davanti al dito non e' fluida, e' scollegata. Dettagli in [pagine-back-e-barra.md](pagine-back-e-barra.md).
 3. **Una barra per host.** La pagina *descrive* la sua barra, l'host ne disegna una sola, ferma sopra le pagine che si muovono.
    Una pagina che si disegna da sola una barra sopra il contenuto fa vedere due barre, e la sua viaggerebbe col dito. Vedi `pagine-back-e-barra.md`.
+   **Dalla 4.0 (F4A.3), con la barra dichiarata** (`FluidScreen(toolbar = { … })`, anche `FluidPageChrome(toolbar = …)`) i tasti
+   non sono più «ancorati alla pagina»: la barra dell'host è **una sola, disegnata dal modello** della cima della pila
+   richiesta, e fra due pagine i tasti **restano al loro posto e si trasformano** in quelli della pagina d'arrivo (stesso `id`,
+   stesso vetro), sul tempo del piano flottante; il gesto indietro li cambia solo al rilascio che conferma. Vedi
+   `pagine-back-e-barra.md`, «La barra disegnata dal modello», e [toolbar.md](toolbar.md).
 
 ## FluidNavHost, rememberFluidNavController, composable
 

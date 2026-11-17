@@ -1626,20 +1626,15 @@ internal fun FluidTopBar(
   // una sola, ferma sopra le pagine che si muovono. Fuori, la barra di sempre.
   val slot = LocalFluidPageBar.current
   if (slot != null) {
-    // Fino a F4A.3 l'host conosce l'indietro e una riga di azioni: la barra dichiarata gli dà il suo indietro e i suoi
-    // gruppi (senza indietro e Chiudi) in quella riga, sul piano. Il modello nella barra dell'host arriva con F4A.3.
-    val hostActions: @Composable RowScope.() -> Unit = if (toolbar == null) {
-      actions
-    } else {
-      { FluidToolbarBar(toolbar, title = title, exits = false, wrap = true) }
-    }
+    // F4A.3: la barra dichiarata arriva all'host come modello (`toolbar`), e l'host la disegna dal modello, una sola fra
+    // le pagine: lo slot `actions` allora non conta. Senza `toolbar` la riga delle azioni di sempre.
     RegisterFluidPageBar(
       slot,
       FluidPageBarSpec(
         title = title,
         activeFacet = activeFacet,
         onBack = if (toolbar == null) onBack else toolbar.back?.onClick ?: onBack,
-        actions = hostActions,
+        actions = actions,
         context = currentCompositionLocalContext,
         collapseProgress = collapseProgress,
         glassIntensity = glassIntensity,
@@ -1651,6 +1646,7 @@ internal fun FluidTopBar(
         onTapTitle = onTapTitle,
         barTint = barTint,
         backdrop = backdrop,
+        toolbar = toolbar,
       ),
     )
     return

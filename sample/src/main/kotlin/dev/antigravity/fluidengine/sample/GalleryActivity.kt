@@ -318,6 +318,8 @@ internal fun Gallery(
               GalleryPage.Assistant -> dev.antigravity.fluidengine.sample.assistant.AssistantPage(bottomInset) { nav.back() }
               // La barra dichiarata (F4A.2): `toolbar.scene`, `toolbar.auto`.
               GalleryPage.Toolbar -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPage(bottomInset) { nav.back() }
+              // La barra dichiarata fra pagine (F4A.3): `pages.auto`, `pages.follow`, `pages.start`.
+              GalleryPage.ToolbarPages -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPagesPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

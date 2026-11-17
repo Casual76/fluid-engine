@@ -33,6 +33,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -508,6 +509,66 @@ object FluidPageMotion {
     if (pairs.isEmpty() || pairs.size > maxPieces) return null
     return pairs
   }
+
+  // --- La barra disegnata dal modello (F4A.3) ----------------------------------------------------------------------
+
+  /**
+   * Il passo del titolo in linea che cambia fra due pagine (R7 26 e A9): **al più 8 dp**, nel verso della navigazione.
+   * Il titolo che arriva viene dal lato da cui arriva la sua pagina, quello che se ne va va dall'altra parte; nessun passo
+   * in un cambio di scheda (D4: come un cambio di stato). Il resto del cambio è la sfocatura dei tasti (A1), sul tempo
+   * suo, non sul progresso della pagina. Il vecchio passo legato alla corsa ([BarTitleShiftDp]) resta per le pagine con le
+   * `actions` di sempre.
+   */
+  const val BarTitleStepDp: Float = 8f
+
+  /**
+   * Il passo del titolo che **arriva**, in frazioni di [BarTitleStepDp] col segno del lato da cui arriva: 1 finché non
+   * si vede (prima di [GlassContentDefaults.EnterAt], dove la sua opacità è zero), poi una S fino a 0 alla fine del
+   * cambio. [u] è la frazione del tempo del cambio dello strato (quella di [GlassContentJourney]).
+   */
+  fun barTitleEnterStep(u: Float): Float = 1f - smoothstep((u - GlassContentDefaults.EnterAt) / (1f - GlassContentDefaults.EnterAt))
+
+  /**
+   * Il passo del titolo che **se ne va**: da dove era ([from], in frazioni del passo: zero a riposo, di più se era ancora
+   * in arrivo) fino a un passo intero dall'altra parte, con una S che finisce quando l'icona che esce è sparita
+   * ([GlassContentDefaults.ExitEnd]). [elapsed] è il tempo dalla sua uscita in frazioni del tempo del cambio.
+   */
+  fun barTitleExitStep(elapsed: Float, from: Float): Float =
+    from + (-1f - from) * smoothstep(elapsed / GlassContentDefaults.ExitEnd)
+
+  /**
+   * Il lato da cui arriva il titolo della pagina nuova, col segno dello schermo: in un push dal lato da cui entra la
+   * pagina ([direction], il verso d'uscita della pagina sopra), in un pop o nel gesto indietro dall'altro, in un cambio
+   * di scheda e a riposo nessuno (0).
+   */
+  fun barTitleStepSign(kind: FluidPageMove, direction: Int): Int = when (kind) {
+    FluidPageMove.Push -> direction.sign()
+    FluidPageMove.Pop, FluidPageMove.Back -> -direction.sign()
+    FluidPageMove.Peer, FluidPageMove.None -> 0
+  }
+
+  /**
+   * Le coppie dei vetri della barra dichiarata fra due pagine **per identità** ([from] e [to]: l'identità del vetro, il
+   * suo riquadro), per la sola variante del gesto indietro che segue il dito (l'interruttore delle prove,
+   * [FluidPageBarDiagnostics.gestureFollowsFinger]): i vetri con la stessa identità si accoppiano dovunque stiano (niente
+   * accoppiamento per lato e ordine), chi c'è da una parte sola nasce o si spegne da un seme sul proprio centro come nella
+   * barra di prima. Null senza pezzi o oltre [maxPieces] (quanti ne porta un campo fuso di Fluid-physics): allora anche
+   * questa variante aspetta la conferma. Di serie la barra non passa da qui: la trasforma il piano flottante.
+   */
+  fun barModelPieceJourney(
+    from: Map<Any, Rect>,
+    to: Map<Any, Rect>,
+    maxPieces: Int = BarModelMaxPieces,
+  ): List<Pair<Rect, Rect>>? {
+    val pairs = ArrayList<Pair<Rect, Rect>>()
+    for ((id, rect) in from) pairs += rect to (to[id] ?: seedAt(rect))
+    for ((id, rect) in to) if (id !in from) pairs += seedAt(rect) to rect
+    if (pairs.isEmpty() || pairs.size > maxPieces) return null
+    return pairs
+  }
+
+  /** Quanti pezzi porta la superficie della variante che segue il dito: un gruppo di Fluid-physics ne ha al più otto. */
+  const val BarModelMaxPieces: Int = 8
 
   private fun seedAt(piece: Rect): Rect {
     val c = piece.center

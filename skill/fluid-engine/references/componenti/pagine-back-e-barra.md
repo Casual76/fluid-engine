@@ -205,6 +205,67 @@ Il posto e' `LocalFluidPageBar` (interno): l'host lo da' a ogni pagina; `FluidSc
 - Nessun test dice com'e' il passaggio dal vetro del tasto alla superficie fisica (un lampo di un fotogramma?), il titolo grande in `ShrinkSlide`, la fluidita' della ricattura e il back di sistema su One UI: **si guardano in mano**.
 
 **Versione.** Fase 8 della 3.0. 3.0.1: titolo agganciato che si ferma prima dei controlli, colore di base. `ui.page.FluidCornerRadii` si chiama `FluidPageCorners` (il nome era gia' di Fluid-physics).
+Dalla 4.0 (F4A.3), con le pagine che dichiarano la barra, vale la sezione qui sotto; quella sopra resta, identica, per le pagine con lo slot `actions` di sempre.
+
+### La barra disegnata dal modello (4.0, F4A.3)
+
+**Cos'e'.** Quando una delle pagine che la barra mostra ha dichiarato la sua barra (`FluidScreen(toolbar = { … })`,
+`FluidCollapsingTopBar(toolbar = …)`, `FluidPageChrome(toolbar = …)`; la DSL è in [toolbar.md](toolbar.md)), la
+`FluidPageBarSpec` porta il **modello** (`toolbar`) invece della riga delle azioni, e l'host disegna **una barra sola dal
+modello**: un elemento per `id`, sul piano flottante (la stessa resa di `FluidScreen`, un contenitore che vive quanto
+l'host). È la risposta alle indicazioni di Alessio del 2026-11-11: i tasti **dipendono dalla pagina ma restano al loro
+posto e si trasformano** in quelli della pagina d'arrivo, invece di entrare e uscire con lei.
+
+- **Chi dà i tasti alla barra.** La **cima della pila richiesta** (`fluidPageBarPage`, cioè `interactionPage`), non la
+  pagina che il dito o la molla mostrano davanti. Un push cambia la pila al tocco: i tasti partono subito verso quelli della
+  pagina nuova. Un pop col tasto, lo stesso verso la pagina sotto. **Il gesto indietro** non cambia la pila finché il
+  rilascio non conferma (D1, R7 B.7): durante il trascinamento la barra resta quella della pagina in cima (la pagina sotto si
+  vede, i tasti no), al rilascio che conferma parte la trasformazione intera, **all'annullo non succede niente**. Un push
+  interrotto dal gesto finisce verso la pagina in cima e riparte da dove si trova alla conferma. Un cambio di scheda (D4) è
+  un cambio di cima come un altro, sul posto e senza verso.
+- **Che cosa si trasforma.** La differenza fra i due modelli (F4A.1) è un **cambio di stato del contenitore**: lo stesso
+  `id` è lo stesso vetro (`FluidToolbarGlassId`, ereditato col grafo delle differenze), che resta dov'è; l'indietro comune
+  (`FluidToolbarIds.Back`) è **fermo al pixel**; un'icona diversa si incrocia sfocandosi nel vetro fermo, un'icona uguale non
+  si tocca (niente lampi: non ci sono più due righe sovrapposte); due tasti che cambiano solo icona **non aprono nemmeno un
+  viaggio**; un tasto nuovo **nasce dal fianco del vicino col collo** (D3) o compare per lente se non ha un vicino (l'indietro
+  fra radice e figlia, R7 21); uno che se ne va confluisce nel vicino o scompare per lente; un gruppo che cresce o si divide
+  è lo stesso vetro che cambia larghezza. Cade il limite «solo capsule, al più sei coppie» della barra di prima.
+- **Il tempo è quello del piano**, non il progresso della pagina (R7 punto 2): il viaggio parte al push (o al rilascio che
+  conferma) e dura quanto dice il piano flottante (300 ms un cambio di contesto, 540 una nascita, 430 una comparsa); un cambio
+  che arriva a metà riparte da dove i vetri si trovano.
+- **Il titolo agganciato** si scambia **sfocandosi** come le icone (sfocatura uniforme, R7 26 e A9), con un **passo di 8 dp**
+  (`FluidPageMotion.BarTitleStepDp`) nel verso della navigazione: quello che arriva viene dal lato da cui arriva la sua
+  pagina, quello che esce va dall'altra parte; in un cambio di scheda nessun passo. È sul tempo suo (300 ms, quello del
+  contenuto) e riparte da dove si trova (`FluidBarTitleSwap`, interno). La sfocatura vale quanto il titolo è agganciato: il
+  **titolo grande è contenuto** e viaggia nitido con la sua pagina, tagliato dove la pagina sopra lo copre. Una barra
+  dichiarata senza titolo (`FluidToolbarTitleMode.None`, o un elemento al centro) non ne disegna. Sotto Android 12 lo scambio
+  è una dissolvenza senza sovrapposizione; col movimento ridotto il titolo cambia subito.
+- **Gli inset del titolo seguono il bersaglio**, non il fotogramma: la misura d'arrivo dei gruppi del modello
+  (`FluidToolbarExtent`), così il titolo non balla mentre un gruppo cambia larghezza.
+- **I comandi** sono quelli della pagina della barra (la cima richiesta): la barra è una, nel contesto di quella pagina
+  (`context`: tema, `ViewModel` della voce, host dei modali), e non serve bere i tocchi della pagina che esce.
+- **Le pagine con lo slot `actions` di sempre.** Un host che non ha mai mostrato una barra dichiarata è **quello di prima,
+  identico** (la riga per pagina, il viaggio dei pezzi, l'indietro col seme). **Dalla prima barra dichiarata che mostra,
+  l'host disegna dal modello per sempre** (`FluidPageBarTargetMemory.hostModel`): una pagina di sempre porta nel modello solo
+  il suo indietro (lo stesso `id` delle pagine dichiarate: fermo al pixel, o per lente fra radice e figlia) e le sue azioni
+  restano nella loro riga, in dissolvenza con la corsa accanto a una pagina dichiarata e col viaggio dei pezzi di prima fra
+  due pagine di sempre. Così la barra del modello si monta una volta per host, non a ogni passaggio (ogni montaggio è un
+  fotogramma senza indietro): quell'unico passaggio è da guardare in mano (backlog).
+- **La variante che segue il dito** (solo per le prove, `FluidPageBarDiagnostics.gestureFollowsFinger`, spenta di serie): mentre
+  il dito tiene la pagina una superficie di Fluid-physics porta i vetri della pagina in cima su quelli della pagina sotto col
+  progresso del gesto (accoppiati per identità, al più otto) e le icone si incrociano in dissolvenza, come la barra di prima;
+  è la strada B di R7, da mostrare ad Alessio accanto a quella di serie. La galleria la accende dalla prova «Barre fra pagine»
+  (`--es gallery.page toolbarpages --es pages.follow true`).
+
+**Trappole.**
+- Un `id` diverso per lo stesso tasto in due pagine (un `"more"` qui e un `"menu"` là): sono due tasti, uno muore e uno nasce.
+  Lo stesso tasto ha lo stesso `id` in tutte le pagine.
+- Chiudi e indietro hanno `id` di serie diversi (`FluidToolbarIds.Close`, `FluidToolbarIds.Back`): fra una figlia con
+  l'indietro e un foglio con Chiudi nello stesso posto sono due vetri. Per lo stesso vetro con la X che si incrocia col
+  chevron, `close(onClick, id = FluidToolbarIds.Back)` (la prova «Barre fra pagine», pagina «Modifica»).
+- Un'icona che cambia senza un `id` stabile (un `id` calcolato dall'icona) non si incrocia: rinasce.
+
+**Versione.** 4.0 (F4A.3).
 
 ## FluidPageChrome
 
@@ -219,6 +280,7 @@ Il posto e' `LocalFluidPageBar` (interno): l'host lo da' a ogni pagina; `FluidSc
   onBack: (() -> Unit)? = null,                 // null: niente tasto indietro
   backdrop: GlassBackdropState? = null,         // senza: barra trasparente, titolo e controlli sul contenuto
   barTint: GlassTint? = null,                   // di serie GlassDefaults.barTint()
+  toolbar: (FluidToolbarScope.() -> Unit)? = null, // 4.0: la barra dichiarata, vince su actions
   actions: @Composable RowScope.() -> Unit = {},
 )
 ```
@@ -239,7 +301,11 @@ Fuori da un host disegna la barra da se' (vetro con intensita' 1 se c'e' `backdr
 
 **Non usarlo quando.** La pagina e' una `FluidScreen` (registra da sola).
 
-**Versione.** Dalla 3.0 (fase 8); colore del testo dalla 3.0.1.
+Con `toolbar` (4.0, F4A.3) la barra è **dichiarata** come in `FluidScreen`: dentro un host i tasti restano al loro posto e
+si trasformano in quelli della pagina d'arrivo (sopra, «La barra disegnata dal modello»); fuori i gruppi stanno sul piano
+flottante, e `onBack` aggiunge l'indietro se la barra non dichiara un `back` o un `close`.
+
+**Versione.** Dalla 3.0 (fase 8); colore del testo dalla 3.0.1; `toolbar` dalla 4.0 (F4A.3).
 
 ## I token di FluidPageMotion
 
@@ -277,6 +343,7 @@ Funzioni pure utili a chi scrive un test o una shell: `page()` e `pageReturn()` 
 - `FluidPeerNavigationTest` (3): le schede non si accumulano nemmeno quando la partenza non c'e' piu'; una figlia si chiude passando a un'altra scheda; la scheda sotto una figlia si ritrova con la sua voce e quella in cima non cambia.
 - `FluidPageFractionTest` (2): `fractionToward` a riposo, in movimento (mai fuori da 0..1) e fermo fra pagine dello stesso lato. `FluidNavHostPageColorTest` (4): `pageColor` di serie, colorato, trasparente, `Unspecified`.
 - Collegati ma di altre schede: `ExternalGroupDriveTest` e `FluidChromeTransitionTest` (la superficie Fluid-physics guidata da fuori e il fondale di transizione della chrome).
+- **La barra disegnata dal modello (F4A.3).** `FluidPageBarModelTest` (`engine-ui`, puri, sullo stato vero dell'host con la sua molla): la pagina della barra è la cima richiesta a ogni fotogramma di un push (mentre la corsa passa per molti punti), di un pop col tasto, di un push interrotto dal gesto, di un cambio di scheda; il gesto tenuto al 25/50/75/95% non cambia i tasti, l'annullo nemmeno, la conferma una volta sola; la pagina di sempre accanto a una dichiarata porta solo l'indietro; una pagina non ancora composta non cambia i tasti; lo scambio del titolo (sfocato, col passo, che riparte da dove si trova, subito col movimento ridotto); gli inset. `FluidPageMotionTest`: il passo del titolo e le coppie per identità della variante che segue il dito. `FluidToolbarPagesTest` (`sample`, Robolectric, la prova «Barre fra pagine»): due tasti che cambiano solo icona sono gli stessi pezzi del piano, fermi al pixel, senza viaggio; un tasto che diventa due fa partire il viaggio col push, mentre la pagina corre, i tre puntini restano lo stesso vetro col contenuto nitido, il tasto nuovo nasce dal loro fianco e l'indietro compare per lente; il gesto col dito vero non cambia i tasti finché tiene la pagina, l'annullo non fa niente e la conferma li trasforma; due pagine con le `actions` di sempre non hanno vetri del modello.
 - **Non provati**: gli scorrimenti annidati oltre quelli in `FluidPageHostTest`, due host affiancati, `Expand` a livello di host (la sua geometria e' coperta dai test puri), e tutto cio' che e' fotogramma (si guarda in mano, sul dispositivo).
 
 ## Dove guardare

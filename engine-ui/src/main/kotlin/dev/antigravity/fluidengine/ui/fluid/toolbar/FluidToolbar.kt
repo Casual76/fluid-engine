@@ -55,6 +55,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlass
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
@@ -66,6 +67,7 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassId
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBackIosNew
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
@@ -740,20 +742,9 @@ internal fun FluidToolbarBar(
   onExtent: ((FluidToolbarExtent) -> Unit)? = null,
 ) {
   val density = LocalDensity.current
-  val measurer = rememberTextMeasurer()
-  val textStyle = FluidToolbarDefaults.textStyle()
-  val scheme = MaterialTheme.colorScheme
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val shown = if (exits) declaration else declaration.withoutExits()
-  val model = fluidToolbarModel(
-    declaration = shown,
-    textWidthDp = { text ->
-      val px = measurer.measure(text, textStyle, maxLines = 1, softWrap = false).size.width
-      ceil(px / density.density) + FluidToolbarDefaults.TextPadding.value * 2f
-    },
-    tintOf = { fluidToolbarTint(it, scheme.primary, scheme.error) },
-    title = title,
-  )
+  val model = fluidToolbarModelOf(shown, title)
   BoxWithConstraints(modifier.then(if (wrap) Modifier else Modifier.fillMaxWidth()).height(FluidMetrics.GlassButtonLens)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
     val resolved = remember(model, width) { resolveFluidToolbar(model, width, metrics = fluidToolbarMetrics()) }
@@ -787,6 +778,28 @@ internal fun FluidToolbarBar(
       }
     }
   }
+}
+
+/**
+ * Il modello puro di [declaration] col tema e le misure di adesso: le scritte misurate con lo stile dei tasti, le tinte
+ * risolte (la principale, la distruttiva). È ciò che [FluidToolbarBar] risolve; serve anche a chi deve conoscere la
+ * geometria di una barra senza disegnarla (la barra dell'host fra due pagine, F4A.3).
+ */
+@Composable
+internal fun fluidToolbarModelOf(declaration: FluidToolbarDeclaration, title: String?): FluidToolbarModel {
+  val density = LocalDensity.current
+  val measurer = rememberTextMeasurer()
+  val textStyle = FluidToolbarDefaults.textStyle()
+  val scheme = MaterialTheme.colorScheme
+  return fluidToolbarModel(
+    declaration = declaration,
+    textWidthDp = { text ->
+      val px = measurer.measure(text, textStyle, maxLines = 1, softWrap = false).size.width
+      ceil(px / density.density) + FluidToolbarDefaults.TextPadding.value * 2f
+    },
+    tintOf = { fluidToolbarTint(it, scheme.primary, scheme.error) },
+    title = title,
+  )
 }
 
 /** La larghezza su cui si risolve una barra senza limite (stretta ai suoi gruppi in una riga che non la limita). */
@@ -849,6 +862,11 @@ private fun FluidToolbarGroupPiece(
   Row(
     modifier
       .fluidGlassId(glass, namespace)
+      .fluidGlassContentAnchor(when (group.side) {
+        FluidToolbarSide.Leading -> FluidGlassContentAnchor.Start
+        FluidToolbarSide.Center -> FluidGlassContentAnchor.Center
+        FluidToolbarSide.Trailing -> FluidGlassContentAnchor.End
+      })
       .fluidGlass(surface, FluidCapsuleShape)
       .size(group.widthDp.dp, FluidMetrics.GlassButtonLens),
     verticalAlignment = Alignment.CenterVertically,
@@ -881,7 +899,13 @@ private data class FluidToolbarFace(
   val text: String?,
   val color: Color,
   val custom: (@Composable () -> Unit)?,
+  /** La taglia dell'icona: 26 dp nella barra, 24 il chevron dell'indietro (R6), come il tasto indietro di sempre. */
+  val size: Dp = FluidMetrics.BarIconSize,
 )
+
+/** La taglia dell'icona di un tasto della barra: quella del chevron per l'indietro, quella della barra per gli altri. */
+internal fun fluidToolbarIconSize(role: FluidToolbarRole): Dp =
+  if (role == FluidToolbarRole.Back) FluidMetrics.BackIconSize else FluidMetrics.BarIconSize
 
 /** Il posto di un tasto in un vetro: la faccia che si sfoca e si incrocia, la selezione, il badge, il bersaglio da 48 dp. */
 @Composable
@@ -912,14 +936,15 @@ private fun FluidToolbarSlot(
     text = entry?.text,
     color = color,
     custom = entry?.custom,
+    size = fluidToolbarIconSize(item.role),
   )
   val label = when {
-    overflow -> declaration.overflowLabel ?: labels.actions
+    overflow -> declaration.overflowLabel ?: labels.more
     entry == null -> null
     entry.label != null -> entry.label
     entry.defaultLabel == FluidToolbarDefaultLabel.Back -> labels.back
     entry.defaultLabel == FluidToolbarDefaultLabel.Close -> labels.close
-    entry.defaultLabel == FluidToolbarDefaultLabel.Confirm -> labels.dateTimeConfirm
+    entry.defaultLabel == FluidToolbarDefaultLabel.Confirm -> labels.confirm
     else -> null
   }
   val enabled = entry?.enabled ?: true
@@ -927,7 +952,7 @@ private fun FluidToolbarSlot(
   // Il trabocco: le azioni nascoste, nel menu «Altro» e, per TalkBack, come azioni del tasto.
   val hidden = if (overflow) resolved.overflow.mapNotNull { declaration.buttons[it.id] } else emptyList()
   val menu = if (overflow) {
-    rememberFluidContextMenu(actions = { hidden.map { it.contextAction(labels.back, labels.close, labels.dateTimeConfirm) } })
+    rememberFluidContextMenu(actions = { hidden.map { it.contextAction(labels.back, labels.close, labels.confirm) } })
   } else {
     null
   }
@@ -1023,6 +1048,7 @@ private fun FluidToolbarGhostSlot(ghost: FluidToolbarGhost, declaration: FluidTo
     text = entry?.text,
     color = if (tint != Color.Unspecified) tint else ink,
     custom = entry?.custom,
+    size = fluidToolbarIconSize(ghost.item.role),
   )
   var gone by remember { mutableStateOf(false) }
   val scale = LocalFluidMotionPolicy.current.durationScale
@@ -1069,7 +1095,7 @@ private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle
       imageVector = face.icon,
       contentDescription = null,
       tint = face.color,
-      size = FluidMetrics.BarIconSize,
+      size = face.size,
     )
   }
 }

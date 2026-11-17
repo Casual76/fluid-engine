@@ -304,6 +304,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-toolbar"),
           onClick = { onOpen(GalleryPage.Toolbar) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Barre fra pagine",
+          subtitle = "F4A.3: i tasti restano al loro posto e si trasformano in quelli della pagina d'arrivo; il gesto indietro",
+          modifier = Modifier.testTag("chrome-open-toolbar-pages"),
+          onClick = { onOpen(GalleryPage.ToolbarPages) },
+        )
       }
     }
 

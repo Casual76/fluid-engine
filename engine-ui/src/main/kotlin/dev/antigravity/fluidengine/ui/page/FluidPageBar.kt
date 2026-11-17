@@ -17,6 +17,9 @@ import androidx.compose.ui.text.TextStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidTitleMorphState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 
 /**
  * Quello che una pagina dice della sua barra (3.0, fase 8): titolo, tasto indietro, azioni e i
@@ -45,7 +48,128 @@ internal data class FluidPageBarSpec(
   val barTint: GlassTint?,
   /** La registrazione della pagina che il vetro della barra rifrange; null: niente vetro. */
   val backdrop: GlassBackdropState?,
+  /**
+   * La barra **dichiarata** della pagina (F4A.3), o null per una pagina con lo slot `actions` di sempre. Con il modello
+   * l'host non compone più una riga di azioni per pagina: disegna **una barra sola** dal modello della pagina in cima
+   * alla pila richiesta, e quando la cima cambia la differenza fra i due modelli diventa un cambio di stato del suo
+   * contenitore (i tasti restano al loro posto e si trasformano). [actions] allora non conta.
+   */
+  val toolbar: FluidToolbarDeclaration? = null,
 )
+
+// ================================================================================================================
+// La barra dell'host disegnata dal modello (F4A.3)
+// ================================================================================================================
+
+/**
+ * La pagina che dà i tasti alla barra dell'host: **la cima della pila richiesta** ([FluidPageHostState.interactionPage]),
+ * non la pagina che il dito o la molla mostrano davanti. È la regola di R7 (M12) e la risposta D1 di Alessio in una riga:
+ *
+ *  - in un push la pila cambia al tocco: i tasti partono subito verso quelli della pagina nuova, col loro tempo;
+ *  - in un pop col tasto, lo stesso verso la pagina sotto;
+ *  - nel gesto indietro la pila **non** cambia finché il rilascio non conferma (`commit` chiama `onBack`, e l'app
+ *    accorcia la pila): durante il trascinamento la barra resta quella della pagina in cima, al rilascio che conferma
+ *    parte la trasformazione intera, all'annullo la pila non è mai cambiata e non succede niente;
+ *  - un push interrotto da un gesto: la barra continua verso la pagina in cima e riparte da dove si trova alla conferma;
+ *  - un cambio di scheda (D4) è un cambio di cima come un altro, senza verso.
+ *
+ * Prima della prima pila (stato non ancora inizializzato) vale la pagina che l'host disegna sopra. Pura.
+ */
+internal fun fluidPageBarPage(interactionPage: Any?, upper: Any?): Any? = interactionPage ?: upper
+
+/**
+ * Se la barra dell'host si disegna dal modello: basta che una delle pagine che mostra ([specs]) abbia dichiarato la sua
+ * barra. Fra due pagine con lo slot `actions` di sempre la barra è quella di prima, identica (F4A-c). Pura.
+ */
+internal fun fluidPageBarUsesModel(specs: Iterable<FluidPageBarSpec?>): Boolean = fluidPageBarUsesModelOf(specs.map { it?.toolbar })
+
+/** La parte pura di [fluidPageBarUsesModel], sulle sole barre dichiarate (null: una pagina di sempre, o nessuna). */
+internal fun fluidPageBarUsesModelOf(toolbars: Iterable<FluidToolbarDeclaration?>): Boolean = toolbars.any { it != null }
+
+/**
+ * Ciò che la barra disegnata dal modello mostra per la pagina [spec]: la sua barra dichiarata, oppure, per una pagina con
+ * le `actions` di sempre accanto a una dichiarata, il solo tasto indietro (se ce l'ha). Così l'indietro è **uno**, con la
+ * stessa identità ([dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarIds.Back]) nelle due pagine, e resta fermo
+ * al pixel anche fra una pagina vecchia e una nuova; le azioni della pagina vecchia passano come prima, in dissolvenza.
+ */
+internal fun fluidPageBarDeclaration(spec: FluidPageBarSpec): FluidToolbarDeclaration =
+  fluidPageBarDeclarationOf(spec.toolbar, spec.onBack)
+
+/** La parte pura di [fluidPageBarDeclaration]: la barra dichiarata [toolbar], o il solo indietro di [onBack]. */
+internal fun fluidPageBarDeclarationOf(toolbar: FluidToolbarDeclaration?, onBack: (() -> Unit)?): FluidToolbarDeclaration =
+  toolbar ?: buildFluidToolbar(onBack) { }
+
+/** Una barra senza tasti: una pagina che non ne ha. */
+internal val FluidPageBarEmpty: FluidToolbarDeclaration =
+  FluidToolbarDeclaration(emptyList(), FluidToolbarTitleMode.Large, null, null, null)
+
+/**
+ * La dichiarazione da disegnare per la pagina della barra, dato ciò che il registro dice di lei. Pura.
+ *
+ * - [registered] falso: la pagina non è ancora composta (la cima nuova arriva allo stato dopo la composizione, o una
+ *   pagina di più indietro si compone al fotogramma dopo). Non dice ancora niente: resta l'ultima dichiarazione ([last]),
+ *   così i tasti non muoiono per rinascere un fotogramma dopo.
+ * - composta ma senza barra ([spec] null): durante un movimento resta l'ultima (una barra che si registra più tardi non
+ *   fa morire e rinascere i tasti); a riposo, nessun tasto.
+ * - altrimenti la sua ([fluidPageBarDeclaration]).
+ */
+internal fun fluidPageBarTarget(
+  registered: Boolean,
+  spec: FluidPageBarSpec?,
+  moving: Boolean,
+  last: FluidToolbarDeclaration?,
+): FluidToolbarDeclaration = fluidPageBarTargetOf(registered, spec != null, spec?.toolbar, spec?.onBack, moving, last)
+
+/** La parte pura di [fluidPageBarTarget]: [described] dice se la pagina ha registrato una barra. */
+internal fun fluidPageBarTargetOf(
+  registered: Boolean,
+  described: Boolean,
+  toolbar: FluidToolbarDeclaration?,
+  onBack: (() -> Unit)?,
+  moving: Boolean,
+  last: FluidToolbarDeclaration?,
+): FluidToolbarDeclaration = when {
+  !registered -> last ?: FluidPageBarEmpty
+  !described -> if (moving) last ?: FluidPageBarEmpty else FluidPageBarEmpty
+  else -> fluidPageBarDeclarationOf(toolbar, onBack)
+}
+
+/**
+ * La memoria della barra disegnata dal modello fra due composizioni: la pagina che mostra, la sua dichiarazione e il suo
+ * contesto (ciò che vedeva la pagina: tema, ViewModel della voce, host dei modali). Si aggiorna in composizione.
+ */
+internal class FluidPageBarTargetMemory {
+  var page: Any? = null
+    private set
+  var declaration: FluidToolbarDeclaration? = null
+    private set
+  var context: CompositionLocalContext? = null
+    private set
+
+  /**
+   * Se l'host disegna dal modello: da quando una delle pagine che mostra ha dichiarato la barra, **e da lì in poi**. Così
+   * la barra del modello non si monta e smonta a ogni passaggio fra una pagina di sempre e una dichiarata (ogni volta un
+   * fotogramma senza indietro): succede una volta sola per host. Un host che non ha mai visto una barra dichiarata resta
+   * quello di prima, identico; in uno che l'ha vista, l'indietro di ogni pagina è del modello e le azioni delle pagine di
+   * sempre restano nella loro riga (fra due pagine di sempre col viaggio dei pezzi di prima).
+   */
+  var hostModel: Boolean = false
+    private set
+
+  /** [modelMode]: se le pagine che la barra mostra adesso ne hanno una dichiarata. Torna [hostModel]. */
+  fun noteModel(modelMode: Boolean): Boolean {
+    if (modelMode) hostModel = true
+    return hostModel
+  }
+
+  fun update(page: Any?, registered: Boolean, spec: FluidPageBarSpec?, moving: Boolean): FluidToolbarDeclaration {
+    val next = fluidPageBarTarget(registered, spec, moving, declaration)
+    if (registered) this.page = page
+    declaration = next
+    if (spec != null) context = spec.context
+    return next
+  }
+}
 
 /**
  * Il posto della barra di una pagina, dato dall'host a ogni pagina. Piu' registrazioni nella stessa

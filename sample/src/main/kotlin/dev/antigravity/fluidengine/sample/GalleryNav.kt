@@ -103,6 +103,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   Toolbar("Barre (prova)"),
 
+  /**
+   * La barra dichiarata **fra pagine** (piano «iOS in Android», F4A.3): un host con due schede e una catena di quattro
+   * pagine, una per esempio di Alessio (un tasto che diventa due, due tasti che cambiano icona, il gesto indietro, le
+   * combinazioni, i tasti collegati), con l'automatico per le riprese e l'interruttore della variante del gesto che segue
+   * il dito. Vedi `toolbar/ToolbarPagesPage.kt`. Si apre con `--es gallery.page toolbarpages`.
+   */
+  ToolbarPages("Barre fra pagine"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

@@ -160,4 +160,37 @@ class FluidZoomTest {
     assertTrue("arrivato prima dei 300 ms resta un po' sfocato", fluidSheetZoomBlurFraction(220f, 1f) > 0f)
     assertTrue("alla chiusura torna sfocato mentre rientra", fluidSheetZoomBlurFraction(5_000f, 0.5f) > 0.5f)
   }
+
+  @Test fun `la dissolvenza della variante si legge dalla strada della sagoma`() {
+    // Pagina intera: niente sorgente; fino a un terzo della strada ancora niente; all'arrivo tutta la sorgente.
+    assertEquals(0f, FluidZoom.crossfade(full, full, card), 0f)
+    val third = FluidZoom.lerp(full, card, FluidZoom.CrossfadeFrom)
+    assertEquals(0f, FluidZoom.crossfade(third, full, card), 0.01f)
+    assertEquals(1f, FluidZoom.crossfade(card, full, card), 0f)
+    assertEquals(1f, FluidZoom.crossfade(FluidZoom.lerp(full, card, FluidZoom.CrossfadeTo), full, card), 0.01f)
+    // In mezzo cresce sempre, senza salti.
+    var last = 0f
+    for (k in 0..100) {
+      val f = FluidZoom.crossfade(FluidZoom.lerp(full, card, k / 100f), full, card)
+      assertTrue("cresce: $f dopo $last", f >= last - 1e-6f)
+      assertTrue("nessun salto a $k", f - last <= 1f / ((FluidZoom.CrossfadeTo - FluidZoom.CrossfadeFrom) * 100f) + 1e-3f)
+      last = f
+    }
+    // Il dito che rimpicciolisce la pagina sotto di sé conta come strada fatta, come il tasto.
+    val held = FluidZoom.follow(full, full, dragPx = 600f, grabTravel = 0f, direction = 1, pivot = Offset(540f, 1200f), width = 1080f)
+    val f = FluidZoom.crossfade(held, full, card)
+    assertTrue("col dito: $f", f in 0f..1f)
+  }
+
+  @Test fun `la fotografia della sorgente e larga quanto la sagoma e in alto`() {
+    val snap = Size(400f, 500f)
+    val r = FluidZoom.snapshotRect(Rect(50f, 80f, 650f, 1480f), snap)
+    assertEquals(50f, r.left, 0f)
+    assertEquals(80f, r.top, 0f)
+    assertEquals(600f, r.width, 0.01f)
+    assertEquals(750f, r.height, 0.01f)
+    // All'arrivo la sagoma e' la sorgente: la fotografia la copre esattamente.
+    val home = FluidZoom.snapshotRect(card.bounds, card.bounds.size)
+    assertEquals(card.bounds, home)
+  }
 }

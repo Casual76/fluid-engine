@@ -294,6 +294,16 @@ object FluidMotion {
   internal const val MenuGroupGatherWidth = 0.60f
   internal const val MenuSeedDiameterFraction = 0.92f
   internal const val MenuGroupTravelBias = 0.55f
+  internal const val MenuButtonGatherEnd = 0.058f
+  internal const val MenuButtonFirstRise = 0.19f
+  internal const val MenuButtonBloom = 0.36f
+  internal const val MenuButtonBubble = 0.52f
+  internal const val MenuButtonPanel = 0.82f
+  internal const val MenuButtonRoundnessEnd = 0.94f
+  internal const val MenuButtonInflationX = 1.20f
+  internal const val MenuButtonLensMagnification = 1.42f
+  internal const val MenuButtonLensInkPivot = 0.32f
+  internal const val MenuLiquidCloseStiffness = 900f
   internal const val MenuContentFocusMillis = 270
   internal const val MenuContentExitMillis = 185
   internal const val MenuContentInkFull = 0.72f

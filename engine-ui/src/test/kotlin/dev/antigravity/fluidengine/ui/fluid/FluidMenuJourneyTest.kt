@@ -103,6 +103,32 @@ class FluidMenuJourneyTest {
   }
 
   @Test
+  fun theButtonGathersBeforeGrowingAndReachesThePanelWithRoundCorners() {
+    fun at(p: Float) = fluidMenuButtonTravel(rest, panel, 22f, panel.center, p)
+    assertEquals(rest, at(0f).frame)
+    val gathered = at(FluidMotion.MenuButtonGatherEnd).frame
+    assertEquals(rest.center, gathered.center)
+    assertTrue(gathered.width < rest.width)
+    val bubble = at(FluidMotion.MenuButtonBubble)
+    assertTrue(bubble.frame.width > panel.width * 0.74f)
+    assertTrue(bubble.frame.center.y < rest.center.y)
+    assertEquals(bubble.frame.minDimension / 2f, bubble.cornerRadii.topLeft, 0.001f)
+    assertEquals(panel, at(1f).frame)
+    assertEquals(22f, at(1f).cornerRadii.topLeft, 0.001f)
+  }
+
+  @Test
+  fun onlyTheButtonMagnifiesItsInkWhileTheLensIsActive() {
+    val clip = Rect(80f, 410f, 190f, 540f)
+    val button = fluidMenuLensMap(panel, clip, button = true, progress = 0.5f, focus = 0.3f)
+    val group = fluidMenuLensMap(panel, clip, progress = 0.5f, focus = 0.3f)
+    assertEquals(1.42f, button.scale, 0.001f)
+    assertTrue(group.scale < 1f)
+    assertEquals(group, fluidMenuLensMap(panel, clip, button = true, progress = 0.9f, focus = 0.7f))
+    assertEquals(FluidMenuContentMap.Identity, fluidMenuLensMap(panel, panel, button = true, progress = 1f, focus = 1f))
+  }
+
+  @Test
   fun theInkResumesAtItsCurrentVisibilityWhenTheReturnIsInterrupted() = runTest {
     val bench = JourneyBench(this)
     val journey = FluidMenuJourney().apply {

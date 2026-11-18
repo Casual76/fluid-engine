@@ -345,11 +345,12 @@ Chrome → Navigazione).
 
 **Come si muove.**
 - **Un orologio solo.** Lo zoom corre sulla stessa corsa di push, pop e gesto: la sagoma è una funzione della corsa.
-  Il push usa la molla delle pagine (F4A); **il ritorno nella sorgente** (pop, conferma del dito, pop che interrompe il
-  push) ha **una molla sua**, `FluidPageMotion.zoomReturn()`: quella dello zoom di UIKit misurata a tempo vero (WWDC24
-  10145, iOS 18: critica, risposta **0,71 s**, `ResponseZoomSeconds`), più morbida della molla delle pagine (0,34 s). Con
-  quella delle pagine la sagoma arrivava al 97% in 280 ms e poi strisciava sulla card; con questa rallenta per tutta la
-  strada. `Slide`, `ShrinkSlide` e l'`Expand` senza sorgente restano sulla molla delle pagine, al bit. A ogni cambio di fase (push, pop, il dito che prende, il rilascio che conferma o
+  Quando una sagoma viaggia fra la sorgente e la pagina, **nei due versi** (push, pop, conferma del dito, le inversioni),
+  la corsa ha **una molla sua**, `FluidPageMotion.zoom()`: quella dello zoom di UIKit misurata a tempo vero (WWDC24
+  10145, iOS 18, l'apertura da una cella toccata: critica, risposta **0,71 s**, `ResponseZoomSeconds`), più morbida della
+  molla delle pagine (0,34 s). In UIKit apertura e ritorno sono la stessa transizione; con la molla delle pagine la
+  sagoma arrivava al 97% in 280 ms e poi strisciava sulla card, con questa rallenta per tutta la strada. `Slide`,
+  `ShrinkSlide` e l'`Expand` senza sorgente restano sulla molla delle pagine, al bit. A ogni cambio di fase (push, pop, il dito che prende, il rilascio che conferma o
   annulla, un pop che interrompe il push) la sagoma **riparte da quella che si vede**: nessun salto, in nessun verso.
   Lo zoom si inverte come `Slide` (l'Expand dal punto toccato no).
 - **La pagina sta intera nella sagoma**, in scala: la copre (nessun vuoto ai lati) ancorata **in alto al centro**, perché
@@ -363,8 +364,12 @@ Chrome → Navigazione).
 - **La sorgente nascosta.** Si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma (non prima: nel
   fotogramma del cambio di pila la pagina non è ancora composta) e rinasce quando la pagina esce dalla pila, a riposo.
   Il ritorno finisce quando la sagoma è **arrivata** sulla sorgente (entro 1 dp, `FluidZoom.ArrivalDp`), non alla coda
-  della molla: nessun salto di forma alla fine. Apple negli ultimi fotogrammi dissolve la pagina nella cella (le due si
-  vedono insieme); qui no, la card rinasce quando la sagoma è arrivata. Il
+  della molla: nessun salto di forma alla fine. Apple invece, da circa un terzo del ritorno, dissolve la pagina nella cella
+  dentro la sagoma (le due si vedono insieme); qui di serie no, la card rinasce quando la sagoma è arrivata. La
+  dissolvenza c'è come **variante interna, spenta** (`FluidPageHostState.zoomCrossfade`, F5B.3: la decide Alessio sul
+  video): accesa, la sorgente consumata si registra in un layer e l'host la disegna dentro la sagoma, larga quanto lei e
+  in alto, sopra la pagina che sbiadisce; quanto si vede si legge dalla strada della sagoma (`FluidZoom.crossfade`, da
+  0,33 a 0,9), quindi vale uguale col tasto, col dito e all'apertura. Il
   modificatore nasconde ciò che gli sta **dopo** nella catena: va messo prima di forma, fondo e contenuto.
 - **Il ripiego.** Senza `zoomSource`, con le animazioni ridotte, o se la sorgente al momento non si trova (uscita dallo
   scorrimento, pagina cambiata), vale l'`Expand` di sempre: dal punto toccato in andata, «rimpicciolisce e scivola» al

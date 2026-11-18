@@ -64,6 +64,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -369,6 +374,7 @@ private fun <K : Any> PageLayer(
         } else Modifier,
       )
       .pageLayer(state, page, shadowColor, elevationPx, signals)
+      .zoomCrossfade(state, page, pageColor)
       .then(if (pageColor.isSpecified) Modifier.background(pageColor) else Modifier)
       .pageInputGate(state, page)
       .then(if (covered) Modifier.clearAndSetSemantics { } else Modifier),
@@ -403,6 +409,38 @@ private class PageScopeImpl(
 ) : FluidPageScope {
   override val isCovered: Boolean get() = covered.value
   override val isFront: Boolean get() = front.value
+}
+
+/**
+ * La variante con la dissolvenza (F5B.3, di serie spenta: [FluidPageHostState.zoomCrossfade]). Dentro il layer della
+ * pagina sopra, quindi già in scala e ritagliato dalla sagoma: il fondo della pagina resta pieno, il contenuto sbiadisce, e
+ * sopra compare la fotografia della sorgente, larga quanto la sagoma e in alto ([FluidZoom.snapshotRect]). All'arrivo la
+ * sagoma è la sorgente e la fotografia la copre tutta: la sorgente che rinasce è la stessa immagine. Spenta, o fuori dallo
+ * zoom, disegna la pagina e basta.
+ */
+private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier = drawWithContent {
+  val alpha = if (state.roleOf(page) == PageRole.Upper) state.zoomCrossfadeAlpha() else 0f
+  val snapshot = if (alpha > 0f) state.zoomSnapshot() else null
+  val zoomed = if (snapshot != null) state.zoomShape() else null
+  if (snapshot == null || zoomed == null || snapshot.size.width <= 0f) {
+    drawContent()
+    return@drawWithContent
+  }
+  val target = Rect(0f, 0f, size.width, size.height)
+  val clip = FluidZoom.contentClip(zoomed, target, FluidZoom.content(zoomed, target)).bounds
+  if (pageColor.isSpecified && pageColor.alpha > 0f) drawRect(pageColor)
+  val canvas = drawContext.canvas
+  canvas.saveLayer(target, Paint().apply { this.alpha = 1f - alpha })
+  drawContent()
+  canvas.restore()
+  val rect = FluidZoom.snapshotRect(clip, snapshot.size)
+  val k = rect.width / snapshot.size.width
+  translate(rect.left, rect.top) {
+    scale(k, k, pivot = Offset.Zero) {
+      snapshot.layer.alpha = alpha
+      drawLayer(snapshot.layer)
+    }
+  }
 }
 
 /**

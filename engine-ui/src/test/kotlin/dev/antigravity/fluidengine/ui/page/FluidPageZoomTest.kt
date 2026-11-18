@@ -203,13 +203,45 @@ class FluidPageZoomTest {
     assertFalse(source.isHidden)
   }
 
+  /** La frazione di una molla critica da ferma dopo [seconds], con la risposta data. */
+  private fun critical(seconds: Double, response: Double): Float {
+    val x = 2 * Math.PI / response * seconds
+    return (1 - (1 + x) * Math.exp(-x)).toFloat()
+  }
+
+  private val frameSeconds = 16_666_667L / 1e9
+
+  @Test fun `andata e ritorno con lo zoom hanno la molla misurata su Apple`() {
+    // L'apertura: dalla card verso lo schermo, sulla stessa molla del ritorno (F5B.3, scelta dell'orchestratore).
+    val opening = host()
+    opening.onStack(listOf("G", "D"))
+    opening.pagePlaced("D")
+    val fullWidth = opening.width
+    repeat(10) { frame() }
+    val grown = requireNotNull(opening.zoomShape()).bounds
+    assertEquals(
+      "il push segue la molla di Apple",
+      critical(9 * frameSeconds, FluidPageMotion.ResponseZoomSeconds),
+      (grown.width - card.width) / (fullWidth - card.width),
+      0.02f,
+    )
+    opening.toRest()
+    // L'Expand senza sorgente apre sulla molla delle pagine.
+    val plainOpening = host(declared = false)
+    plainOpening.onStack(listOf("G", "D"))
+    plainOpening.pagePlaced("D")
+    val exitOpen = FluidPageMotion.exitTravel(FluidPageTransition.Expand, plainOpening.width)
+    repeat(10) { frame() }
+    assertEquals(
+      "senza sagoma il push e' quello delle pagine",
+      critical(9 * frameSeconds, FluidPageMotion.ResponsePageSeconds),
+      1f - plainOpening.travelPx / exitOpen,
+      0.02f,
+    )
+    plainOpening.toRest()
+  }
+
   @Test fun `il ritorno con lo zoom ha la molla misurata su Apple e finisce con la sagoma sulla card`() {
-    // La frazione di una molla critica da ferma dopo [seconds], con la risposta data.
-    fun critical(seconds: Double, response: Double): Float {
-      val x = 2 * Math.PI / response * seconds
-      return (1 - (1 + x) * Math.exp(-x)).toFloat()
-    }
-    val frameSeconds = 16_666_667L / 1e9
     val state = host()
     state.open()
     state.onStack(listOf("G"))
@@ -300,5 +332,37 @@ class FluidPageZoomTest {
       declared.toRest()
       plain.toRest()
     }
+  }
+
+  @Test fun `la dissolvenza e una variante spenta di serie che segue la strada della sagoma`() {
+    // Di serie: niente dissolvenza, niente fotografia chiesta alla sorgente.
+    val plain = host()
+    plain.open()
+    plain.onStack(listOf("G"))
+    while (plain.isMoving) {
+      assertEquals(0f, plain.zoomCrossfadeAlpha(), 0f)
+      frame()
+    }
+    // Accesa: zero finché la sagoma non ha fatto un terzo della strada, poi cresce fino a 1, senza salti.
+    val state = host().also { it.zoomCrossfade = true }
+    state.open()
+    state.onStack(listOf("G"))
+    val full = state.fullZoomShape()
+    var last = 0f
+    var sawZero = false
+    var sawPartial = false
+    while (state.isMoving) {
+      val shape = requireNotNull(state.zoomShape())
+      val alpha = state.zoomCrossfadeAlpha()
+      assertEquals(FluidZoom.crossfade(shape, full, FluidZoomShape(card, FluidPageCorners(40f, 40f, 40f, 40f))), alpha, 0.02f)
+      assertTrue("cresce: $alpha dopo $last", alpha >= last - 1e-4f)
+      if (alpha == 0f) sawZero = true
+      if (alpha > 0.05f && alpha < 0.95f) sawPartial = true
+      last = alpha
+      frame()
+    }
+    assertTrue("prima del terzo della strada la pagina e' intera", sawZero)
+    assertTrue("e poi si dissolve", sawPartial)
+    assertTrue("all'arrivo e' la sorgente: $last", last > 0.99f)
   }
 }

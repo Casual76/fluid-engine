@@ -131,7 +131,7 @@ private fun MorphSection(pick: (String) -> Unit) {
   Stage(height = 360.dp) { backdrop ->
     val menu = rememberFluidMorphMenuState()
     var order by remember { mutableStateOf("Per data") }
-    var light by remember { mutableStateOf(false) }
+    var light by remember { mutableStateOf(true) }
     // Lo stato del menu arriva ai tasti dal fornitore (3.0.1): nessuno dei due lo riceve come parametro.
     CompositionLocalProvider(LocalFluidMorphMenuState provides menu, LocalFluidMenuPointOfLight provides light) {
       FluidButton(

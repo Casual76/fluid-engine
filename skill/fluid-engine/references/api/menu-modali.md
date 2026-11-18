@@ -78,7 +78,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidMenuJourney.kt`
 
-- `val LocalFluidMenuPointOfLight` — Accende il punto di luce in viaggio sui menu Liquid. La scelta di serie resta quella senza lampo.
+- `val LocalFluidMenuPointOfLight` — Punto di luce in viaggio sui menu Liquid, acceso di serie.
 
 ## `engine-ui/ui/fluid/FluidNotification.kt`
 

@@ -94,6 +94,38 @@ object FluidZoom {
    */
   const val ArrivalDp: Float = 1f
 
+  /**
+   * La variante di Apple, di serie spenta (F5B.3: la decide Alessio sul video): la pagina si dissolve nella sorgente
+   * dentro la sagoma, da circa un terzo della strada fra pagina intera e sorgente ([CrossfadeFrom]) fino a quasi
+   * l'arrivo ([CrossfadeTo]). Misurata a occhio su WWDC24 10145 (1:46, il ritorno col dito nella cella): il contenuto
+   * della cella compare nel riquadro quando la sagoma ha fatto ~0,3–0,4 della strada, quello della pagina non si vede più
+   * verso 0,9.
+   */
+  internal const val CrossfadeFrom: Float = 0.33f
+  internal const val CrossfadeTo: Float = 0.9f
+
+  /**
+   * Quanto della sorgente si vede dentro [shape] (0 la pagina, 1 la sorgente), dalla strada fatta fra [full] e [source]:
+   * si legge dalla sagoma e non dal tempo, così vale uguale col tasto, col dito e all'apertura, e non salta fra le fasi.
+   */
+  internal fun crossfade(shape: FluidZoomShape, full: FluidZoomShape, source: FluidZoomShape): Float {
+    val total = distance(full, source)
+    if (total < 1e-3f) return 1f
+    val done = 1f - distance(shape, source) / total
+    return ((done - CrossfadeFrom) / (CrossfadeTo - CrossfadeFrom)).coerceIn(0f, 1f)
+  }
+
+  /**
+   * Dove va la fotografia della sorgente (grande [snapshot]) dentro la sagoma [clip], nelle stesse coordinate di [clip]:
+   * larga quanto la sagoma, in scala uniforme, in alto (dove la card e la pagina hanno la foto). All'arrivo la sagoma è
+   * la sorgente e la fotografia la copre esattamente.
+   */
+  internal fun snapshotRect(clip: Rect, snapshot: Size): Rect {
+    if (snapshot.width <= 0f || snapshot.height <= 0f) return Rect(clip.left, clip.top, clip.left, clip.top)
+    val scale = clip.width / snapshot.width
+    return Rect(clip.left, clip.top, clip.right, clip.top + snapshot.height * scale)
+  }
+
   /** Quanto sono lontane due sagome: lo spostamento del bordo che si sposta di più, in px. */
   fun distance(a: FluidZoomShape, b: FluidZoomShape): Float = maxOf(
     kotlin.math.abs(a.bounds.left - b.bounds.left),

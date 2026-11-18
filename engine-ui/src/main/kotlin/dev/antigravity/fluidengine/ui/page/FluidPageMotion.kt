@@ -184,12 +184,12 @@ object FluidPageMotion {
   val ResponseZoom: Float = FluidMotion.stiffnessForResponse(ResponseZoomSeconds)
 
   /**
-   * Il ritorno con lo zoom nella sorgente (pop, conferma del dito, pop che interrompe il push), solo quando c'e' una sagoma
-   * che torna: la molla misurata su Apple ([ResponseZoomSeconds]), critica. Piu' morbida di [page]: la sagoma rallenta per
-   * tutta la strada invece di arrivare presto e strisciare sulla card per l'ultimo decimo di secondo. Push, pop e conferma
-   * di `Slide`, `ShrinkSlide` e dell'`Expand` senza sorgente restano su [page].
+   * Lo zoom dalla sorgente, nei due versi (push, pop, conferma del dito, le inversioni), solo quando una sagoma viaggia
+   * fra la sorgente e la pagina: la molla misurata su Apple ([ResponseZoomSeconds]), critica, come in UIKit, dove
+   * apertura e ritorno sono la stessa transizione. Piu' morbida di [page]: la sagoma rallenta per tutta la strada. Push,
+   * pop e conferma di `Slide`, `ShrinkSlide` e dell'`Expand` senza sorgente restano su [page].
    */
-  fun zoomReturn(): SpringSpec<Float> =
+  fun zoom(): SpringSpec<Float> =
     spring(FluidMotion.DampingChrome, ResponseZoom, VisibilityThresholdPx)
 
   // --- La corsa --------------------------------------------------------------------------------

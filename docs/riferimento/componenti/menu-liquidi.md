@@ -56,10 +56,13 @@ dal registro del piano. Le icone del gruppo si sfocano sul posto nei primi 67–
 in chiusura. Se il pezzo manca, il menu parte dal tasto. Se un'azione della barra finisce in «Altro», le sue voci
 sono disponibili in quel menu.
 
-Le voci nascono in miniatura dentro la lente e si mettono a fuoco mentre il corpo si allarga. Un effetto sul layer delle
-voci usa il campo del corpo e il ritaglio resta attivo fino alla posa della goccia. Layout e scelta col dito usano i
-riquadri finali. Testo e altezza della riga conservano le misure. Icona e spunta sono `FluidIcon` da 22 dp.
-Il punto di luce è un'opzione spenta di serie. Per provarlo, fornisci `LocalFluidMenuPointOfLight` all'host.
+Dal tasto la bolla cresce nella prima risalita. Fra circa 33 e 100 ms la lente ingrandisce le voci sfocate, poi le
+riporta alla misura di lettura. Dal gruppo le voci crescono dentro la goccia. L'effetto sul layer usa il campo del
+corpo e il ritaglio dura fino alla posa. Layout e scelta col dito usano i riquadri finali. Icona e spunta sono
+`FluidIcon` da 22 dp.
+
+I menu Liquid usano il ritorno rapido (rigidezza 900, smorzamento 0,72). Il punto di luce è acceso di serie.
+L'host può spegnerlo fornendo `LocalFluidMenuPointOfLight` a `false`.
 
 ## `FluidContextAction`
 

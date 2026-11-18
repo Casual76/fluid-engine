@@ -41,6 +41,15 @@
       "label": "il lato sinistro della pagina, sotto la card sorgente"
     }
   ],
+  "apple": [
+    {
+      "name": "ipad",
+      "video": "artifacts/liquid-glass/sessioni/f5b-3/rif/wwdc2024-10145/wwdc2024-10145_hd_0-8min.mp4",
+      "t0Frame": 3182,
+      "crop": [493, 214, 934, 642],
+      "note": "classe B: il ritorno col tasto non c'è nella sessione; accanto, il ritorno col dito (1:46), allineato sulla strada: al rilascio (f3186) Apple ha fatto ~0,39 della strada, il nostro ritorno col tasto ci arriva a ~150 ms. Prima del rilascio il dito di Apple porta la pagina a destra."
+    }
+  ],
   "frames": [
     {
       "t": -50,

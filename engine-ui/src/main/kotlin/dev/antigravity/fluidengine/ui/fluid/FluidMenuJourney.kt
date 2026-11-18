@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.fluidphysics.inflateSlab
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
@@ -180,10 +181,61 @@ internal fun fluidMenuJourneySeed(
 internal fun fluidMenuExpansionProgress(progress: Float): Float =
   if (progress in 0f..1f) unitRamp(progress, FluidMotion.MenuExpandStart, 1f) else progress
 
-internal fun fluidMenuLensMap(target: Rect, content: Rect): FluidMenuContentMap {
+/** Dal tasto: raccolta sul posto, risalita con la bolla già in espansione, raccordo al pannello. */
+internal fun fluidMenuButtonTravel(
+  source: Rect,
+  panel: Rect,
+  panelRadius: Float,
+  expansionOrigin: Offset,
+  progress: Float,
+): FluidForm.Slab {
+  if (progress >= 1f) return FluidForm.Slab(panel, FluidCornerRadii.all(panelRadius))
+  val gathered = FluidMotion.MenuSeedDiameterFraction
+  val gathering = unitRamp(progress, 0f, FluidMotion.MenuButtonGatherEnd)
+  val rise = unitRamp(progress, FluidMotion.MenuButtonGatherEnd, FluidMotion.MenuButtonFirstRise)
+  val bloom = unitRamp(progress, FluidMotion.MenuButtonFirstRise, FluidMotion.MenuButtonBloom)
+  val bubble = unitRamp(progress, FluidMotion.MenuButtonBloom, FluidMotion.MenuButtonBubble)
+  val fill = unitRamp(progress, FluidMotion.MenuButtonBubble, FluidMotion.MenuButtonPanel)
+  val finish = unitRamp(progress, FluidMotion.MenuButtonPanel, 1f)
+  val rounding = unitRamp(progress, FluidMotion.MenuButtonRoundnessEnd, 1f)
+  // Il bersaglio si allarga già nella prima risalita. Il bordo della goccia lo raggiunge in ritardo.
+  val growthX = 0.46f * rise + 0.62f * bloom - 0.04f * (bubble + fill)
+  val growthY = 0.43f * rise + 0.65f * bloom - 0.04f * (bubble + fill)
+  val startWidth = source.width * (1f - (1f - gathered) * gathering)
+  val startHeight = source.height * (1f - (1f - gathered) * gathering)
+  val width = startWidth + (panel.width - startWidth) * growthX
+  val height = startHeight + (panel.height - startHeight) * growthY
+  val toward = expansionOrigin - source.center
+  val center = source.center + Offset(
+    toward.x * (0.325f * rise + 0.66f * bloom - 0.10f * bubble + 0.215f * fill - 0.10f * finish),
+    toward.y * (0.49f * rise + 0.67f * bloom - 0.01f * (bubble + fill) - 0.14f * finish),
+  ) + (panel.center - expansionOrigin) * fill
+  val half = min(width, height) / 2f
+  val rounded = half * (1f - 0.24f * unitRamp(progress, 0.58f, 0.88f))
+  val radius = rounded + (panelRadius.coerceAtMost(half) - rounded) * rounding
+  val rect = Rect(center - Offset(width / 2f, height / 2f), Size(width, height))
+  return FluidForm.Slab(rect, FluidCornerRadii.all(radius))
+}
+
+internal fun fluidMenuLensMap(
+  target: Rect,
+  content: Rect,
+  button: Boolean = false,
+  progress: Float = 0f,
+  focus: Float = 1f,
+): FluidMenuContentMap {
   if (content.isEmpty || target.isEmpty) return FluidMenuContentMap.Identity
-  val scale = min(content.width / target.width, content.height / target.height).coerceIn(0.04f, 1f)
-  return FluidMenuContentMap(content.center - target.center, scale)
+  val fitted = min(content.width / target.width, content.height / target.height).coerceIn(0.04f, 1f)
+  val zoom = if (button) {
+    unitRamp(progress, FluidMotion.MenuButtonGatherEnd, FluidMotion.MenuButtonFirstRise) *
+      (1f - unitRamp(focus, 0.37f, 0.63f))
+  } else {
+    0f
+  }
+  val extra = (FluidMotion.MenuButtonLensMagnification - fitted) * zoom
+  // Mentre il bordo ritaglia le righe estreme, il centro dell'inchiostro resta nella bolla.
+  val inset = Offset(target.width * FluidMotion.MenuButtonLensInkPivot * extra, 0f)
+  return FluidMenuContentMap(content.center - target.center + inset, fitted + extra)
 }
 
 internal fun fluidMenuLensAlpha(focus: Float): Float =
@@ -199,8 +251,8 @@ internal fun fluidMenuSpotAmount(progress: Float): Float =
   FluidMotion.MenuSpotPeak * unitRamp(progress, FluidMotion.MenuSpotStart, FluidMotion.MenuSpotCrest) *
     (1f - unitRamp(progress, FluidMotion.MenuSpotCrest, FluidMotion.MenuSpotEnd))
 
-/** Accende il punto di luce in viaggio sui menu Liquid. La scelta di serie resta quella senza lampo. */
-val LocalFluidMenuPointOfLight = androidx.compose.runtime.compositionLocalOf { false }
+/** Punto di luce in viaggio sui menu Liquid, acceso di serie. */
+val LocalFluidMenuPointOfLight = androidx.compose.runtime.compositionLocalOf { true }
 
 internal fun fluidMenuSpotCenter(body: Rect, source: Offset, destination: Offset): Offset {
   val travel = destination - source
@@ -233,13 +285,13 @@ internal fun fluidDropInflation(paneW: Float, availW: Float, edgeMinPx: Float): 
   if (paneW <= 0f) return FluidMenuInflation.None
   val gain = FluidMotion.DropInflationGain
   val room = ((availW - 2f * edgeMinPx - paneW).coerceAtLeast(0f) / paneW) / FluidMotion.DropPeakOvershoot
-  return FluidMenuInflation(x = min(gain, room), y = gain)
+  return FluidMenuInflation(x = min(gain, room), y = gain, buttonX = min(FluidMotion.MenuButtonInflationX, room))
 }
 
 // --- Il gonfiore dell'oltrepasso -------------------------------------------------------
 
 /** Il gonfiore dell'oltrepasso per asse: la frazione di crescita per unita' di (progress − 1). */
-internal data class FluidMenuInflation(val x: Float, val y: Float) {
+internal data class FluidMenuInflation(val x: Float, val y: Float, val buttonX: Float = x) {
   companion object {
     val None = FluidMenuInflation(0f, 0f)
   }
@@ -732,6 +784,9 @@ internal class FluidMenuJourney {
     private set
   private var expansionOrigin: Offset = Offset.Zero
 
+  val usesButtonTravel: Boolean get() = liquidMenu && anchor?.let { it.groupBounds == null } == true
+  private var buttonOpeningContour by mutableStateOf(true)
+
   /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
   var anchorRelax = Animatable(1f, ProgressThreshold)
     private set
@@ -780,7 +835,23 @@ internal class FluidMenuJourney {
     }
   }
   private val progressBlock: () -> Float = {
-    if (liquidMenu) fluidMenuExpansionProgress(progress.value) else progress.value
+    if (liquidMenu && !(usesButtonTravel && buttonOpeningContour)) {
+      fluidMenuExpansionProgress(progress.value)
+    } else {
+      progress.value
+    }
+  }
+  private val buttonTravelBlock: () -> FluidForm.Slab? = {
+    val p = progress.value
+    when {
+      !buttonOpeningContour || p < 0f -> null
+      p < 1f -> fluidMenuButtonTravel(startFrame(), to, toRadius, expansionOrigin, p)
+      p > 1f -> inflateSlab(
+        FluidForm.Slab(to, FluidCornerRadii.all(toRadius)), to.center.x, to.center.y,
+        1f + (p - 1f) * inflation.buttonX, 1f + (p - 1f) * inflation.y,
+      )
+      else -> null
+    }
   }
 
   /**
@@ -855,6 +926,7 @@ internal class FluidMenuJourney {
       overshootInflationX = inflation.x,
       overshootInflationY = inflation.y,
       startFrame = if (a != null) startFrameBlock else null,
+      travelSlab = buttonTravelBlock.takeIf { usesButtonTravel },
     )
   }
 
@@ -864,6 +936,12 @@ internal class FluidMenuJourney {
    */
   fun retarget(t: Float) {
     if (target == t) return
+    // A pannello posato parte il ritorno rapido scelto per il tasto. A metà corsa
+    // si conserva il contorno che si sta già seguendo, anche se cambia il verso.
+    if (usesButtonTravel) {
+      if (t == 0f && !progress.isRunning && progress.value == 1f) buttonOpeningContour = false
+      if (t == 1f && progress.value <= 0f) buttonOpeningContour = true
+    }
     seedVelocity = progress.velocity
     target = t
   }
@@ -893,10 +971,15 @@ internal class FluidMenuJourney {
       if (t >= 1f) {
         val relax = anchorRelax
         if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
-        // La goccia (3.0): l'andata in ~0,28 s (3.0.4; era 0,42), poco sottosmorzata, e il ritorno in ~0,50 s.
+        // La goccia d'andata conserva la molla e il guadagno dell'oltrepasso.
         progress.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = v)
       } else {
-        progress.animateTo(0f, FluidMotion.dropClose(), initialVelocity = v)
+        val spring = if (liquidMenu) {
+          androidx.compose.animation.core.spring<Float>(FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness)
+        } else {
+          FluidMotion.dropClose<Float>()
+        }
+        progress.animateTo(0f, spring, initialVelocity = v)
       }
     }
   }

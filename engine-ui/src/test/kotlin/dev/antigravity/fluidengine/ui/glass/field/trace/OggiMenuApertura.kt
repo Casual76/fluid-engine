@@ -148,7 +148,7 @@ internal data class MenuTraceVariant(
   val grouped: Boolean = false,
   val closingAtMs: Int? = null,
   val alignToClose: Boolean = false,
-  val closeStiffness: Float = FluidMotion.DropCloseStiffness,
+  val closeStiffness: Float = if (threePhase) FluidMotion.MenuLiquidCloseStiffness else FluidMotion.DropCloseStiffness,
   val inflationMultiplier: Float = 1f,
   val inflationHeightMultiplier: Float = inflationMultiplier,
   val pointOfLight: Boolean = false,
@@ -256,6 +256,7 @@ internal fun buildMenuTrace(
     freshStart = true,
     liquidMenu = variant?.threePhase == true,
   )
+  if (journey.usesButtonTravel) journey.retarget(1f)
   journey.install(physics)
   val progress = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
   val closeAt = variant?.closingAtMs?.let { it * 1_000_000L }
@@ -319,6 +320,7 @@ internal fun buildMenuTrace(
     val playNanos = if (closing) nanos - requireNotNull(closeAt) else nanos
     val springNow = if (closing) requireNotNull(close) else progress
     val p = springNow.value(playNanos)
+    if (closing && journey.usesButtonTravel) journey.retarget(0f)
     runBlocking {
       journey.progress.snapTo(p)
       journey.anchorRelax.snapTo(relax.value(nanos))
@@ -379,7 +381,7 @@ internal fun buildMenuTrace(
     if (alpha > 0f) {
       val clip = physics.travelClipIn(panelBox, p)
       val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
-      val map = if (lens) fluidMenuLensMap(panelBox, visible) else
+      val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.usesButtonTravel, p, focus) else
         fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
       val glyphDp = if (variant != null) FluidMenuRowGlyph.value else OggiMenuGlyphDp
       val cx = panelBox.width / 2f

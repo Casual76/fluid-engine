@@ -28,6 +28,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.page.FluidPageCorners
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
+import dev.antigravity.fluidengine.ui.page.FluidZoom
 import dev.antigravity.fluidengine.ui.page.FluidZoomShape
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -80,9 +81,10 @@ class F5b3ZoomTraceTest {
     val sheetClose = foglioDalTasto(closing = true)
     val open = zoomPagine("zoom-apre")
     val back = zoomPagine("zoom-torna")
+    val backFading = zoomPagine("zoom-torna-dissolvenza")
     val finger = zoomPagine("zoom-dito")
     val interrupted = zoomPagine("zoom-dito-interrotto")
-    val traces = listOf(sheetOpen, sheetClose, open, back, finger, interrupted)
+    val traces = listOf(sheetOpen, sheetClose, open, back, backFading, finger, interrupted)
     GlassTraceOutput.requestedDir(System.getenv("GLASS_F5B3_DIR"))?.let { dir ->
       for (t in traces) t.write(File(dir, "${t.name}/trace.json"))
     }
@@ -100,7 +102,7 @@ class F5b3ZoomTraceTest {
     val page = born.single { it["name"] == "pagina" }
     assertEquals(SourceCard.left, (page["x"] as Number).toFloat(), 0.5f)
     assertEquals(SourceCard.top, (page["y"] as Number).toFloat(), 0.5f)
-    for (t in listOf(back, finger, interrupted)) {
+    for (t in listOf(back, backFading, finger, interrupted)) {
       val end = t.frames.last().elements
       assertTrue("${t.name}: a riposo la card rinasce", end.any { it["name"] == "card-sorgente" })
       assertTrue("${t.name}: e la pagina non c'è più", end.none { it["name"] == "pagina" })
@@ -108,6 +110,13 @@ class F5b3ZoomTraceTest {
       assertEquals("${t.name}: l'ultima sagoma è sulla card", SourceCard.left, (lastPage["x"] as Number).toFloat(), 2f)
       assertEquals(SourceCard.top, (lastPage["y"] as Number).toFloat(), 2f)
     }
+    // Senza la variante nessuna fotografia della card dentro la sagoma; con la variante c'è, e all'arrivo copre la sagoma.
+    assertTrue(back.frames.none { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } })
+    val fading = backFading.frames.filter { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } }
+    assertTrue("la dissolvenza c'è", fading.isNotEmpty())
+    val home = fading.last().elements.single { it["name"] == "sorgente-in-sagoma" }
+    assertEquals(SourceCard.width, (home["w"] as Number).toFloat(), 2f)
+    assertTrue("all'arrivo la card è piena: ${home["color"]}", (home["color"] as String).endsWith("FF"))
   }
 
   // --- Il foglio dal tasto (Apple 284) ---------------------------------------------------------------------------
@@ -295,6 +304,7 @@ class F5b3ZoomTraceTest {
         FluidTransitionSourceGeometry(SourceCard.scaled(d), ContinuousCornerShape(FluidRadius.Card))
       }
       it.onBack = { it.onStack(listOf("G")) }
+      it.zoomCrossfade = scenario == "zoom-torna-dissolvenza"
       it.onStack(listOf("G"))
     }
     var nanos = 0L
@@ -314,7 +324,8 @@ class F5b3ZoomTraceTest {
     val frames = ArrayList<GlassTraceFrame>()
     // I ritorni hanno la molla dello zoom misurata su Apple (critica, 0,71 s): arrivano al dp verso 1 s dopo il via.
     val lastFrame = when (scenario) {
-      "zoom-torna" -> 72
+      "zoom-apre" -> 84
+      "zoom-torna", "zoom-torna-dissolvenza" -> 72
       "zoom-dito" -> 96
       "zoom-dito-interrotto" -> 114
       else -> 48
@@ -326,7 +337,7 @@ class F5b3ZoomTraceTest {
           state.onStack(listOf("G", "D"))
           state.pagePlaced("D")
         }
-        "zoom-torna" -> if (k == 0) state.onStack(listOf("G"))
+        "zoom-torna", "zoom-torna-dissolvenza" -> if (k == 0) state.onStack(listOf("G"))
         "zoom-dito" -> {
           // Il dito dal bordo: 220 dp in 250 ms (15 fotogrammi), poi lascia con la sua velocità.
           if (k == 0) {
@@ -390,6 +401,11 @@ class F5b3ZoomTraceTest {
     fun mapRect(r: Rect): Rect = Rect(map(r.topLeft), map(r.bottomRight))
     val g = shape.bounds
     val k = shape.corners
+    // La variante con la dissolvenza (FluidPageHost.zoomCrossfade): il fondo resta pieno, il contenuto della pagina
+    // sbiadisce e sopra compare la fotografia della card, larga quanto la sagoma e in alto.
+    val fade = state.zoomCrossfadeAlpha()
+    val pageAlpha = 1f - fade
+    fun faded(color: Color) = color.copy(alpha = color.alpha * pageAlpha)
     out += linkedMapOf(
       "kind" to "shape", "name" to "pagina",
       "x" to round3(g.left), "y" to round3(g.top), "w" to round3(g.width), "h" to round3(g.height),
@@ -402,11 +418,11 @@ class F5b3ZoomTraceTest {
       Triple("righe", DetailRows, grouped),
     )) {
       val r = mapRect(rect).intersect(g)
-      if (r.width > 0.05f && r.height > 0.05f) {
+      if (r.width > 0.05f && r.height > 0.05f && pageAlpha > 0.004f) {
         out += linkedMapOf(
           "kind" to "shape", "name" to name,
           "x" to round3(r.left), "y" to round3(r.top), "w" to round3(r.width), "h" to round3(r.height),
-          "radius" to round3(FluidRadius.Card.value * s * 0.82f), "color" to glassColor(color),
+          "radius" to round3(FluidRadius.Card.value * s * 0.82f), "color" to glassColor(faded(color)),
         )
       }
     }
@@ -415,11 +431,11 @@ class F5b3ZoomTraceTest {
     val layerX = center.x - canvasW / 2f - g.left
     val layerY = center.y - canvasH / 2f - g.top
     val items = listOf(
-      text("Faro", 20f, 104f, 34f, ink, 700),
-      text("Capo Spartivento", 20f, 134f, 15f, secondary),
-      text("Torna col dito", 32f, 448f, 17f, ink),
-      text("Lascia a metà", 32f, 512f, 17f, ink),
-      text("Tasto indietro", 32f, 576f, 17f, ink),
+      text("Faro", 20f, 104f, 34f, faded(ink), 700),
+      text("Capo Spartivento", 20f, 134f, 15f, faded(secondary)),
+      text("Torna col dito", 32f, 448f, 17f, faded(ink)),
+      text("Lascia a metà", 32f, 512f, 17f, faded(ink)),
+      text("Tasto indietro", 32f, 576f, 17f, faded(ink)),
     )
     out += linkedMapOf(
       "kind" to "shape", "name" to "testo-pagina",
@@ -434,28 +450,40 @@ class F5b3ZoomTraceTest {
       ),
       "contentClip" to "none",
     )
+    if (fade > 0f) {
+      val snap = FluidZoom.snapshotRect(g, SourceCard.size)
+      out += cardElements("sorgente-in-sagoma", snap, Palette[SourceIndex], scale = snap.width / SourceCard.width, alpha = fade)
+    }
     return out
   }
 
-  private fun cardElements(name: String, card: Rect, color: Color): List<Map<String, Any?>> {
-    val radius = round3(FluidRadius.Card.value * 0.82f)
+  /** Una card della griglia; [scale] e [alpha] per la sua fotografia dentro la sagoma (la variante con la dissolvenza). */
+  private fun cardElements(
+    name: String,
+    card: Rect,
+    color: Color,
+    scale: Float = 1f,
+    alpha: Float = 1f,
+  ): List<Map<String, Any?>> {
+    val radius = round3(FluidRadius.Card.value * 0.82f * scale)
     val photo = Rect(card.left, card.top, card.right, card.top + card.width / 1.25f)
+    fun a(c: Color) = c.copy(alpha = c.alpha * alpha)
     return listOf(
       linkedMapOf(
         "kind" to "shape", "name" to name,
         "x" to round3(card.left), "y" to round3(card.top), "w" to round3(card.width), "h" to round3(card.height),
-        "radius" to radius, "color" to glassColor(surface),
+        "radius" to radius, "color" to glassColor(a(surface)),
         "content" to listOf(
           linkedMapOf<String, Any?>(
             "name" to "scritte",
-            "items" to listOf(text("Luogo", 12f, photo.height + 26f, 15f, ink, 600)),
+            "items" to listOf(text("Luogo", 12f * scale, photo.height + 26f * scale, 15f * scale, a(ink), 600)),
           ),
         ),
       ),
       linkedMapOf(
         "kind" to "shape", "name" to "$name-foto",
         "x" to round3(photo.left), "y" to round3(photo.top), "w" to round3(photo.width), "h" to round3(photo.height),
-        "radius" to listOf(radius, radius, 0.0, 0.0), "color" to glassColor(color),
+        "radius" to listOf(radius, radius, 0.0, 0.0), "color" to glassColor(a(color)),
       ),
     )
   }
@@ -486,6 +514,9 @@ class F5b3ZoomTraceTest {
         "critica di risposta 0,71 s (sessioni/f5b-3/strumenti/misura_10145.py)."
       "zoom-dito" -> 3179 to "classe B: la pagina presa dal bordo, trascinata e lasciata, rientra nella sua cella; dopo il " +
         "rilascio la stessa molla, partita con la velocità del dito. Il dito di Apple non è quello della traccia."
+      "zoom-torna", "zoom-torna-dissolvenza" -> 3182 to "classe B: il ritorno col tasto non c'è nella sessione; accanto, il " +
+        "ritorno col dito (1:46), allineato sulla strada: al rilascio (f3186) Apple ha fatto ~0,39 della strada, il nostro " +
+        "ritorno col tasto ci arriva a ~150 ms. Prima del rilascio il dito di Apple porta la pagina a destra."
       else -> return null
     }
     return linkedMapOf(

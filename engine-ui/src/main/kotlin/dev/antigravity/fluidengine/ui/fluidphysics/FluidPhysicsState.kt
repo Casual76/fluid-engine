@@ -163,6 +163,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * cache su (t, rettangolo), quindi a partenza ferma costa quanto prima. Richiamare con gli stessi
    * estremi e una lambda diversa la sostituisce sul posto, gratis.
    *
+   * Con [travelSlab] il chiamante può fornire il contorno già interpolato, per esempio se posizione,
+   * taglia e raggi devono avere tempi diversi. La goccia segue quello stesso contorno.
+   *
    * Interna: l'API pubblica di Fluid-physics non cambia firma.
    */
   internal fun driveExternally(
@@ -172,6 +175,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     overshootInflationX: Float = 0f,
     overshootInflationY: Float = 0f,
     startFrame: (() -> Rect)?,
+    travelSlab: (() -> FluidForm.Slab?)? = null,
   ) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to &&
@@ -183,6 +187,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // si prende: la cache del piano e' sul rettangolo, non sull'identita' della lambda, quindi
       // un cambio di partenza si vede al disegno successivo senza reinstallare nulla.
       if (startFrame != null) current.startFrame = startFrame
+      current.travelSlab = travelSlab
       return
     }
     planeDrive = null
@@ -194,6 +199,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       overshootInflationX = overshootInflationX,
       overshootInflationY = overshootInflationY,
       startFrame = startFrame,
+      travelSlab = travelSlab,
     )
     transitPlanStamp = Float.NaN
     transitPlanStart = null
@@ -328,6 +334,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /** Il rettangolo di partenza con cui e' stato costruito il piano esterno (null: partenza fissa). */
   private var transitPlanStart: Rect? = null
+  private var transitPlanTravel: FluidForm.Slab? = null
 
   /** La versione del corpo elastico con cui e' stato costruito il piano in viaggio. */
   private var transitPlanLiquid = -1
@@ -596,8 +603,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // Dall'1 in su la partenza non entra nella geometria, e quindi nemmeno nella cache: a riposo
       // l'istanza resta una anche se il chiamante muove ancora il suo rettangolo.
       val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
+      val travel = drive.travelSlab?.invoke()
       if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect ||
-        transitPlanLiquid != liquidVersion
+        transitPlanTravel != travel || transitPlanLiquid != liquidVersion
       ) {
         transitPlan.clipToBounds = maskInShader
         val toSlab = drive.to as? FluidForm.Slab
@@ -607,7 +615,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         } else {
           drive.from as? FluidForm.Slab
         }
-        if (!liquid.quiet && toSlab != null && fromSlab != null && drive.transit.pairs.size == 1) {
+        if (travel != null) {
+          if (liquid.quiet) buildRestPlan(transitPlan, travel) else buildDropPlan(transitPlan, travel)
+        } else if (!liquid.quiet && toSlab != null && fromSlab != null && drive.transit.pairs.size == 1) {
           // La goccia: vedi [buildDropPlan].
           buildDropPlan(transitPlan, dropRestSlab(fromSlab, toSlab, t, drive.overshootInflationX, drive.overshootInflationY))
         } else if (t >= 1f && toSlab == null) {
@@ -632,6 +642,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         transitPlanTransit = drive.transit
         transitPlanStamp = t
         transitPlanStart = startRect
+        transitPlanTravel = travel
         transitPlanLiquid = liquidVersion
       }
       return transitPlan
@@ -723,6 +734,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       val to = drive.to as? FluidForm.Slab ?: return null
       if (drive.transit.pairs.size != 1) return null
       val t = drive.progress()
+      drive.travelSlab?.invoke()?.let { return it }
       val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
       val from = startRect?.let { FluidForm.Slab(it, FluidCornerRadii.all(it.minDimension / 2f)) }
         ?: drive.from as? FluidForm.Slab ?: return null
@@ -920,6 +932,8 @@ private class ExternalWindowDrive(
   val overshootInflationY: Float,
   /** La partenza viva, se c'e': vedi `driveExternally(…, startFrame)`. Sostituibile sul posto. */
   var startFrame: (() -> Rect)? = null,
+  /** Il contorno in viaggio fornito dal chiamante, condiviso fra il disegno e il conducente. */
+  var travelSlab: (() -> FluidForm.Slab?)? = null,
 ) {
   /** Il traguardo all'oltrepasso [t] > 1: gonfiato attorno al proprio centro (in punto all'1, lui). */
   fun inflatedTarget(to: FluidForm.Slab, t: Float): FluidForm.Slab {

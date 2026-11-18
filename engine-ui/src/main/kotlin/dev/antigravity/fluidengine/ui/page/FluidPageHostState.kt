@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEventHandler
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSnapshot
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSourceGeometry
 import kotlinx.coroutines.CancellationException
@@ -335,6 +336,24 @@ class FluidPageHostState internal constructor() {
   internal fun zoomBelowBar(): Boolean = zoomShape()?.let { it.bounds.top > barBottomPx + 0.5f } ?: false
 
   /**
+   * La variante di Apple (F5B.3, di serie spenta come vuole il piano: la decide Alessio sul video): la pagina si dissolve
+   * nella sorgente dentro la sagoma, da circa un terzo della strada ([FluidZoom.crossfade]). Accesa, la sorgente consumata
+   * si registra in un layer ([FluidTransitionSource.snapshot]) e l'host la disegna dentro la sagoma.
+   */
+  internal var zoomCrossfade: Boolean = false
+
+  /** Quanto della sorgente si vede adesso dentro la sagoma della pagina sopra: 0 senza la variante o senza zoom. */
+  internal fun zoomCrossfadeAlpha(): Float {
+    if (!zoomCrossfade) return 0f
+    val journey = zoom ?: return 0f
+    val shape = zoomShape() ?: return 0f
+    return FluidZoom.crossfade(shape, fullZoomShape(), journey.source)
+  }
+
+  /** La fotografia della sorgente della pagina sopra, se la variante l'ha chiesta e la sorgente si è già registrata. */
+  internal fun zoomSnapshot(): FluidTransitionSnapshot? = upper?.let { consumed[it] }?.snapshot
+
+  /**
    * Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma.
    *
    * Una pagina che aspetta il primo posizionamento non copre niente (giro di correzione di F4A, A4): non è ancora
@@ -381,7 +400,7 @@ class FluidPageHostState internal constructor() {
       show(FluidPageMove.Push, from = from, to = to)
       phase = Phase.Pushing
       aimZoom(0f, null)
-      animateTravel(0f, FluidPageMotion.page(), velocityPx) { settle() }
+      animateTravel(0f, zoomSpring(), velocityPx) { settle() }
       return
     }
     val visibleSource = if (pendingPlacement == from) lower ?: from else from
@@ -398,7 +417,7 @@ class FluidPageHostState internal constructor() {
     zoomSourceShape(to)?.let { source ->
       zoom = ZoomJourney(source = source, from = source, fromTravel = travelPx, to = null, toTravel = 0f)
     }
-    if (!reducedMotion) animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
+    if (!reducedMotion) animateTravel(0f, zoomSpring(), 0f) { settle() }
     if (phase == Phase.Pushing) pendingPlacement = to
   }
 
@@ -444,7 +463,7 @@ class FluidPageHostState internal constructor() {
       show(FluidPageMove.Pop, from = from, to = to)
       phase = Phase.Popping
       aimZoom(exitTravel(), zoomSourceShape(from))
-      animateTravel(exitTravel(), returnSpring(), velocityPx) { settle() }
+      animateTravel(exitTravel(), zoomSpring(), velocityPx) { settle() }
       return
     }
     finishNow()
@@ -462,7 +481,7 @@ class FluidPageHostState internal constructor() {
     travelPx = 0f
     phase = Phase.Popping
     startZoomBack(from, following = false)
-    animateTravel(exitTravel(), returnSpring(), 0f) { settle() }
+    animateTravel(exitTravel(), zoomSpring(), 0f) { settle() }
   }
 
   /**
@@ -807,14 +826,15 @@ class FluidPageHostState internal constructor() {
     // Prima onBack, poi la molla: la pila si accorcia mentre la pagina vola, e [beginPop] riconosce
     // il pop come il proprio invece di ricominciare.
     if (departing != null && departing in processed) onBack()
-    animateTravel(exitTravel(), returnSpring(), velocity) { finishCommit(departing) }
+    animateTravel(exitTravel(), zoomSpring(), velocity) { finishCommit(departing) }
   }
 
   /**
-   * La molla di un ritorno: quella dello zoom misurata su Apple se una sagoma torna nella sorgente, altrimenti quella
-   * delle pagine (Slide, ShrinkSlide e l'Expand senza sorgente restano al bit come in F4A).
+   * La molla della corsa: quella dello zoom misurata su Apple se una sagoma viaggia fra la sorgente e la pagina (push,
+   * pop, conferma del dito, le inversioni), altrimenti quella delle pagine (Slide, ShrinkSlide e l'Expand senza sorgente
+   * restano al bit come in F4A).
    */
-  private fun returnSpring() = if (zoom != null) FluidPageMotion.zoomReturn() else FluidPageMotion.page()
+  private fun zoomSpring() = if (zoom != null) FluidPageMotion.zoom() else FluidPageMotion.page()
 
   /**
    * La molla e' arrivata fuori. Se la pila non si e' ancora accorciata (con le animazioni ridotte la
@@ -921,7 +941,7 @@ class FluidPageHostState internal constructor() {
   private fun consumeSource(page: Any) {
     if (page in consumed) return
     val source = sourceOf(page) ?: return
-    source.consume()
+    source.consume(snapshot = zoomCrossfade)
     consumed[page] = source
   }
 

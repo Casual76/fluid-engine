@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -22,6 +24,7 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.LocalView
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
 import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
@@ -53,21 +56,43 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
   // finché è aperta e la restituisce al ritorno, nello stesso fotogramma in cui la sagoma ci rientra: la sorgente e
   // l'arrivo non si vedono mai insieme. Un contatore per identità, perché due presentazioni possono tenere la stessa.
   private var held = false
+  private var heldSnapshot = false
 
-  /** Nasconde la sorgente (tutte le viste con questa identità) finché non si chiama [release]. Idempotente. */
-  internal fun consume() {
-    if (held) return
-    held = true
-    consumedSources[key] = (consumedSources[key] ?: 0) + 1
+  /**
+   * Nasconde la sorgente (tutte le viste con questa identità) finché non si chiama [release]. Idempotente. Con
+   * [snapshot] la vista consumata, invece di non disegnarsi, si registra in un layer ([snapshot]): serve alla variante
+   * di Apple in cui la pagina si dissolve nella sorgente dentro la sagoma (F5B.3, di serie spenta). Senza, non registra
+   * niente: nessun costo, nessun layer in più.
+   */
+  internal fun consume(snapshot: Boolean = false) {
+    if (!held) {
+      held = true
+      consumedSources[key] = (consumedSources[key] ?: 0) + 1
+    }
+    if (snapshot && !heldSnapshot) {
+      heldSnapshot = true
+      snapshotRequests[key] = (snapshotRequests[key] ?: 0) + 1
+    }
   }
 
   /** Restituisce la sorgente tenuta da [consume]. Idempotente. */
   internal fun release() {
+    if (heldSnapshot) {
+      heldSnapshot = false
+      val requests = (snapshotRequests[key] ?: 1) - 1
+      if (requests <= 0) snapshotRequests.remove(key) else snapshotRequests[key] = requests
+    }
     if (!held) return
     held = false
     val left = (consumedSources[key] ?: 1) - 1
     if (left <= 0) consumedSources.remove(key) else consumedSources[key] = left
   }
+
+  /**
+   * La fotografia della vista consumata con `consume(snapshot = true)`, alla sua misura, o null finché non si è disegnata
+   * una volta consumata. La disegna chi presenta, dentro la sua sagoma.
+   */
+  internal val snapshot: FluidTransitionSnapshot? get() = sourceSnapshots[key]
 
   /** Vero mentre questo riferimento tiene la sorgente nascosta. */
   internal val isConsumed: Boolean get() = held
@@ -129,6 +154,14 @@ private val transitionSources = mutableStateMapOf<FluidTransitionSourceKey, List
 // Le identità consumate da una presentazione aperta (F5B.3), con quante la tengono. Letto nel disegno dei nodi.
 private val consumedSources = mutableStateMapOf<FluidTransitionSourceKey, Int>()
 
+// Le identità consumate di cui chi presenta vuole la fotografia (la variante con la dissolvenza), e le fotografie.
+// Stato: il disegno della sorgente legge le richieste, quello di chi presenta le fotografie.
+private val snapshotRequests = mutableStateMapOf<FluidTransitionSourceKey, Int>()
+private val sourceSnapshots = mutableStateMapOf<FluidTransitionSourceKey, FluidTransitionSnapshot>()
+
+/** La fotografia di una sorgente consumata: il suo disegno in un layer, alla sua misura in pixel. */
+internal class FluidTransitionSnapshot(val layer: GraphicsLayer, val size: Size)
+
 private data class FluidTransitionSourceElement(
   val key: FluidTransitionSourceKey,
   val shape: Shape,
@@ -144,9 +177,23 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
   private var coordinates: LayoutCoordinates? = null
   private var placedBounds by mutableStateOf<Rect?>(null)
 
+  private var snapshotLayer: GraphicsLayer? = null
+
   // Consumata, la vista non disegna: la sua sagoma è in viaggio come pagina o foglio (F5B.3). A riposo passa e basta.
+  // Se chi presenta ne vuole la fotografia (la variante con la dissolvenza), la vista si registra in un layer suo.
   override fun ContentDrawScope.draw() {
-    if (source.key !in consumedSources) drawContent()
+    val key = source.key
+    if (key !in consumedSources) {
+      drawContent()
+      return
+    }
+    if (key !in snapshotRequests) return
+    val layer = snapshotLayer ?: requireGraphicsContext().createGraphicsLayer().also { snapshotLayer = it }
+    layer.record { this@draw.drawContent() }
+    val current = sourceSnapshots[key]
+    if (current == null || current.layer !== layer || current.size != size) {
+      sourceSnapshots[key] = FluidTransitionSnapshot(layer, size)
+    }
   }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
@@ -180,6 +227,11 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
     if (coordinates != null) unregister()
     coordinates = null
     placedBounds = null
+    snapshotLayer?.let { layer ->
+      if (sourceSnapshots[source.key]?.layer === layer) sourceSnapshots.remove(source.key)
+      requireGraphicsContext().releaseGraphicsLayer(layer)
+    }
+    snapshotLayer = null
   }
 
   fun resolve(includeCoveredPage: Boolean): FluidTransitionSourceGeometry? {

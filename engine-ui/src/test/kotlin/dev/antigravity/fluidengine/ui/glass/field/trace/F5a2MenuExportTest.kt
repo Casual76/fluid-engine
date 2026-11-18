@@ -82,16 +82,11 @@ class F5a2MenuExportTest {
   @Test
   fun openingClosingAndInterruptionUseTheSameFieldAsTheMenu() {
     val variants = linkedMapOf(
-      "apertura-prima" to MenuTraceVariant(threePhase = false),
-      "apertura-tasto" to MenuTraceVariant(),
-      "apertura-gruppo" to MenuTraceVariant(grouped = true),
-      "apertura-gruppo-luce" to MenuTraceVariant(grouped = true, pointOfLight = true),
-      "apertura-r4" to MenuTraceVariant(inflationMultiplier = 1.55f, inflationHeightMultiplier = 5.5f),
-      "apertura-composta" to MenuTraceVariant(inflationMultiplier = 0.45f),
-      "chiusura-serie" to MenuTraceVariant(closingAtMs = 700, alignToClose = true),
-      "chiusura-media" to MenuTraceVariant(closingAtMs = 700, alignToClose = true, closeStiffness = 325f),
-      "chiusura-apple" to MenuTraceVariant(closingAtMs = 700, alignToClose = true, closeStiffness = 900f),
-      "interrotto" to MenuTraceVariant(closingAtMs = 117),
+      "scelta-tasto" to MenuTraceVariant(pointOfLight = true),
+      "scelta-gruppo" to MenuTraceVariant(grouped = true, pointOfLight = true),
+      "scelta-chiusura-tasto" to MenuTraceVariant(closingAtMs = 700, alignToClose = true),
+      "scelta-chiusura-gruppo" to MenuTraceVariant(grouped = true, closingAtMs = 700, alignToClose = true),
+      "scelta-interruzione" to MenuTraceVariant(closingAtMs = 117, pointOfLight = true),
     )
     for ((name, variant) in variants) {
       val built = buildMenuTrace(

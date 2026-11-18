@@ -328,6 +328,10 @@ Box(
   trasmette la media della pagina. La pellicola della finestra del menu porta lo stesso nero (`FluidScrimLook.color`), perché campiona
   la pagina cruda: un livello cambiato in un posto solo farebbe un menu più chiaro o più scuro della pagina attorno. iOS 26 scurisce
   soltanto (R1 X2): la sfocatura è la deroga voluta.
+  **Per la scelta sul tablet** (correzione dopo S9) il livello si cambia senza ricompilare, nelle sole build di debug e di misura: la
+  manopola `ctxscrim=a|b|c` della diagnostica (`FluidContextScrimTuning`, dalla porta di `FluidGlassDiagnostics.tuneLiquidProfile`;
+  nella galleria `--es gallery.tune ctxscrim=a`, o la riga «Sfondo del contestuale» della pagina «Menù liquidi»). Il menu la legge
+  mentre si compone: vale dal contestuale successivo. Fuori dalle build di debug il livello è sempre quello di serie.
 - **L'anteprima personalizzata** (`preview`): composta dall'host alla sua taglia (al più larga quanto lo schermo meno i margini e alta
   il 55% dello schermo, `fluidContextPreviewMaxSize`), centrata sull'elemento e dentro i margini (`fluidContextPreviewFrame`). La card va
   dall'elemento all'anteprima; i due contenuti si scambiano **attraverso la sfocatura** (l'elemento se ne va fra 0,05 e 0,45 del
@@ -383,7 +387,7 @@ Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può sup
 | apertura della goccia | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 (`DropOpenStiffness`), risposta **~0,28 s**; era ~0,42 s (k 224) fino alla 3.0.3 |
 | ritorno | `FluidMotion.dropClose()`: stesso smorzamento, rigidezza 158 (`DropCloseStiffness`), **~0,50 s**, un filo più lento dell'andata («troppo veloce») |
 | misurato sull'emulatore, 30 fps, «Ordina» | ~267 ms di moto in apertura (come la chiusura, 267–333 ms); voci leggibili a ~170 ms dal primo fotogramma |
-| le voci arrivano | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`; erano 0,55–0,9), sempre ritagliate dentro il corpo |
+| le voci arrivano | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`; erano 0,55–0,9), sempre ritagliate dentro il corpo, **anche dopo l'arrivo finché la goccia non si posa** (vedi sotto) |
 | le voci se ne vanno (per prime) | da 0,94 a 0,62 (`LiquidContentCloseFrom/To`): prima restavano leggibili mentre il pannello si ritirava e le scritte galleggiavano sulla pagina |
 | la faccia del tasto | piena alla partenza, spenta entro 0,35 (`MenuFaceTo`): faccia e voci non sono mai leggibili insieme |
 | il materiale | smoothstep fino al 60% (`opticsFrom`/`tintFrom` → pannello): niente scalino di luminosità quando il viaggio si posa |
@@ -391,6 +395,13 @@ Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può sup
 | oltrepasso | gonfiore uniforme attorno al centro del pannello, 0,55 per unità (`DropInflationGain`), tenuto a 6 dp dai fianchi (mai il lerp oltre 1) |
 | scrim del layer | entra in 110 ms, esce in 280 ms (`MenuFadeOutMillis`) |
 | movimento ridotto | `snapTo`: arriva senza viaggiare |
+
+**Il ritaglio delle voci dura quanto la goccia** (correzione dopo S9). `travelClipIn` ritaglia il contenuto sul rettangolo che
+sta dentro il vetro di adesso finché la goccia non si è posata, **qualunque sia il progresso**; si spegne solo all'arrivo con la
+goccia ferma, dove il corpo è grande quanto il contenuto o di più. Prima si spegneva all'1: la molla d'apertura supera l'1 a ~150 ms
+e ci resta fino a ~355 ms, mentre la goccia (la coda arriva dopo la molla) è ancora più stretta del pannello, e in quella finestra
+testo, glifi e capi dei separatori stavano sopra la pagina (il tablet l'ha visto a +243 ms: «Elimina» e il cestino sotto la goccia).
+Vale per tutti quelli che usano il ritaglio: il contestuale, il menu dal tasto, il menu che si trasforma, il pop-up ancorato.
 
 **La partenza è il tasto *premuto*,** non il tasto a riposo (`fluidPressedBounds`): la sagoma che il dito sta gonfiando; partire dal
 rettangolo a riposo voleva dire un primo fotogramma più piccolo del tasto che il dito stava ancora gonfiando, un sussulto all'indietro
@@ -510,7 +521,12 @@ Puri, in `engine-ui` (JVM):
   a riposo, l'oltrepasso, l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra
   compreso), lo scambio, i tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura).
 - `F5a4ContextExportTest` (F5A.4): le tracce del contestuale per il banco del movimento (tre livelli, chiaro e scuro, apertura e ritorno),
-  con gli stessi fatti sulla sagoma della card e lo scrim che sale e scende senza salti.
+  con gli stessi fatti sulla sagoma della card e lo scrim che sale e scende senza salti; dopo S9 anche **le voci dentro il vetro in
+  ogni fotogramma** (testo, glifo, separatori e bande, portati dalla mappa e ritagliati, misurati sull'anello della goccia: entro
+  mezzo pixel), e la stessa misura col ritaglio di prima, che dice di quanto uscivano.
+- `DropPlanTest` (`aDropStillSettlingAfterArrivalKeepsItsContentInsideTheGlass`): con la molla vera del menu, nei fotogrammi oltre
+  l'1 a goccia non posata il ritaglio c'è e il suo contorno, angoli compresi, sta dentro la goccia; posata, niente ritaglio.
+- `FluidContextLiftTest`: la manopola `ctxscrim` (i tre livelli, un valore sconosciuto e nessuna manopola tornano a B).
 
 Nel `sample` (Robolectric, aptica registrata):
 

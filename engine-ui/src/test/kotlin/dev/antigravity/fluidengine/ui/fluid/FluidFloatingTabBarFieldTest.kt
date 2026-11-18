@@ -77,6 +77,21 @@ internal class FluidFloatingTabBarFieldTest {
     assertEquals(1.4f, FluidMotion.tabLensScale(.96f, 1.4f), 0f)
   }
 
+  @Test fun appleFoldKeepsTheSelectedTitleForOneMoreBeat() {
+    val journey = paneJourney("gruppo", Rect(19f, 84f, 343f, 146f), Rect(19f, 94f, 71f, 146f), FluidMotion.FloatingTabFold)
+    fun extent(ms: Double) = tabBarInkExtent(journey.frame(ms).pieces.single().bounds.width, 324f, 52f)
+    assertEquals(0f, tabBarLeavingAlpha(extent(66.73)), .001f)
+    assertEquals(1f, tabBarKeptTitleAlpha(extent(67.3)), .001f)
+    val fading = tabBarKeptTitleAlpha(extent(83.9))
+    assertTrue(fading in .01f.. .99f)
+    val scale = maxOf(extent(83.9), fading)
+    val glyphY = -7f * scale
+    assertEquals(21f, tabBarKeptLabelOffset(14f, -7f, scale) - glyphY, .001f)
+    assertEquals(0f, tabBarKeptTitleAlpha(extent(100.1)), .001f)
+    assertEquals(1f, tabBarKeptTitleAlpha(1f), 0f)
+    assertEquals(0f, tabBarKeptTitleAlpha(0f), 0f)
+  }
+
   private fun motionPane(element: Map<String, Any?>, layers: List<Map<String, Any?>>): Map<String, Any?> {
     // Il banco del movimento richiede anche gli uniform spenti che il banco fermo lascia impliciti.
     @Suppress("UNCHECKED_CAST")
@@ -100,8 +115,8 @@ internal class FluidFloatingTabBarFieldTest {
       mapOf("kind" to "icon", "icon" to "fluid:$name", "sizeDp" to 28, "x" to x, "y" to y, "color" to color)
     fun text(label: String, x: Float, y: Float, color: String = ink) = mapOf("kind" to "text", "text" to label,
       "sizeDp" to 11, "align" to "center", "x" to x, "y" to y, "color" to color)
-    fun layer(name: String, items: List<Map<String, Any>>, alpha: Float = 1f) =
-      mapOf("name" to name, "items" to items, "alpha" to alpha, "blurDp" to 6f * (1f - alpha))
+    fun layer(name: String, items: List<Map<String, Any>>, alpha: Float = 1f, blur: Float = 6f * (1f - alpha)) =
+      mapOf("name" to name, "items" to items, "alpha" to alpha, "blurDp" to blur)
     fun slab(name: String, r: Rect, layers: List<Map<String, Any?>>) = motionPane(liquidElement(
       mapOf("name" to name, "x" to r.left, "y" to r.top, "w" to r.width, "h" to r.height, "radius" to "capsule"),
       glassRecipe(GlassRole.Floating, r.width, r.height, false), null, "Campo F3 indipendente"),
@@ -126,8 +141,13 @@ internal class FluidFloatingTabBarFieldTest {
         val groupInk = tabs.flatMapIndexed { i, item ->
           val x = r.width / 2 + tabBarInkOffset(((i + 0.5f) / tabs.size - 0.5f) * (width - 9.4f), extent)
           val color = if (i == chosen) accent else ink
-          listOf(layer("icona-$i", listOf(glyph(item.first, x, r.height / 2 - 7 * extent, color)), if (i == chosen) 1f else leaving),
-            layer("titolo-$i", listOf(text(item.second, x, r.height / 2 + 14 * extent, color)), leaving))
+          val keptTitle = i == chosen && !search
+          val title = if (keptTitle) tabBarKeptTitleAlpha(extent) else leaving
+          val yScale = if (keptTitle) maxOf(extent, title) else extent
+          val labelY = if (keptTitle) tabBarKeptLabelOffset(14f, -7f, yScale) else 14 * extent
+          listOf(layer("icona-$i", listOf(glyph(item.first, x, r.height / 2 - 7 * yScale, color)), if (i == chosen) 1f else leaving),
+            layer("titolo-$i", listOf(text(item.second, x, r.height / 2 + labelY, color)), title,
+              if (keptTitle) 0f else 6f * (1f - title)))
         }
         val elements = mutableListOf<Map<String, Any?>>()
         if (search) {
@@ -137,13 +157,15 @@ internal class FluidFloatingTabBarFieldTest {
           elements += mapOf("kind" to "shape", "name" to "pagina", "x" to 0, "y" to 0, "w" to 432, "h" to 164,
             "radius" to 0, "color" to "#%02x%02x%02x".format(channel, channel, channel))
         }
+        elements += slab("gruppo", r, if (search) groupInk else emptyList())
+        val c = button.frame(time).pieces.single().bounds
+        elements += slab("tondo", c, listOf(layer("ricerca", listOf(glyph("search", if (search) 25f + 6 * extent else c.width / 2, c.height / 2)))))
         if (!search) {
           val a = player.frame(time).pieces.single().bounds
           elements += slab("lettore", a, listOf(layer("titolo", listOf(text("In ascolto", a.width / 2, a.height / 2)))))
+          elements += mapOf("kind" to "shape", "name" to "inchiostro-in-volo", "x" to r.left, "y" to r.top,
+            "w" to r.width, "h" to r.height, "color" to "#00000000", "content" to groupInk)
         }
-        elements += slab("gruppo", r, groupInk)
-        val c = button.frame(time).pieces.single().bounds
-        elements += slab("tondo", c, listOf(layer("ricerca", listOf(glyph("search", if (search) 25f + 6 * extent else c.width / 2, c.height / 2)))))
         GlassTraceFrame(time, elements)
       }
       GlassTrace(name, "f4b-3", 2f, "light", 432f, 164f, frames, head = mapOf(

@@ -255,8 +255,9 @@ private fun FluidMenuLayerContent(
   val dark = GlassDefaults.isDarkSurface()
   val panelTint = GlassDefaults.panelTint()
   // F5A.4: il contestuale ha uno scrim suo, piu' scuro di quello dei menu dal tasto (scelta di Alessio: la
-  // pagina dietro scurita con una sfocatura leggera, quanto lo dicono le tavole).
-  val scrimLook = if (anchor == null) FluidContextScrimLook else FluidScrimLook.Modal
+  // pagina dietro scurita con una sfocatura leggera, quanto lo dicono le tavole). Il livello in vigore, che la
+  // manopola `ctxscrim` cambia nelle build di debug per le catture del tablet (correzione dopo S9).
+  val scrimLook = if (anchor == null) FluidContextScrimTuning.look else FluidScrimLook.Modal
   // La pellicola del pannello con dentro la quota di scrim: la finestra campiona la pagina CRUDA (gli
   // exports dello scrim lo registrano a forza piena, la terza trappola), quindi lo scurimento se lo
   // dipinge da se'. Lo stesso nero dello scrim, composto sotto la pellicola.

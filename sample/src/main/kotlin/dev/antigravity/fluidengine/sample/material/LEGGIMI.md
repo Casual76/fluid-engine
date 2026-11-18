@@ -221,6 +221,7 @@ senza manopole l'engine disegna quello.
 | `flipdwell` | `0..3000` (ms) | non un numero del profilo: la permanenza minima dopo un giro (di serie 1000 dalla chiusura di F2: mai due giri in meno di un secondo; prima 400) |
 | `flipscroll` | `live` · `rest` · `ahead` | non un numero del profilo: cosa fa il vetro mentre lo sfondo scorre (G1). **`live`** decide come sempre / `rest` tiene il lato dell'ultimo riposo mentre il contenuto scorre più svelto di 120 dp/s / `ahead` legge la fascia che entra sotto il vetro, 300 ms avanti |
 | `flipby` · `flipcover` | `luminance` · `coverage`; `0.55..0.95` | non numeri del profilo: su che cosa decide il filtro (G1). **`luminance`** la media / `coverage` la quota della miniatura più scura di 0,45, verso lo scuro a `flipcover` (di serie 0.75) e di ritorno a `1 − flipcover` |
+| `ctxscrim` | `a` · `b` · `c` | non un numero del profilo: lo sfondo del menu contestuale, i tre candidati di F5A.4 per la scelta di Alessio sulle catture a schermo intero. `a` nero 18/30%, sfocatura 3,75 dp / **`b`** (di serie) 24/38%, 5 dp / `c` 32/48%, 6,5 dp. Vale dal contestuale successivo, senza far rinascere la pagina; nella pagina «Menù liquidi» c'è la stessa scelta a mano |
 
 Le manopole del giro (`fliptime`, `flipwait`, `flipon`, `flipoff`, `flipdwell`, `flipscroll`, `flipby`, `flipcover`) valgono
 per le sonde e i vetri che nascono dopo, come le altre; le prove sul tablet sono nella pagina «Adattività»

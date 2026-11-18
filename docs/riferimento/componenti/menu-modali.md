@@ -250,7 +250,8 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
   non servirebbe: un rettangolo dipinto costa meno. **Il menu contestuale ha un livello suo**, più scuro (4.0, F5A.4: di
   serie 24% / 38% di nero e 5 dp di sfocatura, `FluidScrimLook` e `FluidContextScrimLevel`, mai oltre 7 dp): li' la pagina deve
-  andare *dietro* l'elemento sollevato (scelta di Alessio, vedi [menu-liquidi.md](menu-liquidi.md)). Arriva con un alpha sul pannello finito, **mai** con
+  andare *dietro* l'elemento sollevato (scelta di Alessio, vedi [menu-liquidi.md](menu-liquidi.md)). Nelle build di debug il
+  livello si cambia con la manopola `ctxscrim=a|b|c` (`FluidContextScrimTuning`), per le catture del tablet. Arriva con un alpha sul pannello finito, **mai** con
   l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni
   fotogramma).
 - **Il pannello rifrange la pagina «come l'ha lasciata lo scrim»** (un fondale combinato), non la pagina cruda: altrimenti
@@ -813,7 +814,8 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
   il tasto invio conferma solo se valido; un valore fuori misura mostra la frase e tiene spento il tasto.
 - `FluidPromptAlertTest`: vuoto = `Incomplete`; trim uguale per validare e confermare; selezione d'apertura.
 - `FluidContextLiftTest` (engine-ui, F5A.4): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
-  sono più scuri, in ordine e sotto il tetto della sfocatura; la geometria del sollevamento (vedi [menu-liquidi.md](menu-liquidi.md)).
+  sono più scuri, in ordine e sotto il tetto della sfocatura; la manopola `ctxscrim`; la geometria del sollevamento (vedi
+  [menu-liquidi.md](menu-liquidi.md)).
 - `FluidPopoverKeyboardTest`: il pop-up si posa sopra la tastiera. `FluidHostContentColorTest`: il testo negli host ha il
   colore della superficie sul tema scuro.
 - `FluidMenuHandOffTest` (sample): l'avviso sta nell'host senza finestre di piattaforma, esce anche dopo la rimozione,
@@ -843,7 +845,7 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 |---|---|
 | `FluidGlassModalPortal.kt` | il lato di chi dichiara: `FluidGlassModalPresentation`, `FluidContextAction`, il portale (due overload), `fluidExpandOrigin` |
 | `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
-| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`), il tetto della sfocatura |
+| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`, in vigore `FluidContextScrimTuning`), il tetto della sfocatura |
 | `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
 | `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici) e i suoi numeri (4.0, F5B.2) |
 | `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |

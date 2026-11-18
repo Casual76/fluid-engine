@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.os.Build
 import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
+import dev.antigravity.fluidengine.ui.fluid.FluidContextScrimTuning
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveTuning
 import dev.antigravity.fluidengine.ui.glass.field.GlassDropTuning
@@ -271,7 +272,7 @@ object FluidGlassDiagnostics {
    */
   val liquidProfileKnobs: Map<String, List<String>>
     get() = GlassLiquidTuning.knobs + (GlassDropTuning.Knob to GlassDropTuning.Values) + GlassScrollEdgeTuning.Knobs +
-      GlassAdaptiveTuning.Knobs
+      GlassAdaptiveTuning.Knobs + (FluidContextScrimTuning.Knob to FluidContextScrimTuning.Values)
 
   /**
    * Cambia i numeri del materiale nuovo per le lastre che nascono **da adesso**: le varianti delle tavole di gusto
@@ -309,7 +310,10 @@ object FluidGlassDiagnostics {
     // La manopola della barra (`barkeep=sharp|soft`, F4A.5b): il contenuto che resta in un gruppo che cambia forma, nitido
     // o ammorbidito come nel telefono di Apple. Comportamento della barra, non un numero del profilo. Senza, nitido.
     val bar = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTuning.apply(knobs)
-    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip + bar
+    // Lo sfondo del contestuale (`ctxscrim=a|b|c`, correzione dopo S9): le catture a schermo intero dei tre livelli per
+    // la scelta di Alessio. Una scelta di gusto ancora aperta, non un numero del profilo. Senza, il livello di serie.
+    val scrim = FluidContextScrimTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip + bar + scrim
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

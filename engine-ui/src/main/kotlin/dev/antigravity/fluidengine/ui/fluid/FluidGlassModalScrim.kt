@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -73,10 +76,58 @@ internal enum class FluidContextScrimLevel(val look: FluidScrimLook) {
 }
 
 /**
- * Il livello dello sfondo del contestuale in uso. La proposta in attesa della scelta di Alessio sulle tavole di
- * F5A.4 (`sessioni/f5a-4/`): [FluidContextScrimLevel.B].
+ * Il livello di serie dello sfondo del contestuale. La proposta in attesa della scelta di Alessio sulle tavole di
+ * F5A.4 (`sessioni/f5a-4/`): [FluidContextScrimLevel.B]. Il menu legge quello in vigore, [FluidContextScrimTuning.look].
  */
 internal val FluidContextScrimLook: FluidScrimLook = FluidContextScrimLevel.B.look
+
+/**
+ * La manopola dello sfondo del contestuale (`ctxscrim=a|b|c`, correzione dopo S9): Alessio sceglie il livello sulle
+ * catture del tablet **a schermo intero**, non sulle tavole ritagliate, e il tablet deve poter mostrare i tre livelli
+ * senza ricompilare. Passa dalla porta delle manopole della diagnostica (`FluidGlassDiagnostics.tuneLiquidProfile`,
+ * `gallery.tune` nella galleria), quindi solo nelle build di debug e di misura; fuori, il livello e' sempre quello di
+ * serie. Il giorno della scelta il livello scelto diventa quello di serie e la manopola puo' sparire.
+ */
+internal object FluidContextScrimTuning {
+
+  /** Il nome della manopola, come lo scrive `gallery.tune`. */
+  const val Knob: String = "ctxscrim"
+
+  /** I valori che accetta. */
+  val Values: List<String> = FluidContextScrimLevel.entries.map { it.name.lowercase() }
+
+  /** Il livello di serie, senza manopola. */
+  val Default: FluidContextScrimLevel = FluidContextScrimLevel.B
+
+  /**
+   * Il livello in vigore. E' uno stato di Compose: il menu lo legge mentre si compone, quindi un cambio vale dal
+   * contestuale successivo, senza far rinascere la pagina (le tre catture si fanno una dopo l'altra sulla stessa).
+   */
+  var level: FluidContextScrimLevel by mutableStateOf(Default)
+    private set
+
+  /** Lo sfondo del livello in vigore: quello che scrim e pellicola della finestra del menu leggono. */
+  val look: FluidScrimLook get() = level.look
+
+  /**
+   * Il livello chiesto in [knobs] (nome e valore senza distinzione di maiuscole), puro: null se la manopola non c'e' o
+   * il valore non si riconosce.
+   */
+  fun parse(knobs: Map<String, String>?): FluidContextScrimLevel? {
+    val raw = knobs?.entries?.firstOrNull { it.key.trim().lowercase() == Knob }?.value ?: return null
+    return FluidContextScrimLevel.entries.firstOrNull { it.name.lowercase() == raw.trim().lowercase() }
+  }
+
+  /**
+   * Prende la manopola da [knobs] e la applica; senza (o con un valore che non si riconosce) torna di serie.
+   * Restituisce la manopola presa (nome e valore normalizzato), vuota se non e' stata presa.
+   */
+  fun apply(knobs: Map<String, String>?): Map<String, String> {
+    val taken = parse(knobs)
+    level = taken ?: Default
+    return if (taken == null) emptyMap() else mapOf(Knob to taken.name.lowercase())
+  }
+}
 
 /** La sfocatura di base dei modali, in dp (`DefaultGlassBlurRadius`): il riferimento di [FluidScrimLook.blurScale]. */
 internal const val FluidScrimBaseBlurDp = 2.5f

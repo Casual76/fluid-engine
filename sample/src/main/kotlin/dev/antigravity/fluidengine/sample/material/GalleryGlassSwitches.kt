@@ -107,6 +107,21 @@ internal class GalleryGlassSwitches(private val modelState: MutableState<FluidGl
     return applied
   }
 
+  /**
+   * Come [tune] per una manopola sola, [knob] a [value], tenendo le altre, e **senza** far rinascere la galleria: per
+   * le manopole che l'engine legge mentre compone, come lo sfondo del contestuale (`ctxscrim`), che vale dal menu
+   * successivo. La pagina resta dov'è, scorrimento compreso: le catture a schermo intero dei tre livelli si fanno una
+   * dopo l'altra sullo stesso posto (correzione dopo S9). Le altre manopole si rimettono uguali: le superfici già in
+   * scena tengono il profilo con cui sono nate, che è lo stesso.
+   */
+  fun tuneLive(context: Context, knob: String, value: String): Boolean {
+    val knobs = tuning + (knob to value)
+    val applied = FluidGlassDiagnostics.tuneLiquidProfile(context.diagnosticHost(), knobs)
+    tuning = FluidGlassDiagnostics.liquidProfileTuning
+    Log.i(MaterialLogTag, tuneLine(knobs, tuning, applied, byHand = true))
+    return applied
+  }
+
   companion object {
     /**
      * Applica [launch] all'avvio dell'attività, **prima** del contenuto: livello, riscaldamento e manopole valgono

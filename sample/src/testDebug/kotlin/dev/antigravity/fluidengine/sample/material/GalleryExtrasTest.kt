@@ -98,4 +98,24 @@ class GalleryExtrasTest {
     assertTrue(FluidGlassDiagnostics.simulateApiLevel(host, 32))
     assertEquals(32, FluidGlassDiagnostics.simulatedApiLevel)
   }
+
+  @Test
+  fun theContextScrimIsPickedLiveKeepingTheOtherKnobs() {
+    // Correzione dopo S9: lo sfondo del contestuale (`ctxscrim`) si sceglie dalla pagina dei menu senza far rinascere
+    // la galleria (la pagina resta dov'e' per le tre catture), e le altre manopole restano quelle di prima.
+    debuggable(true)
+    val switches = GalleryGlassSwitches(androidx.compose.runtime.mutableStateOf(dev.antigravity.fluidengine.ui.fluid.FluidGlassModel.Liquid))
+    assertTrue(switches.tune(context, mapOf("blur" to "12")))
+    val epoch = switches.epoch
+    assertTrue(switches.tuneLive(context, "ctxscrim", "a"))
+    assertEquals("nessuna rinascita", epoch, switches.epoch)
+    assertEquals("a", switches.tuning["ctxscrim"])
+    assertTrue(switches.tuning.containsKey("blur"))
+    assertTrue(switches.tuneLive(context, "ctxscrim", "c"))
+    assertEquals("c", FluidGlassDiagnostics.liquidProfileTuning["ctxscrim"])
+    // Un valore sconosciuto non si prende: torna il livello di serie, che non e' una manopola.
+    switches.tuneLive(context, "ctxscrim", "z")
+    assertNull(switches.tuning["ctxscrim"])
+    assertTrue(switches.tuning.containsKey("blur"))
+  }
 }

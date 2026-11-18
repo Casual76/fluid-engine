@@ -53,7 +53,9 @@ import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLargeVeil
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLiquidRecipes
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
+import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsFormShortPx
+import dev.antigravity.fluidengine.ui.fluidphysics.sdPolygon
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidRecipe
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsRecipeShortPx
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
@@ -103,6 +105,16 @@ internal class ContextBuilt(
   val cardAtEnd: Rect,
   /** La scala della riga sotto il dito al click lungo. */
   val anchorScaleAtLongPress: Float,
+  /**
+   * Di quanto l'inchiostro visibile del menu esce dal vetro, in pixel, nel fotogramma peggiore dell'apertura e del
+   * ritorno (≤ 0: sempre dentro). Vedi [menuInkOutsidePx].
+   */
+  val inkOutsideOpen: Float,
+  val inkOutsideClose: Float,
+  /** Lo stesso con la regola di prima del ritaglio (spento dall'1 in su, anche a goccia non posata): il difetto di S9. */
+  val inkOutsideBefore: Float,
+  /** Il fotogramma peggiore dell'apertura, in ms dal click lungo. */
+  val inkWorstOpenMs: Double,
 )
 
 internal object F5a4ContextTraces {
@@ -270,6 +282,10 @@ internal object F5a4ContextTraces {
     val closes = ArrayList<GlassTraceFrame>()
     var cardAtLongPress: Rect? = null
     var cardAtEnd = row
+    var inkOpen = -Float.MAX_VALUE
+    var inkClose = -Float.MAX_VALUE
+    var inkBefore = -Float.MAX_VALUE
+    var inkWorstOpenMs = 0.0
 
     // Il preambolo: la pagina con la riga che si gonfia sotto il dito, niente host.
     val preambleFrames = ceil(PreambleMs * Fps / 1000.0 - 1e-9).toInt()
@@ -303,6 +319,22 @@ internal object F5a4ContextTraces {
       val cardBounds = cardPhysics.contentBoundsNow()
       if (k == 0) cardAtLongPress = cardBounds
       cardAtEnd = cardBounds
+
+      // Le voci dentro il vetro in ogni fotogramma in cui si vedono (S9, f218): con il ritaglio di oggi e con quello di
+      // prima, che si spegneva all'1 anche a goccia non posata.
+      val inkAlpha = fluidMenuContentAlpha(p, closing = closing)
+      if (inkAlpha > 0.01f) {
+        val inkMap = fluidMenuLiquidContentMap(target = panel, current = menuPhysics.contentBoundsNow(), alpha = inkAlpha)
+        val clipNow = menuPhysics.travelClipIn(panelBox, p)
+        val now = menuInkOutsidePx(layout, panelBox, menuPlan, inkMap, clipNow)
+        if (closing) {
+          inkClose = maxOf(inkClose, now)
+        } else if (now > inkOpen) {
+          inkOpen = now
+          inkWorstOpenMs = tMs
+        }
+        inkBefore = maxOf(inkBefore, menuInkOutsidePx(layout, panelBox, menuPlan, inkMap, if (p >= 1f) null else clipNow))
+      }
 
       val elements = ArrayList<Map<String, Any?>>()
       if (fade > 0.004f) elements += scrim(look, dark, fade)
@@ -348,7 +380,123 @@ internal object F5a4ContextTraces {
       cardAtLongPress = cardAtLongPress!!,
       cardAtEnd = cardAtEnd,
       anchorScaleAtLongPress = s0,
+      inkOutsideOpen = inkOpen,
+      inkOutsideClose = inkClose,
+      inkOutsideBefore = inkBefore,
+      inkWorstOpenMs = inkWorstOpenMs,
     )
+  }
+
+  // --- Le voci dentro il vetro ----------------------------------------------------------------------
+
+  /** Mezza riga di testo delle voci (17/23 sp) e del glifo da 22 dp: la fascia d'inchiostro attorno al centro della riga. */
+  private const val InkHalfBandDp = 11.5f
+
+  /**
+   * Di quanto l'inchiostro **visibile** del menu esce dal vetro in questo fotogramma, in pixel (≤ 0: dentro; mezzo pixel
+   * e' l'antialias). L'inchiostro e' quello che `FluidGlassMenuPanel` disegna: per ogni voce la fascia del testo e del
+   * glifo (fra i due margini di riga), e su ogni confine fra voci un separatore o la banda di sezione, larghi quanto il
+   * pannello. Portato dalla mappa del contenuto ([map], attorno al centro del pannello come il `graphicsLayer`), tenuto
+   * solo dove il ritaglio [clip] lo lascia vedere (coordinate del pannello), misurato sulla sagoma che la superficie
+   * disegna: l'anello della goccia, o il rettangolo arrotondato della lastra. E' il difetto di S9 (f218): «Elimina», il
+   * cestino e i capi dei separatori fuori dalla goccia che si stava posando.
+   */
+  private fun menuInkOutsidePx(
+    layout: dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelLayout,
+    panelBox: Rect,
+    plan: PhysicsRenderPlan,
+    map: dev.antigravity.fluidengine.ui.fluid.FluidMenuContentMap,
+    clip: androidx.compose.ui.geometry.RoundRect?,
+  ): Float {
+    val ring = if (plan.mode == PlanModePoly) List(plan.vertCount) { Offset(plan.verts[it * 2], plan.verts[it * 2 + 1]) } else null
+    val slab = if (ring == null) plan.silhouetteRoundRect ?: return -Float.MAX_VALUE else null
+    fun outside(local: Offset): Float {
+      val x = panelBox.left + local.x
+      val y = panelBox.top + local.y
+      return if (ring != null) sdPolygon(x, y, ring) else sdRoundRect(x, y, slab!!)
+    }
+    val w = panelBox.width
+    val cx = w / 2f
+    val cy = panelBox.height / 2f
+    fun mapped(x: Float, y: Float) = Offset(cx + (x - cx) * map.scale + map.translation.x, cy + (y - cy) * map.scale + map.translation.y)
+    // L'inchiostro in rettangoli (coordinate del pannello prima della mappa): le fasce delle voci, le bande, i separatori.
+    val side = FluidMenuRowSidePadding.value * D
+    val half = InkHalfBandDp * D
+    val inks = ArrayList<Rect>()
+    for (i in layout.tops.indices) {
+      val mid = layout.tops[i] + layout.rowHeightPx / 2f
+      inks += Rect(side, mid - half, w - side, mid + half)
+    }
+    for (i in 1 until layout.tops.size) inks += Rect(0f, layout.tops[i], w, layout.tops[i])
+    for (y in layout.sectionBands) inks += Rect(0f, y, w, y + layout.sectionGapPx)
+    var worst = -Float.MAX_VALUE
+    fun visit(p: Offset) {
+      if (clip == null || clip.contains(p)) worst = maxOf(worst, outside(p))
+    }
+    for (r in inks) {
+      val a = mapped(r.left, r.top)
+      val b = mapped(r.right, r.bottom)
+      val steps = maxOf(2, (maxOf(b.x - a.x, b.y - a.y)).toInt())
+      for (s in 0..steps) {
+        val f = s / steps.toFloat()
+        visit(Offset(a.x + (b.x - a.x) * f, a.y))
+        visit(Offset(a.x + (b.x - a.x) * f, b.y))
+        visit(Offset(a.x, a.y + (b.y - a.y) * f))
+        visit(Offset(b.x, a.y + (b.y - a.y) * f))
+      }
+    }
+    // Dove il ritaglio taglia l'inchiostro, il bordo visibile e' il ritaglio stesso: i suoi punti dentro un rettangolo.
+    if (clip != null) {
+      val rects = inks.map { r -> Rect(mapped(r.left, r.top), mapped(r.right, r.bottom)) }
+      for (p in roundRectOutline(clip)) {
+        if (rects.any { it.left <= p.x && p.x <= it.right && it.top <= p.y && p.y <= it.bottom }) worst = maxOf(worst, outside(p))
+      }
+    }
+    return worst
+  }
+
+  /** La distanza con segno dal rettangolo arrotondato [r] (negativa dentro), coi raggi dell'angolo del quadrante. */
+  private fun sdRoundRect(x: Float, y: Float, r: androidx.compose.ui.geometry.RoundRect): Float {
+    val cx = (r.left + r.right) / 2f
+    val cy = (r.top + r.bottom) / 2f
+    val radius = when {
+      x >= cx && y >= cy -> r.bottomRightCornerRadius.x
+      x >= cx -> r.topRightCornerRadius.x
+      y >= cy -> r.bottomLeftCornerRadius.x
+      else -> r.topLeftCornerRadius.x
+    }
+    val qx = kotlin.math.abs(x - cx) - r.width / 2f + radius
+    val qy = kotlin.math.abs(y - cy) - r.height / 2f + radius
+    return minOf(maxOf(qx, qy), 0f) + kotlin.math.hypot(maxOf(qx, 0f), maxOf(qy, 0f)) - radius
+  }
+
+  /** Il contorno di [r], archi e lati, a passi di circa un pixel. */
+  private fun roundRectOutline(r: androidx.compose.ui.geometry.RoundRect): List<Offset> {
+    val out = ArrayList<Offset>()
+    fun arc(cx: Float, cy: Float, radius: Float, from: Double) {
+      val steps = maxOf(4, (radius * Math.PI / 2).toInt())
+      for (s in 0..steps) {
+        val a = from + Math.PI / 2 * s / steps
+        out += Offset(cx + radius * kotlin.math.cos(a).toFloat(), cy + radius * kotlin.math.sin(a).toFloat())
+      }
+    }
+    fun side(x0: Float, y0: Float, x1: Float, y1: Float) {
+      val steps = maxOf(2, maxOf(kotlin.math.abs(x1 - x0), kotlin.math.abs(y1 - y0)).toInt())
+      for (s in 0..steps) out += Offset(x0 + (x1 - x0) * s / steps, y0 + (y1 - y0) * s / steps)
+    }
+    val tl = r.topLeftCornerRadius.x
+    val tr = r.topRightCornerRadius.x
+    val br = r.bottomRightCornerRadius.x
+    val bl = r.bottomLeftCornerRadius.x
+    arc(r.left + tl, r.top + tl, tl, Math.PI)
+    arc(r.right - tr, r.top + tr, tr, -Math.PI / 2)
+    arc(r.right - br, r.bottom - br, br, 0.0)
+    arc(r.left + bl, r.bottom - bl, bl, Math.PI / 2)
+    side(r.left + tl, r.top, r.right - tr, r.top)
+    side(r.right, r.top + tr, r.right, r.bottom - br)
+    side(r.left + bl, r.bottom, r.right - br, r.bottom)
+    side(r.left, r.top + tl, r.left, r.bottom - bl)
+    return out
   }
 
   private fun physics() = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)).apply {

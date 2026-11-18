@@ -1,10 +1,14 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.translate
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -98,7 +102,9 @@ class DropPlanTest {
     }
     // La goccia si e' allontanata dalla sagoma a riposo: il ritaglio e' piu' stretto di lei.
     assertTrue(c.height + 1f < rest.frame.height)
-    assertNull(state.travelClipIn(panel.frame, 1f))
+    // Finche' la goccia non si posa il ritaglio resta, qualunque progresso dica il chiamante (S9: la molla del menu
+    // e' sopra l'1 mentre la goccia si sta ancora posando, e senza ritaglio le voci uscivano dal vetro).
+    assertEquals(c, state.travelClipIn(panel.frame, 1f))
     // Bordo e ombra non sono "di una lastra" mentre la goccia viaggia.
     assertNull(state.restFormNow())
   }
@@ -120,6 +126,92 @@ class DropPlanTest {
     assertEquals(PlanModeSlabs, plan.mode)
     assertEquals(panel.frame.left, plan.pieceRects[0] - plan.pieceRects[2], 0.001f)
     assertNotNull(state.restFormNow())
+    // Arrivata e posata: il corpo contiene il contenuto, niente ritaglio.
+    assertNull(state.travelClipIn(panel.frame, 1f))
+  }
+
+  @Test
+  fun aDropStillSettlingAfterArrivalKeepsItsContentInsideTheGlass() {
+    // Il caso di S9 (il contestuale a +243 ms): la molla del menu (`dropOpen`) passa l'1 a ~150 ms e ci resta fino a
+    // ~355 ms, mentre la goccia, che arriva dopo la molla, e' ancora piu' stretta della sagoma a riposo. Il contenuto e'
+    // posato sulla sagoma a riposo: in quei fotogrammi deve restare ritagliato dentro il vetro di adesso, angoli compresi.
+    val spring = TargetBasedAnimation(FluidMotion.dropOpen<Float>(), Float.VectorConverter, 0f, 1f, AnimationVector1D(0f))
+    var t = 0f
+    val state = liquidState()
+    state.driveExternally(
+      button, panel, progress = { t },
+      overshootInflationX = FluidMotion.DropInflationGain,
+      overshootInflationY = FluidMotion.DropInflationGain,
+      startFrame = null,
+    )
+    var settlingAfterArrival = 0
+    var receded = 0f
+    var worst = -Float.MAX_VALUE
+    var i = 0
+    while (i < 400) {
+      val nanos = i * frame
+      t = if (spring.isFinishedFromNanos(nanos)) 1f else spring.getValueFromNanos(nanos)
+      state.feed(nanos)
+      val plan = state.ensurePlan()
+      if (t >= 1f && !state.liquid.quiet && plan.mode == PlanModePoly) {
+        settlingAfterArrival++
+        val ring = List(plan.vertCount) { androidx.compose.ui.geometry.Offset(plan.verts[it * 2], plan.verts[it * 2 + 1]) }
+        // Senza ritaglio: quanto i lati diritti della sagoma su cui posa il contenuto escono dalla goccia.
+        val content = plan.contentBounds
+        val r = panel.cornerRadii.topLeft
+        for (k in 0..20) {
+          val x = content.left + r + (content.width - 2f * r) * k / 20f
+          val y = content.top + r + (content.height - 2f * r) * k / 20f
+          for ((px, py) in listOf(x to content.top, x to content.bottom, content.left to y, content.right to y)) {
+            receded = maxOf(receded, sdPolygon(px, py, ring))
+          }
+        }
+        // Col ritaglio: tutto il suo contorno, angoli compresi, sta dentro il vetro.
+        val clip = state.travelClipIn(panel.frame, t)
+        assertNotNull("fotogramma $i (t = $t): la goccia si sta posando e il ritaglio e' spento", clip)
+        for (p in roundRectOutline(clip!!.translate(panel.frame.topLeft))) {
+          worst = maxOf(worst, sdPolygon(p.x, p.y, ring))
+        }
+      }
+      if (i > 30 && state.liquid.quiet && spring.isFinishedFromNanos(nanos)) break
+      i++
+    }
+    assertTrue("la goccia non si stava posando dopo l'arrivo: il caso non e' provato", settlingAfterArrival > 3)
+    assertTrue("la goccia non era rimasta indietro dopo l'arrivo ($receded px): il caso non e' provato", receded > 0.5f)
+    assertTrue("il ritaglio esce dal vetro di $worst px", worst <= 0.6f)
+    // Posata: niente ritaglio.
+    assertTrue(state.liquid.quiet)
+    assertNull(state.travelClipIn(panel.frame, t))
+  }
+
+  /** Il contorno di [r], lati e angoli, a passi di circa un pixel. */
+  private fun roundRectOutline(r: androidx.compose.ui.geometry.RoundRect): List<androidx.compose.ui.geometry.Offset> {
+    val out = ArrayList<androidx.compose.ui.geometry.Offset>()
+    fun arc(cx: Float, cy: Float, radius: Float, from: Double) {
+      val steps = maxOf(4, (radius * Math.PI / 2).toInt())
+      for (s in 0..steps) {
+        val a = from + Math.PI / 2 * s / steps
+        out += androidx.compose.ui.geometry.Offset(cx + radius * kotlin.math.cos(a).toFloat(), cy + radius * kotlin.math.sin(a).toFloat())
+      }
+    }
+    val tl = r.topLeftCornerRadius.x
+    val tr = r.topRightCornerRadius.x
+    val br = r.bottomRightCornerRadius.x
+    val bl = r.bottomLeftCornerRadius.x
+    arc(r.left + tl, r.top + tl, tl, Math.PI)
+    arc(r.right - tr, r.top + tr, tr, -Math.PI / 2)
+    arc(r.right - br, r.bottom - br, br, 0.0)
+    arc(r.left + bl, r.bottom - bl, bl, Math.PI / 2)
+    // I lati diritti, fra un arco e l'altro.
+    fun side(x0: Float, y0: Float, x1: Float, y1: Float) {
+      val steps = maxOf(2, maxOf(kotlin.math.abs(x1 - x0), kotlin.math.abs(y1 - y0)).toInt())
+      for (s in 0..steps) out += androidx.compose.ui.geometry.Offset(x0 + (x1 - x0) * s / steps, y0 + (y1 - y0) * s / steps)
+    }
+    side(r.left + tl, r.top, r.right - tr, r.top)
+    side(r.right, r.top + tr, r.right, r.bottom - br)
+    side(r.left + bl, r.bottom, r.right - br, r.bottom)
+    side(r.left, r.top + tl, r.left, r.bottom - bl)
+    return out
   }
 
   @Test

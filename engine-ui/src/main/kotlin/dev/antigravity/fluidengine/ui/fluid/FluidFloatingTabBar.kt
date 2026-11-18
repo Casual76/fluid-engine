@@ -120,6 +120,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -483,7 +484,6 @@ fun FluidFloatingTabBar(
     TabBarFieldHost(modifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor) {
     SharedTransitionLayout {
         val field = LocalTabBarField.current
-        val plane = if (field != null) LocalFluidGlassContainer.current else null
         // Wrapping AnimatedContent itself (not SharedTransitionLayout's own
         // modifier) so the offscreen gooey capture stays under
         // SharedTransitionLayout's own overlay mechanism — sharedElement-
@@ -494,8 +494,8 @@ fun FluidFloatingTabBar(
         // Held as a lambda rather than a Boolean so flipping it costs no
         // recomposition — the glass surfaces call it during draw. See
         // LocalFluidTabBarBackdropFrozen.
-        val frozenWhileAnimating = remember(transition, plane, field) {
-            { transition.currentState != transition.targetState || plane?.stage != null || field?.group?.stage != null || field?.player?.stage != null }
+        val frozenWhileAnimating = remember(transition, field) {
+            { transition.currentState != transition.targetState || field?.isMoving() == true }
         }
         // LOCAL CHANGE: and the same fact where the caller can see it.
         //
@@ -505,9 +505,8 @@ fun FluidFloatingTabBar(
         // so reading the local there gave the default, "never frozen", and the
         // one moment the freeze exists for was the one it never covered. The
         // scroll connection is the object both sides already share.
-        val morphing = frozenWhileAnimating()
-        LaunchedEffect(scrollConnection, morphing) {
-            scrollConnection.morphing = morphing
+        LaunchedEffect(scrollConnection, frozenWhileAnimating) {
+            snapshotFlow { frozenWhileAnimating() }.collect { scrollConnection.morphing = it }
         }
 
         // Il campo registra il fondale sul piano. Il percorso legacy costruisce la propria superficie.
@@ -1362,7 +1361,8 @@ private enum class TabBarPiece { Group, Standalone, Accessory, Search }
 
 private class TabBarField(
     val backdrop: GlassBackdropState, val namespace: FluidGlassNamespace, val tint: GlassTint,
-    val group: FluidGlassContainerState, val player: FluidGlassContainerState, val accent: Color,
+    val group: FluidGlassContainerState, val standalone: FluidGlassContainerState,
+    val player: FluidGlassContainerState, val accent: Color,
 ) {
     private val groupId = FluidGlassQualifiedId(namespace, TabBarPiece.Group)
     var expandedWidth by mutableIntStateOf(0)
@@ -1370,6 +1370,19 @@ private class TabBarField(
 
     var expandedLayout: LayoutCoordinates? = null
     private val centers = mutableMapOf<Pair<Any, Boolean>, Offset>()
+    private var blurRadius = 0f
+    private var blurEffect: BlurEffect? = null
+
+    fun isMoving() = group.stage != null || standalone.stage != null || player.stage != null
+
+    fun leavingBlur(radius: Float): BlurEffect? {
+        if (radius <= 0.1f) return null
+        if (radius != blurRadius) {
+            blurRadius = radius
+            blurEffect = BlurEffect(radius, radius)
+        }
+        return blurEffect
+    }
 
     fun recordCenter(key: Any, label: Boolean, child: LayoutCoordinates) {
         val parent = expandedLayout?.takeIf { it.isAttached } ?: return
@@ -1405,6 +1418,16 @@ internal fun tabBarLeavingAlpha(extent: Float): Float {
     return u * u * u * u * u
 }
 
+/** S9, sui campioni WWDC25 284 f5416–17: scritta nitida a 67 ms, solo il glifo entro 100 ms. */
+internal fun tabBarKeptTitleAlpha(extent: Float): Float {
+    val u = ((extent - 0.31f) / (0.47f - 0.31f)).coerceIn(0f, 1f)
+    return u * u * (3f - 2f * u)
+}
+
+/** La scritta segue il glifo conservando la distanza della cella aperta anche mentre svanisce. */
+internal fun tabBarKeptLabelOffset(labelY: Float, glyphY: Float, extent: Float): Float =
+    labelY + glyphY * (extent - 1f)
+
 /** Inchiostro del viaggio sul palco F3. Il centro della cella raggiunge il centro del tondo. */
 @Composable
 private fun TabBarFlightInk(
@@ -1420,13 +1443,25 @@ private fun TabBarFlightInk(
     Box(modifier.clearAndSetSemantics { }) {
         tabs.forEachIndexed { index, tab ->
             val stays = kept.key == tab.key
+            val keepsTitle = stays && tab.key == selected && !searching
             @Composable fun Ink(label: Boolean, content: @Composable () -> Unit) {
                 Box(Modifier.align(Alignment.TopStart).graphicsLayer {
                     val bounds = field.travellingBounds()
                     if (bounds == null) {
                         alpha = 0f
+                        renderEffect = null
                     } else {
                         val extent = tabBarInkExtent(bounds.width, field.expandedWidth.toFloat(), field.compactWidth.toFloat())
+                        val titleAlpha = if (keepsTitle) tabBarKeptTitleAlpha(extent) else 0f
+                        val leaving = !stays || label && !keepsTitle
+                        alpha = when {
+                            leaving -> tabBarLeavingAlpha(extent)
+                            label -> titleAlpha
+                            else -> 1f
+                        }
+                        renderEffect = if (leaving && alpha > 0f) field.leavingBlur((1f - alpha) * 6.dp.toPx()) else null
+                        if (alpha <= 0f) return@graphicsLayer
+
                         val sign = if (rtl) -1f else 1f
                         val inset = sizes.tabBarContentPadding.calculateLeftPadding(if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr).toPx()
                         val span = field.expandedWidth - 2f * inset + sizes.tabSpacing.toPx()
@@ -1435,10 +1470,12 @@ private fun TabBarFlightInk(
                         val center = field.center(tab.key, label)
                         translationX = bounds.center.x + tabBarInkOffset(center?.x ?: slot, extent) - size.width / 2f - originX
                         val offsetY = center?.y ?: (if (label) 14.dp else (-7).dp).toPx()
-                        translationY = bounds.center.y + offsetY * extent - size.height / 2f
-                        alpha = if (stays && !label) 1f else tabBarLeavingAlpha(extent)
-                        val blur = (1f - alpha) * 6.dp.toPx()
-                        renderEffect = if (blur > 0.1f) BlurEffect(blur, blur) else null
+                        val yScale = maxOf(extent, titleAlpha)
+                        val y = if (keepsTitle && label) {
+                            val glyphY = field.center(tab.key, false)?.y ?: (-7).dp.toPx()
+                            tabBarKeptLabelOffset(offsetY, glyphY, yScale)
+                        } else offsetY * yScale
+                        translationY = bounds.center.y + y - size.height / 2f
                     }
                 }) { FluidGlassNested { content() } }
             }
@@ -1478,21 +1515,24 @@ private fun TabBarFieldHost(
     val motion = if (searching) FluidMotion.TabBarSearch else FluidMotion.FloatingTabFold
     val animation = remember(motion) { FluidGlassAnimation.Custom(motion) }
     val playerAnimation = remember { FluidGlassAnimation.Custom(FluidMotion.TabBarPlayer) }
-    // Tre superfici con lo stesso sistema di coordinate. I loro percorsi possono incrociarsi senza un collo.
+    // Il lettore passa davanti ai due vetri durante l'incrocio; l'inchiostro in volo si posa sopra i corpi.
     FluidGlassContainer(
         modifier.layout { measurable, constraints ->
             val stage = measurable.measure(constraints)
             val occupied = stage[TabBarOccupiedHeight].coerceIn(constraints.minHeight, constraints.maxHeight)
             layout(stage.width, occupied) { stage.place(0, occupied - stage.height) }
-        }, spacing = 0.dp, animation = playerAnimation, propagateMinConstraints = true,
+        }, spacing = 0.dp, animation = animation, propagateMinConstraints = true,
     ) {
-        val player = checkNotNull(LocalFluidGlassContainer.current)
+        val group = checkNotNull(LocalFluidGlassContainer.current)
         FluidGlassContainer(spacing = 0.dp, animation = animation, propagateMinConstraints = true) {
-            val group = checkNotNull(LocalFluidGlassContainer.current)
-            val primary = accent ?: MaterialTheme.colorScheme.primary
-            val field = remember(backdrop, namespace, tint, group, player, primary) { TabBarField(backdrop, namespace, tint, group, player, primary) }
-            FluidGlassContainer(spacing = 0.dp, animation = animation, propagateMinConstraints = true) {
-                CompositionLocalProvider(LocalTabBarField provides field) {
+            val standalone = checkNotNull(LocalFluidGlassContainer.current)
+            FluidGlassContainer(spacing = 0.dp, animation = playerAnimation, propagateMinConstraints = true) {
+                val player = checkNotNull(LocalFluidGlassContainer.current)
+                val primary = accent ?: MaterialTheme.colorScheme.primary
+                val field = remember(backdrop, namespace, tint, group, standalone, player, primary) {
+                    TabBarField(backdrop, namespace, tint, group, standalone, player, primary)
+                }
+                CompositionLocalProvider(LocalTabBarField provides field, LocalFluidGlassContainer provides standalone) {
                     Box(propagateMinConstraints = true) {
                         Box(Modifier.layout { measurable, constraints ->
                             val bar = measurable.measure(constraints)

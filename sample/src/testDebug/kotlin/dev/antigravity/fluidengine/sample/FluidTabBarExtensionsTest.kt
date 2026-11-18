@@ -193,6 +193,42 @@ class FluidTabBarExtensionsTest {
   }
 
   @Test
+  @Config(qualifiers = "w360dp-h640dp-mdpi")
+  fun reflectiveBackgroundKeepsAColorStripeContinuousAsThePageMoves() {
+    var inset by mutableStateOf(0.dp)
+    compose.setContent {
+      Box(Modifier.size(256.dp, 112.dp).background(Color.Black).testTag("fondale-in-moto")) {
+        Canvas(Modifier.align(Alignment.Center).size(144.dp, 96.dp).fluidBackgroundExtension(start = inset, end = inset)) {
+          drawRect(Color.Blue)
+          drawRect(Color.Red, Offset(0f, size.height / 2 - 2f), Size(size.width, 4f))
+        }
+      }
+    }
+    for (width in listOf(4, 40, 12, 1)) {
+      compose.runOnIdle { inset = width.dp }
+      val bounds = compose.onNodeWithTag("fondale-in-moto").fetchSemanticsNode().boundsInWindow
+      val region = android.graphics.Rect(bounds.left.roundToInt(), bounds.top.roundToInt(),
+        bounds.right.roundToInt(), bounds.bottom.roundToInt())
+      val bitmap = Bitmap.createBitmap(region.width(), region.height(), Bitmap.Config.ARGB_8888)
+      compose.runOnIdle {
+        PixelCopy.request(compose.activity.window, region, bitmap, { result ->
+          assertEquals(PixelCopy.SUCCESS, result)
+        }, Handler(Looper.getMainLooper()))
+      }
+      val pixels = bitmap.asImageBitmap().toPixelMap()
+      val y = pixels.height / 2
+      val left = (pixels.width - 144) / 2
+      val right = left + 144
+      assertTrue("originale, inset $width", pixels[left, y].red > .95f && pixels[right - 1, y].red > .95f)
+      assertTrue("raccordo a sinistra, inset $width", pixels[left - 1, y].red > .90f)
+      assertTrue("raccordo a destra, inset $width", pixels[right, y].red > .90f)
+      if (width == 40) {
+        assertTrue("copia ancora sfocata lontano dal raccordo", pixels[left - 24, y].red < .75f)
+      }
+    }
+  }
+
+  @Test
   @Config(qualifiers = "w1280dp-h800dp-mdpi")
   fun adaptiveColumnAndSelectedRouteSurviveNarrowingAndRestoration() {
     val restoration = StateRestorationTester(compose)

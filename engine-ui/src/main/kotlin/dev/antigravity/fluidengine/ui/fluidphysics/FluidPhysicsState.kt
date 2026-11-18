@@ -765,15 +765,24 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
 
   /**
    * La sagoma su cui ritagliare un contenuto posato su [frame] (nelle sue coordinate) mentre il vetro
-   * si forma o si ritira: il rettangolo arrotondato a riposo di quell'istante, spostato con la goccia
-   * (non il contorno libero: un rettangolo arrotondato prende il ritaglio hardware del nodo). Null
-   * dall'arrivo in poi ([progress] all'1 o oltre): li' il corpo e' piu' grande del contenuto, e a riposo
-   * un ritaglio sarebbe lavoro per niente. Fase di disegno.
+   * si forma, si posa o si ritira: il rettangolo arrotondato a riposo di quell'istante, spostato con la
+   * goccia (non il contorno libero: un rettangolo arrotondato prende il ritaglio hardware del nodo). Fase
+   * di disegno.
+   *
+   * Null solo dove il corpo contiene di sicuro il contenuto: dall'arrivo in poi ([progress] all'1 o
+   * oltre) **e** con la goccia posata. Lì il corpo è grande quanto il contenuto o di più (l'oltrepasso
+   * è un gonfiore), e a riposo un ritaglio sarebbe lavoro per niente. Una goccia che si sta ancora
+   * posando, invece, è più stretta della sagoma a riposo anche dopo l'arrivo: la coda arriva dopo la
+   * molla, e la molla del menu resta sopra l'1 per ~200 ms (da ~150 a ~355 ms dell'apertura). Prima il
+   * ritaglio si spegneva all'1 e in quella finestra le voci stavano sopra la pagina, fuori dal vetro (S9,
+   * il contestuale a +243 ms: «Elimina», il cestino e i capi dei separatori sotto la goccia).
    */
   internal fun travelClipIn(frame: Rect, progress: Float): RoundRect? {
-    if (progress >= 1f) return null
     val plan = ensurePlan()
-    val round = plan.contentClipRect ?: plan.silhouetteRoundRect ?: return null
+    // Il ritaglio della goccia c'è finché la goccia non si è posata, qualunque sia il progresso.
+    val drop = plan.contentClipRect
+    if (progress >= 1f && drop == null) return null
+    val round = drop ?: plan.silhouetteRoundRect ?: return null
     return round.translate(Offset(-frame.left, -frame.top))
   }
 

@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.sample.catalog
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -27,10 +28,14 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.sample.material.LocalGalleryGlassSwitches
+import dev.antigravity.fluidengine.sample.measure.generateMeasurePhoto
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidAlert
 import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
@@ -39,6 +44,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuOpensOn
+import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
+import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -91,6 +98,7 @@ fun MenusDemo() {
     )
     MorphSection(pick)
     BarSection(pick)
+    ContextScrimPicker()
     RowsSection(pick)
     CardSection(pick)
     PreviewSection(pick)
@@ -212,6 +220,41 @@ private fun RowsSection(pick: (String) -> Unit) {
   }
 }
 
+// --- Lo sfondo del contestuale, solo debug (correzione dopo S9) ---------------------------------------
+
+/**
+ * La scelta dello sfondo del contestuale fra i tre candidati di F5A.4 (A, B di serie, C), per le catture a schermo intero
+ * del tablet da cui Alessio sceglie: la stessa manopola di `--es gallery.tune ctxscrim=a`. Solo dove la galleria ha i
+ * suoi interruttori (debug e bench, mai nella galleria dello store); vale dal contestuale successivo, senza far
+ * rinascere la pagina, quindi le tre catture si fanno una dopo l'altra sulla stessa riga.
+ */
+@Composable
+private fun ContextScrimPicker() {
+  val switches = LocalGalleryGlassSwitches.current ?: return
+  val context = LocalContext.current
+  FluidSectionHeader(
+    title = "Sfondo del contestuale (solo debug)",
+    detail = "I tre candidati di F5A.4, per le catture a schermo intero. Da adb: --es gallery.tune ctxscrim=a|b|c.",
+  )
+  FluidListGroup {
+    FluidPickerRow(
+      title = "Livello",
+      subtitle = "gallery.tune ctxscrim · vale dal prossimo menu",
+      selectedKey = switches.tuning[ContextScrimKnob] ?: "b",
+      options = listOf(
+        FluidPickerOption("a", "A, il minimo", subtitle = "Nero 18% sul chiaro e 30% sullo scuro, sfocatura 3,75 dp"),
+        FluidPickerOption("b", "B, la proposta (di serie)", subtitle = "Nero 24% e 38%, sfocatura 5 dp"),
+        FluidPickerOption("c", "C, il massimo", subtitle = "Nero 32% e 48%, sfocatura 6,5 dp"),
+      ),
+      onSelected = { switches.tuneLive(context, ContextScrimKnob, it) },
+      modifier = Modifier.testTag("menus-context-scrim"),
+    )
+  }
+}
+
+/** Il nome della manopola dell'engine (`FluidContextScrimTuning.Knob`, interna al modulo), come lo scrive `gallery.tune`. */
+private const val ContextScrimKnob = "ctxscrim"
+
 // --- Una card qualunque ------------------------------------------------------------------------------
 
 @Composable
@@ -285,6 +328,53 @@ private fun PreviewSection(pick: (String) -> Unit) {
       contentAlignment = Alignment.Center,
     ) {
       Text(text = "Foto", style = MaterialTheme.typography.labelLarge, color = Color.White)
+    }
+    // La stessa tessera con la foto della galleria (correzione dopo S9): su un gradiente non si giudica come
+    // l'anteprima si mette a fuoco, ne' come lo sfondo del contestuale scurisce un'immagine con i suoi dettagli.
+    val photo = remember { generateMeasurePhoto() }
+    Box(
+      modifier = Modifier
+        .size(96.dp)
+        .clip(ContinuousCornerShape(FluidRadius.Card))
+        .fluidContextMenu(
+          actions = {
+            listOf(
+              FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi (foto)") },
+              FluidContextAction(label = "Mi piace", icon = FluidIcons.Filled.Favorite) { pick("Mi piace (foto)") },
+              FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {
+                pick("Elimina (foto)")
+              },
+            )
+          },
+          previewShape = ContinuousCornerShape(FluidRadius.Group),
+          preview = {
+            Box(
+              modifier = Modifier.width(280.dp).height(180.dp),
+              contentAlignment = Alignment.BottomStart,
+            ) {
+              Image(
+                bitmap = photo,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+              )
+              Text(
+                text = "Dune, 18 novembre",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White,
+                modifier = Modifier.padding(16.dp),
+              )
+            }
+          },
+        )
+        .testTag("menus-preview-photo"),
+    ) {
+      Image(
+        bitmap = photo,
+        contentDescription = "Foto",
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.matchParentSize(),
+      )
     }
     Box(
       modifier = Modifier

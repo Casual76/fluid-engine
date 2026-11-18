@@ -54,6 +54,15 @@ class F5a4ContextExportTest {
         for (i in 1 until close.size) assertTrue("$where: scrim al ritorno al fotogramma $i", close[i] <= close[i - 1] + 1e-4f)
         assertEquals("$where: scrim spento alla fine", 0f, close.last(), 1e-3f)
 
+        // Le voci stanno dentro il vetro in ogni fotogramma, anche mentre la goccia si posa dopo l'arrivo (S9, f218:
+        // «Elimina», il cestino e i capi dei separatori fuori dalla sagoma). Mezzo pixel e' l'antialias della maschera.
+        println(
+          "F5A.4 $where: inchiostro fuori dal vetro, apertura ${built.inkOutsideOpen} px (a ${built.inkWorstOpenMs} ms), " +
+            "ritorno ${built.inkOutsideClose} px; con il ritaglio di prima ${built.inkOutsideBefore} px",
+        )
+        assertTrue("$where: le voci escono dal vetro in apertura di ${built.inkOutsideOpen} px a ${built.inkWorstOpenMs} ms", built.inkOutsideOpen <= 0.6f)
+        assertTrue("$where: le voci escono dal vetro al ritorno di ${built.inkOutsideClose} px", built.inkOutsideClose <= 0.6f)
+
         GlassTraceOutput.writeIfRequested(built.opens)
         GlassTraceOutput.writeIfRequested(built.closes)
       }

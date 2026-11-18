@@ -28,7 +28,9 @@ FluidAdaptiveNavigation(tabs, route, { route = it.route }) { insets ->
 `fluidBackgroundExtension` si applica all'immagine o alla decorazione a tutta larghezza, prima del suo disegno.
 Il margine iniziale viene dal contenitore. Si possono passare `start` ed `end` espliciti per un ispettore disposto
 dall'app. La copia riflessa si sfoca su Android 12 e successivi. Sui sistemi precedenti rimane il riflesso.
-Il testo della pagina resta nitido e il pannello Liquid usa il colore medio della sonda per il velo e l'ombra.
+Sul bordo della pagina il riflesso parte nitido e acquista sfocatura solo nell'estensione, così i colori si
+raccordano durante apertura e ritorno. Il testo della pagina resta nitido e il pannello Liquid usa il colore
+medio della sonda per il velo e l'ombra.
 
 Questa famiglia e' tutto cio' che galleggia di vetro in fondo allo schermo (o al fianco di una pagina larga) e ti porta
 altrove o fa qualcosa: la **tab bar flottante** (`FluidFloatingTabBar`), la sua forma da schermo largo (`FluidTabRail`),
@@ -95,6 +97,10 @@ Kyant0 innestata: rifrazione sotto la pillola, riga nascosta tinta che la pillol
 engine i cui componenti sono peggiori di quelli dell'app non lo usa nessuno. Una capsula di schede che **si ripiega in una pillola** quando la pagina scorre e si riapre
 quando serve, con una pillola trascinabile che indica la scheda scelta. Formattata a quattro spazi (come l'originale, perche' un confronto con l'upstream sia un diff e non
 un'archeologia) e con le modifiche locali segnate dove succedono (`LOCAL CHANGE`).
+
+Nel materiale Liquid l'etichetta della scheda scelta rimane leggibile nei primi 67 ms della piega e lascia il
+posto al glifo intorno ai 100 ms. Quando la banda accessoria scende, il suo contorno passa davanti ai due
+vetri della barra e il glifo in viaggio resta visibile.
 
 **Firma essenziale** (le due forme).
 

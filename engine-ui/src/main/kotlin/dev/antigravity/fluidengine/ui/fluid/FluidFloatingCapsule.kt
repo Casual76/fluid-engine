@@ -38,8 +38,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
@@ -47,7 +49,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /**
  * Dove sta una [FluidFloatingCapsule] rispetto alla barra di navigazione flottante.
@@ -199,7 +203,7 @@ fun Modifier.fluidCapsuleInsets(
  * diverso: un bersaglio da 40 dp, un margine che non teneva conto della barra di sistema, la capsula
  * che lasciava passare i tocchi al contenuto sotto. Qui e' una cosa sola.
  *
- * **Una lastra sola.** Il vetro sta sulla capsula (`glassSurface`, ruolo `Floating`, la stessa
+ * **Una lastra sola.** Il vetro è un pannello del [FluidGlassContainer] (ruolo `Floating`, la stessa
  * pellicola della barra di navigazione, quindi le due non si distinguono per materiale), mai sulle
  * azioni: [FluidCapsuleAction] e' un'icona piatta che cresce sotto il dito, e ogni lente in piu' e'
  * un layer. Per un'azione che deve staccarsi dal resto — il "Fatto" di una selezione, il play di un
@@ -246,10 +250,9 @@ fun FluidFloatingCapsule(
   content: @Composable RowScope.() -> Unit,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  // F2.3: le azioni della capsula seguono l'inchiostro del lato del vetro, e solo cosi' la capsula gira con lo sfondo
-  // (una capsula chiara che passa sopra una foto scura diventa scura, R4 B6). Sul lato del tema l'inchiostro e' quello
-  // di sempre, `onSurface`.
-  val ink = rememberGlassInk()
+  val panelTint = if (onPhoto) GlassDefaults.floatingTintOnPhoto() else GlassDefaults.floatingTint()
+  val namespace = rememberFluidGlassNamespace()
+  val panelId = remember(namespace) { FluidGlassQualifiedId(namespace, "capsula") }
   // Dal seguito di F2.5: una capsula posata in fondo (non `Free`) accende il bordo dello scorrimento in basso della
   // [FluidScreen] in cui sta, come la tab bar: il contenuto si scioglie sotto di lei. Il bordo sta sul suo lato alto, e
   // la sua altezza e' l'unita' del profilo. Esce con `visible` (la schermata lo spegne con la sua molla).
@@ -274,39 +277,58 @@ fun FluidFloatingCapsule(
         .fluidCapsuleInsets(placement, avoidKeyboard),
       contentAlignment = Alignment.Center,
     ) {
-      Row(
-        modifier = Modifier
-          .then(if (fillWidth) Modifier.fillMaxWidth().widthIn(max = FluidFloatingCapsuleDefaults.MaxWidth) else Modifier)
-          .heightIn(min = minHeight)
-          .onSizeChanged { measuredHeightPx = it.height }
-          // Tiene i tocchi che nessuna azione ha preso, senza toccare i trascinamenti: una pagina che
-          // parte a scorrere da qui scorre lo stesso.
-          .pointerInput(Unit) { detectTapGestures { } }
-          .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = ink)
-          .padding(contentPadding)
-          .semantics {
-            isTraversalGroup = true
-            if (label != null) paneTitle = label
-          },
-        horizontalArrangement = Arrangement.spacedBy(FluidFloatingCapsuleDefaults.Spacing),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        GlassInkContent(ink, MaterialTheme.colorScheme.onSurface) {
-          CompositionLocalProvider(
-            LocalGlassBackdrop provides backdrop,
-            // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
-            // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
-            LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
+      CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalGlassBackdrop provides backdrop) {
+        FluidGlassContainer(propagateMinConstraints = true) {
+          val plane = currentFluidGlassContainer(FluidCapsuleShape)
+          Row(
+            modifier = Modifier
+              .then(if (plane != null && !fillWidth) Modifier.fluidCapsuleFootprint(plane, panelId) else Modifier)
+              .then(if (fillWidth) Modifier.fillMaxWidth().widthIn(max = FluidFloatingCapsuleDefaults.MaxWidth) else Modifier)
+              .heightIn(min = minHeight)
+              .onSizeChanged { measuredHeightPx = it.height }
+              // Tiene i tocchi che nessuna azione ha preso, senza toccare i trascinamenti: una pagina che
+              // parte a scorrere da qui scorre lo stesso.
+              .pointerInput(Unit) { detectTapGestures { } }
+              .fluidGlassId(panelId.id, namespace)
+              .fluidGlassContentAnchor(FluidGlassContentAnchor.Start)
+              .fluidGlassPanel(backdrop, panelTint, FluidCapsuleShape)
+              .padding(contentPadding)
+              .semantics {
+                isTraversalGroup = true
+                if (label != null) paneTitle = label
+              },
+            horizontalArrangement = Arrangement.spacedBy(FluidFloatingCapsuleDefaults.Spacing),
+            verticalAlignment = Alignment.CenterVertically,
           ) {
-            leading?.invoke(this@Row)
-            content()
-            trailing?.invoke(this@Row)
+            FluidGlassNested {
+              CompositionLocalProvider(
+                // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
+                // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
+                LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
+              ) {
+                leading?.invoke(this@Row)
+                content()
+                trailing?.invoke(this@Row)
+              }
+            }
           }
         }
       }
     }
   }
 }
+
+/**
+ * La Row riceve subito i suoi vincoli finali. Il genitore che la centra o la allinea a destra vede invece
+ * la larghezza del vetro in questo fotogramma, altrimenti sposterebbe tutta la capsula prima del primo passo.
+ * Prima che il piano abbia misurato il cambio vale ancora il suo ultimo riposo.
+ */
+private fun Modifier.fluidCapsuleFootprint(plane: FluidGlassContainerState, id: FluidGlassQualifiedId) =
+  layout { measurable, constraints ->
+    val row = measurable.measure(constraints)
+    val width = plane.flightOf(id)?.bounds?.width ?: plane.restFields.singleOrNull()?.node?.width
+    layout(constraints.constrainWidth(width?.roundToInt() ?: row.width), row.height) { row.place(0, 0) }
+  }
 
 /**
  * Un'azione dentro una [FluidFloatingCapsule]: un'icona, la sua descrizione e il bersaglio da 48 dp.
@@ -405,11 +427,11 @@ fun FluidCapsuleAction(
     contentAlignment = Alignment.Center,
   ) {
     // La taglia dal posto: 26 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
-    FluidIcon(
-      imageVector = icon,
-      contentDescription = contentDescription,
-      tint = color,
-    )
+    val iconSize = LocalFluidIconSize.current
+    FluidGlassContentTransition(icon, blurReference = iconSize,
+      modifier = Modifier.size(iconSize).semantics { this.contentDescription = contentDescription }) { shown ->
+      FluidIcon(shown, contentDescription = null, tint = color)
+    }
   }
 }
 

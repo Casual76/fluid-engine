@@ -312,6 +312,9 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           onClick = { onOpen(GalleryPage.ToolbarPages) },
         )
         FluidListDivider()
+        FluidListRow(title = "Barra in basso", subtitle = "Gruppi di azioni della raccolta e della foto",
+          onClick = { onOpen(GalleryPage.BottomBar) })
+        FluidListDivider()
         FluidListRow(
           title = "Navigazione adattiva",
           subtitle = "La tab bar si apre in una colonna sul tablet",

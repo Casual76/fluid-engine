@@ -7,7 +7,7 @@ import kotlin.math.max
 enum class FluidToolbarPlacement {
   Automatic, Navigation, Leading, Principal, Trailing, PrimaryAction, SecondaryAction,
   ConfirmationAction, CancellationAction, DestructiveAction,
-  /** Fino alla barra inferiore di F4B, il comando è nel menu «Altro» della barra superiore. */
+  /** Comando della barra inferiore. Una testata usata da sola lo conserva nel proprio menu «Altro». */
   BottomBar,
   /** Fissato al bordo. Il passaggio nel menu durante la ricerca attiva sarà collegato al campo in F4B.2. */
   PinnedTrailing,
@@ -27,7 +27,7 @@ internal enum class FluidToolbarRole {
 }
 
 internal enum class FluidToolbarSide { Leading, Center, Trailing }
-internal enum class FluidToolbarBar { Top, Bottom }
+internal enum class FluidToolbarBar { Top, Bottom, TopOnly }
 internal enum class FluidToolbarTransition { Automatic, Materialize, Identity }
 internal enum class FluidToolbarMotion { Full, Reduced, Identity }
 internal enum class FluidToolbarTrigger {
@@ -186,8 +186,9 @@ private fun toolbarTokens(items: List<FluidToolbarItem>, bar: FluidToolbarBar): 
     )
     if (inherited.role == FluidToolbarRole.Group) {
       inherited.children.forEach { add(it, path + inherited.id, inherited) }
-    } else if (bar == FluidToolbarBar.Top || inherited.placement == FluidToolbarPlacement.BottomBar) {
-      val lowerFallback = bar == FluidToolbarBar.Top && inherited.placement == FluidToolbarPlacement.BottomBar
+    } else if (bar == FluidToolbarBar.TopOnly ||
+      (bar == FluidToolbarBar.Bottom) == (inherited.placement == FluidToolbarPlacement.BottomBar)) {
+      val lowerFallback = bar == FluidToolbarBar.TopOnly && inherited.placement == FluidToolbarPlacement.BottomBar
       if (!lowerFallback || !inherited.isSpacer) {
         flat += ToolbarToken(if (lowerFallback) inherited.copy(overflow = true) else inherited, inherited.side(), path)
       }

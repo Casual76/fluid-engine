@@ -3,6 +3,9 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import dev.antigravity.fluidengine.ui.fluid.icons.*
+import dev.antigravity.fluidengine.ui.fluid.toolbar.*
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
@@ -105,5 +108,32 @@ class FluidFloatingCapsuleTest {
   @Test
   fun `the touch target of an action never drops under 48 dp by default`() {
     assertTrue(FluidFloatingCapsuleDefaults.ActionSize >= 48.dp)
+  }
+
+  @Test fun `only a lower action reserves the bottom inset, also in nested groups`() {
+    val header = buildFluidToolbar(null) {
+      group("vuoto", placement = FluidToolbarPlacement.BottomBar) {
+        spacer()
+        button("titolo", FluidIcons.Edit, "Modifica", {}, placement = FluidToolbarPlacement.Trailing)
+      }
+    }
+    assertFalse(header.hasBottomBar)
+    val mixed = buildFluidToolbar(null) {
+      group("esterno", placement = FluidToolbarPlacement.BottomBar) {
+        group("interno") {
+          button("cuore", FluidIcons.Favorite, "Preferito", {})
+          button("alto", FluidIcons.Edit, "Modifica", {}, placement = FluidToolbarPlacement.Trailing)
+        }
+      }
+    }
+    assertTrue(mixed.hasBottomBar)
+    val model = fluidToolbarModel(mixed, { 0f })
+    val bottom = resolveFluidToolbar(model, 360f, metrics = fluidBottomBarMetrics(), bar = FluidToolbarBar.Bottom)
+    val top = resolveFluidToolbar(model, 360f, metrics = fluidToolbarMetrics())
+    assertEquals(listOf("cuore"), bottom.elements.map { it.item.id })
+    assertEquals(listOf("alto"), top.elements.map { it.item.id })
+    assertEquals(48f, bottom.groups.single().widthDp, 0f)
+    assertEquals(FluidFloatingTabBarDefaults.BottomMargin + 48.dp, fluidBottomBarExtraInset(0.dp))
+    assertEquals(FluidFloatingTabBarDefaults.Spacing + 48.dp, fluidBottomBarExtraInset(100.dp))
   }
 }

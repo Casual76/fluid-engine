@@ -127,6 +127,7 @@ internal fun fluidToolbarReducedFadeProgress(progress: Float, offsetPx: Float, f
 @Composable
 internal fun Modifier.fluidToolbarMinimizeLayer(
   minimize: FluidToolbarMinimizeProgress? = LocalFluidToolbarMinimize.current,
+  towardsBottom: Boolean = false,
   fullTravel: Boolean = false,
   reducedFadeDistancePx: Float? = null,
 ): Modifier {
@@ -144,9 +145,9 @@ internal fun Modifier.fluidToolbarMinimizeLayer(
       if (!hidden) child.place(0, 0)
     }
   }.graphicsLayer {
-    val travel = if (fullTravel) minimize.travelPx else FluidMetrics.GlassButtonLens.toPx()
+    val travel = if (fullTravel) minimize.travelPx else if (towardsBottom) size.height else FluidMetrics.GlassButtonLens.toPx()
     val look = fluidToolbarMinimizeLook(visualProgress(), travel, minimize.reducedMotion, blurAvailable)
-    translationY = look.offsetPx
+    translationY = if (towardsBottom) -look.offsetPx else look.offsetPx
     alpha = look.alpha
     val radius = glassContentBlurRadiusPx(glassContentSigmaPx(look.blur, FluidMetrics.BarIconSize.toPx()))
     renderEffect = if (radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null

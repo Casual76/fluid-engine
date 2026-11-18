@@ -26,7 +26,6 @@ class F4aToolbarExportTest {
   private val height = 108f
   private val top = 32f
   private val density = 3f
-  private val metrics = fluidToolbarMetrics()
   private val noop: () -> Unit = {}
 
   private data class Input(val at: Double, val name: String, val declaration: FluidToolbarDeclaration)
@@ -87,7 +86,8 @@ class F4aToolbarExportTest {
       "Opzioni", onClick = noop)
   }
 
-  private fun prepare(inputs: List<Input>): List<Prepared> {
+  private fun prepare(inputs: List<Input>, bar: FluidToolbarBar = FluidToolbarBar.Top): List<Prepared> {
+    val metrics = if (bar == FluidToolbarBar.Bottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
     val memory = FluidToolbarMemory()
     var previousAt = Double.NEGATIVE_INFINITY
     return inputs.map { input ->
@@ -102,7 +102,7 @@ class F4aToolbarExportTest {
         78f // larghezza della scritta con padding in questa scena a densità 3
       },
         tintOf = { fluidToolbarTint(it, Color(0xFF007AFF), Color(0xFFFF3B30)) })
-      val resolved = resolveFluidToolbar(model, width, metrics = metrics)
+      val resolved = resolveFluidToolbar(model, width, metrics = metrics, bar = bar)
       assertTrue("${input.name}: capienza", resolved.fits)
       memory.update(resolved, FluidToolbarMotion.Full)
       val pieces = resolved.groups.map { group ->
@@ -139,8 +139,10 @@ class F4aToolbarExportTest {
     kept: FluidToolbarKeptContent = FluidToolbarKeptContent.Sharp,
     oldSlots: Boolean = false,
     phase: String = "f4a",
+    bar: FluidToolbarBar = FluidToolbarBar.Top,
   ): GlassTrace {
-    val prepared = prepare(inputs)
+    val prepared = prepare(inputs, bar)
+    val metrics = prepared.first().resolved.metrics
     val neutral = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
     val tints = prepared.flatMap { state -> state.resolved.groups.map { group ->
       val primary = group.items.singleOrNull()?.takeIf { it.isPrimary }
@@ -490,6 +492,34 @@ class F4aToolbarExportTest {
         trace(name, inputs, last, kept = FluidToolbarKeptContent.Soft, oldSlots = true)
           .write(File(it, "slot-precedenti/$name/trace.json"))
       }
+    }
+  }
+
+  @Test fun bottomGroupsUseTheSameClockAcrossPagesAndWhenThePlusSeparates() {
+    fun scene(photo: Boolean = false, split: Boolean = false) = buildFluidToolbar(null) {
+      group("comandi", placement = FluidToolbarPlacement.BottomBar) {
+        button("elenco", if (photo) FluidIcons.Search else FluidIcons.FormatListBulleted, "Elenco", onClick = noop)
+        flexibleSpacer()
+        if (!photo) {
+          button("cuore", FluidIcons.Favorite, "Preferito", onClick = noop)
+          button("condividi", FluidIcons.IosShare, "Condividi", onClick = noop)
+          if (split) spacer()
+        }
+        button("aggiungi", FluidIcons.Add, "Cambia gruppo", onClick = noop)
+      }
+    }
+    val output = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4B1_DIR"))
+    for ((name, other) in mapOf("capsula-cambia" to scene(photo = true), "separa-riunisci" to scene(split = true))) {
+      val inputs = listOf(Input(-100.0, "raccolta", scene()), Input(0.0, "cambio", other), Input(900.0, "ritorno", scene()))
+      val result = trace(name, inputs, 222, kept = FluidToolbarKeptContent.Soft, phase = "f4b-1", bar = FluidToolbarBar.Bottom)
+      val poses = prepare(inputs, FluidToolbarBar.Bottom)
+      assertEquals(144f, poses.first().resolved.groups.last().widthDp, 0f)
+      assertEquals(48f, poses[1].resolved.groups.last().widthDp, 0f)
+      assertEquals(poses.first().resolved, poses.last().resolved)
+      assertEquals(2, poses.first().ids.size)
+      assertEquals(if (name == "separa-riunisci") 3 else 2, poses[1].ids.size)
+      assertTrue(result.frames.all { it.elements.isNotEmpty() })
+      output?.let { result.write(File(it, "$name/trace.json")) }
     }
   }
 

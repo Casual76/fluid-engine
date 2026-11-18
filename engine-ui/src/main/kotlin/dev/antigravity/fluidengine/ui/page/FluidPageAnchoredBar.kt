@@ -33,6 +33,7 @@ import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
 import dev.antigravity.fluidengine.ui.fluid.smoothStep
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDefaults
@@ -179,7 +180,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
  * restano nella loro riga come prima ([FluidPageBarTargetMemory.hostModel]).
  */
 @Composable
-internal fun FluidAnchoredBar(
+internal fun BoxScope.FluidAnchoredBar(
   state: FluidPageHostState,
   registry: FluidPageBarRegistry,
   lowerKey: Any?,
@@ -251,6 +252,11 @@ internal fun FluidAnchoredBar(
     null
   }
   val barBackdrop = combined ?: upperBackdrop ?: lowerBackdrop
+  if (hostModel) {
+    CompositionLocalProvider(target.context ?: currentCompositionLocalContext) {
+      FluidBottomBar(registeredDeclaration, barBackdrop ?: currentGlassBackdrop(), hostMinimize, Modifier.align(Alignment.BottomCenter))
+    }
+  }
   val chrome = LocalFluidChromeController.current
   val owner = remember { Any() }
   DisposableEffect(chrome, combined) {
@@ -1114,6 +1120,7 @@ private fun FluidPageChromeContent(
           // La barra dichiarata (F4A.3): i gruppi sul piano flottante, gli inset del titolo dalla misura d'arrivo.
           FluidToolbarBar(
             declaration = toolbar,
+            bar = FluidToolbarBar.TopOnly,
             title = title.takeIf { showsTitle },
             onExtent = { extent ->
               controls.startPx = extent.startPx

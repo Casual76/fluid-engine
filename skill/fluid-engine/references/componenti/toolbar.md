@@ -78,7 +78,8 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   la conferma testuale si accorcia e il suo nome accessibile rimane intero. Se lo spazio fisico è insufficiente
   anche per le lenti, «Altro» resta visibile e raccoglie i comandi. Le azioni disabilitate rimangono spente
   nel menu e TalkBack propone solo le azioni eseguibili.
-  `BottomBar` colloca per ora il comando nel menu «Altro» della barra superiore. La barra inferiore arriva in F4B.
+  Con `FluidToolbarPlacement.BottomBar` lo spazio e il menu «Altro» si calcolano nella barra inferiore.
+  Una testata autonoma (`FluidCollapsingTopBar` o `FluidPageChrome` senza host) conserva quei comandi nel proprio «Altro».
   `PinnedTrailing` occupa il bordo destro. Il collegamento che lo sposta nel menu con la ricerca attiva arriva in F4B.2.
 - **Il piano**: la barra è un `FluidGlassContainer` alto quanto la riga; ogni gruppo è un pezzo con l'identità del suo
   vetro (`FluidToolbarGlassId`: il gruppo **alla nascita** del vetro, che il registro del piano espone), così un gruppo
@@ -128,6 +129,31 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   `enabled`. Per rimuovere l'uscita durante un salvataggio occorre anche togliere l'eventuale `onBack` automatico.
   Le parole di serie vengono da `LocalFluidLabels`: `back`, `close`, **`confirm`** («Conferma» / «Confirm») e
   **`more`** («Altro» / «More»), personalizzabili alla radice e indipendenti da `dateTimeConfirm` e `actions`.
+
+## La barra in basso
+
+Una `FluidScreen` posa automaticamente i comandi sopra la navigazione di sistema. Se l’app fornisce
+un inset per la tab bar, i comandi stanno sopra di essa. La lista riserva lo spazio per l’ultima riga.
+Per lasciare il filtro a sinistra e le altre azioni a destra si mette lo spazio flessibile nel gruppo in basso.
+
+```kotlin
+toolbar = {
+  group("foto", placement = FluidToolbarPlacement.BottomBar) {
+    button("filtro", FluidIcons.FilterList, "Filtra", apriFiltri)
+    flexibleSpacer()
+    button("preferito", FluidIcons.Favorite, "Preferito", cambiaPreferito)
+    if (separato) spacer()
+    button("aggiungi", FluidIcons.Add, "Aggiungi", aggiungi)
+  }
+}
+```
+
+Ogni posto misura 48 dp e porta l’icona della barra da 26 dp. Con lo spaziatore fisso il più si stacca
+dal gruppo e il suo bersaglio lo segue. Un gruppo annidato eredita la posizione del genitore, un tasto con
+posizione esplicita usa la propria. In un `FluidPageHost` la barra inferiore appartiene all’host. Al push e al
+pop legge la dichiarazione della destinazione. Durante il gesto annullabile conserva i comandi della pagina
+in primo piano. La politica `barMinimize` della pagina guida anche il ritiro verso il basso.
+La scena «Barra in basso» in Chrome si apre con `gallery.page=bottombar`.
 
 ## La ricerca
 

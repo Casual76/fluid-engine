@@ -97,6 +97,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
@@ -951,7 +953,8 @@ private fun FluidScreenLayout(
   val compactTitleStyle = rememberCompactTitleStyle(expandedTitleStyle)
 
   val topBarHeight = FluidScreenDefaults.topBarHeight()
-  val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding)
+  val bottomExtra = if (toolbar?.hasBottomBar == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
+  val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding) + bottomExtra
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
   val titleTopPx = with(density) { (topBarHeight + FluidScreenDefaults.TitleTopSpacing).toPx() }
   val titleMorphState = remember(title, density.fontScale, titleLeftPx, titleTopPx) {
@@ -1027,11 +1030,14 @@ private fun FluidScreenLayout(
   SideEffect { minimize?.measure(travelPx.toFloat()) }
   val expandedProgress = remember { mutableFloatStateOf(0f) }
   val listPadding = remember(
-    minimize, density, horizontalPadding, topBarHeight, bottomPadding, barMinimizeAdjustsInsets, titleGapPx,
+    minimize, density, horizontalPadding, topBarHeight, bottomPadding, bottomExtra, barMinimizeAdjustsInsets, titleGapPx,
     headerGapPx, largeTitle, pinnedSearch != null,
   ) {
     val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding)
     if (minimize == null) rest else object : PaddingValues by rest {
+      override fun calculateBottomPadding(): Dp = if (barMinimizeAdjustsInsets && bottomExtra > 0.dp)
+        bottomPadding - bottomExtra * minimize.progress else bottomPadding
+
       override fun calculateTopPadding(): Dp = with(density) {
         val extra = headingHeightPx + titleGapPx + searchHeightPx + if (pinnedSearch != null) headerGapPx else 0
         val reduction = if (barMinimizeAdjustsInsets) minimize.offsetPx else 0f
@@ -1298,8 +1304,15 @@ private fun FluidScreenLayout(
       FluidScreenBottomScrollEdge(backdrop = backdrop, edges = bottomEdges, listState = listState, exports = bottomGlass)
     }
 
+    if (bottomExtra > 0.dp) RegisterFluidScreenBottomEdge(
+      if (minimize?.hidden == true) null else FluidScreenBottomEdge(LocalFluidBottomInset.current + bottomExtra, FluidFloatingCapsuleDefaults.ActionSize),
+    )
+    if (LocalFluidPageBar.current == null) {
+      FluidBottomBar(toolbar, chromeBackdrop, minimize, Modifier.align(Alignment.BottomCenter))
+    }
     CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize) {
     FluidTopBar(
+      standaloneBar = FluidToolbarBar.Top,
       title = title,
       backdrop = chromeBackdrop,
       barTint = null,
@@ -1803,6 +1816,7 @@ internal fun FluidTopBar(
    * [actions], e il titolo segue il suo modo. Null: la barra di sempre, identica.
    */
   toolbar: FluidToolbarDeclaration? = null,
+  standaloneBar: FluidToolbarBar = FluidToolbarBar.TopOnly,
   /** Il sottotitolo sotto il titolo agganciato (solo con [toolbar]): compare mentre il titolo si aggancia. */
   subtitle: String? = null,
 ) {
@@ -1893,6 +1907,7 @@ internal fun FluidTopBar(
       FluidTopBarRow(onTapTitle = onTapTitle, modifier = Modifier.fluidToolbarMinimizeLayer(minimize)) {
         if (toolbar != null) {
           FluidToolbarTopRow(
+            bar = standaloneBar,
             toolbar = toolbar,
             title = title,
             subtitle = subtitle,
@@ -2349,6 +2364,7 @@ internal fun FluidTopBarActions(
  */
 @Composable
 private fun BoxScope.FluidToolbarTopRow(
+  bar: FluidToolbarBar,
   toolbar: FluidToolbarDeclaration,
   title: String,
   subtitle: String?,
@@ -2401,6 +2417,7 @@ private fun BoxScope.FluidToolbarTopRow(
   }
   FluidToolbarBar(
     declaration = toolbar,
+    bar = bar,
     title = title.takeIf { showsTitle },
     onExtent = { extent ->
       controls.startPx = extent.startPx

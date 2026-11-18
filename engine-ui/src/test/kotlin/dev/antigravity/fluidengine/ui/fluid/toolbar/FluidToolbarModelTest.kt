@@ -195,9 +195,10 @@ class FluidToolbarModelTest {
     assertTrue(narrow.fits)
   }
 
-  @Test fun `BottomBar si raggiunge nel menu in alto e nel suo posto nella risoluzione in basso`() {
+  @Test fun `BottomBar appare in basso e conserva il ripiego nelle sole testate autonome`() {
     val model = FluidToolbarModel(listOf(icon("top"), icon("bottom", placement = FluidToolbarPlacement.BottomBar)))
-    assertEquals(listOf("bottom"), resolve(model, 600f).overflow.map { it.id })
+    assertNull(resolve(model, 600f).element("bottom"))
+    assertEquals(listOf("bottom"), resolveFluidToolbar(model, 600f, metrics = metrics, bar = FluidToolbarBar.TopOnly).overflow.map { it.id })
     assertGroups(resolve(model, 600f, bar = FluidToolbarBar.Bottom), listOf("bottom"))
   }
 

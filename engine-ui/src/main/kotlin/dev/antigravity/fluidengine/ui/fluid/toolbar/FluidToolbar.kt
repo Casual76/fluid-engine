@@ -482,6 +482,9 @@ internal class FluidToolbarDeclaration(
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
 
+  /** Solo le azioni effettivamente in basso riservano spazio, anche dentro gruppi annidati. */
+  val hasBottomBar: Boolean = entries.any { it.declaresBottomAction(false) }
+
   /** L'indietro dichiarato, o null. */
   val back: FluidToolbarButtonEntry? get() = buttons.values.firstOrNull { it.role == FluidToolbarRole.Back }
 
@@ -897,14 +900,16 @@ internal fun FluidToolbarBar(
   modifier: Modifier = Modifier,
   title: String? = null,
   onExtent: ((FluidToolbarExtent) -> Unit)? = null,
+  bar: FluidToolbarBar = FluidToolbarBar.Top,
 ) {
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val model = fluidToolbarModelOf(declaration, title)
-  BoxWithConstraints(modifier.fillMaxWidth().height(FluidMetrics.GlassButtonLens).fluidToolbarMinimizeLayer()) {
+  val metrics = if (bar == FluidToolbarBar.Bottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  BoxWithConstraints(modifier.fillMaxWidth().height(metrics.buttonWidthDp.dp).fluidToolbarMinimizeLayer(towardsBottom = bar == FluidToolbarBar.Bottom)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
-    val resolved = remember(model, width) { resolveFluidToolbar(model, width, metrics = fluidToolbarMetrics()) }
-    SideEffect { declaration.measured(resolved) }
+    val resolved = remember(model, width, bar) { resolveFluidToolbar(model, width, metrics = metrics, bar = bar) }
+    if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
       val extent = fluidToolbarExtent(resolved, density.density)
       SideEffect { onExtent(extent) }
@@ -985,13 +990,13 @@ private fun FluidToolbarGroups(
         for (ghost in memory.ghosts) key(ghost.serial) {
           val element = ghost.element
           FluidToolbarFadingFace(element, ghost.glass, namespace, plane, entering = false,
-            clipToGlass = ghost.glassStays, effects = effects,
+            clipToGlass = ghost.glassStays, effects = effects, height = resolved.metrics.buttonWidthDp.dp,
             modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp)) { memory.forget(ghost) }
         }
         for (element in arrivals.values) key(element) {
           val glass = memory.glassIds.getValue(element.groupId!!)
           FluidToolbarFadingFace(element, glass, namespace, plane, entering = true,
-            clipToGlass = true, effects = effects,
+            clipToGlass = true, effects = effects, height = resolved.metrics.buttonWidthDp.dp,
             modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp),
             group = resolved.groups.first { it.id == element.groupId }) { memory.finishArrival(element) }
         }
@@ -1203,7 +1208,7 @@ private fun FluidToolbarGroupPiece(
       // Che cosa porta il vetro (F4A.5b): un tondo che cambia simbolo respira, come in Apple.
       .fluidGlassContentKey(fluidToolbarGlassContentKey(group))
       .fluidGlass(surface, FluidCapsuleShape)
-      .size(group.widthDp.dp, FluidMetrics.GlassButtonLens),
+      .size(group.widthDp.dp, resolved.metrics.buttonWidthDp.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
     for (item in group.items) {
@@ -1211,7 +1216,7 @@ private fun FluidToolbarGroupPiece(
         val element = resolved.element(item.id)
         FluidToolbarSlot(
           item = item,
-          widthDp = element?.widthDp ?: FluidMetrics.GlassButtonLens.value,
+          widthDp = element?.widthDp ?: resolved.metrics.buttonWidthDp,
           entry = declaration.buttons[item.id],
           declaration = declaration,
           resolved = resolved,
@@ -1327,7 +1332,7 @@ private fun FluidToolbarSlot(
   Box(
     Modifier
       .width(width)
-      .height(FluidMetrics.GlassButtonLens)
+      .height(resolved.metrics.buttonWidthDp.dp)
       .then(if (menu != null) Modifier.fluidContextMenuAnchor(menu) else Modifier),
     contentAlignment = Alignment.Center,
   ) {
@@ -1439,7 +1444,7 @@ private class FluidToolbarEffects(density: Float) {
 private fun FluidToolbarFadingFace(
   element: FluidToolbarElement, glass: FluidToolbarGlassId, namespace: FluidGlassNamespace,
   plane: FluidGlassContainerState?, entering: Boolean, clipToGlass: Boolean,
-  effects: FluidToolbarEffects, modifier: Modifier, group: FluidToolbarGroup? = null, finished: () -> Unit,
+  effects: FluidToolbarEffects, height: Dp, modifier: Modifier, group: FluidToolbarGroup? = null, finished: () -> Unit,
 ) {
   val item = element.item
   val role = if (entering) GlassContentRole.Enter else GlassContentRole.Exit
@@ -1468,7 +1473,7 @@ private fun FluidToolbarFadingFace(
     }, null, fluidToolbarIconSize(item.role))
   val width = element.widthDp.dp
   val blurAvailable = android.os.Build.VERSION.SDK_INT >= 31
-  Box(modifier.size(width, FluidMetrics.GlassButtonLens).clearAndSetSemantics { }
+  Box(modifier.size(width, height).clearAndSetSemantics { }
     .drawWithContent {
       val bounds = if (clipToGlass) plane?.flightOf(qualified)?.bounds else null
       val barWidth = plane?.coordinates?.size?.width ?: 0

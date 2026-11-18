@@ -328,6 +328,7 @@ internal fun Gallery(
               // La barra dichiarata (F4A.2): `toolbar.scene`, `toolbar.auto`.
               GalleryPage.Toolbar -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPage(bottomInset) { nav.back() }
               // La barra dichiarata fra pagine (F4A.3): `pages.auto`, `pages.follow`, `pages.start`.
+              GalleryPage.BottomBar -> dev.antigravity.fluidengine.sample.bottom.BottomBarPage { nav.back() }
               GalleryPage.TabletNavigation -> dev.antigravity.fluidengine.sample.bottom.TabletNavigationPage()
               GalleryPage.ToolbarPages -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPagesPage(bottomInset) { nav.back() }
               // Liste, campi e stepper (F6.6): `listsforms.swipe fill` apre con le azioni a scorrimento di prima.

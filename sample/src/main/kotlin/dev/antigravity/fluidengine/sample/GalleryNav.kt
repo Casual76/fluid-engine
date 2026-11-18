@@ -110,6 +110,7 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    * il dito. Vedi `toolbar/ToolbarPagesPage.kt`. Si apre con `--es gallery.page toolbarpages`.
    */
   ToolbarPages("Barre fra pagine"),
+  BottomBar("Barra in basso"),
   TabletNavigation("Navigazione adattiva"),
 
   /**

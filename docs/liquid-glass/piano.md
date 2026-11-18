@@ -1934,8 +1934,8 @@ nessuna clip nuova): l'invarianza è dedotta, non rimisurata.
 |---|---|---|
 | fusione e divisione | collo che si strozza, lobi tondi, rottura ≈200 ms prima del riposo; prima un collo, un fotogramma dopo l'altro | B2 (d), media (clip rallentata: vale l'ordine delle fasi, non i tempi assoluti) |
 | capsule che cambiano larghezza | in continuo; superamento finale ≤1,3%; rientro iniziale di ≈0,2 H prima di allargarsi | B2 (c), media |
-| cambio di contesto, durata | 270–330 ms sul telefono; 430 ms per le icone | B2 (a, c), alta |
-| icone | sfocate e incrociate in 200–330 ms; al massimo della sfocatura a 67–133 ms; chi resta nei due stati non si sfoca | B2, alta |
+| cambio di contesto, durata | 270–330 ms sul telefono; 430 ms per le icone. *Corretto alla chiusura di F3 (F4A.5b, orologio vero): 270–330 ms è il tondo che sembra formato e lo scambio delle icone; il bordo si posa a ~535 ms a vista (`FluidMotion.PlaneResizeMillis`)* | B2 (a, c), alta |
+| icone | sfocate e incrociate in 200–330 ms; al massimo della sfocatura a 67–133 ms; chi resta nei due stati non si sfoca. *Corretto alla chiusura di F3 (F4A.5b): in una capsula che cambia forma l'icona che resta si ammorbidisce (σ 0,11–0,15 della sagoma a 133 ms, nitida a ~300); di serie «morbido, come Apple», scelta di Alessio del 17 novembre. Resta nitida un'icona uguale in un vetro che non cambia forma* | B2, alta |
 | comparsa | 430 ms; contorno 8–10% più largo all'inizio; simbolo da 2× a 1×; opacità del corpo ferma | B3, media |
 | scomparsa | 470 ms: simbolo via in 130 ms, rifrazione a zero entro 400 ms, poi il contorno | B3, media |
 | carattere del cambio di contesto | durante il viaggio il vetro **schiarisce** e il tondo si gonfia di ≈10% | B2, descritto nel contenuto della scheda senza una curva: **a occhio** (è il materiale limpido in viaggio di 3.6 più il rigonfiamento della geometria) |
@@ -2020,6 +2020,64 @@ in tutte le clip (non ≈10%). Scelte di Alessio sulla tavola dal banco:
 |---|---|
 | luce del vetro nei cambi del piano | **a metà, col rigonfiamento di Apple, più la luce del dito**: quando il cambio parte da un tocco sul vetro, la luce della pressione lo riempie e lo accompagna nel viaggio (come nell'interfaccia vera di Apple). Menu e Fluid-physics fuori dal piano restano «un po' limpidi» (scelta B di F1B) |
 | quando si rompe il collo | **com'è oggi** (verso metà viaggio), pur sapendo che in Apple i pezzi restano uniti da colli sottili fino a ~90% del viaggio |
+
+**Altre scelte di Alessio durante F3 (17–18 novembre)**, sulle tavole del tablet accanto ad Apple:
+
+| scelta | risposta |
+|---|---|
+| la vita della goccia che nasce dal vicino | **«C corretta»**: profonda come in Apple, si stringe senza riaprirsi fino alla rottura; collo «spesso» e rottura «com'è oggi» restano (`sessioni/esplora-vita/`) |
+| l'alone del vetro in viaggio senza tocco | **0,15** (`GlassJourneyGlowQuiet`), fra 0,04, 0,10 e 0,15 (`sessioni/s5bis-f3/`) |
+| l'icona che resta in un gruppo che cambia forma | **morbida, come Apple** (di serie; `gallery.tune barkeep=sharp` per la nitida) |
+| il gesto indietro | **D1 confermato** sul gesto completo accanto alla variante che segue il dito (S7): i tasti aspettano il rilascio che conferma |
+
+**Chiusura di F3 (2026-11-18).** Le sessioni sul Tab S9 S4, S5, S5bis, S5ter e S7 (`artifacts/liquid-glass/sessioni/`)
+hanno seguito i giri di correzione fino a non vedere più difetti del piano. L'ultima, S7, è sugli APK `f3-rif4` (commit
+`f490f12`). In S7 passano:
+- la tinta che confluisce, che sfuma nel raccordo con una stella sola;
+- il varco di «Indietro» nelle inversioni ogni 150 ms;
+- la scritta che torna a «Salva» dal suo stato;
+- il rilascio del tasto premuto, con passi massimi di 4,71 dp in debug e 3,76 in bench (soglia 6);
+- il dock dell'Assistente;
+- le icone che restano;
+- un solo cuore e una sola matita fra pagine.
+
+Il crash al ritorno di pagina, un ciclo di RenderNode in `FluidChromePageWriter`, è chiuso da `bb8f0e3`: 190 s di giro
+continuo senza chiusure. Il costo a freddo di `uno-due` è di 1294 fotogrammi in debug con il 3,40% lenti, e di 1319 in
+bench con lo 0,99% lenti (S5ter, tre corse alternate a stato termico 0).
+
+**Voti finali** (debug / bench, soglia fra parentesi):
+
+| voce | voto | prova |
+|---|---|---|
+| F3-a | 9 / 9 (9) | due nati: una rottura per collo in otto nascite (S5ter) |
+| F3-b | 9 / 9 (9) | rilascio entro 6 dp (S7); la scritta sta nel vetro e torna dal suo stato |
+| F3-c | 8,5 / 8,5 (8,5) | S5; icona che resta morbida per scelta |
+| F3-d | 9 / 9 (9) | S5 |
+| F3-e | 8,5 / 8,5 (8,5) | ponte con un vicino fermo e tinta che confluisce chiusi in S7 |
+| F3-f | 8,5 / 8,5 (8,5) | S5bis; inversioni del testo in S7 |
+| F3-g | **7** / 8,5 (8,5) | in debug il giro tiene 50–100 ms (S5); nella bench va: il debito è di costo, va a F7 |
+
+**Debiti e fase che li chiude.**
+
+| debito | misura | fase |
+|---|---|---|
+| la partenza senza tocco: dal cambio di stato al primo fotogramma del palco | mediane 54–77 ms (obiettivo ≤ 20); P1 (il primo fotogramma ripete t=0) e P2 (alleggerire i campi del viaggio, `flownBounds`, 76–88% del costruttore) da provare | **F7** |
+| il giro chiaro/scuro in debug (F3-g) | tenute di 50–100 ms in debug; bench 10–44 ms | **F7** |
+| passi alle ripartenze | 25–33 ms | **F7** |
+| `glassSourceRedraws` da montare in `GlassMaterial` | – | **F7** |
+| il palco che resta fino al mezzo pixel, con la coda lunga di Apple | ~850 ms di palco per un viaggio | **F7** (scelta: si tiene la coda intera di Apple) |
+| il costo delle scene grandi | `molti` 6,5%, contesto 5,8% di lenti a freddo (S5) | **F7** |
+| un vetro nato ancora invisibile risponde al tocco | – | **F6**, con il controllo nel tasto |
+| il gradino di mezzo pixel della messa a fuoco | – | **F6.4** |
+| la selezione in «tinta»: il fondo precede l'accento del glifo | ~90 ms (S7) | **F4A.4** |
+| i tre puntini fra Note e Nota | 1,23 px di escursione ottica (S7; S6 16,03) | **F4A.4** |
+| il movimento ridotto della barra: dissolvenza sul posto | in S6 i viaggi restano interi | **F4A.4** |
+| il contrasto dell'inchiostro sotto la luce del dito | – | **F4A** |
+| il primo fotogramma del push; il bordo della pagina che salta nel pop in volo | push 21,4% di lenti in debug, 3,95% in bench; bordo 377 → 558 px in 9,7 ms | **F4A.7** |
+
+**Limiti dichiarati.** Nell'allargamento la capsula resta senza scritta 50–80 ms finché la frase lunga non ci sta. È una
+scelta: un ritaglio leggibile sarebbe peggio, e in Apple il cambio Select → Done ha una fase illeggibile più lunga. Il lean
+della pressione (0,05 della deriva) è sotto la risoluzione della ripresa: verificato a occhio, non misurato.
 
 ---
 
@@ -2139,7 +2197,7 @@ fermato a metà: per quelli serve una registrazione da un iPhone vero (elenco ne
 | grandezza | bersaglio | fonte, fiducia |
 |---|---|---|
 | tre icone → una | la capsula si chiude da sinistra verso l'icona che resta fra 67 e 267 ms; cerchio formato a 267–333 ms | R4 B2 (b), alta |
-| capsula che si allarga | il bordo sinistro rientra di 0,19 H prima di allargarsi; la larghezza supera il riposo dell'1,3% a 600–900 ms | R4 B2 (c), media |
+| capsula che si allarga | il bordo sinistro rientra di 0,19 H prima di allargarsi; la larghezza supera il riposo dell'1,3% a 600–900 ms. *Corretto alla chiusura di F3 (F4A.5b, orologio vero): il rientro è il trascinamento del vetro intero, 0,155 H; il rigonfiamento è +13,5% a 200 ms* | R4 B2 (c), media |
 | regole d'uso | al più tre gruppi, una sola azione principale a destra, simboli e testo mai nello stesso gruppo | R1 B1–B10, documentato |
 | trabocco | tre livelli di priorità, «sempre nel menu», «fissato a destra»; composizione osservata su iPhone: indietro, un tondo, un gruppo di tre, il tasto «…» | R5 B11, documentato e osservato |
 | menu di trabocco | un menu normale: larghezza al 93% a 100 ms, altezza al massimo a 100 ms con +1,6% | R5 B11, media (coda non misurata); compatibile con R4 B1 |

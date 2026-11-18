@@ -127,7 +127,10 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   var lastPaneTitle by remember { mutableStateOf(entry.paneTitle) }
   var lastPaneTint by remember { mutableStateOf(entry.paneTint) }
   var lastAnchor by remember { mutableStateOf(entry.menuAnchor) }
+  // F5A.4: il sollevamento del contestuale (scala viva del dito, anteprima, forma), tenuto come gli altri.
+  var lastLift by remember { mutableStateOf<FluidContextLift?>(null) }
   if (entry.visible) {
+    lastLift = FluidContextLifts.of(entry)
     lastActions = entry.actions
     lastOrigin = entry.origin()
     lastPreview = entry.preview
@@ -182,6 +185,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     paneTitle = lastPaneTitle,
     paneTint = lastPaneTint,
     anchor = if (entry.presentation == FluidGlassModalPresentation.Expand) lastAnchor else null,
+    lift = lastLift,
   )
 }
 
@@ -199,6 +203,7 @@ private fun FluidMenuLayerContent(
   paneTitle: String?,
   paneTint: Color?,
   anchor: FluidMenuAnchor?,
+  lift: FluidContextLift? = null,
 ) {
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -249,11 +254,14 @@ private fun FluidMenuLayerContent(
   val noBackdrop = rememberEmptyGlassBackdrop()
   val dark = GlassDefaults.isDarkSurface()
   val panelTint = GlassDefaults.panelTint()
+  // F5A.4: il contestuale ha uno scrim suo, piu' scuro di quello dei menu dal tasto (scelta di Alessio: la
+  // pagina dietro scurita con una sfocatura leggera, quanto lo dicono le tavole).
+  val scrimLook = if (anchor == null) FluidContextScrimLook else FluidScrimLook.Modal
   // La pellicola del pannello con dentro la quota di scrim: la finestra campiona la pagina CRUDA (gli
   // exports dello scrim lo registrano a forza piena, la terza trappola), quindi lo scurimento se lo
   // dipinge da se'. Lo stesso nero dello scrim, composto sotto la pellicola.
-  val windowTint = remember(panelTint, dark) {
-    panelTint.copy(overlay = panelTint.overlay.compositeOver(Color.Black.copy(alpha = if (dark) 0.20f else 0.12f)))
+  val windowTint = remember(panelTint, dark, scrimLook) {
+    panelTint.copy(overlay = panelTint.overlay.compositeOver(scrimLook.color(dark)))
   }
   val progress: () -> Float = { journey.progress.value }
 
@@ -269,6 +277,7 @@ private fun FluidMenuLayerContent(
       intensity = { fade() * (1f - backProgress * 0.6f) },
       interactive = entry.visible,
       onDismiss = entry.onDismissRequest,
+      look = scrimLook,
     )
     Box(
       modifier = Modifier
@@ -293,7 +302,20 @@ private fun FluidMenuLayerContent(
           hostWidthPx = host.width,
         )
       }
-      val anchorRect = anchor?.restBounds ?: origin ?: Rect(host.width / 2f, host.height / 2f, host.width / 2f, host.height / 2f)
+      // F5A.4: il contestuale si apre accanto alla card SOLLEVATA (o all'anteprima personalizzata, alla sua
+      // taglia misurata), non accanto alla riga a riposo: la card cresce attorno al centro, e un'anteprima
+      // piu' grande dell'elemento lo coprirebbe.
+      val liftTarget = if (anchor == null && origin != null) {
+        fluidContextLiftTarget(
+          source = origin,
+          previewSize = lift?.takeIf { it.preview != null }?.previewSize?.let { Size(it.width.toFloat(), it.height.toFloat()) },
+          host = host,
+          marginPx = metrics.marginPx,
+        )
+      } else {
+        null
+      }
+      val anchorRect = anchor?.restBounds ?: liftTarget ?: origin ?: Rect(host.width / 2f, host.height / 2f, host.width / 2f, host.height / 2f)
       val panel = solveFluidMenuPanel(
         anchor = anchorRect,
         host = host,
@@ -353,6 +375,13 @@ private fun FluidMenuLayerContent(
           progress = progress,
           presence = fade,
           swells = true,
+          target = liftTarget,
+          closing = { !entry.visible },
+          anchorScale = lift?.anchorScale ?: { 1f },
+          shape = lift?.previewShape,
+          custom = lift?.preview,
+          customMaxSize = fluidContextPreviewMaxSize(host, metrics.marginPx),
+          onCustomMeasured = { measured -> if (lift != null && lift.previewSize != measured) lift.previewSize = measured },
         )
       }
 
@@ -859,7 +888,8 @@ private fun FluidAlertButton(
 
 /** Il titolo per TalkBack di un menu che non ne ha dato uno. */
 
-private const val FluidMenuLayerFadeInMillis = 110
+/** L'arrivo dello scrim e del materiale dei menu dell'host; interna per la traccia del contestuale (F5A.4). */
+internal const val FluidMenuLayerFadeInMillis = 110
 private const val FluidAlertFadeInMillis = 140
 private const val FluidAlertExitMillis = 160
 private const val FluidAlertEnterScale = 1.08f

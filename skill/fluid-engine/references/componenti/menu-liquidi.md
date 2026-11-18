@@ -227,8 +227,9 @@ l'apertura, non `onClick`). Con `actions = null` è il vecchio `FluidGlassIconBu
 
 ## Il menu di una riga o di una card: `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`
 
-**Cos'è.** Il menu contestuale: tieni premuta una riga, la riga si **solleva** (diventa una card di vetro sorella della sua immagine
-registrata), il pannello cresce accanto a lei da una goccia appesa al suo bordo, sotto il dito. Due pezzi e non uno, e la
+**Cos'è.** Il menu contestuale: tieni premuta una riga, la pagina va **dietro uno scrim più scuro di quello dei menu, con una
+sfocatura leggera**, la riga si **solleva** (diventa una card di vetro sorella della sua immagine registrata, o l'anteprima che
+le dai), il pannello cresce accanto a lei da una goccia appesa al suo bordo, sotto il dito. Due pezzi e non uno, e la
 divisione non è ordine: un `detectTapGestures { onLongPress }` accanto al `combinedClickable` di una riga **non scatta mai**
 (il click consuma il gesto e il click lungo viene mangiato in silenzio, com'è successo la prima volta). Chi gestisce già i click deve aprire il
 menu dal **proprio** click lungo: è il mestiere di `FluidContextMenuController.open()`. `Modifier.fluidContextMenu` è la forma comoda per gli
@@ -236,13 +237,23 @@ elementi che *non* gestiscono click.
 
 ```kotlin
 @Composable
-fun rememberFluidContextMenu(actions: () -> List<FluidContextAction>, tint: Color? = null): FluidContextMenuController
+fun rememberFluidContextMenu(
+  actions: () -> List<FluidContextAction>,
+  tint: Color? = null,
+  previewShape: Shape? = null,                  // 4.0 (F5A.4): contentShape(.contextMenuPreview, _)
+  preview: (@Composable () -> Unit)? = null,    // 4.0 (F5A.4): contextMenu(menuItems:preview:)
+): FluidContextMenuController
 
 @Composable
 fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier
 
 @Composable
-fun Modifier.fluidContextMenu(actions: () -> List<FluidContextAction>, enabled: Boolean = true): Modifier
+fun Modifier.fluidContextMenu(
+  actions: () -> List<FluidContextAction>,
+  enabled: Boolean = true,
+  previewShape: Shape? = null,
+  preview: (@Composable () -> Unit)? = null,
+): Modifier
 
 class FluidContextMenuController { val isOpen: Boolean; fun open(): Boolean; fun dismiss() }
 ```
@@ -260,6 +271,23 @@ Box(
       )
     }),
 )
+```
+
+Con un'anteprima diversa dall'elemento e la forma del ritaglio (da `MenusDemo`, «Anteprima e forma»): tenuta premuta, la tessera
+diventa l'anteprima, centrata su di lei, e il menu si apre accanto all'anteprima.
+
+```kotlin
+Box(
+  modifier = Modifier
+    .size(96.dp)
+    .fluidContextMenu(
+      actions = { voci },
+      previewShape = ContinuousCornerShape(FluidRadius.Group),
+      preview = { Foto(modifier = Modifier.size(280.dp, 180.dp)) },
+    ),
+)
+// Un tondo che si solleva tondo: la sagoma del vetro e il ritaglio dell'immagine sono la stessa forma.
+Avatar(modifier = Modifier.size(64.dp).clip(CircleShape).fluidContextMenu(actions = { voci }, previewShape = CircleShape))
 ```
 
 La forma per un elemento con click propri (è quello che fa `FluidListRow` dietro `contextActions`):
@@ -283,9 +311,32 @@ Box(
 - **`open()` ritorna `false`** senza host, con un menu già aperto o con zero voci: chi chiama suona `Open` **solo se ritorna vero**
   (`FluidListRow` altrimenti ripiega sul suo `onLongClick` con `GestureStart`).
 - **Aperto, la riga non si disegna più** nel suo posto (`lifted`: lo spazio resta riservato, nulla sotto si muove). La riga che vedi è
-  la sua *registrazione* in una superficie Fluid-physics: sagoma dalla riga alla riga gonfiata del 3% attorno al centro del bordo
-  contro cui si apre il menu; a scalare è solo l'immagine, che non è vetro. La riga torna alla pagina **solo a uscita finita**
-  (`isOnScreen`): restituirla alla richiesta di congedo la mostrava sotto un pannello che le si stava ancora ripiegando addosso.
+  la sua *registrazione* in una superficie Fluid-physics: la sagoma va dalla riga alla riga gonfiata del 3% **attorno al centro**
+  (`fluidLiftedFrame`) con la molla del menu, oltrepasso compreso; a scalare è solo l'immagine, che non è vetro. La riga torna alla pagina
+  **solo a uscita finita** (`isOnScreen`): restituirla alla richiesta di congedo la mostrava sotto un pannello che le si stava ancora
+  ripiegando addosso.
+- **Il sollevamento è continuo** (4.0, F5A.4). La card parte dalla scala che la riga ha **sotto il dito** al click lungo
+  (`fluidLiftStartFraction`: la riga gonfiata del 2% e la card sono lo stesso rettangolo), non dalla riga a riposo: prima la riga
+  rimpiccioliva del 2% in un fotogramma prima di sollevarsi. La partenza resta ferma per tutta l'andata (il dito che si alza mentre la
+  card sale non la fa tornare indietro) e torna viva al ritorno: a dito alzato la card finisce esattamente sulla riga a riposo, che
+  ricompare nello stesso fotogramma. L'immagine **segue la sagoma del vetro** (`fluidLiftContentMap`: centrata, una scala sola, il
+  minore dei due rapporti dei lati, perché il gonfiore dell'arrivo è più alto che largo), non una scala calcolata a parte.
+- **Lo sfondo del contestuale** (4.0, F5A.4, scelta di Alessio del 10 novembre: «scurito con una sfocatura leggera»): uno scrim suo,
+  più scuro di quello dei menu dal tasto. Tre livelli (`FluidContextScrimLevel`, nel file dello scrim): **A** 18% / 30% di nero (chiaro /
+  scuro), sfocatura 3,75 dp; **B** 24% / 38%, 5 dp; **C** 32% / 48%, 6,5 dp. Di serie **B**, la proposta in attesa della scelta sulle
+  tavole (`sessioni/f5a-4/`). Nessuno passa i 7 dp di sfocatura (`FluidScrimBlurCeilingDp`): oltre ~8 dp uno scrim a tutto schermo
+  trasmette la media della pagina. La pellicola della finestra del menu porta lo stesso nero (`FluidScrimLook.color`), perché campiona
+  la pagina cruda: un livello cambiato in un posto solo farebbe un menu più chiaro o più scuro della pagina attorno. iOS 26 scurisce
+  soltanto (R1 X2): la sfocatura è la deroga voluta.
+- **L'anteprima personalizzata** (`preview`): composta dall'host alla sua taglia (al più larga quanto lo schermo meno i margini e alta
+  il 55% dello schermo, `fluidContextPreviewMaxSize`), centrata sull'elemento e dentro i margini (`fluidContextPreviewFrame`). La card va
+  dall'elemento all'anteprima; i due contenuti si scambiano **attraverso la sfocatura** (l'elemento se ne va fra 0,05 e 0,45 del
+  sollevamento, l'anteprima arriva fra 0,15 e 0,6, sfocati fino a 8 dp per la parte che manca). Il menu si apre accanto all'anteprima.
+  La taglia si misura al primo fotogramma: in quel fotogramma la card e la goccia sono ancora spente, quindi non si vede.
+- **La forma** (`previewShape`): la sagoma del vetro e il ritaglio dell'immagine insieme, come `contentShape(.contextMenuPreview, _)`.
+  Una forma ad angoli (`RoundedCornerShape`, `CircleShape`, `ContinuousCornerShape`) dà i suoi raggi; un rettangolo, angoli vivi; una
+  forma libera ritaglia l'immagine com'è, ma il vetro resta il rettangolo arrotondato dei pannelli (il campo di Fluid-physics è fatto di
+  lastre). Senza forma: il raggio dei pannelli (22 dp).
 - **La goccia del contestuale**: un cerchio da 28 dp appeso al bordo della riga che guarda il pannello, sotto il dito (o al centro
   della riga), che entra nella riga di 4 dp; il corpo del menu esce da lì come una goccia e a progresso 0,15 è tutta fuori. Prima il seme era
   il pannello a 0,42 attorno al perno: un pannello piccolo che compariva dal nulla accanto alla riga, due oggetti. Il punto d'origine è
@@ -455,6 +506,11 @@ Puri, in `engine-ui` (JVM):
   (252 → 340, mai oltre lo schermo).
 - `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, **l'inversione a 100 ms**, riaprire mentre si chiude.
 - `FluidMenuMotionTest`: le finestre di opacità e il loro verso, la mappa del contenuto, il gonfiore, i token.
+- `FluidContextLiftTest` (F5A.4): al click lungo la card è la riga gonfiata (sagoma e scala dell'immagine), alla fine del ritorno è la riga
+  a riposo, l'oltrepasso, l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra
+  compreso), lo scambio, i tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura).
+- `F5a4ContextExportTest` (F5A.4): le tracce del contestuale per il banco del movimento (tre livelli, chiaro e scuro, apertura e ritorno),
+  con gli stessi fatti sulla sagoma della card e lo scrim che sale e scende senza salti.
 
 Nel `sample` (Robolectric, aptica registrata):
 

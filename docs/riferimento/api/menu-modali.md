@@ -11,9 +11,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val isOpen: Boolean get()`
   - `fun open(): Boolean` — Raises the menu. Returns false when there is nothing to show, so the caller can fall through.
   - `fun dismiss()`
-- `@Composable fun rememberFluidContextMenu(actions: () -> List<FluidContextAction>, tint: Color? = null): FluidContextMenuController` — The state behind a context menu, so a component that owns its own gestures can raise one.
+- `@Composable fun rememberFluidContextMenu(actions: () -> List<FluidContextAction>, tint: Color? = null, previewShape: Shape? = null, preview: (@Composable () -> Unit)? = null): FluidContextMenuController` — The state behind a context menu, so a component that owns its own gestures can raise one.
 - `@Composable fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier` — Marks the element a [FluidContextMenuController] belongs to.
-- `@Composable fun Modifier.fluidContextMenu(actions: () -> List<FluidContextAction>, enabled: Boolean = true): Modifier` — Long-press this element to raise a menu of actions anchored to it.
+- `@Composable fun Modifier.fluidContextMenu(actions: () -> List<FluidContextAction>, enabled: Boolean = true, previewShape: Shape? = null, preview: (@Composable () -> Unit)? = null): Modifier` — Long-press this element to raise a menu of actions anchored to it.
 
 ## `engine-ui/ui/fluid/FluidDateTimeSheet.kt`
 

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,6 +93,7 @@ fun MenusDemo() {
     BarSection(pick)
     RowsSection(pick)
     CardSection(pick)
+    PreviewSection(pick)
     AlertSection(pick)
   }
 }
@@ -229,6 +233,78 @@ private fun CardSection(pick: (String) -> Unit) {
     contentAlignment = Alignment.Center,
   ) {
     Text(text = "Tieni premuto qui", style = MaterialTheme.typography.titleMedium)
+  }
+}
+
+// --- L'anteprima e la forma (F5A.4) ------------------------------------------------------------------
+
+/**
+ * I due parametri di `contextMenu(menuItems:preview:)` e `contentShape(.contextMenuPreview, _)`: una tessera che,
+ * tenuta premuta, diventa un'anteprima piu' grande di se' (la card va dalla tessera all'anteprima, i due contenuti si
+ * scambiano attraverso la sfocatura, il menu si apre accanto all'anteprima), e un tondo che si solleva tondo.
+ */
+@Composable
+private fun PreviewSection(pick: (String) -> Unit) {
+  FluidSectionHeader(
+    title = "Anteprima e forma",
+    detail = "Modifier.fluidContextMenu(preview = …, previewShape = …): la tessera diventa la sua anteprima, il tondo resta tondo.",
+  )
+  val sky = Brush.linearGradient(listOf(Color(0xFF3A7BD5), Color(0xFF8E54E9), Color(0xFFF2994A)))
+  Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Box(
+      modifier = Modifier
+        .size(96.dp)
+        .clip(ContinuousCornerShape(FluidRadius.Card))
+        .drawBehind { drawRect(sky) }
+        .fluidContextMenu(
+          actions = {
+            listOf(
+              FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi (anteprima)") },
+              FluidContextAction(label = "Mi piace", icon = FluidIcons.Filled.Favorite) { pick("Mi piace (anteprima)") },
+            )
+          },
+          previewShape = ContinuousCornerShape(FluidRadius.Group),
+          preview = {
+            Box(
+              modifier = Modifier
+                .width(280.dp)
+                .height(180.dp)
+                .drawBehind { drawRect(sky) },
+              contentAlignment = Alignment.BottomStart,
+            ) {
+              Text(
+                text = "Tramonto, 18 novembre",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White,
+                modifier = Modifier.padding(16.dp),
+              )
+            }
+          },
+        )
+        .testTag("menus-preview-tile"),
+      contentAlignment = Alignment.Center,
+    ) {
+      Text(text = "Foto", style = MaterialTheme.typography.labelLarge, color = Color.White)
+    }
+    Box(
+      modifier = Modifier
+        .size(64.dp)
+        .clip(CircleShape)
+        .drawBehind { drawRect(Color(0xFF34C759).copy(alpha = 0.85f)) }
+        .fluidContextMenu(
+          actions = {
+            listOf(
+              FluidContextAction(label = "Scrivi", icon = FluidIcons.Edit) { pick("Scrivi (tondo)") },
+              FluidContextAction(label = "Rimuovi", icon = FluidIcons.Delete, destructive = true) { pick("Rimuovi (tondo)") },
+            )
+          },
+          previewShape = CircleShape,
+        )
+        .testTag("menus-preview-circle"),
+      contentAlignment = Alignment.Center,
+    ) {
+      Text(text = "AP", style = MaterialTheme.typography.titleMedium, color = Color.White)
+    }
   }
 }
 

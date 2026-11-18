@@ -33,6 +33,7 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un menu su una riga di lista | `FluidListRow(contextActions = { … })` |
 | un menu su una card o una vista qualunque, che non ha un click suo | `Modifier.fluidContextMenu(actions = { … })` |
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` + `open()` dal suo click lungo |
+| un menu contestuale che solleva un'**anteprima diversa** dall'elemento, o con una **forma** sua | `preview = { … }` e `previewShape = …` di `Modifier.fluidContextMenu` o di `rememberFluidContextMenu` (4.0) → [menu-liquidi.md](menu-liquidi.md) |
 | un pannello di **contenuto** che nasce da una riga o da un tasto | `FluidGlassModalPortal(origin = …)` + `Modifier.fluidExpandOrigin` |
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
@@ -216,7 +217,9 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro (gli stessi livelli
   dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModalScrim` li legge da lì), `sizeResponse = 0`
   (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
-  non servirebbe: un rettangolo dipinto costa meno. Arriva con un alpha sul pannello finito, **mai** con
+  non servirebbe: un rettangolo dipinto costa meno. **Il menu contestuale ha un livello suo**, più scuro (4.0, F5A.4: di
+  serie 24% / 38% di nero e 5 dp di sfocatura, `FluidScrimLook` e `FluidContextScrimLevel`, mai oltre 7 dp): li' la pagina deve
+  andare *dietro* l'elemento sollevato (scelta di Alessio, vedi [menu-liquidi.md](menu-liquidi.md)). Arriva con un alpha sul pannello finito, **mai** con
   l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni
   fotogramma).
 - **Il pannello rifrange la pagina «come l'ha lasciata lo scrim»** (un fondale combinato), non la pagina cruda: altrimenti
@@ -702,6 +705,8 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
   tasti; tasti in vista sotto un corpo più lungo del foglio; larghezza massima; conferma e annulla sono due cose;
   il tasto invio conferma solo se valido; un valore fuori misura mostra la frase e tiene spento il tasto.
 - `FluidPromptAlertTest`: vuoto = `Incomplete`; trim uguale per validare e confermare; selezione d'apertura.
+- `FluidContextLiftTest` (engine-ui, F5A.4): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
+  sono più scuri, in ordine e sotto il tetto della sfocatura; la geometria del sollevamento (vedi [menu-liquidi.md](menu-liquidi.md)).
 - `FluidPopoverKeyboardTest`: il pop-up si posa sopra la tastiera. `FluidHostContentColorTest`: il testo negli host ha il
   colore della superficie sul tema scuro.
 - `FluidMenuHandOffTest` (sample): l'avviso sta nell'host senza finestre di piattaforma, esce anche dopo la rimozione,
@@ -727,11 +732,11 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 |---|---|
 | `FluidGlassModalPortal.kt` | il lato di chi dichiara: `FluidGlassModalPresentation`, `FluidContextAction`, il portale (due overload), `fluidExpandOrigin` |
 | `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
-| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) |
+| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`), il tetto della sfocatura |
 | `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
 | `FluidGlassModalSheet.kt` | il foglio e la pagina intera (`FluidGlassModalSheet`), la barra in cima della pagina intera, i numeri privati del foglio |
-| `FluidLiftedPreview.kt` | la riga sollevata del menu contestuale (`FluidLiftedPreview`) |
-| `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu` |
+| `FluidLiftedPreview.kt` | la card sollevata del menu contestuale (`FluidLiftedPreview`): partenza dalla riga sotto il dito, l'immagine sulla sagoma (`fluidLiftContentMap`), l'anteprima personalizzata e lo scambio attraverso la sfocatura |
+| `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`) |
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso (`FluidAlertLayer`, la card, i pulsanti con la goccia) |
 | `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert`, `FluidAlertAction`, il `Dialog` di ripiego |
 | `FluidSheetScaffold.kt` | `FluidSheetScaffold`, `FluidSheetScaffoldDefaults`, `FluidConfirmSheet`, l'aritmetica pura del budget |
@@ -739,5 +744,5 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidMotion.kt` | i token (`Popover*`, `SheetSettle`, e i menu: vedi [menu-liquidi.md](menu-liquidi.md)) |
 
 Il sample che li usa: `MaterialTab.kt` (portali con e senza origine, foglio), `catalog/RowsAndSheetsDemo.kt` (conferme e
-prompt), `catalog/MenusDemo.kt` (l'avviso a due e a tre pulsanti), `catalog/AllGlassDemo.kt` (la pagina intera),
+prompt), `catalog/MenusDemo.kt` (l'avviso a due e a tre pulsanti; il contestuale con anteprima e forma), `catalog/AllGlassDemo.kt` (la pagina intera),
 `GalleryActivity.kt` (la radice con i tre host).

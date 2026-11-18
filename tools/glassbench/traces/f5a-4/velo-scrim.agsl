@@ -1,0 +1,16 @@
+// ATTREZZO del banco del movimento: lo scrim dei modali (`FluidGlassModalScrim`) nelle tracce del contestuale (F5A.4).
+//
+// Lo scrim e' un velo piatto: senza lente, bordo ne' ombra, quindi l'engine lo disegna col vetro di prima (`Classic`,
+// `isFlatVeil`): la pagina sfocata (l'ingresso `content`, con il `blurDp` del livello) e sopra un nero all'alfa del
+// livello (`GlassTint.overlay`, `SrcOver`). La dissolvenza d'arrivo e d'uscita e' l'alfa del layer finito, cioe'
+// l'`alpha` dell'elemento della traccia. Non e' uno shader dell'engine: i numeri li scrive la traccia, dal Kotlin.
+//
+// Regole AGSL di Android 13 rispettate: nessun ciclo, nessuna derivata, l'ingresso solo con `eval`.
+
+uniform shader content;   // la pagina sotto lo scrim, gia' sfocata
+uniform float dim;        // il nero del livello, 0..1 (`FluidScrimLook.alpha`)
+
+half4 main(float2 coord) {
+    half4 c = content.eval(coord);
+    return half4(c.rgb * half(1.0 - dim), c.a);
+}

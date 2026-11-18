@@ -28,6 +28,11 @@
  *    propri limiti, e una maniglia che sporge viene mozzata dal primo contenitore che ritaglia;
  *  - ci sono `enabled`, la fine del gesto, le tacche di scatto con il loro tocco aptico, TalkBack,
  *    il movimento ridotto e un ripiego senza RenderEffect, perche' li hanno tutti gli altri controlli.
+ *
+ * 4.0, F6.3 (piano «iOS in Android»): la maniglia sale nel vetro come quella di `UISlider` in iOS 26 (WWDC25 284,
+ * misurata a tempo vero): la lente cresce con la pressione senza superamento, si stira con l'**accelerazione** (con il
+ * segno e ad area costante, non piu' con il modulo della velocita') e ha attorno un alone dell'accento. Vedi
+ * `GlassDropRise` in `glass/interaction/GlassDrop.kt`. Codice del Fluid Engine, non di Kyant.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
@@ -44,9 +49,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +96,8 @@ import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropGlow
+import dev.antigravity.fluidengine.ui.glass.interaction.rememberGlassDropRiseMotion
 import dev.antigravity.fluidengine.ui.haptics.FluidDetent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
@@ -209,7 +218,9 @@ fun FluidSlider(
       valueRange = 0f..1f,
       visibilityThreshold = 0.001f,
       initialScale = 1f,
-      pressedScale = 1.5f,
+      // A uno (F6.3): la taglia della lente la decide la salita nel vetro (`rememberGlassDropRiseMotion`), dalla
+      // pressione; le molle della scala di Kyant arrivavano a ×1,5 con un superamento che Apple non ha.
+      pressedScale = 1f,
     )
   }
 
@@ -223,6 +234,10 @@ fun FluidSlider(
       }
     }
   }
+
+  // Il dito tiene la maniglia: lo stiramento della lente ha il suo segno; senza (un tocco sulla pista, un valore da
+  // fuori) si allunga solo nel verso del moto.
+  var fingerOnThumb by remember { mutableStateOf(false) }
 
   val detents = remember { FluidHapticDetents() }
   val notches = remember { FluidSliderNotchGate() }
@@ -347,6 +362,7 @@ fun FluidSlider(
         }
 
         dragAnimation.press()
+        fingerOnThumb = true
         detents.restartAt(dragAnimation.targetValue, SliderTickSteps)
         notches.restart(fluidSliderStopIndex(currentValue, currentStops, currentRange, currentThreshold))
         var pointer = down.id
@@ -379,6 +395,7 @@ fun FluidSlider(
             change.consume()
           }
         } finally {
+          fingerOnThumb = false
           dragAnimation.release()
           currentFinished?.invoke()
         }
@@ -420,6 +437,13 @@ fun FluidSlider(
   ) {
     val trackPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
     val thumbPx = with(density) { ThumbWidth.toPx() }
+    // La lente (F6.3): cresce con la pressione e si stira con l'accelerazione lungo tutta la pista.
+    val riseMotion = rememberGlassDropRiseMotion(
+      drag = dragAnimation,
+      travelDp = { trackPx / density.density },
+      reducedMotion = { currentReducedMotion },
+      followsFinger = { fingerOnThumb },
+    )
 
     // 1. Le tacche, sotto la pista e fuori dalla registrazione: la maniglia non le piega, e non
     // devono fare parte di quello che la pista e' per la lente.
@@ -487,18 +511,23 @@ fun FluidSlider(
         }
         .then(
           if (isRenderEffectSupported()) {
-            // La goccia di Kyant (`glass/interaction/GlassDrop.kt`): bianca a riposo, lente sotto il
-            // dito. Il pomello dello slider ha la lente 10/14 dp e lo squash dal MODULO della
-            // velocita': la sorgente dividendo per 1 - v allunga la pillola in un verso e la
-            // accorcia nell'altro, e qui si allunga sempre.
-            Modifier.glassDrop(
-              backdrop = thumbBackdrop,
-              drag = dragAnimation,
-              lensSize = GlassDropLens.Slider,
-              squashDivisor = GlassDropRecipe.SquashDivisor,
-              squashSigned = false,
-              reducedMotion = { currentReducedMotion },
-            )
+            // La goccia (`glass/interaction/GlassDrop.kt`) che sale nel vetro (F6.3): bianca a riposo,
+            // lente sotto il dito (10/14 dp dove il materiale nuovo non c'e'), con dietro l'alone
+            // dell'accento. Taglia e stiramento li da' `riseMotion`, con la velocita' a zero: lo squash
+            // dal modulo della velocita' non agisce piu'. La lente di Apple si stringe partendo verso
+            // sinistra e si allunga partendo verso destra; a velocita' costante torna la sua.
+            Modifier
+              .glassDropGlow(riseMotion) { accentColor }
+              .glassDrop(
+                backdrop = thumbBackdrop,
+                motion = riseMotion,
+                lensSize = GlassDropLens.Slider,
+                squashDivisor = GlassDropRecipe.SquashDivisor,
+                squashSigned = false,
+                reducedMotion = { currentReducedMotion },
+                // Sotto la lente tenuta Apple non ha un'ombra scura: ha l'alone dell'accento qui sopra.
+                shadowFade = 1f,
+              )
           } else {
             Modifier
               .graphicsLayer {

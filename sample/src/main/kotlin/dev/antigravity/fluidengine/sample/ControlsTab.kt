@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,6 +26,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
+import dev.antigravity.fluidengine.ui.fluid.FluidSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidSwitch
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.theme.FluidCard
@@ -47,6 +49,8 @@ internal fun ControlsTab(bottomInset: Dp) {
   var segment by remember { mutableStateOf("Mese") }
   var chip by remember { mutableStateOf("Tutti") }
   var query by remember { mutableStateOf("") }
+  var riseSwitch by remember { mutableStateOf(true) }
+  var riseSlider by remember { mutableFloatStateOf(0.45f) }
 
   FluidScreen(
     title = "Controlli",
@@ -78,6 +82,29 @@ internal fun ControlsTab(bottomInset: Dp) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 4.dp),
       )
+    }
+
+    // F6.3: i due pomelli che salgono nel vetro, su una card piena come la pagina delle Impostazioni di Apple: li'
+    // la lente non ha altro da piegare che la pista, e si vede com'e' fatta.
+    item(key = "rise-header") { FluidSectionHeader(title = "Salgono nel vetro") }
+    item(key = "rise") {
+      FluidCard {
+        SwitchRow("Tocca o trascina", riseSwitch) { riseSwitch = it }
+        FluidSlider(
+          value = riseSlider,
+          onValueChange = { riseSlider = it },
+          contentDescription = "Cursore che sale nel vetro",
+        )
+        Text(
+          text = "Al tocco il pomello diventa una lente limpida una volta e mezza piu' grande, senza " +
+            "rimbalzo, con attorno un alone del colore della pista. Un tocco sull'interruttore la forma " +
+            "sul posto, poi la fa correre e la richiude all'arrivo; la pista cambia colore quando il " +
+            "pomello passa la meta'. Trascinata, la lente si allunga quando accelera e si stringe quando " +
+            "frena; a velocita' costante torna la sua.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
     }
 
     item(key = "segments-header") { FluidSectionHeader(title = "Segmenti") }

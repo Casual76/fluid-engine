@@ -1,0 +1,21 @@
+// ATTREZZO del banco del movimento (F6.3): l'alone colorato della lente di un pomello tenuto.
+//
+// Lo stesso disegno di `Modifier.glassDropGlow` (`glass/interaction/GlassDrop.kt`): un'ellisse inscritta nel
+// rettangolo dell'elemento, del colore dato, piena fino a `core` del raggio e poi a zero in modo lineare, come il
+// gradiente radiale a tre fermate dell'engine. Il rettangolo lo calcola la traccia con `glassDropGlow`.
+// Non e' uno shader dell'engine: l'engine disegna con un `Brush.radialGradient`.
+//
+// Regole AGSL di Android 13 rispettate: nessun ciclo, nessuna derivata, nessun ingresso.
+
+uniform float2 center;            // il centro dell'ellisse (px, nel riquadro dell'elemento)
+uniform float2 radii;             // i due raggi (px)
+layout(color) uniform half4 color; // non premoltiplicato: l'alfa e' quella piena dell'alone
+uniform float core;               // fin dove l'alone e' pieno, in frazione del raggio
+
+half4 main(float2 coord) {
+    float2 d = (coord - center) / max(radii, float2(1e-4));
+    float r = length(d);
+    float a = clamp((1.0 - r) / max(1.0 - core, 1e-4), 0.0, 1.0);
+    half alpha = color.a * half(a);
+    return half4(color.rgb * alpha, alpha);
+}

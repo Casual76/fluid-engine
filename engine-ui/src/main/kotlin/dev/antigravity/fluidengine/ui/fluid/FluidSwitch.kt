@@ -14,9 +14,17 @@
  * the source's hardcoded iOS green; a tap anywhere on the control flips it, where the source only
  * answered the thumb; and it has an `enabled` state, haptics and accessibility, because every
  * other control in this engine does.
+ *
+ * 4.0, F6.3 (piano «iOS in Android»): come il pomello sale nel vetro non è più quello della sorgente. La lente
+ * cresce con la pressione senza superamento, si stira con l'accelerazione ad area costante, ha attorno un alone
+ * del colore della pista; un tocco la forma sul posto prima di farla correre; il colore della pista cambia quando il
+ * pomello passa la metà, con una sua dissolvenza. Misurato su `UISwitch` di iOS 26 (WWDC25 284 e 219): vedi
+ * `GlassDropRise` in `glass/interaction/GlassDrop.kt`. Codice del Fluid Engine, non di Kyant.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -28,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -68,10 +77,18 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRise
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
+import dev.antigravity.fluidengine.ui.glass.interaction.glassDropGlow
+import dev.antigravity.fluidengine.ui.glass.interaction.rememberGlassDropRiseMotion
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * The switch.
@@ -163,6 +180,8 @@ internal fun FluidSwitchControl(
   // that is not the accent.
   val trackColor =
     if (dark) Color(0xFF787880).copy(alpha = 0.36f) else Color(0xFF787878).copy(alpha = 0.2f)
+  // L'alone della lente sopra la pista spenta: lo stesso grigio, pieno (l'alone ha la sua alfa).
+  val trackGlowOff = if (dark) Color(0xFF787880) else Color(0xFF787878)
 
   val density = LocalDensity.current
   val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -187,9 +206,27 @@ internal fun FluidSwitchControl(
       valueRange = 0f..1f,
       visibilityThreshold = 0.001f,
       initialScale = 1f,
-      pressedScale = 1.5f,
+      // Le scale restano a uno (F6.3): la taglia della lente la decide la salita nel vetro, dalla pressione
+      // (`rememberGlassDropRiseMotion`). Le molle della scala di Kyant arrivavano a ×1,5 con un superamento del
+      // 9,5%, il gonfiarsi e sgonfiarsi che il pomello di Apple non ha.
+      pressedScale = 1f,
     )
   }
+  // La lente: cresce con la pressione e si stira con l'accelerazione lungo i 20 dp della corsa; col dito con il suo
+  // segno, nella corsa di un tocco solo in avanti.
+  var fingerOnThumb by remember { mutableStateOf(false) }
+  val riseMotion = rememberGlassDropRiseMotion(
+    drag = dragAnimation,
+    travelDp = { DragWidth.value },
+    reducedMotion = { currentReducedMotion },
+    followsFinger = { fingerOnThumb },
+    stretchCap = GlassDropRise.SwitchStretchCap,
+  )
+
+  // Il tocco che commuta (F6.3, come in Apple): la lente si forma sul posto, poi corre, poi si richiude.
+  // `tapTravel.target` e' il lato verso cui sta per correre: l'effetto del chiamante qui sotto, che vede lo stato
+  // nuovo prima della corsa, non deve anticiparla.
+  val tapTravel = remember { SwitchTapTravel() }
 
   // Two directions, and they are not the same animation. This one is the finger: the fraction
   // moves under a drag and the thumb follows it without a press ramp of its own.
@@ -208,6 +245,8 @@ internal fun FluidSwitchControl(
   // state that never happened.
   LaunchedEffect(dragAnimation, reducedMotion) {
     snapshotFlow { currentChecked }.collectLatest { isChecked ->
+      // Un tocco che sta formando la lente correra' da solo, fra un attimo.
+      if (tapTravel.target == isChecked) return@collectLatest
       val target = if (isChecked) 1f else 0f
       if (target != fraction) {
         fraction = target
@@ -217,6 +256,17 @@ internal fun FluidSwitchControl(
           dragAnimation.animateToValue(target)
         }
       }
+    }
+  }
+
+  // Il colore della pista (F6.3): segue il pomello che si vede (non il dito) con una molla critica sua
+  // (`GlassDropRise.TrackTintStiffness`, ~100 ms di ritardo). In Apple (284) il verde comincia a spegnersi appena il
+  // pomello parte e finisce 170–330 ms dopo; prima qui era la posizione stessa, senza ritardo. Con le animazioni
+  // ridotte e' la posizione, che si posa.
+  val trackTint = remember { Animatable(if (checked) 1f else 0f) }
+  LaunchedEffect(trackTint, dragAnimation, reducedMotion) {
+    snapshotFlow { dragAnimation.value }.collectLatest { value ->
+      if (reducedMotion) trackTint.snapTo(value) else trackTint.animateTo(value, SwitchTrackTintSpec)
     }
   }
 
@@ -248,10 +298,47 @@ internal fun FluidSwitchControl(
    * passa la meta', e al rilascio non vibra una seconda volta per la stessa cosa. Vibra solo se il
    * pomello finisce da una parte diversa da quella che il dito ha sentito per ultima.
    */
-  fun settle(target: Boolean, announced: Boolean) {
-    fraction = if (target) 1f else 0f
+  fun settle(target: Boolean, announced: Boolean, move: Boolean = true) {
+    if (move) fraction = if (target) 1f else 0f
     if (target != announced) currentHaptics.play(fluidSwitchHaptic(target))
     if (target != currentChecked) currentOnCheckedChange?.invoke(target)
+  }
+
+  /**
+   * Il tocco, come in Apple (219, R4 B5): la pressione (gia' data da chi chiama, da [pressedForMillis]) forma la
+   * lente sul posto, e quando ha avuto [GlassDropRise.TapTravelDelayMillis] il pomello corre verso [target]; la lente
+   * resta formata [GlassDropRise.TapDwellMillis] dopo l'arrivo e si richiude. Il gesto lo ha gia' detto al chiamante:
+   * qui si muove soltanto.
+   */
+  fun riseThenTravel(target: Boolean, pressedForMillis: Long) {
+    tapTravel.job?.cancel()
+    tapTravel.target = target
+    tapTravel.job = animationScope.launch {
+      // La lente ha bisogno del suo tempo per formarsi, contato da quando il dito l'ha premuta.
+      delay((GlassDropRise.TapTravelDelayMillis - pressedForMillis).coerceAtLeast(0L))
+      if (tapTravel.target != target) return@launch
+      tapTravel.target = null
+      tapTravel.job = null
+      val to = if (target) 1f else 0f
+      fraction = to
+      dragAnimation.updateValue(to)
+      // Arrivato (lo stesso margine di `release`), la lente resta formata un attimo e poi si richiude.
+      snapshotFlow { abs(dragAnimation.value - to) < TapArrival }.first { it }
+      delay(GlassDropRise.TapDwellMillis)
+      dragAnimation.release()
+    }
+  }
+
+  /** Un dito nuovo mentre la lente di un tocco si sta formando: il tocco corre subito, e il gesto parte da li'. */
+  fun finishPendingTap() {
+    val target = tapTravel.target ?: return
+    tapTravel.job?.cancel()
+    tapTravel.job = null
+    tapTravel.target = null
+    val to = if (target) 1f else 0f
+    fraction = to
+    dragAnimation.updateValue(to)
+    dragAnimation.release()
   }
 
   // Un solo rilevatore per tutto il controllo: tocco e trascinamento, sulla pista, sul pomello e
@@ -270,6 +357,7 @@ internal fun FluidSwitchControl(
       // La pagina invece scorre ancora: il suo `scrollable` non chiede un down libero.
       val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
       down.consume()
+      finishPendingTap()
 
       val slop = viewConfiguration.touchSlop
       val dragPx = DragWidth.toPx()
@@ -290,6 +378,7 @@ internal fun FluidSwitchControl(
       if (owned) {
         dragAnimation.press()
         pressed = true
+        fingerOnThumb = true
       }
       var anchorX = startX(down.position.x)
       var anchorFraction = fraction
@@ -320,14 +409,18 @@ internal fun FluidSwitchControl(
             if (owned || tap) change.consume()
             when {
               tap -> {
-                // Un tocco, ovunque sul controllo: commuta. Con la molla e la pressione della
-                // sorgente, cosi' anche un tocco mostra il vetro che si apre mentre il pomello va.
+                // Un tocco, ovunque sul controllo: commuta. La lente si forma sul posto, poi corre
+                // e si richiude all'arrivo (F6.3); con le animazioni ridotte il pomello si posa.
                 val target = !currentChecked
-                settle(target, announced)
-                if (!currentReducedMotion) {
-                  dragAnimation.animateToValue(if (target) 1f else 0f)
-                  // La pressione la chiude animateToValue, quando il pomello e' arrivato.
-                  pressed = false
+                if (currentReducedMotion) {
+                  settle(target, announced)
+                } else {
+                  // Il pomello gia' preso (il dito era sceso su di lui) ha la sua pressione: la chiude la corsa,
+                  // non il `finally`. Uno toccato sulla pista vuota la riceve adesso.
+                  val pressedFor = if (pressed) change.uptimeMillis - down.uptimeMillis else 0L
+                  if (pressed) pressed = false else dragAnimation.press()
+                  riseThenTravel(target, pressedFor)
+                  settle(target, announced, move = false)
                 }
               }
               owned -> {
@@ -353,6 +446,7 @@ internal fun FluidSwitchControl(
                 anchorFraction = fraction
                 dragAnimation.press()
                 pressed = true
+                fingerOnThumb = true
               }
               // La pagina scorre: il gesto e' suo, e questo controllo non si e' mai mosso.
               FluidSliderClaim.Page -> break
@@ -380,6 +474,7 @@ internal fun FluidSwitchControl(
           }
         }
       } finally {
+        fingerOnThumb = false
         if (pressed) dragAnimation.release()
       }
     }
@@ -415,7 +510,7 @@ internal fun FluidSwitchControl(
       Modifier
         .layerBackdrop(trackBackdrop)
         .clip(FluidCapsuleShape)
-        .drawBehind { drawRect(lerp(trackColor, accentColor, dragAnimation.value)) }
+        .drawBehind { drawRect(lerp(trackColor, accentColor, trackTint.value)) }
         .size(TrackWidth, TrackHeight),
     )
 
@@ -431,16 +526,22 @@ internal fun FluidSwitchControl(
         }
         .then(
           if (isRenderEffectSupported()) {
-            // La goccia di Kyant (`glass/interaction/GlassDrop.kt`), coi numeri del port di
-            // `LiquidToggle`: lente 5/10 dp, e lo squash CON IL SEGNO e diviso per 50, senza il
-            // cancello delle animazioni ridotte. E' il metro della ricetta e conserva i suoi numeri.
-            Modifier.glassDrop(
-              backdrop = thumbBackdrop,
-              drag = dragAnimation,
-              lensSize = GlassDropLens.Switch,
-              squashDivisor = GlassDropRecipe.SwitchSquashDivisor,
-              squashSigned = true,
-            )
+            // La goccia (`glass/interaction/GlassDrop.kt`) che sale nel vetro (F6.3): dietro, l'alone del
+            // colore della pista; la lente di Kyant (5/10 dp) dove il materiale nuovo non c'e'. Taglia e
+            // stiramento li da' `riseMotion`, con la velocita' a zero: lo squash della sorgente (con il segno,
+            // diviso per 50) non agisce piu', e con le animazioni ridotte la lente non si deforma.
+            Modifier
+              .glassDropGlow(riseMotion) { lerp(trackGlowOff, accentColor, trackTint.value) }
+              .glassDrop(
+                backdrop = thumbBackdrop,
+                motion = riseMotion,
+                lensSize = GlassDropLens.Switch,
+                squashDivisor = GlassDropRecipe.SwitchSquashDivisor,
+                squashSigned = true,
+                reducedMotion = { currentReducedMotion },
+                // Sotto la lente tenuta Apple non ha un'ombra scura: ha l'alone qui sopra.
+                shadowFade = 1f,
+              )
           } else {
             Modifier
               .shadow(2.dp, FluidCapsuleShape)
@@ -491,6 +592,12 @@ private val ThumbInset: Dp = 2.dp
 
 /** How far the thumb travels, and therefore how far a finger has to drag to flip the switch. */
 private val DragWidth: Dp = 20.dp
+
+/** Il pomello di un tocco e' arrivato a meno di questo dal suo lato: lo stesso 2,5% della corsa di `release`. */
+private const val TapArrival = 0.025f
+
+/** La molla con cui il colore della pista segue il pomello: critica, `GlassDropRise.TrackTintStiffness`. */
+private val SwitchTrackTintSpec = spring(FluidMotion.DampingChrome, GlassDropRise.TrackTintStiffness, 0.001f)
 
 /**
  * Width helper so a row of controls can reserve the switch's footprint without instantiating one.
@@ -547,3 +654,9 @@ internal fun fluidSwitchLanding(fraction: Float, velocity: Float, flingVelocity:
 /** Cosa si sente quando l'interruttore si accende o si spegne: un colpo solo, leggero. */
 internal fun fluidSwitchHaptic(on: Boolean): FluidHapticEvent =
   if (on) FluidHapticEvent.ToggleOn else FluidHapticEvent.ToggleOff
+
+/** Il tocco che sta formando la lente prima di correre: il lato e il lavoro che la fara' correre (F6.3). */
+private class SwitchTapTravel {
+  var target: Boolean? = null
+  var job: Job? = null
+}

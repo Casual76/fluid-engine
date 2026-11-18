@@ -91,6 +91,11 @@ Le modifiche fatte finora:
     (`DragGestureInspector`) ma un gesto suo su tutto il controllo, come lo slider: tocco e
     trascinamento da qualunque punto, una spinta veloce che conta, e la vibrazione al passaggio della
     meta'. Le molle (`GlassDragAnimation`) restano quelle della sorgente.
+    Dalla 4.0.0 (F6.3, piano «iOS in Android») la salita nel vetro segue i tempi di `UISwitch` e
+    `UISlider` di iOS 26 misurati a tempo vero (sessione WWDC25 284): crescita della lente a x1,5 in
+    ~130-170 ms senza rimbalzo, stiramento dall'accelerazione e non dalla velocita', corsa dell'interruttore
+    che si allunga in avanti, colore della pista ~100 ms dietro il pomello, alone del colore della
+    pista attorno alla lente premuta (nuove costanti in `GlassDrop.kt`; le altre gocce restano com'erano).
 
 12. **Vetro su vetro** (2.13.0). Un nodo di `drawBackdrop` e' anche un contenitore che gli altri
     nodi trovano fra gli antenati (`TraversableNode`): pubblica il proprio materiale — sfondo,

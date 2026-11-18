@@ -16,8 +16,11 @@ nuovo (da Android 13), la goccia è lo stesso vetro dei tasti: a riposo è la fa
 vetro, senza filo né riflesso (arrivano con la lente, in proporzione alla pressione, e a pressione piena sono quelli
 dei tasti), e sotto il dito resta una **lente limpida** (niente velo né smerigliatura, un tono scuro
 leggero) che piega forte al bordo e cresce con la pressione. Una funzione sola, `glassDrop`, per tutti i controlli e
-per la goccia delle voci dei menu (profilo `GlassDropProfile`, derivato da quello di serie); geometria e tempi della
-goccia sono quelli di prima. Sotto Android 13 e con `Classic` resta la goccia di Kyant.
+per la goccia delle voci dei menu (profilo `GlassDropProfile`, derivato da quello di serie). Dalla 4.0 (F6.3) i pomelli
+di interruttore e cursore **salgono nel vetro coi tempi di Apple**: la lente cresce senza rimbalzo, si stira con
+l'accelerazione, ha attorno un alone del colore della pista, e un tocco sull'interruttore la forma prima di farla correre
+(tabella in [controlli-gesto.md](controlli-gesto.md), regola 2); le altre gocce hanno geometria e tempi di prima. Sotto
+Android 13 e con `Classic` resta la lente di Kyant, con gli stessi tempi nuovi.
 
 **La scheda è in due file**: questo (tasti, scelte, testo, regole comuni) e [controlli-gesto.md](controlli-gesto.md)
 (`FluidSwitch`, `FluidSlider`, `FluidScrubber`, e le licenze dei port di Kyant0 e LibrePods).

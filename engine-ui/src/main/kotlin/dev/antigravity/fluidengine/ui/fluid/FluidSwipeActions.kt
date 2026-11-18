@@ -107,8 +107,10 @@ import kotlinx.coroutines.launch
  * Un'azione che una riga rivela scorrendo di lato: archivia, segna come letta, elimina, fissa.
  *
  * Il colore e l'icona li sceglie chi chiama (l'engine non sa cosa vuol dire «archivia» in un'app), il colore
- * dell'icona no: lo sceglie il contrasto col colore dell'azione (≥ 4,5:1, lo stesso conto della pillola di
- * stato), cosi' un giallo chiaro non porta un'icona bianca che non si legge.
+ * dell'icona no: lo sceglie il contrasto col colore dell'azione, cosi' un giallo chiaro non porta un'icona bianca che
+ * non si legge. Sulla capsula di iOS 27 il glifo e' **bianco** dove il bianco fa almeno 3:1 col colore (oggetto
+ * grafico, come Apple), e l'inchiostro leggibile a 4,5:1 (lo stesso conto della pillola di stato) altrove; nell'aspetto
+ * `Fill` resta sempre quello a 4,5:1.
  *
  * @param label il nome dell'azione: e' quello che TalkBack offre fra le azioni della riga, perche' un gesto che
  *   solo chi vede puo' fare non e' un'azione, e' un trucco.
@@ -813,6 +815,9 @@ fun Modifier.fluidSwipeActions(
   val endPainter = endAction?.let { rememberVectorPainter(it.icon) }
   val startInk = startAction?.let { fluidLegibleInk(it.color.compositeOver(scheme.surface)) }
   val endInk = endAction?.let { fluidLegibleInk(it.color.compositeOver(scheme.surface)) }
+  // Il glifo della capsula e' un oggetto grafico, non testo: bianco come in Apple dove si legge (vedi fluidSwipeGlyphInk).
+  val startGlyphInk = startAction?.let { fluidSwipeGlyphInk(it.color.compositeOver(scheme.surface)) }
+  val endGlyphInk = endAction?.let { fluidSwipeGlyphInk(it.color.compositeOver(scheme.surface)) }
   val currentStart by rememberUpdatedState(startAction)
   val currentEnd by rememberUpdatedState(endAction)
   val measurer = if (style.isCapsule) rememberTextMeasurer() else null
@@ -921,7 +926,7 @@ fun Modifier.fluidSwipeActions(
               drawSwipeCapsule(
                 action = action,
                 painter = if (start) startPainter else endPainter,
-                ink = (if (start) startInk else endInk) ?: Color.White,
+                ink = (if (start) startGlyphInk else endGlyphInk) ?: Color.White,
                 label = if (start) startLabel else endLabel,
                 labelInk = lerp(neutralInk, action.color, state.armProgress.value),
                 physical = physical,
@@ -1358,6 +1363,20 @@ internal fun fluidSwipeCapsuleHeightPx(rowHeightPx: Float, density: Float): Floa
  */
 internal fun fluidSwipeGlyphPx(capsuleHeightPx: Float, density: Float): Float =
   (capsuleHeightPx * 0.45f).coerceIn(16f * density, 20f * density)
+
+/**
+ * L'inchiostro del glifo sulla capsula piena di colore [background] (gia' composto sulla superficie).
+ *
+ * In Apple il glifo e' **bianco** (R5 L3, misurato sul cestino della capsula rossa 251/34/26). Qui la regola di prima,
+ * [fluidLegibleInk] a 4,5:1, e' quella del *testo*: sul rosso di sistema (`#FF3B30`, 3,55:1 col bianco) sceglieva il
+ * quasi-nero, e S9 ha visto un cestino scuro dove Apple lo ha bianco. Il glifo pero' e' un oggetto grafico, che WCAG
+ * 1.4.11 vuole a 3:1 ([FluidFillMinContrast]): il bianco regge sul rosso e sul blu di sistema, e solo dove non arriva
+ * (un giallo chiaro, un azzurro pallido, un arancione) si torna all'inchiostro leggibile, cosi' un'icona non sparisce.
+ * Su un colore chiaro Apple non e' stato misurato (le misure di F6.6 hanno solo il rosso): li' si sceglie la
+ * leggibilita'. Chi vuole sempre il bianco sceglie un colore piu' scuro.
+ */
+internal fun fluidSwipeGlyphInk(background: Color): Color =
+  if (fluidContrastRatio(Color.White, background) >= FluidFillMinContrast) Color.White else fluidLegibleInk(background)
 
 /**
  * Lo spazio della capsula, da un capo all'altro in px (sinistra, destra): fra la riga spostata di [physicalPx] (meno il

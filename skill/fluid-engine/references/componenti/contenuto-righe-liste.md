@@ -269,7 +269,9 @@ misurati fotogramma per fotogramma sulla sessione 269 di WWDC26 in 4K (lista a 1
 - **la riga si prende**: appena il dito la tiene diventa un rettangolo arrotondato col raggio della riga sollevata dal menu contestuale
   (`FluidRadius.Group`, al più metà altezza), velato del 7% d'inchiostro (la riga presa di Apple sta 20 livelli sotto il foglio), e scorre col dito;
 - **la capsula nasce** nello spazio che si apre, del colore dell'azione e **piena** (nessun filo, nessun riflesso: è ciò che si misura sul rosso di Apple),
-  col glifo nell'inchiostro leggibile e **l'etichetta grigia sotto** (11 sp). Sta fra la riga e il bordo con 8 dp da ogni lato (Apple 7,4 e 7 pt),
+  col glifo **bianco** (dove il bianco fa almeno 3:1 col colore dell'azione, la soglia WCAG degli oggetti grafici: sul rosso di sistema sì, su un
+  giallo chiaro no e lì torna l'inchiostro leggibile a 4,5:1; era sempre quest'ultimo, e sul rosso dava un cestino scuro dove Apple lo ha bianco)
+  e **l'etichetta grigia sotto** (11 sp). Sta fra la riga e il bordo con 8 dp da ogni lato (Apple 7,4 e 7 pt),
   è alta quanto la riga meno 24 dp, fra 24 e 44 dp (Apple 34 pt in una riga di 58,6, 44 in una di 66,5), riempie lo spazio in larghezza (in uno spazio
   stretto è un tondo) e **si gonfia con una molla**: dal niente alla sua taglia in ≈200 ms con un picco del 3–4% a ≈340 ms (Apple 0,23 / 0,42 / 0,60 /
   0,76 / 0,87 / 0,95 / 1,00 ogni 33 ms, picco del 4%: smorzamento 0,74, risposta 0,46 s). Glifo ed etichetta crescono con lei;

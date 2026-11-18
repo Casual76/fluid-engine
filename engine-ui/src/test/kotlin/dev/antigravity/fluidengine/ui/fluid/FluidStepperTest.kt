@@ -63,6 +63,26 @@ class FluidStepperTest {
   }
 
   @Test
+  fun `il down, che il clickable ha gia' consumato, non e' una lista che prende il dito`() {
+    // La causa trovata da S9: il primo Final e' quello del down, consumato dal clickable; contato come «preso» fermava
+    // la ripetizione prima del primo passo.
+    assertFalse(fluidStepperFingerLost(pressed = true, previousPressed = false, consumed = true))
+    assertFalse(fluidStepperFingerLost(pressed = true, previousPressed = false, consumed = false))
+  }
+
+  @Test
+  fun `uno spostamento consumato dopo il down e' una lista che prende il dito`() {
+    assertTrue(fluidStepperFingerLost(pressed = true, previousPressed = true, consumed = true))
+  }
+
+  @Test
+  fun `un dito fermo e non consumato resta dello stepper, uno sollevato no`() {
+    assertFalse(fluidStepperFingerLost(pressed = true, previousPressed = true, consumed = false))
+    assertTrue(fluidStepperFingerLost(pressed = false, previousPressed = true, consumed = false))
+    assertTrue(fluidStepperFingerLost(pressed = false, previousPressed = true, consumed = true))
+  }
+
+  @Test
   fun `la capsula ha le misure di UIStepper`() {
     assertEquals(94f, FluidStepperWidth.value, 0f)
     assertEquals(32f, FluidStepperHeight.value, 0f)

@@ -848,7 +848,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 3.266786,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.123889
             }
           ]
@@ -1000,7 +1000,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 5.079475,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.270959
             }
           ]
@@ -1152,7 +1152,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 7.109611,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.468162
             }
           ]
@@ -1304,7 +1304,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 9.125791,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.668792
             }
           ]
@@ -1456,7 +1456,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 10.931819,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.827886
             }
           ]
@@ -1608,7 +1608,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 12.698052,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.943088
             }
           ]
@@ -1760,7 +1760,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 14.27322,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 0.995591
             }
           ]
@@ -1912,7 +1912,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 15.566681,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2064,7 +2064,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 16.737967,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2216,7 +2216,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 17.707699,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2368,7 +2368,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 18.449255,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2520,7 +2520,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.073166,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2672,7 +2672,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.548641,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2824,7 +2824,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.879873,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -2976,7 +2976,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.128342,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3128,7 +3128,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.289629,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3280,7 +3280,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.377968,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3432,7 +3432,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.419613,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3584,7 +3584,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.421,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3736,7 +3736,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.395987,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -3888,7 +3888,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.350597,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4040,7 +4040,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.293396,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4192,7 +4192,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.234196,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4344,7 +4344,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.169952,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4496,7 +4496,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.107588,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4648,7 +4648,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 20.052668,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4800,7 +4800,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.99971,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -4952,7 +4952,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5104,7 +5104,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5256,7 +5256,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5408,7 +5408,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5560,7 +5560,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5712,7 +5712,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -5864,7 +5864,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6016,7 +6016,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6168,7 +6168,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6320,7 +6320,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6472,7 +6472,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6624,7 +6624,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6776,7 +6776,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -6928,7 +6928,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7080,7 +7080,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7232,7 +7232,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7384,7 +7384,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7536,7 +7536,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7688,7 +7688,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7840,7 +7840,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -7992,7 +7992,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8144,7 +8144,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8296,7 +8296,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8448,7 +8448,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8600,7 +8600,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8752,7 +8752,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -8904,7 +8904,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9056,7 +9056,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9208,7 +9208,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9360,7 +9360,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9512,7 +9512,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9664,7 +9664,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9816,7 +9816,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -9968,7 +9968,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10120,7 +10120,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10272,7 +10272,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10424,7 +10424,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10576,7 +10576,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10728,7 +10728,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -10880,7 +10880,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11032,7 +11032,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11184,7 +11184,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11336,7 +11336,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11488,7 +11488,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11640,7 +11640,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11792,7 +11792,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -11944,7 +11944,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12096,7 +12096,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12248,7 +12248,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12400,7 +12400,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12552,7 +12552,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12704,7 +12704,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -12856,7 +12856,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13008,7 +13008,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13160,7 +13160,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13312,7 +13312,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13464,7 +13464,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13616,7 +13616,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13768,7 +13768,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -13920,7 +13920,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14072,7 +14072,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14224,7 +14224,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14376,7 +14376,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14528,7 +14528,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14680,7 +14680,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14832,7 +14832,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]
@@ -14984,7 +14984,7 @@
               "name": "glifo",
               "icon": "fluid:delete|circle",
               "iconSizeDp": 19.799999,
-              "color": "#FFFFFF",
+              "color": "#FFFFFFFF",
               "alpha": 1
             }
           ]

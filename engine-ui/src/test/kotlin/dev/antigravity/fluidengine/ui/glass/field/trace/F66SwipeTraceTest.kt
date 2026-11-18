@@ -21,6 +21,7 @@ import dev.antigravity.fluidengine.ui.fluid.fluidSwipeCapsuleGeometry
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeCapsuleHeightPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeCapsuleSlot
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeExitSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidSwipeGlyphInk
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeGlyphPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeOffsetPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeOpenDistancePx
@@ -211,7 +212,7 @@ class F66SwipeTraceTest {
         "w" to c.width, "h" to c.height, "radius" to "capsule", "color" to glassColor(red.copy(alpha = alpha)),
         "content" to listOfNotNull(
           if (c.width > glyph) mapOf("name" to "glifo", "icon" to "fluid:delete|circle", "iconSizeDp" to glyph,
-            "color" to "#FFFFFF", "alpha" to alpha) else null,
+            "color" to glassColor(fluidSwipeGlyphInk(red.compositeOver(surface))), "alpha" to alpha) else null,
         )),
       // L'etichetta sotto, nella sua lastra trasparente: cresce con la capsula.
       mapOf("name" to "etichetta", "kind" to "shape", "x" to left + c.center.x - 40f,

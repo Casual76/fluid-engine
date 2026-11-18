@@ -795,7 +795,10 @@ FluidListRow(
   contatto: una `FluidPressState` sola per il vetro e per il tocco). Il punto acceso è quello del dito, quindi sta sulla metà toccata. Su una pagina
   piatta (o sotto API 31) è la pastiglia opaca nel grigio di riempimento dei campi, che cresce sotto il dito allo stesso modo.
 - **Tenuto premuto ripete** (`UIStepper.autorepeat`, di serie in Apple): dal click lungo un passo ogni 150 ms, poi 100 e, dopo venti passi, 50 (a
-  occhio: Apple non dà i tempi). Ogni passo ripetuto è un `Tick`. Se la lista prende il dito per scorrere, la ripetizione smette.
+  occhio: Apple non dà i tempi). Ogni passo ripetuto è un `Tick`. Se la lista prende il dito per scorrere, la ripetizione smette. Tenuto fermo
+  su «+» il valore sale finché il dito è giù (`FluidStepperHoldTest` della galleria lo prova col dito vero, nel vetro e fuori): prima della
+  correzione dopo S9 il tracciatore del dito prendeva il down, già consumato dal `clickable`, per una lista che ha preso il dito, e la
+  ripetizione non faceva nemmeno il primo passo; il tocco breve non se ne accorgeva.
 - **Ai capi** la metà che non può andare oltre si spegne (il segno al 30%) e non fa niente. Il conto è in `Long`: un passo da `Int.MAX_VALUE` non gira;
   un valore fuori da `range` ci torna al primo passo.
 - **Per TalkBack** è un nodo solo: il nome (`label`), il valore come stato (`valueText`) e le azioni «aumenta» e «diminuisci» (le parole di

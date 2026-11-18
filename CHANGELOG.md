@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Correzioni dopo S9, liste (F6.6). `FluidStepper` tenuto premuto ripete davvero: il tracciatore del dito prendeva il down, già consumato dal `clickable`, per una lista che ha preso il dito e fermava la ripetizione prima del primo passo (il tocco breve funzionava). Il glifo della capsula delle azioni a scorrimento è bianco dove il bianco fa almeno 3:1 col colore dell'azione (sul rosso di sistema era il quasi-nero); l'aspetto `Fill` è com'era.
+
 - `toolbar { }` posa le azioni `BottomBar` sul piano flottante anche fra pagine. La capsula libera anima la propria larghezza e lo scambio dei simboli.
 
 - Sorgenti delle transizioni (F5A.1). `Modifier.fluidTransitionSource` espone riquadro e forma per identità. Le azioni della toolbar dichiarata espongono la capsula del proprio gruppo, anche durante il viaggio del piano.

@@ -156,11 +156,12 @@ fun FluidStepper(
       touch.held = true
       try {
         while (true) {
-          // Nel passaggio Final: se la lista ha preso il dito (lo ha consumato per scorrere), la ripetizione smette
-          // anche se il dito e' ancora giu'.
+          // Nel passaggio Final, che arriva per ultimo: se la lista ha preso il dito (ha consumato uno spostamento per
+          // scorrere), la ripetizione smette anche se il dito e' ancora giu'. Il primo Final e' quello del down stesso,
+          // che il `clickable` ha gia' consumato: non e' una lista, e `fluidStepperFingerLost` lo sa.
           val event = awaitPointerEvent(PointerEventPass.Final)
-          if (event.changes.none { it.pressed }) break
-          if (event.changes.any { it.pressed && it.isConsumed }) break
+          val change = event.changes.firstOrNull { it.id == down.id } ?: break
+          if (fluidStepperFingerLost(change.pressed, change.previousPressed, change.isConsumed)) break
         }
       } finally {
         touch.held = false
@@ -300,6 +301,23 @@ internal fun fluidStepperSide(x: Float, width: Float, rtl: Boolean): FluidSteppe
   val left = x < width / 2f
   return if (left != rtl) FluidStepperSide.Decrement else FluidStepperSide.Increment
 }
+
+/**
+ * Il dito non e' piu' dello stepper, visto nel passaggio Final di un evento: sollevato, o preso da una lista che
+ * scorre. Il ciclo di ripetizione vive finche' questo e' falso.
+ *
+ * La regola che S9 ha trovato sbagliata: il down stesso arriva al Final **gia' consumato** (il `clickable` lo prende
+ * per dire «e' mio»), quindi «un cambio consumato» non basta a dire che la lista ha preso il dito. Un dito perso
+ * perche' preso e' un dito che *continua* a premere ([previousPressed]) e il cui spostamento qualcuno ha consumato;
+ * il down ([previousPressed] falso) non conta. Prima di questa distinzione la ripetizione si fermava al contatto,
+ * prima del primo passo, e un tocco breve non se ne accorgeva (il suo click passa da un'altra strada).
+ *
+ * @param pressed il dito e' ancora giu' in questo evento.
+ * @param previousPressed lo era anche nell'evento prima (falso per il down).
+ * @param consumed qualcuno ha consumato questo cambio.
+ */
+internal fun fluidStepperFingerLost(pressed: Boolean, previousPressed: Boolean, consumed: Boolean): Boolean =
+  !pressed || (previousPressed && consumed)
 
 /**
  * Il valore dopo un passo in su ([up]) o in giu', dentro [range]. Il conto in `Long`: un passo da [Int.MAX_VALUE] non

@@ -254,6 +254,50 @@ class FluidSwipeActionsTest {
     assertTrue(abs(onYellow.luminance() - Color.Black.luminance()) > 0f) // il quasi-nero, non il nero
   }
 
+  // --- Il glifo della capsula (correzione dopo S9) ---------------------------------------------------------
+
+  @Test
+  fun `la causa - l'inchiostro del testo, a 4,5 a 1, sul rosso di sistema era il quasi-nero`() {
+    // S9 ha visto il cestino scuro: il bianco sul rosso di sistema fa 3,55 a 1, il quasi-nero 5,3 a 1.
+    val red = Color(0xFFFF3B30)
+    assertEquals(3.55f, contrast(Color.White, red), 0.05f)
+    assertTrue("sul rosso di sistema il conto del testo sceglie lo scuro", fluidLegibleInk(red).luminance() < 0.1f)
+  }
+
+  @Test
+  fun `il glifo sul rosso e' bianco, come in Apple`() {
+    assertEquals(Color.White, fluidSwipeGlyphInk(Color(0xFFFF3B30))) // il rosso di sistema chiaro
+    assertEquals(Color.White, fluidSwipeGlyphInk(Color(0xFFFB221A))) // il rosso misurato su Apple (251/34/26)
+    assertEquals(Color.White, fluidSwipeGlyphInk(Color(0xFFFF453A))) // il rosso di sistema scuro (3,4 a 1)
+    assertEquals(Color.White, fluidSwipeGlyphInk(Color(0xFF007AFF))) // il blu di sistema (4 a 1)
+  }
+
+  @Test
+  fun `dove il bianco non si legge come oggetto grafico il glifo torna scuro`() {
+    val yellow = Color(0xFFFFEB3B)
+    val pale = Color(0xFFBFE3FF)
+    assertTrue(contrast(Color.White, yellow) < 3f)
+    assertEquals(fluidLegibleInk(yellow), fluidSwipeGlyphInk(yellow))
+    assertEquals(fluidLegibleInk(pale), fluidSwipeGlyphInk(pale))
+    assertTrue(fluidSwipeGlyphInk(yellow).luminance() < 0.1f)
+  }
+
+  @Test
+  fun `il glifo e' bianco dove il bianco fa 3 a 1, e altrove si legge a 4,5 a 1, su qualunque fondo pieno`() {
+    var worst = Float.MAX_VALUE
+    for (r in 0..255 step 15) for (g in 0..255 step 15) for (b in 0..255 step 15) {
+      val background = Color(r, g, b)
+      val ink = fluidSwipeGlyphInk(background)
+      if (contrast(Color.White, background) >= FluidFillMinContrast) {
+        assertEquals("$background", Color.White, ink)
+      } else {
+        assertEquals("$background", fluidLegibleInk(background), ink)
+      }
+      worst = minOf(worst, contrast(ink, background))
+    }
+    assertTrue("contrasto minimo del glifo: $worst", worst >= FluidFillMinContrast)
+  }
+
   // --- L'aspetto di iOS 27 (F6.6) --------------------------------------------------------------------------
 
   private val gap = FluidSwipeCapsuleGapDp * density

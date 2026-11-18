@@ -69,7 +69,10 @@ UI_FLUID_FILES = {
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [
-        "FluidGlassModal", "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",
+        # `FluidGlassModal.kt` spezzato in sette file (F5A.0): portale, host, scrim, finestra ancorata, foglio, riga sollevata, menu contestuale
+        "FluidGlassModalPortal", "FluidGlassModalHost", "FluidGlassModalScrim", "FluidGlassModalPopover",
+        "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu",
+        "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
         "FluidPromptAlert", "FluidNotification", "FluidDrawer", "FluidDateTimeSheet",
         "FluidDateTimeMath",

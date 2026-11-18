@@ -480,7 +480,9 @@ Nel `sample` (Robolectric, aptica registrata):
 | `fluid/FluidMenuJourney.kt` | le funzioni pure del viaggio (finestre di opacità, mappa del contenuto, gonfiore, posto del pannello, seme, goccia del contestuale), `FluidMenuAnchor`, `FluidMenuJourney` |
 | `fluid/FluidMenuLayer.kt` | il layer dell'host per i menu `Expand` e contestuale (`FluidMenuLayer`), e per l'avviso |
 | `fluid/FluidGlassMenuPanel.kt` | il pannello, le voci, i separatori, la goccia, l'area dei gesti |
-| `fluid/FluidGlassModal.kt` | `FluidContextAction`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`, la riga sollevata (`FluidLiftedPreview`) |
+| `fluid/FluidGlassModalPortal.kt` | `FluidContextAction`, `FluidGlassModalPresentation` |
+| `fluid/FluidContextMenu.kt` | `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu` |
+| `fluid/FluidLiftedPreview.kt` | la riga sollevata (`FluidLiftedPreview`) |
 | `fluid/FluidScreen.kt` | `FluidBarAction(actions, opensOn)` |
 | `fluid/FluidGlassMenuButton.kt` | il tasto deprecato |
 | `fluidphysics/FluidMorphMenu.kt` | `FluidMorphMenuState`, `FluidMorphMenuButton`, `FluidMorphMenuHost`, `LocalFluidMorphMenuState` |

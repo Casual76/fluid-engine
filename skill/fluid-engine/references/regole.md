@@ -1031,7 +1031,7 @@ uniforme è esatto, su una foto o un testo no, ed è la differenza dichiarata (u
 
 **Lo scrim è uno**: un nero al **12%** sul chiaro e al **20%** sullo scuro, per i modali di vetro dell'host e per i
 pannelli dipinti. I livelli stanno in `GlassPaintedScrim`, e chi disegna uno scrim li legge da lì (anche
-`FluidGlassModal`). Prima il codice chiedeva tre scrim per la stessa cosa: un nero al 42% per il foglio di
+`FluidGlassModalScrim`). Prima il codice chiedeva tre scrim per la stessa cosa: un nero al 42% per il foglio di
 piattaforma, il velo della `Dialog` per l'avviso, il 12/20% per i modali dell'host. Quale dei due casi tocca a un'app
 lo decide l'host: **dentro un `FluidGlassModalHost`**, che è il caso normale di un'app dell'engine, `FluidSheet` e
 `FluidAlert` sono modali di vetro dell'host e il loro scrim era e resta il 12/20%; **fuori da un host** (un'app senza

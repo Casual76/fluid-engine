@@ -5,6 +5,16 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidContextMenu.kt`
+
+- `class FluidContextMenuController internal constructor(private val host: FluidGlassModalHostState?, internal val entry: FluidGlassModalEntry, internal val layer: GraphicsLayer)` — A context menu that something else decides when to open.
+  - `val isOpen: Boolean get()`
+  - `fun open(): Boolean` — Raises the menu. Returns false when there is nothing to show, so the caller can fall through.
+  - `fun dismiss()`
+- `@Composable fun rememberFluidContextMenu(actions: () -> List<FluidContextAction>, tint: Color? = null): FluidContextMenuController` — The state behind a context menu, so a component that owns its own gestures can raise one.
+- `@Composable fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier` — Marks the element a [FluidContextMenuController] belongs to.
+- `@Composable fun Modifier.fluidContextMenu(actions: () -> List<FluidContextAction>, enabled: Boolean = true): Modifier` — Long-press this element to raise a menu of actions anchored to it.
+
 ## `engine-ui/ui/fluid/FluidDateTimeSheet.kt`
 
 - `data class FluidQuickTimeOption(val label: String, val instant: Instant, val detail: String? = null)` — A caller-resolved proposal. The engine never invents domain-specific relative times.
@@ -35,7 +45,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `@Composable fun FluidGlassMenuButton(actions: () -> List<FluidContextAction>, onClick: () -> Unit, modifier: Modifier = Modifier, text: String? = null, icon: ImageVector? = null, contentDescription: String? = null, enabled: Boolean = true, backdrop: GlassBackdropState = currentGlassBackdrop(), shape: Shape = FluidCapsuleShape)` — **DEPRECATO: Il menù compare sopra il tasto: due superfici. FluidMorphMenuButton (con ** — A button that unfolds into its own menu, and folds back once something is chosen.
 
-## `engine-ui/ui/fluid/FluidGlassModal.kt`
+## `engine-ui/ui/fluid/FluidGlassModalHost.kt`
 
 - `class FluidGlassModalHostState internal constructor()` — A modal that lives *inside* the app's composition.
   - `val isPresenting: Boolean get()` — Whether anything is currently open. An app can use it to obscure the page behind.
@@ -43,20 +53,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun dismissTop()` — Asks whatever is innermost to close. This is what back and a tap on the scrim call.
 - `@Composable fun rememberFluidGlassModalHostState(): FluidGlassModalHostState`
 - `val LocalFluidGlassModalHostState: ProvidableCompositionLocal<FluidGlassModalHostState?>` — Lets any feature declare a modal without owning, or duplicating, the single root host.
+- `@Composable fun Modifier.fluidGlassModalObscured(): Modifier` — Hides everything under it from accessibility while a modal is open.
+- `@Composable fun FluidGlassModalHost(state: FluidGlassModalHostState, backdrop: GlassBackdropState?, modifier: Modifier = Modifier)` — The host. One per app, at the root, next to [FluidNotificationHost].
+
+## `engine-ui/ui/fluid/FluidGlassModalPortal.kt`
+
 - `enum class FluidGlassModalPresentation` — How a modal arranges itself once it has finished arriving.
 - `data class FluidContextAction(val label: String, val icon: ImageVector? = null, val destructive: Boolean = false, val enabled: Boolean = true, val startsSection: Boolean = false, val selected: Boolean = false, val onClick: () -> Unit)` — One action in a context menu.
 - `@Composable fun FluidGlassModalPortal(visible: Boolean, onDismissRequest: () -> Unit, origin: () -> Rect? = { null }, presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover, paneTitle: String? = null, paneTint: Color? = null, footer: (@Composable ColumnScope.() -> Unit)? = null, pageColor: Color? = null, content: @Composable ColumnScope.() -> Unit)` — Declares a modal here and draws it at the root.
 - `@Composable fun <T : Any> FluidGlassModalPortal(item: T?, onDismissRequest: () -> Unit, origin: () -> Rect? = { null }, presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover, paneTitle: String? = null, paneTint: Color? = null, footer: (@Composable ColumnScope.(T) -> Unit)? = null, pageColor: Color? = null, content: @Composable ColumnScope.(T) -> Unit)` — Declares a modal that presents **an item**, and stays whole while it leaves.
 - `@Composable fun Modifier.fluidExpandOrigin(open: () -> Boolean = { false }, onMeasured: (Rect) -> Unit): Modifier` — Reports this element's bounds in root coordinates, for a modal to expand out of.
-- `@Composable fun Modifier.fluidGlassModalObscured(): Modifier` — Hides everything under it from accessibility while a modal is open.
-- `@Composable fun FluidGlassModalHost(state: FluidGlassModalHostState, backdrop: GlassBackdropState?, modifier: Modifier = Modifier)` — The host. One per app, at the root, next to [FluidNotificationHost].
-- `class FluidContextMenuController internal constructor(private val host: FluidGlassModalHostState?, internal val entry: FluidGlassModalEntry, internal val layer: GraphicsLayer)` — A context menu that something else decides when to open.
-  - `val isOpen: Boolean get()`
-  - `fun open(): Boolean` — Raises the menu. Returns false when there is nothing to show, so the caller can fall through.
-  - `fun dismiss()`
-- `@Composable fun rememberFluidContextMenu(actions: () -> List<FluidContextAction>, tint: Color? = null): FluidContextMenuController` — The state behind a context menu, so a component that owns its own gestures can raise one.
-- `@Composable fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier` — Marks the element a [FluidContextMenuController] belongs to.
-- `@Composable fun Modifier.fluidContextMenu(actions: () -> List<FluidContextAction>, enabled: Boolean = true): Modifier` — Long-press this element to raise a menu of actions anchored to it.
 
 ## `engine-ui/ui/fluid/FluidMenu.kt`
 

@@ -88,9 +88,10 @@ Tutto sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`. La colo
 | `tutorial/` | suggerimenti al primo uso, coach mark | `tutorial` | `tutorial` |
 
 I file più grandi, da conoscere perché è lì che stanno le cose difficili: `FluidFloatingTabBar.kt` (3 181 righe, la
-barra a pillola che si ripiega), `FluidGlassModal.kt` (2 411, pop-up e fogli), `GlassMaterial.kt` (1 938, il
-materiale), `FluidScreen.kt` (1 803), `FluidComponents.kt` (1 794), `FluidPhysicsState.kt` (1 237),
-`FluidNotification.kt` (1 213), `DrawBackdropModifier.kt` (1 211), `FluidScrubber.kt` (1 203).
+barra a pillola che si ripiega), `GlassMaterial.kt` (1 938, il materiale), `FluidScreen.kt` (1 803),
+`FluidComponents.kt` (1 794), `FluidPhysicsState.kt` (1 237), `FluidNotification.kt` (1 213),
+`DrawBackdropModifier.kt` (1 211), `FluidScrubber.kt` (1 203). Pop-up e fogli non sono più un solo file (erano
+`FluidGlassModal.kt`, 2 411 righe): da F5A.0 sono sette, da 110 a 705 righe, elencati nella scheda dei modali.
 
 ## Il resto del repo
 

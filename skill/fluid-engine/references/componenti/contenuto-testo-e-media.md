@@ -422,7 +422,7 @@ Serve un `FluidGlassModalHost` in scope: senza non si apre e **non va in crash**
 **Trappole.**
 - *Sintomo*: «non si può spostare l'immagine quanto dovrebbe / si vedono bande vuote» → manca `contentAspectRatio`: senza, i limiti sono quelli del riquadro intero e un'immagine più stretta lascia le bande spingibili.
 - Il fondo è la **pagina opaca dell'host** (il tema) oppure `background`; lo scurimento dietro **non è proporzionale al trascinamento** (il fondale di un modale pagina intera è un velo fisso; una presentazione con sfondo che si schiarisce col dito vorrebbe una
-  aggiunta all'host, `FluidGlassModal.kt`). Il documento `docs/10-coerenza.md` dice ancora «non nero»: dalla 3.0.1 `background = Color.Black` esiste.
+  aggiunta all'host, `FluidGlassModalHost.kt`). Il documento `docs/10-coerenza.md` dice ancora «non nero»: dalla 3.0.1 `background = Color.Black` esiste.
 - `fluidZoomable` va su un nodo che ha **le misure del contenitore** (il contenuto dentro è adattato); i gesti stanno *fuori* dal layer scalato, nelle coordinate del contenitore.
 - `pageCount <= 0` non disegna niente. A ogni apertura si riparte da `initialPage` (il pager vive anche a visore chiuso).
 

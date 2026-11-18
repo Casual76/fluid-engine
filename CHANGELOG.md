@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Menu e modali (F5A.0). `FluidGlassModal.kt` (2 443 righe) è diviso in sette file nello stesso pacchetto, senza cambiare un comportamento: `FluidGlassModalPortal.kt` (presentazioni, `FluidContextAction`, portale, `fluidExpandOrigin`), `FluidGlassModalHost.kt` (stato dell'host, voce, host, layer), `FluidGlassModalScrim.kt`, `FluidGlassModalPopover.kt`, `FluidGlassModalSheet.kt`, `FluidLiftedPreview.kt` e `FluidContextMenu.kt`. Nomi e firme pubbliche restano quelli di prima; tre dichiarazioni private diventano `internal` perché ora stanno in file diversi da chi le usa (`FluidAnchoredPopover`, `FluidGlassModalSheet`, `FluidPopoverRadius`). Cambiano solo le classi di facciata JVM (`FluidGlassModalKt` si divide in sette): il sorgente di un'app compila come prima, un modulo già compilato contro l'engine va ricompilato (come per le firme di `FluidContextAction` della 3.0).
+
 - Bordo dello scorrimento (F4A, filo). La striscia non disegna più la riga bianca di un pixel sotto i tasti: lo shader leggeva il contenuto dentro un ramo che dipende dalla posizione (`s > 0.0001`) e, quando il suo confine separava una riga pari dalla dispari seguente, il pixel del gruppo 2×2 che stava nel ramo usciva a 255,255,255. Ora le letture sono sempre eseguite e la scelta si fa dopo: le immagini del banco restano identiche al bit.
 
 - Barra dichiarata. Le icone uscenti si sfocano nel posto di partenza, il bersaglio segue il glifo fra i gruppi e «Altro» conserva l'accesso ai comandi nelle finestre strette e per i tasti dichiarati in basso.

@@ -2495,7 +2495,7 @@ livello `Balanced`. Resta com'è finché Alessio non sceglie sul confronto (scel
 
 | id | cosa | perimetro di scrittura | dipende da | G | modello |
 |---|---|---|---|---|---|
-| F5A.0 | Spezzare `FluidGlassModal.kt` in file, senza cambi di comportamento | `ui/fluid/FluidGlassModal.kt` → `FluidGlassModalScrim.kt`, `FluidLiftedPreview.kt`, `FluidGlassModalPortal.kt`, `FluidGlassModalHost.kt` | — | G | Opus |
+| F5A.0 | Spezzare `FluidGlassModal.kt` in file, senza cambi di comportamento. *Fatto il 18 novembre in sette file: in più `FluidContextMenu.kt` (controller, ancora, `Modifier.fluidContextMenu`), `FluidGlassModalPopover.kt` e `FluidGlassModalSheet.kt`, perché finestra ancorata e foglio non avevano casa e F5B.1 e F5B.2 non scrivessero l'uno nel file dell'altro* | `ui/fluid/FluidGlassModal.kt` → `FluidGlassModalScrim.kt`, `FluidLiftedPreview.kt`, `FluidGlassModalPortal.kt`, `FluidGlassModalHost.kt` | — | G | Opus |
 | F5A.1 | Sorgenti: `fluidTransitionSource`, sorgenti degli elementi di barra; la sorgente di un elemento in un gruppo è il riquadro del gruppo, letto dal registro del piano | `ui/fluid/FluidTransitionSource.kt`, `ui/fluid/toolbar/FluidToolbar.kt` (un aggancio), il suo test | F4A, F3.2 (in sola lettura) | G | Opus |
 | F5A.2 | Menu dal tasto e dal gruppo; voci nella lente; icone delle righe a 22 dp; punto di luce; tempi di chiusura **solo dopo la scelta** | `ui/fluid/FluidMenuLayer.kt`, `ui/fluid/FluidMenuJourney.kt`, `ui/fluid/FluidGlassMenuPanel.kt`, `gf/GlassContentLensShader.kt`, `fp/FluidMorphMenu.kt`, `ui/fluid/FluidMotion.kt` (i token del menu) | F5A.1, F4A | G | Fable |
 | F5A.3 | Struttura: sottomenu, taglie, ordine, chiusura; `FluidContextAction` con i campi nuovi e il costruttore compatibile | `ui/fluid/FluidMenu.kt`, `ui/fluid/FluidGlassModalPortal.kt` (`FluidContextAction`), `test/fluid/FluidMenu*Test.kt`, `test/compat/GlassCompatSignaturesTest.kt` (il caso posizionale) | F5A.0, dopo F5A.2 sui file comuni | G | Opus |
@@ -2581,8 +2581,8 @@ tutte e due senza misure: gli avvisi e i dialoghi aperti da un dato (solo API) e
 
 | id | cosa | perimetro di scrittura | dipende da | G/D | modello |
 |---|---|---|---|---|---|
-| F5B.1 | Popover che sostituisce il tasto; avviso e conferma dalla sorgente e i sovraccarichi `item`; modalità | `ui/fluid/FluidGlassModalPortal.kt`, `ui/fluid/FluidGlassModalHost.kt`, `ui/fluid/FluidMenuLayer.kt` (la parte degli avvisi), `ui/fluid/FluidSheet.kt` (`FluidAlert`), `ui/fluid/FluidConfirmationDialog.kt` | F5A | G | Fable |
-| F5B.2 | Foglio di vetro: detent, maniglia, rientro, opaco a tutta altezza; transizione in dissolvenza | `ui/fluid/FluidGlassSheet.kt`, `ui/fluid/FluidSheetScaffold.kt`, il suo test | F5A.0, F3.5 | G | Fable |
+| F5B.1 | Popover che sostituisce il tasto; avviso e conferma dalla sorgente e i sovraccarichi `item`; modalità; togliere `FluidPopoverMorphWindow`, mai usata (F5A.0) | `ui/fluid/FluidGlassModalPortal.kt`, `ui/fluid/FluidGlassModalHost.kt`, `ui/fluid/FluidGlassModalPopover.kt` (la finestra ancorata, da F5A.0), `ui/fluid/FluidMenuLayer.kt` (la parte degli avvisi), `ui/fluid/FluidSheet.kt` (`FluidAlert`), `ui/fluid/FluidConfirmationDialog.kt` | F5A | G | Fable |
+| F5B.2 | Foglio di vetro: detent, maniglia, rientro, opaco a tutta altezza; transizione in dissolvenza | `ui/fluid/FluidGlassSheet.kt`, `ui/fluid/FluidGlassModalSheet.kt` (il foglio e la pagina intera del modale, da F5A.0), `ui/fluid/FluidSheetScaffold.kt`, il suo test | F5A.0, F3.5 | G | Fable |
 | F5B.3 | Zoom dalla sorgente per fogli e pagine | `ui/page/FluidPageTransition.kt`, `ui/page/FluidPageMotion.kt`, `ui/page/FluidPageHost.kt` | F5A.1 | G | Opus |
 | F5B.4 | Galleria, tracce, schede | `sample/…/catalog/RowsAndSheetsDemo.kt`, `sample/…/presentations/`, `test/glass/field/trace/`, `ref/componenti/menu-modali.md` | F5B.1–3 | G | Opus |
 | F5B.5 | **S4** e rapporto | `artifacts/liquid-glass/sessioni/S4.md`, `stato.md` | tutti | G, D | orchestratore + Opus |

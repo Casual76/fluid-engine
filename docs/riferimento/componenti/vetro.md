@@ -872,7 +872,7 @@ in tutto ciò che un colore pieno può essere.
 - **Annidato**: un vetro dipinto dentro un foglio o un avviso dipinti si posa come un vetro annidato (meno velo e meno
   ombra), sopra il corpo del pannello e non sopra la pagina.
 - **Lo scrim** dei pannelli dipinti è quello dei modali di vetro: nero al 12% sul chiaro, al 20% sullo scuro
-  (`GlassPaintedScrim`, da cui legge anche `FluidGlassModal`). Nella 3.x il foglio di piattaforma aveva un nero al 42%
+  (`GlassPaintedScrim`, da cui legge anche `FluidGlassModalScrim`). Nella 3.x il foglio di piattaforma aveva un nero al 42%
   e l'avviso il velo della `Dialog`. Un vetro dipinto **sulla pagina** (fuori da un foglio o da un avviso dipinti) non
   ha scrim sotto: si calcola sopra la pagina del tema.
 

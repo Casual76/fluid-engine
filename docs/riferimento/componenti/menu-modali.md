@@ -217,7 +217,7 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   chiusura è richiesta (la pagina è già sua mentre l'uscita finisce di sfumare).
 - **Lo scrim è quasi niente, di proposito.** Sfocatura ×1,5 della base, nessuno spostamento (una lente grande quanto
   lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro (gli stessi livelli
-  dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModal` li legge da lì), `sizeResponse = 0`
+  dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModalScrim` li legge da lì), `sizeResponse = 0`
   (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
   non servirebbe: un rettangolo dipinto costa meno. Arriva con un alpha sul pannello finito, **mai** con
   l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni
@@ -728,7 +728,13 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 
 | file | cosa c'è dentro |
 |---|---|
-| `FluidGlassModal.kt` | stato dell'host, portale (due overload), `FluidGlassModalPresentation`, `FluidContextAction`, `fluidExpandOrigin`, `FluidGlassModalHost`, lo scrim, la finestra ancorata (`FluidAnchoredPopover`), il foglio e la pagina intera, il menu contestuale (controller, ancora, modificatore), i numeri privati |
+| `FluidGlassModalPortal.kt` | il lato di chi dichiara: `FluidGlassModalPresentation`, `FluidContextAction`, il portale (due overload), `fluidExpandOrigin` |
+| `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
+| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) |
+| `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
+| `FluidGlassModalSheet.kt` | il foglio e la pagina intera (`FluidGlassModalSheet`), la barra in cima della pagina intera, i numeri privati del foglio |
+| `FluidLiftedPreview.kt` | la riga sollevata del menu contestuale (`FluidLiftedPreview`) |
+| `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu` |
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso (`FluidAlertLayer`, la card, i pulsanti con la goccia) |
 | `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert`, `FluidAlertAction`, il `Dialog` di ripiego |
 | `FluidSheetScaffold.kt` | `FluidSheetScaffold`, `FluidSheetScaffoldDefaults`, `FluidConfirmSheet`, l'aritmetica pura del budget |

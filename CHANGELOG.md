@@ -10,6 +10,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - `toolbar { }` posa le azioni `BottomBar` sul piano flottante anche fra pagine. La capsula libera anima la propria larghezza e lo scambio dei simboli.
 
+- Sorgenti delle transizioni (F5A.1). `Modifier.fluidTransitionSource` espone riquadro e forma per identità. Le azioni della toolbar dichiarata espongono la capsula del proprio gruppo, anche durante il viaggio del piano.
+
 - Pagine e toolbar. Il push parte al cambio di pila, il movimento ridotto dissolve le pagine sul posto e il titolo entrante resta dentro il bordo di lettura. La ricerca fissata resta sopra la striscia e il titolo ritrova il proprio spazio anche a testo grande. Le azioni legacy si incrociano con i gruppi dichiarati.
 
 - Luce in movimento (F6.5). Il riflesso sul bordo del vetro Liquid segue l'inclinazione su Android 13+ con `LocalFluidGlassMotionLight`. È spento di serie e le app possono offrire l'interruttore in `fluidAppearanceSection`.

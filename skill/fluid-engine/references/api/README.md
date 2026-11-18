@@ -12,7 +12,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
 | [Controlli](controlli.md) | 9 | 58 |
-| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 12 | 89 |
+| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 13 | 94 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
 | [Vetro](vetro.md) | 32 | 248 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |

@@ -71,7 +71,7 @@ UI_FLUID_FILES = {
     "menu-modali": [
         # `FluidGlassModal.kt` spezzato in sette file (F5A.0): portale, host, scrim, finestra ancorata, foglio, riga sollevata, menu contestuale
         "FluidGlassModalPortal", "FluidGlassModalHost", "FluidGlassModalScrim", "FluidGlassModalPopover",
-        "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu",
+        "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu", "FluidTransitionSource",
         # il foglio di vetro con i detent (F5B.2)
         "FluidGlassSheet",
         "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",

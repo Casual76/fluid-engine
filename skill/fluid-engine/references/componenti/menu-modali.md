@@ -52,6 +52,33 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | **non così**: un `FluidAlert` con un modulo dentro | un avviso è stretto (280 dp) e centrato: per i campi un foglio o una pagina intera |
 | **non così**: `Modifier.fluidContextMenu` su un elemento con `clickable` | il click consuma il gesto e il menu non parte mai: serve il controller |
 
+## Sorgenti delle transizioni
+
+Dichiara il riquadro di partenza nel punto in cui viene misurato. Costruisci il riferimento con la stessa coppia
+`id` e `namespace` quando serve a un menu, a un popover o a uno zoom.
+
+```kotlin
+val namespace = rememberFluidGlassNamespace()
+val source = remember(noteId, namespace) { FluidTransitionSource(noteId, namespace) }
+val cardShape = ContinuousCornerShape(FluidRadius.Card)
+
+Box(Modifier.fluidTransitionSource(noteId, namespace, shape = cardShape)) {
+  // Contenuto della nota.
+}
+```
+
+`source.resolve()` legge sul thread UI un riquadro in pixel nella radice Compose della sorgente e una forma per
+quella taglia. Per animare tra un portale e una vista usa la stessa radice. La forma di serie è un rettangolo.
+Se due nodi posati condividono la stessa identità, il primo disponibile vince. Quando esce, il successivo già
+posato prende il suo posto. Un cambio pagina può rendere la sorgente indisponibile anche se la composizione
+resta viva sotto la nuova pagina.
+
+Per l'andata leggi la geometria prima di cambiare lo stato che toglie la sorgente. Al ritorno usa una nuova lettura
+per tenere conto dello scorrimento, della misura e della pagina corrente. Per lo zoom di ritorno,
+`resolve(includeCoveredPage = true)` può trovare una vista ancora posata nella pagina sotto. Il risultato `null`
+permette al componente che presenta di usare il proprio ripiego. F5A.1 fornisce la geometria. Il collegamento è previsto in
+F5A.2, F5B.1 e F5B.3. Per i comandi dichiarati vedi [la toolbar](toolbar.md#le-sorgenti-delle-transizioni-f5a1).
+
 ## Regola trasversale: un portale dichiara, un host disegna
 
 ### Montare l'host (una volta, alla radice)

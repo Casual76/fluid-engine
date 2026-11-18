@@ -155,6 +155,19 @@ pop legge la dichiarazione della destinazione. Durante il gesto annullabile cons
 in primo piano. La politica `barMinimize` della pagina guida anche il ritiro verso il basso.
 La scena «Barra in basso» in Chrome si apre con `gallery.page=bottombar`.
 
+## Le sorgenti delle transizioni (F5A.1)
+
+Ogni elemento posato della toolbar dichiarata ha una sorgente con il proprio `id`. Nel contesto della pagina che
+dichiara la barra, `rememberFluidToolbarTransitionSource("ordina")` restituisce il riferimento all'elemento.
+Tutti i tasti di un gruppo restituiscono la stessa capsula. Il riquadro viene dal pezzo del piano a riposo e dal suo
+ritaglio in viaggio, compresi i raggi correnti. Se il piano non ha il pezzo, si usa il riquadro del tasto.
+
+Un comando trasferito nel trabocco perde la propria sorgente finché resta una voce del menu. «Altro» ha un'identità
+interna che la barra può usare per aprire il trabocco dalla sua capsula.
+L'host usa il contesto della pagina che dichiara la barra, così due pagine possono dichiarare lo stesso `id`.
+Il riferimento della pagina di partenza torna disponibile quando la pagina riprende il suo posto. Vedi
+[Sorgenti delle transizioni](menu-modali.md#sorgenti-delle-transizioni).
+
 ## La ricerca
 
 `FluidScreen(search = FluidSearchSpec(…))` o `search(spec)` nel blocco (che vince): un punto solo,

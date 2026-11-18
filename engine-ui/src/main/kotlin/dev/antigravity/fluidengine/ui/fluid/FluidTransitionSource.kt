@@ -1,0 +1,209 @@
+package dev.antigravity.fluidengine.ui.fluid
+
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.LocalView
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneClusterId
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
+import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
+
+/**
+ * L'identità da passare a una presentazione perché possa ritrovare la vista che l'ha aperta.
+ * Si può conservare mentre cambia la composizione, per esempio per cercare l'origine al ritorno.
+ */
+@Stable
+class FluidTransitionSource internal constructor(private val key: FluidTransitionSourceKey) {
+  /** Usa lo stesso [id] e lo stesso [namespace] del modificatore [fluidTransitionSource]. */
+  constructor(id: Any, namespace: FluidGlassNamespace) : this(FluidTransitionSourceKey(namespace, id))
+
+  /**
+   * Legge sul thread UI la geometria disponibile adesso. È `null` se la sorgente non è posata, è uscita,
+   * è completamente fuori vista o la sua pagina ha ceduto il davanti. Per lo zoom di ritorno,
+   * [includeCoveredPage] permette di leggere anche una sorgente ancora posata nella pagina sotto.
+   */
+  fun resolve(includeCoveredPage: Boolean = false): FluidTransitionSourceGeometry? {
+    val nodes = transitionSources[key] ?: return null
+    return nodes.firstNotNullOfOrNull { it.resolve(includeCoveredPage = false) }
+      ?: if (includeCoveredPage) nodes.firstNotNullOfOrNull { it.resolve(includeCoveredPage = true) } else null
+  }
+}
+
+/**
+ * La fotografia che basta a iniziare un viaggio. [bounds] è in pixel nella radice Compose della sorgente.
+ * [shape] va risolta alla taglia di [bounds], con la densità e il verso della sorgente.
+ */
+@Immutable
+data class FluidTransitionSourceGeometry(val bounds: Rect, val shape: Shape)
+
+/**
+ * Dà a una vista un'origine per menu, presentazioni e zoom senza aggiungere disegno o cambiare la misura.
+ * Applica il modificatore al riquadro che deve partire e dai la sua [shape] se ha un contorno proprio.
+ * L'identità è la coppia [namespace] e [id]. Se è ripetuta, vale la prima sorgente posata ancora disponibile.
+ */
+fun Modifier.fluidTransitionSource(
+  id: Any,
+  namespace: FluidGlassNamespace,
+  shape: Shape = RectangleShape,
+): Modifier = this then FluidTransitionSourceElement(FluidTransitionSourceKey(namespace, id), shape)
+
+/**
+ * L'origine di un elemento dichiarato nella barra, cercato per [id] nella pagina corrente (nella radice
+ * Compose fuori da un host). Chiamalo nel contesto della pagina che dichiara la barra.
+ */
+@Composable
+fun rememberFluidToolbarTransitionSource(id: Any): FluidTransitionSource {
+  val owner = fluidToolbarTransitionSourceOwner()
+  return remember(owner, id) { FluidTransitionSource(FluidTransitionSourceKey(owner, id)) }
+}
+
+@Composable
+private fun fluidToolbarTransitionSourceOwner(): Any = LocalFluidPageBar.current ?: LocalView.current
+
+@Composable
+internal fun Modifier.fluidToolbarTransitionSource(id: Any, glassId: FluidGlassQualifiedId): Modifier =
+  this then FluidTransitionSourceElement(
+    key = FluidTransitionSourceKey(fluidToolbarTransitionSourceOwner(), id),
+    shape = FluidCapsuleShape,
+    toolbar = FluidToolbarTransitionGeometry(
+      currentFluidGlassContainer(FluidCapsuleShape), glassId, LocalFluidToolbarMinimize.current,
+    ),
+  )
+
+internal data class FluidTransitionSourceKey(val owner: Any, val id: Any)
+
+// Solo i nodi posati. La fine di una registrazione lascia posto agli altri senza cambiare il loro ordine.
+private val transitionSources = mutableStateMapOf<FluidTransitionSourceKey, List<FluidTransitionSourceNode>>()
+
+private data class FluidTransitionSourceElement(
+  val key: FluidTransitionSourceKey,
+  val shape: Shape,
+  val toolbar: FluidToolbarTransitionGeometry? = null,
+) : ModifierNodeElement<FluidTransitionSourceNode>() {
+  override fun create() = FluidTransitionSourceNode(this)
+  override fun update(node: FluidTransitionSourceNode) = node.update(this)
+}
+
+private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
+  Modifier.Node(), GlobalPositionAwareModifierNode, CompositionLocalConsumerModifierNode {
+  private var source by mutableStateOf(source)
+  private var coordinates: LayoutCoordinates? = null
+  private var placedBounds by mutableStateOf<Rect?>(null)
+
+  override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+    val firstPlacement = this.coordinates == null
+    this.coordinates = coordinates
+    placedBounds = coordinates.boundsInRoot()
+    if (firstPlacement) register()
+  }
+
+  fun update(next: FluidTransitionSourceElement) {
+    val moved = source.key != next.key && coordinates != null
+    if (moved) unregister()
+    source = next
+    if (moved) register()
+  }
+
+  override fun onReset() = clear()
+  override fun onDetach() = clear()
+
+  private fun register() {
+    transitionSources[source.key] = transitionSources[source.key].orEmpty() + this
+  }
+
+  private fun unregister() {
+    val remaining = transitionSources[source.key].orEmpty() - this
+    if (remaining.isEmpty()) transitionSources.remove(source.key)
+    else transitionSources[source.key] = remaining
+  }
+
+  private fun clear() {
+    if (coordinates != null) unregister()
+    coordinates = null
+    placedBounds = null
+  }
+
+  fun resolve(includeCoveredPage: Boolean): FluidTransitionSourceGeometry? {
+    val placed = coordinates?.takeIf { isAttached && it.isAttached } ?: return null
+    val toolbar = source.toolbar
+    if (placedBounds == null) return null
+    // La barra ancorata usa il contesto della dichiarazione che sta mostrando, anche prima del cambio del davanti.
+    if (toolbar == null && !includeCoveredPage && !currentValueOf(LocalFluidRouteFront).value) return null
+    if (toolbar?.minimize?.progress?.let { it >= 1f } == true) return null
+    val root = placed.findRootCoordinates()
+    toolbar?.resolve()?.let { geometry ->
+      val viewport = Rect(0f, 0f, root.size.width.toFloat(), root.size.height.toFloat())
+      return geometry.takeIf { it.bounds.overlaps(viewport) }
+    }
+    if (!placed.boundsInRoot().isUsableSourceBounds()) return null
+    val bounds = root.localBoundingBoxOf(placed, clipBounds = false)
+    return bounds.takeIf { it.isUsableSourceBounds() }?.let { FluidTransitionSourceGeometry(it, source.shape) }
+  }
+}
+
+private data class FluidToolbarTransitionGeometry(
+  val plane: FluidGlassContainerState?,
+  val id: FluidGlassQualifiedId,
+  val minimize: FluidToolbarMinimizeProgress?,
+) {
+  fun resolve(): FluidTransitionSourceGeometry? {
+    val plane = plane ?: return null
+    val container = plane.coordinates?.takeIf { it.isAttached } ?: return null
+    val piece = plane.sourcePiece(id) ?: return null
+    val rest = plane.clusterOf(piece)?.pieces?.firstOrNull { it.key === piece }
+    val flight = piece.content.drawnFlight()
+    val clip = flight?.clip
+    val local = clip?.translate(piece.content.place.topLeft) ?: rest?.bounds ?: return null
+    if (!local.isUsableSourceBounds()) return null
+    val corners = listOf(local.topLeft, local.topRight, local.bottomRight, local.bottomLeft)
+      .map(container::localToRoot)
+    val bounds = Rect(
+      corners.minOf { it.x }, corners.minOf { it.y }, corners.maxOf { it.x }, corners.maxOf { it.y },
+    )
+    if (!bounds.isUsableSourceBounds()) return null
+    if (flight == null || clip == null) return FluidTransitionSourceGeometry(bounds, FluidCapsuleShape)
+
+    // Il ritaglio del piano include il rigonfiamento. I raggi seguono il fotogramma e la scala della radice.
+    val radii = flight.radii
+    val scale = bounds.minDimension / local.minDimension
+    val shape = ContinuousCornerShape(
+      CornerSize(radii.topLeft * scale), CornerSize(radii.topRight * scale),
+      CornerSize(radii.bottomRight * scale), CornerSize(radii.bottomLeft * scale),
+    )
+    return FluidTransitionSourceGeometry(bounds, shape)
+  }
+}
+
+private fun FluidGlassContainerState.sourcePiece(id: FluidGlassQualifiedId): FluidGlassPiece? {
+  fun match(key: Any?): FluidGlassPiece? = (key as? FluidGlassPiece)?.takeIf {
+    it.attributes.id == id && it.content.attached && it.coordinates?.isAttached == true
+  }
+  // Il palco vede il destinatario dal primo fotogramma, anche prima che il riposo d'arrivo sia pubblicato.
+  return stage?.fields?.firstNotNullOfOrNull { field ->
+    field.flights.firstNotNullOfOrNull { match(it.targetKey) }
+  } ?: restFields.firstNotNullOfOrNull { field ->
+    val key = field.key
+    if (key is GlassPlaneClusterId) key.members.firstNotNullOfOrNull(::match) else match(key)
+  }
+}
+
+private fun Rect.isUsableSourceBounds(): Boolean = isFinite && !isEmpty

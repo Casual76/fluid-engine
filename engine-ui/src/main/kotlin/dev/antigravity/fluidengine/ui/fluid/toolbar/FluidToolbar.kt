@@ -104,6 +104,7 @@ import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassId
+import dev.antigravity.fluidengine.ui.fluid.fluidToolbarTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBackIosNew
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
@@ -1222,6 +1223,7 @@ private fun FluidToolbarGroupPiece(
           resolved = resolved,
           onGlass = primary,
           glass = glass, memory = memory,
+          namespace = namespace,
           selection = selection.getValue(item.id),
           interactive = interactive,
           // Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che arriva con un vetro nuovo lo porta il piano.
@@ -1282,6 +1284,7 @@ private fun FluidToolbarSlot(
   onGlass: Boolean,
   glass: FluidToolbarGlassId,
   memory: FluidToolbarMemory,
+  namespace: FluidGlassNamespace,
   selection: State<Float>,
   interactive: Boolean,
   entersBlurred: Boolean,
@@ -1333,6 +1336,7 @@ private fun FluidToolbarSlot(
     Modifier
       .width(width)
       .height(resolved.metrics.buttonWidthDp.dp)
+      .then(if (interactive) Modifier.fluidToolbarTransitionSource(item.id, FluidGlassQualifiedId(namespace, glass)) else Modifier)
       .then(if (menu != null) Modifier.fluidContextMenuAnchor(menu) else Modifier),
     contentAlignment = Alignment.Center,
   ) {

@@ -1,0 +1,1041 @@
+{
+  "schema": 1,
+  "name": "tinta-sincronizzata",
+  "phase": "f4a-4",
+  "fps": 60,
+  "durationMs": 400,
+  "density": 3,
+  "theme": "light",
+  "size": [140, 72],
+  "background": {
+    "kind": "color",
+    "color": "#FAFAFC"
+  },
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F0F1F6FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#26282FFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C9E0FFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#0E63C5FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E6EDF8FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#273751FF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#D3E4FDFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#1E559EFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#D9E7FBFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#234B84FF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E0EAFAFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#264169FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#CDE1FEFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#175DB5FF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#ECEFF6FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#272E3DFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "grassetto",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#C8DFFFFF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_bold|bold",
+              "iconSizeDp": 26,
+              "color": "#0A65CBFF"
+            }
+          ]
+        },
+        {
+          "name": "corsivo",
+          "kind": "shape",
+          "x": 69,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#F1F1F5FF",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:format_italic|italic",
+              "iconSizeDp": 26,
+              "color": "#26262AFF"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

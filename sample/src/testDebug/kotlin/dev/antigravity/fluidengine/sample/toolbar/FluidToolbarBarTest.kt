@@ -27,7 +27,11 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
@@ -37,6 +41,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPieceRecord
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidLabels
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassId
@@ -160,6 +166,46 @@ class FluidToolbarBarTest {
     node.assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
     assertEquals(label, Role.Button, node.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Role))
     assertTrue(label, node.fetchSemanticsNode().config.contains(SemanticsActions.OnClick))
+  }
+
+  @Test
+  fun `la barra ridotta conserva il bersaglio finale senza aprire un viaggio di vetro`() {
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        CompositionLocalProvider(LocalFluidMotionPolicy provides FluidMotionPolicy(0f)) {
+          ToolbarContent(ToolbarScene.Primary, autoMs = 0, bottomInset = 0.dp, onBack = {})
+        }
+      }
+    }
+    compose.waitForIdle()
+    val before = compose.onNodeWithContentDescription("Preferito").getBoundsInRoot()
+    tap("Preferito")
+    val destination = compose.onNodeWithContentDescription("Preferito").getBoundsInRoot()
+    advance(1_200)
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalJourneys)
+    assertEquals(destination, compose.onNodeWithContentDescription("Preferito").getBoundsInRoot())
+    assertEquals(before.top, destination.top)
+  }
+
+  @Test
+  fun `il campo principale sale con la lista e resta raggiungibile dopo il ritiro`() {
+    page(ToolbarScene.Minimize)
+    val field = compose.onNodeWithText("Cerca nelle note")
+    val before = field.getBoundsInRoot().top
+    assertButton("Opzioni")
+    compose.onNodeWithTag("toolbar-page").performTouchInput {
+      swipeUp(startY = bottom * 0.75f, endY = bottom * 0.35f)
+    }
+    advance(1_200)
+    val pinned = field.getBoundsInRoot().top
+    assertTrue("campo più vicino alla barra di stato", pinned < before)
+    compose.onNodeWithContentDescription("Opzioni").assertDoesNotExist()
+    compose.onNodeWithTag("toolbar-page").performTouchInput {
+      swipeDown(startY = bottom * 0.35f, endY = bottom * 0.75f)
+    }
+    advance(1_200)
+    assertEquals(before, field.getBoundsInRoot().top)
+    assertButton("Opzioni")
   }
 
   @Test

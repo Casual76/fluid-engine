@@ -1,0 +1,6852 @@
+{
+  "schema": 1,
+  "name": "barra-ritorna-ridotto",
+  "phase": "f4a-4",
+  "fps": 60,
+  "durationMs": 1050,
+  "density": 2,
+  "theme": "light",
+  "size": [360, 256],
+  "background": {
+    "kind": "color",
+    "color": "#FAFAFC"
+  },
+  "page": [
+    {
+      "kind": "text",
+      "text": "9:41",
+      "x": 18,
+      "y": 7,
+      "sizeDp": 13
+    }
+  ],
+  "events": [
+    {
+      "t": 450,
+      "kind": "mark",
+      "label": "rilascio"
+    }
+  ],
+  "probes": [
+    {
+      "name": "opacita-titolo",
+      "kind": "value",
+      "path": "titolo.content[testo].alpha"
+    },
+    {
+      "name": "sfocatura-titolo",
+      "kind": "value",
+      "path": "titolo.content[testo].blurDp"
+    },
+    {
+      "name": "quota-campo",
+      "kind": "value",
+      "path": "campo.y"
+    },
+    {
+      "name": "inset-lista",
+      "kind": "value",
+      "path": "lista.y"
+    }
+  ],
+  "frames": [
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 90,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EE00"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 1,
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 90,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EE00"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 1,
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 90,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EE00"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 1,
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 93.799995,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.003834,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 29.799997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EE2A"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 0.834077,
+          "x": 16,
+          "y": 29.799997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 29.799997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 97.600006,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.014959,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 33.600002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EE86"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 0.474499,
+          "x": 16,
+          "y": 33.600002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 33.600002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 101.400009,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.032804,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 37.400005,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEDE"
+        },
+        {
+          "name": "vetro-campo",
+          "kind": "glass",
+          "role": "floating",
+          "intensity": 0.12856,
+          "x": 16,
+          "y": 37.400005,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 37.400005,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.199997,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.056801,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 41.200001,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 41.200001,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 109,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.086381,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 45,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 45,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 112.800003,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.120976,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 48.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 48.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 116.599998,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.160017,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 52.599998,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 52.599998,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 120.400002,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.202934,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 56.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 56.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 124.199997,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.249159,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 60.199993,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 60.199993,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 128,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.298124,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 63.999996,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 63.999996,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 131.800003,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.349259,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 67.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 67.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 135.600006,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.401996,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 71.600006,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 71.600006,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 139.399994,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.455766,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 75.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 75.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 143.199997,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.509999,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 79.199997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 79.199997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 147,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.564128,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 83,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 83,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 150.800003,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.617584,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 86.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 86.800003,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 154.600006,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.669796,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 90.599998,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 90.599998,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 158.399994,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.720198,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 94.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 94.400002,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 162.199997,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.76822,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 98.199997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 98.199997,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 166,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.813293,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 102,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 102,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 169.799988,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.854848,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 105.799995,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 170.235168,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.859357,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 106.235176,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 106.235176,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 171.944656,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.004526,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.876534,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 107.944656,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 107.944656,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 175.761993,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.102485,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.911593,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 111.762001,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 111.762001,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 181.322754,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.395854,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.953518,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 117.322746,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 117.322746,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 186.085403,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.688588,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.979599,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 122.085403,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 122.085403,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 189.344147,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.859568,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.991608,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 125.344154,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 125.344154,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 191.53125,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.943371,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.996798,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 127.53125,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 127.53125,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 193.003571,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.980392,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.998929,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 129.003571,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 129.003571,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 193.976074,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.994695,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.999717,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 129.976074,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 129.976074,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 194.580627,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.999095,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.999952,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 130.580627,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 130.580627,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 194.902588,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 0.999951,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 0.999997,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 130.902588,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 130.902588,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 716.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 733.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 750,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 766.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 783.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 800,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 816.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 833.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 850,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 866.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 883.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 900,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 916.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 933.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 950,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 966.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 983.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1000,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1016.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1033.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1050,
+      "elements": [
+        {
+          "name": "lista",
+          "kind": "shape",
+          "x": 16,
+          "y": 195,
+          "w": 328,
+          "h": 60,
+          "radius": 15,
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "riga",
+              "label": "Nota 1",
+              "labelSizeDp": 17
+            }
+          ]
+        },
+        {
+          "name": "titolo",
+          "kind": "shape",
+          "x": 16,
+          "y": 26,
+          "w": 250,
+          "h": 112,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 52,
+              "w": 108,
+              "h": 44,
+              "label": "Note",
+              "labelSizeDp": 34,
+              "labelWeight": 700,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "tasti",
+          "kind": "shape",
+          "x": 300,
+          "y": 26,
+          "w": 44,
+          "h": 44,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "puntini",
+              "y": 0,
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "blurDp": 0,
+              "marginDp": 20
+            }
+          ]
+        },
+        {
+          "name": "campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#E8E7EEFF"
+        },
+        {
+          "name": "testo-campo",
+          "kind": "shape",
+          "x": 16,
+          "y": 131,
+          "w": 328,
+          "h": 52,
+          "radius": "capsule",
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "ricerca",
+              "icon": "fluid:search|search",
+              "x": 0,
+              "w": 48,
+              "iconSizeDp": 20
+            },
+            {
+              "name": "prompt",
+              "x": 43,
+              "w": 150,
+              "label": "Cerca nelle note",
+              "labelSizeDp": 16
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

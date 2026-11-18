@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -16,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -23,6 +25,11 @@ import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.sample.GalleryLaunch
+import androidx.compose.ui.unit.Density
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchPlacement
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
 import dev.antigravity.fluidengine.ui.fluid.icons.Delete
 import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
@@ -72,6 +79,10 @@ internal enum class ToolbarScene(val key: String, val title: String, val voice: 
   Icons(
     "icone", "Due tasti cambiano icona",
     "stessi id, icone nuove: il vetro non si muove, le icone si incrociano sfocandosi",
+  ),
+  Minimize(
+    "ritiro", "Barra che si ritira",
+    "Scorri le note e inverti il verso. Il campo resta sotto la barra di stato.",
   ),
   ;
 
@@ -128,6 +139,9 @@ internal enum class ToolbarScene(val key: String, val title: String, val voice: 
         button("two", if (alt) FluidIcons.Archive else FluidIcons.Edit, if (alt) "Archivia" else "Modifica", onClick = {})
       }
     }
+    Minimize -> {
+      { button("more", FluidIcons.MoreHoriz, "Opzioni", onClick = {}) }
+    }
   }
 }
 
@@ -168,7 +182,34 @@ internal fun ToolbarPage(bottomInset: Dp, onBack: () -> Unit) {
       ToolbarScene.BrowseSelect to 0L
     }
   }
-  ToolbarContent(launched.first, launched.second, bottomInset, onBack)
+  ToolbarDemoPolicy {
+    ToolbarContent(launched.first, launched.second, bottomInset, onBack)
+  }
+}
+
+/** Le due prove leggono gli assi di lancio senza entrare nell'elenco dei componenti nuovi della matrice. */
+@Composable
+internal fun ToolbarDemoPolicy(content: @Composable () -> Unit) {
+  val context = LocalContext.current
+  val launch = remember(context) {
+    val activity = context.findActivity()
+    if (context.isDebuggableApp() && activity != null) {
+      GalleryLaunch.parse { activity.intent?.getStringExtra(it) }
+    } else {
+      GalleryLaunch.None
+    }
+  }
+  val density = LocalDensity.current
+  val policy = LocalFluidMotionPolicy.current
+  if (launch.textScale == null && launch.reducedMotion != true) {
+    content()
+    return
+  }
+  CompositionLocalProvider(
+    LocalDensity provides (launch.textScale?.let { Density(density.density, it.scale) } ?: density),
+    LocalFluidMotionPolicy provides (if (launch.reducedMotion == true) FluidMotionPolicy(0f) else policy),
+    content = content,
+  )
 }
 
 /** La pagina senza la lettura degli extra: è ciò che apre il test. */
@@ -177,6 +218,7 @@ internal fun ToolbarContent(initial: ToolbarScene, autoMs: Long, bottomInset: Dp
   var scene by remember { mutableStateOf(initial) }
   var alt by remember { mutableStateOf(false) }
   var auto by remember { mutableLongStateOf(autoMs) }
+  var query by remember { mutableStateOf("") }
   val toggle: () -> Unit = remember { { alt = !alt } }
   val scale = LocalFluidMotionPolicy.current.durationScale
   LaunchedEffect(scene) { Log.i(ToolbarLogTag, "SCENA ${scene.key}") }
@@ -190,12 +232,18 @@ internal fun ToolbarContent(initial: ToolbarScene, autoMs: Long, bottomInset: Dp
     }
   }
   FluidScreen(
-    title = "Barre",
-    subtitle = "F4A.2 · ${scene.title}",
+    title = if (scene == ToolbarScene.Minimize) "Note" else "Barre",
+    subtitle = if (scene == ToolbarScene.Minimize) null else "F4A.2 · ${scene.title}",
     modifier = Modifier.testTag("toolbar-page"),
     onBack = onBack,
     extraBottomPadding = bottomInset,
     toolbar = scene.toolbar(alt, toggle),
+    search = if (scene == ToolbarScene.Minimize) FluidSearchSpec(
+      query = query,
+      onQueryChange = { query = it },
+      placement = FluidSearchPlacement.Principal,
+      prompt = "Cerca nelle note",
+    ) else null,
   ) {
     item(key = "voice") {
       Text(
@@ -234,8 +282,9 @@ internal fun ToolbarContent(initial: ToolbarScene, autoMs: Long, bottomInset: Dp
       )
     }
     // Abbastanza righe da far scorrere la pagina sotto la barra: il titolo si aggancia e i gruppi restano fermi.
-    items(count = 24, key = { "filler-$it" }) { index ->
-      FluidListRow(title = "Nota ${index + 1}", subtitle = "Una riga per far scorrere la pagina sotto la barra")
+    val notes = (1..24).filter { query.isBlank() || "Nota $it".contains(query.trim(), ignoreCase = true) }
+    items(count = notes.size, key = { "filler-${notes[it]}" }) { index ->
+      FluidListRow(title = "Nota ${notes[index]}", subtitle = "Una riga per far scorrere la pagina sotto la barra")
     }
   }
 }

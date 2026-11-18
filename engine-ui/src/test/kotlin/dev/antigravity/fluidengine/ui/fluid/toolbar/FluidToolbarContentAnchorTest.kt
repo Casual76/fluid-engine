@@ -17,6 +17,34 @@ import org.junit.Test
 
 /** Il conducente e il volo del contenuto di produzione, con posizioni risolte dal modello della barra. */
 class FluidToolbarContentAnchorTest {
+  @Test fun `fermo in entrambi gli stati, il glifo non segue il rinculo della lastra`() {
+    val item = FluidToolbarItem("more", symbol = "more")
+    val trip = FluidToolbarTransfer(
+      FluidToolbarGlassId(FluidToolbarGroupId(setOf("more"))),
+      leavesSingle = true, entersSingle = false, startDp = 362f, endDp = 362f,
+      interruptedCenter = null, softened = false, targetWidthDp = 88f, startItem = item,
+    )
+    for (frame in 0..120) {
+      val fraction = frame / 120f
+      assertEquals(769.5f, trip.center(769.5f, 769.5f, 768.5f + fraction * 3f, 44f + fraction * 44f, fraction), 0f)
+    }
+  }
+
+  @Test fun `il layer del glifo usa il centro realmente posato alla densita del tablet`() {
+    // 44 dp a 2,125 = 94 px di slot. Il glifo di 26 dp ne misura 55.
+    val slotWidth = 94
+    val glyphWidth = 55
+    assertEquals(47.5f, fluidToolbarPlacedIconCenterPx(slotWidth, glyphWidth), 0f)
+    assertEquals(0.5f, fluidToolbarPlacedIconCenterPx(slotWidth, glyphWidth) - slotWidth / 2f, 0f)
+  }
+
+  @Test fun `la selezione usa la stessa curva nei due versi dello scambio`() {
+    val phases = (0..120).map { FluidToolbarSelectionEasing.transform(it / 120f) }
+    assertEquals(0f, phases.first(), 0f)
+    assertEquals(1f, phases.last(), 0f)
+    assertTrue(phases.zipWithNext().all { (before, after) -> after >= before })
+    assertTrue(phases.any { it > 0f && it < 1f })
+  }
   private val metrics = fluidToolbarMetrics()
   private val width = 240f
   private val height = 108f

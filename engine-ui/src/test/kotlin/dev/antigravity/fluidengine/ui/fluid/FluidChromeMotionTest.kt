@@ -1,11 +1,80 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeState
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBarMinimizeDirection
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLook
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarReducedFadeProgress
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchGlassProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FluidChromeMotionTest {
+
+  @Test
+  fun automaticMinimizesOnlyForPrincipalSearch() {
+    for (placement in FluidSearchPlacement.entries + listOf(null)) {
+      assertEquals(if (placement == FluidSearchPlacement.Principal) -1f else 0f,
+        fluidBarMinimizeDirection(FluidBarMinimizeBehavior.Automatic, placement), 0f)
+      assertEquals(0f, fluidBarMinimizeDirection(FluidBarMinimizeBehavior.Never, placement), 0f)
+      assertEquals(-1f, fluidBarMinimizeDirection(FluidBarMinimizeBehavior.OnScrollDown, placement), 0f)
+      assertEquals(1f, fluidBarMinimizeDirection(FluidBarMinimizeBehavior.OnScrollUp, placement), 0f)
+    }
+  }
+
+  @Test
+  fun minimizeFollowsDeltaAndReverseBeforeSettlingInBothDirections() {
+    for (direction in listOf(-1f, 1f)) {
+      val bar = FluidToolbarMinimizeState(direction, reducedMotion = false)
+      bar.measure(100f)
+      assertEquals(0f, bar.scroll(48f * direction, canHide = false), 0f)
+      assertEquals(48f * direction, bar.scroll(48f * direction, canHide = true), 0f)
+      assertEquals(0.48f, bar.progress, 0.0001f)
+      assertEquals(0f, bar.settledProgress(0f, 200f), 0f)
+      assertEquals(1f, bar.settledProgress(300f * direction, 200f), 0f)
+      assertEquals(-18f * direction, bar.scroll(-18f * direction, canHide = false), 0.0001f)
+      bar.measure(200f)
+      assertEquals(60f, bar.offsetPx, 0.0001f)
+      assertEquals(140f * direction, bar.scroll(200f * direction, canHide = true), 0.0001f)
+      assertEquals(1f, bar.progress, 0f)
+      assertEquals(-200f * direction, bar.scroll(-220f * direction, canHide = false), 0f)
+      assertEquals(0f, bar.progress, 0f)
+    }
+  }
+
+  @Test
+  fun minimizeReducedMotionOnlyChangesOpacity() {
+    val full = fluidToolbarMinimizeLook(0.5f, 100f, reducedMotion = false, blurAvailable = true)
+    assertEquals(-50f, full.offsetPx, 0f)
+    assertTrue(full.alpha < 1f && full.blur > 0f)
+    val reduced = fluidToolbarMinimizeLook(0.5f, 100f, reducedMotion = true, blurAvailable = true)
+    assertEquals(0f, reduced.offsetPx, 0f)
+    assertEquals(0.5f, reduced.alpha, 0.0001f)
+    assertEquals(0f, reduced.blur, 0f)
+    assertEquals(0f, fluidToolbarMinimizeLook(1f, 100f, false, true).alpha, 0f)
+    assertEquals(0f, fluidToolbarMinimizeLook(1f, 100f, true, true).alpha, 0f)
+  }
+
+  @Test
+  fun reducedTitleCompletesItsFadeBeforeSearchCrossesItsFixedPosition() {
+    val gap = 24f
+    for (offset in listOf(24f, 40f, 80f)) {
+      val phase = fluidToolbarReducedFadeProgress(offset / 100f, offset, gap)
+      val title = fluidToolbarMinimizeLook(phase, 100f, reducedMotion = true, blurAvailable = true)
+      assertEquals(0f, title.alpha, 0f)
+      assertEquals(0f, title.offsetPx, 0f)
+    }
+    assertEquals(0.5f, fluidToolbarReducedFadeProgress(0.12f, 12f, gap), 0f)
+  }
+
+  @Test
+  fun searchKeepsContentMaterialUntilNearItsPinnedPosition() {
+    assertEquals(0f, fluidToolbarSearchGlassProgress(0f), 0f)
+    assertEquals(0f, fluidToolbarSearchGlassProgress(0.86f), 0f)
+    assertEquals(0.5f, fluidToolbarSearchGlassProgress(0.93f), 0.0001f)
+    assertEquals(1f, fluidToolbarSearchGlassProgress(1f), 0f)
+  }
 
   // --- Gli inset della barra in alto (4.0) -------------------------------------------------------------------
   //

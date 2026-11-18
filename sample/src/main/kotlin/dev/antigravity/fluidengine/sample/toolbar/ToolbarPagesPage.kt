@@ -220,7 +220,7 @@ internal fun ToolbarPagesPage(bottomInset: Dp, onBack: () -> Unit) {
       ToolbarPagesLaunch.Request(ToolbarHostPage.Notes, 0L, false)
     }
   }
-  ToolbarPagesContent(launched, bottomInset, onBack)
+  ToolbarDemoPolicy { ToolbarPagesContent(launched, bottomInset, onBack) }
 }
 
 /** La prova senza la lettura degli extra: è ciò che apre il test. */

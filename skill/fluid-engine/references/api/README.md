@@ -6,7 +6,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 
 | famiglia | file | dichiarazioni |
 |---|---|---|
-| [Schermata e scheletro](schermata.md) | 17 | 180 |
+| [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 8 | 126 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 26 | 219 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |

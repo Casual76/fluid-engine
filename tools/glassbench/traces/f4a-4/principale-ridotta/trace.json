@@ -1,0 +1,1194 @@
+{
+  "schema": 1,
+  "name": "principale-ridotta",
+  "phase": "f4a-4",
+  "fps": 60,
+  "durationMs": 300,
+  "density": 3,
+  "theme": "light",
+  "size": [194, 72],
+  "background": {
+    "kind": "color",
+    "color": "#FAFAFC"
+  },
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675EC00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFB",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.982731,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA04",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.017269,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675EC04",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.017269,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAE9",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.914895,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA16",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.085105,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675EC16",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.085105,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAC3",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.763413,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA3C",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.236587,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675EC3C",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.236587,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA8A",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.542748,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA75",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.457252,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675EC75",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.457252,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA5A",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.353754,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAA5",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.646246,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECA5",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.646246,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA39",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.224438,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAC6",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.775562,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECC6",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.775562,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA23",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.137649,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EADC",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.862351,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECDC",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.862351,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA14",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.079224,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAEB",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.920776,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECEB",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.920776,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA0A",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.040632,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAF5",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.959368,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECF5",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.959368,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA04",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.016641,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFB",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.983359,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFB",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.983359,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA01",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.003866,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFE",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 0.996134,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFE",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0.996134,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "prima",
+          "kind": "shape",
+          "x": 37,
+          "y": 14,
+          "w": 132,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EA00",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 0,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-gruppo",
+          "kind": "shape",
+          "x": 25,
+          "y": 14,
+          "w": 88,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#E4E4EAFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#26262A"
+            }
+          ]
+        },
+        {
+          "name": "dopo-principale",
+          "kind": "shape",
+          "x": 125,
+          "y": 14,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#1675ECFF",
+          "content": [
+            {
+              "name": "icone",
+              "icons": ["fluid:star|star"],
+              "iconSizeDp": 26,
+              "alpha": 1,
+              "color": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

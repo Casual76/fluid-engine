@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.sample.toolbar
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,6 +12,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -21,6 +23,8 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPieceRecord
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.IosShare
@@ -99,13 +103,15 @@ class FluidToolbarPagesTest {
     }
   }
 
-  private fun pages(start: ToolbarHostPage) {
+  private fun pages(start: ToolbarHostPage, policy: FluidMotionPolicy = FluidMotionPolicy.Default) {
     compose.mainClock.autoAdvance = false
     compose.setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
-        val state = rememberFluidPageHostState()
-        host = state
-        ToolbarPagesContent(ToolbarPagesLaunch.Request(start, 0L, false), bottomInset = 0.dp, onBack = {}, hostState = state)
+        CompositionLocalProvider(LocalFluidMotionPolicy provides policy) {
+          val state = rememberFluidPageHostState()
+          host = state
+          ToolbarPagesContent(ToolbarPagesLaunch.Request(start, 0L, false), bottomInset = 0.dp, onBack = {}, hostState = state)
+        }
       }
     }
     compose.waitForIdle()
@@ -127,6 +133,20 @@ class FluidToolbarPagesTest {
 
   private fun present(label: String): Boolean =
     compose.onAllNodesWithContentDescription(label).fetchSemanticsNodes().isNotEmpty()
+
+  @Test
+  fun `in movimento ridotto il push usa subito i posti finali della barra e il piano non viaggia`() {
+    pages(ToolbarHostPage.Notes, FluidMotionPolicy(0f))
+    val oldBounds = compose.onNodeWithContentDescription("Opzioni").getBoundsInRoot()
+    tapTag("toolbar-pages-open")
+    advance(80)
+    assertTrue(present("Condividi") && present("Indietro"))
+    val newBounds = compose.onNodeWithContentDescription("Condividi").getBoundsInRoot()
+    assertEquals(oldBounds, compose.onNodeWithContentDescription("Opzioni").getBoundsInRoot())
+    advance(1_200)
+    assertEquals(newBounds, compose.onNodeWithContentDescription("Condividi").getBoundsInRoot())
+    assertEquals(0L, FluidGlassContainerDiagnostics.totalJourneys)
+  }
 
   @Test
   fun `due tasti che cambiano solo icona fra due pagine sono gli stessi vetri, fermi, senza viaggio`() {

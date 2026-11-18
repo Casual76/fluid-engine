@@ -101,11 +101,12 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   («morbido, come Apple»), sulle clip del telefono a tempo vero. Con `gallery.tune barkeep=sharp` resta nitida (com'era
   fino a F4A.5). Un’icona che conserva ID e simbolo ha una sola copia visibile lungo tutto lo scambio.
   Quando cambia gruppo, l’icona segue la lastra tra il posto iniziale e quello finale. Le icone mantenute nello stesso
-  gruppo seguono la larghezza effettiva del vetro tra i propri centri nella barra. Un centro uguale ai due capi resta fermo anche se il vetro rincula.
+  gruppo seguono la larghezza effettiva del vetro tra i propri centri nella barra. Se il posto coincide nei due stati, il
+  glifo resta sul pixel di layout anche quando il vetro rincula.
 - **Selezione e tinta per tasto.** `selected` colora lo sfondo del singolo posto e la sua icona. Il vetro di un’azione
   principale ha la sua pellicola anche accanto a un gruppo neutro. La tinta sfuma attraverso il collo e si spegne
   mentre la lastra entra nel vicino. Il simbolo assume il colore della nuova azione in proporzione alla pellicola visibile.
-  La selezione che cambia a vetro fermo interpola l’inchiostro sul posto. Una ripartenza del vetro conserva la pellicola già mostrata.
+  Il fondo della selezione e l'accento del glifo leggono lo stesso progresso. Una ripartenza del vetro conserva la pellicola già mostrata.
 - **Il titolo**: `Large` (di serie) è il titolo grande che scorre e si aggancia, com'era; `Inline` è solo quello
   agganciato (nessun titolo nella lista); `None` nessuno. Il **sottotitolo** sta sotto il titolo grande e, agganciato,
   sotto quello della barra, più piccolo (il titolo sale di 16 dp per fargli posto). Gli **inset** del titolo agganciato
@@ -119,11 +120,19 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 ## La ricerca
 
 `FluidScreen(search = FluidSearchSpec(…))` o `search(spec)` nel blocco (che vince): un punto solo,
-`FluidToolbarSearchSlot` (`ui/fluid/toolbar/FluidToolbarSearch.kt`). In F4A posa il `FluidSearchField` di oggi **così
-com'è**, come primo elemento della lista sotto il titolo: sempre aperto, o richiudibile in un tondo se la pagina chiede
+`FluidToolbarSearchSlot` (`ui/fluid/toolbar/FluidToolbarSearch.kt`). Posa il `FluidSearchField` sotto il titolo:
+sempre aperto, o richiudibile in un tondo se la pagina chiede
 `behavior = CollapseToButton` e possiede l'apertura (`active`, `onActiveChange`); senza fuoco automatico. La posizione
 nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, che riscrive quel file senza toccare
 `FluidScreen` né la DSL.
+
+Con `FluidSearchPlacement.Principal`, `FluidScreen` ritira la barra andando verso il fondo della lista. Titolo e tasti
+si sfocano e svaniscono seguendo il dito. Il campo conserva il fuoco, risale sul suo riempimento piatto e passa al
+vetro vicino alla barra di stato. Il rilascio a metà chiude la corsa con una molla e lo scorrimento inverso rivela la barra.
+Per le altre posizioni e le opzioni sugli inset, vedi [FluidScreen](schermata.md#fluidscreen).
+
+Con movimento ridotto il ritiro usa solo l'opacità per titolo e azioni. I cambi della barra dichiarata si incrociano in
+dissolvenza nei rispettivi posti di riposo e i bersagli del nuovo stato sono disponibili nella geometria finale.
 
 ## Dove si usa
 
@@ -222,5 +231,5 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `…/ui/fluid/toolbar/FluidToolbarModel.kt`: il modello puro di F4A.1 (gruppi, priorità, trabocco, differenze).
 - `…/ui/fluid/toolbar/FluidToolbarSearch.kt`: il punto unico della ricerca.
 - `…/ui/fluid/FluidScreen.kt`: `toolbar`, `search`, il modo del titolo, il sottotitolo agganciato.
-- La galleria: `sample/…/toolbar/` (pagina «Barre (prova)», cinque scene; pagina «Barre fra pagine», F4A.3).
+- La galleria: `sample/…/toolbar/` («Barre (prova)», anche `toolbar.scene ritiro`; «Barre fra pagine», F4A.3).
 - `…/ui/page/FluidPageAnchoredBar.kt` e `FluidPageBar.kt`: la barra dell'host disegnata dal modello (F4A.3).

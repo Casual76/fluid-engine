@@ -1,0 +1,837 @@
+{
+  "schema": 1,
+  "name": "puntini-fermi",
+  "phase": "f4a-4",
+  "fps": 60,
+  "durationMs": 600,
+  "density": 2.125,
+  "theme": "light",
+  "size": [76, 66],
+  "background": {
+    "kind": "color",
+    "color": "#FAFAFC"
+  },
+  "probes": [
+    {
+      "name": "centro-puntini",
+      "kind": "value",
+      "path": "puntini.x"
+    }
+  ],
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "name": "puntini",
+          "kind": "shape",
+          "x": 16.588257,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "radius": "capsule",
+          "color": "#EFEEF4",
+          "content": [
+            {
+              "name": "glifo",
+              "icon": "fluid:more_horiz|more",
+              "iconSizeDp": 26
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

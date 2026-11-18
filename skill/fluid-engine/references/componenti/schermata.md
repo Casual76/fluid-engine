@@ -179,6 +179,8 @@ fun FluidScreen(
   metrics: FluidScreenMetrics? = null,
   toolbar: (FluidToolbarScope.() -> Unit)? = null,                  // 4.0: la barra dichiarata
   search: FluidSearchSpec? = null,                                    // 4.0: la ricerca della pagina
+  barMinimize: FluidBarMinimizeBehavior = FluidBarMinimizeBehavior.Automatic,
+  barMinimizeAdjustsInsets: Boolean = true,
   content: LazyListScope.() -> Unit,
 )
 ```
@@ -191,6 +193,11 @@ scritte, principale tinta, conferma, indietro e Chiudi, spaziatori, gruppi, prio
 **Vince su `actions`**, che resta identico per chi non lo usa; con `onBack` e senza un `back` o un `close` dichiarati
 l'indietro lo aggiunge la barra. `search` (o `search(spec)` nel blocco, che vince) posa il `FluidSearchField` di oggi
 sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
+
+**Ritiro della barra (F4A.4).** `Automatic` lo attiva solo per `FluidSearchPlacement.Principal`. `Never` conserva
+il titolo che si aggancia, `OnScrollDown` ritira verso il fondo e `OnScrollUp` verso l'inizio. La lista recupera
+lo spazio liberato durante il gesto, a meno che `barMinimizeAdjustsInsets = false`. Il campo principale risale
+fino alla barra di stato e resta a portata di tocco.
 
 **Comportamento.**
 

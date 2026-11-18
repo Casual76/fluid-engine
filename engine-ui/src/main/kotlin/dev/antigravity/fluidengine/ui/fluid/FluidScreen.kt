@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -59,6 +60,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -80,6 +82,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -94,9 +97,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchSite
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchSlot
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBarMinimizeDirection
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLayer
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchItem
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableState
@@ -104,11 +113,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sign
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -388,6 +399,51 @@ internal fun bottomBarCommitThresholdPx(hidingTravel: Boolean, density: Float): 
 private const val BottomBarVelocityThresholdDpPerSecond = 200f
 private const val BottomBarHideCommitDp = 36f
 private const val BottomBarRevealCommitDp = 10f
+
+/** Sceglie quando far posto alla lettura ritirando la barra superiore. */
+enum class FluidBarMinimizeBehavior {
+  /** Ritiro verso il fondo della lista solo se la ricerca è dichiarata [FluidSearchPlacement.Principal]. */
+  Automatic,
+  Never,
+  /** Ritira andando verso il fondo, rivela tornando verso l'inizio. */
+  OnScrollDown,
+  /** Ritira andando verso l'inizio, rivela andando verso il fondo. */
+  OnScrollUp,
+}
+
+/** La quota consumata dal ritiro coincide con quella che libera l'inset. */
+@Composable
+private fun rememberTopBarScrollConnection(
+  minimize: FluidToolbarMinimizeState?,
+  adjustsInsets: Boolean,
+  list: LazyListState,
+  front: State<Boolean>,
+): NestedScrollConnection? {
+  val scope = rememberCoroutineScope()
+  val velocityThreshold = bottomBarVelocityThresholdPx(LocalDensity.current.density)
+  return remember(minimize, adjustsInsets, list, front, velocityThreshold, scope) {
+    if (minimize == null) return@remember null
+    object : NestedScrollConnection {
+      private var settling: Job? = null
+
+      override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (!front.value || source != NestedScrollSource.UserInput || available.y == 0f) return Offset.Zero
+        settling?.cancel()
+        val canHide = if (minimize.direction < 0f) list.canScrollForward else list.canScrollBackward
+        val consumed = minimize.scroll(available.y, canHide)
+        return if (adjustsInsets) Offset(0f, consumed) else Offset.Zero
+      }
+
+      override suspend fun onPreFling(available: Velocity): Velocity {
+        if (front.value) {
+          settling?.cancel()
+          settling = scope.launch { minimize.settle(available.y, velocityThreshold) }
+        }
+        return Velocity.Zero
+      }
+    }
+  }
+}
 
 val LocalFluidChromeController: ProvidableCompositionLocal<FluidChromeController?> =
   staticCompositionLocalOf { null }
@@ -758,6 +814,10 @@ fun FluidScreen(
    * sostituisce. Un punto solo per tutti e due (`FluidToolbarSearchSlot`): F4B porterà il campo nella barra.
    */
   search: FluidSearchSpec? = null,
+  /** Nelle pagine di lettura, libera spazio in risposta alla direzione dello scorrimento. */
+  barMinimize: FluidBarMinimizeBehavior = FluidBarMinimizeBehavior.Automatic,
+  /** Se false, la lista conserva il posto iniziale anche mentre la barra si ritira. */
+  barMinimizeAdjustsInsets: Boolean = true,
   content: LazyListScope.() -> Unit,
 ) {
   // La barra si rilegge a ogni composizione, come il contenuto di un `if`: il modello che ne esce e' strutturale.
@@ -798,6 +858,8 @@ fun FluidScreen(
       overlay = overlay,
       toolbar = declaration,
       search = declaration?.search ?: search,
+      barMinimize = barMinimize,
+      barMinimizeAdjustsInsets = barMinimizeAdjustsInsets,
       content = content,
     )
   }
@@ -820,6 +882,8 @@ private fun FluidScreenLayout(
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit,
   toolbar: FluidToolbarDeclaration?,
   search: FluidSearchSpec?,
+  barMinimize: FluidBarMinimizeBehavior,
+  barMinimizeAdjustsInsets: Boolean,
   content: LazyListScope.() -> Unit,
 ) {
   // Il titolo grande c'e' di serie; la barra dichiarata puo' chiederlo solo agganciato, o nessuno (F4A.2).
@@ -925,6 +989,33 @@ private fun FluidScreenLayout(
   // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.
   val routeFront = LocalFluidRouteFront.current
   val isRouteFront by routeFront
+  val minimizeDirection = fluidBarMinimizeDirection(barMinimize, search?.placement)
+  val minimize = remember(minimizeDirection, reducedMotion, listState) {
+    minimizeDirection.takeIf { it != 0f }?.let { FluidToolbarMinimizeState(it, reducedMotion) }
+  }
+  val pinnedSearch = search?.takeIf { minimize != null && it.placement == FluidSearchPlacement.Principal }
+  val topBarScroll = rememberTopBarScrollConnection(minimize, barMinimizeAdjustsInsets, listState, routeFront)
+  val controlRowPx = with(density) { FluidScreenDefaults.ControlRowHeight.roundToPx() }
+  val headerGapPx = with(density) { itemSpacing.roundToPx() }
+  var headingHeightPx by remember(minimize, largeTitle) { mutableIntStateOf(0) }
+  var searchHeightPx by remember(pinnedSearch != null, density) { mutableIntStateOf(0) }
+  val titleGapPx = if (largeTitle) headerGapPx else 0
+  val travelPx = controlRowPx + headingHeightPx + titleGapPx
+  SideEffect { minimize?.measure(travelPx.toFloat()) }
+  val expandedProgress = remember { mutableFloatStateOf(0f) }
+  val listPadding = remember(
+    minimize, density, horizontalPadding, topBarHeight, bottomPadding, barMinimizeAdjustsInsets, titleGapPx,
+    headerGapPx, largeTitle, pinnedSearch != null,
+  ) {
+    val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding)
+    if (minimize == null) rest else object : PaddingValues by rest {
+      override fun calculateTopPadding(): Dp = with(density) {
+        val extra = headingHeightPx + titleGapPx + searchHeightPx + if (pinnedSearch != null) headerGapPx else 0
+        val reduction = if (barMinimizeAdjustsInsets) minimize.offsetPx else 0f
+        topBarHeight + (extra - reduction).toDp()
+      }
+    }
+  }
   LaunchedEffect(chromeController, chromeRegistration, isRouteFront) {
     chromeController?.setBackdropFront(chromeRegistration, isRouteFront)
   }
@@ -975,7 +1066,11 @@ private fun FluidScreenLayout(
   // one of them is a title. The minimum time now comes from where it belongs: the fling snaps the
   // scroll itself to one end of the handoff or the other, so the movement is always completed, is
   // always animated when a gesture leaves it partway, and never rests in between.
-  val collapseProgress: State<Float> = if (largeTitle) scrollProgress else docked
+  val collapseProgress: State<Float> = when {
+    !largeTitle -> docked
+    minimize != null -> expandedProgress
+    else -> scrollProgress
+  }
   val activeFacet = rememberTitleFacet(titleFacets, collapseProgress)
 
   // The title has two homes and no address in between. Letting a gesture stop halfway leaves the
@@ -1002,18 +1097,19 @@ private fun FluidScreenLayout(
   val glassIntensity = remember(
     listState,
     collapseProgress,
+    minimize,
     shieldDeadZonePx,
     shieldRampDistancePx,
   ) {
     derivedStateOf {
-      calculateGlassIntensity(
+      maxOf(minimize?.progress ?: 0f, calculateGlassIntensity(
         firstVisibleItemIndex = listState.firstVisibleItemIndex,
         firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
         // Senza titolo grande il bordo dello scorrimento segue solo lo scorrimento: il titolo agganciato non e' un moto.
         collapseProgress = if (largeTitle) collapseProgress.value else 0f,
         deadZonePx = shieldDeadZonePx,
         rampDistancePx = shieldRampDistancePx,
-      )
+      ))
     }
   }
 
@@ -1095,6 +1191,7 @@ private fun FluidScreenLayout(
           .fillMaxSize()
           .nestedScroll(overscroll)
           .nestedScroll(qualityConnection)
+          .then(if (topBarScroll != null) Modifier.nestedScroll(topBarScroll) else Modifier)
           .onSizeChanged { overscroll.updateViewport(it.height.toFloat()) }
           // The background is painted *inside* the recorded region, not behind it. A snapshot of
           // text on transparency blurs into a faint smear that the sharp original still shows
@@ -1116,17 +1213,12 @@ private fun FluidScreenLayout(
           )
           .graphicsLayer { translationY = contentTranslation() },
         state = listState,
-        flingBehavior = flingBehavior,
-        contentPadding = PaddingValues(
-          start = horizontalPadding,
-          end = horizontalPadding,
-          top = topBarHeight,
-          bottom = bottomPadding,
-        ),
+        flingBehavior = if (minimize == null) flingBehavior else platformFling,
+        contentPadding = listPadding,
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
         overscrollEffect = null,
       ) {
-        if (largeTitle) {
+        if (largeTitle && minimize == null) {
           item(key = TitleItemKey, contentType = TitleItemKey) {
             FluidLargeTitle(
               title = title,
@@ -1140,7 +1232,7 @@ private fun FluidScreenLayout(
           }
         }
         // La ricerca della pagina, se c'e': dove la posa il suo punto unico (F4A.2: sotto il titolo).
-        fluidToolbarSearchItem(search)
+        if (pinnedSearch == null) fluidToolbarSearchItem(search)
         content()
       }
       }
@@ -1176,13 +1268,14 @@ private fun FluidScreenLayout(
       FluidScreenBottomScrollEdge(backdrop = backdrop, edges = bottomEdges, listState = listState, exports = bottomGlass)
     }
 
+    CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize) {
     FluidTopBar(
       title = title,
       backdrop = chromeBackdrop,
       barTint = null,
       collapseProgress = collapseProgress,
       activeFacet = activeFacet,
-      morphState = titleMorphState,
+      morphState = titleMorphState.takeIf { minimize == null },
       compactStyle = compactTitleStyle,
       contentTranslation = contentTranslation,
       fontScale = density.fontScale,
@@ -1196,6 +1289,50 @@ private fun FluidScreenLayout(
       toolbar = toolbar,
       subtitle = if (toolbar != null) toolbar.subtitle ?: subtitle else null,
     )
+    }
+
+    if (minimize != null && (largeTitle || pinnedSearch != null)) {
+      val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+      Box(Modifier.fillMaxSize().padding(top = statusBarHeight).clipToBounds()) {
+        if (largeTitle) {
+          val freeSpacePx = with(density) { FluidScreenDefaults.TitleBottomSpacing.toPx() } + titleGapPx
+          Box(
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = horizontalPadding)
+              .offset { IntOffset(0, controlRowPx) }
+              .onSizeChanged { headingHeightPx = it.height }
+              .fluidToolbarMinimizeLayer(
+                minimize,
+                fullTravel = true,
+                reducedFadeDistancePx = freeSpacePx.takeIf { pinnedSearch != null },
+              ),
+          ) {
+            FluidLargeTitle(
+              title = title,
+              subtitle = toolbar?.subtitle ?: subtitle,
+              style = expandedTitleStyle,
+              collapseProgress = expandedProgress,
+              morphState = titleMorphState,
+              fontScale = density.fontScale,
+              reducedMotion = reducedMotion,
+            )
+          }
+        }
+        if (pinnedSearch != null) {
+          FluidToolbarSearchSlot(
+            spec = pinnedSearch,
+            site = FluidToolbarSearchSite.PinnedPrincipal,
+            modifier = Modifier
+              .padding(horizontal = horizontalPadding)
+              .offset { IntOffset(0, (travelPx - minimize.offsetPx).roundToInt().coerceAtLeast(0)) }
+              .onSizeChanged { searchHeightPx = it.height },
+            pinned = minimize,
+            pinnedBackdrop = chromeBackdrop,
+          )
+        }
+      }
+    }
 
     CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(chromeBackdrop) }
   }
@@ -1605,7 +1742,7 @@ internal fun FluidTopBar(
   barTint: GlassTint?,
   collapseProgress: State<Float>,
   activeFacet: State<String?>,
-  morphState: FluidTitleMorphState,
+  morphState: FluidTitleMorphState?,
   compactStyle: TextStyle,
   contentTranslation: () -> Float,
   fontScale: Float,
@@ -1622,6 +1759,7 @@ internal fun FluidTopBar(
   /** Il sottotitolo sotto il titolo agganciato (solo con [toolbar]): compare mentre il titolo si aggancia. */
   subtitle: String? = null,
 ) {
+  val minimize = LocalFluidToolbarMinimize.current
   // Dentro un host di pagine (3.0) la barra non si disegna qui: si descrive, e la disegna l'host,
   // una sola, ferma sopra le pagine che si muovono. Fuori, la barra di sempre.
   val slot = LocalFluidPageBar.current
@@ -1634,7 +1772,9 @@ internal fun FluidTopBar(
         title = title,
         activeFacet = activeFacet,
         onBack = if (toolbar == null) onBack else toolbar.back?.onClick ?: onBack,
-        actions = actions,
+        actions = if (minimize == null) actions else ({
+          Row(Modifier.fluidToolbarMinimizeLayer(minimize), content = actions)
+        }),
         context = currentCompositionLocalContext,
         collapseProgress = collapseProgress,
         glassIntensity = glassIntensity,
@@ -1698,8 +1838,11 @@ internal fun FluidTopBar(
       // F2.3c: il titolo e i tasti prendono il lato dalla stessa decisione della striscia, nello stesso istante, col tema
       // del lato (un'icona in `onSurface` segue anche lei).
       GlassInkContent(shade.ink, LocalContentColor.current) {
+      val hidden by remember(minimize) { derivedStateOf { minimize?.hidden == true } }
+      if (hidden) return@GlassInkContent
       val controls = remember { FluidTopBarControls() }
-      FluidTopBarRow(onTapTitle = onTapTitle) {
+      CompositionLocalProvider(LocalFluidToolbarMinimize provides null) {
+      FluidTopBarRow(onTapTitle = onTapTitle, modifier = Modifier.fluidToolbarMinimizeLayer(minimize)) {
         if (toolbar != null) {
           FluidToolbarTopRow(
             toolbar = toolbar,
@@ -1750,6 +1893,7 @@ internal fun FluidTopBar(
             Spacer(Modifier.width(FluidBarEdgeInset))
           }
         }
+      }
       }
       }
     }
@@ -2162,7 +2306,7 @@ private fun BoxScope.FluidToolbarTopRow(
   subtitle: String?,
   collapseProgress: State<Float>,
   activeFacet: State<String?>,
-  morphState: FluidTitleMorphState,
+  morphState: FluidTitleMorphState?,
   compactStyle: TextStyle,
   contentTranslation: () -> Float,
   fontScale: Float,
@@ -2262,6 +2406,7 @@ internal fun FluidTopBarTitle(
     modifier = Modifier
       .fillMaxSize()
       .fluidTopBarTitleInset(controls)
+      .fluidToolbarMinimizeLayer()
       .then(
         if (morphState != null) Modifier.onGloballyPositioned(morphState::onCompactSlotPositioned) else Modifier,
       ),
@@ -2274,6 +2419,13 @@ internal fun FluidTopBarTitle(
       animationSpec = if (reducedMotion) snap() else FluidMotion.crossFade(220),
       label = "title facet handoff",
     )
+    val stationaryChromeAlpha = if (reducedMotion && motion != null) {
+      animateFloatAsState(
+        targetValue = motion.chromeAlpha(),
+        animationSpec = FluidMotion.crossFade(),
+        label = "docked title crossfade",
+      )
+    } else null
     Text(
       text = title,
       modifier = Modifier.graphicsLayer {
@@ -2289,8 +2441,8 @@ internal fun FluidTopBarTitle(
           morphing = morphing,
           reducedMotion = reducedMotion,
         ) * (1f - facetHandoff)
-        val facetShiftPx = -compactStyle.fontSize.toPx() * TitleFacetShiftFraction * facetHandoff
-        if (!morphing || morphState == null) {
+        val facetShiftPx = if (reducedMotion) 0f else -compactStyle.fontSize.toPx() * TitleFacetShiftFraction * facetHandoff
+        if (!morphing) {
           transformOrigin = TransformOrigin.Center
           scaleX = 1f
           scaleY = 1f
@@ -2298,8 +2450,8 @@ internal fun FluidTopBarTitle(
           translationY = facetShiftPx
           if (motion != null) {
             val blend = smoothStep(progress)
-            translationX = lerp(motion.pageX(), motion.chromeX(), blend)
-            alpha *= lerp(1f, motion.chromeAlpha(), blend)
+            translationX = lerp(motion.pageX(), if (reducedMotion) 0f else motion.chromeX(), blend)
+            alpha *= lerp(1f, stationaryChromeAlpha?.value ?: motion.chromeAlpha(), blend)
           }
           return@graphicsLayer
         }
@@ -2355,8 +2507,8 @@ internal fun FluidTopBarTitle(
         Modifier
       } else {
         Modifier.graphicsLayer {
-          translationX = motion.chromeX()
-          alpha = motion.chromeAlpha()
+          translationX = if (reducedMotion) 0f else motion.chromeX()
+          alpha = stationaryChromeAlpha?.value ?: motion.chromeAlpha()
         }
       },
     ) {

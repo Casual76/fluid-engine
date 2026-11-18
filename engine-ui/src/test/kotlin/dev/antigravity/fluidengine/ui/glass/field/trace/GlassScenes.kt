@@ -189,6 +189,7 @@ internal fun liquidElement(
     "offset" to "\$offset",
     "flex" to listOf(1, 0, 0, 1),
     "flexCenter" to listOf(0, 0),
+    "gelTip" to listOf(0, 0),
     "pieceCount" to 1,
     "pieceRect" to listOf(listOf("\$center", "\$halfSize")),
     "pieceRadii" to listOf(geometry.radii),

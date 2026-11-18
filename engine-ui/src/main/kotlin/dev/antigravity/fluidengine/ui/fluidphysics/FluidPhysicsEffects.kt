@@ -1,9 +1,12 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import dev.antigravity.fluidengine.ui.fluid.gelPose
+import dev.antigravity.fluidengine.ui.fluid.fluidPressGrowth
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
@@ -1006,6 +1009,44 @@ internal fun physicsAwayFromThemeSide(adaptive: GlassAdaptiveMaterial?, darkSide
   return maxOf(1f - side, under)
 }
 
+/** Cresce i pezzi attorno al centro comune mantenendo le bande ottiche nelle unità della cattura. */
+internal fun growPhysicsField(inputs: GlassDrawInputs, center: Offset, growth: Float) {
+  if (growth == 1f) return
+  fun x(value: Float) = center.x + (value - center.x) * growth
+  fun y(value: Float) = center.y + (value - center.y) * growth
+  if (inputs.kernel == GlassBodyKernel.Ring) {
+    val ring = inputs.ring
+    for (i in 0 until ring.count) {
+      ring.verts[2 * i] = x(ring.verts[2 * i])
+      ring.verts[2 * i + 1] = y(ring.verts[2 * i + 1])
+    }
+    val margin = ring.bandOuter
+    ring.bbox[0] = x(ring.bbox[0] + margin) - margin
+    ring.bbox[1] = y(ring.bbox[1] + margin) - margin
+    ring.bbox[2] = x(ring.bbox[2] - margin) + margin
+    ring.bbox[3] = y(ring.bbox[3] - margin) + margin
+    ring.soften *= growth
+    ring.restCenterX = x(ring.restCenterX)
+    ring.restCenterY = y(ring.restCenterY)
+    ring.restHalfWidth *= growth
+    ring.restHalfHeight *= growth
+    for (i in ring.restRadii.indices) ring.restRadii[i] *= growth
+    if (ring.dropReach >= 0f) ring.dropReach *= growth
+  } else {
+    val field = inputs.body
+    for (i in 0 until field.count) {
+      val at = i * 4
+      field.rects[at] = x(field.rects[at])
+      field.rects[at + 1] = y(field.rects[at + 1])
+      field.rects[at + 2] *= growth
+      field.rects[at + 3] *= growth
+      for (corner in at until at + 4) field.radii[corner] *= growth
+      field.blend[i] *= growth
+      field.soft[i] *= growth
+    }
+  }
+}
+
 /**
  * Gli ingressi del disegno di una superficie fisica col materiale nuovo: il piano del motore e la ricetta,
  * insieme, **nelle unità di chi li riceve** ([GlassDrawInputs]).
@@ -1296,7 +1337,7 @@ internal class PhysicsLiquidSurface(
       glowWeight = glowWeight,
       finger = pressState?.glow,
       bounds = bounds,
-      touch = if (planeJourney) planeShape?.touch else null,
+      touch = planeShape?.takeIf { planeJourney || it.resting }?.touch,
       recipe = recipe,
       out = glowAt,
     )
@@ -1312,6 +1353,24 @@ internal class PhysicsLiquidSurface(
       nodeClip = profile.travelNodeClip,
       out = inputs,
     )
+    // Se la superficie riceve direttamente una pressione, il suo centro è quello della sagoma nel palco.
+    // La matrice comune interroga anche anelli e gruppi; la luce in corpo percorre lo stesso campo.
+    pressState?.let { state ->
+      if (state.progress != 0f || state.lean != Offset.Zero || state.fingerSpeed != Offset.Zero) {
+        val pose = state.gelPose(bounds.width, bounds.height, screenDensity)
+        inputs.bodyGel = pose
+        inputs.gelCenter = bounds.center * scale
+        growPhysicsField(inputs, inputs.gelCenter, pose.growth)
+        val margin = kotlin.math.ceil((bounds.maxDimension * fluidPressGrowth(state.feedback, bounds.width, bounds.height, screenDensity) * 0.5f +
+          bounds.minDimension * 0.42f) * scale)
+        inputs.paddingPx += margin
+        inputs.bodyOffsetX -= margin + pose.drift.x * scale
+        inputs.bodyOffsetY -= margin + pose.drift.y * scale
+      } else {
+        inputs.bodyGel = null
+        inputs.gelCenter = Offset.Unspecified
+      }
+    }
     inputs.slabFilms = planeShape?.slabFilms
     return true
   }

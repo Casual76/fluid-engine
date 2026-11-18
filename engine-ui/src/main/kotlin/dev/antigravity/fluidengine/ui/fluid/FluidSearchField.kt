@@ -22,9 +22,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,9 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
@@ -49,6 +50,11 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.constrainWidth
+import kotlin.math.roundToInt
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidSearchReadingSurface
+import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearchTiming
+import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearchAnimation
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,6 +66,9 @@ import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import androidx.compose.material3.LocalContentColor
+
+/** La tab bar fornisce già il pezzo del tondo, il materiale e il viaggio al suo slot di ricerca. */
+internal val LocalFluidSearchTabSurface = compositionLocalOf { false }
 
 /** Le misure del [FluidSearchField]. */
 object FluidSearchFieldDefaults {
@@ -209,17 +218,14 @@ fun FluidSearchField(
 ) {
   val scheme = MaterialTheme.colorScheme
   val collapsible = onExpandedChange != null
-  val open = expanded || !collapsible
+  val tabSurface = LocalFluidSearchTabSurface.current
+  val open = tabSurface || expanded || !collapsible
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val progress = animateFloatAsState(
     targetValue = if (open) 1f else 0f,
-    animationSpec = if (reducedMotion) snap() else FluidMotion.standard(),
+    animationSpec = if (reducedMotion) snap() else ToolbarSearchTiming,
     label = "fluid search expansion",
   )
-  // Il contenuto resta in composizione finche' il campo si sta richiudendo: tolto subito, il cerchio
-  // si restringerebbe attorno a una lente sola, con il testo sparito prima del vetro.
-  val showContent by remember(open) { derivedStateOf { open || progress.value > 0.001f } }
-
   val focus = remember { FocusRequester() }
   val focusManager = LocalFocusManager.current
   val keyboard = LocalSoftwareKeyboardController.current
@@ -238,78 +244,76 @@ fun FluidSearchField(
     }
     wasOpen = open
   }
-  BackHandler(enabled = collapsible && open) { onExpandedChange?.invoke(false) }
+  BackHandler(enabled = collapsible && open && !tabSurface) { onExpandedChange?.invoke(false) }
   // F2.3b: il campo possiede la sua lente e il suo testo e gira come i tasti di vetro.
   val searchInk = rememberGlassInk()
 
-  Row(
-    modifier = modifier
-      .then(
-        if (collapsible) {
-          Modifier.fluidSearchWidth(progress = { progress.value }, collapsed = FluidSearchFieldDefaults.Height)
-        } else {
-          Modifier.fillMaxWidth()
-        },
-      )
-      .heightIn(min = FluidSearchFieldDefaults.Height)
-      // Tiene i tocchi che il campo non ha preso: un tocco sul margine del vetro non arriva alla card sotto.
-      .pointerInput(Unit) { detectTapGestures { } }
-      .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = searchInk)
-      // Chiuso, tutto il cerchio e' un tasto. La crescita sta *dentro* il vetro (la lente che cresce
-      // si legge, il vetro che cresce da un antenato rifrange un fondale che non c'e' piu'), e l'aptica
-      // e' quella di un tasto che apre qualcosa: Open al posto del click.
-      .then(
-        if (!open) {
-          Modifier.fluidPressable(
-            onClick = { onExpandedChange?.invoke(true) },
-            role = Role.Button,
-            focusShape = FluidCapsuleShape,
-            feedback = FluidPressFeedback.Expand,
-            haptic = FluidHapticEvent.Open,
-          )
-        } else {
-          Modifier
-        },
-      )
-      .clip(FluidCapsuleShape),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    GlassInkContent(searchInk, LocalContentColor.current) {
-      FluidIcon(
-        imageVector = FluidIcons.Search,
-        // La lente e' il nome del tasto solo da chiuso: aperto e' decorazione del campo.
-        contentDescription = if (open) null else labels.search,
-        // 4.0 (F1A.11): da chiuso e' un tasto di barra, quindi inchiostro del testo come le altre icone di barra e non
-        // l'accento (R6: 15-17:1 contro 3,5-6,7:1); da aperto e' decorazione del campo e resta nel tono secondario.
-        tint = if (open) scheme.onSurfaceVariant else fluidChromeInk(),
-        modifier = Modifier
-          .padding(start = FluidSearchFieldDefaults.IconInset)
-          .size(FluidSearchFieldDefaults.IconSize),
-      )
-      if (showContent) {
+  SearchFieldSurface(collapsible, open, modifier, backdrop, onPhoto, searchInk, { progress.value }) { surface, planeInk ->
+    Row(
+      modifier = surface
+        .pointerInput(Unit) { detectTapGestures { } }
+        // Chiuso, tutto il cerchio e' un tasto. La crescita sta *dentro* il vetro (la lente che cresce
+        // si legge, il vetro che cresce da un antenato rifrange un fondale che non c'e' piu'), e l'aptica
+        // e' quella di un tasto che apre qualcosa: Open al posto del click.
+        .then(
+          if (!open) {
+            Modifier.fluidPressable(
+              onClick = { onExpandedChange?.invoke(true) },
+              role = Role.Button,
+              focusShape = FluidCapsuleShape,
+              feedback = FluidPressFeedback.Expand,
+              haptic = FluidHapticEvent.Open,
+            )
+          } else {
+            Modifier
+          },
+        )
+        .clip(FluidCapsuleShape),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      GlassInkContent(searchInk, planeInk) {
+        FluidIcon(
+          imageVector = FluidIcons.Search,
+          // La lente e' il nome del tasto solo da chiuso: aperto e' decorazione del campo.
+          contentDescription = if (open) null else labels.search,
+          // 4.0 (F1A.11): da chiuso e' un tasto di barra, quindi inchiostro del testo come le altre icone di barra e non
+          // l'accento (R6: 15-17:1 contro 3,5-6,7:1); da aperto e' decorazione del campo e resta nel tono secondario.
+          tint = if (collapsible) LocalContentColor.current else scheme.onSurfaceVariant,
+          modifier = Modifier
+            .padding(start = if (collapsible) (FluidMetrics.GlassButtonLens - FluidSearchFieldDefaults.IconSize) / 2 else FluidSearchFieldDefaults.IconInset)
+            .size(FluidSearchFieldDefaults.IconSize),
+        )
         Row(
           modifier = Modifier
             .weight(1f)
-            .graphicsLayer { alpha = fluidSearchContentAlpha(progress.value) }
             .padding(start = 10.dp, end = 6.dp),
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          SearchTextField(
-            query = query,
-            onQueryChange = onQueryChange,
-            placeholder = placeholder ?: labels.search,
-            keyboardOptions = keyboardOptions,
-            onSearch = {
-              if (onSearch != null) {
-                onSearch()
-              } else {
-                keyboard?.hide()
-                focusManager.clearFocus()
-              }
-            },
-            focus = focus,
-            modifier = Modifier.weight(1f),
-          )
+          Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (collapsible) FluidGlassContentTransition(
+              if (open && query.isEmpty()) placeholder ?: labels.search else null,
+              contentAlignment = Alignment.CenterStart,
+            ) { hint ->
+              if (hint != null) Text(hint, style = MaterialTheme.typography.bodyLarge,
+                color = LocalContentColor.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (open) SearchTextField(
+              query = query,
+              onQueryChange = onQueryChange,
+              placeholder = if (collapsible) "" else placeholder ?: labels.search,
+              keyboardOptions = keyboardOptions,
+              onSearch = {
+                if (onSearch != null) {
+                  onSearch()
+                } else {
+                  keyboard?.hide()
+                  focusManager.clearFocus()
+                }
+              },
+              focus = focus,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
           AnimatedVisibility(
             visible = query.isNotEmpty() && open,
             enter = fadeIn(FluidMotion.fadeIn(140)) + scaleIn(FluidMotion.snappy(), initialScale = 0.6f),
@@ -317,7 +321,7 @@ fun FluidSearchField(
           ) {
             SearchClearButton(label = labels.clear, onClick = { onQueryChange("") })
           }
-          if (navigation != null) {
+          if (navigation != null && open) {
             SearchCounter(query = query, navigation = navigation, labels = labels)
             FluidCapsuleAction(
               icon = FluidIcons.KeyboardArrowUp,
@@ -336,17 +340,59 @@ fun FluidSearchField(
               size = FluidSearchFieldDefaults.ActionSize,
             )
           }
-          if (collapsible) {
-            FluidCapsuleAction(
+          if (collapsible) FluidGlassContentTransition(if (open) true else null) { visible ->
+            if (visible == true && open) FluidCapsuleAction(
               icon = FluidIcons.Close,
               contentDescription = labels.close,
               onClick = { onExpandedChange?.invoke(false) },
               tint = scheme.onSurface,
               size = FluidSearchFieldDefaults.ActionSize,
-            )
+            ) else if (visible == true) Box(Modifier.size(FluidSearchFieldDefaults.ActionSize),
+              contentAlignment = Alignment.Center) { FluidIcon(FluidIcons.Close, null) }
           }
         }
       }
+    }
+  }
+}
+
+/** Il layout del contenuto assume subito la misura finale. Il genitore che centra il campo vede la sagoma in volo. */
+@Composable
+private fun SearchFieldSurface(
+  collapsible: Boolean, open: Boolean, modifier: Modifier, backdrop: GlassBackdropState, onPhoto: Boolean,
+  ink: GlassInk, progress: () -> Float, content: @Composable (Modifier, Color) -> Unit,
+) {
+  if (LocalFluidSearchTabSurface.current) {
+    content(modifier.fluidSearchReadingSurface(LocalContentColor.current) { 1f }, LocalContentColor.current)
+    return
+  }
+  if (!collapsible) {
+    content(modifier.fillMaxWidth().heightIn(min = FluidSearchFieldDefaults.Height)
+      .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = ink), LocalContentColor.current)
+    return
+  }
+  val namespace = rememberFluidGlassNamespace()
+  val id = remember(namespace) { FluidGlassQualifiedId(namespace, "ricerca") }
+  val tint = if (onPhoto) GlassDefaults.floatingTintOnPhoto() else GlassDefaults.floatingTint()
+  CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+    FluidGlassContainer(modifier, animation = ToolbarSearchAnimation, propagateMinConstraints = true) {
+      val plane = currentFluidGlassContainer(FluidCapsuleShape)
+      val lens = FluidMetrics.GlassButtonLens
+      val field = FluidTextFieldDefaults.MinHeight
+      val surface = if (plane != null) {
+        Modifier.layout { measurable, constraints ->
+          val row = measurable.measure(constraints)
+          val visible = plane.flightOf(id)?.bounds?.width ?: plane.restFields.singleOrNull()?.node?.width
+          layout(constraints.constrainWidth(visible?.roundToInt() ?: row.width), row.height) { row.place(0, 0) }
+        }.fluidSearchWidth({ if (open) 1f else 0f }, lens)
+          .heightIn(min = if (open) field else lens)
+          .fluidGlassId(id.id, namespace).fluidGlassContentAnchor(FluidGlassContentAnchor.Start)
+          .fluidGlassPanel(backdrop, tint, FluidCapsuleShape)
+      } else {
+        Modifier.fluidSearchWidth(progress, lens).heightIn(min = androidx.compose.ui.unit.lerp(lens, field, progress().coerceIn(0f, 1f)))
+          .fluidFloatingGlass(backdrop = backdrop, onPhoto = onPhoto, ink = ink)
+      }
+      content(surface.fluidSearchReadingSurface(LocalContentColor.current, progress), LocalContentColor.current)
     }
   }
 }
@@ -374,7 +420,7 @@ private fun SearchTextField(
     modifier = modifier.focusRequester(focus),
     decorationBox = { inner ->
       Box(contentAlignment = Alignment.CenterStart) {
-        if (query.isEmpty()) {
+        if (query.isEmpty() && placeholder.isNotEmpty()) {
           Text(
             text = placeholder,
             style = MaterialTheme.typography.bodyLarge,
@@ -418,7 +464,7 @@ private fun SearchCounter(query: String, navigation: FluidSearchNavigation, labe
  * `FluidTextField`, che lo tiene privato. Prende il dito come un tasto (cresce) e dice il suo nome.
  */
 @Composable
-private fun SearchClearButton(label: String, onClick: () -> Unit) {
+internal fun SearchClearButton(label: String, onClick: () -> Unit) {
   val disc = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
   val glyph = MaterialTheme.colorScheme.surface
   Box(

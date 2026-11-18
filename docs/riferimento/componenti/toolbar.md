@@ -83,7 +83,7 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   nel menu e TalkBack propone solo le azioni eseguibili.
   Con `FluidToolbarPlacement.BottomBar` lo spazio e il menu «Altro» si calcolano nella barra inferiore.
   Una testata autonoma (`FluidCollapsingTopBar` o `FluidPageChrome` senza host) conserva quei comandi nel proprio «Altro».
-  `PinnedTrailing` occupa il bordo destro. Il collegamento che lo sposta nel menu con la ricerca attiva arriva in F4B.2.
+  `PinnedTrailing` occupa il bordo destro. Con la ricerca attiva si sposta nel menu «Altro» e alla chiusura ritrova il suo posto.
 - **Il piano**: la barra è un `FluidGlassContainer` alto quanto la riga; ogni gruppo è un pezzo con l'identità del suo
   vetro (`FluidToolbarGlassId`: il gruppo **alla nascita** del vetro, che il registro del piano espone), così un gruppo
   che cresce è lo stesso vetro, una divisione lascia il vetro alla parte più grande e le altre nascono dal vicino, una
@@ -173,17 +173,16 @@ Il riferimento della pagina di partenza torna disponibile quando la pagina ripre
 
 ## La ricerca
 
-`FluidScreen(search = FluidSearchSpec(…))` o `search(spec)` nel blocco (che vince): un punto solo,
-`FluidToolbarSearchSlot` (`ui/fluid/toolbar/FluidToolbarSearch.kt`). Posa il `FluidSearchField` sotto il titolo:
-sempre aperto, o richiudibile in un tondo se la pagina chiede
-`behavior = CollapseToButton` e possiede l'apertura (`active`, `onActiveChange`); senza fuoco automatico. La posizione
-nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, che riscrive quel file senza toccare
-`FluidScreen` né la DSL.
+La pagina passa `FluidScreen(search = FluidSearchSpec(…))` oppure `search(spec)` nella dichiarazione della toolbar, che ha precedenza. `query` e `onQueryChange` restano dell’app. Per controllare l’apertura dall’esterno si passano insieme `active` e `onActiveChange`. Altrimenti la schermata conserva lo stato anche alla ricreazione dell’Activity.
 
-La schermata usa `query`, `onQueryChange`, `prompt` e `onSearch`. Con `CollapseToButton` legge anche `active`
-e `onActiveChange`. Senza un proprietario dello stato di apertura mostra il campo aperto. `suggestions`, `scopes`,
-`purpose` ed `expansion` acquisteranno effetto in F4B.2. In F4A le posizioni diverse da `Principal` usano il campo
-sotto il titolo. Solo `FluidScreen` posa il campo, anche se gli altri ingressi della DSL accettano `search(spec)`.
+| Posizione | A riposo | Attiva |
+|---|---|---|
+| `Automatic` | In basso sotto 600 dp di larghezza disponibile, in alto a destra da 600 dp | Segue la sede risolta |
+| `BottomBar` | Sopra la navigazione e l’eventuale tab bar | Sopra l’IME |
+| `TopBar` | Sul lato finale della testata | Resta in alto. Con `expansion = AboveKeyboard` lo stesso editor scende sopra l’IME |
+| `Principal` | Sotto il titolo | Segue il ritiro della testata |
+
+Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`.
 
 Con `FluidSearchPlacement.Principal`, `FluidScreen` ritira la barra andando verso il fondo della lista. Titolo e tasti
 si sfocano e svaniscono seguendo il dito. Il campo conserva il fuoco, risale sul suo riempimento piatto e passa al

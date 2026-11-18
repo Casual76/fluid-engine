@@ -64,7 +64,7 @@ class GlassSceneExportTest {
     val light = declared(GlassLight1ShaderString)
     // Ciò che una lastra ferma non imposta: gli uniform di luce e d'ombra **in corpo**, che valgono zero a
     // riposo (`lightInBody` 0: uno uniform dichiarato e non impostato vale zero).
-    val inBodyOnly = light - setOf("offset", "flex", "flexCenter", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend",
+    val inBodyOnly = light - setOf("offset", "flex", "flexCenter", "gelTip", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend",
       "pieceSmooth", "materialize", "aa", "lightPart") + setOf("shadowOffset", "shadowRadii", "shadowAlphas", "shadowColor") +
       // `nodeClip` (F1B.1) è di chi disegna senza il ritaglio del nodo, cioè di Fluid-physics: una lastra ferma il ritaglio vero ce
       // l'ha, e lo uniform resta a zero.

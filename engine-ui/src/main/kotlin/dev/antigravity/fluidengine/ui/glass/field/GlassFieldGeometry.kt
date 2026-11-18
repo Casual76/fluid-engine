@@ -404,3 +404,10 @@ internal object GlassFieldGeometry {
   /** La copertura di un punto a distanza [distance]: la maschera che chi disegna ricava dal campo. */
   fun coverage(distance: Float, aa: Float): Float = (0.5f - distance / max(aa, 0.0001f)).coerceIn(0f, 1f)
 }
+
+/** Scala uniforme rispetto al centro: le lunghezze ottiche e il filo rimangono in pixel. */
+internal fun growSlab(rects: FloatArray, radii: FloatArray, growth: Float) {
+  rects[2] *= growth
+  rects[3] *= growth
+  for (i in 0..3) radii[i] *= growth
+}

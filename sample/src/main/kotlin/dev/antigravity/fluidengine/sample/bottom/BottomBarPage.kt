@@ -1,5 +1,9 @@
 package dev.antigravity.fluidengine.sample.bottom
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Text
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchPlacement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,12 +28,19 @@ internal fun BottomBarPage(onClose: () -> Unit) {
   var favourite by rememberSaveable { mutableStateOf(false) }
   var shared by rememberSaveable { mutableStateOf(false) }
   var expanded by rememberSaveable { mutableStateOf(false) }
+  var searching by rememberSaveable { mutableStateOf(false) }
+  var query by rememberSaveable { mutableStateOf("") }
+  var favouritesOnly by rememberSaveable { mutableStateOf(false) }
   val back = { if (photo) photo = false else onClose() }
   ToolbarDemoPolicy {
     FluidPageHost(stack = if (photo) listOf("raccolta", "foto") else listOf("raccolta"),
       onBack = back, modifier = Modifier.fillMaxSize()) { page ->
       val detail = page == "foto"
       FluidScreen(title = if (detail) "Foto" else "Raccolta", onBack = back, toolbar = {
+        if (searching && !detail) search(FluidSearchSpec(query, { query = it },
+          placement = FluidSearchPlacement.BottomBar, prompt = "Cerca nelle foto",
+          scopes = { Text(if (favouritesOnly) "Preferite" else "Tutte", Modifier.clickable { favouritesOnly = !favouritesOnly }) },
+          suggestions = { if (query.isNotBlank()) Text("Cerca «$query» nella raccolta") }))
         group("comandi", placement = FluidToolbarPlacement.BottomBar) {
           button("elenco", if (detail) FluidIcons.Search else FluidIcons.FormatListBulleted,
             if (detail) "Torna alla raccolta" else "Mostra foto", onClick = { photo = !detail })
@@ -43,6 +54,10 @@ internal fun BottomBarPage(onClose: () -> Unit) {
         }
       }) {
         item { FluidListRow(title = if (detail) "Torna alla raccolta" else "Apri la foto", subtitle = "Cambia pagina", onClick = { photo = !detail }) }
+        if (!detail) item {
+          FluidListRow(title = if (searching) "Nascondi la ricerca" else "Mostra la ricerca in basso", subtitle = "Foto e preferiti",
+            onClick = { searching = !searching })
+        }
         if (!detail) item {
           FluidListRow(title = if (separate) "Riunisci i comandi" else "Separa il più", subtitle = "Azioni della barra in basso", onClick = { separate = !separate })
         }

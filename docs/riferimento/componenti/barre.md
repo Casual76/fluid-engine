@@ -81,7 +81,7 @@ I numeri che la pagina deve conoscere, in dp: `OpenHeight` 62 (`FluidMetrics.Tab
 | la pillola «3 nuove ↑» sopra una lista | `FluidJumpPill` — [contenuto-righe-liste.md](contenuto-righe-liste.md) |
 | una barra di selezione multipla, un mini player, comandi di una foto | `FluidFloatingCapsule` con `FluidCapsuleAction` |
 | un campo di ricerca di vetro, anche richiudibile in un cerchio, anche con «3/12» | `FluidSearchField` |
-| un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` — attenzione: `FluidSearchField` porta il **suo** pannello (vedi trappole) |
+| un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` con `FluidSearchField` sul modificatore ricevuto |
 | la barra superiore col titolo e le azioni | `FluidScreen` / `FluidBarAction` — [schermata.md](schermata.md) |
 | i tasti della barra superiore che cambiano con lo stato (sfoglia → seleziona, una conferma tinta, il menu «Altro») | `FluidScreen(toolbar = { … })` — [toolbar.md](toolbar.md) |
 | il sottotitolo sotto il titolo agganciato, anche nella barra unica dell'host | `toolbar { title(Inline, subtitle = …) }` oppure `subtitle(…)`; indietro e Chiudi conservano il vetro fra pagine e compaiono per lente anche con un vicino — [toolbar.md](toolbar.md) |
@@ -292,8 +292,7 @@ pagina aspetta la pillola 160 ms; con cinque schede su 360 dp le etichette si re
 - **`standaloneTab` chiamato due volte sovrascrive la prima**; il suo `title` non si mostra mai (e' sempre un cerchio senza testo, alto almeno 48 dp, quadrato a partire dall'altezza).
 - **Una scheda ha bisogno di una `key` unica e stabile**: `selectedTabKey` che non corrisponde a nessuna scheda lascia la pillola dov'era (alla prima composizione, sulla prima).
 - **`FluidFloatingTabBar` calcola le schede a ogni composizione** (non le ricorda: le lambda chiudono su stato e colori, e una chiave dimenticata dava un'icona vecchia su un solo percorso di navigazione). Costo trascurabile con poche schede.
-- **`searchBarContent` e `FluidSearchField`**: `FluidSearchField` porta **il proprio pannello** di vetro e il modificatore della barra gliene mette un altro: nello slot servirebbe un campo «nudo» (lente, testo, crocetta, fuoco), che l'engine non ha
-  (e' una lacuna annotata in `artifacts/design/migrazione-3.0.md`). Nessun esempio del `sample` usa `searchMode`.
+- Nel suo slot di ricerca la tab bar fornisce il vetro del tondo. Passare il modificatore ricevuto alla radice del campo, per esempio `searchBarContent = { field -> FluidSearchField(query, onQueryChange, field) }`. La barra gestisce selezione e ritorno con `SearchTabSelection`.
 - **Accessibilita'**: la forma a elenco dice `selected` alla scheda scelta; le schede **non** hanno `Role.Tab` ne' il tag di test `top_level_<rotta>` (proprieta' del nodo scheda, che la barra costruisce da sola e sul quale una proprieta' messa su un discendente non sale):
   un test cerca la scheda dall'etichetta. Le copie nascoste della riga e l'icona ridisegnata sopra la pillola sono `clearAndSetSemantics {}`: non si raddoppia.
 - Il focus da tastiera: Tab entra nella barra e una scheda col fuoco ha un velo d'accento.
@@ -477,6 +476,10 @@ colore**: un disco pieno e un'icona sola si distinguono anche in scala di grigi 
 
 **Versione.** Dalla 3.0.0.
 
+## Ricerca dichiarata nella barra
+
+`FluidScreen(search = FluidSearchSpec(...))` colloca il campo nella chrome. La lente misura 44 dp e il vetro dell’editor aperto 40 dp. Il campo condivide il piano F3 con i comandi della riga. La larghezza disponibile, il numero di vicini e la politica di apertura determinano la posa a riposo. La pagina può mostrare filtri in linea e suggerimenti durante l’inserimento. La galleria offre «Mostra la ricerca in basso» in «Barra in basso» e le due varianti in alto nella pagina «Ricerca» di «Barre fra pagine». [Posizioni e comportamento](toolbar.md#la-ricerca).
+
 ## FluidSearchField
 
 **Cos'e'.** Un campo di ricerca di vetro: la capsula con la lente a sinistra, il testo, la crocetta che svuota e — se serve — «3/12» con i due tasti per scorrere i risultati dentro la pagina. Tre app se l'erano scritto (una senza il fuoco automatico, una con il
@@ -512,10 +515,7 @@ FluidSearchField(query = q, onQueryChange = { q = it; current = 0 }, backdrop = 
 
 **Comportamento.**
 
-- *Si apre da un cerchio.* Con `onExpandedChange` il campo e' richiudibile: `expanded` falso e' un **cerchio** di vetro `Height` 52 con la lente, che toccato si allarga fino a tutto lo spazio con la molla di `FluidMotion.standard()` — lo stesso vetro per
-  tutta l'apertura, senza un cambio di superficie a meta' — e prende il fuoco con la tastiera. Aperto ha una X a destra; «indietro» (`BackHandler`) fa lo stesso. Dove sta il cerchio (a destra, al centro) lo decide chi lo contiene: cresce dal lato opposto a quello
-  a cui e' allineato. **La lente non si sposta di un pixel** (`IconInset` = `(Height - IconSize)/2` = 15 dp: al centro del cerchio chiuso, margine del testo da aperto). Il contenuto compare dal 20% dell'apertura e se ne va per primo chiudendo (`fluidSearchContentAlpha`).
-  Nessun `onExpandedChange`: sempre aperto, `expanded` ignorato. Senza animazioni ridotte; con, apertura di colpo. Aptica `Open`; il cerchio chiuso e' tutto un tasto (`FluidPressFeedback.Expand`, la crescita sta *dentro* il vetro).
+- Con `onExpandedChange` la lente da 44 dp si apre in un campo alto 40 dp. Il piano interpola la sagoma e tiene la cattura. Segnaposto e chiusura entrano con la sfocatura R7. Il modificatore del chiamante decide il lato dal quale il campo cresce. Con movimento ridotto il campo assume subito la posa finale. Il campo sempre aperto conserva l’altezza di 52 dp. Nello slot di una tab bar valgono misura, identità e materiale del tondo di quella barra.
 - *Il fuoco e la tastiera.* Con `autoFocus` il campo prende il fuoco quando si apre o compare (`runCatching`: il nodo del fuoco puo' non essere ancora collegato al primo istante); chiudendosi fuoco e tastiera vanno via. Il fuoco si toglie **solo quando il campo si chiude**, non quando compare gia' chiuso: un
   cerchio che entra in una pagina con un altro campo in primo piano non gli strappa il cursore. «Cerca» sulla tastiera chiama `onSearch`; senza, nasconde la tastiera e lascia il testo (la ricerca era gia' live). Con `navigation` `onSearch` non nasconde la tastiera (Invio di solito e' «avanti»).
 - *Il testo e' del motore* (`bodyLarge`, cursore d'accento): non e' `FluidTextField`, che porta un pozzetto — un incavo dentro un vetro e' un rettangolo appiccicato sopra la lastra.

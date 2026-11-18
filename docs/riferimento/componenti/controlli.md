@@ -78,9 +78,9 @@ vedi «Licenze» in [controlli-gesto.md](controlli-gesto.md)); tutti i numeri e 
 scegliere:
 
 - **Pressione al contatto**, senza ritardo e senza soglia. Il tasto cresce di `1 + maxScale`: **10% per un tasto con
-  testo**, **50% per un tasto tondo solo icona** (`FluidPressFeedback.ExpandRound`). La crescita ha un tetto sul lato
+  testo**, **35% sul tondo Liquid** e 50% sul tondo Classic o nel feedback ordinario (`FluidPressFeedback.ExpandRound`). La crescita ha un tetto sul lato
   lungo: 16 dp per un tasto con testo (un `fillWidth` cresce quindi di circa il 5%), 24 dp in tutto per un tondo
-  (fino a 48 dp è ×1,5 intero; un disco da 76 dp arriva a 100, non a 114).
+  (in Liquid ×1,35 fino a circa 68,6 dp, poi il limite di 24 dp porta un disco da 76 a 100 dp).
 - **Segue il dito**: deriva elastica verso il dito, allungamento nel verso in cui scorre, bagliore. Con le animazioni
   ridotte la crescita si dimezza, non c'è né deriva né allungamento, ma la pressione arriva comunque in fondo.
 - **Il tasto tiene il dito** (`FluidPressGrip.HoldsFinger`, di serie): finché il dito è giù la pagina sotto —
@@ -438,12 +438,18 @@ fun Modifier.glassControlSurface(
 ): Modifier
 ```
 
-**Comportamento.** Rifrange davvero (displacement su una vera registrazione, con dispersione); si inclina verso il dito con
-una `tanh` (libero all'inizio, poi si rifiuta: la forma di una spinta su qualcosa di morbido e attaccato); cresce e si
-allunga come `FluidButton`; si accende dove l'hai toccato (luce additiva, perché un riflesso speculare *aggiunge* luce:
-scurire alla pressione è l'idioma del tasto di plastica). Crescita e inclinazione stanno nel `layerBlock` del renderer,
-che corregge la rifrazione dopo la trasformazione: il tasto scorre sul fondale e continua a mostrare ciò che c'è davvero
-dietro. Il vetro **non si scala mai da un antenato**.
+**Comportamento.** Al contatto il vetro Liquid cresce nella geometria del campo. Il tondo da 44 dp
+raggiunge 59,4 dp (×1,35). Il tasto con testo conserva il tetto di 16 dp sul lato lungo. Trascinando, la lastra
+si allunga lungo la velocità e si comprime di traverso. Sul lato del dito si forma un piccolo
+rigonfiamento. Il margine di cattura ospita la sporgenza e il filo segue la distanza dal nuovo contorno.
+Nel `layerBlock` resta la traslazione che permette di campionare il fondale mentre il tasto si sposta.
+
+Il contenuto ha un layer proprio. L’icona del tasto tondo cresce con il vetro e su API 31+ raggiunge una sigma visibile di 2,2 dp,
+misurata sulla freccia di WWDC25 219. Il blur parte al contatto insieme alla crescita. Al distacco
+si attenua subito, a circa 1,1 dp dopo 100 ms e 0,4 dp dopo 200 ms. A 333 ms l’icona è nitida. Il rilascio conserva la velocità della pressione anche se il dito si alza a metà crescita.
+La taglia e la posizione passano una volta oltre il riposo. Con movimento ridotto la crescita è dimezzata,
+il contorno mantiene le proporzioni e il ritorno si posa direttamente.
+
 
 - `pressState`: la pressione del controllo, guidata dal suo `fluidPressable(pressState = la stessa)`. Il vetro risponde allora
   dal contatto e segue il dito anche fuori. Se è `null` il vetro segue il dito da solo e non consuma niente. Non passare lo
@@ -899,8 +905,8 @@ I numeri di slider, interruttore e scrubber sono in [controlli-gesto.md](control
 
 ## Cosa è verificato dai test
 
-- **`FluidPressTest`, `FluidPressTransformTest`** (`engine-ui`): crescita 0,10 / ×1,5, tetto a 16 dp e a 24 dp, molle di LibrePods, deriva `tanh`, rilascio immediato; vedi [movimento.md](movimento.md).
-- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/44/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona a 0,6 del lato (24/26/32), il tondo cresce ×1,5 fino al bersaglio e poi del solo tetto; il tasto tondo da 44 dp ha un bersaglio da 48.
+- **`FluidPressTest`, `FluidPressTransformTest`** (`engine-ui`): feedback ordinario e Classic, crescita 0,10 / ×1,5, tetto a 16 dp e a 24 dp, molle di LibrePods, deriva `tanh`, rilascio immediato; vedi [movimento.md](movimento.md).
+- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/44/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona a 0,6 del lato (24/26/32), il tondo Classic conserva la scala di LibrePods fino al bersaglio. In Liquid `F61GelTest` verifica ×1,35 e la curva dell’icona; il tasto tondo da 44 dp ha un bersaglio da 48.
 - **`FluidSegmentedRtlTest`** (`engine-ui`): i due versi della goccia sono specchi esatti in ogni punto della corsa. **`FluidTextEditTest`**: `insert`, `wrap`, `toggleLinePrefix` (cursore, selezione, riga).
 - **`FluidButtonDragTest`, `FluidButtonGripTest`** (`sample`, Robolectric): un pulsante in `LazyColumn`/`verticalScroll`/pager non li fa scorrere e segue il dito; un tap fa tre colpi in ordine; il click vale fino a 16 dp oltre il bordo; `haptic = null` clicca in silenzio; `HoldsFinger`/`YieldsToScroll` sui quattro pulsanti (`FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidCapsuleAction`); un chip in `LazyRow` si scioglie e non clicca, un tocco clicca una volta sola.
 - **`AllGlassTest`, `FluidMatrixTest`** (`sample`): un chip su canvas è un tasto di vetro che clicca ed è scelto, su pagina piatta è la pastiglia opaca, spento non clicca; segmentato: il tocco sceglie una volta (su vetro e su pagina piatta), il trascinamento suona un tick per segmento e si posa sul più vicino, un dito che atterra su un altro segmento e scivola prende la goccia, in verticale non sceglie nulla, da destra a sinistra.

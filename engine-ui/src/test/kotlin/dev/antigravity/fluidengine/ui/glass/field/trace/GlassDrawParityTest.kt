@@ -149,9 +149,10 @@ class GlassDrawParityTest {
     // Le costanti di una lastra ferma, che `glassBody` e `drawGlassLight` scrivono uguali.
     assertEquals("$where.flex", listOf(1, 0, 0, 1), list(uniforms["flex"]).map { (it as Number).toInt() })
     assertEquals("$where.flexCenter", listOf(0, 0), list(uniforms["flexCenter"]).map { (it as Number).toInt() })
+    assertEquals("$where.gelTip", listOf(0, 0), list(uniforms["gelTip"]).map { (it as Number).toInt() })
   }
 
-  private val fieldKeys = setOf("offset", "flex", "flexCenter", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend", "pieceSmooth")
+  private val fieldKeys = setOf("offset", "flex", "flexCenter", "gelTip", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend", "pieceSmooth")
 
   /** Tutti gli uniform del corpo di una scena contro [inputs]. Uno uniform che qui non ha un confronto fa fallire. */
   private fun compareBody(where: String, el: Map<String, Any?>, inputs: GlassDrawInputs, density: Float, scale: Float) {

@@ -159,7 +159,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun flexibleSpacer()` — Uno spazio flessibile: spinge ciò che segue all'altro estremo della barra.
   - `fun group(id: Any, placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic, priority: FluidToolbarPriority = FluidToolbarPriority.Automatic, sharedBackground: Boolean = true, content: FluidToolbarScope.() -> Unit)` — Un gruppo esplicito: i suoi tasti stanno insieme, e non si uniscono ai vicini di fuori. [placement] e [priority] valgono per i figli che non ne dicono uno loro.
   - `fun overflow(label: String? = null, content: FluidToolbarScope.() -> Unit)` — Ciò che sta **sempre** nel menu «Altro» (il tasto coi tre puntini, a destra), qualunque sia la larghezza. [label] è il nome del tasto «Altro»; di serie le parole dell'engine.
-  - `fun search(spec: FluidSearchSpec)` — La ricerca della pagina (lo stesso posto del parametro `search` di `FluidScreen`, che questa sostituisce): in F4A è il campo sotto il titolo. Posizioni in barra, suggestions, scopes, purpose ed expansion arrivano in F4B.2. FluidPageChrome e FluidCollapsingTopBar accettano la specifica, ma solo FluidScreen posa il campo.
+  - `fun search(spec: FluidSearchSpec)` — La ricerca della schermata sul piano condiviso con i comandi. Ha precedenza sul parametro di FluidScreen.
 
 ## `engine-ui/ui/fluid/toolbar/FluidToolbarModel.kt`
 

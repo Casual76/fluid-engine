@@ -98,8 +98,8 @@ app che lo distribuisce è GPL-3.0). Cosa vale, e cosa è cambiato dalla 2.12:
   con LibrePods (il pulsante non prendeva mai il gesto) la pagina scorreva mentre si teneva un tasto.
   **Il chip e il pallino di colore cedono il dito alla fila** (`grip = FluidPressGrip.YieldsToScroll`):
   stanno in file che scorrono di lato, e appena la fila prende il gesto si sciolgono e non cliccano. Righe e card non cambiano. **Un pulsante ripetuto su ogni riga di una lista che scorre, o in un pager, passa
-  `grip = YieldsToScroll`**: lì non c'è un fuori da cui partire. I tondi crescono ×1,5 fino a 48 dp;
-  oltre, di 24 dp in tutto (12 per lato); le misure libere con `FluidGlassIconButton(size = …dp)`;
+  `grip = YieldsToScroll`**: lì non c'è un fuori da cui partire. Il tondo Liquid cresce ×1,35 fino a circa 68,6 dp. Classic usa ×1,5 fino a 48 dp.
+  Entrambi limitano la crescita a 24 dp in tutto (12 per lato). Le misure libere con `FluidGlassIconButton(size = …dp)`;
 - **il click**: di `clickable` per un tocco, del gesto per un dito che ha trascinato (`clickable`
   annulla alla vista di un cambio consumato). Scatta se il dito si solleva sul pulsante più 16 dp
   (`FluidPressClickSlack`), anche dopo aver vagato, con lo stesso `PressClick`; oltre il margine suona
@@ -132,8 +132,8 @@ Tre cose da sapere, tutte pagate:
   sta dentro: `FluidButton` ha rimpicciolito per anni la sua etichetta dentro un contenitore fermo,
   e nessuno lo vedeva perché era il 2.6% di una parola;
 - **mai scalare un nodo di vetro da un antenato.** Un layer scalato sopra un vetro rifrange il
-  contenuto che non c'è più: la trasformazione del tasto di vetro sta nel `layerBlock` di
-  `drawBackdrop` (`glassControlSurface`), non in un `graphicsLayer` sopra;
+  contenuto che non c'è più: con Liquid la crescita entra nella geometria, il `layerBlock`
+  di `drawBackdrop` trasla il controllo e il contenuto segue con il proprio layer;
 - **la deriva e l'allungamento sono la somma dei movimenti del dito sullo schermo, non la sua
   posizione sul tasto.** Se la pagina scorre sotto un dito che sta fermo sul tasto, il tasto lo segue
   lo stesso: il dito si è mosso, anche se non sul tasto. È voluto, e per questo il click lungo misura

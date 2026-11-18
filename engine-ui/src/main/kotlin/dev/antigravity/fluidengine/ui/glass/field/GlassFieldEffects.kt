@@ -26,6 +26,8 @@ import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Shader
 import android.os.Build
+import dev.antigravity.fluidengine.ui.fluid.FluidGelPose
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPressGeometry
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
@@ -124,6 +126,9 @@ internal class GlassDrawInputs(pieces: Int = 1) {
 
   /** L'anello, per [GlassBodyKernel.Ring]. Nasce alla prima richiesta: una lastra ferma non ne ha bisogno. */
   val ring: GlassRingField by lazy(LazyThreadSafetyMode.NONE) { GlassRingField() }
+  var gelCenter: Offset = Offset.Unspecified
+  var bodyGel: FluidGelPose? = null
+  var lightGel: FluidGelPose? = null
   var bodyOffsetX: Float = 0f
   var bodyOffsetY: Float = 0f
   var thickness: Float = 0f
@@ -667,10 +672,12 @@ internal class GlassBodyChain {
 }
 
 /** Gli uniform della geometria ad anello ([GlassFieldKernelRing]). */
-private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, offsetY: Float) {
+private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, offsetY: Float, inputs: GlassDrawInputs) {
   setFloatUniform("offset", offsetX, offsetY)
-  setFloatUniform("flex", 1f, 0f, 0f, 1f)
-  setFloatUniform("flexCenter", 0f, 0f)
+  val gel = inputs.bodyGel
+  setFloatUniform("flex", gel?.invXX ?: 1f, gel?.invXY ?: 0f, gel?.invXY ?: 0f, gel?.invYY ?: 1f)
+  val center = inputs.gelCenter
+  setFloatUniform("flexCenter", if (center.isSpecified) center.x else 0f, if (center.isSpecified) center.y else 0f)
   setFloatUniform("vertCount", ring.count.toFloat())
   setFloatUniform("verts", ring.verts)
   setFloatUniform("bbox", ring.bbox)
@@ -690,12 +697,12 @@ private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, off
  * Gli uniform della geometria a lastre, uguali per corpo e luce (`GlassFieldKernel1`, `GlassFieldKernel8`): i
  * pezzi del piano, flessione a riposo. Gli array hanno le caselle del programma a cui vanno: uno o otto.
  */
-private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, offsetY: Float) {
+private fun RuntimeShader.setGlassField(plan: GlassFieldPlan, offsetX: Float, offsetY: Float, gel: FluidGelPose?, center: Offset = Offset.Unspecified) {
   setFloatUniform("offset", offsetX, offsetY)
-  // La flessione è di F6.1; va impostata sempre, perché uno uniform non impostato vale zero e una matrice a
-  // zero schiaccia la lastra in un punto.
-  setFloatUniform("flex", 1f, 0f, 0f, 1f)
-  setFloatUniform("flexCenter", 0f, 0f)
+  setFloatUniform("flex", gel?.invXX ?: 1f, gel?.invXY ?: 0f, gel?.invXY ?: 0f, gel?.invYY ?: 1f)
+  val pivot = if (center.isSpecified) center else if (gel == null) Offset.Zero else Offset(plan.rects[0], plan.rects[1])
+  setFloatUniform("flexCenter", pivot.x, pivot.y)
+  if (plan.pieces == 1) setFloatUniform("gelTip", gel?.tip?.x ?: 0f, gel?.tip?.y ?: 0f)
   setFloatUniform("pieceCount", plan.count.toFloat())
   setFloatUniform("pieceRect", plan.rects)
   setFloatUniform("pieceRadii", plan.radii)
@@ -746,9 +753,9 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   }
   shader.apply {
     if (inputs.kernel == GlassBodyKernel.Ring) {
-      setGlassRing(inputs.ring, inputs.bodyOffsetX, inputs.bodyOffsetY)
+      setGlassRing(inputs.ring, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs)
     } else {
-      setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY)
+      setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs.bodyGel, inputs.gelCenter)
     }
     setFloatUniform("thickness", inputs.thickness)
     setFloatUniform("refraction", inputs.refraction)
@@ -919,7 +926,7 @@ internal fun DrawScope.drawGlassLight(
   if (!inputs.drawsGlowing && !inputs.drawsRim) return
   shader.apply {
     // Si disegna sul nodo, non su una cattura più grande: nessun margine da togliere.
-    setGlassField(inputs.light, 0f, 0f)
+    setGlassField(inputs.light, 0f, 0f, inputs.lightGel)
     setFloatUniform("rimWidth", inputs.rimWidth)
     setColorUniform("rimDark", inputs.rimDark)
     setFloatUniform("rimFeather", inputs.rimFeather)
@@ -965,6 +972,8 @@ internal fun DrawScope.drawGlassLight(
  */
 @Stable
 internal class GlassTouchLight(val amount: () -> Float, val position: () -> Offset)
+
+internal object GlassUnclippedShape : Shape by androidx.compose.ui.graphics.RectangleShape
 
 /**
  * Lo stato di una superficie `Liquid` ferma: ciò che `glassSurface` ricorda fra una composizione e l'altra, e
@@ -1026,6 +1035,7 @@ internal class GlassLiquidSurface(
    * [GlassLiquidVariant.Regular], la ricetta di prima al bit.
    */
   private val variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
+  private val gel: FluidGlassPressGeometry? = null,
 ) {
 
   /** Vedi [glassLiquidCaptureScale]. */
@@ -1162,7 +1172,7 @@ internal class GlassLiquidSurface(
   }
 
   /** `shape` di `drawBackdrop`: un'identità stabile, perché l'elemento del nodo resti uguale a se stesso. */
-  val clipShapeBlock: () -> Shape = { clipShape }
+  val clipShapeBlock: () -> Shape = { if (gel?.active == true) GlassUnclippedShape else clipShape }
 
   // ---- Il corpo --------------------------------------------------------------------------------------------
 
@@ -1187,6 +1197,15 @@ internal class GlassLiquidSurface(
     val maxSidePx =
       if (scale > 0f && scale.isFinite()) (size.maxDimension / scale).roundToInt().toFloat() else size.maxDimension
     inputs.setBody(recipe, shape, size, density, layoutDirection, maxSidePx)
+    val pose = gel?.takeIf { it.active }?.pose(size.width / scale, size.height / scale, screenDensity)
+    inputs.bodyGel = pose?.copy(tip = pose.tip * scale)
+    if (pose != null) {
+      growSlab(inputs.body.rects, inputs.body.radii, pose.growth)
+      val margin = kotlin.math.ceil(gel!!.margin(size.width / scale, size.height / scale, screenDensity) * scale)
+      inputs.paddingPx += margin
+      inputs.bodyOffsetX -= margin
+      inputs.bodyOffsetY -= margin
+    }
     return true
   }
 
@@ -1229,6 +1248,8 @@ internal class GlassLiquidSurface(
       glowAmount = finger?.amount?.invoke() ?: 0f,
       touch = finger?.position?.invoke() ?: Offset.Unspecified,
     )
+    inputs.lightGel = gel?.takeIf { it.active }?.pose(size.width, size.height, d)
+    inputs.lightGel?.let { growSlab(inputs.light.rects, inputs.light.radii, it.growth) }
     return true
   }
 
@@ -1238,7 +1259,9 @@ internal class GlassLiquidSurface(
     if (!inputs.drawsGlowing && !inputs.drawsRim) return@light
     val shader = lightShader ?: return@light
     val brush = lightBrush ?: return@light
-    drawGlassLight(inputs, shader, brush, reflexRotation = angle)
+    val margin = if (inputs.lightGel == null) 0f else gel!!.margin(size.width, size.height, density)
+    drawGlassLight(inputs, shader, brush, Offset(-margin, -margin),
+      Size(size.width + 2f * margin, size.height + 2f * margin), reflexRotation = angle)
   }
 
   /**
@@ -1290,6 +1313,11 @@ internal class GlassLiquidSurface(
     shadowHeightDp = if (density > 0f) size.height / density else 0f
     val g = glassSlabGeometry(shape, size, this, layoutDirection, size.maxDimension, shadowGeometry)
     out.setSlab(size.width, size.height, g.topLeft, g.topRight, g.bottomRight, g.bottomLeft, g.smoothing)
+    gel?.takeIf { it.active }?.pose(size.width, size.height, density)?.let { pose ->
+      growSlab(out.rects, out.radii, pose.growth)
+      out.rects[2] *= pose.scaleX / pose.growth
+      out.rects[3] *= pose.scaleY / pose.growth
+    }
   }
 
   /**

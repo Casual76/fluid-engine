@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluidphysics
 
+import dev.antigravity.fluidengine.ui.fluid.rememberGelGeometry
+import dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -220,6 +222,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
    * passa solo `FluidGlassContainer`; falso (di serie) per tutti gli altri, al bit come prima.
    */
   planeJourney: Boolean = false,
+  fieldPressed: (() -> Boolean)? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -281,6 +284,10 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     // corpo e nella luce. L'ombra in corpo ha gli stessi due profili di caduta delle maschere a riposo, e si vede
     // fin dove arriva il nodo (il layer è ritagliato su di lui): i palchi grandi quanto la finestra la contengono, un
     // nodo stretto va allargato di `glassTravelShadowReachDp` (lo fa la barra fra le pagine).
+    val gel = pressState?.let { rememberGelGeometry(it, reducedMotion, true) }
+    val clip = remember(gel, shapeBlock, fieldPressed) {
+      { if (gel?.active == true || fieldPressed?.invoke() == true) GlassUnclippedShape else shapeBlock() }
+    }
     val screenDensity = LocalDensity.current.density
     val view = LocalView.current
     // La famiglia dei gruppi e della goccia si scalda quando una superficie che viaggia entra in scena.
@@ -364,7 +371,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       .glassProbe(backdrop.backdrop, probe, enabled = probes, region = probedArea)
       .drawBackdrop(
         backdrop = backdrop.backdrop,
-        shape = shapeBlock,
+        shape = clip,
         effects = surface.effects,
         highlight = null,
         shadow = null,
@@ -381,6 +388,16 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         backdropScaleFactor = qualityFactor,
         onDrawLight = surface.onDrawLight,
       )
+      .then(if (gel == null) Modifier else Modifier.graphicsLayer {
+        val bounds = state.ensurePlan().bounds
+        val pose = gel.pose(bounds.width, bounds.height, density)
+        if (size.width > 0f && size.height > 0f) transformOrigin = androidx.compose.ui.graphics.TransformOrigin(
+          bounds.center.x / size.width, bounds.center.y / size.height)
+        scaleX = pose.scaleX
+        scaleY = pose.scaleY
+        translationX = pose.drift.x
+        translationY = pose.drift.y
+      })
   }
 
   // Il vetro di prima non misura niente: il contenuto resta col suo inchiostro (F2.3b).

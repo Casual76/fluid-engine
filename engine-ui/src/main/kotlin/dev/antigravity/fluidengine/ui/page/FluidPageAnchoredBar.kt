@@ -33,6 +33,7 @@ import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
 import dev.antigravity.fluidengine.ui.fluid.smoothStep
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchOverlay
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
@@ -78,6 +79,7 @@ import androidx.compose.runtime.currentCompositionLocalContext
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -141,6 +143,19 @@ import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassSharedHost
 import dev.antigravity.fluidengine.ui.fluid.GlassInkContent
+
+/**
+ * Il contesto catturato conserva gli State dei local dinamici della pagina, incluso il ViewModelStoreOwner.
+ * Se lo stesso provider passa da A a B, Compose 1.10 aggiorna lo State precedente (quello di A)
+ * con il valore di B. Le due pagine finirebbero nello stesso ViewModelStore durante il push.
+ * Solo il provider cambia identità. Contenitore del vetro, memoria dei tasti e uscita della capsula
+ * appartengono all'host e proseguono dal fotogramma corrente.
+ */
+@Composable
+private fun HostBarPageContext(context: CompositionLocalContext, content: @Composable () -> Unit) {
+  val bar = remember { movableContentOf<@Composable () -> Unit> { draw -> draw() } }
+  key(context) { CompositionLocalProvider(context) { bar(content) } }
+}
 
 /**
  * La barra ancorata (3.0, fase 8): **una per host**, sopra le pagine e sotto la chrome dell'app.
@@ -253,8 +268,10 @@ internal fun BoxScope.FluidAnchoredBar(
   }
   val barBackdrop = combined ?: upperBackdrop ?: lowerBackdrop
   if (hostModel) {
-    CompositionLocalProvider(target.context ?: currentCompositionLocalContext) {
-      FluidBottomBar(registeredDeclaration, barBackdrop ?: currentGlassBackdrop(), hostMinimize, Modifier.align(Alignment.BottomCenter))
+    HostBarPageContext(target.context ?: currentCompositionLocalContext) {
+      if (barSpec?.search?.occupiesBottom != true) {
+        FluidBottomBar(registeredDeclaration, barBackdrop ?: currentGlassBackdrop(), hostMinimize, Modifier.align(Alignment.BottomCenter))
+      }
     }
   }
   val chrome = LocalFluidChromeController.current
@@ -524,6 +541,11 @@ internal fun BoxScope.FluidAnchoredBar(
         }
       }
       }
+    }
+  }
+  barSpec?.search?.let { search ->
+    key(barPage) {
+      CompositionLocalProvider(barSpec.context) { FluidToolbarSearchOverlay(search, barSpec.toolbar, controlBackdrop, hostMinimize) }
     }
   }
 }
@@ -1367,7 +1389,7 @@ private fun HostModelBar(
   minimize: FluidToolbarMinimizeProgress?,
   trailingOpacity: (() -> Float)?,
 ) {
-  CompositionLocalProvider(context) {
+  HostBarPageContext(context) {
     val policy = LocalFluidMotionPolicy.current
     CompositionLocalProvider(
       LocalGlassBackdrop provides controlBackdrop,

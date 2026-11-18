@@ -16,7 +16,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidBarMinimizeBehavior
+import androidx.compose.runtime.saveable.rememberSaveable
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchBehavior
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchExpansion
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -150,7 +153,7 @@ internal enum class ToolbarHostPage(val key: String, val title: String, val voic
   fun toolbar(close: () -> Unit): (FluidToolbarScope.() -> Unit)? = when (this) {
     Legacy, LegacySearch, LegacyRead -> null
     Search -> {
-      { button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {}) }
+      { button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {}, placement = FluidToolbarPlacement.PinnedTrailing) }
     }
     Notes -> {
       { button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {}) }
@@ -312,7 +315,7 @@ private fun ToolbarPagesHost(
   uniform: GlassBackdropState?,
 ) {
   var stack by remember { mutableStateOf(ToolbarPagesLaunch.stackTo(launched.start, launched.legacyOnly)) }
-  val queries = remember { mutableStateMapOf<ToolbarHostPage, String>() }
+  var queries by rememberSaveable { mutableStateOf(mapOf<ToolbarHostPage, String>()) }
   var auto by remember { mutableLongStateOf(launched.autoMs) }
   // L'interruttore è dell'engine (le prove della barra dell'host): lo si accende qui e lo si rimette a posto uscendo.
   DisposableEffect(Unit) {
@@ -359,6 +362,8 @@ private fun ToolbarPagesHost(
       return@FluidPageHost
     }
     val query = queries[page].orEmpty()
+    var searchMode by rememberSaveable { mutableStateOf(0) }
+    var scopeAll by rememberSaveable { mutableStateOf(true) }
     FluidScreen(
       title = page.title,
       subtitle = "F4A.3 · fra pagine",
@@ -376,8 +381,11 @@ private fun ToolbarPagesHost(
       },
       search = if (page.hasSearch) FluidSearchSpec(
         query = query,
-        onQueryChange = { queries[page] = it },
-        placement = FluidSearchPlacement.Principal,
+        onQueryChange = { queries = queries + (page to it) },
+        placement = if (searchMode == 0) FluidSearchPlacement.Principal else FluidSearchPlacement.TopBar,
+        behavior = if (searchMode == 0) FluidSearchBehavior.Automatic else FluidSearchBehavior.CollapseToButton,
+        expansion = if (searchMode == 2) FluidSearchExpansion.AboveKeyboard else FluidSearchExpansion.StayAtTop,
+        scopes = { Text(if (scopeAll) "Tutte" else "Recenti", modifier = Modifier.clickable { scopeAll = !scopeAll }) },
         prompt = "Cerca in ${page.title}",
       ) else null,
       barMinimize = page.minimize,
@@ -389,6 +397,11 @@ private fun ToolbarPagesHost(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(vertical = 4.dp),
         )
+      }
+      if (page == ToolbarHostPage.Search) item(key = "search-mode") {
+        val next = listOf("Prova la ricerca in alto", "Prova il viaggio alla tastiera", "Torna al campo fissato")
+        val current = listOf("Campo fissato sotto il titolo", "Campo attivo in alto", "Campo attivo sopra la tastiera")
+        FluidListRow(title = next[searchMode], subtitle = current[searchMode], onClick = { searchMode = (searchMode + 1) % next.size })
       }
       item(key = "commands") { FluidSectionHeader(title = "Comandi", detail = "Le pagine dicono solo chi sono i tasti.") }
       page.next?.let { next ->

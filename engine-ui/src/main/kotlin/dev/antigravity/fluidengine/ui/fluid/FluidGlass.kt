@@ -180,14 +180,15 @@ fun Modifier.fluidGlass(
   val container = currentFluidGlassContainer(shape)
   if (container != null) {
     val touch = remember(press, reducedMotion) { press?.let { fluidGlassTouchLight(it, reducedMotion) } }
-    val layer = remember(press, reducedMotion) { press?.let { fluidGlassPressLayer(it, reducedMotion) } }
+    val geometry = press?.let { rememberGelGeometry(it, reducedMotion, true) }
+    val layer = remember(geometry) { geometry?.let(::gelTranslation) }
     val look = remember(glass, shape, backdrop, baseTint, press, touch, layer) {
-      fluidGlassLook(glass, shape, backdrop, baseTint, press, touch, layer)
+      fluidGlassLook(glass, shape, backdrop, baseTint, press, touch, layer, geometry)
     }
     return marked
       .fluidGlassPiece(container, look, attributes)
       // Il contenuto cresce e segue il dito col vetro, che lo fa nella sua superficie con lo stesso blocco.
-      .then(if (layer != null) Modifier.graphicsLayer(layer) else Modifier)
+      .then(if (geometry != null) Modifier.gelContent(geometry, null, true) else Modifier)
       .then(if (press != null) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
   }
   return marked.fluidGlassAlone(glass, shape, backdrop, baseTint)
@@ -346,11 +347,7 @@ internal fun fluidGlassTouchLight(press: FluidPressState, reducedMotion: Boolean
   position = { press.glow },
 )
 
-/**
- * La trasformazione della pressione di un `fluidGlass` interattivo (cresce, si piega verso il dito), la stessa di
- * `glassControlSurface`: il vetro la riceve come `layerBlock` (il renderer la corregge quando campiona), il contenuto
- * come layer suo.
- */
+/** Trasformazione storica del controllo per il renderer Classic. */
 internal fun fluidGlassPressLayer(press: FluidPressState, reducedMotion: Boolean): GraphicsLayerScope.() -> Unit = {
   val transform = fluidPressTransform(
     feedback = press.feedback,

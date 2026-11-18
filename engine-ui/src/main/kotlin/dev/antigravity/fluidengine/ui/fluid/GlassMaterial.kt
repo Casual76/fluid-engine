@@ -2020,6 +2020,7 @@ internal fun Modifier.glassLiquidSurface(
    * serie quella di [LocalGlassLiquidVariant], cioè [GlassLiquidVariant.Regular] salvo un `fluidGlass` limpido.
    */
   variant: GlassLiquidVariant = LocalGlassLiquidVariant.current,
+  gel: FluidGlassPressGeometry? = null,
 ): Modifier {
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDepth by rememberUpdatedState(opticalDepth)
@@ -2075,7 +2076,7 @@ internal fun Modifier.glassLiquidSurface(
   // questa funzione, che la legge qui sotto per la sonda. Vedi `GlassLiquidSurface.nestedState`.
   val nesting = remember { mutableStateOf(false) }
 
-  val surface = remember(role, optics, shape, darkSide, screenDensity, quality, preference, adaptiveState, variant) {
+  val surface = remember(role, optics, shape, darkSide, screenDensity, quality, preference, adaptiveState, variant, gel) {
     GlassLiquidSurface(
       role = role,
       optics = optics,
@@ -2105,6 +2106,7 @@ internal fun Modifier.glassLiquidSurface(
       preference = preference,
       nesting = nesting,
       variant = variant,
+      gel = gel,
     )
   }
 

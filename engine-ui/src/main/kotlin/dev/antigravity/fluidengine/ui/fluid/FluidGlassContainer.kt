@@ -1589,6 +1589,26 @@ internal fun fluidGlassPressedSlab(slab: FluidForm.Slab, press: FluidPressTransf
  */
 @Stable
 internal class FluidGlassPressGeometry(private val press: FluidPressState, private val reducedMotion: Boolean? = null) {
+  val active by derivedStateOf { press.progress != 0f || (!reduced && (press.lean != Offset.Zero || press.fingerSpeed != Offset.Zero)) }
+  fun touch(frame: Rect): PhysicsPlaneTouch? {
+    val amount = press.progress.coerceIn(0f, 1f) * if (reduced) 0.4f else 1f
+    if (amount <= 0f) return null
+    val point = press.glow
+    return PhysicsPlaneTouch(amount, frame.left + point.x.coerceIn(0f, frame.width),
+      frame.top + point.y.coerceIn(0f, frame.height), 0f)
+  }
+
+  fun pose(width: Float, height: Float, density: Float) =
+    press.gelPose(width, height, density, reduced, if (stageTime.isNaN()) press.progress else shown)
+
+  /** Il margine della cattura è fisso lungo il gesto, inclusa la diagonale della capsula. */
+  fun margin(width: Float, height: Float, density: Float): Float {
+    val long = max(width, height)
+    val short = minOf(width, height)
+    val growth = fluidGelGrowth(press.feedback, width, height, density)
+    return kotlin.math.ceil(long * growth / 2f + short * (1f + growth) * 0.17f + 2f)
+  }
+
   private val reduced: Boolean get() = reducedMotion ?: press.reducedMotion
   private var lastRest = Float.NaN
   private var stageTime = Double.NaN
@@ -1621,8 +1641,14 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
   // Massimo di |dx/dt| della molla ExpandOut normalizzata (k=300, ζ=0,5), arrotondato
   // verso l'alto anche per l'oltrepasso del 16,3% al termine della pressione.
   private companion object { const val ReleaseSpeedPerMs = 0.0111 }
-  private fun transform(value: Float, width: Float, height: Float, density: Float) =
-    fluidPressTransform(press.feedback, value, press.lean, width, height, density, reduced)
+  private fun transform(value: Float, width: Float, height: Float, density: Float): FluidPressTransform {
+    val pose = press.gelPose(width, height, density, reduced, value)
+    if (pose.tip == Offset.Zero || width <= 0f || height <= 0f) return pose.transform
+    // Il programma a otto lastre riceve proiezioni assiali. Per il lobo muoviamo solo il lato verso il dito.
+    return FluidPressTransform(pose.scaleX + kotlin.math.abs(pose.tip.x) / width,
+      pose.scaleY + kotlin.math.abs(pose.tip.y) / height, pose.drift.x + pose.tip.x / 2f,
+      pose.drift.y + pose.tip.y / 2f)
+  }
 
   /** La trasformazione di adesso per un pezzo largo [width] e alto [height] (pixel, [density] pixel per dp). */
   fun at(width: Float, height: Float, density: Float): FluidPressTransform =
@@ -1633,9 +1659,7 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
    * È il margine che il nodo del palco aggiunge per un pezzo premuto: la pressione può ancora crescere mentre viaggia.
    */
   fun reachPx(width: Float, height: Float, density: Float): Float {
-    val t = fluidPressTransform(press.feedback, max(1f, press.progress), press.lean, width, height, density, reduced)
-    return max((t.scaleX - 1f) * width / 2f + abs(t.translationX), (t.scaleY - 1f) * height / 2f + abs(t.translationY))
-      .coerceAtLeast(0f)
+    return margin(width, height, density) + if (reduced) 0f else minOf(width, height) * 0.25f
   }
 }
 
@@ -2111,6 +2135,7 @@ internal class FluidGlassRestField(
    * pellicola per lastra, campionata dal corpo del campo. Null per la tinta uniforme.
    */
   val tints: FluidGlassTintSplit? = null,
+  val presses: List<FluidGlassPressGeometry?> = emptyList(),
 )
 
 /**
@@ -2708,13 +2733,19 @@ internal class FluidGlassContainerState {
           shape = restShapeOf(look, first),
         )
       } else {
-        val node = cluster.bounds.inflate(margin).snapped()
         val ordered = cluster.pieces.unionsFirst { it }
+        val presses = ordered.map { looks[it.key]?.pressGeometry }
+        val reach = ordered.indices.maxOf { i ->
+          val bounds = ordered[i].bounds
+          presses[i]?.reachPx(bounds.width, bounds.height, density.density) ?: 0f
+        }
+        val node = cluster.bounds.inflate(margin + reach).snapped()
         val slabs = ordered.map {
           FluidForm.Slab(it.bounds.translate(-node.left, -node.top), it.radii, smoothingOf(it))
         }
         FluidGlassRestField(
           key = cluster.id,
+          presses = presses,
           node = node,
           look = look,
           exports = exportsOf(cluster.pieces.map { it.key }),
@@ -3183,6 +3214,7 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         heldWhileMoving = NeverHeld,
         nestInContainer = true,
         touch = look.touch,
+        gel = look.pressGeometry,
         ink = null,
         variant = look.variant,
       ),
@@ -3191,8 +3223,23 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
     // Più pezzi: una cattura sola per tutto il grappolo, ogni pezzo una lastra del campo: separate del tutto se sono
     // distinte, una sagoma sola se sono della stessa unione (F3.2c). La stessa guida «a fotogramma» del palco, ferma.
     val plane = field.plane ?: PhysicsPlaneShape(field.slabs, nominalBlend = 0f, resting = true)
-    val current = rememberUpdatedState(plane)
-    FluidGlassRestPlane(gate, current, look, field.exports)
+    val density = LocalDensity.current.density
+    val current = remember(field, density, plane) {
+      derivedStateOf {
+        if (field.presses.none { it?.active == true }) plane else {
+          val slabs = plane.slabs.mapIndexed { i, slab ->
+            val geometry = field.presses.getOrNull(i) ?: return@mapIndexed slab
+            if (carrying) geometry.recordRest()
+            fluidGlassPressedSlab(slab, geometry.at(slab.frame.width, slab.frame.height, density))
+          }
+          val touch = plane.slabs.indices.firstNotNullOfOrNull { i -> field.presses.getOrNull(i)?.touch(plane.slabs[i].frame) }
+          PhysicsPlaneShape(slabs, plane.nominalBlend, plane.neck, plane.unions, resting = true, touch = touch,
+            slabFilms = plane.slabFilms)
+        }
+      }
+    }
+    val pressed = remember(current, plane) { derivedStateOf { current.value !== plane } }
+    FluidGlassRestPlane(gate, current, look, field.exports, remember(pressed) { { pressed.value } })
   }
 }
 
@@ -3203,10 +3250,12 @@ private fun FluidGlassRestPlane(
   current: androidx.compose.runtime.State<PhysicsPlaneShape>,
   look: FluidGlassLook,
   exports: GlassBackdropState?,
+  fieldPressed: () -> Boolean,
 ) {
-  val physics = rememberFluidPhysicsState(current.value.form())
+  val physics = rememberFluidPhysicsState(remember { current.value.form() })
+  val latest by rememberUpdatedState(current)
   remember(physics) {
-    physics.driveByFrame({ current.value }, AtRest)
+    physics.driveByFrame({ latest.value }, AtRest)
     Unit
   }
   val ink = remember { GlassInk() }
@@ -3220,6 +3269,7 @@ private fun FluidGlassRestPlane(
       exports = exports,
       ink = ink,
       variant = look.variant,
+      fieldPressed = fieldPressed,
     ),
   )
 }
@@ -3563,6 +3613,7 @@ internal fun fluidGlassLook(
   press: FluidPressState?,
   touch: GlassTouchLight?,
   layerBlock: (GraphicsLayerScope.() -> Unit)?,
+  geometry: FluidGlassPressGeometry? = if (layerBlock != null) press?.let { FluidGlassPressGeometry(it) } else null,
 ): FluidGlassLook {
   val role = if (glass.isInteractive) GlassRole.Interactive else GlassRole.Floating
   return FluidGlassLook(
@@ -3576,7 +3627,7 @@ internal fun fluidGlassLook(
     touch = touch,
     layerBlock = layerBlock,
     // La stessa trasformazione del blocco del layer, per il palco (giro di correzione di F3).
-    pressGeometry = if (layerBlock != null) press?.let { FluidGlassPressGeometry(it) } else null,
+    pressGeometry = geometry,
   )
 }
 

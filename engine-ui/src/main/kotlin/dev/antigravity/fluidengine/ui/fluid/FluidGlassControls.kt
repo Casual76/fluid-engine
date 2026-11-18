@@ -21,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -46,6 +47,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.util.fastCoerceIn
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
 import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
@@ -76,11 +82,11 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  * aveva una misura sola, 44 dp, e la riscrittura riscriveva anche la pressione, il vetro e l'aptica,
  * cioe' le tre cose che il tasto esiste per non far riscrivere. Una taglia e' un numero, non un
  * componente nuovo: la ricetta del tasto (cresce, segue il dito, vibra) e' la stessa e **in
- * proporzione**. La crescita e' una frazione ([FluidPressFeedback.ExpandRound] fa 1,5 su un tasto
- * tondo, [FluidPressFeedback.Expand] 1,1 con un tetto sul lato lungo), la deriva elastica e'
+ * proporzione**. La crescita e' una frazione (×1,35 sul tondo Liquid, ×1,5 in Classic,
+ * [FluidPressFeedback.Expand] arriva a ×1,1 con un tetto sul lato lungo), la deriva elastica e'
  * misurata sul lato corto del vetro, il bagliore sul lato lungo: nessun numero in dp da riscalare.
  * L'unico numero in dp e' il tetto della crescita di un tasto tondo — 24 dp in tutto, 12 per lato
- * (3.0, [FluidPressFeedback.ExpandRound]) — che sotto i 48 dp non si vede: fino a li' x1,5 intero.
+ * ([RoundLongSideCapDp]). In Liquid il 35% è intero fino a circa 68,6 dp.
  *
  * **Il bersaglio del tocco non scende mai sotto i 48 dp**, qualunque sia la taglia: un vetro da
  * 40 dp sta dentro un riquadro da 48 che e' quello che occupa nel layout, e il tocco lo vede. Il
@@ -161,8 +167,8 @@ internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize):
  *    behind the control bends and splits at its edge as the control passes over it.
  *  * **It leans.** The whole pane translates toward the finger through a `tanh`, so it moves
  *    freely at first and then refuses — the shape of pushing on something soft that is attached.
- *  * **It swells and stretches.** Held, it grows — since 3.0 as LibrePods' buttons do, by 10% (a
- *    button with a label) or 50% (a round icon button), see [fluidPressTransform]; pushed off-axis,
+ *  * **It swells and stretches.** A held Liquid button grows by up to 10% with a label and 35% with
+ *    a round icon. Classic uses [fluidPressTransform], with up to 50% for the round icon. Pushed off-axis,
  *    it stretches along the direction of the push. The lens deepens to LibrePods' 12/24 dp under
  *    the finger, see [GlassDefaults.buttonOptics].
  *  * **It lights up where you touched it.** An additive hotspot follows the finger, because a
@@ -173,10 +179,8 @@ internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize):
  * lean, the light and the optics all read the same number. With reduced motion the swell is
  * halved and the lean dropped, but the press still happens, start to end.
  *
- * The lean and the swell are applied through the renderer's own layer block, which means the
- * refraction is computed *after* the transform and corrected for it: the control slides across the
- * backdrop and keeps showing what is genuinely behind it, instead of dragging a frozen picture
- * along.
+ * Liquid changes the geometry of its field. Only translation goes through the renderer's
+ * layer block, so the moving control keeps sampling the page under its current position.
  *
  * **Il lato resta quello del tema** (4.0, F2.3b), come per [glassSurface]: il controllo segue lo sfondo con velo, ombra e
  * tinta ma non gira, perche' l'engine non sa di che colore sia l'etichetta che l'app ci mette sopra. Girano i tasti
@@ -249,6 +253,7 @@ internal fun Modifier.glassControlSurfaceInked(
    */
   forwardedAttributes: FluidGlassAttributes? = null,
   labelAnchor: FluidGlassLabelAnchor? = null,
+  blurIcon: Boolean = false,
 ): Modifier {
   val accent = MaterialTheme.colorScheme.primary
   val scope = rememberCoroutineScope()
@@ -280,6 +285,11 @@ internal fun Modifier.glassControlSurfaceInked(
   if (materialSuppressed) ink?.unbind()
   val ownPress = rememberFluidPressState(FluidPressFeedback.Expand)
   val press = pressState ?: ownPress
+  val iconBlur = if (interactive && blurIcon && !materialSuppressed && glassApiLevel() >= 31) {
+    val amount = remember(press) { Animatable(if (press.motion.held) 1f else 0f) }
+    LaunchedEffect(press) { press.animateIconBlur(amount) }
+    amount.asState()
+  } else null
   val highlight = remember(scope, reducedMotion, onDark, press) {
     GlassTouchHighlight(
       animationScope = scope,
@@ -343,6 +353,7 @@ internal fun Modifier.glassControlSurfaceInked(
       reducedMotion = reducedMotion,
       ink = ink,
       labelAnchor = labelAnchor,
+      iconBlur = iconBlur,
     )
   }
   // La forma alla taglia del controllo (F1A, giro di correzione): una sola misura, per la scelta di qui e per il
@@ -357,27 +368,11 @@ internal fun Modifier.glassControlSurfaceInked(
       position = { press.glow },
     )
   }
-  val pressLayer: (GraphicsLayerScope.() -> Unit)? = if (interactive) {
-    {
-      // The same transform a solid button draws, here in the layer the renderer corrects for:
-      // grow, lean toward the finger through a tanh, stretch along its drag. See
-      // fluidPressTransform for the numbers and the reasons.
-      val transform = fluidPressTransform(
-        feedback = press.feedback,
-        progress = press.progress,
-        lean = press.lean,
-        width = size.width,
-        height = size.height,
-        dp = density,
-        reducedMotion = reducedMotion,
-      )
-      scaleX = transform.scaleX
-      scaleY = transform.scaleY
-      translationX = transform.translationX
-      translationY = transform.translationY
-    }
-  } else {
-    null
+  val gel = rememberGelGeometry(press, reducedMotion, interactive && liquid)
+  val pressLayer = when {
+    !interactive -> null
+    gel != null -> remember(gel) { gelTranslation(gel) }
+    else -> remember(press, reducedMotion) { fluidGlassPressLayer(press, reducedMotion) }
   }
 
   return this
@@ -410,6 +405,7 @@ internal fun Modifier.glassControlSurfaceInked(
           pressed = { press.progress.fastCoerceIn(0f, 1f) },
           exports = null,
           layerBlock = pressLayer,
+          gel = gel,
           sampleOnce = false,
           resampleIntervalMillis = 0L,
           frozen = frozen,
@@ -443,6 +439,15 @@ internal fun Modifier.glassControlSurfaceInked(
         )
       },
     )
+    .then(when {
+      materialSuppressed || !interactive -> Modifier
+      gel != null -> Modifier.gelContent(gel, iconBlur, false)
+      iconBlur != null -> Modifier.graphicsLayer {
+        val scale = fluidPressTransform(press.feedback, press.progress, press.lean, size.width, size.height, density, reducedMotion)
+        renderEffect = iconBlurEffect(iconBlur.value * FluidGel.BlurDp * density, scale.scaleX, scale.scaleY)
+      }
+      else -> Modifier
+    })
     // Il bagliore di prima, un disegno sopra il vetro: col materiale nuovo e' nella sua luce.
     .then(if (interactive && !liquid) highlight.modifier else Modifier)
     // Segue il dito da solo solo quando nessuno lo guida: una pressione condivisa la muove il
@@ -453,9 +458,8 @@ internal fun Modifier.glassControlSurfaceInked(
 
 /**
  * Un tasto di vetro dentro un `FluidGlassContainer` (4.0, F3.2): si iscrive al piano come pezzo, e il suo vetro lo
- * disegna il contenitore con la stessa tinta, la stessa ottica, la stessa pressione e lo stesso bagliore (il blocco
- * della pressione arriva alla lastra come `layerBlock`, al contenuto come layer suo, e al palco di un viaggio come
- * `FluidGlassPressGeometry`: il tasto premuto che fa partire un viaggio lo comincia premuto, giro di correzione di F3). Non sonda: il lato è del
+ * disegna il contenitore con la stessa tinta, ottica e pressione. Il campo e il contenuto leggono la stessa
+ * [FluidGlassPressGeometry]. La traslazione del vetro passa dal layer così che la cattura segua il fondale. Il lato è del
  * contenitore, e **il tasto annidato prende il lato del contenitore** anche col suo inchiostro ([ink] si lega alla
  * decisione del contenitore). `depth`, `frozen` e `heldWhileMoving` li decide il contenitore.
  */
@@ -473,6 +477,7 @@ private fun Modifier.glassControlPiece(
   reducedMotion: Boolean,
   ink: GlassInk?,
   labelAnchor: FluidGlassLabelAnchor?,
+  iconBlur: State<Float>?,
 ): Modifier {
   val adaptive = container.adaptive
   if (ink != null) {
@@ -483,21 +488,8 @@ private fun Modifier.glassControlPiece(
   }
   // La pressione come la vede il palco (giro di correzione di F3): la stessa trasformazione del layer, che il palco porta
   // sulla lastra del tasto in volo e rilascia con la sua molla, invece di tornare alla misura di riposo in un fotogramma.
-  val pressGeometry = remember(press, reducedMotion, interactive) {
-    if (interactive) FluidGlassPressGeometry(press, reducedMotion) else null
-  }
-  val layer = remember(pressGeometry) {
-    pressGeometry?.let { geometry ->
-      val block: GraphicsLayerScope.() -> Unit = {
-        val pose = geometry.at(size.width, size.height, density)
-        scaleX = pose.scaleX
-        scaleY = pose.scaleY
-        translationX = pose.translationX
-        translationY = pose.translationY
-      }
-      block
-    }
-  }
+  val pressGeometry = rememberGelGeometry(press, reducedMotion, interactive)
+  val layer = remember(pressGeometry) { pressGeometry?.let(::gelTranslation) }
   val look = remember(backdrop, tint, optics, shape, press, touch, layer, pressGeometry) {
     FluidGlassLook(
       backdrop = backdrop,
@@ -515,8 +507,49 @@ private fun Modifier.glassControlPiece(
   return this
     .then(FluidGlassMarkerElement)
     .fluidGlassPiece(container, look, attributes, labelAnchor)
-    .then(if (layer != null) Modifier.graphicsLayer(layer) else Modifier)
+    .then(if (pressGeometry != null) Modifier.gelContent(pressGeometry, iconBlur, true) else Modifier)
     .then(if (interactive && tracksOwnPress) Modifier.fluidPressTracking(press, ownsPress = true) else Modifier)
+}
+
+@Composable
+internal fun rememberGelGeometry(press: FluidPressState, reduced: Boolean, enabled: Boolean): FluidGlassPressGeometry? {
+  if (!enabled) return null
+  DisposableEffect(press) {
+    press.bindGel(1)
+    onDispose { press.bindGel(-1) }
+  }
+  return remember(press, reduced) { FluidGlassPressGeometry(press, reduced) }
+}
+
+internal fun gelTranslation(geometry: FluidGlassPressGeometry): GraphicsLayerScope.() -> Unit = {
+  val drift = geometry.pose(size.width, size.height, density).drift
+  translationX = drift.x
+  translationY = drift.y
+}
+
+/** La posa agisce sul disegno del layer di contenuto. Anche i gesti aggiunti dal chiamante leggono coordinate di riposo. */
+internal fun Modifier.gelContent(geometry: FluidGlassPressGeometry, iconBlur: State<Float>?, translates: Boolean): Modifier =
+  drawWithCache {
+    onDrawWithContent {
+      val pose = geometry.pose(size.width, size.height, density)
+      val pivot = center
+      withTransform({
+        if (translates) translate(pose.drift.x, pose.drift.y)
+        scale(pose.scaleX, pose.scaleY, pivot)
+      }) { this@onDrawWithContent.drawContent() }
+    }
+  }.graphicsLayer {
+    renderEffect = if (iconBlur != null && iconBlur.value > 0f) {
+      val pose = geometry.pose(size.width, size.height, density)
+      iconBlurEffect(iconBlur.value * FluidGel.BlurDp * density, pose.scaleX, pose.scaleY)
+    } else null
+  }
+
+/** La scala esterna del contenuto porta la sigma locale alla sigma misurata sullo schermo. */
+private fun iconBlurEffect(sigmaPx: Float, scaleX: Float, scaleY: Float): RenderEffect? {
+  val rx = FluidGel.blurRadiusPx(sigmaPx / scaleX)
+  val ry = FluidGel.blurRadiusPx(sigmaPx / scaleY)
+  return if (rx > 0f && ry > 0f) BlurEffect(rx, ry) else null
 }
 
 /**
@@ -745,7 +778,7 @@ fun FluidGlassIconButton(
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
   // timeline the action is confirmed on, and a finger sliding over it ticks once, not twice.
-  // Tondo, solo icona: cresce del 50%, come `StyledIconButton` di LibrePods (3.0).
+  // Il campo Liquid applica RoundGrowth. Classic usa la ricetta ExpandRound di LibrePods.
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
   FluidGlassIconButtonCore(
     onClick = onClick,
@@ -774,7 +807,7 @@ fun FluidGlassIconButton(
  *  * **il bersaglio del tocco non scende mai sotto i 48 dp**: un vetro da 32 o da 40 sta dentro un
  *    riquadro da 48 che e' quello che occupa nel layout e che il dito colpisce; da 48 in su il vetro
  *    e' il proprio bersaglio, senza riquadro in piu' ([FluidGlassSize.touchTarget] e' la stessa regola);
- *  * **la crescita sotto il dito ha un tetto**: x1,5 fino a 48 dp, poi 24 dp in tutto e non di piu'
+ *  * **la crescita sotto il dito ha un tetto**: in Liquid ×1,35 fino a circa 68,6 dp, con un massimo di 24 dp
  *    ([FluidPressFeedback.ExpandRound]). Un disco da 76 dp arriva a 100, non a 114: con 16 dp fra due
  *    dischi non si toccano;
  *  * un'icona sta bene a 0,6 del lato ([FluidMetrics.iconSizeIn]: 24, 26, 32 dp per le tre taglie, 46 in un disco
@@ -866,6 +899,18 @@ internal fun FluidGlassIconButtonCore(
         .size(lens)
         .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
         .then(lensModifier)
+        // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
+        .fluidPressable(
+          onClick = onClick,
+          onLongClick = onLongClick,
+          enabled = enabled,
+          role = Role.Button,
+          haptic = haptic,
+          focusShape = shape,
+          pressState = press,
+          longClickHaptic = longClickHaptic,
+          grip = grip,
+        )
         .glassControlSurfaceInked(
           backdrop = backdrop,
           shape = shape,
@@ -879,18 +924,7 @@ internal fun FluidGlassIconButtonCore(
           pressState = press,
           ink = ink,
           forwardedAttributes = planeAttributes,
-        )
-        // The click sits inside the material, so the glass reacts to the same press the action does.
-        .fluidPressable(
-          onClick = onClick,
-          onLongClick = onLongClick,
-          enabled = enabled,
-          role = Role.Button,
-          haptic = haptic,
-          focusShape = shape,
-          pressState = press,
-          longClickHaptic = longClickHaptic,
-          grip = grip,
+          blurIcon = FluidGel.BlurIcon,
         ),
       contentAlignment = Alignment.Center,
     ) {
@@ -962,6 +996,16 @@ fun FluidGlassButton(
     modifier = modifier
       .then(touchTarget)
       .alpha(if (enabled) 1f else 0.38f)
+      // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
+      .fluidPressable(
+        onClick = onClick,
+        enabled = enabled,
+        role = Role.Button,
+        haptic = haptic,
+        focusShape = shape,
+        pressState = press,
+        grip = grip,
+      )
       .glassControlSurfaceInked(
         backdrop = backdrop,
         shape = shape,
@@ -975,15 +1019,6 @@ fun FluidGlassButton(
         pressState = press,
         ink = ink,
         labelAnchor = labelAnchor,
-      )
-      .fluidPressable(
-        onClick = onClick,
-        enabled = enabled,
-        role = Role.Button,
-        haptic = haptic,
-        focusShape = shape,
-        pressState = press,
-        grip = grip,
       )
       .heightIn(min = size.buttonHeight)
       .padding(horizontal = size.buttonPadding),

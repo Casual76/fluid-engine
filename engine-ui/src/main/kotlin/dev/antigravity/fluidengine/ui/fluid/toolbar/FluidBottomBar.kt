@@ -36,7 +36,7 @@ internal fun fluidBottomBarMetrics(): FluidToolbarMetrics = fluidToolbarMetrics(
 )
 
 /** La quota già occupata dalla navigazione resta sotto i comandi, anche con un inset fornito dall’app. */
-private fun fluidBottomBarOffset(navigation: Dp): Dp =
+internal fun fluidBottomBarOffset(navigation: Dp): Dp =
   if (navigation > 0.dp) navigation + FluidFloatingTabBarDefaults.Spacing else FluidFloatingTabBarDefaults.BottomMargin
 
 internal fun fluidBottomBarExtraInset(navigation: Dp): Dp =

@@ -36,6 +36,7 @@ float2 glassFieldPoint(float2 coord) {
 
 uniform float pieceCount;
 uniform float4 pieceRect[1];
+uniform float2 gelTip;
 uniform float4 pieceRadii[1];
 uniform float pieceBlend[1];
 uniform float pieceSmooth[1];
@@ -152,9 +153,28 @@ float glassCircleMap(float x) {
 }
 
 float glassField(float2 p, out float2 normal, out float2 center) {
-    float3 slab = glassSlab(p - pieceRect[0].xy, pieceRect[0].zw, pieceRadii[0], pieceSmooth[0]);
-    normal = slab.yz;
     center = pieceRect[0].xy;
+    float2 rel = p - center;
+    float2 halfSize = pieceRect[0].zw;
+    float2 slope = float2(0.0);
+    // Lobo rivolto al dito. Il lato opposto resta fermo. Il ramo dipende solo dagli uniform.
+    if (any(notEqual(gelTip, float2(0.0)))) {
+        float2 axis = normalize(gelTip);
+        float reach = max(dot(abs(axis), halfSize), 0.001);
+        float t = clamp(0.5 + 0.5 * dot(rel, axis) / reach, 0.0, 1.0);
+        rel -= gelTip * (t * t * (3.0 - 2.0 * t));
+        slope = axis * (3.0 * t * (1.0 - t) / reach);
+    }
+    float3 slab = glassSlab(rel, halfSize, pieceRadii[0], pieceSmooth[0]);
+    normal = slab.yz;
+    if (any(notEqual(flex, float4(1.0, 0.0, 0.0, 1.0))) || any(notEqual(gelTip, float2(0.0)))) {
+        // J trasposta: d / |grad d| mantiene il filo nello spazio dello schermo.
+        float2 n = normal - slope * dot(normal, gelTip);
+        n = float2(dot(flex.xz, n), dot(flex.yw, n));
+        float metric = max(length(n), 0.001);
+        normal = n / metric;
+        return slab.x / metric;
+    }
     return slab.x;
 }
 // <<< GlassFieldKernel1

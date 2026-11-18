@@ -197,7 +197,10 @@ internal class F3Rif3TraceTest {
   @Test fun stageTakesTheLastVisibleDiameterEvenIfTheReleaseHasAdvanced() = runTest {
     val clock = BroadcastFrameClock()
     val press = FluidPressState(CoroutineScope(coroutineContext + clock), FluidPressFeedback.ExpandRound)
+    press.bindGel(1)
     val geometry = FluidGlassPressGeometry(press, false)
+    // Stesso tondo Liquid. Questo lettore segue la pressione viva senza ricevere il campione del palco.
+    val directGeometry = FluidGlassPressGeometry(press, false)
     var nanos = 1_000_000_000L
     fun advance() {
       runCurrent()
@@ -213,15 +216,17 @@ internal class F3Rif3TraceTest {
       val shape = fluidGlassStagePlane(journey.frame(ms), field.flights, Offset.Zero, { 0f },
         PhysicsPlaneFusionDp * density, 0f, FluidGlassSwell.None, density, ms.toFloat(), pressed = { member ->
           if (member.flightId.sourceKey != "modifica") null else if (handoff) geometry.stageAt(ms, 94f, 94f, density)
-          else fluidPressTransform(FluidPressFeedback.ExpandRound, press.progress, Offset.Zero, 94f, 94f, density, false)
+          else directGeometry.at(94f, 94f, density)
         })
       return shape.slabs.first().frame.height / density
     }
+    press.touchDown(Offset(47f, 47f), 0L)
     press.press()
     repeat(36) { advance() }
     geometry.recordRest()
     val last = 94f * geometry.at(94f, 94f, density).scaleY / density
     val lastPressure = press.progress
+    press.touchEnd()
     press.release()
     // Durante la preparazione del palco la molla corre, ma viene ripresentato il layer precedente.
     repeat(8) { advance() }
@@ -244,6 +249,7 @@ internal class F3Rif3TraceTest {
       File(dir, "pressione.csv").writeText(rows.joinToString("\n"))
     }
     assertEquals(94f / density, previous, 0.2f)
+    press.bindGel(-1)
   }
 
   @Test fun siblingBridgeBreaksOnlyOnceInTheRenderedField() {

@@ -105,7 +105,7 @@ class GlassCompatSceneExportTest {
   fun theNewMaterialSetsExactlyTheUniformsOfItsPrograms() {
     val bodyUniforms = declared(GlassBody1ShaderString)
     val light = declared(GlassLight1ShaderString)
-    val inBodyOnly = light - setOf("offset", "flex", "flexCenter", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend",
+    val inBodyOnly = light - setOf("offset", "flex", "flexCenter", "gelTip", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend",
       "pieceSmooth", "materialize", "aa", "lightPart") + setOf("shadowOffset", "shadowRadii", "shadowAlphas", "shadowColor") +
       // `nodeClip` (F1B.1) è di chi disegna senza il ritaglio del nodo, cioè di Fluid-physics: una lastra ferma il ritaglio vero ce
       // l'ha, e lo uniform resta a zero.

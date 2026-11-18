@@ -68,12 +68,12 @@ Tutti dal sorgente (`FluidPress.kt`); sono i numeri di LibrePods tranne dove è 
 | cosa | valore |
 |---|---|
 | crescita di un tasto **con testo** (`Expand`) | `maxScale = 0,10`: scala `1 + 0,10·progress` |
-| crescita di un tasto **tondo** (`ExpandRound`) | `maxScale = 0,5`: un tasto da 44 dp arriva a 66, al picco della molla a ~70 |
+| crescita di un tasto **tondo** (`ExpandRound`) | in Liquid `FluidGel.RoundGrowth = 0,35` porta 44 dp a 59,4 dp. Il feedback ordinario e Classic usano `maxScale = 0,5` (66 dp) |
 | molla di pressione e di rilascio dei pulsanti | `spring(0,5; 300; 0,001)`: arriva in cima in ~0,21 s sorpassandola del ~16%; al rilascio scende sotto il riposo di ~16% del percorso fatto — è il «pop» |
 | picco di `progress` | ~1,16 (e sotto lo 0 in rilascio): lo stato **esce** da [0, 1] di proposito |
 | **margine** del tetto del lato lungo, tasto con testo | `longSideCapDp = 16`: la crescita totale del lato lungo non supera 16 dp |
 | effetto del tetto | 120 dp → 10% (12 dp); 160 dp → 10% (il limite); 200 dp → 8%; 320 dp (a tutta larghezza) → **5%**, il `maxScale` che LibrePods passa a mano ai suoi tasti larghi |
-| tetto del tasto tondo | `RoundLongSideCapDp = 24`: ×1,5 intero fino a **48 dp**; oltre cresce di 24 dp in tutto (12 per lato): 54→78 (×1,44), 62→86, 76→100 (non 114) |
+| tetto del tasto tondo | Liquid ×1,35 fino a circa **68,6 dp**, massimo 24 dp. Nel feedback ordinario e in Classic `RoundLongSideCapDp = 24` dà ×1,5 intero fino a **48 dp**; oltre cresce di 24 dp in tutto (12 per lato): 54→78 (×1,44), 62→86, 76→100 (non 114) |
 | **deriva** del dito | `m·tanh(0,05·d/m)` per asse, con `m` il lato corto e `d` la strada del dito: su 48 dp, ~1 dp a 20 dp di strada, ~5 a 100, ~14,5 a 300. **Non** pesata dalla pressione |
 | **allungamento** | `scala + 0,1·|cos θ · d.x / M|·min(w/h, 1)` (e il simmetrico in y), `M` lato lungo; lineare e **senza tetto** (a 400 dp di strada su un tasto da 160 dp, +25%) |
 | ritorno di deriva e allungamento | molla **critica** `(1; 300)`: non rimbalzano, rimbalza solo la scala |
@@ -164,8 +164,9 @@ Modifier.fluidPressable(onClick = { /* apre l'elemento */ })   // 0,974, un Tap 
   etichetta dentro un contenitore fermo, e nessuno lo vedeva: era il 2,6% di una parola). *Causa:* `fluidPressable`
   messo **dopo** `clip`/`background`. Va prima.
 - *Sintomo:* un tasto di vetro rifrange un fondo sbagliato mentre cresce. *Causa:* una scala messa da un antenato
-  sopra un nodo di vetro. La trasformazione del tasto di vetro sta nel `layerBlock` di `drawBackdrop`
-  (`glassControlSurface`), mai in un `graphicsLayer` sopra: per questo il vetro si guida con `pressState`.
+  sopra un nodo di vetro. Nel materiale Liquid il campo porta la crescita del tasto.
+  Il `layerBlock` trasla il vetro e il contenuto segue sul proprio layer. L’icona raggiunge una sigma di 2,2 dp
+  sullo schermo. La curva di ingresso dura 400 ms e quella di rilascio 333 ms. Un nuovo tocco riparte dalla sfocatura visibile. Nel modello Classic resta la trasformazione di LibrePods.
 - *Sintomo:* in un `LazyColumn` ogni riga ha un pulsante e la lista «non scorre più» partendo da lì. *Causa:*
   `HoldsFinger` fa quello che dice. Vedi la sezione successiva: `grip = YieldsToScroll`, o parti da fuori dal pulsante.
 - *Sintomo:* il bagliore e il click di un tasto di vetro vanno a ritmi diversi. *Causa:* due `FluidPressState`
@@ -199,7 +200,7 @@ data class FluidPressFeedback(
 | valore | cosa è |
 |---|---|
 | `FluidPressFeedback.Expand` | tasti con testo: cresce 10%, segue il dito, grana |
-| `FluidPressFeedback.ExpandRound` | tasti tondi solo icona: cresce 50% (tetto 24 dp); `maxScale` 0,5, `longSideCapDp` 24 |
+| `FluidPressFeedback.ExpandRound` | tasti tondi solo icona. Il campo Liquid cresce del 35%, il feedback ordinario del 50% (tetto 24 dp). `maxScale` 0,5, `longSideCapDp` 24 |
 | `FluidPressFeedback.yielding(scale)` | superfici: cede fino a `scale` (0,974) e sta ferma |
 | `FluidPressFeedback.None` | nessuna trasformazione: per chi si disegna la pressione (un vetro, una pastiglia) |
 | `FluidPressFeedback.DefaultYieldScale` | 0,974: «la cessione storica» |
@@ -534,7 +535,7 @@ sono lo stesso orologio: svegliarsi un istante prima rileggerebbe ancora ieri). 
 
 - `FluidPressTest` (engine-ui, ~70 casi, JVM puro con orologio di fotogrammi finto): la corsa (un tap rapidissimo fa
   vedere la pressione intera per le superfici, i pulsanti rilasciano subito come LibrePods, nuova pressione durante il
-  ritorno risale, a durata zero un fotogramma per parte), le molle di LibrePods, i numeri della crescita (10% / 50%,
+  ritorno risale, a durata zero un fotogramma per parte), le molle di LibrePods, i numeri del feedback ordinario (10% / 50%,
   tetto 16 dp, tetto del tondo a 24 dp a ogni densità, `44 dp` resta ×1,5 con il pixel arrotondato), la deriva
   `m·tanh`, l'allungamento lineare, il dito come somma con ritorno critico, la grana per stile, il possesso del dito e il
   click del gesto (16 dp, mouse, `YieldsToScroll`), il click lungo (una volta sola, mai dopo lo slop).

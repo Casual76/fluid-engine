@@ -4,6 +4,7 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +19,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.navigation.NavHostController
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsule
@@ -25,6 +28,12 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.icons.*
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
+import dev.antigravity.fluidengine.ui.navigation.FluidNavHost
+import dev.antigravity.fluidengine.ui.navigation.composable
+import dev.antigravity.fluidengine.ui.navigation.rememberFluidNavController
+import dev.antigravity.fluidengine.ui.page.FluidPageHostState
+import dev.antigravity.fluidengine.ui.page.FluidPageMove
+import dev.antigravity.fluidengine.ui.page.rememberFluidPageHostState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -112,6 +121,67 @@ class FluidBottomBarTest {
     upper.performClick()
     advance(1_200)
     assertEquals(lowerRest, lower.getBoundsInRoot())
+  }
+
+  @Test fun bottomBarKeepsBothPageOwnersAndTheSamePushAndPopFrames() {
+    val controllers = mutableListOf<NavHostController>()
+    val clocks = mutableListOf<FluidPageHostState>()
+    val wrongOwners = mutableListOf<String>()
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        // Due host della stessa dimensione e sullo stesso orologio, uno con la barra F4B.1 esplicita.
+        Box(Modifier.fillMaxSize()) {
+          for (withBar in listOf(false, true)) {
+            val nav = rememberFluidNavController()
+            val clock = rememberFluidPageHostState()
+            SideEffect {
+              if (nav !in controllers) { controllers += nav; clocks += clock }
+            }
+            FluidNavHost(nav, "a", Modifier.fillMaxSize(), state = clock) {
+              for (route in listOf("a", "b")) {
+                composable(route) { entry ->
+                  val owner = LocalViewModelStoreOwner.current
+                  SideEffect { if (owner !== entry) wrongOwners += route }
+                  FluidScreen(title = route, toolbar = if (withBar && route == "a") {
+                    { group("azioni", FluidToolbarPlacement.BottomBar) {
+                      button("foto", FluidIcons.Add, "Foto", onClick = {})
+                    } }
+                  } else null) {}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    compose.waitForIdle()
+    assertEquals(2, controllers.size)
+    compose.mainClock.autoAdvance = false
+    val frames = mutableListOf("movimento,frame,t_ms,fase_controllo,fase_barra,bit_controllo,bit_barra")
+    fun compareFrames(expected: FluidPageMove) {
+      val start = compose.mainClock.currentTime
+      var movingFrames = 0
+      repeat(120) { frame ->
+        compose.mainClock.advanceTimeByFrame()
+        val control = clocks[0]
+        val bar = clocks[1]
+        frames += listOf(expected, frame, compose.mainClock.currentTime - start, control.kind, bar.kind,
+          control.progress.toRawBits(), bar.progress.toRawBits()).joinToString(",")
+        assertEquals("fase $expected al frame $frame", control.kind, bar.kind)
+        assertEquals("corsa $expected al frame $frame", control.progress.toRawBits(), bar.progress.toRawBits())
+        if (bar.kind == expected) movingFrames++
+      }
+      assertTrue("la molla deve partire e arrivare a riposo", movingFrames in 2..119)
+      assertEquals(FluidPageMove.None, clocks[1].kind)
+      assertTrue("owner di pagina cambiati: $wrongOwners", wrongOwners.isEmpty())
+    }
+    compose.runOnUiThread { controllers.forEach { it.navigate("b") } }
+    compareFrames(FluidPageMove.Push)
+    compose.runOnUiThread { controllers.forEach { it.popBackStack() } }
+    compareFrames(FluidPageMove.Pop)
+    System.getenv("GLASS_F4B2_TRAVEL_CSV")?.let { path ->
+      java.io.File(path).writeText(frames.joinToString("\n", postfix = "\n"))
+    }
   }
 
   @Test fun theGalleryKeepsOneBottomActionInPlaceAcrossPushAndPop() {

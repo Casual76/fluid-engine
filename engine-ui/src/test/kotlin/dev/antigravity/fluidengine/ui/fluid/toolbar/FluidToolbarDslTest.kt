@@ -271,9 +271,10 @@ class FluidToolbarDslTest {
   }
 
   @Test
-  fun `la ricerca in F4A si posa sotto il titolo e solo li'`() {
+  fun `solo la ricerca principale usa lo slot sotto il titolo`() {
     val spec = FluidSearchSpec(query = "", onQueryChange = {})
-    assertTrue(fluidToolbarSearchSits(spec, FluidToolbarSearchSite.UnderTitle))
+    assertFalse(fluidToolbarSearchSits(spec, FluidToolbarSearchSite.UnderTitle))
+    assertTrue(fluidToolbarSearchSits(spec.copy(placement = dev.antigravity.fluidengine.ui.fluid.FluidSearchPlacement.Principal), FluidToolbarSearchSite.UnderTitle))
     assertFalse(fluidToolbarSearchSits(spec, FluidToolbarSearchSite.TopBar))
     assertFalse(fluidToolbarSearchSits(spec, FluidToolbarSearchSite.Bottom))
   }

@@ -322,7 +322,8 @@ un `graphicsLayer` di Compose con il suo `RenderEffect`:
 | `x`, `y`, `w`, `h` | il riquadro dello strato in dp, relativo all'elemento; di serie tutto l'elemento |
 | `icon`, `icons`, `label`, `rows`, `items` e `iconSizeDp`, `labelSizeDp`, `labelWeight`, `rowHeightDp`, `rowsTopDp` | cosa c'e' dentro, nel vocabolario delle scene. `items` posa testo e icone dove si vuole (`{"kind": "text", "text": "...", "x": 56, "y": 40, "sizeDp": 17}`, `{"kind": "icon", "icon": "fluid:add|plus", "x": 30, "y": 34, "sizeDp": 22}`), in dp dentro lo strato |
 | `color` | il colore del contenuto (`#RRGGBB`, `#RRGGBBAA`); di serie `onSurface` della palette |
-| `blurDp` | la sfocatura dello strato |
+| `blurDp` | raggio Android in dp, applicato prima della scala dello strato |
+| `blurSigmaDp` | sigma gaussiana in dp sullo schermo dopo la scala. Usare un solo campo di sfocatura per strato. |
 | `effect` | uno shader con **un ingresso**, applicato allo strato gia' sfocato: `source`, `uniforms`, `input` (il nome dell'ingresso; di serie il primo). E' la lente del contenuto di F5A |
 | `scale` | un numero o `[sx, sy]`, attorno al centro del riquadro |
 | `alpha` | 0..1; a zero lo strato non si disegna |

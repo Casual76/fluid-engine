@@ -48,7 +48,7 @@ class F1bExportTest {
   /** Gli uniform di luce e d'ombra in corpo, che una lastra di `glassSurface` ferma non scrive (valgono zero). */
   private val inBodyOnly: Set<String> by lazy {
     declared(GlassLight1ShaderString) - setOf(
-      "offset", "flex", "flexCenter", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend", "pieceSmooth", "materialize",
+      "offset", "flex", "flexCenter", "gelTip", "pieceCount", "pieceRect", "pieceRadii", "pieceBlend", "pieceSmooth", "materialize",
       "aa", "lightPart",
     ) + setOf("shadowOffset", "shadowRadii", "shadowAlphas", "shadowColor") +
       // `nodeClip` è di chi non ha il ritaglio del nodo (Fluid-physics): una lastra ferma lo lascia a zero.

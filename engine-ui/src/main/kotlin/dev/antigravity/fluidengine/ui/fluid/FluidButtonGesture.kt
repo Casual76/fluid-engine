@@ -313,7 +313,7 @@ internal fun Modifier.fluidButtonGesture(
     )
     val slack = fluidPressSlack(extendedTouchPadding, FluidPressClickSlack.toPx())
 
-    state.touchDown(down.position)
+    state.touchDown(down.position, down.uptimeMillis)
     state.press()
     if (playsHaptics) state.haptics.play(FluidHapticEvent.PressDown)
 

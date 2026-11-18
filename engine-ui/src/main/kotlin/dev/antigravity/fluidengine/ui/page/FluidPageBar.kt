@@ -20,6 +20,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
+import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearch
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
@@ -66,6 +67,8 @@ internal data class FluidPageBarSpec(
    * pagina per ciò che è suo ([fluidPageBarMinimizeProgressOf]: l'indietro, la barra del modello, l'area toccabile).
    */
   val minimize: FluidToolbarMinimizeProgress? = null,
+  /** Il campo di questa pagina, anche quando il ritiro prende il posto del titolo ancorato. */
+  internal val search: ToolbarSearch? = null,
 )
 
 /**

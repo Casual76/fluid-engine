@@ -23,6 +23,7 @@
  *     (`FluidPressFeedback.maxScale`): 0,10 per i tasti con testo e 0,5 per quelli tondi, che in
  *     LibrePods e' un numero scritto dentro `StyledIconButton`. Un tetto sulla crescita del lato
  *     lungo (16 dp) fa da `maxScale = 0,05` a larghezza piena, che LibrePods passa a mano;
+ *   - nel campo Liquid il tondo cresce del 35%. Le molle B4 e la deformazione del campo sostituiscono la scala del layer;
  *   - le animazioni ridotte: crescita dimezzata, niente deriva ne' allungamento;
  *   - l'aptica non e' `LocalHapticFeedback` ma il vocabolario dell'engine, e ha un interruttore;
  *   - il click lungo (che LibrePods non ha), nel file `FluidButtonGesture.kt`.
@@ -30,6 +31,9 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -46,6 +50,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -132,9 +138,9 @@ data class FluidPressFeedback(
     )
 
     /**
-     * I tasti tondi, solo icona: crescono del 50%, e' il carattere di `StyledIconButton` di
+     * Nel feedback ordinario e in Classic i tasti tondi a icona crescono del 50%, e' il carattere di `StyledIconButton` di
      * LibrePods (un tasto da 44 dp arriva a 66, e al picco della molla a 70). Per tutto il resto,
-     * [Expand].
+     * [Expand]. Sul vetro Liquid [FluidGel.RoundGrowth] porta un tasto da 44 dp a 59,4 dp.
      *
      * **Con un tetto, che LibrePods non ha** (3.0): la crescita del diametro non supera 24 dp in
      * tutto, 12 per lato ([RoundLongSideCapDp]). Sotto i 48 dp, il bersaglio minimo del tocco, la
@@ -193,6 +199,7 @@ internal class FluidPressMotion(private val scope: CoroutineScope) {
 
   /** Vedi la regola sopra. Vero di serie; falso per i pulsanti, che rilasciano subito come LibrePods. */
   var waitsForArrival: Boolean = true
+  var singleRebound: Boolean = false
 
   private val animatable = Animatable(0f, VisibilityThreshold)
   private var arrived = true
@@ -201,8 +208,8 @@ internal class FluidPressMotion(private val scope: CoroutineScope) {
   /** 0 a riposo, 1 a pressione piena; le molle possono uscire di poco da entrambi i lati. */
   val value: Float get() = animatable.value
 
-  /** Il dito c'e'. Non osservabile: letto nel disegno e negli eventi, mai nella composizione. */
-  var held: Boolean = false
+  /** Il dito è a contatto. Anche la sfocatura dell’icona osserva i due cambi di stato. */
+  var held: Boolean by mutableStateOf(false)
     private set
 
   /** Vero mentre la corsa si muove: la finestra in cui chi la disegna e' davvero vivo. */
@@ -216,6 +223,7 @@ internal class FluidPressMotion(private val scope: CoroutineScope) {
     arrived = false
     val pass = ++generation
     scope.launch {
+      animatable.updateBounds(upperBound = null)
       animatable.animateTo(1f, pressSpec) {
         if (value >= ArrivalFraction) arrive(pass)
       }
@@ -239,7 +247,12 @@ internal class FluidPressMotion(private val scope: CoroutineScope) {
   }
 
   private fun relax() {
-    scope.launch { animatable.animateTo(0f, releaseSpec) }
+    scope.launch {
+      animatable.animateTo(0f, releaseSpec) {
+        // Conserva velocità e primo sottopasso. Al successivo zero la corsa è finita.
+        if (singleRebound && value < 0f && upperBound == null) updateBounds(upperBound = 0f)
+      }
+    }
   }
 
   companion object {
@@ -371,14 +384,32 @@ class FluidPressState internal constructor(
     reducedMotion: Boolean,
     grainConfig: FluidHapticGrainConfig = FluidHapticGrainConfig.Default,
   ) {
-    if (feedback != this.feedback || reducedMotion != this.reducedMotion) {
-      FluidPressSprings.configure(motion, feedback, reducedMotion)
-    }
+    val newMotion = feedback != this.feedback || reducedMotion != this.reducedMotion
     this.feedback = feedback
     this.haptics = haptics
     this.reducedMotion = reducedMotion
+    if (newMotion) configureMotion()
     this.grainConfig = grainConfig
     grain.config = grainConfig
+  }
+
+  private var gelReaders = 0
+  private var lastMoveMs: Long? = null
+  private val gelVelocity = lazy { Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold) }
+  internal val fingerSpeed: Offset get() = if (gelVelocity.isInitialized()) gelVelocity.value.value else Offset.Zero
+
+  internal fun bindGel(delta: Int) {
+    gelReaders += delta
+    configureMotion()
+  }
+
+  private fun configureMotion() {
+    FluidPressSprings.configure(motion, feedback, reducedMotion)
+    motion.singleRebound = gelReaders > 0 && !reducedMotion && feedback.expands
+    if (motion.singleRebound) {
+      motion.pressSpec = FluidGel.In
+      motion.releaseSpec = FluidGel.Out
+    }
   }
 
   internal fun press() = motion.press()
@@ -386,10 +417,15 @@ class FluidPressState internal constructor(
   internal fun release() = motion.release()
 
   /** Il dito e' sceso in [position]. Da qui si misura la strada percorsa. */
-  internal fun touchDown(position: Offset) {
+  internal fun touchDown(position: Offset, uptimeMillis: Long? = null) {
+    lastMoveMs = uptimeMillis
+    if (gelVelocity.isInitialized()) scope.launch { gelVelocity.value.snapTo(Offset.Zero) }
     origin = position
     travel = Offset.Zero
-    scope.launch { leanAnimation.snapTo(Offset.Zero) }
+    scope.launch {
+      leanAnimation.updateBounds(null, null)
+      leanAnimation.snapTo(Offset.Zero)
+    }
     // Un seme diverso a ogni gesto: due trascinamenti uguali non suonano lo stesso treno, come due
     // strofinii sulla stessa superficie.
     gestures++
@@ -409,6 +445,17 @@ class FluidPressState internal constructor(
     pxPerDp: Float,
     grainEnabled: Boolean = true,
   ) {
+    if (gelReaders > 0 && !reducedMotion && feedback.followsFinger) {
+      val dt = lastMoveMs?.let { uptimeMillis - it }
+      lastMoveMs = uptimeMillis
+      if (dt != null && dt > 0) {
+        val speed = positionChange * (1000f / dt)
+        scope.launch {
+          gelVelocity.value.snapTo(speed)
+          gelVelocity.value.animateTo(Offset.Zero, FluidGel.SpeedDecay)
+        }
+      }
+    }
     travel += positionChange
     val target = travel
     scope.launch { leanAnimation.snapTo(target) }
@@ -420,7 +467,17 @@ class FluidPressState internal constructor(
 
   /** Il dito se n'e' andato: la strada percorsa torna a zero con la molla critica. */
   internal fun touchEnd() {
-    scope.launch { leanAnimation.animateTo(Offset.Zero, FluidPressSprings.LeanReturn) }
+    scope.launch {
+      val gel = gelReaders > 0 && !reducedMotion
+      val initial = leanAnimation.value
+      leanAnimation.animateTo(Offset.Zero, if (gel) FluidGel.PositionOut else FluidPressSprings.LeanReturn) {
+        if (gel && value.x * initial.x + value.y * initial.y < 0f && lowerBound == null) {
+          updateBounds(Offset(if (initial.x < 0f) 0f else -Float.MAX_VALUE, if (initial.y < 0f) 0f else -Float.MAX_VALUE),
+            Offset(if (initial.x > 0f) 0f else Float.MAX_VALUE, if (initial.y > 0f) 0f else Float.MAX_VALUE))
+        }
+      }
+      if (gel && !motion.held) leanAnimation.snapTo(Offset.Zero)
+    }
   }
 }
 
@@ -456,7 +513,7 @@ internal fun Modifier.fluidPressTracking(
 ): Modifier = this.pointerInput(state, ownsPress) {
   awaitEachGesture {
     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
-    state.touchDown(down.position)
+    state.touchDown(down.position, down.uptimeMillis)
     if (ownsPress) state.press()
     try {
       while (true) {
@@ -551,7 +608,7 @@ internal fun fluidPressTransform(
  * 120 dp cresce del 10% (12 dp), uno da 200 dp dell'8%, uno a tutta larghezza (320 dp) del 5%: che
  * e' il numero che LibrePods passa a mano a ogni suo tasto a larghezza piena. Senza il tetto il
  * 10% di un campo di 340 dp sono 34 dp, e invade i margini. Un tasto tondo ha il suo tetto,
- * [RoundLongSideCapDp]: x1,5 fino a 48 dp, poi 24 dp in tutto.
+ * [RoundLongSideCapDp]: ×1,5 fino a 48 dp in Classic. La geometria Liquid usa [fluidGelGrowth].
  */
 internal fun fluidPressGrowth(feedback: FluidPressFeedback, width: Float, height: Float, dp: Float): Float {
   if (width <= 0f || height <= 0f) return 0f
@@ -559,10 +616,85 @@ internal fun fluidPressGrowth(feedback: FluidPressFeedback, width: Float, height
   return min(feedback.maxScale, feedback.longSideCapDp * dp / long).coerceAtLeast(0f)
 }
 
+/** Taratura del vetro premuto. */
+internal object FluidGel {
+  const val RoundGrowth = 0.35f
+  const val BlurIcon = true
+  /** Sigma sullo schermo al culmine del tenuto, dalla freccia WWDC25 219, f6962–6966. */
+  const val BlurDp = 2.2f
+  val BlurIn = tween<Float>(400, easing = CubicBezierEasing(0.30f, 0.82f, 0.75f, 1f))
+  val BlurOut = tween<Float>(333, easing = CubicBezierEasing(0.35f, 0.73f, 0.78f, 1f))
+
+  /** Il raggio accettato da RenderEffect per la sigma locale, in pixel prima della scala del layer. */
+  fun blurRadiusPx(sigmaPx: Float): Float = (sigmaPx - 0.5f).coerceAtLeast(0f) / 0.57735f
+
+  const val MaxStretch = 1.2f
+  val In = spring<Float>(1f, 1100f, 0.001f)
+  val Out = spring<Float>(0.57f, 385f, 0.001f)
+  val PositionOut = spring<Offset>(0.58f, 180f, Offset.VisibilityThreshold)
+  val SpeedDecay = spring<Offset>(1f, 700f, Offset.VisibilityThreshold)
+}
+
+/** Il blur segue contatto e distacco anche durante un nuovo tocco a metà rientro. */
+internal suspend fun FluidPressState.animateIconBlur(amount: Animatable<Float, AnimationVector1D>) {
+  snapshotFlow { motion.held }.collectLatest { held ->
+    val target = if (held) 1f else 0f
+    if (amount.value != target) amount.animateTo(target, if (held) FluidGel.BlurIn else FluidGel.BlurOut)
+  }
+}
+
+/** Scala del contenuto e matrice simmetrica inversa della sola flessione. Il filo usa pixel di schermo. */
+internal data class FluidGelPose(
+  val growth: Float, val invXX: Float, val invXY: Float, val invYY: Float,
+  val tip: Offset, val drift: Offset,
+) {
+  // Proiezioni sui due assi del layer di contenuto e dei pezzi di un campo multiplo.
+  val scaleX get() = growth * kotlin.math.hypot(invYY, invXY)
+  val scaleY get() = growth * kotlin.math.hypot(invXX, invXY)
+  val transform get() = FluidPressTransform(scaleX, scaleY, drift.x, drift.y)
+}
+
+/** Incremento uniforme effettivo del campo e del suo margine di cattura. */
+internal fun fluidGelGrowth(feedback: FluidPressFeedback, width: Float, height: Float, dp: Float): Float {
+  if (min(width, height) <= 0f) return 0f
+  if (feedback == FluidPressFeedback.ExpandRound) return min(FluidGel.RoundGrowth, feedback.longSideCapDp * dp / max(width, height))
+  return fluidPressGrowth(feedback, width, height, dp)
+}
+
+/** Il tetto 1,2 è della flessione rispetto alla taglia premuta. La crescita uniforme è una scelta indipendente. */
+internal fun fluidGelPose(
+  feedback: FluidPressFeedback, progress: Float, lean: Offset, speed: Offset, finger: Offset,
+  width: Float, height: Float, dp: Float, reduced: Boolean,
+): FluidGelPose {
+  val short = min(width, height)
+  val long = max(width, height)
+  val growth = if (short > 0f && !feedback.expands) feedback.pressedScale - 1f else fluidGelGrowth(feedback, width, height, dp)
+  val delta = growth * (if (reduced) ReducedAmplitude else 1f) * progress
+  // B4: fino al 2,7% sotto riposo. Pendenza continua a zero.
+  val size = 1f + if (!reduced && feedback.expands && delta < 0f) 0.027f * tanh(delta / 0.027f) else delta
+  if (reduced || !feedback.followsFinger || short <= 0f) return FluidGelPose(size, 1f, 0f, 1f, Offset.Zero, Offset.Zero)
+  val drift = Offset(short * 0.25f * tanh(lean.x / short * 1.6f), short * 0.25f * tanh(lean.y / short * 1.6f))
+  val speedLength = speed.getDistance()
+  val axis = if (speedLength > 0f) speed / speedLength else Offset.Zero
+  // Il testo delle capsule lunghe resta agganciato al centro. Riserviamo il 3% della corsa al rigonfiamento locale.
+  val room = (FluidGel.MaxStretch - 1f) * short / long
+  val stretch = 1f + room * 0.82f * tanh(speedLength / (short * 4f))
+  val across = 1f / stretch
+  val toward = Offset((finger.x - width / 2f).coerceIn(-width / 2f, width / 2f),
+    (finger.y - height / 2f).coerceIn(-height / 2f, height / 2f))
+  val tip = toward / max(short / 2f, toward.getDistance()) * (short * room * 0.075f * progress.coerceIn(0f, 1f))
+  return FluidGelPose(size, stretch + (across - stretch) * axis.x * axis.x,
+    (across - stretch) * axis.x * axis.y, stretch + (across - stretch) * axis.y * axis.y, tip, drift)
+}
+
+internal fun FluidPressState.gelPose(width: Float, height: Float, density: Float, reduced: Boolean = reducedMotion,
+  value: Float = progress) =
+  fluidGelPose(feedback, value, lean, fingerSpeed, glow, width, height, density, reduced)
+
 /** La scala massima di un tasto con testo: `StyledButton.kt:95`. */
 internal const val TextMaxScale = 0.10f
 
-/** La scala massima di un tasto tondo: `StyledIconButton.kt:160`, `lerp(1f, 1.5f, progress)`. */
+/** La crescita storica del tondo fuori dal campo Liquid: `StyledIconButton.kt:160`, `lerp(1f, 1.5f, progress)`. */
 internal const val RoundMaxScale = 0.5f
 
 /** Il tetto della crescita del lato lungo di un tasto con testo: vedi [fluidPressGrowth]. */

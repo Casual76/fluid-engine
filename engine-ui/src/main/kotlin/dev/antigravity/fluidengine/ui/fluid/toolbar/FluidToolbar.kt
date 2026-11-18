@@ -86,6 +86,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlass
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassAnimation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransitionWithShape
@@ -405,9 +406,7 @@ class FluidToolbarScope internal constructor() {
   }
 
   /**
-   * La ricerca della pagina (lo stesso posto del parametro `search` di `FluidScreen`, che questa sostituisce): in F4A è il
-   * campo sotto il titolo. Posizioni in barra, suggestions, scopes, purpose ed expansion arrivano in F4B.2.
-   * FluidPageChrome e FluidCollapsingTopBar accettano la specifica, ma solo FluidScreen posa il campo.
+   * La ricerca della schermata sul piano condiviso con i comandi. Ha precedenza sul parametro di FluidScreen.
    */
   fun search(spec: FluidSearchSpec) {
     search = spec
@@ -909,7 +908,17 @@ internal fun FluidToolbarBar(
   val metrics = if (bar == FluidToolbarBar.Bottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
   BoxWithConstraints(modifier.fillMaxWidth().height(metrics.buttonWidthDp.dp).fluidToolbarMinimizeLayer(towardsBottom = bar == FluidToolbarBar.Bottom)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
-    val resolved = remember(model, width, bar) { resolveFluidToolbar(model, width, metrics = metrics, bar = bar) }
+    val search = LocalToolbarSearch.current
+    if (search != null && search.owns(bar) && search.hasDeclaration) {
+      val pose = search.layout(model, width, metrics)
+      SideEffect {
+        if (bar != FluidToolbarBar.Bottom) declaration.measured(pose.neighbours)
+        onExtent?.invoke(pose.extent(density.density))
+      }
+      return@BoxWithConstraints
+    }
+    val active = search?.spec?.active ?: (LocalPrincipalSearchActive.current || declaration.search?.active == true)
+    val resolved = remember(model, width, bar, active) { resolveFluidToolbar(model, width, active, metrics, bar) }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
       val extent = fluidToolbarExtent(resolved, density.density)
@@ -935,11 +944,12 @@ internal fun FluidToolbarBar(
 }
 
 @Composable
-private fun FluidToolbarGroups(
+internal fun FluidToolbarGroups(
   declaration: FluidToolbarDeclaration,
   resolved: FluidToolbarResolved,
   reducedMotion: Boolean,
   interactive: Boolean,
+  searchField: (@Composable (FluidGlassNamespace) -> Unit)? = null,
 ) {
     val memory = remember { FluidToolbarMemory() }
     memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full)
@@ -956,7 +966,9 @@ private fun FluidToolbarGroups(
       }
     }
     val namespace = rememberFluidGlassNamespace()
-    FluidGlassContainer(Modifier.fillMaxSize()) {
+    val animation = if (searchField == null) FluidGlassAnimation.Default
+      else ToolbarSearchAnimation
+    FluidGlassContainer(Modifier.fillMaxSize(), animation = animation) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       Box(Modifier.fillMaxSize()) {
         for (group in resolved.groups) {
@@ -975,6 +987,7 @@ private fun FluidToolbarGroups(
             )
           }
         }
+        searchField?.invoke(namespace)
         val trips = memory.transfers
         val arrivals = memory.arrivals
         val density = LocalDensity.current

@@ -223,7 +223,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class FluidPressFeedback(val pressedScale: Float = DefaultYieldScale, val expands: Boolean = false, val followsFinger: Boolean = false, val dragHaptics: Boolean = false, val maxScale: Float = TextMaxScale, val longSideCapDp: Float = TextLongSideCapDp)` — Come un elemento risponde al dito.
   - `companion object`
     - `val Expand: FluidPressFeedback` — I pulsanti dell'engine con un testo dentro: crescono del 10%, seguono il dito, vibrano come LibrePods.
-    - `val ExpandRound: FluidPressFeedback` — I tasti tondi, solo icona: crescono del 50%, e' il carattere di `StyledIconButton` di LibrePods (un tasto da 44 dp arriva a 66, e al picco della molla a 70). Per tutto il resto, [Expand].
+    - `val ExpandRound: FluidPressFeedback` — Nel feedback ordinario e in Classic i tasti tondi a icona crescono del 50%, e' il carattere di `StyledIconButton` di LibrePods (un tasto da 44 dp arriva a 66, e al picco della molla a 70). Per tutto il resto, [Expand]. Sul vetro Liquid [FluidGel.RoundGrowth] porta un tasto da 44 dp a 59,4 dp.
     - `fun yielding(scale: Float = DefaultYieldScale): FluidPressFeedback` — Le superfici: cedono fino a [scale] e stanno ferme. Il comportamento di sempre.
     - `val None: FluidPressFeedback` — Nessuna trasformazione: per chi si disegna la pressione da se' (un vetro, una pastiglia).
     - `const val DefaultYieldScale: Float` — La cessione storica di `fluidPressable`.

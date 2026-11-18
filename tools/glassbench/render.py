@@ -1374,7 +1374,16 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
         screen.restore()
         return
     blur_px = ctx.px(spec.get("blurDp", 0.0))
-    margin = int(math.ceil(ctx.px(spec.get("marginDp", 0.0)) + (3.0 * blur_sigma(blur_px) if blur_px > 0 else 0.0)))
+    scale = spec.get("scale", 1.0)
+    sx, sy = (scale if isinstance(scale, (list, tuple)) else (scale, scale))
+    sigma_x = sigma_y = blur_sigma(blur_px)
+    if "blurSigmaDp" in spec:
+        # La sigma richiesta è a schermo. Il filtro viene applicato prima della scala del contenuto.
+        screen_sigma = ctx.px(spec["blurSigmaDp"])
+        if sx == 0 or sy == 0:
+            return
+        sigma_x, sigma_y = screen_sigma / abs(sx), screen_sigma / abs(sy)
+    margin = int(math.ceil(ctx.px(spec.get("marginDp", 0.0)) + 3.0 * max(sigma_x, sigma_y)))
     _, fx, wi = pixel_grid(x, w)
     _, fy, hi = pixel_grid(y, h)
     lw, lh = wi + 2 * margin, hi + 2 * margin
@@ -1385,12 +1394,11 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
     image = layer.makeImageSnapshot()
     if ctx.stages is not None:
         ctx.stages[f"{tag}-0-layer"] = image
-    if blur_px > 0:
+    if sigma_x > 0 and sigma_y > 0:
         blurred = new_surface(lw, lh)
-        sigma = blur_sigma(blur_px)
         paint = skia.Paint()
         # Decal: fuori dal layer del contenuto non c'e' niente, e niente deve entrare nella sfocatura.
-        paint.setImageFilter(skia.ImageFilters.Blur(sigma, sigma, skia.TileMode.kDecal, None,
+        paint.setImageFilter(skia.ImageFilters.Blur(sigma_x, sigma_y, skia.TileMode.kDecal, None,
                                                     skia.IRect.MakeWH(lw, lh)))
         blurred.getCanvas().drawImage(image, 0, 0, LINEAR, paint)
         image = blurred.makeImageSnapshot()
@@ -1421,8 +1429,6 @@ def place_content(screen, ctx: Context, el, x: float, y: float, w: float, h: flo
         image = out.makeImageSnapshot()
         if ctx.stages is not None:
             ctx.stages[f"{tag}-2-effetto"] = image
-    scale = spec.get("scale", 1.0)
-    sx, sy = (scale if isinstance(scale, (list, tuple)) else (scale, scale))
     screen.save()
     screen.translate(x + w / 2.0, y + h / 2.0)
     screen.scale(float(sx), float(sy))
@@ -1503,6 +1509,8 @@ def place_content_layers(screen, ctx: Context, el, x: float, y: float, w: float,
         spec: dict = {}
         if float(layer.get("blurDp", 0.0)) > 0.0:
             spec["blurDp"] = layer["blurDp"]
+        if float(layer.get("blurSigmaDp", 0.0)) > 0.0:
+            spec["blurSigmaDp"] = layer["blurSigmaDp"]
         if alpha < 1.0:
             spec["alpha"] = alpha
         if layer.get("scale", 1.0) not in (1, 1.0, [1, 1], [1.0, 1.0]):

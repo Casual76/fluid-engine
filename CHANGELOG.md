@@ -12,6 +12,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - Barre Liquid. Il riflesso laterale si raccorda al fondale durante il viaggio. Nella piega l'etichetta scelta resta leggibile nella prima tratta e il contorno del lettore resta in primo piano.
 
+- I tasti Liquid crescono nel campo di vetro. Il trascinamento flette il contorno e il rilascio attraversa il riposo una volta. Il tondo da 44 dp arriva a 59,4 dp (×1,35). Su API 31+ l’icona si sfoca fino a una sigma di 2,2 dp con il tocco e torna nitida durante il rilascio.
+
+- La ricerca di `FluidScreen` trasforma la lente da 44 dp in un campo da 40 dp sul piano della barra, riunisce i comandi vicini e segue la tastiera con gli ambiti in linea.
+
 - `toolbar { }` posa le azioni `BottomBar` sul piano flottante anche fra pagine. La capsula libera anima la propria larghezza e lo scambio dei simboli.
 
 - Sorgenti delle transizioni (F5A.1). `Modifier.fluidTransitionSource` espone riquadro e forma per identità. Le azioni della toolbar dichiarata espongono la capsula del proprio gruppo, anche durante il viaggio del piano.

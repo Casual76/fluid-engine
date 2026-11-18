@@ -102,6 +102,13 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchOverlay
+import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearch
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalToolbarSearch
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberOwnedSearch
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberToolbarSearch
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalPrincipalSearchActive
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidSearchLegacyActions
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchSite
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchSlot
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
@@ -834,8 +841,8 @@ fun FluidScreen(
    */
   toolbar: (FluidToolbarScope.() -> Unit)? = null,
   /**
-   * La ricerca della pagina (F4A.2): il campo dell'engine, oggi sotto il titolo grande; il `search(spec)` della barra la
-   * sostituisce. Un punto solo per tutti e due (`FluidToolbarSearchSlot`): F4B porterà il campo nella barra.
+   * La ricerca segue la posizione richiesta e condivide il piano con i comandi della barra.
+   * La dichiarazione di toolbar tramite `search(spec)` ha precedenza su questo parametro.
    */
   search: FluidSearchSpec? = null,
   /** Nelle pagine di lettura, libera spazio in risposta alla direzione dello scorrimento. */
@@ -860,7 +867,10 @@ fun FluidScreen(
       val fontScale = LocalDensity.current.fontScale
       if (metrics.fontScale != fontScale) metrics.fontScale = fontScale
     }
+    val spec = rememberOwnedSearch(declaration?.search ?: search)
+    val floatingSearch = rememberToolbarSearch(spec, maxWidth, declaration != null)
     FluidScreenLayout(
+      floatingSearch = floatingSearch,
       title = title,
       subtitle = subtitle,
       onBack = onBack,
@@ -881,7 +891,7 @@ fun FluidScreen(
       },
       overlay = overlay,
       toolbar = declaration,
-      search = declaration?.search ?: search,
+      search = spec,
       barMinimize = barMinimize,
       barMinimizeAdjustsInsets = barMinimizeAdjustsInsets,
       content = content,
@@ -906,6 +916,7 @@ private fun FluidScreenLayout(
   overlay: @Composable BoxScope.(GlassBackdropState) -> Unit,
   toolbar: FluidToolbarDeclaration?,
   search: FluidSearchSpec?,
+  floatingSearch: ToolbarSearch?,
   barMinimize: FluidBarMinimizeBehavior,
   barMinimizeAdjustsInsets: Boolean,
   content: LazyListScope.() -> Unit,
@@ -953,7 +964,7 @@ private fun FluidScreenLayout(
   val compactTitleStyle = rememberCompactTitleStyle(expandedTitleStyle)
 
   val topBarHeight = FluidScreenDefaults.topBarHeight()
-  val bottomExtra = if (toolbar?.hasBottomBar == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
+  val bottomExtra = if (toolbar?.hasBottomBar == true || floatingSearch?.atBottom == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
   val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding) + bottomExtra
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
   val titleTopPx = with(density) { (topBarHeight + FluidScreenDefaults.TitleTopSpacing).toPx() }
@@ -1307,31 +1318,39 @@ private fun FluidScreenLayout(
     if (bottomExtra > 0.dp) RegisterFluidScreenBottomEdge(
       if (minimize?.hidden == true) null else FluidScreenBottomEdge(LocalFluidBottomInset.current + bottomExtra, FluidFloatingCapsuleDefaults.ActionSize),
     )
-    if (LocalFluidPageBar.current == null) {
+    if (LocalFluidPageBar.current == null && floatingSearch?.occupiesBottom != true) {
       FluidBottomBar(toolbar, chromeBackdrop, minimize, Modifier.align(Alignment.BottomCenter))
     }
-    CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize) {
-    FluidTopBar(
-      standaloneBar = FluidToolbarBar.Top,
-      title = title,
-      backdrop = chromeBackdrop,
-      barTint = null,
-      collapseProgress = collapseProgress,
-      activeFacet = activeFacet,
-      morphState = titleMorphState.takeIf { minimize == null },
-      compactStyle = compactTitleStyle,
-      contentTranslation = contentTranslation,
-      fontScale = density.fontScale,
-      reducedMotion = reducedMotion,
-      onBack = onBack,
-      actions = actions,
-      glassIntensity = glassIntensity,
-      onTapTitle = {
-        scope.launch { listState.animateScrollToItem(0) }
-      },
-      toolbar = toolbar,
-      subtitle = if (toolbar != null) toolbar.subtitle ?: subtitle else null,
-    )
+    val topBar: @Composable () -> Unit = {
+      FluidTopBar(
+        standaloneBar = FluidToolbarBar.Top,
+        title = title,
+        backdrop = chromeBackdrop,
+        barTint = null,
+        collapseProgress = collapseProgress,
+        activeFacet = activeFacet,
+        morphState = titleMorphState.takeIf { minimize == null },
+        compactStyle = compactTitleStyle,
+        contentTranslation = contentTranslation,
+        fontScale = density.fontScale,
+        reducedMotion = reducedMotion,
+        onBack = onBack.takeUnless { toolbar == null && floatingSearch?.takesTop == true },
+        actions = fluidSearchLegacyActions(floatingSearch, toolbar, actions),
+        glassIntensity = glassIntensity,
+        onTapTitle = {
+          scope.launch { listState.animateScrollToItem(0) }
+        },
+        toolbar = toolbar,
+        search = floatingSearch,
+        subtitle = if (toolbar != null) toolbar.subtitle ?: subtitle else null,
+      )
+    }
+
+    if (search == null) {
+      CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize, content = topBar)
+    } else {
+      CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize, LocalToolbarSearch provides floatingSearch,
+        LocalPrincipalSearchActive provides (search.active && floatingSearch == null), content = topBar)
     }
 
     if (minimize != null) {
@@ -1386,6 +1405,9 @@ private fun FluidScreenLayout(
       }
     }
 
+    if (floatingSearch != null && LocalFluidPageBar.current == null) {
+      FluidToolbarSearchOverlay(floatingSearch, toolbar, chromeBackdrop, minimize)
+    }
     CompositionLocalProvider(LocalFluidPageBar provides null) { overlay(chromeBackdrop) }
   }
   }
@@ -1819,6 +1841,7 @@ internal fun FluidTopBar(
   standaloneBar: FluidToolbarBar = FluidToolbarBar.TopOnly,
   /** Il sottotitolo sotto il titolo agganciato (solo con [toolbar]): compare mentre il titolo si aggancia. */
   subtitle: String? = null,
+  search: ToolbarSearch? = null,
 ) {
   val minimize = LocalFluidToolbarMinimize.current
   // Dentro un host di pagine (3.0) la barra non si disegna qui: si descrive, e la disegna l'host,
@@ -1849,6 +1872,7 @@ internal fun FluidTopBar(
         barTint = barTint,
         backdrop = backdrop,
         toolbar = toolbar,
+        search = search,
       ),
     )
     return

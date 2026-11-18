@@ -153,7 +153,7 @@ internal object LiquidTasto {
    * del movimento li chiede. A `lightInBody` 0 e alfa zero non si disegnano.
    */
   @Suppress("UNCHECKED_CAST")
-  private fun completeBody(element: Map<String, Any?>) {
+  internal fun completeBody(element: Map<String, Any?>) {
     val body = (element["body"] as? Map<String, Any?>)?.get("uniforms") as? MutableMap<String, Any?> ?: return
     val light = (element["light"] as? List<Map<String, Any?>>)?.firstOrNull()?.get("uniforms") as? Map<String, Any?>
     if (light != null) for (key in BodyLightKeys) if (key !in body && key in light) body[key] = light[key]

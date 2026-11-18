@@ -384,14 +384,16 @@ fun FluidFloatingTabBar(
         keyboard?.hide()
         returnTab.onClick()
     }
-    val fieldSearchContent: (@Composable (Modifier) -> Unit)? = if (activateSearch && searchBarContent != null) {
+    val fieldSearchContent: (@Composable (Modifier) -> Unit)? = searchBarContent?.let { editor ->
         { fieldModifier ->
-            searchBarContent(fieldModifier.focusRequester(fieldFocus))
-            LaunchedEffect(Unit) {
+            CompositionLocalProvider(LocalFluidSearchTabSurface provides true) {
+                editor(if (activateSearch) fieldModifier.focusRequester(fieldFocus) else fieldModifier)
+            }
+            if (activateSearch) LaunchedEffect(Unit) {
                 if (runCatching { fieldFocus.requestFocus() }.getOrDefault(false)) keyboard?.show()
             }
         }
-    } else searchBarContent
+    }
 
     // Un cambio di pagina riapre la barra e chiude lo scorrimento in corso (3.0.1): un cambio di rotta
     // dall'host delle pagine della stessa finestra ([FluidRouteSignal]), un cambio di scheda da qui. Prima

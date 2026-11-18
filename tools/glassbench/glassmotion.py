@@ -79,7 +79,7 @@ KINDS = ("shader", "material", "glass", "shape")
 # Il contenuto di un elemento, nel vocabolario delle scene: in una traccia sta dentro `content`.
 CONTENT_DRAW_KEYS = ("icon", "icons", "label", "rows", "items", "iconSizeDp", "labelSizeDp",
                      "labelWeight", "rowHeightDp", "rowsTopDp")
-CONTENT_KEYS = set(CONTENT_DRAW_KEYS) | {"name", "x", "y", "w", "h", "color", "blurDp", "alpha",
+CONTENT_KEYS = set(CONTENT_DRAW_KEYS) | {"name", "x", "y", "w", "h", "color", "blurDp", "blurSigmaDp", "alpha",
                                          "scale", "marginDp", "effect", "clip"}
 SCENE_CONTENT_KEYS = ("icon", "icons", "label", "rows", "items", "contentLayer", "contentColor")
 COMMON_KEYS = {"kind", "name", "x", "y", "w", "h", "radius", "corner", "smoothing", "theme",
@@ -493,6 +493,9 @@ def check_uniforms(rep: Report, sources: Sources, where: str, frame: int, part: 
         if name not in declared:
             rep.err(f"{where}.uniforms.{name}", f"`{ref}` non dichiara questo uniform", frame)
     for name, (components, count) in declared.items():
+        # Le tracce schema 1 antecedenti a F6.1 hanno il lobo a zero (default AGSL).
+        if name == "gelTip" and name not in uniforms:
+            continue
         if name not in uniforms:
             rep.err(f"{where}.uniforms", f"manca `{name}`, che `{ref}` dichiara", frame)
             continue
@@ -636,14 +639,17 @@ def check_element(rep: Report, sources: Sources, frame: int, el: dict, density: 
             for key in layer:
                 if key not in CONTENT_KEYS and not key.startswith("_"):
                     rep.err(spot, f"campo sconosciuto `{key}`", frame)
-            for key in ("x", "y", "blurDp", "alpha", "marginDp"):
+            for key in ("x", "y", "blurDp", "blurSigmaDp", "alpha", "marginDp"):
                 if key in layer and not is_number(layer[key]):
                     rep.err(spot, f"`{key}` deve essere un numero finito", frame)
             for key in ("w", "h"):
                 if key in layer and (not is_number(layer[key]) or layer[key] <= 0):
                     rep.err(spot, f"`{key}` deve essere un numero maggiore di zero", frame)
-            if is_number(layer.get("blurDp")) and layer["blurDp"] < 0:
-                rep.err(spot, "`blurDp` non puo' essere negativo", frame)
+            for key in ("blurDp", "blurSigmaDp"):
+                if is_number(layer.get(key)) and layer[key] < 0:
+                    rep.err(spot, f"`{key}` non puo' essere negativo", frame)
+            if "blurDp" in layer and "blurSigmaDp" in layer:
+                rep.err(spot, "scegliere il raggio locale oppure la sigma sullo schermo", frame)
             if is_number(layer.get("alpha")) and not 0.0 <= layer["alpha"] <= 1.0:
                 rep.err(spot, f"`alpha` va da 0 a 1, non {layer['alpha']}", frame)
             scale = layer.get("scale", 1.0)

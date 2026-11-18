@@ -675,7 +675,7 @@ private class DrawBackdropNode(
     }
 
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
-        clip = true
+        clip = shapeProvider.innerShape !== dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape
         // Fluid Engine change: the *layer* is clipped by the shape's rounded-rect reading, not by
         // its exact path. A `RenderNode` clipped to a generic path cannot use the hardware's
         // rounded-rect clip and falls back to masking the whole node offscreen — per pane, per

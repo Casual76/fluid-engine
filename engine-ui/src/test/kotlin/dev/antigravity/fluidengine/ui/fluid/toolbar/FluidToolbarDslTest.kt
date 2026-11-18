@@ -47,6 +47,68 @@ class FluidToolbarDslTest {
     confirm(onClick = {})
   }
 
+  @Test fun `entrambi i lati possono avere spaziatori fissi e flessibili annidati`() {
+    val bar = model {
+      group("sx", placement = FluidToolbarPlacement.Leading) {
+        button("a", FluidIcons.Check, "A", onClick = {})
+        spacer()
+        flexibleSpacer()
+      }
+      group("dx", placement = FluidToolbarPlacement.Trailing) {
+        spacer()
+        flexibleSpacer()
+        button("b", FluidIcons.Search, "B", onClick = {})
+      }
+    }
+    val resolved = resolve(bar)
+    assertEquals(FluidToolbarSide.Leading, resolved.element("a")!!.side)
+    assertEquals(FluidToolbarSide.Trailing, resolved.element("b")!!.side)
+    assertEquals(4, bar.items.flatMap { it.children }.filter { it.isSpacer }.map { it.id }.distinct().size)
+  }
+
+  @Test fun `il fantasma resta nella barra e il rientro lo cancella anche durante la coda`() {
+    fun row(vararg ids: String) = resolve(model {
+      for (id in ids) button(id, FluidIcons.Search, id, onClick = {})
+    })
+    val both = row("a", "b")
+    val memory = FluidToolbarMemory()
+    memory.update(both, FluidToolbarMotion.Full)
+    memory.update(row("a"), FluidToolbarMotion.Full)
+    assertEquals(both.element("b"), memory.ghosts.single().element)
+    memory.update(both, FluidToolbarMotion.Full)
+    assertTrue(memory.ghosts.isEmpty())
+    memory.update(row("b", "a"), FluidToolbarMotion.Full)
+    assertTrue("il diff separa gli incroci", memory.transfers.isEmpty())
+    assertEquals(setOf("a", "b"), memory.arrivals.keys)
+  }
+
+  @Test fun `chi esce da un vetro smontato si incrocia con la scritta in arrivo`() {
+    val memory = FluidToolbarMemory()
+    val before = resolve(model {
+      button("share", FluidIcons.IosShare, "Condividi", onClick = {})
+    })
+    memory.update(before, FluidToolbarMotion.Full)
+    memory.update(resolve(model { text("draft", "Bozza", onClick = {}) }), FluidToolbarMotion.Full)
+    assertEquals(before.element("share"), memory.ghosts.single().element)
+    assertFalse(memory.ghosts.single().glassStays)
+    assertEquals("Bozza", memory.arrivals.getValue("draft").item.label)
+  }
+
+  @Test fun `alla posa i trasferimenti si svuotano e una variazione di badge non ne apre altri`() {
+    fun row(split: Boolean, badge: Int) = resolve(model {
+      button("a", FluidIcons.Check, "A", onClick = {}, badge = badge)
+      if (split) spacer()
+      button("b", FluidIcons.Search, "B", onClick = {})
+    })
+    val memory = FluidToolbarMemory()
+    memory.update(row(false, 0), FluidToolbarMotion.Full)
+    memory.update(row(true, 0), FluidToolbarMotion.Full)
+    assertTrue(memory.transfers.isNotEmpty())
+    memory.finishTransfers(memory.transfers)
+    memory.update(row(true, 2), FluidToolbarMotion.Full)
+    assertTrue(memory.transfers.isEmpty())
+  }
+
   @Test
   fun `la schermata con onBack ha l'indietro in testa, se la pagina non ne dichiara uno`() {
     val auto = buildFluidToolbar(onBack = {}, browse)
@@ -197,7 +259,12 @@ class FluidToolbarDslTest {
     assertEquals("3 note", declaration.subtitle)
     assertSame(spec, declaration.search)
     assertTrue("un elemento al centro prende il posto del titolo", declaration.hasPrincipal)
-    val titles = fluidToolbarModel(declaration, textWidth, title = "Note").titles
+    val center = fluidToolbarModel(declaration, textWidth, title = "Note")
+    declaration.measured(resolve(center, 400f))
+    assertTrue(declaration.hasPrincipal)
+    declaration.measured(resolve(center, 20f))
+    assertFalse("il titolo torna quando il centro passa nel menu", declaration.hasPrincipal)
+    val titles = center.titles
     assertEquals("Note", titles.inline)
     assertNull("in linea non c'è il titolo grande", titles.large)
     assertEquals("3 note", titles.subtitle)

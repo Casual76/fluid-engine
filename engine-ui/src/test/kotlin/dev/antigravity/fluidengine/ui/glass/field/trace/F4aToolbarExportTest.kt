@@ -32,8 +32,12 @@ class F4aToolbarExportTest {
   private data class Input(val at: Double, val name: String, val declaration: FluidToolbarDeclaration)
   private data class Prepared(val input: Input, val resolved: FluidToolbarResolved,
     val ids: Map<FluidToolbarGroupId, FluidToolbarGlassId>, val plane: GlassPlaneState,
-    val transfers: Map<Any, FluidToolbarTransfer>)
-  private data class Face(val icon: String, val color: String, val size: Float)
+    val transfers: Map<Any, FluidToolbarTransfer>,
+    val departures: List<FluidToolbarGhost>, val arrivals: Map<Any, FluidToolbarElement>)
+  private data class Face(val icon: String?, val label: String?, val color: String, val size: Float) {
+    fun content(): Map<String, Any?> = if (icon != null) mapOf("icon" to icon, "iconSizeDp" to size)
+      else mapOf("label" to label, "labelSizeDp" to 17f, "labelWeight" to 500)
+  }
   private class Slot(val group: String, val id: Any, var x: Float, var w: Float,
     var journey: GlassContentJourney, var attached: Boolean = true)
 
@@ -85,8 +89,18 @@ class F4aToolbarExportTest {
 
   private fun prepare(inputs: List<Input>): List<Prepared> {
     val memory = FluidToolbarMemory()
+    var previousAt = Double.NEGATIVE_INFINITY
     return inputs.map { input ->
-      val model = fluidToolbarModel(input.declaration, textWidthDp = { error("Nessun testo nelle scene") },
+      if (input.at - previousAt >= 1000.0) {
+        memory.finishTransfers(memory.transfers)
+        memory.ghosts.toList().forEach(memory::forget)
+        memory.arrivals.values.toList().forEach(memory::finishArrival)
+      }
+      previousAt = input.at
+      val model = fluidToolbarModel(input.declaration, textWidthDp = {
+        require(it == "Bozza")
+        78f // larghezza della scritta con padding in questa scena a densità 3
+      },
         tintOf = { fluidToolbarTint(it, Color(0xFF007AFF), Color(0xFFFF3B30)) })
       val resolved = resolveFluidToolbar(model, width, metrics = metrics)
       assertTrue("${input.name}: capienza", resolved.fits)
@@ -102,14 +116,14 @@ class F4aToolbarExportTest {
           contentKey = fluidToolbarGlassContentKey(group))
       }
       Prepared(input, resolved, memory.glassIds.toMap(), GlassPlaneState(pieces, 16f * density,
-        Rect(0f, 0f, width * density, height * density)), memory.transfers.toMap())
+        Rect(0f, 0f, width * density, height * density)), memory.transfers.toMap(), memory.ghosts.toList(), memory.arrivals.toMap())
     }
   }
 
   private fun face(item: FluidToolbarItem, dark: Boolean): Face {
-    val icon = (item.symbol as ImageVector).name.substringAfter('.')
-      .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2").lowercase(Locale.ROOT)
-    return Face("fluid:$icon", if (item.isPrimary) "#FFFFFF" else if (item.selected) "#007AFF" else item.tintArgb?.let { String.format(Locale.ROOT, "#%06X", it and 0xFFFFFFL) }
+    val vector = if (item.role == FluidToolbarRole.Overflow) FluidIcons.MoreHoriz else item.symbol as? ImageVector
+    val icon = vector?.name?.substringAfter('.')?.replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")?.lowercase(Locale.ROOT)
+    return Face(icon?.let { "fluid:$it" }, item.label, if (item.isPrimary) "#FFFFFF" else if (item.selected) "#007AFF" else item.tintArgb?.let { String.format(Locale.ROOT, "#%06X", it and 0xFFFFFFL) }
       ?: if (dark) "#F2F2F7" else "#17171A",
       fluidToolbarIconSize(item.role).value)
   }
@@ -196,6 +210,10 @@ class F4aToolbarExportTest {
         previous = current
       }
       driver.step(10_000_000_000L + glassTraceTimeNanos(index - 3, 120), current.plane, GlassPlaneMotion())
+      val elapsed = (time - current.input.at).toFloat()
+      val u = elapsed / GlassContentDefaults.DurationMs
+      val travelling = if (driver.journey != null || u < 1f) current.transfers else emptyMap()
+      val entering = if (driver.journey != null || u < GlassContentDefaults.EnterEnd) current.arrivals else emptyMap()
       val elements = frame.elements.map { raw ->
         val element = LinkedHashMap(raw)
         @Suppress("UNCHECKED_CAST")
@@ -221,7 +239,7 @@ class F4aToolbarExportTest {
           val anchoredFlight = flying?.let { fluidGlassContentFlightOf(it, GlassPieceContent.Rest, look,
             place, FluidGlassSwell.None, anchor = anchor) }
           val shift = ((anchoredFlight?.offset?.x ?: 0f) - (centerFlight?.offset?.x ?: 0f)) / density
-          slots.values.filter { it.group == glass && (oldSlots || it.id !in current.transfers) }.flatMap { slot ->
+          slots.values.filter { it.group == glass && (oldSlots || it.attached && it.id !in travelling && it.id !in entering) }.flatMap { slot ->
             slot.journey.frame(time).layers.mapNotNull { layer ->
               val shown = layer.key as Face
               val alpha = number(carrier, "alpha", 1f) * layer.look.alpha
@@ -231,17 +249,20 @@ class F4aToolbarExportTest {
               linkedMapOf<String, Any?>(
                 "name" to "${slot.id}-${layer.id}", "x" to number(carrier, "x") + slot.x + shift,
                 "y" to number(carrier, "y"), "w" to slot.w, "h" to metrics.buttonWidthDp,
-                "icon" to shown.icon, "iconSizeDp" to shown.size, "color" to shown.color,
+                "color" to shown.color,
                 "alpha" to alpha, "scale" to number(carrier, "scale", 1f) * layer.look.scale,
                 "blurDp" to hypot(groupBlur, ownBlur), "marginDp" to 12,
-              ).also { carrier["clip"]?.let { clip -> it["clip"] = clip } }
+              ).also { record ->
+                record.putAll(shown.content())
+                carrier["clip"]?.let { clip -> record["clip"] = clip }
+              }
             }
           }
         }
         element
       }.toMutableList()
-      if (!oldSlots && current.transfers.isNotEmpty()) {
-        val icons = current.transfers.map { (id, trip) ->
+      if (!oldSlots) {
+        val icons = travelling.map { (id, trip) ->
           val item = current.resolved.element(id)!!.item
           val face = face(item, dark)
           val flying = driver.frame?.pieces?.find { it.piece.id == trip.glass }
@@ -260,9 +281,36 @@ class F4aToolbarExportTest {
             "iconSizeDp" to face.size, "color" to glassColor(tone),
             "blurDp" to glassContentBlurRadiusPx(glassContentSigmaPx(blur, face.size * density)) / density, "marginDp" to 12)
         }
+        val fading = mutableListOf<Map<String, Any?>>()
+        fun addFading(element: FluidToolbarElement, glass: FluidToolbarGlassId, role: GlassContentRole, clip: Boolean) {
+          val alpha = GlassContentCurves.alpha(role, u, true)
+          if (alpha <= 0.001f) return
+          val glyph = face(element.item, dark)
+          val bounds = driver.frame?.pieces?.find { it.piece.id == glass }?.bounds
+          val group = current.resolved.groups.firstOrNull { it.id == element.groupId }
+          val offset = if (role == GlassContentRole.Enter && bounds != null && group != null)
+            bounds.center.x / density - group.leftDp - group.widthDp / 2f else 0f
+          val blur = GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur
+          val layer = linkedMapOf<String, Any?>("name" to "${element.item.id}-$role",
+            "color" to glyph.color, "x" to element.leftDp + offset, "y" to top,
+            "w" to element.widthDp, "h" to metrics.buttonWidthDp, "alpha" to alpha,
+            "scale" to GlassContentCurves.scale(role, u),
+            "blurDp" to glassContentBlurRadiusPx(glassContentSigmaPx(blur, glyph.size * density)) / density, "marginDp" to 12)
+          if (clip && bounds != null) layer["clip"] = mapOf("x" to bounds.left / density, "y" to top,
+            "w" to bounds.width / density, "h" to metrics.buttonWidthDp, "radius" to 0)
+          layer.putAll(glyph.content())
+          fading += layer
+        }
+        current.departures.forEach { ghost ->
+          addFading(ghost.element, ghost.glass, GlassContentRole.Exit, ghost.glassStays)
+        }
+        entering.values.forEach { element ->
+          addFading(element, current.ids.getValue(element.groupId!!), GlassContentRole.Enter, true)
+        }
+        if (icons.isNotEmpty() || fading.isNotEmpty())
         elements += linkedMapOf<String, Any?>("kind" to "shape", "name" to "icone", "x" to 0,
           "y" to 0, "w" to width, "h" to height, "radius" to 0, "color" to "#00000000",
-          "contentClip" to "none", "content" to icons)
+          "contentClip" to "none", "content" to icons + fading)
       }
       // Queste scene usano vetro neutro; la freccia del contesto ha la sola tinta del contenuto.
       // Il titolo è contenuto senza vetro, guidato dallo stesso FluidBarTitleSwap dell'host.
@@ -315,6 +363,44 @@ class F4aToolbarExportTest {
         Input(1200.0, "gruppo", primary(false))), 300, dark = true))
   }
 
+  @Test fun `Gruppo Modifica e Allegato attraversano la finestra R7`() {
+    val group = buildFluidToolbar(noop) {
+      button("lead", FluidIcons.Edit, "Modifica", onClick = noop)
+      button("mid", FluidIcons.IosShare, "Condividi", onClick = noop)
+      button("trail", FluidIcons.Favorite, "Preferito", onClick = noop)
+    }
+    val edit = buildFluidToolbar(null) {
+      close(noop, id = FluidToolbarIds.Back)
+      text("draft", "Bozza", onClick = noop)
+      confirm(noop)
+      overflow { button("archive", FluidIcons.Archive, "Archivia", onClick = noop) }
+    }
+    val attachment = buildFluidToolbar(noop) {
+      button("lead", FluidIcons.Edit, "Modifica", onClick = noop)
+      spacer()
+      button("trail", FluidIcons.Favorite, "Preferito", onClick = noop)
+    }
+    val output = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4A5_DIR"))
+    for ((name, end) in listOf("gruppo-modifica" to edit, "gruppo-allegato" to attachment)) {
+      val result = trace(name, listOf(Input(-100.0, "Gruppo", group), Input(0.0, name, end)), 122,
+        kept = FluidToolbarKeptContent.Soft, phase = "f4a-corr")
+      fun faces(time: Double) = result.frames.minBy { kotlin.math.abs(it.tMs - time) }.elements.flatMap { pane ->
+        (pane["content"] as? List<*>)?.filterIsInstance<Map<*, *>>().orEmpty()
+      }
+      val old = faces(0.0).single { it["name"] == "mid-Exit" }
+      for (ms in listOf(8.33, 25.0, 50.0, 100.0, 150.0)) {
+        val share = faces(ms).single { it["name"] == "mid-Exit" }
+        assertTrue((share["alpha"] as Number).toFloat() > 0f)
+        assertEquals(old["x"], share["x"])
+      }
+      if (name == "gruppo-modifica") {
+        val draft = faces(150.0).single { it["label"] == "Bozza" }
+        assertTrue((draft["alpha"] as Number).toFloat() > 0f)
+      }
+      output?.let { result.write(File(it, "correzione/$name/trace.json")) }
+    }
+  }
+
   @Test fun sameIconsStayUniqueAcrossS6GroupChanges() {
     fun scene(name: String) = buildFluidToolbar(null) {
       when (name) {
@@ -354,18 +440,23 @@ class F4aToolbarExportTest {
       val last = if (sequence.size == 3) 260 else 128
       val result = trace(name, inputs, last, kept = FluidToolbarKeptContent.Soft, phase = "f3-rif4")
       val placements = prepare(inputs).map { it.resolved }
-      fun icons(frame: GlassTraceFrame) = frame.elements.flatMap { (it["content"] as? List<*>)?.filterIsInstance<Map<*, *>>().orEmpty() }
+      fun icons(frame: GlassTraceFrame) = frame.elements.flatMap { pane ->
+        (pane["content"] as? List<*>)?.filterIsInstance<Map<*, *>>().orEmpty().map {
+          it + ("absoluteX" to number(pane, "x") + (it["x"] as Number).toFloat())
+        }
+      }
       val keptIds = when (name) {
         "principale" -> listOf("edit", "share", "star")
         "allegato-gruppo" -> listOf("lead", "trail")
         "tinta" -> listOf("bold", "italic", "underline")
         else -> listOf("trail")
       }
-      fun x(icon: Map<*, *>) = (icon["x"] as Number).toFloat() + (icon["w"] as Number).toFloat() / 2f
+      fun x(icon: Map<*, *>) = (icon["absoluteX"] as Number).toFloat() + (icon["w"] as Number).toFloat() / 2f
       for (frame in result.frames.filter { it.tMs >= 0 }) for (id in keptIds) {
-        val glyph = icons(frame).single { it["name"] == "$id-stabile" }
+        val glyph = icons(frame).single { it["name"].toString().startsWith("$id-") }
         assertEquals(1, icons(frame).count { it["icon"] == glyph["icon"] })
-        if (name == "note-nota" || name == "tinta") assertEquals(placements.first().element(id)!!.centerDp, x(glyph), 0.001f)
+        if (name == "note-nota" || name == "tinta") assertEquals("$name, $id a ${frame.tMs} ms: $glyph",
+          placements.first().element(id)!!.centerDp, x(glyph), 0.001f)
         if (name == "principale" && id != "star") {
           val ends = placements.map { it.element(id)!!.centerDp }
           assertTrue("salto di $id a ${frame.tMs}", x(glyph) in (ends.min() - .001f)..(ends.max() + .001f))
@@ -373,23 +464,24 @@ class F4aToolbarExportTest {
       }
       if (name == "allegato-gruppo") {
         val opening = result.frames.minBy { kotlin.math.abs(it.tMs - 158.33) }
-        val lead = icons(opening).single { it["name"] == "lead-stabile" }
-        val pane = opening.elements.single { (it["content"] as? List<*>)?.any { glyph ->
-          (glyph as? Map<*, *>)?.get("icon") == "fluid:ios_share"
-        } == true }
-        val incoming = (pane["content"] as List<*>).filterIsInstance<Map<*, *>>().single { it["icon"] == "fluid:ios_share" }
-        assertTrue("separazione fra Modifica e Condividi", (pane["x"] as Number).toFloat() + x(incoming) - x(lead) >= 26f)
+        val lead = icons(opening).single { it["name"].toString().startsWith("lead-") }
+        val incoming = icons(opening).single { it["icon"] == "fluid:ios_share" }
+        assertTrue("separazione fra Modifica e Condividi", x(incoming) - x(lead) >= 26f)
       }
       if (name == "tinta") {
+        fun rgba(frame: GlassTraceFrame, id: String): String {
+          val color = icons(frame).single { it["name"].toString().startsWith("$id-") }["color"].toString()
+          return if (color.length == 7) color + "FF" else color
+        }
         val first = result.frames.minBy { kotlin.math.abs(it.tMs) }
-        assertEquals("#17171AFF", icons(first).single { it["name"] == "bold-stabile" }["color"])
+        assertEquals("#17171AFF", rgba(first, "bold"))
         val middle = result.frames.minBy { kotlin.math.abs(it.tMs - 800.0) }
-        assertEquals("#007AFFFF", icons(middle).single { it["name"] == "bold-stabile" }["color"])
-        assertEquals("#17171AFF", icons(middle).single { it["name"] == "italic-stabile" }["color"])
+        assertEquals("#007AFFFF", rgba(middle, "bold"))
+        assertEquals("#17171AFF", rgba(middle, "italic"))
       }
       if (name == "principale") {
         val returning = result.frames.minBy { kotlin.math.abs(it.tMs - 1366.67) }
-        val star = icons(returning).single { it["name"] == "star-stabile" }
+        val star = icons(returning).single { it["name"].toString().startsWith("star-") }
         val red = star["color"].toString().substring(1, 3).toInt(16)
         assertTrue("inchiostro ancora chiaro sul vetro quasi neutro: $star", red < 75)
       }

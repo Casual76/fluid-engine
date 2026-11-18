@@ -27,6 +27,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TileMode
+import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerState
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -155,7 +164,7 @@ internal data class FluidToolbarRoleId(val name: String) {
 }
 
 /** Una chiave locale della DSL (spaziatori): non è un'identità da accoppiare fra due stati. */
-internal data class FluidToolbarLocalId(val kind: String, val index: Int)
+internal data class FluidToolbarLocalId(val kind: String, val index: Int, val groupId: Any?)
 
 /**
  * La barra in alto di una pagina, **dichiarata** (piano «iOS in Android», F4A.2): la pagina dice chi sono i suoi tasti e
@@ -195,6 +204,7 @@ class FluidToolbarScope internal constructor() {
   internal var search: FluidSearchSpec? = null
   internal var overflowLabel: String? = null
   private var inOverflow = false
+  private var groupId: Any? = null
   private var spacers = 0
 
   /**
@@ -335,7 +345,8 @@ class FluidToolbarScope internal constructor() {
   /**
    * Un elemento libero, **col suo vetro**, per ciò che la DSL non copre (un avatar, un indicatore): [content] sta in un
    * vetro di [width] × 44 dp (di serie un tondo). Ha la sua identità come gli altri e non si unisce a nessun gruppo.
-   * [onClick] null: non si tocca (e [label], se c'è, lo descrive).
+   * Per TalkBack passare [label] e dichiarare qui [onClick] se il contenuto esegue un comando.
+   * Il bersaglio della barra porta nome e azione anche quando quel comando passa nel menu «Altro».
    */
   fun item(
     id: Any,
@@ -354,12 +365,12 @@ class FluidToolbarScope internal constructor() {
 
   /** Uno spazio fisso: spezza un gruppo in due vetri. Di serie la distanza fra due gruppi (12 dp); una misura più larga la sostituisce. */
   fun spacer(width: Dp = Dp.Unspecified) {
-    entries += FluidToolbarSpacerEntry(FluidToolbarLocalId("spacer", spacers++), flexible = false, width = width)
+    entries += FluidToolbarSpacerEntry(FluidToolbarLocalId("spacer", spacers++, groupId), flexible = false, width = width)
   }
 
   /** Uno spazio flessibile: spinge ciò che segue all'altro estremo della barra. */
   fun flexibleSpacer() {
-    entries += FluidToolbarSpacerEntry(FluidToolbarLocalId("flex", spacers++), flexible = true, width = Dp.Unspecified)
+    entries += FluidToolbarSpacerEntry(FluidToolbarLocalId("flex", spacers++, groupId), flexible = true, width = Dp.Unspecified)
   }
 
   /**
@@ -373,7 +384,10 @@ class FluidToolbarScope internal constructor() {
     sharedBackground: Boolean = true,
     content: FluidToolbarScope.() -> Unit,
   ) {
-    val inner = FluidToolbarScope().also { it.inOverflow = inOverflow }.apply(content)
+    val inner = FluidToolbarScope().also {
+      it.inOverflow = inOverflow
+      it.groupId = id
+    }.apply(content)
     entries += FluidToolbarGroupEntry(id, placement, priority, inOverflow, sharedBackground, inner.entries.toList())
   }
 
@@ -391,7 +405,8 @@ class FluidToolbarScope internal constructor() {
 
   /**
    * La ricerca della pagina (lo stesso posto del parametro `search` di `FluidScreen`, che questa sostituisce): in F4A è il
-   * campo di oggi sotto il titolo; il suo comportamento nella barra arriva con F4B.
+   * campo sotto il titolo. Posizioni in barra, suggestions, scopes, purpose ed expansion arrivano in F4B.2.
+   * FluidPageChrome e FluidCollapsingTopBar accettano la specifica, ma solo FluidScreen posa il campo.
    */
   fun search(spec: FluidSearchSpec) {
     search = spec
@@ -471,7 +486,22 @@ internal class FluidToolbarDeclaration(
   val back: FluidToolbarButtonEntry? get() = buttons.values.firstOrNull { it.role == FluidToolbarRole.Back }
 
   /** Se la pagina mette qualcosa al centro (`Principal`): il titolo agganciato cede il posto. */
-  val hasPrincipal: Boolean get() = all(entries).any { it.placementOf() == FluidToolbarPlacement.Principal }
+  private var measuredPrincipal by mutableStateOf<Boolean?>(null)
+  val hasPrincipal: Boolean get() = measuredPrincipal ?: entries.any { it.declaresPrincipal(false) }
+
+  private fun FluidToolbarEntry.declaresPrincipal(inPrincipal: Boolean): Boolean = when (this) {
+    is FluidToolbarSpacerEntry -> false
+    is FluidToolbarButtonEntry -> !overflow && (placement == FluidToolbarPlacement.Principal ||
+      placement == FluidToolbarPlacement.Automatic && inPrincipal)
+    is FluidToolbarGroupEntry -> !overflow && children.any {
+      it.declaresPrincipal(placement == FluidToolbarPlacement.Principal ||
+        placement == FluidToolbarPlacement.Automatic && inPrincipal)
+    }
+  }
+
+  fun measured(resolved: FluidToolbarResolved) {
+    measuredPrincipal = resolved.groups.any { it.side == FluidToolbarSide.Center }
+  }
 
   private fun MutableMap<Any, FluidToolbarButtonEntry>.collect(list: List<FluidToolbarEntry>) {
     for (entry in list) when (entry) {
@@ -481,14 +511,7 @@ internal class FluidToolbarDeclaration(
     }
   }
 
-  private fun all(list: List<FluidToolbarEntry>): List<FluidToolbarEntry> =
-    list.flatMap { if (it is FluidToolbarGroupEntry) listOf(it) + all(it.children) else listOf(it) }
 
-  private fun FluidToolbarEntry.placementOf(): FluidToolbarPlacement? = when (this) {
-    is FluidToolbarButtonEntry -> placement
-    is FluidToolbarGroupEntry -> placement
-    is FluidToolbarSpacerEntry -> null
-  }
 }
 
 /**
@@ -652,7 +675,7 @@ internal fun fluidToolbarGlassIds(
 
 /**
  * La memoria della barra fra due composizioni: l'ultimo stato risolto, le identità dei suoi vetri e i tasti che stanno
- * uscendo da un vetro che resta (i «fantasmi», che si sfocano dove erano invece di sparire in un fotogramma).
+ * uscendo dalla barra. Conserva il posto da cui sfumano e passa il glifo allo slot quando il vetro si posa.
  * Si aggiorna in composizione, una volta per stato risolto diverso (le ricomposizioni con lo stesso stato non la toccano).
  */
 @Stable
@@ -681,6 +704,8 @@ internal class FluidToolbarMemory {
   var transfers by mutableStateOf(emptyMap<Any, FluidToolbarTransfer>())
     private set
 
+  var arrivals by mutableStateOf(emptyMap<Any, FluidToolbarElement>())
+    private set
   private var ghostSerial = 0
 
   fun update(next: FluidToolbarResolved, motion: FluidToolbarMotion) {
@@ -692,40 +717,68 @@ internal class FluidToolbarMemory {
     } else {
       val diff = diffFluidToolbar(before, next, FluidToolbarTrigger.State, motion)
       val ids = fluidToolbarGlassIds(next, glassIds, before, diff)
-      // Chi esce da un vetro che resta: si sfoca dove era (nelle coordinate del vetro d'arrivo).
-      val moving = next.elements.mapNotNull { end ->
-        val start = before.element(end.item.id) ?: return@mapNotNull null
+      // Il rinculo del vetro può trascinare anche un posto fermo quando cambia un gruppo vicino
+      // (Note → Nota). Tienilo all'ancora fino alla posa. Il badge non muove il vetro.
+      val glassChanges = before.groups.size != next.groups.size || before.groups.indices.any { index ->
+        val a = before.groups[index]
+        val b = next.groups[index]
+        a.id != b.id || a.leftDp != b.leftDp || a.widthDp != b.widthDp ||
+          fluidToolbarGlassContentKey(a) != fluidToolbarGlassContentKey(b)
+      }
+      // Solo una corrispondenza del modello può portare lo stesso glifo fra due posti.
+      val moving = diff.elements.mapNotNull { change ->
+        if (change.change != FluidToolbarElementChange.Matched) return@mapNotNull null
+        val start = change.from ?: return@mapNotNull null
+        val end = change.to ?: return@mapNotNull null
         val from = glassIds[start.groupId] ?: return@mapNotNull null
         val to = ids[end.groupId] ?: return@mapNotNull null
         if (motion != FluidToolbarMotion.Full || start.inOverflow || end.inOverflow ||
-          start.item.symbol == null || start.item.content != end.item.content) return@mapNotNull null
+          start.item.symbol == null || end.item.role == FluidToolbarRole.Overflow || start.item.content != end.item.content) return@mapNotNull null
         val sourceGroup = before.groups.first { it.id == start.groupId }
         val targetGroup = next.groups.first { it.id == end.groupId }
         val leavesSingle = sourceGroup.items.size == 1
         val entersSingle = targetGroup.items.size == 1
         val cross = from != to
         val resized = sourceGroup.items.map { it.id } != targetGroup.items.map { it.id }
+        val active = transfers[end.item.id]
+        val inkChange = start.item.tintArgb != end.item.tintArgb || start.item.selected != end.item.selected
+        if (!glassChanges && !cross && !resized && start.centerDp == end.centerDp && !inkChange) {
+          return@mapNotNull active?.let { end.item.id to it }
+        }
         val trip = FluidToolbarTransfer(if (cross && leavesSingle) from else to,
           cross && leavesSingle, cross && entersSingle, start.centerDp, end.centerDp, transfers[end.item.id]?.lastCenter,
           !cross && resized, targetGroup.widthDp, start.item)
         end.item.id to trip
       }.toMap()
       transfers = moving
-      val staying = ids.entries.associate { (group, glass) -> glass to next.groups.first { it.id == group } }
-      val left = before.elements.filter { old -> !old.inOverflow && next.elements.none { it.item.id == old.item.id && !it.inOverflow } }
-      val fresh = left.mapNotNull { old ->
-        val glass = old.groupId?.let { glassIds[it] } ?: return@mapNotNull null
-        val host = staying[glass] ?: return@mapNotNull null
-        FluidToolbarGhost(ghostSerial++, glass, old.item, old.leftDp - host.leftDp, old.widthDp)
+      val leaving = diff.elements.filter { change ->
+        change.from?.inOverflow == false && (change.to == null || change.to.inOverflow)
+      }.mapNotNull { it.from }
+      val entering = diff.elements.mapNotNull { change ->
+        change.to?.takeIf { !it.inOverflow && (change.from == null || change.from.inOverflow) }
       }
-      val alive = ghosts.filter { ghost -> staying.containsKey(ghost.glass) }
-      if (fresh.isNotEmpty() || alive.size != ghosts.size) ghosts = alive + fresh
+      val fresh = leaving.filter { it.item.contentKey == null }.map { old ->
+        FluidToolbarGhost(ghostSerial++, old, glassIds.getValue(old.groupId!!), glassIds[old.groupId] in ids.values)
+      }
+      val visible = next.elements.filterNot { it.inOverflow }.mapTo(HashSet()) { it.item.id }
+      ghosts = ghosts.filter { it.element.item.id !in visible && fresh.none { new -> new.element.item.id == it.element.item.id } } + fresh
+      // Uno scambio avvia i due contenuti sullo stesso orologio, anche se cambia il vetro.
+      arrivals = arrivals.filter { (id, element) -> next.element(id) == element } +
+        entering.filter { end -> end.item.contentKey == null && leaving.any { it.side == end.side } }.associateBy { it.item.id }
       previousIds = before.elements.filter { !it.inOverflow }.mapTo(HashSet()) { it.item.id }
       previousGlass = glassIds.values.toSet()
       glassIds = ids
       settled = true
     }
     resolved = next
+  }
+
+  fun finishTransfers(done: Map<Any, FluidToolbarTransfer>) {
+    transfers = transfers.filter { (id, trip) -> done[id] !== trip }
+  }
+
+  fun finishArrival(element: FluidToolbarElement) {
+    if (arrivals[element.item.id] === element) arrivals = arrivals - element.item.id
   }
 
   fun forget(ghost: FluidToolbarGhost) {
@@ -785,13 +838,12 @@ internal class FluidToolbarTransfer(
   }
 }
 
-/** Un tasto che esce da un vetro che resta: si sfoca e svanisce a [leftDp] dal bordo del vetro, senza occupare posto. */
+/** L'uscita conserva le coordinate logiche della barra di partenza, anche quando il vetro cambia origine. */
 internal data class FluidToolbarGhost(
   val serial: Int,
+  val element: FluidToolbarElement,
   val glass: FluidToolbarGlassId,
-  val item: FluidToolbarItem,
-  val leftDp: Float,
-  val widthDp: Float,
+  val glassStays: Boolean,
 )
 
 // ================================================================================================================
@@ -849,6 +901,7 @@ internal fun FluidToolbarBar(
   BoxWithConstraints(modifier.fillMaxWidth().height(FluidMetrics.GlassButtonLens).fluidToolbarMinimizeLayer()) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
     val resolved = remember(model, width) { resolveFluidToolbar(model, width, metrics = fluidToolbarMetrics()) }
+    SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
       val extent = fluidToolbarExtent(resolved, density.density)
       SideEffect { onExtent(extent) }
@@ -913,77 +966,132 @@ private fun FluidToolbarGroups(
             )
           }
         }
-        for ((id, trip) in memory.transfers) {
+        val trips = memory.transfers
+        val arrivals = memory.arrivals
+        val density = LocalDensity.current
+        val effects = remember(density) { FluidToolbarEffects(density.density) }
+        // Il piano può aspettare la prima misura prima di pubblicare il viaggio.
+        // Dopo la fine dell'inchiostro e della geometria il proprietario torna allo slot.
+        if (trips.isNotEmpty()) LaunchedEffect(trips, plane, duration) {
+          withFrameNanos { }
+          delay(duration.toLong())
+          do { withFrameNanos { } } while (plane?.stage != null || plane?.measurePending == true)
+          memory.finishTransfers(trips)
+        }
+
+        for (ghost in memory.ghosts) key(ghost.serial) {
+          val element = ghost.element
+          FluidToolbarFadingFace(element, ghost.glass, namespace, plane, entering = false,
+            clipToGlass = ghost.glassStays, effects = effects,
+            modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp)) { memory.forget(ghost) }
+        }
+        for (element in arrivals.values) key(element) {
+          val glass = memory.glassIds.getValue(element.groupId!!)
+          FluidToolbarFadingFace(element, glass, namespace, plane, entering = true,
+            clipToGlass = true, effects = effects,
+            modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp),
+            group = resolved.groups.first { it.id == element.groupId }) { memory.finishArrival(element) }
+        }
+        for ((id, trip) in trips) {
           val entry = declaration.buttons[id] ?: continue
           val icon = entry.icon ?: continue
           val element = resolved.element(id) ?: continue
           key(id) {
-            val ink = LocalContentColor.current
-            val scheme = MaterialTheme.colorScheme
-            val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-            val density = LocalDensity.current
-            val size = fluidToolbarIconSize(element.item.role)
-            val stationary = trip.startDp == trip.endDp && trip.interruptedCenter == null
-            val restX = if (stationary) fluidToolbarIconCenterPx(resolved, element, density.density, rtl) else 0f
-            val glyphWidthPx = with(density) { size.roundToPx() }
-            fun color(item: FluidToolbarItem): Color = when {
-              item.isPrimary -> scheme.onPrimary
-              item.selected -> scheme.primary
-              item.tintArgb != null -> Color(item.tintArgb)
-              else -> ink
-            }
-            val soft = trip.softened && FluidToolbarTuning.keptContent == FluidToolbarKeptContent.Soft
-            val startColor = color(trip.startItem)
-            val endColor = color(element.item)
-            val selectionState = selection[id]
-            val selectionChanges = trip.startItem.selected != element.item.selected &&
-              !trip.startItem.isPrimary && !element.item.isPrimary
-            val localInk = if (trip.changesInkInPlace(element.item) && !selectionChanges) {
-              val phase = remember(trip) { Animatable(0f) }
-              val duration = GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale
-              LaunchedEffect(phase, duration) {
-                phase.animateTo(1f, tween(duration.toInt().coerceAtLeast(0), easing = LinearEasing))
-              }
-              phase
-            } else null
-            Box(Modifier.align(Alignment.CenterStart).size(FluidMetrics.GlassButtonLens).graphicsLayer {
-              fun center(x: Float) = (if (rtl) resolved.widthDp - x else x) * this.density
-              val flight = plane?.flightOf(FluidGlassQualifiedId(namespace, trip.glass))
-              val u = flight?.phase ?: if (plane?.measurePending == true) 0f else 1f
-              val x = if (stationary) {
-                trip.center(restX, restX, null, null, u)
-              } else {
-                trip.center(center(trip.startDp), center(trip.endDp), flight?.bounds?.center?.x,
-                  flight?.bounds?.width?.div(this.density), u)
-              }
-              val widthPx = (resolved.widthDp * this.density).roundToInt()
-              val localCenter = if (stationary) fluidToolbarPlacedIconCenterPx(this.size.width.roundToInt(), glyphWidthPx)
-                else this.size.width / 2f
-              val base = (if (rtl) widthPx - this.size.width else 0f) + localCenter
-              translationX = x - base
-              alpha = if (entry.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
-              val elapsed = plane?.contentTimeMs ?: Double.POSITIVE_INFINITY
-              val blur = if (soft && android.os.Build.VERSION.SDK_INT >= 31) glassContentBlurRadiusPx(
-                glassContentSigmaPx(GlassContentCurves.softBlur((elapsed / GlassContentDefaults.DurationMs).toFloat()) *
-                  GlassContentDefaults.PeakBlur * GlassContentDefaults.KeptSoftness, size.toPx()))
-                else 0f
-              val shownColor = when {
-                selectionChanges && selectionState != null -> lerp(
-                  element.item.tintArgb?.let { Color(it) } ?: ink, scheme.primary, selectionState.value,
-                )
-                startColor != endColor -> lerp(startColor, endColor,
-                  trip.inkFraction(element.item, flight?.let { plane?.filmAlpha(it) }, localInk?.value ?: u))
-                else -> endColor
-              }
-              colorFilter = if (shownColor == endColor) null else androidx.compose.ui.graphics.ColorFilter.tint(shownColor)
-              renderEffect = if (blur > 0.05f) androidx.compose.ui.graphics.BlurEffect(blur, blur) else null
-            }.clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-              FluidIcon(icon, null, tint = endColor, size = size)
-            }
+            FluidToolbarTravellingButton(trip, element, entry, icon, resolved, selection, interactive,
+              namespace, plane, effects, Modifier.align(Alignment.CenterStart))
           }
         }
       }
     }
+}
+
+@Composable
+private fun FluidToolbarTravellingButton(
+  trip: FluidToolbarTransfer, element: FluidToolbarElement, entry: FluidToolbarButtonEntry, icon: ImageVector,
+  resolved: FluidToolbarResolved, selection: Map<Any, State<Float>>, interactive: Boolean,
+  namespace: FluidGlassNamespace, plane: FluidGlassContainerState?, effects: FluidToolbarEffects, modifier: Modifier,
+) {
+  val id = element.item.id
+  val ink = LocalContentColor.current
+  val scheme = MaterialTheme.colorScheme
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val density = LocalDensity.current
+  val size = fluidToolbarIconSize(element.item.role)
+  val stationary = trip.startDp == trip.endDp && trip.interruptedCenter == null
+  val restX = if (stationary) fluidToolbarIconCenterPx(resolved, element, density.density, rtl) else 0f
+  val glyphWidthPx = with(density) { size.roundToPx() }
+  fun color(item: FluidToolbarItem): Color = when {
+    item.isPrimary -> scheme.onPrimary
+    item.selected -> scheme.primary
+    item.tintArgb != null -> Color(item.tintArgb)
+    else -> ink
+  }
+  val soft = trip.softened && FluidToolbarTuning.keptContent == FluidToolbarKeptContent.Soft
+  val startColor = color(trip.startItem)
+  val endColor = color(element.item)
+  val selectionState = selection[id]
+  val selectionChanges = trip.startItem.selected != element.item.selected &&
+    !trip.startItem.isPrimary && !element.item.isPrimary
+  val localInk = if (trip.changesInkInPlace(element.item) && !selectionChanges) {
+    val phase = remember(trip) { Animatable(0f) }
+    val duration = GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale
+    LaunchedEffect(phase, duration) {
+      phase.animateTo(1f, tween(duration.toInt().coerceAtLeast(0), easing = LinearEasing))
+    }
+    phase
+  } else null
+  val qualified = remember(namespace, trip) { FluidGlassQualifiedId(namespace, trip.glass) }
+  val labels = LocalFluidLabels.current
+  val touchable = interactive && entry.onClick != null
+  val haptics = LocalFluidHaptics.current
+  Box(modifier.requiredSize(FluidMetrics.TouchTarget).graphicsLayer {
+    fun center(x: Float) = (if (rtl) resolved.widthDp - x else x) * this.density
+    val flight = plane?.flightOf(qualified)
+    val u = flight?.phase ?: if (plane?.measurePending == true) 0f else 1f
+    val x = if (stationary) {
+      trip.center(restX, restX, null, null, u)
+    } else {
+      trip.center(center(trip.startDp), center(trip.endDp), flight?.bounds?.center?.x,
+        flight?.bounds?.width?.div(this.density), u)
+    }
+    val widthPx = (resolved.widthDp * this.density).roundToInt()
+    val localCenter = if (stationary) fluidToolbarPlacedIconCenterPx(this.size.width.roundToInt(), glyphWidthPx)
+      else this.size.width / 2f
+    val base = (if (rtl) widthPx - this.size.width else 0f) + localCenter
+    translationX = x - base
+    alpha = if (entry.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+  }.then(if (touchable) Modifier.clickable(
+    interactionSource = remember { MutableInteractionSource() }, indication = null,
+    enabled = entry.enabled, role = Role.Button,
+  ) {
+    haptics.play(FluidHapticEvent.Tap)
+    entry.onClick?.invoke()
+  }.semantics {
+    contentDescription = entry.accessibleName(labels.back, labels.close, labels.confirm)
+    if (element.item.selected) selected = true
+    element.item.badge?.text?.let { stateDescription = it }
+  } else Modifier.clearAndSetSemantics { }), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().graphicsLayer {
+      if (startColor != endColor) compositingStrategy = CompositingStrategy.Offscreen
+      plane?.flightOf(qualified) // abbonamento al fotogramma del piano anche per una sola sfocatura
+      val elapsed = plane?.contentTimeMs ?: Double.POSITIVE_INFINITY
+      val blur = if (soft && android.os.Build.VERSION.SDK_INT >= 31) glassContentBlurRadiusPx(
+        glassContentSigmaPx(GlassContentCurves.softBlur((elapsed / GlassContentDefaults.DurationMs).toFloat()) *
+          GlassContentDefaults.PeakBlur * GlassContentDefaults.KeptSoftness, size.toPx()))
+        else 0f
+      renderEffect = effects.at(blur)
+    }.then(if (startColor == endColor) Modifier else Modifier.drawWithContent {
+      drawContent()
+      val flight = plane?.flightOf(qualified)
+      val u = flight?.phase ?: if (plane?.measurePending == true) 0f else 1f
+      val inkFraction = if (selectionChanges && selectionState != null) {
+        if (element.item.selected) selectionState.value else 1f - selectionState.value
+      } else trip.inkFraction(element.item, flight?.let { plane?.filmAlpha(it) }, localInk?.value ?: u)
+      drawRect(lerp(startColor, endColor, inkFraction), blendMode = BlendMode.SrcIn)
+    }), contentAlignment = Alignment.Center) {
+      FluidIcon(icon, null, tint = endColor, size = size)
+    }
+  }
 }
 
 /** Stessa somma di interi di offset, Row e allineamento del glifo a riposo, anche in RTL. */
@@ -1095,9 +1203,6 @@ private fun FluidToolbarGroupPiece(
       .size(group.widthDp.dp, FluidMetrics.GlassButtonLens),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    for (ghost in memory.ghosts) {
-      if (ghost.glass == glass) key(ghost.serial) { FluidToolbarGhostSlot(ghost, declaration, memory) }
-    }
     for (item in group.items) {
       key(item.id) {
         val element = resolved.element(item.id)
@@ -1112,7 +1217,7 @@ private fun FluidToolbarGroupPiece(
           selection = selection.getValue(item.id),
           interactive = interactive,
           // Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che arriva con un vetro nuovo lo porta il piano.
-          entersBlurred = memory.settled && item.id !in memory.previousIds && glass in memory.previousGlass,
+          entersBlurred = memory.settled && item.id !in memory.arrivals && item.id !in memory.previousIds && glass in memory.previousGlass,
           shapeKey = fluidToolbarSlotShapeKey(group, FluidToolbarTuning.keptContent),
         )
       }
@@ -1232,15 +1337,15 @@ private fun FluidToolbarSlot(
           .background(GlassDefaults.selectionTint().overlay, FluidCapsuleShape),
       )
     }
-    val iconLayer = if (entry?.icon == null) null else rememberGraphicsLayer()
-    val travelling = item.id in memory.transfers
+    val transientFace = item.id in memory.transfers || item.id in memory.arrivals
+    val iconLayer = if (entry?.custom != null) null else rememberGraphicsLayer()
     if (iconLayer != null) {
       DisposableEffect(iconLayer, glass, item.id) {
         onDispose {
-          if (item.id in memory.transfers) iconLayer.alpha = 0f
+          iconLayer.alpha = 0f
         }
       }
-      SideEffect { iconLayer.alpha = if (travelling) 0f else 1f }
+      SideEffect { iconLayer.alpha = if (transientFace) 0f else 1f }
     }
     FluidGlassContentTransitionWithShape(
       targetState = if (arrived) face else null,
@@ -1251,8 +1356,10 @@ private fun FluidToolbarSlot(
       modifier = Modifier
         .clearAndSetSemantics { }
         .then(if (iconLayer == null) Modifier else Modifier.drawWithContent {
-          iconLayer.record { this@drawWithContent.drawContent() }
-          drawLayer(iconLayer)
+          if (!transientFace) {
+            iconLayer.record { this@drawWithContent.drawContent() }
+            drawLayer(iconLayer)
+          }
         })
         .graphicsLayer { alpha = if (enabled) 1f else FluidToolbarDefaults.DisabledAlpha },
     ) { shownFace ->
@@ -1268,7 +1375,7 @@ private fun FluidToolbarSlot(
       )
     }
     // Il bersaglio: almeno 48 dp per lato, centrato sul posto, senza cambiare la misura del vetro.
-    if (interactive) Box(
+    if (interactive && item.id !in memory.transfers) Box(
       Modifier
         .requiredSize(max(width, FluidMetrics.TouchTarget), FluidMetrics.TouchTarget)
         .then(
@@ -1295,61 +1402,96 @@ private fun FluidToolbarSlot(
           if (item.selected) selected = true
           badge?.text?.let { stateDescription = it }
           if (hidden.isNotEmpty()) {
-            customActions = hidden.map { action ->
-              CustomAccessibilityAction(action.label ?: action.text ?: action.id.toString()) {
-                action.onClick?.invoke()
-                action.onClick != null
+            customActions = hidden.map { it.contextAction(labels.back, labels.close, labels.confirm) }
+              .filter { it.enabled }.map { action ->
+                CustomAccessibilityAction(action.label) {
+                  action.onClick()
+                  true
+                }
               }
-            }
           }
         },
     )
   }
 }
 
-/** Un tasto che esce da un vetro che resta: senza posto, dove era, sfocandosi fino al vuoto. */
-@Composable
-private fun FluidToolbarGhostSlot(ghost: FluidToolbarGhost, declaration: FluidToolbarDeclaration, memory: FluidToolbarMemory) {
-  val scheme = MaterialTheme.colorScheme
-  val ink = LocalContentColor.current
-  val entry = declaration.buttons[ghost.item.id]
-  val tint = entry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: Color.Unspecified
-  val face = FluidToolbarFace(
-    key = Triple(ghost.item.content, ghost.item.tintArgb, ghost.item.selected),
-    icon = if (ghost.item.role == FluidToolbarRole.Overflow) FluidIcons.MoreHoriz else entry?.icon ?: ghost.item.symbol as? ImageVector,
-    text = entry?.text,
-    color = if (tint != Color.Unspecified) tint else ink,
-    custom = entry?.custom,
-    size = fluidToolbarIconSize(ghost.item.role),
-  )
-  var gone by remember { mutableStateOf(false) }
-  val scale = LocalFluidMotionPolicy.current.durationScale
-  LaunchedEffect(Unit) {
-    gone = true
-    // Il tempo della sfocatura del contenuto, poi il posto si libera.
-    delay((FluidMotion.PlaneContextMillis * scale.coerceAtLeast(0f)).toLong() + GhostTailMillis)
-    memory.forget(ghost)
-  }
-  val textStyle = FluidToolbarDefaults.textStyle()
-  Box(
-    Modifier
-      .layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = ghost.widthDp.dp.roundToPx()))
-        layout(0, placeable.height) { placeable.placeRelative(ghost.leftDp.dp.roundToPx(), 0) }
-      }
-      .width(ghost.widthDp.dp)
-      .height(FluidMetrics.GlassButtonLens)
-      .clearAndSetSemantics { },
-    contentAlignment = Alignment.Center,
-  ) {
-    FluidGlassContentTransition(targetState = if (gone) null else face, key = { it?.key }, blurReference = FluidMetrics.BarIconSize) { shown ->
-      if (shown != null) FluidToolbarFaceContent(shown, textStyle)
+// Gli stessi raggi del materiale si riusano fra icone e fotogrammi.
+private class FluidToolbarEffects(density: Float) {
+  // Le curve al massimo raggiungono PeakBlur sull'icona più grande della barra.
+  private val maxRadius = glassContentBlurRadiusPx(glassContentSigmaPx(
+    GlassContentDefaults.PeakBlur, FluidMetrics.BarIconSize.value * density))
+  private val blurs by lazy(LazyThreadSafetyMode.NONE) {
+    Array(kotlin.math.ceil(maxRadius * 4f).toInt() + 1) { index ->
+      if (index == 0) null else BlurEffect(index / 4f, index / 4f, TileMode.Decal)
     }
   }
+
+  fun at(radiusPx: Float): BlurEffect? =
+    if (radiusPx <= 0.05f) null else blurs[(radiusPx * 4f).roundToInt().coerceIn(0, blurs.lastIndex)]
+
 }
 
-/** Un margine di sicurezza dopo la sfocatura di chi esce, perché il fantasma non sparisca all'ultimo fotogramma. */
-private const val GhostTailMillis = 50L
+/** Un contenuto in uscita resta nel riferimento della barra. Chi entra segue il centro del vetro in viaggio. */
+@Composable
+private fun FluidToolbarFadingFace(
+  element: FluidToolbarElement, glass: FluidToolbarGlassId, namespace: FluidGlassNamespace,
+  plane: FluidGlassContainerState?, entering: Boolean, clipToGlass: Boolean,
+  effects: FluidToolbarEffects, modifier: Modifier, group: FluidToolbarGroup? = null, finished: () -> Unit,
+) {
+  val item = element.item
+  val role = if (entering) GlassContentRole.Enter else GlassContentRole.Exit
+  val duration = GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale
+  val end = GlassContentCurves.end(role)
+  val phase = remember { Animatable(0f) }
+  val qualified = remember(namespace, glass) { FluidGlassQualifiedId(namespace, glass) }
+  LaunchedEffect(phase) {
+    phase.animateTo(end, tween((end * duration).roundToInt(), easing = LinearEasing))
+    if (entering) {
+      do { withFrameNanos { } } while (plane?.stage != null || plane?.measurePending == true)
+    }
+    finished()
+  }
+  val ink = LocalContentColor.current
+  val scheme = MaterialTheme.colorScheme
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val face = FluidToolbarFace(item.content,
+    if (item.role == FluidToolbarRole.Overflow) FluidIcons.MoreHoriz else item.symbol as? ImageVector,
+    item.label.takeIf { item.symbol == null && item.contentKey == null },
+    when {
+      item.isPrimary -> scheme.onPrimary
+      item.selected -> scheme.primary
+      item.tintArgb != null -> Color(item.tintArgb)
+      else -> ink
+    }, null, fluidToolbarIconSize(item.role))
+  val width = element.widthDp.dp
+  val blurAvailable = android.os.Build.VERSION.SDK_INT >= 31
+  Box(modifier.size(width, FluidMetrics.GlassButtonLens).clearAndSetSemantics { }
+    .drawWithContent {
+      val bounds = if (clipToGlass) plane?.flightOf(qualified)?.bounds else null
+      val barWidth = plane?.coordinates?.size?.width ?: 0
+      val left = if (rtl) barWidth - (element.leftDp + element.widthDp).dp.toPx() else element.leftDp.dp.toPx()
+      val offset = if (entering && bounds != null && group != null) {
+        val targetCenter = (group.leftDp + group.widthDp / 2f).dp.toPx()
+        bounds.center.x - if (rtl) barWidth - targetCenter else targetCenter
+      } else 0f
+      translate(left = offset) {
+        if (bounds == null) this@drawWithContent.drawContent()
+        else clipRect(
+          left = bounds.left - left - offset, right = bounds.right - left - offset,
+        ) { this@drawWithContent.drawContent() }
+      }
+    }
+    .graphicsLayer {
+      val u = phase.value
+      alpha = GlassContentCurves.alpha(role, u, blurAvailable) * if (item.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+      scaleX = GlassContentCurves.scale(role, u)
+      scaleY = scaleX
+      val blur = GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur
+      renderEffect = if (blurAvailable) effects.at(glassContentBlurRadiusPx(glassContentSigmaPx(blur, face.size.toPx()))) else null
+    }, contentAlignment = Alignment.Center) {
+    FluidToolbarFaceContent(face, FluidToolbarDefaults.textStyle())
+  }
+}
 
 @Composable
 private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle) {
@@ -1361,7 +1503,7 @@ private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle
       color = face.color,
       maxLines = 1,
       softWrap = false,
-      overflow = TextOverflow.Clip,
+      overflow = TextOverflow.Ellipsis,
     )
     face.icon != null -> FluidIcon(
       imageVector = face.icon,
@@ -1375,15 +1517,19 @@ private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle
 /** Il tasto come voce del menu «Altro». */
 private fun FluidToolbarButtonEntry.contextAction(back: String, close: String, confirm: String): FluidContextAction =
   FluidContextAction(
-    label = label ?: text ?: when (defaultLabel) {
-      FluidToolbarDefaultLabel.Back -> back
-      FluidToolbarDefaultLabel.Close -> close
-      FluidToolbarDefaultLabel.Confirm -> confirm
-      null -> id.toString()
-    },
+    label = accessibleName(back, close, confirm),
     icon = icon,
     destructive = destructive,
     enabled = enabled && onClick != null,
     selected = selected,
     onClick = { onClick?.invoke() },
   )
+
+
+private fun FluidToolbarButtonEntry.accessibleName(back: String, close: String, confirm: String): String =
+  label ?: text ?: when (defaultLabel) {
+    FluidToolbarDefaultLabel.Back -> back
+    FluidToolbarDefaultLabel.Close -> close
+    FluidToolbarDefaultLabel.Confirm -> confirm
+    null -> id.toString()
+  }

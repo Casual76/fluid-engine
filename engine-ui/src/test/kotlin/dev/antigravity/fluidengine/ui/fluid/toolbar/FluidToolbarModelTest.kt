@@ -35,6 +35,20 @@ class FluidToolbarModelTest {
   private fun assertGroups(state: FluidToolbarResolved, vararg expected: List<Any>) =
     assertEquals(expected.toList(), state.groups.map { it.items.map { item -> item.id } })
 
+  @Test fun `una conferma lunga lascia Altro misurato e raggiungibile anche in una finestra stretta`() {
+    val model = FluidToolbarModel(listOf(back(), text("done", width = 250f).copy(role = FluidToolbarRole.Confirm),
+      icon("action")))
+    for (width in listOf(250f, 150f, 76f, 44f, 20f, 0f)) {
+      val bar = resolve(model, width)
+      val more = bar.overflowElement!!
+      assertTrue("$width: $more", more.leftDp >= 0 && more.leftDp + more.widthDp <= width)
+      if (width > 0) assertTrue(more.widthDp > 0)
+      assertTrue(bar.overflow.any { it.id == "action" })
+      assertTrue(bar.groups.zipWithNext().all { (a, b) -> a.leftDp + a.widthDp <= b.leftDp })
+      if (width == 250f) assertEquals(106f, bar.element("done")!!.widthDp, 0f)
+    }
+  }
+
   @Test fun `icone di serie insieme con passo 44 margine 16 e gruppi a 12`() {
     val resolved = state(icon("a"), icon("b"), fixed(), icon("c"))
     assertGroups(resolved, listOf("a", "b"), listOf("c"))
@@ -181,9 +195,9 @@ class FluidToolbarModelTest {
     assertTrue(narrow.fits)
   }
 
-  @Test fun `elementi BottomBar non vengono assorbiti dalla barra superiore`() {
+  @Test fun `BottomBar si raggiunge nel menu in alto e nel suo posto nella risoluzione in basso`() {
     val model = FluidToolbarModel(listOf(icon("top"), icon("bottom", placement = FluidToolbarPlacement.BottomBar)))
-    assertNull(resolve(model, 600f).element("bottom"))
+    assertEquals(listOf("bottom"), resolve(model, 600f).overflow.map { it.id })
     assertGroups(resolve(model, 600f, bar = FluidToolbarBar.Bottom), listOf("bottom"))
   }
 

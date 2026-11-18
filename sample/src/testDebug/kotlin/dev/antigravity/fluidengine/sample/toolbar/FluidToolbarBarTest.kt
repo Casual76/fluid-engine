@@ -28,6 +28,8 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -166,6 +168,81 @@ class FluidToolbarBarTest {
     node.assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
     assertEquals(label, Role.Button, node.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Role))
     assertTrue(label, node.fetchSemanticsNode().config.contains(SemanticsActions.OnClick))
+  }
+
+  @Test fun `il menu accessibile invoca solo i comandi disponibili`() {
+    var called = ""
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        FluidScreen(title = "Note", toolbar = {
+          overflow {
+            text("save", "Salva", onClick = { called = "save" })
+            text("delete", "Elimina", enabled = false, onClick = { called = "delete" })
+          }
+        }) {}
+      }
+    }
+    val actions = compose.onNodeWithContentDescription("Altro").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+    assertEquals(listOf("Salva"), actions.map { it.label })
+    assertTrue(actions.single().action())
+    assertEquals("save", called)
+  }
+
+  @Test fun `due tocchi sul glifo fra i gruppi attivano il comando nei due versi`() {
+    var split by mutableStateOf(false)
+    val calls = mutableListOf<String>()
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        FluidScreen(title = "Documento", toolbar = ToolbarScene.TravellingTarget.toolbar(split, {}, { calls += it })) {}
+      }
+    }
+    fun center(label: String = "Corsivo") = compose.onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot.center
+    compose.waitForIdle()
+    val joined = center()
+    // Separando il gruppo si aggiunge un posto a destra di Corsivo. Il passo è misurato
+    // nella stessa riga già posata, indipendentemente da come viene animato il bersaglio.
+    val pitch = joined.x - center("Grassetto").x
+    assertTrue("passo dei tasti: $pitch", pitch > 40f)
+    val separated = joined.copy(x = joined.x - pitch)
+    compose.mainClock.autoAdvance = false
+    for (separating in listOf(true, false)) {
+      val start = if (separating) joined else separated
+      val end = if (separating) separated else joined
+      compose.runOnIdle { split = separating }
+      Snapshot.sendApplyNotifications()
+      val samples = mutableListOf<Float>()
+      var position = start
+      for (frame in 1..100) {
+        advance(16)
+        compose.waitForIdle()
+        position = center()
+        val fraction = (position.x - start.x) / (end.x - start.x)
+        samples += fraction
+        if (fraction in 0.30f..0.70f) break
+      }
+      assertTrue("centro in viaggio fra $start e $end: $samples", samples.last() in 0.30f..0.70f)
+      compose.onRoot().performTouchInput { click(position) }
+      // Durante il viaggio Android deve poter posare i nuovi gruppi fra i frame del clock Compose.
+      repeat(80) {
+        advance(16)
+        compose.waitForIdle()
+      }
+      assertEquals(end.x, center().x, 1f)
+    }
+    assertEquals(listOf("b", "b"), calls)
+  }
+
+  @Test fun `il telefono del confronto ha solo elenco e tre azioni poi cerca e piu`() {
+    page(ToolbarScene.ApplePhone)
+    listOf("Elenco", "Preferito", "Condividi", "Aggiungi").forEach(::assertButton)
+    compose.onNodeWithContentDescription("Indietro").assertDoesNotExist()
+    val plus = compose.onNodeWithContentDescription("Aggiungi").getBoundsInRoot()
+    toggleFromPage()
+    advance(1200)
+    listOf("Cerca", "Aggiungi").forEach(::assertButton)
+    compose.onNodeWithContentDescription("Preferito").assertDoesNotExist()
+    compose.onNodeWithContentDescription("Condividi").assertDoesNotExist()
+    assertEquals(plus, compose.onNodeWithContentDescription("Aggiungi").getBoundsInRoot())
   }
 
   @Test

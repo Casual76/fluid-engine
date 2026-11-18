@@ -41,6 +41,9 @@ import dev.antigravity.fluidengine.ui.fluid.icons.IosShare
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.icons.Star
+import dev.antigravity.fluidengine.ui.fluid.icons.Add
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatListBulleted
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.icons.Archive
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidButtonRole
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPriority
@@ -84,12 +87,24 @@ internal enum class ToolbarScene(val key: String, val title: String, val voice: 
     "ritiro", "Barra che si ritira",
     "Scorri le note e inverti il verso. Il campo resta sotto la barra di stato.",
   ),
+  ApplePhone(
+    "telefono-apple", "Telefono Apple",
+    "Elenco diventa Cerca. Il gruppo con cuore, Condividi e più si chiude sul più.",
+  ),
+  TravellingTarget(
+    "bersaglio-in-viaggio", "Bersaglio in viaggio",
+    "Cambia stato e tocca Corsivo mentre si sposta. Il log FluidBarre indica quale comando riceve il tocco.",
+  ),
   ;
 
   fun next(): ToolbarScene = entries[(ordinal + 1) % entries.size]
 
   /** La barra della scena nello stato [alt]; [toggle] è il comando, per chi lo vuole su un tasto della barra. */
-  fun toolbar(alt: Boolean, toggle: () -> Unit): FluidToolbarScope.() -> Unit = when (this) {
+  fun toolbar(
+    alt: Boolean,
+    toggle: () -> Unit,
+    command: (String) -> Unit = { Log.i(ToolbarLogTag, "COMANDO $it") },
+  ): FluidToolbarScope.() -> Unit = when (this) {
     BrowseSelect -> {
       {
         if (alt) {
@@ -137,6 +152,25 @@ internal enum class ToolbarScene(val key: String, val title: String, val voice: 
       {
         button("one", if (alt) FluidIcons.Star else FluidIcons.Favorite, if (alt) "Stella" else "Cuore", onClick = toggle)
         button("two", if (alt) FluidIcons.Archive else FluidIcons.Edit, if (alt) "Archivia" else "Modifica", onClick = {})
+      }
+    }
+    TravellingTarget -> {
+      {
+        button("a", FluidIcons.FormatBold, "Grassetto", onClick = { command("a") })
+        if (alt) spacer()
+        button("b", FluidIcons.FormatItalic, "Corsivo", onClick = { command("b") })
+        if (alt) button("c", FluidIcons.IosShare, "Condividi", onClick = { command("c") })
+      }
+    }
+    ApplePhone -> {
+      {
+        button("leading", if (alt) FluidIcons.Search else FluidIcons.FormatListBulleted,
+          if (alt) "Cerca" else "Elenco", onClick = toggle, placement = FluidToolbarPlacement.Leading)
+        if (!alt) {
+          button("heart", FluidIcons.Favorite, "Preferito", onClick = {})
+          button("share", FluidIcons.IosShare, "Condividi", onClick = {})
+        }
+        button("add", FluidIcons.Add, "Aggiungi", onClick = toggle)
       }
     }
     Minimize -> {
@@ -235,7 +269,7 @@ internal fun ToolbarContent(initial: ToolbarScene, autoMs: Long, bottomInset: Dp
     title = if (scene == ToolbarScene.Minimize) "Note" else "Barre",
     subtitle = if (scene == ToolbarScene.Minimize) null else "F4A.2 · ${scene.title}",
     modifier = Modifier.testTag("toolbar-page"),
-    onBack = onBack,
+    onBack = onBack.takeUnless { scene == ToolbarScene.ApplePhone },
     extraBottomPadding = bottomInset,
     toolbar = scene.toolbar(alt, toggle),
     search = if (scene == ToolbarScene.Minimize) FluidSearchSpec(

@@ -6,7 +6,11 @@ import kotlin.math.max
 /** Posizioni semantiche: la pagina dichiara l'intento e la barra sceglie il lato, anche nel trabocco. */
 enum class FluidToolbarPlacement {
   Automatic, Navigation, Leading, Principal, Trailing, PrimaryAction, SecondaryAction,
-  ConfirmationAction, CancellationAction, DestructiveAction, BottomBar, PinnedTrailing,
+  ConfirmationAction, CancellationAction, DestructiveAction,
+  /** Fino alla barra inferiore di F4B, il comando è nel menu «Altro» della barra superiore. */
+  BottomBar,
+  /** Fissato al bordo. Il passaggio nel menu durante la ricerca attiva sarà collegato al campo in F4B.2. */
+  PinnedTrailing,
 }
 
 /** Il posto si libera dal meno importante; a parità resta prima il tasto più esterno (R5 B11). */
@@ -182,8 +186,11 @@ private fun toolbarTokens(items: List<FluidToolbarItem>, bar: FluidToolbarBar): 
     )
     if (inherited.role == FluidToolbarRole.Group) {
       inherited.children.forEach { add(it, path + inherited.id, inherited) }
-    } else if ((inherited.placement == FluidToolbarPlacement.BottomBar) == (bar == FluidToolbarBar.Bottom)) {
-      flat += ToolbarToken(inherited, inherited.side(), path)
+    } else if (bar == FluidToolbarBar.Top || inherited.placement == FluidToolbarPlacement.BottomBar) {
+      val lowerFallback = bar == FluidToolbarBar.Top && inherited.placement == FluidToolbarPlacement.BottomBar
+      if (!lowerFallback || !inherited.isSpacer) {
+        flat += ToolbarToken(if (lowerFallback) inherited.copy(overflow = true) else inherited, inherited.side(), path)
+      }
     }
   }
   items.forEach { add(it, emptyList(), null) }
@@ -294,24 +301,50 @@ internal fun resolveFluidToolbar(
     if (drafts.count { draft -> draft.items.none { it.isExit } } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
     if (hidden.add(candidate.item.id)) drafts = toolbarDrafts(tokens, hidden, true, metrics)
   }
+  // La conferma localizzata può essere più larga della finestra. Si misura la riga
+  // dopo il trabocco e si accorcia la scritta fino alla lente, conservando il nome intero nel bersaglio.
+  val requestedWidth = drafts.requiredWidth(metrics)
+  if (requestedWidth > widthDp && hidden.isNotEmpty()) {
+    var excess = requestedWidth - widthDp
+    for (draft in drafts) for ((index, item) in draft.items.withIndex()) {
+      if (item.symbol != null || item.contentKey != null || item.widthDp == null) continue
+      val shrink = minOf(excess, (item.width(metrics) - metrics.buttonWidthDp).coerceAtLeast(0f))
+      if (shrink > 0f) {
+        draft.items[index] = item.copy(widthDp = item.width(metrics) - shrink)
+        excess -= shrink
+      }
+    }
+  }
+  val inner = drafts.requiredWidth(metrics) - metrics.edgeMarginDp * 2f
+  val margin = ((widthDp - inner) / 2f).coerceIn(0f, metrics.edgeMarginDp)
+  // Se anche le sole lenti si sovrappongono, Altro è l'accesso a tutti i comandi.
+  // L'uscita ha la precedenza finché c'è posto per entrambi.
+  if (inner > widthDp && drafts.size > 1) {
+    for (token in actions.sortedBy { it.item.isExit }) {
+      if (hidden.add(token.item.id)) drafts = toolbarDrafts(tokens, hidden, true, metrics)
+      if (drafts.requiredWidth(metrics) - metrics.edgeMarginDp * 2f <= widthDp) break
+    }
+  }
   val groups = ArrayList<FluidToolbarGroup>()
   val elements = ArrayList<FluidToolbarElement>()
   for (side in FluidToolbarSide.entries) {
     val row = drafts.filter { it.side == side }
     val rowWidth = drafts.sideWidth(side, metrics)
     var left = when (side) {
-      FluidToolbarSide.Leading -> metrics.edgeMarginDp
+      FluidToolbarSide.Leading -> margin
       FluidToolbarSide.Center -> (widthDp - rowWidth) / 2f
-      FluidToolbarSide.Trailing -> widthDp - metrics.edgeMarginDp - rowWidth
+      FluidToolbarSide.Trailing -> widthDp - margin - rowWidth
     }
     row.forEachIndexed { index, draft ->
       if (index > 0) left += draft.gap
-      val groupWidth = draft.width(metrics)
+      val onlySlot = drafts.size == 1 && draft.items.size == 1
+      val groupWidth = if (onlySlot) minOf(draft.width(metrics), widthDp) else draft.width(metrics)
+      if (onlySlot) left = left.coerceIn(0f, widthDp - groupWidth)
       val groupId = FluidToolbarGroupId(draft.items.mapTo(linkedSetOf()) { it.id })
       groups += FluidToolbarGroup(groupId, side, draft.items.toList(), left, groupWidth, draft.items.first().sharedBackground)
       var itemLeft = left
       for (item in draft.items) {
-        elements += FluidToolbarElement(item, side, groupId, itemLeft, item.width(metrics))
+        elements += FluidToolbarElement(item, side, groupId, itemLeft, if (onlySlot) groupWidth else item.width(metrics))
         itemLeft += item.width(metrics) + metrics.itemPitchDp - metrics.buttonWidthDp
       }
       left += groupWidth

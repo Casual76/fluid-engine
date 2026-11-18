@@ -8,9 +8,11 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Barra dichiarata. Le icone uscenti si sfocano nel posto di partenza, il bersaglio segue il glifo fra i gruppi e «Altro» conserva l'accesso ai comandi nelle finestre strette e per i tasti dichiarati in basso.
+
 - Pagine (F4A.7). La molla del push parte dopo il primo posizionamento della pagina entrante, così la sua misura iniziale non consuma la prima parte della corsa.
 
-- Pagine e barre (F4A, crash). Al ritorno di pagina la chrome non registra più la pagina in un layer già rilasciato da Compose: il ciclo di RenderNode che chiudeva l'app sul RenderThread (stack overflow in libhwui) non si forma più.
+- Pagine e barre (F4A, crash). Al ritorno di pagina la chrome non registra più la pagina in un layer già rilasciato da Compose (il ciclo di RenderNode che chiudeva l'app sul RenderThread, stack overflow in libhwui). Giro di correzione: la chrome registra la riserva in un layer proprio, durante il ritorno lascia alla pagina i suoi layer e ai vetri i loro export, e su una schermata Liquid senza controlli in basso la barra campiona direttamente il fondale della pagina; nella build di debug un ciclo fra layer è segnalato quando si forma.
 
 - Piano flottante e barre (F3-RIF4). Le tinte sfumano nel collo e le icone mantenute hanno un solo posto anche fra pagine. Nelle inversioni la capsula conserva il varco e recupera la scritta già presente. Al passaggio sul palco il tasto eredita il diametro premuto. I pannelli dell’Assistente riservano spazio al vetro ancora visibile.
 

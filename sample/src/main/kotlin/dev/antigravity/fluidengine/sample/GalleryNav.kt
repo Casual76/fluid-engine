@@ -111,6 +111,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   ToolbarPages("Barre fra pagine"),
 
+  /**
+   * Liste, campi e stepper (piano «iOS in Android», F6.6): le azioni a scorrimento con l'aspetto di iOS 27 (e il
+   * confronto con quello di prima), lo stepper di vetro, i campi a capsula, i separatori sotto il testo. Vedi
+   * `listsforms/`. Si apre con `--es gallery.page ListsForms`. Uno strumento per le sessioni sul dispositivo, come
+   * «Barre fra pagine».
+   */
+  ListsForms("Liste, campi e stepper"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

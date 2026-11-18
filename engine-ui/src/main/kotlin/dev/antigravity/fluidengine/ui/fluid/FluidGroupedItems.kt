@@ -26,6 +26,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.theme.FluidGroupOpenEdge
 import dev.antigravity.fluidengine.ui.theme.FluidGroupSegment
+import dev.antigravity.fluidengine.ui.theme.FluidListDividerAlpha
+import dev.antigravity.fluidengine.ui.theme.FluidListDividerInsetDp
+import dev.antigravity.fluidengine.ui.theme.FluidListDividerThickness
+import dev.antigravity.fluidengine.ui.theme.FluidListTextInsets
+import dev.antigravity.fluidengine.ui.theme.LocalFluidListTextInsets
 
 /**
  * Il vetro **riga per riga** di [fluidGroupedItems] ([FluidGroupedMaterial.GlassSegments]).
@@ -151,8 +156,10 @@ interface FluidGroupedItemScope : LazyItemScope {
  * esattamente di quello spazio, e la successiva viene posata a filo (lo stesso trucco di [fluidGlassGroups]). Il
  * contenuto della riga resta misurato e posato alla sua altezza intera dentro l'item, quindi anche la fascia in
  * fondo, che sta fuori dai limiti dichiarati, riceve il dito (Compose non ritaglia il tocco di un figlio ai limiti
- * del genitore che non ritaglia). Il separatore da 0,5 dp lo disegna la riga di sopra, rientrato di 16 dp dal lato
- * d'inizio come [dev.antigravity.fluidengine.ui.theme.FluidListDivider].
+ * del genitore che non ritaglia). Il separatore da 0,5 dp lo disegna la riga di sopra, rientrato dal lato d'inizio
+ * fin dove comincia **il suo** testo, come in Apple (4.0, F6.6): 16 dp senza icona, 64 con la piastrella di una
+ * [dev.antigravity.fluidengine.ui.theme.FluidListRow], la misura vera con un `leading` dell'app; 16 per una riga
+ * che non lo dichiara.
  *
  * ### Dove si rompe
  *
@@ -265,8 +272,10 @@ private fun FluidGroupedRow(
     FluidGroupedItemScopeImpl(itemScope, segment, shape, rowFill)
   }
 
-  val dividerColor = scheme.onSurface.copy(alpha = FluidGroupedDividerAlpha)
+  val dividerColor = scheme.onSurface.copy(alpha = FluidListDividerAlpha)
   val showDivider = dividers && joins
+  // Il testo di questa riga, per il suo separatore (F6.6): la riga lo dichiara, il disegno lo legge.
+  val textInsets = remember { FluidListTextInsets() }
   val openTop = glass && (segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.Last)
   val openBottom = glass && (segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.First)
 
@@ -346,8 +355,8 @@ private fun FluidGroupedRow(
           } else {
             Modifier.drawWithContent {
               drawContent()
-              val thickness = FluidGroupedDividerThickness.toPx()
-              val inset = FluidGroupedDividerInset.toPx()
+              val thickness = FluidListDividerThickness.toPx()
+              val inset = (textInsets.startDp ?: FluidListDividerInsetDp).dp.toPx()
               // Sopra la fascia ritagliata del lato aperto, o il ritaglio lo porterebbe via.
               val y = size.height - openEdgePx - thickness / 2f
               val (startX, endX) = if (layoutDirection == LayoutDirection.Ltr) {
@@ -360,7 +369,10 @@ private fun FluidGroupedRow(
           },
         ),
     ) {
-      CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
+      CompositionLocalProvider(
+        LocalContentColor provides scheme.onSurface,
+        LocalFluidListTextInsets provides textInsets,
+      ) {
         scope.itemContent(index)
       }
     }
@@ -373,11 +385,6 @@ private class FluidGroupedItemScopeImpl(
   override val segmentShape: Shape,
   override val rowFill: Color,
 ) : FluidGroupedItemScope, LazyItemScope by itemScope
-
-/** Il filo fra due righe: quello di `FluidListDivider` (0,5 dp, `onSurface` al 10%, 16 dp dal lato d'inizio). */
-private val FluidGroupedDividerThickness = 0.5.dp
-private val FluidGroupedDividerInset = 16.dp
-private const val FluidGroupedDividerAlpha = 0.10f
 
 // Le sagome, una per pezzo e una volta sola: un'istanza di `Shape` nuova a ogni composizione rifarebbe il
 // ritaglio e il contorno della riga.

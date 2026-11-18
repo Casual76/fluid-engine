@@ -65,7 +65,7 @@ UI_FLUID_FILES = {
     # tasti, interruttori, cursori, campi
     "controlli": [
         "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls",
-        "FluidTextField", "FluidTextEdit", "FluidTokenField",
+        "FluidTextField", "FluidTextEdit", "FluidTokenField", "FluidStepper",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [

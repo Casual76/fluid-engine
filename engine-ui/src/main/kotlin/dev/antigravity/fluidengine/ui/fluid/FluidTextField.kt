@@ -43,6 +43,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Visibility
@@ -73,6 +74,17 @@ import dev.antigravity.fluidengine.ui.fluid.icons.VisibilityOff
  *   puntini, e lo resta anche dopo l'occhio: e' la libreria di testo a fissare la semantica quando
  *   il campo nasce nascosto, e un segreto mostrato resta un segreto. Se `trailing` c'e' sta prima
  *   dell'occhio.
+ *
+ * **Le misure di Apple (4.0, F6.6).** Il campo pieno di iOS 27 nel contenuto (quello della ricerca
+ * sotto un titolo grande, sessione 278 di WWDC26, 11:15, misurato al pixel in 4K a 3,67 px/pt) e'
+ * una **capsula alta 40 pt**, grigia di 18 livelli sotto la pagina bianca (il `tertiarySystemFill`
+ * di UIKit: 118, 118, 128 al 12%), col testo da 17 pt, l'icona davanti a 13 pt dal bordo e il testo
+ * a 37. Il campo a una riga ora e' quello: capsula, 40 dp ([FluidTextFieldDefaults.MinHeight]),
+ * riempimento [fluidQuietFillAlpha], margini di 8 dp sopra e sotto e 12 ai lati (icona a 12, testo
+ * a 38). Prima era un rettangolo di 44 dp col raggio di 12 e un velo del 6%. Su piu' righe la
+ * capsula diventa un rettangolo arrotondato col raggio della capsula a una riga
+ * ([FluidTextFieldDefaults.MultilineRadius], 20 dp), cosi' i due campi di un modulo sono della stessa
+ * famiglia.
  */
 @Composable
 fun FluidTextField(
@@ -88,7 +100,7 @@ fun FluidTextField(
   maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
   isError: Boolean = false,
   supportingText: String? = null,
-  minHeight: androidx.compose.ui.unit.Dp = 44.dp,
+  minHeight: androidx.compose.ui.unit.Dp = FluidTextFieldDefaults.MinHeight,
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
   keyboardActions: KeyboardActions = KeyboardActions.Default,
   visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -160,7 +172,7 @@ fun FluidTextField(
   maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
   isError: Boolean = false,
   supportingText: String? = null,
-  minHeight: androidx.compose.ui.unit.Dp = 44.dp,
+  minHeight: androidx.compose.ui.unit.Dp = FluidTextFieldDefaults.MinHeight,
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
   keyboardActions: KeyboardActions = KeyboardActions.Default,
   visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -218,8 +230,11 @@ fun FluidTextField(
     onGlass && isError -> lerp(film, scheme.error, 0.22f)
     onGlass -> lerp(film, scheme.onSurface, 0.18f)
     isError -> scheme.error.copy(alpha = 0.10f)
-    else -> scheme.onSurface.copy(alpha = 0.06f)
+    // Il grigio di riempimento di Apple (F6.6): 18 livelli sotto la pagina chiara, ~28 sopra la scura.
+    else -> scheme.onSurface.copy(alpha = fluidQuietFillAlpha(GlassDefaults.isDarkSurface()))
   }
+  // Capsula a una riga, rettangolo arrotondato col raggio della capsula su piu' righe (F6.6).
+  val wellShape = if (oneLine) FluidCapsuleShape else FluidTextFieldMultilineShape
 
   Column(
     modifier = modifier.fillMaxWidth(),
@@ -253,10 +268,10 @@ fun FluidTextField(
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(ContinuousCornerShape(FluidRadius.Control))
+            .clip(wellShape)
             .background(wellColor)
             .heightIn(min = minHeight)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = FluidTextFieldHorizontalPadding, vertical = FluidTextFieldVerticalPadding),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -287,7 +302,7 @@ fun FluidTextField(
               FluidClearButton(onClick = { onValueChange(TextFieldValue("")) })
             }
           }
-          // 24 dp, non 18: e' l'altezza che il contenuto di un campo da 44 ha comunque (44 meno i 10 dp
+          // 24 dp, non 18: e' l'altezza che il contenuto di un campo da 40 ha comunque (40 meno gli 8 dp
           // di margine sopra e sotto), quindi il campo non cresce, e un'icona di 24 dp sta intera.
           if (trailing != null) {
             CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) {
@@ -314,8 +329,36 @@ fun FluidTextField(
   }
 }
 
-/** Il lato dello slot a destra di un campo: l'altezza del contenuto di un campo da 44 dp. */
+/** Il lato dello slot a destra di un campo: l'altezza del contenuto di un campo da 40 dp. */
 internal val FluidFieldTrailingSize = 24.dp
+
+/** I valori di serie di [FluidTextField]. */
+object FluidTextFieldDefaults {
+  /**
+   * L'altezza minima del campo: 40 dp, i 40,0 pt del campo pieno di iOS 27 (147 px a 3,67 px/pt, sessione 278 a 11:15;
+   * fiducia alta). Era 44. Col contenuto di 24 dp e 8 dp sopra e sotto il campo non cresce per l'icona a destra.
+   */
+  val MinHeight: Dp = 40.dp
+
+  /** Il raggio di un campo su piu' righe: 20 dp, quello della capsula a una riga. */
+  val MultilineRadius: Dp = 20.dp
+}
+
+/** Il margine ai lati del testo: 12 dp (Apple: l'icona a 13 pt dal bordo, il testo a 37). */
+internal val FluidTextFieldHorizontalPadding = 12.dp
+
+/** Il margine sopra e sotto: 8 dp, cosi' 40 dp lasciano al contenuto i 24 dello slot a destra. */
+internal val FluidTextFieldVerticalPadding = 8.dp
+
+private val FluidTextFieldMultilineShape = ContinuousCornerShape(FluidTextFieldDefaults.MultilineRadius)
+
+/**
+ * Il grigio di riempimento dei controlli quieti nel contenuto (campi, stepper opaco), come alfa di `onSurface`: l'8% sul
+ * chiaro e il 12% sullo scuro. E' il `tertiarySystemFill` di Apple (118, 118, 128 al 12% sul chiaro, al 24% sullo
+ * scuro, UIKit) portato sull'inchiostro dell'engine: sul bianco l'8% di `onSurface` toglie 18 livelli, quelli che si
+ * misurano sotto il campo di ricerca di iOS 27 (pagina 253, campo 235); sullo scuro il 12% ne aggiunge ~28. Prima 6%.
+ */
+internal fun fluidQuietFillAlpha(dark: Boolean): Float = if (dark) 0.12f else 0.08f
 
 /**
  * La tastiera di un campo segreto quando il chiamante non ne ha scelta una: quella delle password

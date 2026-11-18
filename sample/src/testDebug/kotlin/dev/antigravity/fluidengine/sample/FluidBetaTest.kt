@@ -189,7 +189,7 @@ class FluidBetaGalleryTest {
     val tools = setOf(
       GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness, GalleryPage.Parity,
       GalleryPage.Painted, GalleryPage.Adaptive, GalleryPage.Plane, GalleryPage.Assistant, GalleryPage.Toolbar,
-      GalleryPage.ToolbarPages,
+      GalleryPage.ToolbarPages, GalleryPage.ListsForms,
     )
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
@@ -258,6 +258,10 @@ class FluidBetaGalleryTest {
   @Test
   fun `le barre fra pagine si aprono con due tocchi da Chrome`() =
     opensFromChrome("chrome-open-toolbar-pages", GalleryPage.ToolbarPages)
+
+  @Test
+  fun `liste, campi e stepper si aprono con due tocchi da Chrome`() =
+    opensFromChrome("chrome-open-lists-forms", GalleryPage.ListsForms)
 
   @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
@@ -463,6 +467,8 @@ class FluidBetaGalleryTest {
     GalleryPage.Toolbar -> shown("F4A.2 ·", substring = true)
     // «Barre fra pagine» (F4A.3), come «Barre (prova)»: il segno è il sottotitolo con la sigla del pacchetto.
     GalleryPage.ToolbarPages -> shown("F4A.3 ·", substring = true)
+    // «Liste, campi e stepper» (F6.6), come «Barre fra pagine»: il segno è il sottotitolo con la sigla del pacchetto.
+    GalleryPage.ListsForms -> shown("F6.6 ·", substring = true)
   }
 }
 

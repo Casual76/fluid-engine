@@ -2,8 +2,8 @@
 
 I controlli sono le cose che si toccano per dire all'app qualcosa: i **tasti** (`FluidButton`, i tasti di vetro, le
 azioni di barra), le **scelte** (`FluidSegmentedControl`, `FluidChip`, `FluidColorDot`), i controlli **a gesto**
-(`FluidSwitch`, `FluidSlider`, `FluidScrubber`) e il **testo** (`FluidTextField`, `FluidTextEdit`), più due
-accessori minuti (`FluidHairline`, `FluidRowValue`). Stanno tutti in `engine-ui`, pacchetto
+(`FluidSwitch`, `FluidSlider`, `FluidScrubber`), lo **stepper** (`FluidStepper`, dalla 4.0) e il **testo** (`FluidTextField`,
+`FluidTextEdit`), più due accessori minuti (`FluidHairline`, `FluidRowValue`). Stanno tutti in `engine-ui`, pacchetto
 `dev.antigravity.fluidengine.ui.fluid`, e si appoggiano ai tre motori delle altre schede: la pressione e l'aptica
 ([movimento.md](movimento.md)), il vetro (`glassSurface`, `GlassBackdropState`) e il tema (l'accento è sempre
 `MaterialTheme.colorScheme.primary`: nessun controllo ha un colore suo).
@@ -49,6 +49,7 @@ Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 | Dove andare in qualcosa che dura (brano, registrazione, cronologia di fotogrammi) | `FluidScrubber`. **Non** `FluidSlider`: la posizione è di un lettore che avanza da solo |
 | Una barra che mostra un avanzamento e basta | `FluidProgressBar`: lo scrubber si tocca, quella no |
 | Un valore (numero, testo) sul bordo destro di una riga | `FluidRowValue` (colore secondario, mai l'accento) |
+| Un numero piccolo da aggiustare a passi (copie, persone, minuti) | `FluidStepper` nel `badge` della riga, accanto a un `FluidRowValue` (sezione «FluidStepper») |
 | Un filetto tra due righe | `FluidHairline` (0,5 dp) |
 | Testo a una riga, a più righe, una password | `FluidTextField` (`secret = true` per i segreti) |
 | Una ricerca | `FluidSearchField`, non `FluidTextField` |
@@ -644,7 +645,7 @@ FluidTextField(
   maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
   isError: Boolean = false,
   supportingText: String? = null,
-  minHeight: Dp = 44.dp,
+  minHeight: Dp = FluidTextFieldDefaults.MinHeight,   // 40 dp (dalla 4.0; prima 44)
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
   keyboardActions: KeyboardActions = KeyboardActions.Default,
   visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -738,11 +739,70 @@ Row {
   campo.
 - `FluidTextEdit.insert`/`wrap` ricostruiscono un `TextFieldValue` nuovo: la composizione IME in corso si perde (come ogni inserimento da fuori).
 
+**Le misure di Apple (4.0, F6.6).** Il campo pieno di iOS 27 nel contenuto (la ricerca sotto il titolo grande di Podcast, sessione 278 di WWDC26,
+11:15, misurata al pixel in 4K a 3,67 px/pt) è una **capsula alta 40 pt**, 18 livelli sotto la pagina bianca (il `tertiarySystemFill` di UIKit), col
+testo da 17 pt, l'icona a 13 pt dal bordo e il testo a 37. Il campo a una riga ora è quello: **capsula da 40 dp** (`FluidTextFieldDefaults.MinHeight`),
+margini di 8 dp sopra e sotto e 12 ai lati (icona a 12, testo a 38), riempimento `onSurface` all'**8% sul chiaro e al 12% sullo scuro** (prima un
+rettangolo di 44 dp, raggio 12, velo del 6%). Su più righe (`singleLine = false` o `minLines > 1`) è un rettangolo arrotondato col raggio della
+capsula a una riga (`FluidTextFieldDefaults.MultilineRadius`, 20 dp). Sopra un vetro il pozzo opaco resta quello di prima. Lo slot a destra resta di
+24 dp: è il contenuto di un campo da 40 meno gli 8 dp sopra e sotto. Un'app che voleva i 44 dp li chiede con `minHeight = 44.dp`.
+
 **Non usarlo quando.** Una ricerca (`FluidSearchField`: lente, crocetta, contatore dei risultati e frecce); un valore fra pochi scelti
 (`FluidSegmentedControl`, `FluidSlider`).
 
 **Versione.** `FluidTextField` a `TextFieldValue` e `FluidTextEdit`: 1.32.0; `minLines > 1` = più righe: 2.5.2; `secret` e slot a 24 dp: 3.0; parole
-dell'occhio da `FluidLabels`: 3.0.1; nome per TalkBack del tasto che svuota (`FluidLabels.clear`, «Cancella») e segnaposto a una riga troncato: 3.0.4.
+dell'occhio da `FluidLabels`: 3.0.1; nome per TalkBack del tasto che svuota (`FluidLabels.clear`, «Cancella») e segnaposto a una riga troncato: 3.0.4;
+capsula da 40 dp e riempimento di Apple (`FluidTextFieldDefaults`): 4.0.0 (F6.6).
+
+---
+
+## FluidStepper
+
+**Cos'è.** Meno e più in una capsula, per un numero piccolo che si aggiusta a passi: copie, persone, minuti prima. Dalla 4.0 (F6.6); prima le app ne
+scrivevano uno con due `FluidButton`. File: `FluidStepper.kt`.
+
+```kotlin
+FluidStepper(
+  value: Int, onValueChange: (Int) -> Unit, modifier = Modifier,
+  range: IntRange = Int.MIN_VALUE..Int.MAX_VALUE, step: Int = 1, enabled = true,
+  label: String? = null,                    // il nome per TalkBack («Copie»)
+  valueText: (Int) -> String = { it.toString() },
+  repeatOnHold: Boolean = true,
+)
+
+FluidListRow(
+  title = "Copie", subtitle = "Da 1 a 10", disclosure = false,
+  badge = {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      FluidRowValue("$copie")
+      FluidStepper(value = copie, onValueChange = { copie = it }, range = 1..10, label = "Copie")
+    }
+  },
+)
+```
+
+**Comportamento.**
+- **Forma e taglia di Apple**: capsula di 94 × 32 dp, le misure di `UIStepper` (documentate da UIKit fino a iOS 18; iOS 26 lo mette fra i controlli
+  da rivedere senza dire come, R1 K6: fiducia media). Due metà uguali, un filo verticale fra le due (1 × 18 dp), i segni disegnati (13 dp, tratto 2 dp).
+- **È un controllo di vetro** dove c'è qualcosa da attraversare (il canvas di una pagina ambientale, un foglio, una barra: la regola di `FluidChip`):
+  la stessa lastra di `FluidGlassButton`, con **la pressione e la luce del dito del vetro** (cresce, si piega verso il dito, si accende dal punto di
+  contatto: una `FluidPressState` sola per il vetro e per il tocco). Il punto acceso è quello del dito, quindi sta sulla metà toccata. Su una pagina
+  piatta (o sotto API 31) è la pastiglia opaca nel grigio di riempimento dei campi, che cresce sotto il dito allo stesso modo.
+- **Tenuto premuto ripete** (`UIStepper.autorepeat`, di serie in Apple): dal click lungo un passo ogni 150 ms, poi 100 e, dopo venti passi, 50 (a
+  occhio: Apple non dà i tempi). Ogni passo ripetuto è un `Tick`. Se la lista prende il dito per scorrere, la ripetizione smette.
+- **Ai capi** la metà che non può andare oltre si spegne (il segno al 30%) e non fa niente. Il conto è in `Long`: un passo da `Int.MAX_VALUE` non gira;
+  un valore fuori da `range` ci torna al primo passo.
+- **Per TalkBack** è un nodo solo: il nome (`label`), il valore come stato (`valueText`) e le azioni «aumenta» e «diminuisci» (le parole di
+  `FluidLabels.dateTimeIncrease`/`dateTimeDecrease`), solo quando c'è un passo da fare.
+- Il **valore non lo mostra**: in Apple sta a sinistra dello stepper, nella riga. Mettilo con `FluidRowValue`.
+
+**Trappole.** La capsula è alta 32 dp e il tocco è quello (sotto i 48 dp di Android, come il segmentato): lo stepper sta nel `badge` di una riga, che
+ha già la sua altezza. Il valore è dell'app: se non lo aggiorna, lo stepper chiede ogni volta lo stesso passo. `step` deve essere positivo.
+
+**Non usarlo quando.** Il valore va da un capo all'altro di un intervallo grande (`FluidSlider`); si scrive (`FluidTextField` con
+`KeyboardType.Number`).
+
+**Versione.** 4.0.0 (F6.6).
 
 ---
 

@@ -311,6 +311,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-toolbar-pages"),
           onClick = { onOpen(GalleryPage.ToolbarPages) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Liste, campi e stepper",
+          subtitle = "F6.6: azioni a scorrimento di iOS 27, stepper di vetro, campi a capsula, separatori sotto il testo",
+          modifier = Modifier.testTag("chrome-open-lists-forms"),
+          onClick = { onOpen(GalleryPage.ListsForms) },
+        )
       }
     }
 

@@ -64,8 +64,12 @@ FluidListRow(
 
 **Comportamento.**
 - **Il separatore lo metti tu**, fra una riga e l'altra (non prima della prima né dopo l'ultima). È un filo da 0,5 dp,
-  `onSurface` al 10%, con un margine sinistro **fisso di 16 dp**: non segue il testo se c'è una piastrella (il KDoc di `FluidListDivider` dice «parte dove parte
-  il testo», il codice no). `fluidGlassGroups` e `FluidGlassGroup` il separatore lo mettono da sole.
+  `onSurface` al 10%. **Dalla 4.0 (F6.6) parte dove parte il testo**, come in Apple (sessione 269 di WWDC26: il filo comincia
+  sotto la prima lettera, non sotto l'icona): dentro un `FluidListGroup` le `FluidListRow` dichiarano il proprio rientro (16 dp
+  senza icona, **64 con la piastrella**, 16 + larghezza + 16 con un `leading` dell'app, misurato) e `FluidListDivider` lo legge.
+  In un gruppo misto vince il rientro più piccolo (il filo non comincia mai a destra del testo di una riga); fuori da un gruppo, o
+  con righe che non sono `FluidListRow`, resta 16 dp. In `fluidGroupedItems` ogni separatore segue il testo **della riga sopra**.
+  `fluidGlassGroups` e `FluidGlassGroup` il separatore lo mettono da sole (16 dp, come prima).
 - **La piastrella** è 32 dp (`FluidToneTileSize`), raggio 10 dp (`FluidRadius.Small`) e contenuto da 19 dp al centro; raggio e contenuto scalano con `size`.
   Il velo è il 16% del colore del tono. Con `leadingTile = true` (di serie) `leading` entra *nella* piastrella del `tone`: passa un'`Icon`, non un'altra piastrella.
 - **Altezze**: una riga è alta quanto un `ListItem` di Material: 56 dp con un solo testo, 72 con due, 88 con tre; gli scheletri (`FluidSkeletonRow`) copiano queste misure.
@@ -258,7 +262,42 @@ raggiunge. Lo stato (`rememberFluidSwipeState()`) si crea **dentro** l'item, uno
 
 **Il gesto.** Segue il dito 1:1 fino alla soglia (35% della larghezza, al più 180 dp: le soglie del back a dito), poi a metà velocità; dal lato senza azione un elastico di 16 dp (niente, col movimento ridotto). Attraversare la
 soglia suona `Threshold`, in entrambi i versi, con isteresi di 12 dp (un dito che trema non vibra a raffica). Al rilascio conferma: oltre la soglia, o con una spinta di 400 dp/s verso l'azione da almeno metà soglia; una spinta
-contraria annulla anche oltre la soglia. Le molle partono dalla velocità del dito (`FluidMotion.swipeSettle`, `FluidMotion.swipeExit`) e col movimento ridotto diventano un salto.
+contraria annulla anche oltre la soglia. Le molle partono dalla velocità del dito e col movimento ridotto diventano un salto.
+
+**L'aspetto (4.0, F6.6): quello di iOS 27, misurato.** Di serie (`FluidSwipeStyle.Capsule`) la riga e lo spazio che apre sono quelli di iOS 27 (R5 L3),
+misurati fotogramma per fotogramma sulla sessione 269 di WWDC26 in 4K (lista a 17:53, contenitore libero a 18:20 e 18:25; collage e numeri in
+`artifacts/liquid-glass/sessioni/f6-6/`):
+- **la riga si prende**: appena il dito la tiene diventa un rettangolo arrotondato col raggio della riga sollevata dal menu contestuale
+  (`FluidRadius.Group`, al più metà altezza), velato del 7% d'inchiostro (la riga presa di Apple sta 20 livelli sotto il foglio), e scorre col dito;
+- **la capsula nasce** nello spazio che si apre, del colore dell'azione e **piena** (nessun filo, nessun riflesso: è ciò che si misura sul rosso di Apple),
+  col glifo nell'inchiostro leggibile e **l'etichetta grigia sotto** (11 sp). Sta fra la riga e il bordo con 8 dp da ogni lato (Apple 7,4 e 7 pt),
+  è alta quanto la riga meno 24 dp, fra 24 e 44 dp (Apple 34 pt in una riga di 58,6, 44 in una di 66,5), riempie lo spazio in larghezza (in uno spazio
+  stretto è un tondo) e **si gonfia con una molla**: dal niente alla sua taglia in ≈200 ms con un picco del 3–4% a ≈340 ms (Apple 0,23 / 0,42 / 0,60 /
+  0,76 / 0,87 / 0,95 / 1,00 ogni 33 ms, picco del 4%: smorzamento 0,74, risposta 0,46 s). Glifo ed etichetta crescono con lei;
+- **il ritorno** è la molla critica di Apple, risposta 0,46 s (metà strada a 133 ms, l'86% a 233, il 96% a 333, in due prese uguali al fotogramma);
+  l'uscita di una riga tolta usa la stessa molla, e la capsula si allunga a riempire la riga che se ne va;
+- oltre la soglia l'etichetta prende il colore dell'azione e la capsula cresce del 6% (a occhio: le clip di Apple non mostrano uno scorrimento fino in fondo).
+
+**Coerente col menu contestuale.** In iOS le azioni a scorrimento e le prime voci del menu della pressione lunga coincidono (R1 L3):
+`FluidSwipeAction.asContextAction(destructive = false)` dà la stessa azione come `FluidContextAction` (stesso nome, stessa icona), da mettere in testa
+a `contextActions` nello stesso ordine; e la riga presa ha gli angoli della riga che il menu solleva.
+
+```kotlin
+val elimina = FluidSwipeAction("Elimina", FluidIcons.Delete, rosso, removesItem = true) { rimuovi(id) }
+FluidListRow(
+  title = …, onClick = …,
+  contextActions = { listOf(letto.asContextAction(), elimina.asContextAction(destructive = true)) },
+  modifier = Modifier.fluidSwipeActions(swipe, startAction = letto, endAction = elimina, shape = segmentShape, fill = rowFill),
+)
+```
+
+**L'aspetto di prima** resta: `fluidSwipeActions(…, style = FluidSwipeStyle.Fill)` o, per tutte le righe sotto un punto,
+`CompositionLocalProvider(LocalFluidSwipeStyle provides FluidSwipeStyle.Fill)`: lo spazio si riempie del colore (grigio fino alla soglia), l'icona sta
+sul bordo, le molle sono `FluidMotion.swipeSettle` e `swipeExit` (0,30 s). È l'altro termine della scelta di gusto del piano; la pagina «Liste, campi e
+stepper» della galleria (`--es gallery.page ListsForms`) li mette a confronto.
+
+**La divergenza che resta.** In Apple una riga lasciata a metà **resta aperta** sull'azione (`swipeActionsContainer`, una aperta alla volta, si
+chiude scorrendo o toccando fuori). Nell'engine no: l'azione parte al rilascio oltre la soglia e la riga torna sempre a posto (piano, F6).
 
 **Trappole.**
 - **Passa `shape` e `fill` dello scope** (`segmentShape`, `rowFill`): la riga disegna il proprio fondo mentre si sposta, perché dietro c'è il colore dell'azione; un fondo diverso da quello del gruppo si vede come una riga di
@@ -266,6 +305,9 @@ contraria annulla anche oltre la soglia. Le molle partono dalla velocità del di
 - Lo spostamento è **di disegno**: tocco e semantica restano dove la riga sta a riposo.
 - Una riga uscita (`FluidSwipeState.isDismissed`) che l'app non toglie resta vuota: l'app la rimette con `FluidSwipeState.reset()` (anche per un «Annulla»).
 - `enabled = false` spegne gesto **e** azioni di TalkBack: in selezione, per esempio, un gesto che archivia mentre si sta scegliendo è un incidente.
+- Con `FluidSwipeStyle.Capsule` dietro la riga resta ciò che c'è sotto (il fondo del gruppo): fuori da un gruppo si vede la pagina. I separatori
+  accanto alla riga presa restano (Apple li nasconde): il filo lo disegna la riga di sopra, che non sa che quella sotto è presa.
+- Un'etichetta lunga si tronca coi puntini oltre 112 dp: i nomi delle azioni vanno tenuti corti («Elimina», «Letto»), come quelli di Apple.
 - Il gesto non è l'unica via: l'azione si offre anche dal menu contestuale (`contextActions`) e da TalkBack; un'azione solo-gesto è un trucco.
 
 ### Azioni di TalkBack sulla riga: `customActions`, `fluidAccessibilityActions`
@@ -308,6 +350,7 @@ Non è una notifica: non ha durata, sparisce quando il conteggio torna a zero.
   Trappola: un colore che l'app cambia a runtime non porta mai una pillola illeggibile, ma l'**identità** del colore (due etichette quasi uguali) non si distingue da questo: per distinguere serve anche il testo.
 
 **Versione.** `fluidGroupedItems`, `FluidGroupedMaterial`, `fluidSwipeActions`, `FluidJumpPill`, `customActions`, `FluidEmptyState` con azione, `FluidStatusBadge(label, color)`: 3.1.0 (Pampa Mail, F1.2).
+Aspetto di iOS 27 delle azioni a scorrimento (`FluidSwipeStyle`, `LocalFluidSwipeStyle`, `asContextAction`) e separatore sotto il testo: 4.0.0 (F6.6).
 
 ## Righe di impostazioni (`FluidSettingRows.kt`)
 

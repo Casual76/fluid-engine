@@ -284,13 +284,19 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidSwipeActions.kt`
 
 - `class FluidSwipeAction(val label: String, val icon: ImageVector, val color: Color, val removesItem: Boolean = false, val onAction: () -> Unit)` — Un'azione che una riga rivela scorrendo di lato: archivia, segna come letta, elimina, fissa.
+- `fun FluidSwipeAction.asContextAction(destructive: Boolean = false): FluidContextAction` — La stessa azione come voce del menu contestuale della riga (4.0, F6.6).
+- `value class FluidSwipeStyle private constructor(private val id: Int)` — L'aspetto delle azioni a scorrimento (4.0, F6.6).
+  - `companion object`
+    - `val Capsule: FluidSwipeStyle` — La capsula col glifo e l'etichetta sotto, la riga che si arrotonda: iOS 27. Di serie.
+    - `val Fill: FluidSwipeStyle` — Il colore che riempie lo spazio rivelato: l'aspetto della 3.x.
+- `val LocalFluidSwipeStyle: ProvidableCompositionLocal<FluidSwipeStyle>` — L'aspetto di serie delle azioni a scorrimento sotto questo punto: un'app (o la galleria, per mettere a confronto i due aspetti) lo cambia per tutte le righe senza toccarle una per una. Di serie [FluidSwipeStyle.Capsule].
 - `class FluidSwipeState internal constructor(private val scope: CoroutineScope)` — Lo stato di una riga a scorrimento: dove sta, se la soglia e' superata, se e' uscita.
   - `var offset: Float by mutableFloatStateOf(0f)` — Lo spostamento della riga in px, **logico**: positivo verso la fine (rivela l'azione iniziale, a sinistra in LTR), negativo verso l'inizio. Letto nel disegno, mai nella composizione.
   - `var armed: Boolean by mutableStateOf(false)` — La soglia e' superata: rilasciando adesso l'azione parte.
   - `var isDismissed: Boolean by mutableStateOf(false)` — La riga e' uscita (un'azione con `removesItem` confermata) e aspetta che l'app la tolga. Non risponde al dito finche' non la si rimette con [reset].
   - `suspend fun reset()` — Rimette la riga a posto con la molla (istantanea col movimento ridotto): per un'azione che l'app non ha potuto fare, o per l'«Annulla» di una riga uscita che resta nei dati.
 - `@Composable fun rememberFluidSwipeState(): FluidSwipeState` — Lo stato di una riga a scorrimento, ricordato nell'item.
-- `@Composable fun Modifier.fluidSwipeActions(state: FluidSwipeState, startAction: FluidSwipeAction? = null, endAction: FluidSwipeAction? = null, enabled: Boolean = true, shape: Shape = RectangleShape, fill: Color = Color.Unspecified, accessibilityActions: Boolean = true): Modifier` — Azioni a scorrimento orizzontale su una riga: un'azione per verso, sfondo col colore e l'icona dell'azione, soglia che si sente, annullabile tornando indietro col dito, uscita o ritorno al rilascio, e le stesse azioni per TalkBack.
+- `@Composable fun Modifier.fluidSwipeActions(state: FluidSwipeState, startAction: FluidSwipeAction? = null, endAction: FluidSwipeAction? = null, enabled: Boolean = true, shape: Shape = RectangleShape, fill: Color = Color.Unspecified, accessibilityActions: Boolean = true, style: FluidSwipeStyle = LocalFluidSwipeStyle.current): Modifier` — Azioni a scorrimento orizzontale su una riga: un'azione per verso, soglia che si sente, annullabile tornando indietro col dito, uscita o ritorno al rilascio, e le stesse azioni per TalkBack.
 - `fun Modifier.fluidAccessibilityActions(actions: List<CustomAccessibilityAction>): Modifier` — Le azioni personalizzate di TalkBack, **aggiunte** a quelle che il nodo ha gia'.
 
 ## `engine-ui/ui/fluid/FluidTextReveal.kt`

@@ -54,6 +54,12 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,6 +134,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onSizeChanged
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.fluidRowPressable
@@ -1244,19 +1251,76 @@ fun FluidListGroup(
     color = if (onGlass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
     contentColor = MaterialTheme.colorScheme.onSurface,
   ) {
-    Column(modifier = Modifier.fillMaxWidth(), content = content)
+    // Le righe dicono dove comincia il loro testo, i separatori del gruppo lo leggono (F6.6).
+    val textInsets = remember { FluidListTextInsets() }
+    CompositionLocalProvider(LocalFluidListTextInsets provides textInsets) {
+      Column(modifier = Modifier.fillMaxWidth(), content = content)
+    }
   }
 }
 
-/** Separator between rows of a group, inset so it starts where the row's text does. */
+/**
+ * Separator between rows of a group, inset so it starts where the row's text does.
+ *
+ * **Dove comincia il testo** (4.0, F6.6). In Apple il separatore parte sotto la prima lettera della riga, non sotto
+ * l'icona (sessione 269 di WWDC26, f32206: separatori a x = 190 px, testo a 191). Prima qui partiva sempre a 16 dp, cioe'
+ * sotto la piastrella di una riga con l'icona. Ora, dentro un [FluidListGroup], legge il rientro che le
+ * [FluidListRow] del gruppo dichiarano: 16 dp senza icona, 64 con la piastrella (16 + 32 + 16), la misura vera con un
+ * `leading` dell'app. Righe diverse nello stesso gruppo: vince il rientro piu' piccolo, cioe' il separatore non
+ * comincia mai a destra del testo di una riga. Fuori da un gruppo, o con righe che non sono [FluidListRow], resta 16.
+ */
 @Composable
 fun FluidListDivider(modifier: Modifier = Modifier) {
+  val start = LocalFluidListTextInsets.current?.startDp ?: FluidListDividerInsetDp
   HorizontalDivider(
-    modifier = modifier.padding(start = 16.dp),
-    thickness = 0.5.dp,
-    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+    modifier = modifier.padding(start = start.dp),
+    thickness = FluidListDividerThickness,
+    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FluidListDividerAlpha),
   )
 }
+
+/** Il separatore di una lista: 0,5 dp (lo spessore di Apple su ogni schermo), `onSurface` al 10%. */
+internal val FluidListDividerThickness: Dp = 0.5.dp
+internal const val FluidListDividerAlpha = 0.10f
+
+/** Il rientro di serie del separatore e del testo di una riga senza icona: 16 dp (il margine di `ListItem`). */
+internal const val FluidListDividerInsetDp = 16f
+
+/** Fra l'icona di una riga e il suo testo: 16 dp (`ListItem` di Material, `LeadingContentEndPadding`). */
+internal const val FluidListLeadingGapDp = 16f
+
+/**
+ * Dove comincia il testo di una riga, in dp dal suo bordo d'inizio: 16 senza icona, 16 + icona + 16 con l'icona. Nullo
+ * se l'icona c'e' ma non e' ancora misurata.
+ */
+internal fun fluidListRowTextStartDp(hasLeading: Boolean, leadingWidthDp: Float): Float? = when {
+  !hasLeading -> FluidListDividerInsetDp
+  leadingWidthDp.isNaN() -> null
+  else -> FluidListDividerInsetDp + leadingWidthDp + FluidListLeadingGapDp
+}
+
+/**
+ * I rientri del testo delle righe di un gruppo: le [FluidListRow] li dichiarano, i separatori li leggono. Il valore e'
+ * il piu' piccolo, cosi' in un gruppo misto il separatore non comincia mai a destra del testo di una riga.
+ */
+@Stable
+internal class FluidListTextInsets {
+  private val insets = mutableStateMapOf<Any, Float>()
+
+  /** Il rientro piu' piccolo dichiarato, in dp; nullo se nessuna riga l'ha detto. */
+  val startDp: Float? get() = insets.values.minOrNull()
+
+  fun report(key: Any, dp: Float) {
+    if (insets[key] != dp) insets[key] = dp
+  }
+
+  fun remove(key: Any) {
+    insets.remove(key)
+  }
+}
+
+/** I rientri del gruppo in cui sta una riga: [FluidListGroup] e ogni riga di `fluidGroupedItems` ne danno uno. */
+internal val LocalFluidListTextInsets = staticCompositionLocalOf<FluidListTextInsets?> { null }
 
 
 @Composable
@@ -1381,6 +1445,19 @@ fun FluidListRow(
   customActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
   val colors = toneColors(tone)
+  // Dove comincia il testo, per il separatore del gruppo (F6.6). Con la piastrella si sa gia'; un `leading` dell'app si
+  // misura.
+  val textInsets = LocalFluidListTextInsets.current
+  var leadingWidthDp by remember { mutableFloatStateOf(Float.NaN) }
+  if (textInsets != null) {
+    val insetKey = remember { Any() }
+    val textStart = fluidListRowTextStartDp(
+      hasLeading = leading != null,
+      leadingWidthDp = if (leadingTile) FluidToneTileSize.value else leadingWidthDp,
+    )
+    SideEffect { if (textStart != null) textInsets.report(insetKey, textStart) else textInsets.remove(insetKey) }
+    DisposableEffect(textInsets, insetKey) { onDispose { textInsets.remove(insetKey) } }
+  }
   val selectionWash by animateColorAsState(
     targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
     animationSpec = FluidMotion.crossFade(),
@@ -1480,7 +1557,16 @@ fun FluidListRow(
       }
     },
     leadingContent = leading?.let {
-      { if (leadingTile) FluidToneTile(tone = tone, content = it) else it() }
+      {
+        if (leadingTile) {
+          FluidToneTile(tone = tone, content = it)
+        } else if (textInsets != null) {
+          val density = androidx.compose.ui.platform.LocalDensity.current
+          Box(modifier = Modifier.onSizeChanged { size -> leadingWidthDp = size.width / density.density }) { it() }
+        } else {
+          it()
+        }
+      }
     },
     trailingContent = if (badge != null || (onClick != null && disclosure)) {
       {

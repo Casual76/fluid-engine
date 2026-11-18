@@ -320,6 +320,8 @@ internal fun Gallery(
               GalleryPage.Toolbar -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPage(bottomInset) { nav.back() }
               // La barra dichiarata fra pagine (F4A.3): `pages.auto`, `pages.follow`, `pages.start`.
               GalleryPage.ToolbarPages -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPagesPage(bottomInset) { nav.back() }
+              // Liste, campi e stepper (F6.6): `listsforms.swipe fill` apre con le azioni a scorrimento di prima.
+              GalleryPage.ListsForms -> dev.antigravity.fluidengine.sample.listsforms.ListsFormsPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

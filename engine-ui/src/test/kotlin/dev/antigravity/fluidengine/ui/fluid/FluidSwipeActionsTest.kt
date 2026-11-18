@@ -1,12 +1,18 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import dev.antigravity.fluidengine.ui.fluid.icons.Delete
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.page.FluidPageMotion
 import dev.antigravity.fluidengine.ui.theme.FluidLegibleInkMinContrast
 import dev.antigravity.fluidengine.ui.theme.fluidLegibleInk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
@@ -222,5 +228,159 @@ class FluidSwipeActionsTest {
     assertTrue("su un giallo chiaro l'inchiostro e' scuro", onYellow.luminance() < 0.1f)
     assertTrue("su un blu notte l'inchiostro e' chiaro", onNavy.luminance() > 0.9f)
     assertTrue(abs(onYellow.luminance() - Color.Black.luminance()) > 0f) // il quasi-nero, non il nero
+  }
+
+  // --- L'aspetto di iOS 27 (F6.6) --------------------------------------------------------------------------
+
+  private val gap = FluidSwipeCapsuleGapDp * density
+  private val inset = FluidSwipeCapsuleInsetDp * density
+
+  @Test
+  fun `di serie l'aspetto e' quello di iOS 27, e l'altro resta`() {
+    assertEquals("Capsule", FluidSwipeStyle.Capsule.toString())
+    assertTrue(FluidSwipeStyle.Capsule.isCapsule)
+    assertFalse(FluidSwipeStyle.Fill.isCapsule)
+  }
+
+  @Test
+  fun `lo spazio della capsula sta fra la riga e il bordo, dal lato giusto`() {
+    assertNull("riga ferma: nessuno spazio", fluidSwipeCapsuleSlot(0f, width, gap, inset))
+    assertNull("meno dei due margini: ancora niente", fluidSwipeCapsuleSlot(-(gap + inset), width, gap, inset))
+    val end = fluidSwipeCapsuleSlot(-200f, width, gap, inset)!!
+    assertEquals(width - 200f + gap, end.start, 0.001f)
+    assertEquals(width - inset, end.endInclusive, 0.001f)
+    val start = fluidSwipeCapsuleSlot(200f, width, gap, inset)!!
+    assertEquals(inset, start.start, 0.001f)
+    assertEquals(200f - gap, start.endInclusive, 0.001f)
+  }
+
+  @Test
+  fun `la capsula e' alta quanto la riga meno l'etichetta, fra 24 e 44 dp`() {
+    assertEquals(32f * density, fluidSwipeCapsuleHeightPx(56f * density, density), 0.001f) // una riga di ListItem
+    assertEquals(44f * density, fluidSwipeCapsuleHeightPx(72f * density, density), 0.001f) // due righe: il tetto
+    assertEquals(24f * density, fluidSwipeCapsuleHeightPx(40f * density, density), 0.001f) // il pavimento
+    // Apple: 34 pt in una riga di 58,6 pt, 44 pt in una di 66,5.
+    assertEquals(34.6f, fluidSwipeCapsuleHeightPx(58.6f, 1f), 0.01f)
+    assertEquals(42.5f, fluidSwipeCapsuleHeightPx(66.5f, 1f), 0.01f)
+  }
+
+  @Test
+  fun `piena, riempie lo spazio, e in uno spazio stretto e' un tondo`() {
+    val row = 56f * density
+    val h = fluidSwipeCapsuleHeightPx(row, density)
+    val wide = fluidSwipeCapsuleGeometry(100f, 300f, row, h, labelBlock = 0f, appear = 1f, armed = 0f)!!
+    assertEquals(200f, wide.capsule.width, 0.001f)
+    assertEquals(h, wide.capsule.height, 0.001f)
+    assertEquals(row / 2f, wide.capsule.center.y, 0.001f)
+    val narrow = fluidSwipeCapsuleGeometry(100f, 140f, row, h, labelBlock = 0f, appear = 1f, armed = 0f)!!
+    assertEquals(narrow.capsule.width, narrow.capsule.height, 0.001f)
+  }
+
+  @Test
+  fun `capsula ed etichetta crescono insieme attorno al centro della riga`() {
+    val row = 72f * density
+    val h = fluidSwipeCapsuleHeightPx(row, density)
+    val label = 18f * density
+    val full = fluidSwipeCapsuleGeometry(100f, 300f, row, h, labelBlock = label, appear = 1f, armed = 0f)!!
+    // Il gruppo capsula + etichetta e' centrato nella riga: la capsula sta sopra il centro di meta' etichetta.
+    assertEquals(row / 2f - label / 2f, full.capsule.center.y, 0.001f)
+    val half = fluidSwipeCapsuleGeometry(100f, 300f, row, h, labelBlock = label, appear = 0.5f, armed = 0f)!!
+    assertEquals(full.capsule.width / 2f, half.capsule.width, 0.001f)
+    assertEquals(full.capsule.height / 2f, half.capsule.height, 0.001f)
+    assertEquals(full.capsule.center.x, half.capsule.center.x, 0.001f)
+    assertEquals(0.5f, half.scale, 0.001f)
+    assertNull("non ancora nata", fluidSwipeCapsuleGeometry(100f, 300f, row, h, label, appear = 0f, armed = 0f))
+  }
+
+  @Test
+  fun `oltre la soglia la capsula si gonfia del 6 per cento`() {
+    val row = 56f * density
+    val h = fluidSwipeCapsuleHeightPx(row, density)
+    val calm = fluidSwipeCapsuleGeometry(100f, 300f, row, h, 0f, appear = 1f, armed = 0f)!!
+    val armed = fluidSwipeCapsuleGeometry(100f, 300f, row, h, 0f, appear = 1f, armed = 1f)!!
+    assertEquals(calm.capsule.height * (1f + FluidSwipeArmedGrowth), armed.capsule.height, 0.001f)
+  }
+
+  @Test
+  fun `la capsula che nasce e' trasparente all'inizio e piena da tre quarti`() {
+    assertEquals(0f, fluidSwipeAppearAlpha(0f), 0f)
+    assertTrue(fluidSwipeAppearAlpha(0.3f) in 0.1f..0.6f)
+    assertEquals(1f, fluidSwipeAppearAlpha(0.75f), 0f)
+    assertEquals(1f, fluidSwipeAppearAlpha(1.04f), 0f)
+    var previous = -1f
+    for (i in 0..20) {
+      val a = fluidSwipeAppearAlpha(i / 20f)
+      assertTrue(a >= previous)
+      previous = a
+    }
+  }
+
+  @Test
+  fun `il glifo sta fra 16 e 20 dp`() {
+    assertEquals(16f * density, fluidSwipeGlyphPx(24f * density, density), 0.001f)
+    assertEquals(19.8f * density, fluidSwipeGlyphPx(44f * density, density), 0.01f)
+  }
+
+  /**
+   * La frazione di strada di una molla a [ms] millisecondi, partita ferma. La corsa e' di 1000 px: le molle della riga
+   * muovono pixel e si fermano a mezzo pixel ([FluidMotion.PixelThreshold]), quindi su una corsa da 0 a 1 finirebbero
+   * subito.
+   */
+  private fun springAt(spec: AnimationSpec<Float>, ms: Long): Float =
+    TargetBasedAnimation(spec, Float.VectorConverter, 0f, 1000f).getValueFromNanos(ms * 1_000_000L) / 1000f
+
+  @Test
+  fun `il ritorno della riga e' la molla critica misurata su Apple`() {
+    val spec = fluidSwipeSettleSpec(FluidSwipeStyle.Capsule)
+    // Apple, due prese (f33001-f33013, f33170-f33185): 56% a 133 ms, 86% a 233, 96% a 333, senza superamento.
+    assertEquals(0.56f, springAt(spec, 133), 0.05f)
+    assertEquals(0.86f, springAt(spec, 233), 0.05f)
+    assertEquals(0.96f, springAt(spec, 333), 0.03f)
+    for (ms in 0L..1200L step 16L) assertTrue("supera a $ms ms", springAt(spec, ms) <= 1.0005f)
+  }
+
+  @Test
+  fun `l'aspetto di prima tiene le sue molle`() {
+    val old = fluidSwipeSettleSpec(FluidSwipeStyle.Fill)
+    val now = fluidSwipeSettleSpec(FluidSwipeStyle.Capsule)
+    assertTrue("la molla di prima e' piu' rapida", springAt(old, 133) > springAt(now, 133) + 0.05f)
+  }
+
+  @Test
+  fun `la capsula nasce in 200 ms con un solo piccolo superamento`() {
+    val spec = fluidSwipeAppearSpec()
+    // Apple: 0,23 / 0,42 / 0,60 / 0,76 / 0,87 / 0,95 / 1,00 ogni 33 ms dal primo fotogramma visibile, un picco del
+    // 4% a ~300 ms, poi ferma. La molla parte ~60 ms prima del primo fotogramma visibile (t0 = -1,8 fotogrammi).
+    val t0 = 60L
+    assertEquals(0.60f, springAt(spec, t0 + 67), 0.08f)
+    assertEquals(0.87f, springAt(spec, t0 + 133), 0.06f)
+    assertEquals(1.00f, springAt(spec, t0 + 200), 0.05f)
+    var peak = 0f
+    var peakAt = 0L
+    for (ms in 0L..1500L step 4L) {
+      val v = springAt(spec, ms)
+      if (v > peak) {
+        peak = v
+        peakAt = ms
+      }
+    }
+    assertTrue("picco $peak", peak in 1.02f..1.06f)
+    assertTrue("picco a $peakAt ms", peakAt in 250L..380L)
+    // Un solo superamento: la seconda oscillazione sta sotto lo 0,5%.
+    val after = (peakAt + 200L..1500L step 4L).maxOf { springAt(spec, it) }
+    assertTrue("seconda oscillazione $after", after < 1.005f)
+  }
+
+  @Test
+  fun `la stessa azione come voce del menu contestuale`() {
+    var done = 0
+    val swipe = FluidSwipeAction(label = "Elimina", icon = FluidIcons.Delete, color = Color.Red, removesItem = true) { done++ }
+    val item = swipe.asContextAction(destructive = true)
+    assertEquals("Elimina", item.label)
+    assertEquals(FluidIcons.Delete, item.icon)
+    assertTrue(item.destructive)
+    item.onClick()
+    assertEquals(1, done)
+    assertFalse(FluidSwipeAction("Archivia", FluidIcons.Delete, Color.Blue) {}.asContextAction().destructive)
   }
 }

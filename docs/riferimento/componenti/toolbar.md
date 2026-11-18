@@ -151,6 +151,10 @@ si sfocano e svaniscono seguendo il dito. Il campo conserva il fuoco, risale sul
 vetro vicino alla barra di stato. Il rilascio a metà chiude la corsa con una molla e lo scorrimento inverso rivela la barra.
 Per le altre posizioni e le opzioni sugli inset, vedi [FluidScreen](schermata.md#fluidscreen).
 
+Nell'host il campo fissato si disegna sopra la striscia che campiona la lista. I comandi già ritirati lasciano la
+barra al pop. Nel passaggio tra uno slot `actions` e un gruppo dichiarato, il vetro dello slot sostiene il gruppo
+durante l'ingresso delle icone.
+
 Con movimento ridotto il ritiro usa solo l'opacità per titolo e azioni. I cambi della barra dichiarata si incrociano in
 dissolvenza nei rispettivi posti di riposo e i bersagli del nuovo stato sono disponibili nella geometria finale.
 

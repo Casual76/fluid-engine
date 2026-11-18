@@ -157,6 +157,17 @@ class FluidToolbarHostMinimizeTest {
     advance(1_200)
   }
 
+  @Test fun ilPopDaRicercaRitirataNonRiattivaIndietroSopraNote() {
+    pages(ToolbarHostPage.Search)
+    scrollDown()
+    assertFalse(present("Indietro"))
+    compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+    advance(64)
+    assertFalse(present("Indietro"))
+    advance(1_000)
+    assertTrue(present("Opzioni"))
+  }
+
   /**
    * La pagina [start] ha la ricerca principale: scorrendo, l'indietro, [action] e l'area «Torna all'inizio» se ne vanno
    * dall'albero e il campo sale; tornando su, tutto torna.

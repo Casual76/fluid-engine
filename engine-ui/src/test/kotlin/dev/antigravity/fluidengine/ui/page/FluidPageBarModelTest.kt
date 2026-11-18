@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.page
 
 import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarControls
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.IosShare
@@ -32,6 +33,18 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FluidPageBarModelTest {
+  @Test fun ilMaterialeMistoSostieneIlTondoDuranteLoScambio() {
+    val lens = Rect(10f, 0f, 54f, 44f)
+    val face = mixedActionFace(lens, 26f)
+    assertEquals(lens.center, face.center)
+    assertTrue(face.width > 26f && face.width < lens.width)
+    for (step in 0..100) {
+      val model = step / 100f
+      assertTrue(model + (1f - model) * legacyMaterialAlpha(model) >= 0.85f)
+    }
+    assertEquals(1f, legacyMaterialAlpha(0f), 0f)
+    assertEquals(0f, legacyMaterialAlpha(1f), 0f)
+  }
 
   private val declared = buildFluidToolbar(onBack = {}) {
     button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {})

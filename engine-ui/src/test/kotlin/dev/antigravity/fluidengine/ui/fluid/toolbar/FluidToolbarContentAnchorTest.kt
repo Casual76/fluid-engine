@@ -17,6 +17,16 @@ import org.junit.Test
 
 /** Il conducente e il volo del contenuto di produzione, con posizioni risolte dal modello della barra. */
 class FluidToolbarContentAnchorTest {
+  @Test fun ilPopDuranteIlTrasferimentoMantieneIlCentroMisuratoAncheAlPrimoFrameLungo() {
+    val item = FluidToolbarItem("more", symbol = "more")
+    val placed = 1519.5f
+    val trip = FluidToolbarTransfer(FluidToolbarGlassId(FluidToolbarGroupId(setOf("more"))),
+      true, false, 715f, 715f, placed, false, 44f, item)
+    assertTrue(trip.sameSlot)
+    for (phase in listOf(0f, .17f, .6f, 1f)) {
+      assertEquals(placed, trip.center(placed, placed, null, null, phase), 0f)
+    }
+  }
   @Test fun `fermo in entrambi gli stati, il glifo non segue il rinculo della lastra`() {
     val item = FluidToolbarItem("more", symbol = "more")
     val trip = FluidToolbarTransfer(

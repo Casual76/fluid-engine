@@ -634,15 +634,19 @@ class FluidPageHostTest {
   }
 
   @Test
-  fun `con le animazioni ridotte il push salta e il dito segue lo stesso`() {
+  fun `con le animazioni ridotte il push sfuma sul posto e il gesto segue il dito`() {
     show(reducedMotion = true)
     compose.mainClock.autoAdvance = false
     compose.runOnUiThread { nav.navigate(PagesRouteB) }
-    // Un fotogramma per la composizione che vede la pila nuova, uno per disegnarla a riposo.
     compose.mainClock.advanceTimeByFrame()
     compose.mainClock.advanceTimeByFrame()
     assertTrue(isShown(PagesMarkB))
     val rest = leftPx(PagesMarkB)
+    assertTrue(isShown(PagesMarkA))
+    compose.mainClock.advanceTimeBy(80)
+    assertTrue(isShown(PagesMarkA))
+    assertEquals(rest, leftPx(PagesMarkB), 0.5f)
+    compose.mainClock.advanceTimeBy(240)
     assertTrue(!isShown(PagesMarkA))
 
     val downX = 6f

@@ -194,7 +194,9 @@ scritte, principale tinta, conferma, indietro e Chiudi, spaziatori, gruppi, prio
 l'indietro lo aggiunge la barra. `search` (o `search(spec)` nel blocco, che vince) posa il `FluidSearchField` di oggi
 sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
 
-**Ritiro della barra (F4A.4).** `Automatic` lo attiva solo per `FluidSearchPlacement.Principal`. `Never` conserva
+**Ritiro della barra (F4A.4).** Nel ritorno la lista riserva spazio al titolo e al campo anche quando la prima riga
+è già scorsa fuori dal viewport. Lo spazio segue l'altezza misurata alla scala di testo corrente.
+`Automatic` lo attiva solo per `FluidSearchPlacement.Principal`. `Never` conserva
 il titolo che si aggancia, `OnScrollDown` ritira verso il fondo e `OnScrollUp` verso l'inizio. La lista recupera
 lo spazio liberato durante il gesto, a meno che `barMinimizeAdjustsInsets = false`. Il campo principale risale
 fino alla barra di stato e resta a portata di tocco. Dentro un host di pagine (giro di correzione di F4A) si ritirano

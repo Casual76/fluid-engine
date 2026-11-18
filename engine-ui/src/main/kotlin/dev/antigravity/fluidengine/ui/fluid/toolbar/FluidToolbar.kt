@@ -797,6 +797,9 @@ internal class FluidToolbarTransfer(
   private var firstLobe: Float? = null
   private var firstWidthDp: Float? = null
 
+  /** Anche in un'inversione il posto d'arrivo resta quello misurato dalla Row, con i suoi arrotondamenti. */
+  val sameSlot: Boolean get() = startDp == endDp
+
   fun changesInkInPlace(end: FluidToolbarItem): Boolean =
     startDp == endDp && startItem.isPrimary == end.isPrimary &&
       (startItem.selected != end.selected || startItem.tintArgb != end.tintArgb)
@@ -1017,7 +1020,7 @@ private fun FluidToolbarTravellingButton(
   val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
   val density = LocalDensity.current
   val size = fluidToolbarIconSize(element.item.role)
-  val stationary = trip.startDp == trip.endDp && trip.interruptedCenter == null
+  val stationary = trip.sameSlot
   val restX = if (stationary) fluidToolbarIconCenterPx(resolved, element, density.density, rtl) else 0f
   val glyphWidthPx = with(density) { size.roundToPx() }
   fun color(item: FluidToolbarItem): Color = when {

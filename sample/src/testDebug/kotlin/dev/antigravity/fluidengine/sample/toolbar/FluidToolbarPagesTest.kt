@@ -66,6 +66,10 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w400dp-h900dp-xhdpi")
 class FluidToolbarPagesTest {
+  @Test fun ilCampioneUniformeRichiedeIlProprioExtra() {
+    assertFalse(ToolbarPagesLaunch.parse { null }.uniform)
+    assertTrue(ToolbarPagesLaunch.parse { if (it == "pages.uniform") "true" else null }.uniform)
+  }
 
   @get:Rule
   val compose = createAndroidComposeRule<ComponentActivity>()

@@ -14,6 +14,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -192,8 +198,10 @@ internal fun FluidAnchoredBar(
   val target = remember(state) { FluidPageBarTargetMemory() }
   // L'host disegna dal modello da quando ha visto la prima barra dichiarata, e da lì in poi sempre (vedi
   // [FluidPageBarTargetMemory.hostModel]): un host che non ne ha mai vista una è quello di prima, identico.
-  val hostModel = target.noteModel(modelMode)
-  val declaration = target.update(barPage, barSlot != null, barSpec, moving)
+  val hostModel = target.noteModel(modelMode || lowerKey?.let { registry[it]?.spec?.toolbar } != null)
+  val registeredDeclaration = target.update(barPage, barSlot != null, barSpec, moving)
+  val withdrawn = barSpec?.minimize?.hidden == true
+  val declaration = if (withdrawn) FluidPageBarEmpty else registeredDeclaration
   val swap = remember(state) { FluidBarTitleSwap() }
   val finger = remember(state) { FluidBarFingerMorph(state) }
   val followFinger = FluidPageBarDiagnostics.gestureFollowsFinger
@@ -315,6 +323,7 @@ internal fun FluidAnchoredBar(
   val controls = remember { FluidTopBarControls() }
   val insets = remember(controls) { FluidBarInsets(controls) }
   val legacyRows = hostModel && shown.any { it.second.toolbar == null }
+  val declaredPage = if (legacyRows && modelMode) shown.firstOrNull { it.second.toolbar != null }?.first else null
   SideEffect {
     insets.model = hostModel
     insets.legacyRows = legacyRows
@@ -331,7 +340,7 @@ internal fun FluidAnchoredBar(
   // La variante del gesto che segue il dito (interruttore delle prove, spento di serie): solo col modello, solo mentre
   // il dito tiene la pagina, e solo fra due pagine che la barra conosce.
   val fingerLayer = followFinger && modelMode && moving && state.kind == FluidPageMove.Back &&
-    upperSpec != null && lowerSpec != null
+    upperSpec != null && lowerSpec != null && upperSpec.minimize?.hidden != true && lowerSpec.minimize?.hidden != true
 
   Box(
     modifier = Modifier
@@ -340,15 +349,29 @@ internal fun FluidAnchoredBar(
   ) {
     if (barBackdrop != null) {
       // Il bordo dello scorrimento col materiale nuovo, la fascia altrove (F2.5): vedi `FluidTopBarBackground`.
-      FluidTopBarBackground(
-        scrollEdge = scrollEdge,
-        backdrop = barBackdrop,
-        tint = tint,
-        intensity = intensity,
-        exports = barGlass,
-        split = split,
-        shade = shade,
-      )
+      Box(Modifier.matchParentSize().drawWithContent {
+        // Una pagina che si ritira ha già disegnato la striscia sotto il campo. Durante il pop
+        // l'altra pagina conserva la sua parte della striscia dell'host, fino al bordo della carta.
+        val ownUpper = upperSpec?.minimize != null
+        val ownLower = lowerSpec?.minimize != null
+        if (!ownUpper && !ownLower) drawContent()
+        else if (state.isMoving && ownUpper != ownLower) {
+          val (left, right) = state.upperCoverage()
+          clipRect(left = left, right = right, clipOp = if (ownUpper) ClipOp.Difference else ClipOp.Intersect) {
+            this@drawWithContent.drawContent()
+          }
+        }
+      }) {
+        FluidTopBarBackground(
+          scrollEdge = scrollEdge,
+          backdrop = barBackdrop,
+          tint = tint,
+          intensity = intensity,
+          exports = barGlass,
+          split = split,
+          shade = shade,
+        )
+      }
     }
     // Un colore di base sotto il contesto di ogni pagina (3.0.1): una registrazione che non lo dice
     // (una pagina senza `FluidScreen`, un'app senza `Surface` alla radice) ha comunque il testo del fondo,
@@ -471,7 +494,7 @@ internal fun FluidAnchoredBar(
                 // Col modello qui restano solo le azioni delle pagine con lo slot di sempre (F4A.3), nello stesso
                 // posto dell'albero: la stessa composizione prima, durante e dopo il passaggio a una pagina dichiarata.
                 if (!hostModel || spec.toolbar == null) {
-                  key(page) { BarActions(state, page, spec, controlBackdrop, journey, shade) }
+                  key(page) { BarActions(state, page, spec, controlBackdrop, journey, shade, swap, declaredPage) }
                 }
               }
             }
@@ -490,6 +513,7 @@ internal fun FluidAnchoredBar(
             hidden = finger::overlay,
             snap = fingerLayer,
             minimize = hostMinimize,
+            trailingOpacity = declaredPage?.let { { swap.alpha(it) } },
           )
         }
       }
@@ -586,7 +610,7 @@ private fun BoxScope.BarTitle(
   }
   val motion = remember(state, page, shiftPx, swap, stepPx, byTravel) {
     FluidBarTitleMotion(
-      pageX = { state.pageOffsetX(state.roleOf(page)) },
+      pageX = { state.pageOffsetX(state.roleOf(page)) + state.headingCompensation(page) },
       pageScale = { state.pageScale(state.roleOf(page)) },
       pageCenter = { Offset(state.width / 2f, state.height / 2f) },
       chromeX = { if (byTravel()) barTitleChrome(state, page, shiftPx).second else swap!!.step(page) * stepPx },
@@ -707,10 +731,13 @@ private fun BarActions(
   controlBackdrop: GlassBackdropState,
   journey: FluidBarJourney,
   shade: FluidScrollEdgeShade,
+  swap: FluidBarTitleSwap,
+  declaredPage: Any?,
 ) {
   val sink = remember(journey, page) {
     FluidBarPieceSink(suppressed = { journey.active }, onChanged = journey::recompute)
   }
+  val mixedInk = if (declaredPage == null) Modifier else mixedActionInk(sink, swap, page)
   DisposableEffect(journey, page, sink) {
     journey.sinks[page] = sink
     journey.recompute()
@@ -749,16 +776,57 @@ private fun BarActions(
           }
           .graphicsLayer {
             val m = FluidPageMotion.barMorph(state.frontFraction())
-            alpha = when (state.roleOf(page)) {
-              PageRole.Upper -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = false) else 1f
-              PageRole.Lower -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = true) else 0f
-              PageRole.Gone -> 0f
+            if (declaredPage != null) {
+              // Il vetro di prima sostiene quello dei gruppi finché la nuova lente è opaca.
+              val coverage = swap.alpha(declaredPage)
+              alpha = legacyMaterialAlpha(coverage)
+            } else {
+              alpha = when (state.roleOf(page)) {
+                PageRole.Upper -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = false) else 1f
+                PageRole.Lower -> if (state.isMoving) FluidPageMotion.barIconAlpha(m, ofLower = true) else 0f
+                PageRole.Gone -> 0f
+              }
             }
-          },
+          }.then(mixedInk),
       )
     }
   }
 }
+
+/** Il materiale uscente sostiene il tondo durante l'ingresso del gruppo dichiarato. */
+internal fun legacyMaterialAlpha(modelAlpha: Float): Float = 1f - modelAlpha * modelAlpha
+
+/** La sfocatura interessa la faccia del controllo. Il bordo e l'ombra continuano a leggere il vetro vivo. */
+@Composable
+private fun mixedActionInk(sink: FluidBarPieceSink, swap: FluidBarTitleSwap, page: Any): Modifier {
+  val layer = rememberGraphicsLayer()
+  val faces = remember { Path() }
+  var row by remember { mutableStateOf<LayoutCoordinates?>(null) }
+  return Modifier.onGloballyPositioned { row = it }.drawWithContent {
+    val radius = glassContentBlurRadiusPx(swap.blur(page) * FluidMetrics.BarIconSize.toPx())
+    val origin = row
+    if (!FluidBarTitleBlur || radius <= .05f || origin == null || !origin.isAttached) {
+      drawContent()
+      return@drawWithContent
+    }
+    faces.reset()
+    for (piece in sink.pieces) {
+      val coordinates = piece.coordinates?.takeIf { it.isAttached } ?: continue
+      val bounds = origin.localBoundingBoxOf(coordinates, clipBounds = false)
+      faces.addOval(mixedActionFace(bounds, FluidMetrics.BarIconSize.toPx()))
+    }
+    layer.renderEffect = BlurEffect(radius, radius, TileMode.Decal)
+    layer.record { this@drawWithContent.drawContent() }
+    if (faces.isEmpty) drawLayer(layer) else {
+      clipPath(faces, ClipOp.Difference) { this@drawWithContent.drawContent() }
+      clipPath(faces) { drawLayer(layer) }
+    }
+  }
+}
+
+/** La mezza corona tra faccia e orlo sostiene la lente mentre l'inchiostro cambia. */
+internal fun mixedActionFace(lens: Rect, iconPx: Float): Rect =
+  lens.deflate((lens.minDimension - iconPx).coerceAtLeast(0f) / 4f)
 
 /** Il tasto indietro della barra: uno per host, composto finche' una delle due pagine ce l'ha. */
 @Composable
@@ -1110,6 +1178,7 @@ object FluidPageBarDiagnostics {
  * dichiarata e una di prima, il più largo dei due lati.
  */
 internal class FluidBarInsets(private val controls: FluidTopBarControls) {
+  val trailingWidthPx: Int get() = controls.endPx
   var model = false
   var legacyRows = false
   private var modelStart = 0
@@ -1289,6 +1358,7 @@ private fun HostModelBar(
   hidden: () -> Boolean,
   snap: Boolean,
   minimize: FluidToolbarMinimizeProgress?,
+  trailingOpacity: (() -> Float)?,
 ) {
   CompositionLocalProvider(context) {
     val policy = LocalFluidMotionPolicy.current
@@ -1306,9 +1376,31 @@ private fun HostModelBar(
       // cambia fra una ritirata e una aperta i tasti seguono la corsa delle pagine invece di comparire in un fotogramma.
       LocalFluidToolbarMinimize provides minimize,
     ) {
+      val paint = remember { Paint() }
       FluidToolbarBar(
         declaration = declaration,
-        modifier = Modifier.graphicsLayer { alpha = if (hidden()) 0f else 1f },
+        modifier = Modifier.graphicsLayer { alpha = if (hidden()) 0f else 1f }.drawWithContent {
+          val amount = trailingOpacity?.invoke() ?: 1f
+          if (amount >= 1f) {
+            drawContent()
+          } else {
+            // L'indietro resta sul piano. Sul lato delle azioni il modello entra sopra il vetro
+            // dello slot libero con lo stesso orologio dell'inchiostro, conservando i suoi hit test.
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            val width = insets.trailingWidthPx.toFloat().coerceAtMost(size.width)
+            val trailing = Rect(if (rtl) -size.height else size.width - width, -size.height,
+              if (rtl) width else size.width + size.height, size.height * 2f)
+            clipRect(trailing.left, trailing.top, trailing.right, trailing.bottom, ClipOp.Difference) {
+              this@drawWithContent.drawContent()
+            }
+            if (amount > 0f) clipRect(trailing.left, trailing.top, trailing.right, trailing.bottom) {
+              paint.alpha = amount
+              drawContext.canvas.saveLayer(trailing, paint)
+              this@drawWithContent.drawContent()
+              drawContext.canvas.restore()
+            }
+          }
+        },
         title = title,
         onExtent = insets::modelExtent,
       )

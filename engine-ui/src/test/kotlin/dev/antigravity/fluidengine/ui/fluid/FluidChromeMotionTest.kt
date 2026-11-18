@@ -11,6 +11,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FluidChromeMotionTest {
+  @Test fun ilRitornoRiservaTitoloECampoAncheQuandoLaListaHaGiaSuperatoIlPadding() {
+    for (headingPx in listOf(130f, 260f)) {
+      val travel = 94f + headingPx
+      assertEquals(52f + travel + 96f, fluidMinimizeListClip(52f, travel, 96, 0f), 0f)
+      assertTrue(fluidMinimizeListClip(52f, travel, 96, .5f) >= 52f + travel / 2f + 96f)
+      assertEquals(52f, fluidMinimizeListClip(52f, travel, 96, 1f), 0f)
+    }
+  }
 
   @Test
   fun automaticMinimizesOnlyForPrincipalSearch() {

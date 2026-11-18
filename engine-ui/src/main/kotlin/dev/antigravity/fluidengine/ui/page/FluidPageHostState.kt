@@ -29,8 +29,7 @@ package dev.antigravity.fluidengine.ui.page
 import android.view.View
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -200,8 +199,8 @@ class FluidPageHostState internal constructor() {
   private var processed by mutableStateOf<List<Any>>(emptyList())
   private var job: Job? = null
   /**
-   * La pagina che entra e non si è ancora posata (F4A.7; dal giro di correzione di F4A anche nel cambio di scheda): il
-   * movimento parte dal suo primo posizionamento, e fino ad allora non copre niente ([upperCoverage]). Null a riposo.
+   * Identifica la pagina ancora invisibile per un pop nello stesso frame (C7). Solo la scheda e la dissolvenza
+   * aspettano il posizionamento. La molla del push ordinario parte al cambio di pila.
    */
   internal var pendingPlacement: Any? by mutableStateOf(null)
     private set
@@ -222,6 +221,9 @@ class FluidPageHostState internal constructor() {
   internal fun frontFraction(): Float =
     if (kind == FluidPageMove.Peer) 1f - peerEased else upperExitFraction()
 
+  internal val crossfading: Boolean
+    get() = reducedMotion && (kind == FluidPageMove.Push || kind == FluidPageMove.Pop || kind == FluidPageMove.Peer)
+
   internal fun exitTravel(): Float = FluidPageMotion.exitTravel(upperTransition, width)
 
   // --- Dove sta ogni pagina, letto in disegno ------------------------------------------------------
@@ -236,7 +238,7 @@ class FluidPageHostState internal constructor() {
   }
 
   /** La traslazione orizzontale di una pagina in questo fotogramma, in px (gia' nel verso). */
-  internal fun pageOffsetX(role: PageRole): Float = when (role) {
+  internal fun pageOffsetX(role: PageRole): Float = if (crossfading) 0f else when (role) {
     PageRole.Gone -> width * direction
     PageRole.Upper -> if (kind == FluidPageMove.Peer) {
       FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).first
@@ -249,9 +251,17 @@ class FluidPageHostState internal constructor() {
     }
   }
 
+  /** Tiene intere le prime lettere dell'intestazione che entra dal bordo di lettura. La carta conserva il suo passo. */
+  internal fun headingCompensation(page: Any): Float {
+    val followBack = kind == FluidPageMove.Back && FluidPageBarDiagnostics.gestureFollowsFinger
+    if (page != to || (kind != FluidPageMove.Peer && !followBack)) return 0f
+    val offset = pageOffsetX(roleOf(page))
+    return if (offset * layoutDirectionSign < 0f) -offset else 0f
+  }
+
   /** La scala di una pagina in questo fotogramma, attorno al suo centro (o al punto toccato per Expand). */
   internal fun pageScale(role: PageRole): Float =
-    if (role == PageRole.Upper && kind != FluidPageMove.Peer) {
+    if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer) {
       FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).scale
     } else {
       1f
@@ -301,35 +311,38 @@ class FluidPageHostState internal constructor() {
       animateTravel(0f, FluidPageMotion.page(), velocityPx) { settle() }
       return
     }
+    val visibleSource = if (pendingPlacement == from) lower ?: from else from
     finishNow()
     upperTransition = transitionOf(to)
     upper = to
-    lower = from.takeIf(renderable)
+    lower = visibleSource.takeIf(renderable)
     opening = true
     direction = layoutDirectionSign
-    show(FluidPageMove.Push, from = from, to = to)
+    show(FluidPageMove.Push, from = visibleSource, to = to)
     travelPx = exitTravel()
     phase = Phase.Pushing
-    if (reducedMotion) settle() else pendingPlacement = to
+    if (!reducedMotion) animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
+    if (phase == Phase.Pushing) pendingPlacement = to
   }
 
   /**
-   * La prima misura può comporre tutta la pagina. Il suo tempo precede lo zero della molla (F4A.7) e quello del passo fra
-   * schede (giro di correzione di F4A, A4: il primo fotogramma lungo mangiava l'inizio del passo, che compariva già
-   * all'83%).
+   * La prima misura può comporre tutta la pagina. La scheda parte qui per conservare il passo iniziale del 13%.
+   * La dissolvenza tiene il contenuto di partenza opaco finché quello d'arrivo può essere disegnato.
    */
-  internal fun pagePlaced(page: Any) {
+  internal fun pagePlaced(page: Any, placedAtNanos: Long? = null) {
     if (pendingPlacement != page) return
     pendingPlacement = null
     if (phase == Phase.Peer) {
-      runPeerClock()
-    } else {
+      runPeerClock(placedAtNanos)
+    } else if (crossfading) {
       animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
     }
   }
 
   private fun beginPop(from: Any, to: Any) {
     if (pendingPlacement == from && lower == to) {
+      job?.cancel()
+      job = null
       settle()
       return
     }
@@ -414,7 +427,7 @@ class FluidPageHostState internal constructor() {
     peerTime = 0f
     peerEased = 0f
     phase = Phase.Peer
-    if (reducedMotion || scope == null) {
+    if (scope == null) {
       settle()
       return
     }
@@ -423,16 +436,33 @@ class FluidPageHostState internal constructor() {
   }
 
   /** Il passo fra schede, dal primo posizionamento della scheda che arriva. */
-  private fun runPeerClock() {
+  private fun runPeerClock(placedAtNanos: Long?) {
     val scope = scope ?: run {
       settle()
       return
     }
     job?.cancel()
     job = scope.launch {
-      Animatable(0f).animateTo(1f, tween(FluidMotion.DurationPeer, easing = LinearEasing)) {
-        peerTime = value
-        peerEased = FluidMotion.EaseEmphasized.transform(value)
+      if (crossfading) {
+        Animatable(0f).animateTo(1f, FluidMotion.crossFade()) {
+          peerTime = value
+          peerEased = value
+        }
+      } else {
+        // Il layout ha già mostrato il passo iniziale. Il primo vsync deve avanzarlo anche se
+        // la posa ha occupato il resto del frame. Poi conta soltanto il clock di Compose.
+        var previous: Long? = null
+        var elapsedMs = 0f
+        do {
+          withFrameNanos { frame ->
+            val delta = previous?.let { frame - it } ?: placedAtNanos?.let { System.nanoTime() - it } ?: 0L
+            previous = frame
+            val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+            elapsedMs += if (scale > 0f) delta.coerceAtLeast(0L) / (1_000_000f * scale) else Float.POSITIVE_INFINITY
+            peerTime = (elapsedMs / FluidMotion.DurationPeer).coerceIn(0f, 1f)
+            peerEased = FluidMotion.EaseEmphasized.transform(peerTime)
+          }
+        } while (peerTime < 1f)
       }
       job = null
       settle()
@@ -487,8 +517,8 @@ class FluidPageHostState internal constructor() {
     job?.cancel()
     job = null
     val scope = scope
-    if (reducedMotion || scope == null) {
-      // Animazioni ridotte: i moti autonomi saltano alla fine. Il dito, prima, ha seguito 1:1.
+    if ((reducedMotion && !crossfading) || scope == null) {
+      // Nel gesto ridotto il dito ha seguito 1:1 e il rilascio si posa subito.
       travelPx = target
       velocityPx = 0f
       onEnd()
@@ -497,7 +527,7 @@ class FluidPageHostState internal constructor() {
     val animatable = Animatable(travelPx)
     velocityPx = initialVelocity
     job = scope.launch {
-      animatable.animateTo(target, spec, initialVelocity) {
+      animatable.animateTo(target, if (crossfading) FluidMotion.crossFade() else spec, initialVelocity) {
         travelPx = value
         velocityPx = velocity
       }

@@ -172,6 +172,7 @@ class FluidPageInputInterruptTest(
     Rig(transition, direction, edge).use { rig ->
       rig.state.reducedMotion = true
       rig.state.onStack(listOf("root", "detail"))
+      rig.settleReducedPush()
       check(rig)
     }
   }
@@ -195,6 +196,12 @@ class FluidPageInputInterruptTest(
     }
 
     init { state.onStack(listOf("root")) }
+
+    fun settleReducedPush() {
+      state.pagePlaced("detail")
+      repeat(32) { nanos += 8_333_333L; clock.sendFrame(nanos) }
+      assertFalse(state.isMoving)
+    }
 
     fun pushTo(fraction: Float) {
       state.onStack(listOf("root", "detail"))

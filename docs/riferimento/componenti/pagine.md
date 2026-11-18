@@ -260,12 +260,10 @@ FluidPageHost(stack = stack, onBack = { stack = stack.dropLast(1) }) { key ->
 **Cos'e'.** Lo stato di un host: cosa si sta muovendo, quanto, e se c'e' un dito. **Si legge, non si scrive** (lo pilotano la pila, il dito e il back di sistema). Si crea con `rememberFluidPageHostState()` (uno per host) e si passa a `FluidNavHost`/`FluidPageHost` per leggerlo da fuori
 (le shell: la tab bar che cambia visibilita' fra due pagine).
 
-**Il primo posizionamento (F4A.7, giro di correzione di F4A).** Nel push autonomo e nel cambio di scheda la pagina che
-arriva prende subito i comandi e si prepara fuori campo: la molla (o il passo fra schede) parte dal suo primo
-posizionamento, con la corsa intera, e la misura iniziale (che può comporre tutta la pagina) non ne consuma l'inizio.
-Finché non è posata non copre niente: la pagina che esce resta intera, titolo grande compreso. Un ritorno alla pagina di
-partenza durante la preparazione la lascia in vista; un ritorno più indietro (`[R,A] → [R,A,B] → [R]`) fa uscire la pagina
-che si vede (A), mai quella che non si è ancora posata. Il movimento ridotto porta subito a riposo.
+**Il primo posizionamento.** Nel push la molla parte al cambio di pila. Il primo posizionamento identifica la pagina
+effettivamente comparsa. Se arriva un pop prima di allora, l'host conserva la pagina visibile. Nel caso
+`[R,A] → [R,A,B] → [R]` esce A. Con movimento ridotto le pagine si incrociano sul posto. Durante il push l'host tiene
+la pagina di partenza opaca e avvia la dissolvenza quando può disegnare quella di arrivo.
 
 **Campi.**
 
@@ -310,7 +308,7 @@ e una pagina sotto spostata di lato le lascerebbe vuote: era lo sfondo nero dell
 **La carta.** Mentre la pagina sopra si muove (corsa oltre mezzo pixel, o scala minore di 1) e' una **carta**: angoli del telefono (`rootWindowInsets.getRoundedCorner`, solo dove l'host tocca davvero un angolo dello schermo: un pannello di dettaglio a destra ha gli angoli a destra e retti a sinistra; un host sotto una barra di sistema opaca non li ha in alto;
 sotto API 31 o su un display rettangolare restano retti e c'e' solo l'ombra) e ombra da 36 dp (nera su superficie chiara, grigia su scura). A riposo il layer non ritaglia e non proietta niente. La forma si crea una volta per geometria, non a ogni fotogramma.
 
-**Con le animazioni ridotte** (`LocalFluidMotionPolicy.reducedMotion`) i moti autonomi (push, pop, molla di rilascio, passo fra schede) saltano alla fine; il dito, prima, ha seguito 1:1.
+**Con le animazioni ridotte** (`LocalFluidMotionPolicy.reducedMotion`) push, pop e cambio di scheda usano una dissolvenza sul posto. Il gesto interattivo segue il dito e si posa al rilascio.
 
 **RTL.** La pagina esce a sinistra, sempre sotto il dito (`direction = −1`); il passo fra schede inverte il lato.
 
@@ -320,9 +318,9 @@ sotto API 31 o su un display rettangolare restano retti e c'e' solo l'ombra) e o
 `direction` torna positivo se `to` sta dopo `from` (arriva dal lato di fine), negativo se prima, **zero se non sono pari**: allora valgono le regole delle pagine.
 
 **Comportamento.** Il passo dura `FluidMotion.DurationPeer` (280 ms, lineare poi curvato con `EaseEmphasized`); la pagina che arriva sta sopra, opaca, e percorre il 13% della larghezza (`FluidMotion.PeerSlideFraction`); quella che esce va dall'altra parte dello stesso tanto e sfuma nei suoi 150 ms
-(`DurationPeerFadeOut`, con `EaseIn`). Niente carta, niente gesto: un dito non separa una scheda da una scheda (`canStartGesture` e' falso se sotto e sopra sono pari). Con le animazioni ridotte il passo salta.
-Dalla 4.0 (giro di correzione di F4A) il passo parte dal primo posizionamento della scheda che arriva, come il push: prima
-il fotogramma lungo della prima composizione ne mangiava l'inizio (la scheda compariva già all'83% della sua corsa).
+(`DurationPeerFadeOut`, con `EaseIn`). Un dito non separa due schede pari. Il passo parte dal primo posizionamento
+della scheda che arriva. Titolo grande e sottotitolo restano entro il bordo di lettura. Con movimento ridotto la
+scheda arriva in dissolvenza sul posto.
 
 ## Il vecchio, e cosa lo sostituisce
 

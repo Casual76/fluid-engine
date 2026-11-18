@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +46,10 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarIds
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
 import dev.antigravity.fluidengine.ui.page.FluidPageBarDiagnostics
 import dev.antigravity.fluidengine.ui.page.FluidPageHost
+import dev.antigravity.fluidengine.ui.page.FluidPageChrome
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
+import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.rememberFluidPageHostState
 import dev.antigravity.fluidengine.ui.page.FluidPeerMove
@@ -229,7 +236,7 @@ internal object ToolbarPagesLaunch {
 
   private val truthy = setOf("true", "1", "on", "yes", "si", "sì", "acceso")
 
-  data class Request(val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean, val legacyOnly: Boolean = false)
+  data class Request(val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean, val legacyOnly: Boolean = false, val uniform: Boolean = false)
 
   fun parse(extra: (String) -> String?): Request {
     fun value(key: String): String? = extra(key)?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
@@ -243,7 +250,7 @@ internal object ToolbarPagesLaunch {
     }
     val auto = value(ExtraAuto)?.let { raw -> raw.toLongOrNull()?.takeIf { it > 0L } ?: if (raw in truthy) DefaultAutoMs else 0L } ?: 0L
     val follow = value(ExtraFollow)?.let { it in truthy } ?: false
-    return Request(start, auto, follow, legacyOnly)
+    return Request(start, auto, follow, legacyOnly, value("pages.uniform") in truthy)
   }
 
   /** La pila che porta a [page]: la scheda, poi la catena fino a lei. */
@@ -285,6 +292,25 @@ internal fun ToolbarPagesContent(
   onBack: () -> Unit,
   hostState: FluidPageHostState = rememberFluidPageHostState(),
 ) {
+  if (launched.uniform) {
+    val backdrop = rememberGlassBackdrop()
+    Box(Modifier.fillMaxSize()) {
+      Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(MaterialTheme.colorScheme.background))
+      ToolbarPagesHost(launched, bottomInset, onBack, hostState, backdrop)
+    }
+  } else {
+    ToolbarPagesHost(launched, bottomInset, onBack, hostState, null)
+  }
+}
+
+@Composable
+private fun ToolbarPagesHost(
+  launched: ToolbarPagesLaunch.Request,
+  bottomInset: Dp,
+  onBack: () -> Unit,
+  hostState: FluidPageHostState,
+  uniform: GlassBackdropState?,
+) {
   var stack by remember { mutableStateOf(ToolbarPagesLaunch.stackTo(launched.start, launched.legacyOnly)) }
   val queries = remember { mutableStateMapOf<ToolbarHostPage, String>() }
   var auto by remember { mutableLongStateOf(launched.autoMs) }
@@ -324,6 +350,14 @@ internal fun ToolbarPagesContent(
   ) { page ->
     // La radice della pila non ha l'indietro (le schede, e la prima pagina dell'host di sole pagine di prima).
     val root = page.isTab || stack.firstOrNull() == page
+    if (uniform != null) {
+      // Il materiale legge la stessa superficie uniforme sui due lati anche mentre passa l'ombra della carta.
+      Box(Modifier.fillMaxSize().clickable {
+        if (page == ToolbarHostPage.Notes) stack = stack + ToolbarHostPage.Note else back()
+      })
+      FluidPageChrome(title = page.title, onBack = back.takeUnless { root }, backdrop = uniform, toolbar = page.toolbar(close = back))
+      return@FluidPageHost
+    }
     val query = queries[page].orEmpty()
     FluidScreen(
       title = page.title,

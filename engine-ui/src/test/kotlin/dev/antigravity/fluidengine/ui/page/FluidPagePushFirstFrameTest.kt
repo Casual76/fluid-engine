@@ -24,21 +24,16 @@ class FluidPagePushFirstFrameTest {
 
   @After fun close() = scope.cancel()
 
-  @Test fun laMisuraLungaPrecedeIlPrimoCampioneDellaMolla() {
+  @Test fun laMollaDelPushPartePrimaDellaMisuraEIlCallbackNonLaRiavvia() {
     state.onStack(listOf("A", "B"))
     clock.sendFrame(0L)
-    state.pagePlaced("A")
-    clock.sendFrame(100_000_000L)
-    assertEquals(1600f, state.travelPx, 0f)
+    clock.sendFrame(8_333_333L)
+    val before = state.travelPx
+    assertTrue(before in 1500f..<1600f)
     state.pagePlaced("B")
-    clock.sendFrame(200_000_000L)
-    assertEquals(1600f, state.travelPx, 0f)
-    clock.sendFrame(208_333_333L)
-    assertTrue(state.travelPx in 1500f..<1600f)
-    val previous = state.travelPx
-    state.pagePlaced("B")
-    clock.sendFrame(216_666_666L)
-    assertTrue(state.travelPx < previous)
+    assertEquals(before, state.travelPx, 0f)
+    clock.sendFrame(16_666_666L)
+    assertTrue(state.travelPx < before)
   }
 
   @Test fun unPopPrimaDellaMisuraNonFaRiappareLaPagina() {
@@ -48,6 +43,8 @@ class FluidPagePushFirstFrameTest {
     clock.sendFrame(100_000_000L)
     assertFalse(state.isMoving)
     assertEquals("A", state.upper)
+    clock.sendFrame(116_666_667L)
+    assertEquals(0f, state.travelPx, 0f)
   }
 
   @Test fun ilPosizionamentoDellaPaginaSostituitaNonAvviaQuellaNuova() {
@@ -57,7 +54,8 @@ class FluidPagePushFirstFrameTest {
     clock.sendFrame(0L)
     clock.sendFrame(100_000_000L)
     assertEquals("C", state.pendingPlacement)
-    assertEquals(1600f, state.travelPx, 0f)
+    assertEquals("A", state.lower)
+    assertTrue(state.travelPx in 0f..<1600f)
   }
 
   /**
@@ -136,10 +134,32 @@ class FluidPagePushFirstFrameTest {
     assertEquals(1600f to 1600f, state.upperCoverage())
   }
 
-  @Test fun ilMovimentoRidottoSiPosaSenzaAspettareIlLayout() {
+  @Test fun laDissolvenzaTieneLaPaginaSottoELeDuePagineFerme() {
     state.reducedMotion = true
     state.onStack(listOf("A", "B"))
+    clock.sendFrame(0L)
+    clock.sendFrame(100_000_000L)
+    assertEquals("A", state.lower)
+    assertEquals(1f, state.frontFraction(), 0f)
+    state.pagePlaced("B")
+    clock.sendFrame(200_000_000L)
+    clock.sendFrame(300_000_000L)
+    assertTrue(state.frontFraction() in 0.01f..0.99f)
+    for (role in listOf(FluidPageHostState.PageRole.Upper, FluidPageHostState.PageRole.Lower)) {
+      assertEquals(0f, state.pageOffsetX(role), 0f)
+      assertEquals(1f, state.pageScale(role), 0f)
+    }
+    clock.sendFrame(500_000_000L)
     assertFalse(state.isMoving)
     assertEquals("B", state.upper)
+  }
+
+  @Test fun laSchedaMantieneIlPassoMaIlTitoloNonEsceDalBordoDiLettura() {
+    state.peerOf = { _, _ -> -1 }
+    state.onStack(listOf("T"))
+    val offset = state.pageOffsetX(FluidPageHostState.PageRole.Upper)
+    assertEquals(-208f, offset, .01f)
+    assertEquals(0f, offset + state.headingCompensation("T"), 0f)
+    assertEquals(0f, state.headingCompensation("A"), 0f)
   }
 }

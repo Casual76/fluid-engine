@@ -60,6 +60,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -106,6 +107,7 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBarMinimizeDirection
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLayer
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchGlassProgress
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchItem
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableState
@@ -411,6 +413,10 @@ enum class FluidBarMinimizeBehavior {
   OnScrollUp,
 }
 
+/** La lista può rifrangersi nel campo fissato, ma il titolo in ritorno deve avere spazio anche a lista già scorsa. */
+internal fun fluidMinimizeListClip(statusPx: Float, travelPx: Float, fieldPx: Int, progress: Float): Float =
+  statusPx + travelPx * (1f - progress.coerceIn(0f, 1f)) + fieldPx * (1f - fluidToolbarSearchGlassProgress(progress))
+
 /** La quota consumata dal ritiro coincide con quella che libera l'inset. */
 @Composable
 private fun rememberTopBarScrollConnection(
@@ -633,6 +639,7 @@ internal class FluidTitleMorphState(
    * [refresh] le rifa' appena il movimento finisce.
    */
   var frozen: () -> Boolean = { false }
+  var headingCompensation: () -> Float = { 0f }
 
   /** Rifa' le ancore con le coordinate che ha, appena [frozen] torna false. */
   fun refresh() = rebuildCompact()
@@ -1227,6 +1234,13 @@ private fun FluidScreenLayout(
               Modifier.background(MaterialTheme.colorScheme.background)
             },
           )
+          .then(if (minimize == null) Modifier else Modifier.drawWithContent {
+            // Il padding della LazyColumn scorre via con la prima riga. Quando la barra torna in mezzo
+            // alla lista, riserva anche nel disegno la zona realmente occupata dall'intestazione.
+            val statusPx = topBarHeight.toPx() - controlRowPx
+            val visible = fluidMinimizeListClip(statusPx, travelPx.toFloat(), searchHeightPx, minimize.progress)
+            clipRect(top = visible.coerceAtMost(size.height)) { this@drawWithContent.drawContent() }
+          })
           .graphicsLayer { translationY = contentTranslation() },
         state = listState,
         flingBehavior = if (minimize == null) flingBehavior else platformFling,
@@ -1307,8 +1321,17 @@ private fun FluidScreenLayout(
     )
     }
 
-    if (minimize != null && (largeTitle || pinnedSearch != null)) {
+    if (minimize != null) {
       val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+      if (LocalFluidPageBar.current != null) {
+        // L'host disegna i comandi sopra le pagine. La striscia che campiona il corpo deve
+        // invece stare sotto l'editor fissato, come nella schermata autonoma.
+        val scrollEdge = fluidChromeScrollEdge()
+        val shade = if (scrollEdge) rememberFluidScrollEdgeShade(chromeBackdrop) else NoScrollEdgeShade
+        Box(Modifier.fillMaxWidth().height(fluidTopBarChromeHeight(statusBarHeight, scrollEdge))) {
+          FluidTopBarBackground(scrollEdge, chromeBackdrop, GlassDefaults.barTint(), { glassIntensity.value }, null, shade = shade)
+        }
+      }
       Box(Modifier.fillMaxSize().padding(top = statusBarHeight).clipToBounds()) {
         if (largeTitle) {
           val freeSpacePx = with(density) { FluidScreenDefaults.TitleBottomSpacing.toPx() } + titleGapPx
@@ -1362,6 +1385,10 @@ private fun FluidScreenLayout(
 @Composable
 internal fun FluidTitleMorphState.FollowPageHost() {
   val pageTransition = LocalFluidPageTransition.current
+  val page = LocalFluidPageBar.current?.page
+  headingCompensation = remember(pageTransition, page) {
+    { if (page != null && pageTransition != null) pageTransition.headingCompensation(page) else 0f }
+  }
   val routeFront = LocalFluidRouteFront.current
   frozen = if (pageTransition == null) {
     { false }
@@ -1700,6 +1727,7 @@ internal fun FluidLargeTitle(
   Column(
     modifier = Modifier
       .fillMaxWidth()
+      .graphicsLayer { translationX = morphState.headingCompensation() }
       .padding(
         top = FluidScreenDefaults.TitleTopSpacing,
         bottom = FluidScreenDefaults.TitleBottomSpacing,

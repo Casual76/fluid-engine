@@ -126,15 +126,17 @@ class FluidPageInterruptTest(
     }
   }
 
-  @Test fun reducedMotionStillSettlesSynchronously() {
+  @Test fun reducedMotionCrossfadesPushAndPopOnTheSpot() {
     Rig(transition, direction).use { rig ->
       rig.state.reducedMotion = true
       rig.stack(listOf("root", "detail"))
-      assertFalse(rig.state.isMoving)
-      assertEquals("detail", rig.state.upper)
+      assertTrue(rig.state.crossfading)
+      rig.assertFrame(Frame(0f, 0f, 1f))
+      rig.finish("detail")
       rig.stack(listOf("root"))
-      assertFalse(rig.state.isMoving)
-      assertEquals("root", rig.state.upper)
+      assertTrue(rig.state.crossfading)
+      rig.assertFrame(Frame(0f, 0f, 1f))
+      rig.finish("root")
     }
   }
 
@@ -216,6 +218,7 @@ class FluidPageInterruptTest(
           assertEquals(FluidPageHostState.Phase.Idle, state.phase)
           assertEquals(0f, state.velocity, VelocityTolerance)
           assertEquals(requested.toSet(), retained)
+          settled = 0 // Il prossimo movimento deve rilasciare le proprie voci soltanto a riposo.
           return
         }
         assertEquals("le voci si liberano solo a riposo", 0, settled)

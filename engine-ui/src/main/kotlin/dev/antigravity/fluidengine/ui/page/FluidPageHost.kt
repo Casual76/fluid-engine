@@ -342,7 +342,7 @@ private fun <K : Any> PageLayer(
         if (isUpper && state.pendingPlacement == page) {
           Modifier.onGloballyPositioned {
             if (state.pendingPlacement == page) {
-              fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page) }
+              fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page, System.nanoTime()) }
             }
           }
         } else Modifier,
@@ -427,6 +427,10 @@ private fun Modifier.pageLayer(
   shadowElevation = 0f
   when {
     role == PageRole.Gone -> Unit
+    state.crossfading -> {
+      // Si sfuma solo lo strato sopra: due alfa complementari lascerebbero trasparire il fondo dell'host.
+      alpha = if (role == PageRole.Upper) 1f - state.frontFraction() else 1f
+    }
     peer -> {
       if (role == PageRole.Upper) {
         if (state.peerTime < 1f) signals.markMoving()

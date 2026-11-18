@@ -198,6 +198,7 @@ class FluidPageInputInterruptTest(
 
     fun pushTo(fraction: Float) {
       state.onStack(listOf("root", "detail"))
+      state.pagePlaced("detail")
       repeat(2000) {
         nanos += 1_000_000L
         clock.sendFrame(nanos)

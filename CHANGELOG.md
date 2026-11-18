@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Pagine (F4A.7). La molla del push parte dopo il primo posizionamento della pagina entrante, così la sua misura iniziale non consuma la prima parte della corsa.
+
 - Pagine e barre (F4A, crash). Al ritorno di pagina la chrome non registra più la pagina in un layer già rilasciato da Compose: il ciclo di RenderNode che chiudeva l'app sul RenderThread (stack overflow in libhwui) non si forma più.
 
 - Piano flottante e barre (F3-RIF4). Le tinte sfumano nel collo e le icone mantenute hanno un solo posto anche fra pagine. Nelle inversioni la capsula conserva il varco e recupera la scritta già presente. Al passaggio sul palco il tasto eredita il diametro premuto. I pannelli dell’Assistente riservano spazio al vetro ancora visibile.

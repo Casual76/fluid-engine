@@ -174,6 +174,7 @@ class FluidPageInterruptTest(
       retained.addAll(pages)
       requested = pages
       state.onStack(pages)
+      pages.lastOrNull()?.let(state::pagePlaced)
     }
 
     fun tick(step: Long = 8_333_333L) { nanos += step; clock.sendFrame(nanos) }

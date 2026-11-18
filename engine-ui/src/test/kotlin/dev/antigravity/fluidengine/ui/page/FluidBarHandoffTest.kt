@@ -260,6 +260,7 @@ class FluidBarHandoffTest {
     // 3. Effetti e posizionamento: la pila nuova (host), poi il `SideEffect` della barra (le chiavi viste, il viaggio).
     // La superficie è posizionata, e il suo nodo attaccato, solo se questa composizione l'ha messa.
     afterComposition()
+    composedPages.firstOrNull()?.let(state::pagePlaced)
     journey.backKeys = composedBackKeys
     journey.knownPages = composedPages.toSet()
     stageComposed = composedMoving
@@ -303,8 +304,7 @@ class FluidBarHandoffTest {
       // Il caso ripreso sul tablet (log della barra, push B→C): dopo la pila nuova la superficie che viaggia è composta e
       // posizionata (il suo `onGloballyPositioned` chiama `recompute`) prima della composizione del fotogramma lungo, che
       // trova il viaggio pronto (`act=true`) con le `backKeys` e le pagine note di una composizione prima.
-      // E la molla dell'host è già partita: sul dispositivo il fotogramma lungo è la composizione della pagina nuova, che
-      // viene dopo i richiami dei fotogrammi; la forma vi arriva in viaggio (nel log m = 0,05).
+      // Nel push nuovo la molla aspetta il posizionamento della pagina; nei ritorni la pagina è già pronta.
       clock.sendFrame(nanos)
       stageComposed = true
       journey.node = stage

@@ -265,6 +265,7 @@ class FluidPageBarModelTest {
     fun stack(pages: List<Any>) {
       requested = pages
       state.onStack(pages)
+      pages.lastOrNull()?.let(state::pagePlaced)
     }
 
     fun tick(step: Long = 8_333_333L) {

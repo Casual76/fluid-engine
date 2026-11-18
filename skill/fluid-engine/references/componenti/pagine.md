@@ -248,6 +248,8 @@ FluidPageHost(stack = stack, onBack = { stack = stack.dropLast(1) }) { key ->
 
 ## FluidPageHostState
 
+Nel push autonomo la destinazione prende subito i comandi e si prepara fuori campo. La molla parte dopo il suo primo posizionamento, con la corsa intera. Un ritorno alla pagina di partenza durante questa preparazione la lascia in vista. Il movimento ridotto porta subito a riposo.
+
 **Cos'e'.** Lo stato di un host: cosa si sta muovendo, quanto, e se c'e' un dito. **Si legge, non si scrive** (lo pilotano la pila, il dito e il back di sistema). Si crea con `rememberFluidPageHostState()` (uno per host) e si passa a `FluidNavHost`/`FluidPageHost` per leggerlo da fuori
 (le shell: la tab bar che cambia visibilita' fra due pagine).
 

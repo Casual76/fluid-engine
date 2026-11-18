@@ -13,6 +13,7 @@ class FluidPageInteractionTest {
     state.onStack(listOf("root", "detail"))
     assertTrue(state.isMoving)
     assertEquals("detail", state.interactionPage)
+    state.pagePlaced("detail")
     state.onStack(listOf("root"))
     assertTrue(state.isMoving)
     assertEquals("root", state.interactionPage)

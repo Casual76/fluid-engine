@@ -199,6 +199,8 @@ class FluidPageHostState internal constructor() {
   private var dragToken = 0
   private var processed by mutableStateOf<List<Any>>(emptyList())
   private var job: Job? = null
+  internal var pendingPushPage: Any? by mutableStateOf(null)
+    private set
 
   /** Il riconoscitore segue un dito che un figlio si e' preso: uno scorrimento puo' passargli la mano. */
   internal var handoffWatcher = false
@@ -296,10 +298,21 @@ class FluidPageHostState internal constructor() {
     show(FluidPageMove.Push, from = from, to = to)
     travelPx = exitTravel()
     phase = Phase.Pushing
+    if (reducedMotion) settle() else pendingPushPage = to
+  }
+
+  /** La prima misura può comporre tutta la pagina. Il suo tempo precede lo zero della molla. */
+  internal fun pagePlaced(page: Any) {
+    if (pendingPushPage != page) return
+    pendingPushPage = null
     animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
   }
 
   private fun beginPop(from: Any, to: Any) {
+    if (pendingPushPage == from && lower == to) {
+      settle()
+      return
+    }
     if (upper == from && (phase == Phase.Committing || phase == Phase.Dragging || phase == Phase.Cancelling)) {
       // Il pop del gesto stesso (onBack l'ha appena chiesto), o la pagina tolta da altrove mentre
       // il dito la teneva: la molla continua da dove e', con la velocita' che ha.
@@ -388,6 +401,7 @@ class FluidPageHostState internal constructor() {
 
   private fun settle(notify: Boolean = true) {
     val top = processed.lastOrNull()
+    pendingPushPage = null
     phase = Phase.Idle
     show(FluidPageMove.None, from = null, to = null)
     isInteractive = false
@@ -410,6 +424,7 @@ class FluidPageHostState internal constructor() {
     initialVelocity: Float,
     onEnd: () -> Unit,
   ) {
+    pendingPushPage = null
     job?.cancel()
     job = null
     val scope = scope
@@ -469,6 +484,7 @@ class FluidPageHostState internal constructor() {
     val handOver = takeOver && phase == Phase.Dragging
     if (!handOver && !canStartGesture()) return null
     val interruptPush = phase == Phase.Pushing && resumesTravelOnDrag()
+    pendingPushPage = null
     if (handOver || phase == Phase.Cancelling || interruptPush) {
       // Ripresa al volo: corsa, verso e pagine restano quelli di prima.
       job?.cancel()

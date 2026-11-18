@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -78,6 +79,7 @@ import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import dev.antigravity.fluidengine.ui.fluid.FluidRouteSignal
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassTraced
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
@@ -336,6 +338,15 @@ private fun <K : Any> PageLayer(
   Box(
     modifier = Modifier
       .fillMaxSize()
+      .then(
+        if (isUpper && state.pendingPushPage == page) {
+          Modifier.onGloballyPositioned {
+            if (state.pendingPushPage == page) {
+              fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page) }
+            }
+          }
+        } else Modifier,
+      )
       .pageLayer(state, page, shadowColor, elevationPx, signals)
       .then(if (pageColor.isSpecified) Modifier.background(pageColor) else Modifier)
       .pageInputGate(state, page)

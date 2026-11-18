@@ -5,6 +5,14 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidAdaptiveNavigation.kt`
+
+- `@Composable fun FluidAdaptiveNavigation(items: List<FluidTabItem>, selectedRoute: String?, onSelect: (FluidTabItem) -> Unit, modifier: Modifier = Modifier, onReselect: (FluidTabItem) -> Unit = {}, content: @Composable (PaddingValues) -> Unit)` — Mantiene una sola dichiarazione delle destinazioni quando la finestra cambia misura. La pagina resta composta, la rotta appartiene all'app e la preferenza per il pannello sopravvive alla ricreazione dell'Activity. Il contenuto riceve gli spazi liberi sopra e sotto e viene disposto accanto alla colonna. Su immagini e fondali a tutta larghezza [fluidBackgroundExtension] continua la pagina sotto il vetro.
+
+## `engine-ui/ui/fluid/FluidBackgroundExtension.kt`
+
+- `fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifier` — Continua un'immagine sotto la navigazione laterale mantenendo nitida e intera la sua parte visibile. Applicarlo al fondale, prima del suo disegno. Lo spazio di [FluidAdaptiveNavigation] segue il vetro; [start] e [end] permettono di servire anche un pannello o un ispettore disposti dall'app.
+
 ## `engine-ui/ui/fluid/FluidFloatingCapsule.kt`
 
 - `enum class FluidFloatingCapsulePlacement` — Dove sta una [FluidFloatingCapsule] rispetto alla barra di navigazione flottante.

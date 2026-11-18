@@ -40,7 +40,7 @@ UI_FLUID_FILES = {
     # le barre di navigazione e di azione
     "barre": [
         "FluidFloatingTabBar", "FluidFoldingTabBar", "FluidTabBar", "FluidFloatingCapsule",
-        "FluidSearchField",
+        "FluidSearchField", "FluidAdaptiveNavigation", "FluidBackgroundExtension",
         # il contratto della ricerca (F4A.1: solo dichiarazioni; F4A.2 la cabla, F4B.2 la riscrive)
         "FluidSearch",
     ],
@@ -72,6 +72,8 @@ UI_FLUID_FILES = {
         # `FluidGlassModal.kt` spezzato in sette file (F5A.0): portale, host, scrim, finestra ancorata, foglio, riga sollevata, menu contestuale
         "FluidGlassModalPortal", "FluidGlassModalHost", "FluidGlassModalScrim", "FluidGlassModalPopover",
         "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu",
+        # il foglio di vetro con i detent (F5B.2)
+        "FluidGlassSheet",
         "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
         "FluidPromptAlert", "FluidNotification", "FluidDrawer", "FluidDateTimeSheet",

@@ -25,6 +25,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
+import dev.antigravity.fluidengine.ui.glass.field.LocalFluidGlassMotionLight
 import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
@@ -50,7 +51,9 @@ internal fun SettingsTab(
   bottomInset: Dp,
   settings: EngineSettings,
   onSettingsChange: (EngineSettings) -> Unit,
+  onGlassMotionLightChange: ((Boolean) -> Unit)? = null,
 ) {
+  val glassMotionLight = LocalFluidGlassMotionLight.current
   FluidScreen(
     title = "Impostazioni",
     subtitle = "Aspetto, canvas ambientale, contenuto in vetro, e i crediti.",
@@ -62,6 +65,8 @@ internal fun SettingsTab(
     fluidAppearanceSection(
       settings = settings,
       onSettingsChange = onSettingsChange,
+      glassMotionLight = glassMotionLight,
+      onGlassMotionLightChange = onGlassMotionLightChange,
       glass = true,
       footnote = "Il tema chiaro serve per giudicare il bordo del vetro che si trasforma: sul chiaro " +
         "è scuro, sullo scuro è la metà più tenue.",

@@ -2,10 +2,13 @@ package dev.antigravity.fluidengine.sample.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,7 +17,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
@@ -23,6 +28,7 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
 import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
 import dev.antigravity.fluidengine.ui.fluid.FluidConfirmSheet
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
@@ -31,6 +37,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPromptValidation
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
+import dev.antigravity.fluidengine.ui.fluid.FluidSheetTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
 import dev.antigravity.fluidengine.ui.fluid.fluidPromptNotBlank
@@ -48,7 +56,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 
 /** Quale foglio o avviso della demo e' aperto: uno solo alla volta, come in una schermata vera. */
-private enum class DemoOverlay { Confirm, Destroy, Rename, Calibrate }
+private enum class DemoOverlay { Confirm, Destroy, Rename, Calibrate, GlassSheet, SmallSheet, FadeSheet }
 
 /**
  * Le righe e i fogli della fase 12b, in una pagina: quello che cinque app si erano scritto da sole.
@@ -60,7 +68,10 @@ private enum class DemoOverlay { Confirm, Destroy, Rename, Calibrate }
  *    accento e la pagina si rimette i colori. Il vetro e' l'unico campo che `EngineSettings` non ha,
  *    e qui e' un interruttore della demo;
  *  * **Fogli**: `FluidConfirmSheet` (semplice e distruttivo, con un corpo) e `FluidPromptAlert` (una
- *    rinomina, e una taratura con un valore che puo' essere fuori misura).
+ *    rinomina, e una taratura con un valore che puo' essere fuori misura);
+ *  * **Foglio di vetro** (4.0, F5B.2): `FluidGlassSheet` con i detent. A meta' altezza e' vetro staccato dai bordi, in
+ *    cima e' una pagina opaca; si trascina da ogni punto, lo scorrimento della lista lo alza, la maniglia passa al detent
+ *    dopo. Uno piccolo a tre altezze, e uno che entra in dissolvenza (iOS 27 `.crossFade`).
  *
  * I fogli stanno nel `FluidGlassModalHost` della galleria: fuori da un host non si aprono (e non vanno
  * in crash), che e' la regola del portale e non un difetto della demo.
@@ -179,6 +190,29 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
             )
           }
         }
+        item(key = "glass-sheets-header") { FluidSectionHeader(title = "Foglio di vetro") }
+        item(key = "glass-sheets") {
+          FluidListGroup(glass = glassOn) {
+            FluidListRow(
+              title = "Foglio con i detent",
+              subtitle = "A meta' altezza e' vetro, in cima una pagina. Trascinalo, o tocca la maniglia.",
+              onClick = { overlay = DemoOverlay.GlassSheet },
+              modifier = Modifier.testTag("demo-glass-sheet"),
+            )
+            FluidListDivider()
+            FluidListRow(
+              title = "Foglio piccolo",
+              subtitle = "Tre altezze: 200 dp, meta', tutta.",
+              onClick = { overlay = DemoOverlay.SmallSheet },
+            )
+            FluidListDivider()
+            FluidListRow(
+              title = "Foglio in dissolvenza",
+              subtitle = "Compare al suo posto invece di salire (iOS 27).",
+              onClick = { overlay = DemoOverlay.FadeSheet },
+            )
+          }
+        }
         item(key = "sheets-result") { FluidSectionFootnote(text = "Ultimo esito: $lastResult") }
       }
 
@@ -231,6 +265,40 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         }
       }
 
+      val sheetClosed = {
+        overlay = null
+        lastResult = "Foglio chiuso"
+      }
+      val sheetRested: (FluidSheetDetent) -> Unit = { lastResult = "Foglio fermo: ${detentLabel(it)}" }
+      FluidGlassSheet(
+        visible = overlay == DemoOverlay.GlassSheet,
+        onDismissRequest = sheetClosed,
+        detents = remember { setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+        onSelectedDetentChange = sheetRested,
+        paneTitle = "Luoghi",
+      ) {
+        DemoPlacesSheet(glass = glassOn)
+      }
+      FluidGlassSheet(
+        visible = overlay == DemoOverlay.SmallSheet,
+        onDismissRequest = sheetClosed,
+        detents = remember { setOf(FluidSheetDetent.Height(200.dp), FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+        onSelectedDetentChange = sheetRested,
+        paneTitle = "Luoghi",
+      ) {
+        DemoPlacesSheet(glass = glassOn)
+      }
+      FluidGlassSheet(
+        visible = overlay == DemoOverlay.FadeSheet,
+        onDismissRequest = sheetClosed,
+        detents = remember { setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+        onSelectedDetentChange = sheetRested,
+        transition = FluidSheetTransition.CrossFade,
+        paneTitle = "Luoghi",
+      ) {
+        DemoPlacesSheet(glass = glassOn)
+      }
+
       if (overlay == DemoOverlay.Rename) {
         FluidPromptAlert(
           title = "Rinomina",
@@ -264,6 +332,51 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
     }
   }
 }
+
+/** Il nome di un detent, per l'esito della demo. */
+private fun detentLabel(detent: FluidSheetDetent): String = when (detent) {
+  FluidSheetDetent.Medium -> "a meta'"
+  FluidSheetDetent.Large -> "in cima"
+  is FluidSheetDetent.Fraction -> "al ${(detent.fraction * 100).toInt()}%"
+  is FluidSheetDetent.Height -> "a ${detent.height.value.toInt()} dp"
+}
+
+/**
+ * Il contenuto dei fogli di vetro della demo: un titolo e una lista di luoghi che scorre, come il foglio di Apple
+ * della sessione 323 («Select landmarks»). La lista scorre sotto il titolo; finche' il foglio non e' in cima, lo
+ * scorrimento verso l'alto alza il foglio.
+ */
+@Composable
+private fun ColumnScope.DemoPlacesSheet(glass: Boolean) {
+  Text(
+    text = "Scegli i luoghi",
+    style = MaterialTheme.typography.titleMedium,
+    textAlign = TextAlign.Center,
+    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).align(Alignment.CenterHorizontally),
+  )
+  Column(
+    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+    verticalArrangement = Arrangement.spacedBy(4.dp),
+  ) {
+    DemoPlaces.forEach { (region, places) ->
+      FluidSectionHeader(title = region)
+      FluidListGroup(glass = glass) {
+        places.forEachIndexed { index, place ->
+          if (index > 0) FluidListDivider()
+          FluidListRow(title = place, subtitle = region, disclosure = false)
+        }
+      }
+    }
+  }
+}
+
+private val DemoPlaces: List<Pair<String, List<String>>> = listOf(
+  "Asia" to listOf("Everest", "Fuji", "Wulingyuan"),
+  "Africa" to listOf("Deadvlei", "Sahara", "Serengeti"),
+  "Antartide" to listOf("Isole Shetland Meridionali"),
+  "Oceania" to listOf("Grande barriera corallina", "Uluru"),
+  "Europa" to listOf("Dolomiti", "Cinque Terre", "Etna"),
+)
 
 /** Un valore tra 20 e 140, con la virgola o con il punto: vuoto tace, fuori misura lo dice. */
 private fun validateReading(text: String): FluidPromptValidation {

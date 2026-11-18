@@ -1,5 +1,32 @@
 # Barre di navigazione e di azione
 
+## La stessa navigazione su telefono e tablet
+
+`FluidAdaptiveNavigation` dispone le stesse `FluidTabItem` secondo la larghezza disponibile. Sotto 600 dp usa
+`FluidFloatingTabBar`. Da 600 a meno di 1000 dp usa `FluidTabRail`. Da 1000 dp parte con una capsula centrata in alto.
+Il suo tasto porta la capsula al fianco iniziale della finestra e la apre in una colonna flottante e monocroma.
+Il tasto della colonna ripercorre il viaggio al contrario. La posizione di ciascuna voce e il margine della pagina
+seguono il vetro del piano flottante. Una seconda pressione può cambiare direzione durante la corsa.
+
+L'app possiede `selectedRoute` e reagisce a `onSelect` o `onReselect`. La scelta del pannello si salva con l'Activity e
+ritorna quando la finestra riacquista spazio. Il contenuto riceve un `PaddingValues` per tenere i controlli fuori
+dalla navigazione superiore o inferiore. Il contenitore riserva da sé lo spazio laterale e registra il fondale per il vetro.
+Applicare gli inset di sistema al contenitore secondo la finestra dell'app.
+
+```kotlin
+FluidAdaptiveNavigation(tabs, route, { route = it.route }) { insets ->
+  Box(Modifier.fillMaxSize()) {
+    Image(painter, null, Modifier.fillMaxSize().fluidBackgroundExtension(), contentScale = ContentScale.Crop)
+    Column(Modifier.padding(insets)) { Dettaglio(route) }
+  }
+}
+```
+
+`fluidBackgroundExtension` si applica all'immagine o alla decorazione a tutta larghezza, prima del suo disegno.
+Il margine iniziale viene dal contenitore. Si possono passare `start` ed `end` espliciti per un ispettore disposto
+dall'app. La copia riflessa si sfoca su Android 12 e successivi. Sui sistemi precedenti rimane il riflesso.
+Il testo della pagina resta nitido e il pannello Liquid usa il colore medio della sonda per il velo e l'ombra.
+
 Questa famiglia e' tutto cio' che galleggia di vetro in fondo allo schermo (o al fianco di una pagina larga) e ti porta
 altrove o fa qualcosa: la **tab bar flottante** (`FluidFloatingTabBar`), la sua forma da schermo largo (`FluidTabRail`),
 la **capsula di azioni** (`FluidFloatingCapsule`), il **campo di ricerca** di vetro (`FluidSearchField`) e le due barre

@@ -40,6 +40,7 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un pannello di **contenuto** che nasce da una riga o da un tasto | `FluidGlassModalPortal(origin = …)` + `Modifier.fluidExpandOrigin` |
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
+| un foglio con **altezze di riposo** (a metà, in cima), che il dito porta su e giù e che in cima diventa una pagina | `FluidGlassSheet(visible, onDismissRequest, detents = setOf(Medium, Large))` (4.0, sezione «Il foglio di vetro con i detent») |
 | una conferma («Eliminare?», «Usare i dati mobili?») | `FluidConfirmSheet` |
 | un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
 | far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
@@ -243,7 +244,7 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
 | `FluidGlassModalPresentation` | com'è | misure vere |
 |---|---|---|
 | `Popover` (di serie) | **con** `origin`: la sagoma parte dal rettangolo esatto dell'ancora, il pannello si posa *sopra* di lei (il bordo da cui si allontana resta fermo); **senza**: al centro, da un seme a 0,42 | largo quanto serve fino a 360 dp con origine (620 dp senza), mai oltre lo schermo meno 16 dp per lato; alto al più il 78% dell'host meno i margini; raggio `FluidRadius.Group` (22 dp) |
-| `Sheet` | dal basso, a tutta larghezza, con grabber, trascinabile **da qualunque punto** (negoziato col contenuto scorrevole via nested scroll) | larghezza ≤ 620 dp (poi sta in mezzo), altezza ≤ 640 dp, angoli alti `FluidRadius.Sheet` (38 dp); si chiude oltre 110 dp di trascinamento o 900 dp/s di spinta |
+| `Sheet` | dal basso, a tutta larghezza, con grabber, trascinabile **da qualunque punto** (negoziato col contenuto scorrevole via nested scroll). Con un `FluidGlassSheet` (4.0) ha i detent, è una lastra di vetro **staccata dai bordi** con gli angoli bassi concentrici allo schermo e a tutta altezza diventa opaca; dal portale resta il foglio di sempre | larghezza ≤ 620 dp (poi sta in mezzo), altezza ≤ 640 dp, angoli alti `FluidRadius.Sheet` (38 dp); si chiude oltre 110 dp di trascinamento o 900 dp/s di spinta |
 | `FullScreen` | una pagina intera: barra in alto (titolo al centro, chiusura di vetro a destra), corpo che **scorre da solo**, `footer` fermo sotto, congedo trascinando | **opaca** (`surface`, o `pageColor`, o `surface` col 8% della tinta): una pagina non galleggia, copre. Da 600 dp di larghezza si stacca: margine 24 dp, larghezza di lettura (760 dp), angoli tutti tondi. Dentro non va una `LazyColumn` |
 | `Expand` | come `Popover` con origine, ma a capsula (il raggio d'inizio è metà dell'altezza dell'ancora) e con la larghezza di un menu (210–300 dp). Senza azioni (e dal portale non ce ne sono) presenta il `content` | per i tasti che «diventano» un pannello |
 | `ContextMenu` | cresce **accanto** all'ancora (mai sopra: la riga sollevata sta lì), senza tinta | come `Expand`. Dal portale è raro: i menu veri passano da `rememberFluidContextMenu` |
@@ -306,6 +307,82 @@ per ciò che il modale ha preso in prestito), `dismissTop()` (chiude la più rec
 `rememberFluidGlassModalHostState()`.
 
 ## Fogli e conferme
+
+### Il foglio di vetro con i detent (`FluidGlassSheet`, 4.0)
+
+**Cos'è.** Il foglio di iOS 26/27 (`sheet` + `presentationDetents` + `presentationDragIndicator`): sale dal basso, si
+ferma a delle altezze di riposo (i **detent**), si trascina da ogni punto, e cambia materiale con l'altezza. Sotto c'è il
+portale con `presentation = Sheet`: serve l'host, e senza host non si apre (non va in crash).
+
+```kotlin
+fun FluidGlassSheet(
+  visible: Boolean,
+  onDismissRequest: () -> Unit,
+  detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large),   // Medium, Large, Fraction(f), Height(dp)
+  selectedDetent: FluidSheetDetent? = null,          // la scelta dell'app, se la vuole: cambiarla porta il foglio lì
+  onSelectedDetentChange: (FluidSheetDetent) -> Unit = {},
+  dragIndicator: Boolean = true,                     // la maniglia
+  transition: FluidSheetTransition = FluidSheetTransition.Slide,   // o CrossFade (iOS 27)
+  paneTitle: String? = null,
+  paneTint: Color? = null,
+  content: @Composable ColumnScope.() -> Unit,
+)
+// e la forma a dato: FluidGlassSheet(item: T?, onDismissRequest, …) { item -> … }
+```
+
+**Uso** (da `RowsAndSheetsDemo`):
+
+```kotlin
+FluidGlassSheet(
+  visible = aperto,
+  onDismissRequest = { aperto = false },
+  detents = remember { setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+  paneTitle = "Luoghi",
+) {
+  Text("Scegli i luoghi", style = MaterialTheme.typography.titleMedium)
+  Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { /* la lista */ }
+}
+```
+
+**Le regole che contano.**
+- **Vetro a metà, pagina in cima.** A un detent parziale il foglio è vetro (ruolo `Modal`, ottica dei pannelli) staccato
+  di 5 dp dai lati e dal fondo, con gli angoli bassi **concentrici** a quelli del display (raggio del display meno il
+  rientro, mai sotto 18 dp; su un tablet, dove il foglio sta in mezzo, gli angoli bassi sono quelli alti). Salendo
+  verso `Large` il rientro si chiude nella metà alta del tratto fra il detent parziale più alto e la cima, e un velo del
+  colore della pagina (`surface`: bianco, #1B1B1E sullo scuro) cresce fino a opaco **in continuo** nell'ultimo decimo
+  del tratto, inseguendo l'altezza con 60 ms di ritardo: è ciò che fa il foglio di Apple (WWDC25 323, 6:47), dove i lati
+  si aprono dalla metà del tratto e il bianco arriva subito dopo il foglio (vetro fino a 33 ms dopo l'arrivo, pieno a
+  ≈170 ms).
+- **Le altezze.** `Large` arriva fin sotto la barra di stato (6 dp sotto); `Medium` è il 52% della finestra (misurato su
+  Apple); `Fraction(f)` è una frazione di `Large`; `Height(dp)` un'altezza fissa del foglio. Tutte fra 64 dp e `Large`.
+  Il foglio si apre al detent più basso, o a `selectedDetent`.
+- **Il dito.** Il foglio segue il dito al pixel anche fra un detent e l'altro; sopra il detent più alto tira con
+  l'elastico di UIKit; sotto il più basso scende intero e si chiude oltre 110 dp o con un colpo giù oltre 900 dp/s
+  partito dalla metà bassa del primo tratto (dalla cima un colpo lo porta al detent più basso, non fuori). Al rilascio
+  va al detent più vicino a dove lo slancio lo porterebbe in 0,15 s: salendo con una molla che supera appena (0,8 / 290:
+  95% a 200 ms, punta di 1,5% a 310 ms, sulla curva del foglio di Apple, R4 B8), scendendo con la stessa rigidezza e lo
+  smorzamento critico (il foglio di Apple che si richiude non rimbalza). Un dito che lo riprende mentre si muove ferma la
+  molla dov'è.
+- **Lo scorrimento.** Il contenuto è una colonna alta quanto il foglio (sopra la barra di navigazione): una lista con
+  `Modifier.weight(1f)` ci scorre dentro. Finché il foglio non è al detent più alto, scorrere verso l'alto **alza il
+  foglio** invece della lista; a lista in cima, scorrere verso il basso lo abbassa.
+- **La maniglia.** 36 × 5 dp in cima; toccata passa al detent successivo (dall'ultimo al primo). `dragIndicator = false`
+  la nasconde (lo spazio in cima resta).
+- **Il dito si vede.** Il foglio premuto si schiarisce attorno al dito (velo bianco al 9%, 6% sullo scuro) e la lente
+  si approfondisce (la pressione del materiale), come il foglio di Apple prima di muoversi.
+- **La pagina sotto non si muove.** iOS 26 non fa più rientrare la pagina che presenta il foglio (323 f12225, 284
+  f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce lo scrim dei modali.
+- **In dissolvenza** (`FluidSheetTransition.CrossFade`, iOS 27 `.crossFade`): il foglio compare al suo posto con la
+  molla d'entrata letta come opacità. Apple non lo mostra in nessun video: tempi a occhio.
+
+**Il foglio di oggi resta com'era.** Un portale `Sheet` (e `FluidConfirmSheet`, `FluidSheet` con l'host, il foglio data e
+ora) è ancora alto quanto il contenuto e a filo dei bordi: il rientro stringerebbe il contenuto delle app di 10 dp, e un
+contenuto che non scorre e sta vicino al tetto di 640 dp andrebbe a capo e perderebbe il fondo. Il foglio staccato è
+quello di `FluidGlassSheet`.
+
+**Non c'è ancora** (chiede l'host o il portale, che sono di F5B.1): `undimmedUpTo` (niente scrim fino a un detent, la
+pagina sotto toccabile), la sorgente dello zoom (`source`, F5B.3).
+
 
 ### `FluidSheetScaffold`
 
@@ -720,6 +797,10 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
 - `FluidDrawerRulesTest` (`engine-ui`, 12) e `FluidDrawerTest` (`sample`, 17; 3.1.0): la larghezza (85% al massimo, mai negativa), il rilascio con la regola del back delle pagine (lento = distanza, spinta = chiude, contraria = tiene
   aperto), lo stato che salva solo «aperto o chiuso»; poi il comportamento: si apre col tasto e si chiude toccando la pagina oscurata, il back chiude il pannello e non la pagina, **menu → pannello → selezione → pagina**, riaperto torna
   davanti alla selezione, il dito lo segue 1:1 (anche dalla pagina oscurata) e verso destra non si muove, **nessun gesto dal bordo lo apre**, movimento ridotto, TalkBack (pagina nascosta, annuncio, «chiudi»), ricreazione, tolto da aperto.
+- `FluidGlassSheetTest` (`engine-ui`, 14): altezze dei detent, elastico e discesa intera, rilascio e chiusura, «grandezza»
+  continua, il velo che insegue, rientro, angoli concentrici, dissolvenza, le due molle (salita e discesa) sulle curve di Apple. `FluidGlassSheetUiTest` (`sample`, 4): la
+  dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano, il dito lo porta in cima e lo chiude, il
+  foglio di oggi resta com'era. Le tracce del banco: `F5b2SheetTraceTest`.
 - `FluidDateTimeMathTest` (`engine-ui`, 6) e `FluidDateTimeSheetTest` (`sample`, 10): salti e ripetizioni dell'ora legale, anni bisestili e confini di mese, primo giorno della settimana per lingua, limiti e riverifica del passato alla
   conferma, giorni locali a cavallo dell'ora legale e della mezzanotte, minuto iniziale dentro i limiti; la conferma una volta sola con la zona, l'annullo che non conferma, l'orologio riletto alla conferma, il foglio a testo grande, scuro,
   movimento ridotto e inglese, il back che annulla, lo stato che sopravvive al ripristino.
@@ -737,7 +818,8 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
 | `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`), il tetto della sfocatura |
 | `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
-| `FluidGlassModalSheet.kt` | il foglio e la pagina intera (`FluidGlassModalSheet`), la barra in cima della pagina intera, i numeri privati del foglio |
+| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici) e i suoi numeri (4.0, F5B.2) |
+| `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
 | `FluidLiftedPreview.kt` | la card sollevata del menu contestuale (`FluidLiftedPreview`): partenza dalla riga sotto il dito, l'immagine sulla sagoma (`fluidLiftContentMap`), l'anteprima personalizzata e lo scambio attraverso la sfocatura |
 | `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`) |
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso (`FluidAlertLayer`, la card, i pulsanti con la goccia) |
@@ -746,6 +828,6 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidPromptAlert.kt` | `FluidPromptAlert`, `FluidPromptValidation`, `fluidPromptNotBlank` |
 | `FluidMotion.kt` | i token (`Popover*`, `SheetSettle`, e i menu: vedi [menu-liquidi.md](menu-liquidi.md)) |
 
-Il sample che li usa: `MaterialTab.kt` (portali con e senza origine, foglio), `catalog/RowsAndSheetsDemo.kt` (conferme e
-prompt), `catalog/MenusDemo.kt` (l'avviso a due e a tre pulsanti; il contestuale con anteprima e forma), `catalog/AllGlassDemo.kt` (la pagina intera),
+Il sample che li usa: `MaterialTab.kt` (portali con e senza origine, foglio), `catalog/RowsAndSheetsDemo.kt` (conferme,
+prompt e i fogli di vetro con i detent), `catalog/MenusDemo.kt` (l'avviso a due e a tre pulsanti; il contestuale con anteprima e forma), `catalog/AllGlassDemo.kt` (la pagina intera),
 `GalleryActivity.kt` (la radice con i tre host).

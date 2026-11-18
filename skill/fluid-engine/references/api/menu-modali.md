@@ -61,6 +61,17 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun <T : Any> FluidGlassModalPortal(item: T?, onDismissRequest: () -> Unit, origin: () -> Rect? = { null }, presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover, paneTitle: String? = null, paneTint: Color? = null, footer: (@Composable ColumnScope.(T) -> Unit)? = null, pageColor: Color? = null, content: @Composable ColumnScope.(T) -> Unit)` — Declares a modal that presents **an item**, and stays whole while it leaves.
 - `@Composable fun Modifier.fluidExpandOrigin(open: () -> Boolean = { false }, onMeasured: (Rect) -> Unit): Modifier` — Reports this element's bounds in root coordinates, for a modal to expand out of.
 
+## `engine-ui/ui/fluid/FluidGlassSheet.kt`
+
+- `sealed class FluidSheetDetent` — Un'altezza di riposo di un [FluidGlassSheet] (in SwiftUI `PresentationDetent`).
+  - `data object Medium : FluidSheetDetent()` — Circa metà dello schermo: il 52% della finestra, come il foglio di Apple misurato (WWDC25 323, f12203).
+  - `data object Large : FluidSheetDetent()` — Tutta l'altezza: il foglio diventa opaco e si attacca ai bordi. È il detent di serie, come in SwiftUI.
+  - `data class Fraction(val fraction: Float) : FluidSheetDetent()` — Una frazione dell'altezza di [Large], fra 0 e 1.
+  - `data class Height(val height: Dp) : FluidSheetDetent()` — Un'altezza fissa del foglio, dal suo bordo alto al fondo dello schermo.
+- `enum class FluidSheetTransition` — Come un [FluidGlassSheet] entra e se ne va.
+- `@Composable fun FluidGlassSheet(visible: Boolean, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, content: @Composable ColumnScope.() -> Unit)` — Un foglio di vetro con detent, maniglia e chiusura col dito (in SwiftUI `sheet` + `presentationDetents` + `presentationDragIndicator`).
+- `@Composable fun <T : Any> FluidGlassSheet(item: T?, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, content: @Composable ColumnScope.(T) -> Unit)` — [FluidGlassSheet] che presenta **un dato** e resta intero mentre esce: la forma a `item` del portale ([FluidGlassModalPortal]), con le stesse ragioni. Aperto quando [item] non è nullo.
+
 ## `engine-ui/ui/fluid/FluidMenu.kt`
 
 - `enum class FluidMenuOpensOn` — Quale gesto apre il menu di un tasto (3.0, fase 7).

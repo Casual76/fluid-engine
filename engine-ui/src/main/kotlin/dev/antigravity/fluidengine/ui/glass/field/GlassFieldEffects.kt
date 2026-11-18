@@ -914,6 +914,7 @@ internal fun DrawScope.drawGlassLight(
   brush: Brush,
   topLeft: Offset = Offset.Zero,
   area: Size = size,
+  reflexRotation: Float = 0f,
 ) {
   if (!inputs.drawsGlowing && !inputs.drawsRim) return
   shader.apply {
@@ -923,7 +924,12 @@ internal fun DrawScope.drawGlassLight(
     setColorUniform("rimDark", inputs.rimDark)
     setFloatUniform("rimFeather", inputs.rimFeather)
     setFloatUniform("rimLift", inputs.rimLift)
-    setFloatUniform("reflexDir", inputs.reflexDirX, inputs.reflexDirY)
+    if (reflexRotation == 0f) {
+      setFloatUniform("reflexDir", inputs.reflexDirX, inputs.reflexDirY)
+    } else {
+      val (x, y) = glassReflexDirection(inputs.reflexDirX, inputs.reflexDirY, reflexRotation)
+      setFloatUniform("reflexDir", x, y)
+    }
     setFloatUniform("reflexWidths", inputs.reflexHalfWidth, inputs.reflexOppositeHalfWidth)
     setFloatUniform("reflexStrength", inputs.reflexStrength)
     setFloatUniform("reflexDepth", inputs.reflexDepth)
@@ -1227,12 +1233,12 @@ internal class GlassLiquidSurface(
   }
 
   /** `onDrawLight` di `drawBackdrop`. */
-  val onDrawLight: DrawScope.() -> Unit = light@{
+  val onDrawLight = GlassLightDraw light@{ angle ->
     if (!fillLight(size, this, layoutDirection)) return@light
     if (!inputs.drawsGlowing && !inputs.drawsRim) return@light
     val shader = lightShader ?: return@light
     val brush = lightBrush ?: return@light
-    drawGlassLight(inputs, shader, brush)
+    drawGlassLight(inputs, shader, brush, reflexRotation = angle)
   }
 
   /**

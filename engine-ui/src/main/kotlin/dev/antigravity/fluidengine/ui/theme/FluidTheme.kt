@@ -34,6 +34,8 @@ import dev.antigravity.fluidengine.ui.fluid.fluidTypography
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSurfaceSide
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSystemContrast
+import dev.antigravity.fluidengine.ui.glass.field.LocalGlassLightEnvironment
+import dev.antigravity.fluidengine.ui.glass.field.rememberGlassLightEnvironment
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
@@ -196,6 +198,7 @@ fun FluidTheme(
     LocalFluidStatusBarSide provides statusBar,
     // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto.
     LocalFluidSystemContrast provides rememberFluidSystemContrast(),
+    LocalGlassLightEnvironment provides rememberGlassLightEnvironment(),
   ) {
     MaterialTheme(
       colorScheme = colors,

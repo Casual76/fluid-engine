@@ -26,6 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -36,6 +39,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.LocalContentColor
+
+/** Il velo raccoglie il colore medio già letto da F2 per l'ombra dello stesso pannello. */
+internal fun Modifier.sidebarContentLight(host: () -> GlassAdaptiveState?, amount: () -> Float): Modifier =
+  drawWithCache {
+    val sample = GlassAdaptiveMaterial()
+    val radius = CornerRadius(FluidRadius.Group.toPx())
+    onDrawBehind {
+      if (host()?.fill(sample)?.measured == true) {
+        drawRoundRect(sample.color.copy(alpha = .12f * amount()), cornerRadius = radius)
+      }
+    }
+  }
 
 object FluidSidebarDefaults {
   /** L'aria fra la barra e i bordi della finestra: galleggia, non e' incollata. */
@@ -90,7 +105,8 @@ fun FluidSidebar(
         shape = shape,
         role = GlassRole.Floating,
       )
-      .clip(shape),
+      .clip(shape)
+      .sidebarContentLight({ sidebarInk.state }) { 1f },
   ) {
     GlassInkContent(sidebarInk, LocalContentColor.current) {
       if (header != null) {

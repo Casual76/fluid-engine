@@ -26,6 +26,12 @@
  */
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.glass.field.GlassLightDraw
+import dev.antigravity.fluidengine.ui.glass.field.GlassLightEnvironment
+import dev.antigravity.fluidengine.ui.glass.field.LocalFluidGlassMotionLight
+import dev.antigravity.fluidengine.ui.glass.field.LocalGlassLightEnvironment
+
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -655,7 +661,17 @@ private class DrawBackdropNode(
     fun recountSurface() {
         if (isAttached) {
             census.surface(if (onDrawLight != null) FluidGlassModel.Liquid else FluidGlassModel.Classic)
+            if (onDrawLight !is GlassLightDraw) bindMotionLight(null)
         }
+    }
+
+    private var motionLight: GlassLightEnvironment? = null
+
+    private fun bindMotionLight(next: GlassLightEnvironment?) {
+        if (motionLight === next) return
+        motionLight?.removeSurface()
+        motionLight = next
+        next?.addSurface()
     }
 
     private val layoutLayerBlock: GraphicsLayerScope.() -> Unit = {
@@ -1045,7 +1061,17 @@ private class DrawBackdropNode(
         onDrawSurface?.invoke(this)
         // Fluid Engine addition (F1A.6): la luce, sopra il materiale e sotto il contenuto. Non entra
         // nell'export qui sotto: vedi `drawBackdrop(onDrawLight)`.
-        onDrawLight?.invoke(this)
+        val light = onDrawLight
+        if (light is GlassLightDraw) {
+            val environment = currentValueOf(LocalGlassLightEnvironment)?.takeIf {
+                currentValueOf(LocalFluidGlassMotionLight) && !currentValueOf(LocalFluidMotionPolicy).reducedMotion
+            }
+            // Una superficie entra in scena col suo primo draw, non durante il prefetch della lista.
+            bindMotionLight(environment)
+            light(this, environment?.angle ?: 0f)
+        } else {
+            light?.invoke(this)
+        }
         drawContent()
         onDrawFront?.invoke(this)
 
@@ -1228,6 +1254,7 @@ private class DrawBackdropNode(
      * glass stopped updating", and sometimes like "this tile has no glass at all".
      */
     override fun onReset() {
+        bindMotionLight(null)
         surfaceDirty = true
         containerDirty = true
         exportDirty = true
@@ -1240,6 +1267,7 @@ private class DrawBackdropNode(
     }
 
     override fun onDetach() {
+        bindMotionLight(null)
         cancelBeforeFrame()
         borrowed = emptyList()
         sampled = false

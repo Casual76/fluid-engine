@@ -3424,7 +3424,7 @@ private fun Tab(
             CompositionLocalProvider(
                 LocalTextStyle provides FluidFloatingTabBarDefaults.labelStyle()
             ) {
-                OneLine { FluidGlassNested { title() } }
+                FloatingTabLabel { FluidGlassNested { title() } }
             }
         }
     }
@@ -3445,7 +3445,7 @@ private fun Tab(
  * comes out is always one line's, whatever the text, so nothing here can move the bar.
  */
 @Composable
-private fun OneLine(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+internal fun FloatingTabLabel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Layout(content = content, modifier = modifier) { measurables, constraints ->
         val free = Constraints(maxHeight = constraints.maxHeight)
         val placeables = measurables.map { it.measure(free) }

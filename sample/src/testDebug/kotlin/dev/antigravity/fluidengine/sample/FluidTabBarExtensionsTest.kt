@@ -1,6 +1,27 @@
 package dev.antigravity.fluidengine.sample
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toPixelMap
+import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import dev.antigravity.fluidengine.ui.fluid.fluidBackgroundExtension
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.runtime.saveable.rememberSaveable
+import dev.antigravity.fluidengine.ui.fluid.FluidAdaptiveNavigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -133,6 +154,72 @@ class FluidTabBarExtensionsTest {
       }
     }
     compose.waitForIdle()
+  }
+
+  @Test
+  @Config(qualifiers = "w360dp-h640dp-mdpi")
+  fun backgroundExtendsOnlyTheLeadingEdgeAndKeepsTheOriginal() {
+    var direction by mutableStateOf(LayoutDirection.Ltr)
+    compose.setContent {
+      CompositionLocalProvider(LocalLayoutDirection provides direction) {
+        Box(Modifier.size(256.dp, 112.dp).background(Color.Black).testTag("fondale")) {
+          Canvas(Modifier.align(Alignment.Center).size(144.dp, 96.dp).fluidBackgroundExtension(start = 56.dp)) {
+            drawRect(Color.Red)
+            drawRect(Color.Blue, Offset(size.width / 2, 0f), Size(size.width / 2, size.height))
+          }
+        }
+      }
+    }
+    for (rtl in listOf(false, true)) {
+      compose.runOnIdle { direction = if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr }
+      val bounds = compose.onNodeWithTag("fondale").fetchSemanticsNode().boundsInWindow
+      val region = android.graphics.Rect(bounds.left.roundToInt(), bounds.top.roundToInt(),
+        bounds.right.roundToInt(), bounds.bottom.roundToInt())
+      val bitmap = Bitmap.createBitmap(region.width(), region.height(), Bitmap.Config.ARGB_8888)
+      compose.runOnIdle {
+        PixelCopy.request(compose.activity.window, region, bitmap, { result ->
+          assertEquals(PixelCopy.SUCCESS, result)
+        }, Handler(Looper.getMainLooper()))
+      }
+      val pixels = bitmap.asImageBitmap().toPixelMap()
+      val y = pixels.height / 2
+      val left = pixels[28, y]
+      val right = pixels[228, y]
+      assertTrue("originale rosso", pixels[75, y].red > .9f)
+      assertTrue("originale blu", pixels[180, y].blue > .9f)
+      assertTrue("bordo sinistro ($left, rtl=$rtl)", if (rtl) left.red < .1f else left.red > .8f)
+      assertTrue("bordo destro ($right, rtl=$rtl)", if (rtl) right.blue > .8f else right.blue < .1f)
+    }
+  }
+
+  @Test
+  @Config(qualifiers = "w1280dp-h800dp-mdpi")
+  fun adaptiveColumnAndSelectedRouteSurviveNarrowingAndRestoration() {
+    val restoration = StateRestorationTester(compose)
+    var width by mutableStateOf(1180.dp)
+    restoration.setContent {
+      var route by rememberSaveable { mutableStateOf("mail") }
+      FluidTheme(settings = remember { EngineSettings() }) {
+        Box(Modifier.width(width).height(520.dp)) {
+          FluidAdaptiveNavigation(items(), route, { route = it.route }) { Text("Pagina $route") }
+        }
+      }
+    }
+    fun bounds(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
+    val initialPage = bounds("Pagina mail").left
+    assertEquals(bounds("Posta").center.y, bounds("Chat").center.y, 1f)
+    compose.onNodeWithContentDescription("Pannello laterale").performClick()
+    assertEquals(bounds("Posta").left, bounds("Chat").left, 1f)
+    assertTrue(bounds("Chat").top > bounds("Posta").bottom)
+    assertEquals(304f, bounds("Pagina mail").left - initialPage, 1f)
+    compose.onNodeWithText("Chat").performClick()
+    compose.runOnIdle { width = 780.dp }
+    compose.onNodeWithContentDescription("Chiudi il pannello").assertDoesNotExist()
+    restoration.emulateSavedInstanceStateRestore()
+    compose.runOnIdle { width = 1180.dp }
+    compose.onNodeWithContentDescription("Chiudi il pannello").assertExists().performClick()
+    compose.onNodeWithContentDescription("Pannello laterale").assertExists()
+    assertEquals(initialPage, bounds("Pagina chat").left, 1f)
   }
 
   // --- E01: il segno sulle zone -------------------------------------------------------------------

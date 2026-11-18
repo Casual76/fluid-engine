@@ -86,6 +86,8 @@ data class FluidAppearanceStrings(
   val glassPreferenceTransparent: String = "Trasparente",
   val glassPreferenceDefault: String = "Di serie",
   val glassPreferenceColored: String = "Colorato",
+  val glassMotionLight: String = "Luce in movimento",
+  val glassMotionLightDetail: String = "I riflessi del vetro seguono l'inclinazione del dispositivo.",
 ) {
   /** Il nome di una delle tre voci di tema. [ThemeMode.AMOLED] e' "Scuro": il nero e' un interruttore. */
   fun themeLabel(mode: ThemeMode): String = when (mode) {
@@ -388,6 +390,8 @@ fun FluidAccentPicker(
  *   [glassEnabled], **il valore lo conserva l'app** (nessun campo nuovo in [EngineSettings]) e lo fornisce con
  *   `LocalFluidGlassPreference` attorno al suo contenuto. Il centro ([FluidGlassPreference.Default]) e' il vetro di
  *   serie, e il cursore ci si aggancia.
+ * @param glassMotionLight scelta dell'app per il riflesso che segue l'inclinazione. La riga compare se arriva anche
+ *   [onGlassMotionLightChange]; l'app conserva la scelta e la fornisce con `LocalFluidGlassMotionLight` al tema.
  */
 fun LazyListScope.fluidAppearanceSection(
   settings: EngineSettings,
@@ -407,6 +411,8 @@ fun LazyListScope.fluidAppearanceSection(
   haptics: Boolean = true,
   glassPreference: Float? = null,
   onGlassPreferenceChange: ((Float) -> Unit)? = null,
+  glassMotionLight: Boolean? = null,
+  onGlassMotionLightChange: ((Boolean) -> Unit)? = null,
 ) {
   // Una modifica che non cambia niente non e' una modifica: lo store non la riscrive e il flusso non
   // si muove per niente. Tocca la riga gia' scelta, ed e' il caso piu' comune di tutti.
@@ -466,7 +472,8 @@ fun LazyListScope.fluidAppearanceSection(
     glassRow = glassEnabled != null && onGlassEnabledChange != null,
     haptics = haptics,
   )
-  if (switchRows.isNotEmpty()) item(key = "$keyPrefix-switches") {
+  val showMotionLight = glassMotionLight != null && onGlassMotionLightChange != null
+  if (switchRows.isNotEmpty() || showMotionLight) item(key = "$keyPrefix-switches") {
     FluidListGroup(glass = glass) {
       switchRows.forEachIndexed { index, row ->
         if (index > 0) FluidListDivider()
@@ -489,6 +496,15 @@ fun LazyListScope.fluidAppearanceSection(
             FluidHapticsPreview(enabled = settings.hapticsEnabled)
           }
         }
+      }
+      if (glassMotionLight != null && onGlassMotionLightChange != null) {
+        if (switchRows.isNotEmpty()) FluidListDivider()
+        FluidToggleRow(
+          title = strings.glassMotionLight,
+          subtitle = strings.glassMotionLightDetail,
+          checked = glassMotionLight,
+          onCheckedChange = onGlassMotionLightChange,
+        )
       }
     }
   }

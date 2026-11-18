@@ -110,6 +110,7 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    * il dito. Vedi `toolbar/ToolbarPagesPage.kt`. Si apre con `--es gallery.page toolbarpages`.
    */
   ToolbarPages("Barre fra pagine"),
+  TabletNavigation("Navigazione adattiva"),
 
   /**
    * Liste, campi e stepper (piano «iOS in Android», F6.6): le azioni a scorrimento con l'aspetto di iOS 27 (e il

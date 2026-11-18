@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -50,6 +51,7 @@ import dev.antigravity.fluidengine.sample.material.rememberGalleryGlassSwitches
 import dev.antigravity.fluidengine.sample.measure.MeasurePage
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModel
+import dev.antigravity.fluidengine.ui.glass.field.LocalFluidGlassMotionLight
 import dev.antigravity.fluidengine.sample.playground.PlaygroundTab
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import androidx.compose.animation.core.animateFloatAsState
@@ -146,22 +148,28 @@ class GalleryActivity : ComponentActivity() {
       // Le impostazioni stanno sopra il tema, non dentro una scheda: "Aspetto" le cambia davvero, e
       // il tema chiaro serve per giudicare il bordo del vetro che si trasforma.
       var settings by remember { mutableStateOf(launch.settings()) }
+      var glassMotionLight by rememberSaveable { mutableStateOf(false) }
       val nav = remember { GalleryNav(launch.stack()) }
       val matrix = remember { launch.matrix() }
       val glass = rememberGalleryGlassSwitches(glassLaunch)
       CompositionLocalProvider(
         LocalGalleryGlassSwitches provides glass.takeIf { debuggable },
         LocalFluidGlassModel provides glass.model,
+        LocalFluidGlassMotionLight provides glassMotionLight,
       ) {
         // Un cambio di livello simulato o di manopole fa rinascere tutta la galleria: una superficie sceglie vetro e
         // profilo quando nasce. Pila, impostazioni e interruttori stanno sopra la chiave, e restano.
         key(glass.epoch) {
-          FluidTheme(settings = settings) {
-            // La policy del movimento si installa in radice, come la skill raccomanda alle app: `FluidTheme` non lo
-            // fa, e senza questo con le animazioni di sistema a zero la pillola si ripiegava ancora animata. Sotto,
-            // la matrice «movimento ridotto» (`MatrixScope`) la forza a zero, altrimenti riparte da questa.
-            FluidMotionPolicyProvider {
-              Gallery(settings = settings, onSettingsChange = { settings = it }, nav = nav, matrix = matrix)
+          // Il tema e le superfici leggono la stessa policy, anche quando la scala di sistema cambia.
+          FluidMotionPolicyProvider {
+            FluidTheme(settings = settings) {
+              Gallery(
+                settings = settings,
+                onSettingsChange = { settings = it },
+                nav = nav,
+                matrix = matrix,
+                onGlassMotionLightChange = { glassMotionLight = it },
+              )
             }
           }
         }
@@ -192,6 +200,7 @@ internal fun Gallery(
   nav: GalleryNav = remember { GalleryNav(GalleryNav.Launch) },
   tools: GalleryTools = SharedGalleryTools,
   matrix: GalleryMatrix = remember { GalleryMatrix() },
+  onGlassMotionLightChange: ((Boolean) -> Unit)? = null,
 ) {
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
   // La matrice degli stati: vale solo sulle pagine dei componenti nuovi (e sugli host della radice mentre una
@@ -319,6 +328,7 @@ internal fun Gallery(
               // La barra dichiarata (F4A.2): `toolbar.scene`, `toolbar.auto`.
               GalleryPage.Toolbar -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPage(bottomInset) { nav.back() }
               // La barra dichiarata fra pagine (F4A.3): `pages.auto`, `pages.follow`, `pages.start`.
+              GalleryPage.TabletNavigation -> dev.antigravity.fluidengine.sample.bottom.TabletNavigationPage()
               GalleryPage.ToolbarPages -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPagesPage(bottomInset) { nav.back() }
               // Liste, campi e stepper (F6.6): `listsforms.swipe fill` apre con le azioni a scorrimento di prima.
               GalleryPage.ListsForms -> dev.antigravity.fluidengine.sample.listsforms.ListsFormsPage(bottomInset) { nav.back() }
@@ -355,7 +365,7 @@ internal fun Gallery(
                 RoutePlayground -> PlaygroundTab(bottomInset)
                 RouteControls -> ControlsTab(bottomInset)
                 RouteChrome -> ChromeTab(bottomInset, onOpen = { nav.open(it) })
-                RouteSettings -> SettingsTab(bottomInset, settings, onSettingsChange)
+                RouteSettings -> SettingsTab(bottomInset, settings, onSettingsChange, onGlassMotionLightChange)
                 else -> MaterialTab(bottomInset, onOpenToTry = { nav.open(GalleryPage.ToTry) })
               }
             }
@@ -363,7 +373,7 @@ internal fun Gallery(
         }
        }
 
-        Box(
+        if (nav.page != GalleryPage.TabletNavigation) Box(
           modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()

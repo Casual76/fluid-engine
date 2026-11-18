@@ -130,8 +130,8 @@ fluidAppearanceSection(
 - **Gruppo accento.** Una riga col nome della scelta (marchio, «Colori di sistema» o l'etichetta del preset) e sotto il
   `FluidAccentPicker`, con margini calcolati perche' il primo disco sia allineato al testo della riga (inset 7 dp: 16 dp di margine meno i 9 dp d'aria
   di un disco dentro il suo bersaglio da 48 dp).
-- **Gruppo interruttori.** Le righe vengono da `FluidAppearance.switchRows(glassRow, haptics)`: il vetro (solo se l'app ha passato valore e
-  callback) e l'aptica; **se non ne resta nessuna il gruppo non si disegna** (un contenitore senza righe e' un rettangolo vuoto con un margine).
+- **Gruppo interruttori.** `FluidAppearance.switchRows(glassRow, haptics)` ordina vetro e aptica. «Luce in movimento» compare in coda
+  se l'app passa sia `glassMotionLight` sia `onGlassMotionLightChange`. Se il gruppo resta vuoto, scompare.
   Accendere l'aptica fa partire subito un colpo `ToggleOn`: l'interruttore ha gia' «vibrato» nel momento del tocco ma con l'aptica ancora
   spenta, cioe' per niente, e senza il colpo di prova chi la accende non sentirebbe mai com'e'. Il primo valore letto non conta (altrimenti
   ogni apertura della pagina con l'aptica accesa vibrerebbe).
@@ -142,12 +142,19 @@ fluidAppearanceSection(
 - **Il pallino dei «Colori di sistema»** mostra **il colore vero** del telefono (non un grigio con una parola: scegliere e' guardare) e non si
   disegna sotto Android 12 o con `dynamicAccent = false`.
 
+**Luce in movimento (4.0).** L'app conserva la preferenza e fornisce `LocalFluidGlassMotionLight` attorno a `FluidTheme`.
+La scelta è spenta di serie. Su Android 13 e successivi, il primo vetro Liquid con luce disegnata sul nodo avvia
+l'accelerometro quando la finestra è in primo piano. Il colore del filo, il corpo del vetro e il bagliore del dito
+mantengono i propri parametri. Il filtro prende la prima posa come neutra e il riflesso segue le inclinazioni successive.
+In risparmio energetico, con movimento ridotto o togliendo l'ultimo vetro compatibile, l'ascolto si ferma e l'asse torna
+neutro. A posa stabile il riflesso si posa e il sensore resta pronto a rilevare la prossima inclinazione.
+
 **Trappole.**
 
 - **`presets` va passato anche qui se l'hai passato a `FluidTheme`**: la sezione e il tema devono parlare della stessa lista, altrimenti il
   selettore accende pallini che il tema non usa. E non passare liste vuote: il tema ricade su `fluidAccentPresets`, ma il selettore non
   disegna nessun pallino preset.
-- **La sezione non ha parole inglesi pronte** (`FluidAppearanceStrings` non ha `english()`): un'app tradotta le scrive tutte e 13, altrimenti
+- **La sezione non ha parole inglesi pronte** (`FluidAppearanceStrings` non ha `english()`): un'app tradotta le passa tutte, altrimenti
   «Aspetto», «Nero assoluto»… compaiono in italiano nella pagina inglese. `title = null` e' l'unico modo di togliere la testata.
 - **Il vetro non e' un campo di `EngineSettings`**, di proposito: alcune app lo hanno a livelli, altre automatico. Se ti aspetti di trovarlo
   in `settings` non c'e'.

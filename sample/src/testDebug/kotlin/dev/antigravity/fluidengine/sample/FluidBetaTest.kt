@@ -189,7 +189,7 @@ class FluidBetaGalleryTest {
     val tools = setOf(
       GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness, GalleryPage.Parity,
       GalleryPage.Painted, GalleryPage.Adaptive, GalleryPage.Plane, GalleryPage.Assistant, GalleryPage.Toolbar,
-      GalleryPage.ToolbarPages, GalleryPage.ListsForms,
+      GalleryPage.ToolbarPages, GalleryPage.ListsForms, GalleryPage.TabletNavigation,
     )
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
@@ -466,6 +466,7 @@ class FluidBetaGalleryTest {
     // «Barre (prova)» (F4A.2), come «Piano flottante»: il segno è il sottotitolo con la sigla del pacchetto.
     GalleryPage.Toolbar -> shown("F4A.2 ·", substring = true)
     // «Barre fra pagine» (F4A.3), come «Barre (prova)»: il segno è il sottotitolo con la sigla del pacchetto.
+    GalleryPage.TabletNavigation -> shown("Atlante cromatico")
     GalleryPage.ToolbarPages -> shown("F4A.3 ·", substring = true)
     // «Liste, campi e stepper» (F6.6), come «Barre fra pagine»: il segno è il sottotitolo con la sigla del pacchetto.
     GalleryPage.ListsForms -> shown("F6.6 ·", substring = true)

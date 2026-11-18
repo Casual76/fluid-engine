@@ -315,6 +315,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `val Default: Shadow`
 
+## `engine-ui/ui/glass/field/GlassLightEnvironment.kt`
+
+- `val LocalFluidGlassMotionLight: ProvidableCompositionLocal<Boolean>` — Consente al riflesso del vetro Liquid di seguire l'inclinazione. Di serie è spento, così il tema non apre i servizi dei sensori. L'app può fornirlo attorno a `FluidTheme` e conservare la scelta.
+
 ## `engine-ui/ui/glass/field/GlassProbe.kt`
 
 - `class FluidGlassProbeReading internal constructor(val luminance: Float, val deviation: Float, val gradient: Float, val red: Float, val green: Float, val blue: Float, val coverage: Float, val dark: Boolean, val fresh: Boolean, val uptimeMillis: Long)` — Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.

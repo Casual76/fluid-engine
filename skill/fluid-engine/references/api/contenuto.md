@@ -290,9 +290,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Capsule: FluidSwipeStyle` — La capsula col glifo e l'etichetta sotto, la riga che si arrotonda: iOS 27. Di serie.
     - `val Fill: FluidSwipeStyle` — Il colore che riempie lo spazio rivelato: l'aspetto della 3.x.
 - `val LocalFluidSwipeStyle: ProvidableCompositionLocal<FluidSwipeStyle>` — L'aspetto di serie delle azioni a scorrimento sotto questo punto: un'app (o la galleria, per mettere a confronto i due aspetti) lo cambia per tutte le righe senza toccarle una per una. Di serie [FluidSwipeStyle.Capsule].
-- `class FluidSwipeState internal constructor(private val scope: CoroutineScope)` — Lo stato di una riga a scorrimento: dove sta, se la soglia e' superata, se e' uscita.
+- `@Composable fun FluidSwipeActionsContainer(modifier: Modifier = Modifier, content: @Composable () -> Unit)` — Tiene una sola riga aperta fra le [fluidSwipeActions] discendenti, anche fra gruppi distinti. Avvolge la lista o l'area della schermata che deve richiudere la riga al tocco o allo scorrimento. I controlli esterni alla riga ricevono il loro tocco normalmente. Senza questo contenitore, un gruppo dell'engine coordina le proprie righe.
+- `class FluidSwipeState internal constructor(private val scope: CoroutineScope)` — Lo stato di una riga a scorrimento: dove sta, se e' aperta, se la soglia e' superata, se e' uscita.
   - `var offset: Float by mutableFloatStateOf(0f)` — Lo spostamento della riga in px, **logico**: positivo verso la fine (rivela l'azione iniziale, a sinistra in LTR), negativo verso l'inizio. Letto nel disegno, mai nella composizione.
   - `var armed: Boolean by mutableStateOf(false)` — La soglia e' superata: rilasciando adesso l'azione parte.
+  - `var isOpen: Boolean by mutableStateOf(false)` — La riga ha come destinazione la posa aperta, con l'azione esposta e toccabile.
   - `var isDismissed: Boolean by mutableStateOf(false)` — La riga e' uscita (un'azione con `removesItem` confermata) e aspetta che l'app la tolga. Non risponde al dito finche' non la si rimette con [reset].
   - `suspend fun reset()` — Rimette la riga a posto con la molla (istantanea col movimento ridotto): per un'azione che l'app non ha potuto fare, o per l'«Annulla» di una riga uscita che resta nei dati.
 - `@Composable fun rememberFluidSwipeState(): FluidSwipeState` — Lo stato di una riga a scorrimento, ricordato nell'item.

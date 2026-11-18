@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.sample
 
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +43,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.StateRestorationTester
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -58,6 +60,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGroupedMaterial
 import dev.antigravity.fluidengine.ui.fluid.FluidJumpPill
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidSwipeAction
+import dev.antigravity.fluidengine.ui.fluid.FluidSwipeActionsContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidSwipeState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidItemSpacing
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -70,11 +73,13 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidEmptyState
 import dev.antigravity.fluidengine.ui.theme.FluidGroupSegment
+import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidStatusBadge
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -112,7 +117,7 @@ private class LongListsHaptics : FluidHaptics {
 class FluidLongListsTest {
 
   @get:Rule
-  val compose = createComposeRule()
+  val compose = createAndroidComposeRule<ComponentActivity>()
 
   private val haptics = LongListsHaptics()
 
@@ -345,8 +350,11 @@ class FluidLongListsTest {
     enabled: Boolean = true,
     removes: Boolean = true,
     extra: List<CustomAccessibilityAction> = emptyList(),
+    tag: String = "swipe-row",
+    onState: (FluidSwipeState) -> Unit = { swipe = it },
   ) {
-    swipe = rememberFluidSwipeState()
+    val state = rememberFluidSwipeState()
+    onState(state)
     FluidListRow(
       title = "Una riga",
       subtitle = "Da scorrere",
@@ -355,12 +363,12 @@ class FluidLongListsTest {
       customActions = extra,
       modifier = Modifier
         .fluidSwipeActions(
-          state = swipe,
+          state = state,
           startAction = FluidSwipeAction("Segna come letto", Icons.Rounded.MarkEmailRead, Color(0xFF1565C0)) { started++ },
           endAction = FluidSwipeAction("Archivia", Icons.Rounded.Archive, Color(0xFF2E7D32), removesItem = removes) { ended++ },
           enabled = enabled,
         )
-        .testTag("swipe-row"),
+        .testTag(tag),
     )
   }
 
@@ -518,35 +526,175 @@ class FluidLongListsTest {
   }
 
   @Test
-  fun `col movimento ridotto una riga lasciata torna in un fotogramma`() {
+  fun `col movimento ridotto apertura e chiusura avvengono in un fotogramma`() {
     compose.setContent { Themed(reducedMotion = true) { SwipeRow() } }
     compose.mainClock.autoAdvance = false
-    compose.onNodeWithTag("swipe-row").performTouchInput {
-      down(center)
-      repeat(5) { moveBy(Offset(-20f, 0f)) }
-      up()
-    }
+    openEnd()
     compose.mainClock.advanceTimeByFrame()
+    assertTrue(swipe.isOpen)
+    assertEquals(-144f, swipe.offset, 0f)
+    compose.onNodeWithTag("swipe-row").performTouchInput { click(center) }
     compose.mainClock.advanceTimeByFrame()
+    assertFalse(swipe.isOpen)
     assertEquals(0f, swipe.offset, 0f)
     compose.mainClock.autoAdvance = true
   }
 
   @Test
-  fun `senza movimento ridotto la riga lasciata torna con la molla`() {
+  fun `la riga si accorcia verso l'aperto e il tocco sul testo la richiude con la molla`() {
     compose.setContent { Themed { SwipeRow() } }
     compose.mainClock.autoAdvance = false
-    compose.onNodeWithTag("swipe-row").performTouchInput {
+    openEnd()
+    compose.mainClock.advanceTimeByFrame()
+    assertTrue(swipe.isOpen)
+    assertTrue(swipe.offset < -144f)
+    compose.mainClock.advanceTimeBy(1_000)
+    assertEquals(-144f, swipe.offset, 0f)
+    assertEquals(0, ended)
+    compose.onNodeWithTag("swipe-row").performTouchInput { click(center) }
+    compose.mainClock.advanceTimeByFrame()
+    assertFalse(swipe.isOpen)
+    assertNotEquals(0f, swipe.offset)
+    compose.mainClock.advanceTimeBy(1_000)
+    assertEquals(0f, swipe.offset, 0f)
+    assertEquals(0, rowClicks)
+    compose.mainClock.autoAdvance = true
+  }
+
+  private fun openEnd(tag: String = "swipe-row") {
+    compose.onNodeWithTag(tag).performTouchInput {
       down(center)
-      repeat(5) { moveBy(Offset(-20f, 0f)) }
+      repeat(9) { moveBy(Offset(-20f, 0f)) }
+      advanceEventTime(160)
       up()
     }
-    compose.mainClock.advanceTimeByFrame()
-    compose.mainClock.advanceTimeByFrame()
-    assertNotEquals(0f, swipe.offset)
-    compose.mainClock.advanceTimeBy(2_000)
-    assertEquals(0f, swipe.offset, 0f)
-    compose.mainClock.autoAdvance = true
+  }
+
+  @Test
+  fun `il tocco sull'azione esposta richiude e la esegue una volta`() {
+    compose.setContent { Themed { SwipeRow() } }
+    openEnd()
+    compose.runOnIdle { assertTrue(swipe.isOpen) }
+    compose.onNodeWithTag("swipe-row").performTouchInput { click(Offset(width - 32.dp.toPx(), centerY)) }
+    compose.runOnIdle {
+      assertFalse(swipe.isOpen)
+      assertFalse(swipe.isDismissed)
+      assertEquals(0f, swipe.offset, 0f)
+      assertEquals(1, ended)
+      assertEquals(0, rowClicks)
+    }
+  }
+
+  @Test
+  fun `il tocco fuori richiude la riga e arriva al controllo toccato`() {
+    var outside = 0
+    compose.setContent {
+      Themed {
+        FluidSwipeActionsContainer {
+          Column {
+            SwipeRow()
+            Text("Controllo", Modifier.testTag("outside").clickable { outside++ })
+          }
+        }
+      }
+    }
+    openEnd()
+    compose.runOnIdle { assertTrue(swipe.isOpen) }
+    compose.onNodeWithTag("outside").performTouchInput { click() }
+    compose.runOnIdle {
+      assertFalse(swipe.isOpen)
+      assertEquals(0f, swipe.offset, 0f)
+      assertEquals(1, outside)
+      assertEquals(0, ended)
+    }
+  }
+
+  @Test
+  fun `un solo elemento resta aperto nel gruppo di righe`() {
+    testSecondRowClosesFirst { rows -> FluidListGroup { rows() } }
+  }
+
+  @Test
+  fun `un solo elemento resta aperto fra gruppi nello stesso contenitore`() {
+    val states = mutableMapOf<String, FluidSwipeState>()
+    compose.setContent {
+      Themed {
+        FluidSwipeActionsContainer {
+          Column {
+            for (tag in listOf("first", "second")) {
+              FluidListGroup { SwipeRow(tag = tag, onState = { states[tag] = it }) }
+            }
+          }
+        }
+      }
+    }
+    checkSecondRowClosesFirst(states)
+  }
+
+  private fun testSecondRowClosesFirst(container: @Composable (rows: @Composable () -> Unit) -> Unit) {
+    val states = mutableMapOf<String, FluidSwipeState>()
+    compose.setContent {
+      Themed {
+        container {
+          for (tag in listOf("first", "second")) SwipeRow(tag = tag, onState = { states[tag] = it })
+        }
+      }
+    }
+    checkSecondRowClosesFirst(states)
+  }
+
+  private fun checkSecondRowClosesFirst(states: Map<String, FluidSwipeState>) {
+    openEnd("first")
+    compose.runOnIdle { assertTrue(states.getValue("first").isOpen) }
+    openEnd("second")
+    compose.runOnIdle {
+      assertFalse(states.getValue("first").isOpen)
+      assertEquals(0f, states.getValue("first").offset, 0f)
+      assertTrue(states.getValue("second").isOpen)
+      assertEquals(0, ended)
+    }
+  }
+
+  @Test
+  fun `il gruppo lazy apre una sola riga e la richiude quando la lista scorre`() {
+    ids = List(30) { it.toLong() }
+    val list = LazyListState()
+    val states = mutableMapOf<String, FluidSwipeState>()
+    compose.setContent {
+      Themed {
+        GroupedList(list) { id ->
+          val tag = if (id == 1L) "first" else if (id == 2L) "second" else "row-$id"
+          SwipeRow(tag = tag, onState = { states[tag] = it })
+        }
+      }
+    }
+    checkSecondRowClosesFirst(states)
+    compose.onNodeWithTag("row-4").performTouchInput {
+      down(center)
+      repeat(4) { moveBy(Offset(0f, -12f), delayMillis = 32L) }
+      up()
+    }
+    compose.runOnIdle {
+      assertTrue(list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0)
+      assertFalse(states.getValue("second").isOpen)
+      assertEquals(0f, states.getValue("second").offset, 0f)
+    }
+  }
+
+  @Test
+  fun `indietro richiude la riga senza uscire dalla pagina`() {
+    compose.setContent { Themed { SwipeRow() } }
+    openEnd()
+    compose.runOnIdle {
+      assertTrue(swipe.isOpen)
+      compose.activity.onBackPressedDispatcher.onBackPressed()
+    }
+    compose.onNodeWithTag("swipe-row").assertIsDisplayed()
+    compose.runOnIdle {
+      assertFalse(swipe.isOpen)
+      assertEquals(0f, swipe.offset, 0f)
+      assertEquals(0, ended)
+    }
   }
 
   // ---------------------------------------------------------------------------------------------

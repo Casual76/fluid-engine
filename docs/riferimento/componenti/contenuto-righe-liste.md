@@ -249,9 +249,8 @@ sopra una lastra).
 **Cos'è.** Le azioni che una riga rivela scorrendo di lato: archivia, segna come letta, elimina, fissa. Una per verso (`startAction` verso la fine: a destra in LTR; `endAction` verso l'inizio), colore e icona **dell'app**
 (l'engine non sa cosa vuol dire «archivia»), il colore dell'icona **del contrasto** (≥ 4,5:1, lo stesso conto di `FluidStatusBadge`: un giallo chiaro non porta un'icona bianca).
 
-**`FluidSwipeAction(label, icon, color, removesItem, onAction)`.** `label` è obbligatorio e non è decorazione: è il nome che TalkBack offre fra le azioni della riga, perché un gesto che solo chi vede può fare non è
-un'azione. `removesItem = true`: confermata, la riga esce del tutto e `onAction` parte **a uscita finita**; l'app toglie il dato e la lista richiude il posto. `false`: `onAction` parte al rilascio e la riga torna a posto
-(letta/non letta, fissa). L'azione parte **una volta per gesto confermato**, sul thread principale, anche se la lista cambia durante l'uscita o la riga esce dalla composizione mentre sta uscendo (la lista scorre, la schermata si chiude): in quel caso parte nel momento in cui la riga esce, senza aspettare la fine dell'animazione. Mai per un gesto annullato, e mai se l'app rimette la riga a posto con `FluidSwipeState.reset()` prima che sia partita.
+**`FluidSwipeAction(label, icon, color, removesItem, onAction)`.** `label` è il nome che TalkBack offre fra le azioni della riga. Con lo scorrimento pieno e `removesItem = true`, la riga esce del tutto e `onAction` parte **a uscita finita**. Al tocco dell'azione esposta, `onAction` parte **a chiusura finita** e l'app toglie il dato. Con `removesItem = false`, `onAction` parte alla conferma e la riga si richiude.
+L'azione parte **una volta per conferma**, sul thread principale. Se la riga esce dalla composizione prima del termine dell'animazione, l'azione parte allo smontaggio. `FluidSwipeState.reset()` annulla l'azione ancora in attesa.
 
 **Va sul nodo della riga.** Per `FluidListRow` è il suo `modifier` (sta sul `ListItem` stesso, un nodo solo): così le azioni di TalkBack si **sommano** a quelle della riga invece di finire su un discendente, dove nessuno le
 raggiunge. Lo stato (`rememberFluidSwipeState()`) si crea **dentro** l'item, uno per riga, ed è effimero di proposito: un gesto a metà non sopravvive a una rotazione, e una riga riciclata torna a posto.
@@ -265,7 +264,7 @@ raggiunge. Lo stato (`rememberFluidSwipeState()`) si crea **dentro** l'item, uno
 
 **Il gesto.** Segue il dito 1:1 fino alla soglia (35% della larghezza, al più 180 dp: le soglie del back a dito), poi a metà velocità; dal lato senza azione un elastico di 16 dp (niente, col movimento ridotto). Attraversare la
 soglia suona `Threshold`, in entrambi i versi, con isteresi di 12 dp (un dito che trema non vibra a raffica). Al rilascio conferma: oltre la soglia, o con una spinta di 400 dp/s verso l'azione da almeno metà soglia; una spinta
-contraria annulla anche oltre la soglia. Le molle partono dalla velocità del dito e col movimento ridotto diventano un salto.
+contraria chiude anche oltre la soglia. Fra metà della posa aperta e la soglia di conferma, la riga resta aperta. La molla verso l'aperto parte da ferma, come nella misura Apple. Col movimento ridotto l'assestamento e la chiusura avvengono in un salto.
 
 **L'aspetto (4.0, F6.6): quello di iOS 27, misurato.** Di serie (`FluidSwipeStyle.Capsule`) la riga e lo spazio che apre sono quelli di iOS 27 (R5 L3),
 misurati fotogramma per fotogramma sulla sessione 269 di WWDC26 in 4K (lista a 17:53, contenitore libero a 18:20 e 18:25; collage e numeri in
@@ -299,18 +298,23 @@ FluidListRow(
 sul bordo, le molle sono `FluidMotion.swipeSettle` e `swipeExit` (0,30 s). È l'altro termine della scelta di gusto del piano; la pagina «Liste, campi e
 stepper» della galleria (`--es gallery.page ListsForms`) li mette a confronto.
 
-**La divergenza che resta.** In Apple una riga lasciata a metà **resta aperta** sull'azione (`swipeActionsContainer`, una aperta alla volta, si
-chiude scorrendo o toccando fuori). Nell'engine no: l'azione parte al rilascio oltre la soglia e la riga torna sempre a posto (piano, F6).
+**Una riga aperta per contenitore (4.0, F6.6b).** Al rilascio parziale di serie la capsula si assesta a 56 dp
+di larghezza, più i margini, in circa 350 ms. `FluidSwipeState.isOpen` è vero dalla scelta della posa aperta.
+Il tocco sulla fascia esposta esegue l'azione. Il tocco sul resto della riga la richiude, così come Indietro su Android.
+Anche toccare altrove nel contenitore, scorrere verticalmente o aprire un'altra riga richiude quella aperta.
+`FluidListGroup` e ogni sezione `fluidGroupedItems` coordinano le proprie righe di serie. Avvolgi una lista o
+l'area della schermata con `FluidSwipeActionsContainer { … }` per condividere la regola fra sezioni e coprire
+anche i tocchi negli spazi fra i gruppi. I controlli esterni alla riga ricevono ancora il loro tocco.
 
 **Trappole.**
 - **Passa `shape` e `fill` dello scope** (`segmentShape`, `rowFill`): la riga disegna il proprio fondo mentre si sposta, perché dietro c'è il colore dell'azione; un fondo diverso da quello del gruppo si vede come una riga di
   un altro colore.
-- Lo spostamento è **di disegno**: tocco e semantica restano dove la riga sta a riposo.
+- Lo spostamento è **di disegno**: la riga aperta riconosce la fascia esposta anche in RTL, le azioni personalizzate restano sul nodo della riga.
 - Una riga uscita (`FluidSwipeState.isDismissed`) che l'app non toglie resta vuota: l'app la rimette con `FluidSwipeState.reset()` (anche per un «Annulla»).
 - `enabled = false` spegne gesto **e** azioni di TalkBack: in selezione, per esempio, un gesto che archivia mentre si sta scegliendo è un incidente.
 - Con `FluidSwipeStyle.Capsule` dietro la riga resta ciò che c'è sotto (il fondo del gruppo): fuori da un gruppo si vede la pagina. I separatori
   accanto alla riga presa restano (Apple li nasconde): il filo lo disegna la riga di sopra, che non sa che quella sotto è presa.
-- Un'etichetta lunga si tronca coi puntini oltre 112 dp: i nomi delle azioni vanno tenuti corti («Elimina», «Letto»), come quelli di Apple.
+- Un'etichetta lunga si tronca alla larghezza della capsula aperta. Il nome completo resta disponibile in TalkBack.
 - Il gesto non è l'unica via: l'azione si offre anche dal menu contestuale (`contextActions`) e da TalkBack; un'azione solo-gesto è un trucco.
 
 ### Azioni di TalkBack sulla riga: `customActions`, `fluidAccessibilityActions`

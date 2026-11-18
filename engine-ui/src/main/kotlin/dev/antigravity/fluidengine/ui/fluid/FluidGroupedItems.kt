@@ -161,6 +161,9 @@ interface FluidGroupedItemScope : LazyItemScope {
  * [dev.antigravity.fluidengine.ui.theme.FluidListRow], la misura vera con un `leading` dell'app; 16 per una riga
  * che non lo dichiara.
  *
+ * Per le [fluidSwipeActions] una sola riga della sezione resta aperta. Per coordinare piu' sezioni e
+ * richiudere anche al tocco sullo spazio fuori dalla sezione, avvolgi la lista con [FluidSwipeActionsContainer].
+ *
  * ### Dove si rompe
  *
  * - Quando una riga esce, quella che diventa l'ultima cambia angoli **di colpo**: un raggio animato fuori da
@@ -197,6 +200,7 @@ fun LazyListScope.fluidGroupedItems(
   itemContent: @Composable FluidGroupedItemScope.(index: Int) -> Unit,
 ) {
   if (count <= 0) return
+  val swipeGroup = FluidSwipeGroup()
   items(count = count, key = key, contentType = contentType) { index ->
     FluidGroupedRow(
       itemScope = this,
@@ -205,6 +209,7 @@ fun LazyListScope.fluidGroupedItems(
       material = material,
       dividers = dividers,
       animateItems = animateItems,
+      defaultSwipeGroup = swipeGroup,
       itemContent = itemContent,
     )
   }
@@ -241,6 +246,7 @@ private fun FluidGroupedRow(
   material: FluidGroupedMaterial,
   dividers: Boolean,
   animateItems: Boolean,
+  defaultSwipeGroup: FluidSwipeGroup,
   itemContent: @Composable FluidGroupedItemScope.(index: Int) -> Unit,
 ) {
   val segment = fluidGroupedSegment(index, count)
@@ -251,6 +257,7 @@ private fun FluidGroupedRow(
   val glass = material.isGlass && canvas != null
   val tinted = material.isTinted && canvas != null
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val parentSwipeGroup = LocalFluidSwipeGroup.current
 
   // Lo spazio da riassorbire: la spaziatura della lista, piu' due ritagli dei lati aperti sul vetro (lo stesso
   // conto di `fluidGlassGroups`: il pezzo che segue risale sopra il proprio ritaglio e quello del precedente).
@@ -349,6 +356,7 @@ private fun FluidGroupedRow(
         // La tinta di pressione di una riga si ferma sugli angoli del pezzo, come in un gruppo. Una riga di mezzo
         // e' un rettangolo: niente layer di ritaglio per lei.
         .then(if (segment == FluidGroupSegment.Middle) Modifier else Modifier.clip(shape))
+        .then(if (parentSwipeGroup == null) Modifier.observeFluidSwipeGroup(defaultSwipeGroup) else Modifier)
         .then(
           if (!showDivider) {
             Modifier
@@ -372,6 +380,7 @@ private fun FluidGroupedRow(
       CompositionLocalProvider(
         LocalContentColor provides scheme.onSurface,
         LocalFluidListTextInsets provides textInsets,
+        LocalFluidSwipeGroup provides (parentSwipeGroup ?: defaultSwipeGroup),
       ) {
         scope.itemContent(index)
       }

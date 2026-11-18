@@ -43,7 +43,8 @@ class FluidSwipeActionsTest {
     assertEquals(0f, fluidSwipeThresholdPx(0f, density), 0f)
     assertEquals(
       FluidSwipeRelease.Cancel,
-      fluidSwipeRelease(offsetPx = 100f, velocityPx = 5000f, armed = true, thresholdPx = 0f, flingPx = fling, hasStart = true, hasEnd = true),
+      fluidSwipeRelease(offsetPx = 100f, velocityPx = 5000f, armed = true, thresholdPx = 0f, flingPx = fling,
+        hasStart = true, hasEnd = true, openPx = 0f),
     )
     assertFalse(fluidSwipeArmed(false, 100f, 0f, 24f, sideHasAction = true))
   }
@@ -148,8 +149,10 @@ class FluidSwipeActionsTest {
 
   // --- Il rilascio -----------------------------------------------------------------------------------------
 
+  private val openPx = fluidSwipeOpenDistancePx(threshold, density, FluidSwipeStyle.Capsule)
+
   private fun release(offset: Float, velocity: Float, armed: Boolean, hasStart: Boolean = true, hasEnd: Boolean = true) =
-    fluidSwipeRelease(offset, velocity, armed, threshold, fling, hasStart, hasEnd)
+    fluidSwipeRelease(offset, velocity, armed, threshold, fling, hasStart, hasEnd, openPx)
 
   @Test
   fun `armata al rilascio conferma l'azione del suo lato`() {
@@ -160,7 +163,7 @@ class FluidSwipeActionsTest {
   @Test
   fun `tornata indietro prima del rilascio non conferma`() {
     // Il ripensamento: la soglia superata e poi lasciata non basta, decide dove sta il dito al rilascio.
-    assertEquals(FluidSwipeRelease.Cancel, release(threshold * 0.4f, 0f, armed = false))
+    assertEquals(FluidSwipeRelease.Open, release(threshold * 0.4f, 0f, armed = false))
   }
 
   @Test
@@ -172,8 +175,8 @@ class FluidSwipeActionsTest {
   @Test
   fun `una spinta verso l'azione conferma da meta' soglia, non prima`() {
     assertEquals(FluidSwipeRelease.End, release(-threshold * 0.6f, -fling, armed = false))
-    assertEquals(FluidSwipeRelease.Cancel, release(-threshold * 0.3f, -fling * 3, armed = false))
-    assertEquals(FluidSwipeRelease.Cancel, release(-threshold * 0.6f, -fling / 2, armed = false))
+    assertEquals(FluidSwipeRelease.Open, release(-threshold * 0.3f, -fling * 3, armed = false))
+    assertEquals(FluidSwipeRelease.Open, release(-threshold * 0.6f, -fling / 2, armed = false))
   }
 
   @Test
@@ -184,6 +187,27 @@ class FluidSwipeActionsTest {
   @Test
   fun `riga ferma - nessun esito`() {
     assertEquals(FluidSwipeRelease.Cancel, release(0f, fling * 4, armed = true))
+  }
+
+  @Test
+  fun `la riga si apre da meta' della posa aperta e torna a casa per un tocco piu' corto`() {
+    assertEquals(144f, openPx, 0.001f)
+    for (side in listOf(-1f, 1f)) {
+      assertEquals(FluidSwipeRelease.Cancel, release(side * (openPx / 2f - 1f), 0f, armed = false))
+      assertEquals(FluidSwipeRelease.Open, release(side * openPx / 2f, 0f, armed = false))
+    }
+    assertTrue(fluidSwipeOpenDistancePx(60f, density, FluidSwipeStyle.Capsule) in 33f..59f)
+    assertEquals(0f, fluidSwipeOpenDistancePx(35f, density, FluidSwipeStyle.Capsule), 0f)
+  }
+
+  @Test
+  fun `si tocca soltanto l'azione esposta, da entrambi i lati fisici`() {
+    assertTrue(fluidSwipeHitAction(70f, 72f, 300))
+    assertFalse(fluidSwipeHitAction(72f, 72f, 300))
+    assertTrue(fluidSwipeHitAction(230f, -72f, 300))
+    assertFalse(fluidSwipeHitAction(228f, -72f, 300))
+    assertFalse(fluidSwipeHitAction(301f, -72f, 300))
+    assertFalse(fluidSwipeHitAction(70f, 0f, 300))
   }
 
   // --- L'icona ---------------------------------------------------------------------------------------------

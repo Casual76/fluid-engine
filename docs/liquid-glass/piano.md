@@ -632,7 +632,7 @@ che le fasi devono rispettare; i nomi dei parametri secondari li fissa il pacche
 | `alert`, `confirmationDialog` | `FluidAlert(…)`, `FluidConfirmSheet(…, origin)` (c'è) + `source`; `@Composable fun FluidConfirmationDialog(visible: Boolean, onDismissRequest: () -> Unit, source: FluidTransitionSource?, title: String? = null, actions: List<FluidAlertAction>)` (in linea, senza Annulla). Le varianti di iOS 27 «legate a un elemento» sono in realtà legate a un **dato** (`item:` opzionale, R5): nessun cambio visivo né di ancoraggio. Equivalente: sovraccarichi `FluidAlert(item: T?, …)` e `FluidConfirmationDialog(item: T?, …)`, come c'è già per `FluidGlassModalPortal(item: T?, …)` | c'è + F5B.1 |
 | `popover`, `presentationCompactAdaptation` | `FluidGlassModalPortal(visible, onDismissRequest, origin, presentation = Popover \| Expand, …)` (c'è) + `source`, `compactAdaptation: FluidCompactAdaptation = Sheet \| Popover` | c'è + F5B.1 |
 | `Toggle`, `Slider(neutralValue:ticks:)`, `Picker(.segmented)`, `Stepper` | `FluidSwitch`, `FluidSlider(value, onValueChange, valueRange, snapValues, …)`, `FluidSegmentedControl` (c'è) + su `FluidSlider`: `neutralValue: Float? = null`, `ticks: Boolean = false`, `thumbless: Boolean = false` | c'è + F6.3 |
-| `List`, `Form`, `swipeActions`, `swipeActionsContainer()` (27) | `FluidListGroup`, `FluidGroupedItems`, `FluidListRow`, `Modifier.fluidSwipeActions` (c'è). Divergenza che resta: nell'engine l'azione parte al rilascio oltre la soglia e la riga non resta aperta, quindi il contenitore «una aperta alla volta» non ha un equivalente | c'è + F6.6 |
+| `List`, `Form`, `swipeActions`, `swipeActionsContainer()` (27) | `FluidListGroup`, `fluidGroupedItems`, `FluidListRow`, `Modifier.fluidSwipeActions`, `FluidSwipeActionsContainer`. Una riga resta aperta per contenitore e l'azione si esegue al tocco o con lo scorrimento pieno | c'è + F6.6 + F6.6b |
 | `reorderable()`, `reorderContainer` (27) | `fluidReorderable`, `rememberFluidReorderState` (c'è) | c'è |
 | `navigationTransition(.crossFade)` su un foglio (27) | `FluidGlassSheet(…, transition = FluidSheetTransition.CrossFade)`; documentato, nessun video: a occhio | F5B.2 |
 | `scrollEdgeEffectStyle(_:for:)`, `scrollEdgeEffectHidden` | parametro `scrollEdge: FluidScrollEdgeStyle = FluidScrollEdgeStyle.Automatic` su `FluidScreen` (applicato da solo sotto barre e tab bar; `Automatic` è l'aspetto di **iOS 26**, per decisione: sezione 2 e 3.10); per le liste proprie `@Composable fun FluidScrollEdge(backdrop: GlassBackdropState, edge: FluidScrollEdgeSide, height: Dp, modifier: Modifier = Modifier, style: FluidScrollEdgeStyle = Automatic, exports: GlassBackdropState? = null)`; `enum class FluidScrollEdgeStyle { Automatic, Soft, Hard, Hidden }` | F2.4, F2.5 |
@@ -2654,10 +2654,9 @@ documenta; resta quella dell'engine).
   **0,6 del vetro** (24 / 26 / 32 dp, R6; oggi 20 / 22 / 27: `ui/fluid/FluidGlassControls.kt:92`) e `LocalFluidIconSize` ne
   discende; fogli e popover dell'host riportano taglia e stile ai valori di serie (iOS 27: un foglio non eredita lo stile
   della barra che lo apre).
-- *Azioni a scorrimento* (L3). In iOS 27 l'azione è un tondo colorato con il glifo bianco e l'etichetta sotto, e la riga si
-  accorcia e si arrotonda (R5 L3, osservato, senza confronto con iOS 26 e senza tempi): l'aspetto si allinea a occhio.
-  `swipeActionsContainer` (una riga aperta alla volta) **non ha un equivalente**: nell'engine l'azione parte al rilascio
-  oltre la soglia e la riga non resta aperta. È una divergenza che resta, scritta nella copertura.
+- *Azioni a scorrimento* (L3). In iOS 27 l'azione è una capsula colorata con il glifo e l'etichetta sotto. La riga
+  si sposta, si arrotonda e resta aperta al rilascio parziale. F6.6b usa la molla critica misurata in F6.6 per
+  l'assestamento sulla posa aperta e la chiusura. Una sola riga aperta per gruppo o `FluidSwipeActionsContainer`.
 - *Accessibilità del materiale* (M11): trasparenza ridotta → più velo; contrasto aumentato → bordo di contrasto (c'è:
   `ui/fluid/GlassContrast.kt`); movimento ridotto → niente elastico, niente flessione, niente sensore.
 

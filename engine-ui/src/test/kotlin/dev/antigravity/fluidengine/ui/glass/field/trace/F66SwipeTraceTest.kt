@@ -23,6 +23,9 @@ import dev.antigravity.fluidengine.ui.fluid.fluidSwipeCapsuleSlot
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeExitSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeGlyphPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeOffsetPx
+import dev.antigravity.fluidengine.ui.fluid.fluidSwipeOpenDistancePx
+import dev.antigravity.fluidengine.ui.fluid.fluidSwipeRelease
+import dev.antigravity.fluidengine.ui.fluid.FluidSwipeRelease
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeSettleSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidSwipeThresholdPx
 import org.junit.Assert.assertEquals
@@ -40,8 +43,8 @@ import kotlin.math.abs
  * `GLASS_F66_DIR` (di solito `tools/glassbench/traces/f6-6`), si rendono con `glassmotion.py`; la striscia di Apple da
  * mettere accanto e' `sessioni/f6-6/apple/L3_lista_f32209-32245_strip.jpg`.
  *
- * - `azione-apre-e-torna`: il dito di Apple, lasciato dove Apple lo lascia (467 ms): torna con la molla critica (Apple
- *   invece resta aperta: e' la divergenza del piano);
+ * - `resta-aperta`: il dito di Apple rilascia a 467 ms; la capsula si accorcia fino alla posa aperta e ci resta;
+ * - `azione-apre-e-torna`: lo stesso movimento, seguito da un tocco sulla riga che la richiude;
  * - `azione-esce`: lo stesso dito che prosegue oltre la soglia fino a 240 dp e lascia con una spinta: esce, e la capsula
  *   riempie la riga che se ne va;
  * - `azione-com-era`: il dito della prima con l'aspetto di prima ([FluidSwipeStyle.Fill]), per il confronto.
@@ -64,14 +67,17 @@ class F66SwipeTraceTest {
   private val neutral = Color(0xFFE3E3E8)
   private val paper = mapOf("background" to mapOf("kind" to "color", "color" to "#F2F2F7"))
 
-  @Test fun `esporta la riga che si apre e torna, quella che esce e l'aspetto di prima`() {
-    val back = trace("azione-apre-e-torna", FluidSwipeStyle.Capsule, commit = false)
+  @Test fun `esporta apertura persistente, chiusura al tocco, uscita e aspetto di prima`() {
+    val open = trace("resta-aperta", FluidSwipeStyle.Capsule, commit = false)
+    val back = trace("azione-apre-e-torna", FluidSwipeStyle.Capsule, commit = false, closeAt = 1_000.0)
     val exit = trace("azione-esce", FluidSwipeStyle.Capsule, commit = true)
-    val old = trace("azione-com-era", FluidSwipeStyle.Fill, commit = false)
-    for (t in listOf(back, exit, old)) {
+    val old = trace("azione-com-era", FluidSwipeStyle.Fill, commit = false, closeAt = 1_000.0)
+    for (t in listOf(open, back, exit, old)) {
       GlassTraceOutput.requestedDir(System.getenv("GLASS_F66_DIR"))?.let { t.write(File(it, "${t.name}/trace.json")) }
     }
-    // La riga che torna arriva a casa e ci resta; quella che esce arriva fuori dalla riga.
+    val openWidth = open.frames.last().elements.single { it["name"] == "capsula" }["w"] as Float
+    assertEquals(56f, openWidth, 0.01f)
+    assertEquals(open.frames[75].elements, open.frames.last().elements)
     assertEquals(left, back.frames.last().elements.single { it["name"] == "riga" }["x"] as Float, 0.01f)
     assertTrue((exit.frames.last().elements.single { it["name"] == "riga" }["x"] as Float) <= left - rowWidth + 0.5f)
   }
@@ -96,16 +102,17 @@ class F66SwipeTraceTest {
     return appleReveal[i] + (appleReveal[i + 1] - appleReveal[i]) * f
   }
 
-  private fun trace(name: String, style: FluidSwipeStyle, commit: Boolean): GlassTrace {
+  private fun trace(name: String, style: FluidSwipeStyle, commit: Boolean, closeAt: Double? = null): GlassTrace {
     val threshold = fluidSwipeThresholdPx(rowWidth, 1f)
+    val openPx = fluidSwipeOpenDistancePx(threshold, 1f, style)
     val releaseMs = if (commit) 600.0 else appleReleaseMs
     val appear = spring(fluidSwipeAppearSpec(), 0f, 1f)
     val lift = spring(FluidMotion.flick(), 0f, 1f)
-    // Il rilascio: con la spinta del dito che sta ancora andando (esce) o fermo (torna).
+    // Il rilascio: con la spinta del dito che sta ancora andando (esce) o fermo (si assesta sull'aperto).
     var releaseOffset = 0f
     var armedAt = Double.NaN
     var restAt = Double.NaN
-    val frames = (-3..96).map { index ->
+    val frames = (-3..if (closeAt == null) 96 else 120).map { index ->
       val ms = glassTraceTimeMs(index, fps)
       val raw = if (ms <= 0.0) 0f else -fingerAt(ms, beyond = commit)
       val dragged = fluidSwipeOffsetPx(raw, threshold, FluidSwipeElasticDp, hasStart = false, hasEnd = true, reducedMotion = false)
@@ -115,15 +122,22 @@ class F66SwipeTraceTest {
         dragged
       } else {
         val after = ((ms - releaseMs) * 1_000_000.0).toLong()
-        if (commit) {
-          spring(fluidSwipeExitSpec(style), releaseOffset, -rowWidth, -600f).getValueFromNanos(after)
-        } else {
-          spring(fluidSwipeSettleSpec(style), releaseOffset, 0f).getValueFromNanos(after)
+        when (fluidSwipeRelease(releaseOffset, if (commit) -600f else 0f, commit, threshold, 400f, false, true, openPx)) {
+          FluidSwipeRelease.End -> spring(fluidSwipeExitSpec(style), releaseOffset, -rowWidth, -600f).getValueFromNanos(after)
+          FluidSwipeRelease.Open -> {
+            val spec = fluidSwipeSettleSpec(style)
+            val settling = spring(spec, releaseOffset, -openPx)
+            if (closeAt != null && ms > closeAt) {
+              val atTap = settling.getValueFromNanos(((closeAt - releaseMs) * 1_000_000.0).toLong())
+              spring(spec, atTap, 0f).getValueFromNanos(((ms - closeAt) * 1_000_000.0).toLong())
+            } else settling.getValueFromNanos(after)
+          }
+          else -> error("Rilascio inatteso per la traccia $name")
         }
       }
       val since = (ms.coerceAtLeast(0.0) * 1_000_000.0).toLong()
       // Come il componente: la riga che torna si lascia a FluidSwipeRestLookDp da casa (angoli e velo col lampo).
-      if (!commit && ms > releaseMs && restAt.isNaN() && abs(offset) <= FluidSwipeRestLookDp) restAt = ms
+      if (closeAt != null && ms > closeAt && restAt.isNaN() && abs(offset) <= FluidSwipeRestLookDp) restAt = ms
       val resting = !restAt.isNaN()
       val appearNow = if (ms <= 0.0 || resting) 0f else appear.getValueFromNanos(since)
       val liftNow = when {
@@ -136,7 +150,10 @@ class F66SwipeTraceTest {
       GlassTraceFrame(ms, elements(style, offset, appearNow, liftNow, armNow))
     }
     return GlassTrace(name, "f6-6", 3f, "light", width, top * 2f + rowHeight * 2f, frames, fps, head = paper + linkedMapOf(
-      "events" to listOf(mapOf("t" to releaseMs, "kind" to "mark", "label" to "rilascio")),
+      "events" to buildList {
+        add(mapOf("t" to releaseMs, "kind" to "mark", "label" to "rilascio"))
+        if (closeAt != null) add(mapOf("t" to closeAt, "kind" to "mark", "label" to "tocco sulla riga"))
+      },
       "probes" to listOf(
         mapOf("name" to "bordo-riga", "kind" to "value", "path" to "riga.x"),
       ),

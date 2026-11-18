@@ -2,18 +2,24 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,14 +61,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -101,16 +114,11 @@ import kotlinx.coroutines.launch
  *   solo chi vede puo' fare non e' un'azione, e' un trucco.
  * @param icon l'icona rivelata dietro la riga.
  * @param color il fondo rivelato quando la soglia e' superata (prima e' un grigio quieto: la soglia si vede).
- * @param removesItem vero: confermata, la riga esce del tutto verso il lato e [onAction] parte a uscita finita;
- *   l'app toglie il dato e la lista richiude il posto (con [fluidGroupedItems], `animateItem`). Se la riga esce
- *   dalla composizione prima della fine dell'uscita (la lista scorre, si aggiorna, la schermata si chiude),
- *   [onAction] parte nel momento in cui la riga esce, senza aspettare il resto dell'animazione. Falso: [onAction]
- *   parte al rilascio e la riga torna a posto (letta/non letta, fissa).
- * @param onAction l'azione. **Esattamente una volta per gesto confermato**, sul thread principale, anche se la
- *   riga viene smontata durante l'uscita o la lista cambia: un gesto confermato (soglia superata e dito alzato, o
- *   l'azione di TalkBack) non si perde mai. Mai per un gesto annullato (dito riportato sotto la soglia, spinta
- *   contraria, secondo dito, dito sparito) e mai se l'app rimette la riga a posto con [FluidSwipeState.reset]
- *   prima che l'azione sia partita (l'app ha cambiato idea: l'«Annulla»).
+ * @param removesItem vero: [onAction] parte dopo l'uscita dello scorrimento pieno o dopo la chiusura per tocco
+ *   dell'azione aperta. L'app toglie il dato e la lista richiude il posto con [fluidGroupedItems]. Falso:
+ *   [onAction] parte alla conferma e la riga torna a posto (letta/non letta, fissa).
+ * @param onAction l'azione. Parte **una volta per conferma** sul thread principale, anche se la riga viene
+ *   smontata durante l'animazione. [FluidSwipeState.reset] annulla un'azione ancora in attesa.
  */
 @Immutable
 class FluidSwipeAction(
@@ -181,7 +189,60 @@ val LocalFluidSwipeStyle: ProvidableCompositionLocal<FluidSwipeStyle> =
   staticCompositionLocalOf { FluidSwipeStyle.Capsule }
 
 /**
- * Lo stato di una riga a scorrimento: dove sta, se la soglia e' superata, se e' uscita.
+ * Tiene una sola riga aperta fra le [fluidSwipeActions] discendenti, anche fra gruppi distinti. Avvolge la lista
+ * o l'area della schermata che deve richiudere la riga al tocco o allo scorrimento. I controlli esterni alla riga
+ * ricevono il loro tocco normalmente. Senza questo contenitore, un gruppo dell'engine coordina le proprie righe.
+ */
+@Composable
+fun FluidSwipeActionsContainer(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+  val group = remember { FluidSwipeGroup() }
+  CompositionLocalProvider(LocalFluidSwipeGroup provides group) {
+    Box(
+      modifier = modifier.observeFluidSwipeGroup(group).nestedScroll(group.scrollConnection),
+      propagateMinConstraints = true,
+    ) { content() }
+  }
+}
+
+internal val LocalFluidSwipeGroup = staticCompositionLocalOf<FluidSwipeGroup?> { null }
+
+/** Un solo proprietario della posa aperta. La riga precedente puo' finire di richiudersi in parallelo. */
+internal class FluidSwipeGroup {
+  var openRow: FluidSwipeState? = null
+    private set
+
+  fun open(row: FluidSwipeState) {
+    val previous = openRow
+    openRow = row
+    if (previous !== row) previous?.close()
+  }
+
+  fun release(row: FluidSwipeState) {
+    if (openRow === row) openRow = null
+  }
+
+  val scrollConnection = object : NestedScrollConnection {
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+      if (available.y != 0f) openRow?.close()
+      return Offset.Zero
+    }
+  }
+}
+
+/** Al passaggio Final, la riga aperta ha gia' potuto distinguere il tap sulla sua azione da quello sul testo. */
+internal fun Modifier.observeFluidSwipeGroup(group: FluidSwipeGroup): Modifier = pointerInput(group) {
+  awaitEachGesture {
+    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+    val row = group.openRow ?: return@awaitEachGesture
+    val up = awaitSwipeTapUp(down, PointerEventPass.Final) ?: return@awaitEachGesture
+    if (group.openRow === row && up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
+      row.close()
+    }
+  }
+}
+
+/**
+ * Lo stato di una riga a scorrimento: dove sta, se e' aperta, se la soglia e' superata, se e' uscita.
  *
  * Effimero di proposito: un gesto a meta' non sopravvive a una rotazione, e una riga riciclata o uscita dallo
  * schermo torna a posto (lo stato muore con l'item). Si crea con [rememberFluidSwipeState] **dentro** l'item
@@ -199,6 +260,10 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
 
   /** La soglia e' superata: rilasciando adesso l'azione parte. */
   var armed: Boolean by mutableStateOf(false)
+    private set
+
+  /** La riga ha come destinazione la posa aperta, con l'azione esposta e toccabile. */
+  var isOpen: Boolean by mutableStateOf(false)
     private set
 
   /**
@@ -224,8 +289,12 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
   internal val lift = Animatable(0f)
 
   internal var widthPx: Int = 0
+    private set
   internal var coordinates: LayoutCoordinates? = null
   internal var config: FluidSwipeConfig = FluidSwipeConfig.Disabled
+    private set
+  private var group: FluidSwipeGroup? = null
+  private var openPositionY: Float? = null
 
   private var rawPx = 0f
   private var settle: Job? = null
@@ -238,11 +307,56 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
    */
   private var pendingAction: (() -> Unit)? = null
 
+  internal val acceptsGestures: Boolean
+    get() = config.enabled && !isDismissed && pendingAction == null && widthPx > 0
+
+  internal fun attach(group: FluidSwipeGroup?) {
+    this.group = group
+  }
+
+  internal fun detach() {
+    close()
+    group = null
+  }
+
+  internal fun updateConfig(next: FluidSwipeConfig) {
+    val geometryChanged = next.style != config.style || next.density != config.density ||
+      next.layoutDirection != config.layoutDirection
+    val reduceNow = next.reducedMotion && !config.reducedMotion
+    config = next
+    if (isOpen && (!config.enabled || actionFor(offset) == null || geometryChanged)) close()
+    if (isOpen && reduceNow) settleOpen(sign(offset))
+  }
+
+  internal fun resize(width: Int) {
+    if (width != widthPx && isOpen) close()
+    widthPx = width
+  }
+
+  internal fun checkOpenPosition(coordinates: LayoutCoordinates) {
+    if (!isOpen) return
+    val y = coordinates.positionInRoot().y
+    val initialY = openPositionY
+    if (initialY == null) openPositionY = y
+    else if (abs(y - initialY) > 0.5f) close()
+  }
+
+  internal fun close() {
+    if (isOpen) settleHome(0f)
+  }
+
+  private fun clearOpen() {
+    isOpen = false
+    openPositionY = null
+    group?.release(this)
+  }
+
   /**
    * Rimette la riga a posto con la molla (istantanea col movimento ridotto): per un'azione che l'app non ha potuto
    * fare, o per l'«Annulla» di una riga uscita che resta nei dati.
    */
   suspend fun reset() {
+    clearOpen()
     settle?.cancel()
     settle = null
     // L'app ha cambiato idea mentre la riga usciva: l'azione che non e' ancora partita non parte piu'.
@@ -288,6 +402,7 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
   internal fun beginDrag() {
     settle?.cancel()
     settle = null
+    clearOpen()
     firedThisGesture = false
     startLook()
     rawPx = fluidSwipeRawPx(
@@ -340,22 +455,64 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
         flingPx = FluidPageMotion.FlingDpPerSecond * config.density,
         hasStart = config.startAction != null,
         hasEnd = config.endAction != null,
+        openPx = openDistancePx,
       )
     }
     when (decision) {
       FluidSwipeRelease.Cancel -> settleHome(velocityPx)
+      FluidSwipeRelease.Open -> settleOpen(sign(offset))
       FluidSwipeRelease.Start -> config.startAction?.let { commit(it, sign = 1f, velocityPx = velocityPx, fromGesture = true) }
       FluidSwipeRelease.End -> config.endAction?.let { commit(it, sign = -1f, velocityPx = velocityPx, fromGesture = true) }
     }
   }
 
-  /** L'azione chiesta da TalkBack: lo stesso esito del gesto, senza gesto. */
+  private val openDistancePx: Float
+    get() = fluidSwipeOpenDistancePx(thresholdPx, config.density, config.style)
+
+  private fun settleOpen(side: Float) {
+    if (!isOpen) {
+      openPositionY = coordinates?.takeIf { it.isAttached }?.positionInRoot()?.y
+      isOpen = true
+      group?.open(this)
+    }
+    disarm(silent = true)
+    val target = side * openDistancePx
+    settle?.cancel()
+    settle = scope.launch {
+      if (config.reducedMotion) {
+        startLook()
+      } else {
+        // Il dito di Apple si ferma al rilascio: la molla verso la posa aperta parte ferma.
+        animate(initialValue = offset, targetValue = target, animationSpec = fluidSwipeSettleSpec(config.style)) { value, _ ->
+          offset = value
+        }
+      }
+      offset = target
+    }
+  }
+
+  /** L'azione confermata dal tocco sulla fascia esposta o dal comando di TalkBack. */
   internal fun perform(start: Boolean): Boolean {
-    if (isDismissed) return false
+    if (!config.enabled || isDismissed || pendingAction != null) return false
     val action = (if (start) config.startAction else config.endAction) ?: return false
+    if (isOpen) {
+      if (action.removesItem) pendingAction = action.onAction
+      settleHome(0f)
+      if (!action.removesItem) action.onAction()
+      return true
+    }
     firedThisGesture = false
     commit(action, sign = if (start) 1f else -1f, velocityPx = 0f, fromGesture = false)
     return true
+  }
+
+  internal fun tapOpenRow(downX: Float, upX: Float) {
+    if (!isOpen) return
+    val physical = offset * if (config.layoutDirection == LayoutDirection.Ltr) 1f else -1f
+    if (fluidSwipeHitAction(downX, physical, widthPx) && fluidSwipeHitAction(upX, physical, widthPx)) {
+      if (perform(start = offset > 0f)) return
+    }
+    close()
   }
 
   private fun actionFor(offsetPx: Float): FluidSwipeAction? = when {
@@ -409,6 +566,7 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
   }
 
   private fun settleHome(velocityPx: Float) {
+    clearOpen()
     disarm(silent = true)
     settle?.cancel()
     settle = scope.launch {
@@ -435,6 +593,7 @@ class FluidSwipeState internal constructor(private val scope: CoroutineScope) {
       offset = 0f
       rawPx = 0f
       restLook()
+      flushPendingAction()
     }
   }
 
@@ -539,9 +698,9 @@ private class FluidSwipeUnmountGuard(private val state: FluidSwipeState) : Remem
  * Oltre la soglia l'etichetta prende il colore dell'azione e la capsula cresce di poco: la soglia si vede, oltre che
  * sentirsi. Apple non la mostra (la clip non ha uno scorrimento fino in fondo): e' una scelta a occhio.
  *
- * In Apple la riga, lasciata a meta', **resta aperta** sull'azione (`swipeActionsContainer`, una riga aperta alla
- * volta). Qui no, come prima: l'azione parte al rilascio oltre la soglia e la riga torna sempre a posto. E' la
- * divergenza che il piano tiene (F6, «Azioni a scorrimento»).
+ * Un rilascio parziale lascia l'azione toccabile. La stessa molla porta la riga alla posa aperta e la richiude
+ * al tocco sulla riga, al tocco sull'azione o con Indietro. [FluidSwipeActionsContainer] coordina l'apertura
+ * fra righe e la chiusura toccando fuori o scorrendo.
  *
  * [FluidSwipeStyle.Fill] e' l'aspetto di prima: lo spazio rivelato si riempie del colore dell'azione (grigio fino alla
  * soglia), l'icona sta sul bordo, le molle sono quelle di [FluidMotion.swipeSettle] e [FluidMotion.swipeExit].
@@ -583,8 +742,8 @@ private class FluidSwipeUnmountGuard(private val state: FluidSwipeState) : Remem
  *   si vede la pagina, come in Apple si vede il foglio.
  * - I separatori fra la riga presa e le vicine restano (Apple li nasconde): il separatore lo disegna la riga di sopra,
  *   che non sa che quella sotto e' presa.
- * - Lo spostamento e' di disegno: tocco e semantica restano dove la riga sta a riposo (durante un gesto non serve
- *   altro, e una riga uscita non si tocca).
+ * - Lo spostamento e' di disegno. La fascia esposta della riga aperta riceve il tocco dell'azione; il resto
+ *   della riga riceve il tocco di chiusura. Le azioni di TalkBack restano sul nodo della riga.
  * - Una riga uscita ([FluidSwipeState.isDismissed]) che l'app non toglie resta vuota: l'app la rimette con
  *   [FluidSwipeState.reset].
  * - Una riga che esce dalla composizione mentre sta uscendo (la lista scorre o si aggiorna, la schermata si
@@ -621,9 +780,10 @@ fun Modifier.fluidSwipeActions(
   val gestureInsets = WindowInsets.systemGestures
   val edgePx = with(density) { FluidPageMotion.EdgeZoneDp.dp.toPx() }
   val active = enabled && (startAction != null || endAction != null)
+  val group = LocalFluidSwipeGroup.current
 
   // Scritto in composizione: il gesto lo legge al tocco, senza ripartire quando cambia.
-  state.config = FluidSwipeConfig(
+  val config = FluidSwipeConfig(
     startAction = startAction,
     endAction = endAction,
     enabled = active,
@@ -635,6 +795,14 @@ fun Modifier.fluidSwipeActions(
     layoutDirection = LocalLayoutDirection.current,
     style = style,
   )
+  DisposableEffect(state, group) {
+    state.attach(group)
+    onDispose { state.detach() }
+  }
+  SideEffect { state.updateConfig(config) }
+  if (state.isOpen && LocalOnBackPressedDispatcherOwner.current != null) {
+    BackHandler { state.close() }
+  }
 
   val rowFill = if (fill.isSpecified) fill else scheme.surfaceContainerLow
   val neutral = scheme.surfaceContainerHighest
@@ -665,8 +833,22 @@ fun Modifier.fluidSwipeActions(
 
   return this
     .onPlaced { state.coordinates = it }
-    .onSizeChanged { state.widthPx = it.width }
+    .onSizeChanged { state.resize(it.width) }
+    .then(if (state.isOpen) Modifier.onGloballyPositioned(state::checkOpenPosition) else Modifier)
     .fluidAccessibilityActions(a11y)
+    .pointerInput(state) {
+      awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        if (!state.isOpen) return@awaitEachGesture
+        val up = awaitSwipeTapUp(down, PointerEventPass.Initial) ?: return@awaitEachGesture
+        if (!up.isConsumed && state.isOpen &&
+          up.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis
+        ) {
+          up.consume()
+          state.tapOpenRow(down.position.x, up.position.x)
+        }
+      }
+    }
     .pointerInput(state) { fluidSwipeGesture(state) }
     .drawWithCache {
       val outline = shape.createOutline(size, layoutDirection, this)
@@ -715,7 +897,8 @@ fun Modifier.fluidSwipeActions(
         )
         val glyphPx = fluidSwipeGlyphPx(metrics.heightPx, density.density)
         val rowRadiusPx = min(FluidRadius.Group.toPx(), size.height / 2f)
-        val labelMaxPx = FluidSwipeLabelMaxWidthDp.dp.roundToPx()
+        val openPx = fluidSwipeOpenDistancePx(fluidSwipeThresholdPx(size.width, density.density), density.density, style)
+        val labelMaxPx = (openPx - metrics.gapPx - metrics.insetPx).toInt()
         val startLabel = currentStart?.let { measureSwipeLabel(measurer, it.label, labelStyle, labelMaxPx) }
         val endLabel = currentEnd?.let { measureSwipeLabel(measurer, it.label, labelStyle, labelMaxPx) }
         val rowPath = Path()
@@ -842,12 +1025,24 @@ private fun DrawScope.drawSwipeCapsule(
   }
 }
 
+private suspend fun AwaitPointerEventScope.awaitSwipeTapUp(
+  down: PointerInputChange,
+  pass: PointerEventPass,
+): PointerInputChange? {
+  while (true) {
+    val event = awaitPointerEvent(pass)
+    val change = event.changes.firstOrNull { it.id == down.id } ?: return null
+    if (event.changes.any { it.id != down.id && it.pressed }) return null
+    if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) return null
+    if (!change.pressed) return change
+  }
+}
 
 private suspend fun PointerInputScope.fluidSwipeGesture(state: FluidSwipeState) {
   awaitEachGesture {
     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
     val config = state.config
-    if (!config.enabled || state.isDismissed || state.widthPx <= 0) return@awaitEachGesture
+    if (!state.acceptsGestures) return@awaitEachGesture
     if (state.startsInEdge(down.position.x, down.position.y)) return@awaitEachGesture
     val slop = viewConfiguration.touchSlop
     val longPressMillis = viewConfiguration.longPressTimeoutMillis
@@ -883,7 +1078,9 @@ private suspend fun PointerInputScope.fluidSwipeGesture(state: FluidSwipeState) 
     try {
       while (true) {
         val event = awaitPointerEvent(PointerEventPass.Main)
+        if (event.changes.any { it.id != down.id && it.pressed } || !state.acceptsGestures) break
         val change = event.changes.firstOrNull { it.id == down.id } ?: break
+        if (change.isConsumed) break
         tracker.addPointerInputChange(change)
         val delta = change.position.x - change.previousPosition.x
         change.consume()
@@ -922,7 +1119,7 @@ fun Modifier.fluidAccessibilityActions(actions: List<CustomAccessibilityAction>)
   }
 
 /** Come finisce un rilascio. */
-internal enum class FluidSwipeRelease { Cancel, Start, End }
+internal enum class FluidSwipeRelease { Cancel, Open, Start, End }
 
 /** Cosa fare del dito alla soglia di tocco. */
 internal enum class FluidSwipeClaim { Undecided, Take, Leave }
@@ -948,6 +1145,22 @@ private const val FluidSwipeIconInsetDp = 20f
 /** La soglia in px: la frazione del back a dito della larghezza, col suo tetto. Zero se la riga non ha larghezza. */
 internal fun fluidSwipeThresholdPx(widthPx: Float, density: Float): Float =
   min(FluidPageMotion.CommitFraction * max(0f, widthPx), FluidPageMotion.CommitCapDp * density)
+
+/** I 56 pt della capsula aperta in f32244, piu' i suoi margini. Su righe strette resta sotto la soglia piena. */
+internal fun fluidSwipeOpenDistancePx(thresholdPx: Float, density: Float, style: FluidSwipeStyle): Float {
+  val margins = FluidSwipeCapsuleGapDp + FluidSwipeCapsuleInsetDp
+  val nominal = if (style.isCapsule) 56f + margins else FluidSwipeIconDp + 2f * FluidSwipeIconInsetDp
+  val available = min(nominal * density, thresholdPx * 0.8f)
+  return if (style.isCapsule && available <= margins * density) 0f else available
+}
+
+/** La fascia del controllo segue lo spazio effettivamente rivelato, anche in RTL e durante l'assestamento. */
+internal fun fluidSwipeHitAction(x: Float, physicalOffset: Float, width: Int): Boolean = when {
+  x < 0f || x > width -> false
+  physicalOffset > 0f -> x < physicalOffset
+  physicalOffset < 0f -> x > width + physicalOffset
+  else -> false
+}
 
 /**
  * Decide di chi e' il dito, una volta sola: [FluidSwipeClaim.Take] se lo spostamento orizzontale supera lo slop ed
@@ -1017,8 +1230,8 @@ internal fun fluidSwipeArmed(
 }
 
 /**
- * L'esito di un rilascio: conferma se armata, o con una spinta verso l'azione da almeno meta' soglia; una spinta
- * contraria annulla sempre. Pura: e' qui che si decide se un'email viene archiviata.
+ * Conferma se armata o con una spinta verso l'azione da almeno meta' soglia. Fra meta' della posa aperta e
+ * la conferma si lascia l'azione esposta. Una spinta contraria chiude anche oltre la soglia.
  */
 internal fun fluidSwipeRelease(
   offsetPx: Float,
@@ -1028,6 +1241,7 @@ internal fun fluidSwipeRelease(
   flingPx: Float,
   hasStart: Boolean,
   hasEnd: Boolean,
+  openPx: Float,
 ): FluidSwipeRelease {
   if (offsetPx == 0f || thresholdPx <= 0f) return FluidSwipeRelease.Cancel
   val start = offsetPx > 0f
@@ -1037,7 +1251,7 @@ internal fun fluidSwipeRelease(
   val confirmed = armed ||
     (outward >= flingPx && abs(offsetPx) >= thresholdPx * FluidSwipeFlingMinFraction)
   return when {
-    !confirmed -> FluidSwipeRelease.Cancel
+    !confirmed -> if (openPx > 0f && abs(offsetPx) >= openPx / 2f) FluidSwipeRelease.Open else FluidSwipeRelease.Cancel
     start -> FluidSwipeRelease.Start
     else -> FluidSwipeRelease.End
   }
@@ -1117,9 +1331,6 @@ internal const val FluidSwipeCapsuleMinDp = 24f
 
 /** Fra la capsula e l'etichetta: 4 dp (Apple 7 pt fino alla maiuscola, cioe' ≈3 pt fino alla riga del testo). */
 internal const val FluidSwipeLabelGapDp = 4f
-
-/** L'etichetta non va oltre 112 dp: un nome lungo si tronca coi puntini invece di uscire dalla riga. */
-internal const val FluidSwipeLabelMaxWidthDp = 112f
 
 /**
  * A quanti dp da casa la riga che torna si lascia (angoli e velo si spengono col lampo di [FluidMotion.flick]): 2. La

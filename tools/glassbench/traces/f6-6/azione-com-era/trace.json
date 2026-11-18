@@ -3,7 +3,7 @@
   "name": "azione-com-era",
   "phase": "f6-6",
   "fps": 60,
-  "durationMs": 1600,
+  "durationMs": 2000,
   "density": 3,
   "theme": "light",
   "size": [552, 192],
@@ -16,6 +16,11 @@
       "t": 467,
       "kind": "mark",
       "label": "rilascio"
+    },
+    {
+      "t": 1000,
+      "kind": "mark",
+      "label": "tocco sulla riga"
     }
   ],
   "probes": [
@@ -4357,17 +4362,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 366.018616,
+          "x": 363.135498,
           "y": 24,
-          "w": 169.981384,
+          "w": 172.864487,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 169.981384, 72]],
+          "drawClip": [[0, 0, 172.864487, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 125.981384,
+              "x": 128.864487,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -4380,13 +4385,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -153.981384,
+          "x": -156.864487,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[169.981384, 0, 689.981384, 72]],
+          "drawClip": [[172.864487, 0, 692.864502, 72]],
           "content": [
             {
               "name": "icona",
@@ -4493,17 +4498,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 385.186768,
+          "x": 375.411743,
           "y": 24,
-          "w": 150.813232,
+          "w": 160.588242,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 150.813232, 72]],
+          "drawClip": [[0, 0, 160.588242, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 106.813232,
+              "x": 116.588242,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -4516,13 +4521,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -134.813232,
+          "x": -144.588242,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[150.813232, 0, 670.813232, 72]],
+          "drawClip": [[160.588242, 0, 680.588257, 72]],
           "content": [
             {
               "name": "icona",
@@ -4629,17 +4634,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 406.753876,
+          "x": 389.224396,
           "y": 24,
-          "w": 129.246124,
+          "w": 146.775604,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 129.246124, 72]],
+          "drawClip": [[0, 0, 146.775604, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 85.246124,
+              "x": 102.775604,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -4652,13 +4657,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -113.246124,
+          "x": -130.775604,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[129.246124, 0, 649.246094, 72]],
+          "drawClip": [[146.775604, 0, 666.775635, 72]],
           "content": [
             {
               "name": "icona",
@@ -4765,17 +4770,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 429.563416,
+          "x": 403.832733,
           "y": 24,
-          "w": 106.4366,
+          "w": 132.167267,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 106.4366, 72]],
+          "drawClip": [[0, 0, 132.167267, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 62.4366,
+              "x": 88.167267,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -4788,13 +4793,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -90.4366,
+          "x": -116.167267,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[106.4366, 0, 626.436584, 72]],
+          "drawClip": [[132.167267, 0, 652.167236, 72]],
           "content": [
             {
               "name": "icona",
@@ -4901,17 +4906,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 450.305359,
+          "x": 417.116913,
           "y": 24,
-          "w": 85.694649,
+          "w": 118.883095,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 85.694649, 72]],
+          "drawClip": [[0, 0, 118.883095, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 41.694649,
+              "x": 74.883095,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -4924,13 +4929,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -69.694649,
+          "x": -102.883095,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[85.694649, 0, 605.694641, 72]],
+          "drawClip": [[118.883095, 0, 638.883118, 72]],
           "content": [
             {
               "name": "icona",
@@ -5037,17 +5042,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 467.204834,
+          "x": 427.940186,
           "y": 24,
-          "w": 68.795166,
+          "w": 108.05983,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 68.795166, 72]],
+          "drawClip": [[0, 0, 108.05983, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 24.795166,
+              "x": 64.05983,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5060,13 +5065,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -52.795166,
+          "x": -92.05983,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[68.795166, 0, 588.795166, 72]],
+          "drawClip": [[108.05983, 0, 628.059814, 72]],
           "content": [
             {
               "name": "icona",
@@ -5173,17 +5178,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 482.230896,
+          "x": 437.563599,
           "y": 24,
-          "w": 53.769115,
+          "w": 98.436401,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 53.769115, 72]],
+          "drawClip": [[0, 0, 98.436401, 72]],
           "content": [
             {
               "name": "icona",
-              "x": 9.769115,
+              "x": 54.436401,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5196,13 +5201,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -37.769115,
+          "x": -82.436401,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[53.769115, 0, 573.769104, 72]],
+          "drawClip": [[98.436401, 0, 618.436401, 72]],
           "content": [
             {
               "name": "icona",
@@ -5309,17 +5314,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 494.427948,
+          "x": 445.375214,
           "y": 24,
-          "w": 41.572052,
+          "w": 90.624794,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 41.572052, 72]],
+          "drawClip": [[0, 0, 90.624794, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -2.427948,
+              "x": 46.624794,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5332,13 +5337,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -25.572052,
+          "x": -74.624794,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[41.572052, 0, 561.572021, 72]],
+          "drawClip": [[90.624794, 0, 610.624817, 72]],
           "content": [
             {
               "name": "icona",
@@ -5445,17 +5450,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 503.632813,
+          "x": 451.270447,
           "y": 24,
-          "w": 32.367195,
+          "w": 84.729553,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 32.367195, 72]],
+          "drawClip": [[0, 0, 84.729553, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -11.632805,
+              "x": 40.729553,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5468,13 +5473,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -16.367195,
+          "x": -68.729553,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[32.367195, 0, 552.367188, 72]],
+          "drawClip": [[84.729553, 0, 604.729553, 72]],
           "content": [
             {
               "name": "icona",
@@ -5581,17 +5586,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 511.369812,
+          "x": 456.225616,
           "y": 24,
-          "w": 24.63019,
+          "w": 79.774391,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 24.63019, 72]],
+          "drawClip": [[0, 0, 79.774391, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -19.36981,
+              "x": 35.774391,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5604,13 +5609,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -8.63019,
+          "x": -63.774391,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[24.63019, 0, 544.630188, 72]],
+          "drawClip": [[79.774391, 0, 599.774414, 72]],
           "content": [
             {
               "name": "icona",
@@ -5717,17 +5722,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 517.375916,
+          "x": 460.072235,
           "y": 24,
-          "w": 18.624069,
+          "w": 75.927773,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 18.624069, 72]],
+          "drawClip": [[0, 0, 75.927773, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -25.375931,
+              "x": 31.927773,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5740,13 +5745,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": -2.624069,
+          "x": -59.927773,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[18.624069, 0, 538.624084, 72]],
+          "drawClip": [[75.927773, 0, 595.927795, 72]],
           "content": [
             {
               "name": "icona",
@@ -5853,17 +5858,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 521.755188,
+          "x": 462.876923,
           "y": 24,
-          "w": 14.24482,
+          "w": 73.123085,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 14.24482, 72]],
+          "drawClip": [[0, 0, 73.123085, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -29.75518,
+              "x": 29.123085,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -5876,13 +5881,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 1.75518,
+          "x": -57.123085,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[14.24482, 0, 534.244812, 72]],
+          "drawClip": [[73.123085, 0, 593.123108, 72]],
           "content": [
             {
               "name": "icona",
@@ -5989,17 +5994,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 525.334961,
+          "x": 465.169556,
           "y": 24,
-          "w": 10.665061,
+          "w": 70.830429,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 10.665061, 72]],
+          "drawClip": [[0, 0, 70.830429, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -33.334938,
+              "x": 26.830429,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6012,13 +6017,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 5.334939,
+          "x": -54.830429,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[10.665061, 0, 530.665039, 72]],
+          "drawClip": [[70.830429, 0, 590.830444, 72]],
           "content": [
             {
               "name": "icona",
@@ -6125,17 +6130,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 528.048279,
+          "x": 466.907318,
           "y": 24,
-          "w": 7.951731,
+          "w": 69.092682,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 7.951731, 72]],
+          "drawClip": [[0, 0, 69.092682, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -36.048271,
+              "x": 25.092682,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6148,13 +6153,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 8.048269,
+          "x": -53.092682,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[7.951731, 0, 527.951721, 72]],
+          "drawClip": [[69.092682, 0, 589.092651, 72]],
           "content": [
             {
               "name": "icona",
@@ -6261,17 +6266,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 529.988281,
+          "x": 468.14978,
           "y": 24,
-          "w": 6.01173,
+          "w": 67.850212,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 6.01173, 72]],
+          "drawClip": [[0, 0, 67.850212, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -37.98827,
+              "x": 23.850212,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6284,13 +6289,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 9.98827,
+          "x": -51.850212,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[6.01173, 0, 526.011719, 72]],
+          "drawClip": [[67.850212, 0, 587.85022, 72]],
           "content": [
             {
               "name": "icona",
@@ -6397,17 +6402,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 531.547913,
+          "x": 469.148682,
           "y": 24,
-          "w": 4.452085,
+          "w": 66.851334,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 4.452085, 72]],
+          "drawClip": [[0, 0, 66.851334, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -39.547913,
+              "x": 22.851334,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6420,13 +6425,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 11.547915,
+          "x": -50.851334,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[4.452085, 0, 524.452087, 72]],
+          "drawClip": [[66.851334, 0, 586.851318, 72]],
           "content": [
             {
               "name": "icona",
@@ -6533,17 +6538,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 532.712585,
+          "x": 469.894592,
           "y": 24,
-          "w": 3.287384,
+          "w": 66.1054,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 3.287384, 72]],
+          "drawClip": [[0, 0, 66.1054, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -40.712616,
+              "x": 22.1054,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6556,13 +6561,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 12.712616,
+          "x": -50.1054,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[3.287384, 0, 523.287354, 72]],
+          "drawClip": [[66.1054, 0, 586.105408, 72]],
           "content": [
             {
               "name": "icona",
@@ -6669,17 +6674,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 533.534912,
+          "x": 470.421234,
           "y": 24,
-          "w": 2.465096,
+          "w": 65.578766,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 2.465096, 72]],
+          "drawClip": [[0, 0, 65.578766, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -41.534904,
+              "x": 21.578766,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6692,13 +6697,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 13.534904,
+          "x": -49.578766,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[2.465096, 0, 522.465088, 72]],
+          "drawClip": [[65.578766, 0, 585.578735, 72]],
           "content": [
             {
               "name": "icona",
@@ -6805,17 +6810,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 534.188721,
+          "x": 470.839966,
           "y": 24,
-          "w": 1.811304,
+          "w": 65.160049,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 1.811304, 72]],
+          "drawClip": [[0, 0, 65.160049, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -42.188698,
+              "x": 21.160049,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6828,13 +6833,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 14.188696,
+          "x": -49.160049,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[1.811304, 0, 521.811279, 72]],
+          "drawClip": [[65.160049, 0, 585.160034, 72]],
           "content": [
             {
               "name": "icona",
@@ -6941,17 +6946,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 534.671997,
+          "x": 471.149475,
           "y": 24,
-          "w": 1.328003,
+          "w": 64.850517,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 1.328003, 72]],
+          "drawClip": [[0, 0, 64.850517, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -42.671997,
+              "x": 20.850517,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -6964,13 +6969,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 14.671997,
+          "x": -48.850517,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[1.328003, 0, 521.328003, 72]],
+          "drawClip": [[64.850517, 0, 584.850525, 72]],
           "content": [
             {
               "name": "icona",
@@ -7077,17 +7082,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 535.010193,
+          "x": 471.366089,
           "y": 24,
-          "w": 0.989789,
+          "w": 64.633911,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 0.989789, 72]],
+          "drawClip": [[0, 0, 64.633911, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -43.010208,
+              "x": 20.633911,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -7100,13 +7105,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 15.010211,
+          "x": -48.633911,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0.989789, 0, 520.989807, 72]],
+          "drawClip": [[64.633911, 0, 584.633911, 72]],
           "content": [
             {
               "name": "icona",
@@ -7213,17 +7218,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 535.276978,
+          "x": 472,
           "y": 24,
-          "w": 0.722994,
+          "w": 64,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 0.722994, 72]],
+          "drawClip": [[0, 0, 64, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -43.277008,
+              "x": 20,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -7236,13 +7241,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 15.277006,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0.722994, 0, 520.723022, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7349,17 +7354,17 @@
         {
           "name": "spazio",
           "kind": "shape",
-          "x": 535.472778,
+          "x": 472,
           "y": 24,
-          "w": 0.527221,
+          "w": 64,
           "h": 72,
           "radius": 0,
           "color": "#E3E3E8FF",
-          "drawClip": [[0, 0, 0.527221, 72]],
+          "drawClip": [[0, 0, 64, 72]],
           "content": [
             {
               "name": "icona",
-              "x": -43.472778,
+              "x": 20,
               "y": 24,
               "w": 24,
               "h": 24,
@@ -7372,13 +7377,13 @@
         {
           "name": "riga",
           "kind": "shape",
-          "x": 15.472779,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0.527221, 0, 520.527222, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7483,15 +7488,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7596,15 +7624,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7709,15 +7760,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7822,15 +7896,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -7935,15 +8032,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -8048,15 +8168,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -8161,15 +8304,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -8274,15 +8440,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -8387,15 +8576,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 472,
+          "y": 24,
+          "w": 64,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 64, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 20,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -48,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[64, 0, 584, 72]],
           "content": [
             {
               "name": "icona",
@@ -8500,15 +8712,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 474.883087,
+          "y": 24,
+          "w": 61.116901,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 61.116901, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 17.116901,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -45.116901,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[61.116901, 0, 581.116882, 72]],
           "content": [
             {
               "name": "icona",
@@ -8613,15 +8848,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 481.775024,
+          "y": 24,
+          "w": 54.224979,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 54.224979, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 10.224979,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -38.224979,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[54.224979, 0, 574.224976, 72]],
           "content": [
             {
               "name": "icona",
@@ -8726,15 +8984,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 490.022278,
+          "y": 24,
+          "w": 45.977737,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 45.977737, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 1.977737,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -29.977737,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[45.977737, 0, 565.977722, 72]],
           "content": [
             {
               "name": "icona",
@@ -8839,15 +9120,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 497.730652,
+          "y": 24,
+          "w": 38.269341,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 38.269341, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -5.730659,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -22.269341,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[38.269341, 0, 558.269348, 72]],
           "content": [
             {
               "name": "icona",
@@ -8952,15 +9256,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 505.188446,
+          "y": 24,
+          "w": 30.81156,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 30.81156, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -13.18844,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -14.81156,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[30.81156, 0, 550.811584, 72]],
           "content": [
             {
               "name": "icona",
@@ -9065,15 +9392,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 511.612274,
+          "y": 24,
+          "w": 24.387737,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 24.387737, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -19.612263,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -8.387737,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[24.387737, 0, 544.387756, 72]],
           "content": [
             {
               "name": "icona",
@@ -9178,15 +9528,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 516.667297,
+          "y": 24,
+          "w": 19.332716,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 19.332716, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -24.667284,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": -3.332716,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[19.332716, 0, 539.332703, 72]],
           "content": [
             {
               "name": "icona",
@@ -9291,15 +9664,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 521.052734,
+          "y": 24,
+          "w": 14.947254,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 14.947254, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -29.052746,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 1.052746,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[14.947254, 0, 534.947266, 72]],
           "content": [
             {
               "name": "icona",
@@ -9404,15 +9800,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 524.545654,
+          "y": 24,
+          "w": 11.454365,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 11.454365, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -32.545635,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 4.545635,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[11.454365, 0, 531.454346, 72]],
           "content": [
             {
               "name": "icona",
@@ -9517,15 +9936,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 527.144226,
+          "y": 24,
+          "w": 8.855799,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 8.855799, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -35.144203,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 7.144201,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[8.855799, 0, 528.855774, 72]],
           "content": [
             {
               "name": "icona",
@@ -9630,15 +10072,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 529.303711,
+          "y": 24,
+          "w": 6.696294,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 6.696294, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -37.303703,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 9.303705,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[6.696295, 0, 526.696289, 72]],
           "content": [
             {
               "name": "icona",
@@ -9743,15 +10208,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 530.964111,
+          "y": 24,
+          "w": 5.035906,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 5.035906, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -38.964096,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 10.964094,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[5.035906, 0, 525.035889, 72]],
           "content": [
             {
               "name": "icona",
@@ -9856,15 +10344,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 532.165344,
+          "y": 24,
+          "w": 3.834629,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 3.834629, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -40.165371,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 12.165371,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[3.834629, 0, 523.834656, 72]],
           "content": [
             {
               "name": "icona",
@@ -9969,15 +10480,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 533.14093,
+          "y": 24,
+          "w": 2.859049,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 2.859049, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -41.140953,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 13.140951,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[2.859049, 0, 522.85907, 72]],
           "content": [
             {
               "name": "icona",
@@ -10082,15 +10616,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 533.87616,
+          "y": 24,
+          "w": 2.123854,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 2.123854, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -41.876144,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 13.876146,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[2.123854, 0, 522.12384, 72]],
           "content": [
             {
               "name": "icona",
@@ -10195,15 +10752,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 534.399231,
+          "y": 24,
+          "w": 1.60075,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 1.60075, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -42.39925,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 14.39925,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[1.60075, 0, 521.600769, 72]],
           "content": [
             {
               "name": "icona",
@@ -10308,15 +10888,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 534.817993,
+          "y": 24,
+          "w": 1.181981,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 1.181981, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -42.81802,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 14.818019,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[1.181981, 0, 521.182007, 72]],
           "content": [
             {
               "name": "icona",
@@ -10421,15 +11024,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 535.129517,
+          "y": 24,
+          "w": 0.87046,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 0.87046, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -43.129539,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 15.12954,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[0.87046, 0, 520.870483, 72]],
           "content": [
             {
               "name": "icona",
@@ -10534,15 +11160,38 @@
           ]
         },
         {
+          "name": "spazio",
+          "kind": "shape",
+          "x": 535.348755,
+          "y": 24,
+          "w": 0.651255,
+          "h": 72,
+          "radius": 0,
+          "color": "#E3E3E8FF",
+          "drawClip": [[0, 0, 0.651255, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": -43.348747,
+              "y": 24,
+              "w": 24,
+              "h": 24,
+              "icon": "fluid:delete|circle",
+              "iconSizeDp": 24,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
           "name": "riga",
           "kind": "shape",
-          "x": 16,
+          "x": 15.348744,
           "y": 24,
           "w": 520,
           "h": 72,
           "radius": 0,
           "color": "#FFFFFFFF",
-          "drawClip": [[0, 0, 520, 72]],
+          "drawClip": [[0.651256, 0, 520.651245, 72]],
           "content": [
             {
               "name": "icona",
@@ -12389,6 +13038,2718 @@
     },
     {
       "t": 1600,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1616.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1633.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1650,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1666.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1683.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1700,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1716.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1733.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1750,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1766.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1783.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1800,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1816.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1833.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1850,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1866.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1883.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1900,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1916.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1933.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1950,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1966.666667,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1983.333333,
+      "elements": [
+        {
+          "name": "gruppo",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 144,
+          "radius": 22,
+          "color": "#FFFFFFFF"
+        },
+        {
+          "name": "separatore",
+          "kind": "shape",
+          "x": 80,
+          "y": 95.5,
+          "w": 456,
+          "h": 0.5,
+          "radius": 0,
+          "color": "#1B1B1F1A"
+        },
+        {
+          "name": "seconda",
+          "kind": "shape",
+          "x": 16,
+          "y": 96,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:account_balance|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Banca",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        },
+        {
+          "name": "riga",
+          "kind": "shape",
+          "x": 16,
+          "y": 24,
+          "w": 520,
+          "h": 72,
+          "radius": 0,
+          "color": "#FFFFFFFF",
+          "drawClip": [[0, 0, 520, 72]],
+          "content": [
+            {
+              "name": "icona",
+              "x": 16,
+              "y": 20,
+              "w": 32,
+              "h": 32,
+              "icon": "fluid:mark_email_unread|circle",
+              "iconSizeDp": 19,
+              "color": "#0A65CB"
+            },
+            {
+              "name": "titolo",
+              "x": 64,
+              "y": 14,
+              "w": 200,
+              "h": 24,
+              "label": "Marta",
+              "labelSizeDp": 17,
+              "labelWeight": 600,
+              "color": "#1B1B1FFF"
+            },
+            {
+              "name": "sottotitolo",
+              "x": 64,
+              "y": 38,
+              "w": 240,
+              "h": 20,
+              "label": "Domani alle 9",
+              "labelSizeDp": 15,
+              "color": "#6C6C72FF"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 2000,
       "elements": [
         {
           "name": "gruppo",

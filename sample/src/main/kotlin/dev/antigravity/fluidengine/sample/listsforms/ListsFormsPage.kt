@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidStepper
 import dev.antigravity.fluidengine.ui.fluid.FluidSwipeAction
+import dev.antigravity.fluidengine.ui.fluid.FluidSwipeActionsContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidSwipeStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSwipeStyle
@@ -86,7 +87,9 @@ internal fun ListsFormsPage(bottomInset: Dp, onBack: () -> Unit) {
   }
   var style by remember { mutableStateOf(if (startsFill) FluidSwipeStyle.Fill else FluidSwipeStyle.Capsule) }
   CompositionLocalProvider(LocalFluidSwipeStyle provides style) {
-    ListsFormsContent(style = style, onStyle = { style = it }, bottomInset = bottomInset, onBack = onBack)
+    FluidSwipeActionsContainer {
+      ListsFormsContent(style = style, onStyle = { style = it }, bottomInset = bottomInset, onBack = onBack)
+    }
   }
 }
 
@@ -117,7 +120,12 @@ private fun ListsFormsContent(
     extraBottomPadding = bottomInset,
     ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Cards) },
   ) {
-    item(key = "swipe-header") { FluidSectionHeader(title = "Azioni a scorrimento", detail = "Tira una riga di lato.") }
+    item(key = "swipe-header") {
+      FluidSectionHeader(
+        title = "Azioni a scorrimento",
+        detail = "Tira una riga di lato e rilasciala per mostrare l’azione. Scorri fino in fondo per eseguirla.",
+      )
+    }
     item(key = "swipe-style") {
       FluidSegmentedControl(
         options = listOf(FluidSwipeStyle.Capsule, FluidSwipeStyle.Fill),

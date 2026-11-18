@@ -98,6 +98,9 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidSwipeGroup
+import dev.antigravity.fluidengine.ui.fluid.FluidSwipeGroup
+import dev.antigravity.fluidengine.ui.fluid.observeFluidSwipeGroup
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasIsGlass
 import dev.antigravity.fluidengine.ui.fluid.glassSurface
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
@@ -1228,6 +1231,8 @@ fun FluidListGroup(
   val openBottom = segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.First
   val trimPx = with(LocalDensity.current) { FluidGroupOpenEdge.toPx() }
   val onGlass = contentGlassAvailable(glass)
+  val parentSwipeGroup = LocalFluidSwipeGroup.current
+  val swipeGroup = parentSwipeGroup ?: remember { FluidSwipeGroup() }
   Surface(
     // Surface already clips its children to [shape]. A second clip created another large offscreen
     // layer for the whole group, which was especially expensive for long catalog lists.
@@ -1253,8 +1258,16 @@ fun FluidListGroup(
   ) {
     // Le righe dicono dove comincia il loro testo, i separatori del gruppo lo leggono (F6.6).
     val textInsets = remember { FluidListTextInsets() }
-    CompositionLocalProvider(LocalFluidListTextInsets provides textInsets) {
-      Column(modifier = Modifier.fillMaxWidth(), content = content)
+    CompositionLocalProvider(
+      LocalFluidListTextInsets provides textInsets,
+      LocalFluidSwipeGroup provides swipeGroup,
+    ) {
+      Column(
+        modifier = Modifier.fillMaxWidth().then(
+          if (parentSwipeGroup == null) Modifier.observeFluidSwipeGroup(swipeGroup) else Modifier,
+        ),
+        content = content,
+      )
     }
   }
 }

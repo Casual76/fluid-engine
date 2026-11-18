@@ -20,7 +20,9 @@
  *     col ciclo di vita fermo a CREATED (con FluidNavHost lo fa il NavController);
  *   - chi e' davanti passa di mano a meta' uscita (`LocalFluidRouteFront`), in AND col davanti di chi
  *     contiene l'host; il vetro si assottiglia mentre due pagine si muovono (`markMoving`);
- *   - i passi fra schede restano quelli di prima (13%, la vecchia sfuma), senza carta e senza gesto.
+ *   - i passi fra schede restano quelli di prima (13%, la vecchia sfuma), senza carta e senza gesto;
+ *   - (4.0, F5B.3) con una sorgente dichiarata ([FluidPageHost] `zoomSource`) Expand e' uno zoom: la pagina sta dentro
+ *     una sagoma che viaggia fra la sorgente e lo schermo, ritagliata e in scala (`FluidZoom`).
  */
 package dev.antigravity.fluidengine.ui.page
 
@@ -52,8 +54,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
@@ -68,6 +75,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -79,6 +87,7 @@ import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import dev.antigravity.fluidengine.ui.fluid.FluidRouteSignal
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassTraced
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
@@ -124,6 +133,11 @@ val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?> =
  *   [Color.Unspecified], l'host non dipinge niente e ogni pagina lascia vedere quello che c'e'
  *   dietro: le due pagine di un movimento non sono piu' due strati opachi e si vedono per
  *   trasparenza mentre una scivola sull'altra. `FluidNavHost` lo passa uguale.
+ * - [zoomSource]: la sorgente da cui una pagina [FluidPageTransition.Expand] si apre con lo zoom (4.0, F5B.3; in SwiftUI
+ *   `navigationTransition(.zoom(sourceID:in:))`), di solito `FluidTransitionSource(id, namespace)` con lo stesso id del
+ *   `Modifier.fluidTransitionSource` messo sulla card. La pagina nasce dal riquadro e dalla forma della sorgente, ci torna
+ *   al pop e col dito, e intanto la sorgente non si disegna. Null, o una sorgente che in quel momento non si trova
+ *   (uscita dallo scorrimento): l'Expand di sempre, dal punto toccato. Le altre transizioni la ignorano.
  * - [content]: la pagina di una chiave, anche di una che ha appena lasciato la pila e sta uscendo.
  */
 @Composable
@@ -139,6 +153,7 @@ fun <K : Any> FluidPageHost(
   leaving: Set<K>? = null,
   state: FluidPageHostState = rememberFluidPageHostState(),
   pageColor: Color = MaterialTheme.colorScheme.background,
+  zoomSource: (K) -> FluidTransitionSource? = { null },
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   FluidPageHostImpl(
@@ -155,6 +170,7 @@ fun <K : Any> FluidPageHost(
     pageColor = pageColor,
     ownOwners = true,
     pageKey = { it },
+    zoomSource = zoomSource,
     content = content,
   )
 }
@@ -184,6 +200,7 @@ internal fun <K : Any> FluidPageHostImpl(
   pageColor: Color,
   ownOwners: Boolean,
   pageKey: (K) -> Any,
+  zoomSource: (K) -> FluidTransitionSource? = { null },
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -227,6 +244,9 @@ internal fun <K : Any> FluidPageHostImpl(
     }
   }
 
+  // Le sorgenti nascoste dalle pagine aperte con lo zoom rinascono se l'host esce di scena con le pagine aperte.
+  DisposableEffect(state) { onDispose { state.releaseSources() } }
+
   // La cima della pila all'ultima chiusura: quando cambia, la rotta e' cambiata, e lo si dice a chi
   // sta fuori dalle pagine nella stessa finestra (3.0.1: la barra flottante si riapre e chiude il fermo
   // dello scorrimento di una lista che non c'e' piu').
@@ -249,6 +269,7 @@ internal fun <K : Any> FluidPageHostImpl(
     state.backSwipeOf = { page -> backSwipe(page as K) }
     state.peerOf = peer?.let { move -> { from: Any, to: Any -> move.direction(from as K, to as K) } }
     state.renderable = { page -> leaving == null || page in stack || page in leaving }
+    state.sourceOf = { page -> zoomSource(page as K) }
     state.onStack(stack)
     state.backHandler?.isBackEnabled = stack.size > 1
     // Lo stato salvato di una pagina che ha lasciato la pila (e lo schermo) non serve piu'.
@@ -397,6 +418,11 @@ private class PageScopeImpl(
  * Sopra: la carta (angoli del telefono, ombra) solo mentre si muove; mai alpha, mai RenderEffect,
  * mai scrim. Sotto: −(W/3)·(1 − e), ferma sotto una Expand che si apre, non disegnata a riposo
  * (e' coperta da una pagina opaca). I passi fra schede restano quelli di sempre.
+ *
+ * **Lo zoom (F5B.3).** La pagina sopra sta intera dentro la sua sagoma: in scala attorno al centro e spostata
+ * ([FluidPageHostState.pageScale], [FluidPageHostState.pageOffsetX], [FluidPageHostState.pageOffsetY]: gli stessi numeri
+ * che legge la barra per il titolo grande), ritagliata dalla sagoma riportata nelle sue coordinate. L'ombra cresce con
+ * l'apertura: nel primo fotogramma la sagoma e' la sorgente, senza un'ombra che compare di colpo.
  */
 private fun Modifier.pageLayer(
   state: FluidPageHostState,
@@ -417,6 +443,7 @@ private fun Modifier.pageLayer(
   // La geometria e' quella che legge anche la barra ancorata ([FluidPageHostState.pageOffsetX]):
   // il titolo grande, che e' contenuto, viaggia con la sua pagina allo stesso pixel.
   translationX = state.pageOffsetX(role)
+  translationY = state.pageOffsetY(role)
   val scale = state.pageScale(role)
   scaleX = scale
   scaleY = scale
@@ -440,6 +467,17 @@ private fun Modifier.pageLayer(
         alpha = FluidPageMotion.peerFrame(state.peerTime, state.peerEased, state.width, state.peerDirection).third
       }
     }
+    role == PageRole.Upper && state.zoomShape() != null -> {
+      val zoomed = state.zoomShape()!!
+      val target = Rect(0f, 0f, size.width, size.height)
+      val clipped = FluidZoom.contentClip(zoomed, target, FluidZoom.content(zoomed, target))
+      shape = FluidZoomClipShape(clipped.toRoundRect())
+      clip = true
+      shadowElevation = elevationPx * (1f - state.upperExitFraction()).coerceIn(0f, 1f)
+      ambientShadowColor = shadowColor
+      spotShadowColor = shadowColor
+      signals.markMoving()
+    }
     role == PageRole.Upper -> {
       if (state.opening && state.upperTransition == FluidPageTransition.Expand) {
         transformOrigin = state.expandOrigin
@@ -455,6 +493,14 @@ private fun Modifier.pageLayer(
     }
     else -> Unit
   }
+}
+
+/**
+ * La sagoma di uno zoom nelle coordinate del layer della pagina: un rettangolo arrotondato fuori dall'origine, che
+ * l'hardware ritaglia gratis quando i raggi sono uguali (come la carta).
+ */
+private class FluidZoomClipShape(private val rect: RoundRect) : Shape {
+  override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = Outline.Rounded(rect)
 }
 
 /** Durante una conferma la pagina che esce non prende tocchi; durante un push, quella coperta. */

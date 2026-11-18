@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -90,6 +91,15 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassAnimation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransitionWithShape
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuRoundRectShape
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerRelay
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuUsesField
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarMenu
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarTransitionSource
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassInk
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentKey
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
@@ -326,6 +336,24 @@ class FluidToolbarScope internal constructor() {
     )
   }
 
+  /**
+   * Un'azione che apre un menu al tocco o tenendo premuto. Nel secondo caso il dito può scegliere una
+   * voce senza staccarsi. In un gruppo con sfondo condiviso è il suo vetro a diventare il pannello.
+   */
+  fun action(
+    id: Any,
+    icon: ImageVector,
+    label: String,
+    placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic,
+    priority: FluidToolbarPriority = FluidToolbarPriority.High,
+    menu: () -> List<FluidContextAction>,
+  ) {
+    entries += FluidToolbarButtonEntry(
+      id = id, role = FluidToolbarRole.Action, placement = placement, priority = priority,
+      icon = icon, label = label, onClick = null, overflow = inOverflow, menu = menu,
+    )
+  }
+
   /** Un tasto con una scritta («Seleziona», «Fine»): ha sempre il suo vetro, e non sta in un gruppo con le icone. */
   fun text(
     id: Any,
@@ -455,6 +483,7 @@ internal class FluidToolbarButtonEntry(
   val custom: (@Composable () -> Unit)? = null,
   val defaultLabel: FluidToolbarDefaultLabel? = null,
   val overflow: Boolean = false,
+  val menu: (() -> List<FluidContextAction>)? = null,
 ) : FluidToolbarEntry
 
 internal class FluidToolbarSpacerEntry(override val id: Any, val flexible: Boolean, val width: Dp) : FluidToolbarEntry
@@ -966,8 +995,21 @@ internal fun FluidToolbarGroups(
       }
     }
     val namespace = rememberFluidGlassNamespace()
-    val animation = if (searchField == null) FluidGlassAnimation.Default
-      else ToolbarSearchAnimation
+    val menuSource = remember { FluidToolbarMenuSource() }
+    LaunchedEffect(menuSource.handoff) {
+      if (menuSource.instant) {
+        // Il piano pubblica il riposo al prossimo frame e monta i grappoli al successivo.
+        repeat(2) { withFrameNanos { } }
+        menuSource.instant = false
+      }
+    }
+    // Il passaggio al menu salta l'animazione del piano per due fotogrammi (F5A.2); fuori da quello, la ricerca usa la
+    // sua (F4B.2) e il resto quella di serie.
+    val animation = when {
+      menuSource.instant -> FluidGlassAnimation.None
+      searchField == null -> FluidGlassAnimation.Default
+      else -> ToolbarSearchAnimation
+    }
     FluidGlassContainer(Modifier.fillMaxSize(), animation = animation) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       Box(Modifier.fillMaxSize()) {
@@ -983,6 +1025,7 @@ internal fun FluidToolbarGroups(
               memory = memory,
               selection = selection,
               interactive = interactive,
+              menuSource = menuSource,
               modifier = Modifier.align(Alignment.CenterStart).offset(x = group.leftDp.dp),
             )
           }
@@ -1198,13 +1241,16 @@ private fun FluidToolbarGroupPiece(
   memory: FluidToolbarMemory,
   selection: Map<Any, State<Float>>,
   interactive: Boolean,
+  menuSource: FluidToolbarMenuSource,
   modifier: Modifier,
 ) {
   val scheme = MaterialTheme.colorScheme
   val single = group.items.singleOrNull()
   val primary = single?.isPrimary == true
   val primaryEntry = single?.let { declaration.buttons[it.id] }
+  val leased = menuSource.anchor(glass)
   val surface = when {
+    leased != null -> FluidGlass.Identity
     !group.sharedBackground -> FluidGlass.Identity
     // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4); la sua icona è chiara.
     primary -> FluidGlass.Regular.tint(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary).interactive()
@@ -1212,6 +1258,11 @@ private fun FluidToolbarGroupPiece(
   }
   Row(
     modifier
+      .then(if (leased?.groupBounds != null) Modifier.graphicsLayer {
+        val round = leased.groupClip()
+        if (round != null) shape = FluidMenuRoundRectShape(round)
+        clip = round != null
+      } else Modifier)
       .fluidGlassId(glass, namespace)
       .fluidGlassTransition(fluidToolbarGlassTransition(group))
       .fluidGlassContentAnchor(when (group.side) {
@@ -1242,9 +1293,29 @@ private fun FluidToolbarGroupPiece(
           // Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che arriva con un vetro nuovo lo porta il piano.
           entersBlurred = memory.settled && item.id !in memory.arrivals && item.id !in memory.previousIds && glass in memory.previousGlass,
           shapeKey = fluidToolbarSlotShapeKey(group, FluidToolbarTuning.keptContent),
+          menuSource = menuSource,
+          groupShared = group.sharedBackground,
+          groupCount = group.items.size,
         )
       }
     }
+  }
+}
+
+private class FluidToolbarMenuSource {
+  private var leased by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
+  var instant by mutableStateOf(false)
+  var handoff by mutableStateOf(0)
+    private set
+
+  fun anchor(glass: FluidToolbarGlassId): FluidMenuAnchor? = leased?.takeIf { it.first == glass }?.second
+
+  fun transfer(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
+    if (consumed) leased = glass to anchor
+    else if (leased?.second === anchor) leased = null
+    else return
+    instant = true
+    handoff++
   }
 }
 
@@ -1303,6 +1374,9 @@ private fun FluidToolbarSlot(
   entersBlurred: Boolean,
   /** La forma del vetro, per la variante «morbida» (F4A.5b): vedi [fluidToolbarSlotShapeKey]. */
   shapeKey: Any? = null,
+  menuSource: FluidToolbarMenuSource,
+  groupShared: Boolean,
+  groupCount: Int,
 ) {
   val scheme = MaterialTheme.colorScheme
   val labels = LocalFluidLabels.current
@@ -1337,9 +1411,45 @@ private fun FluidToolbarSlot(
   // Il trabocco: le azioni nascoste, nel menu «Altro» e, per TalkBack, come azioni del tasto.
   val hidden = if (overflow) resolved.overflow.mapNotNull { declaration.buttons[it.id] } else emptyList()
   val menu = if (overflow && interactive) {
-    rememberFluidContextMenu(actions = { hidden.map { it.contextAction(labels.back, labels.close, labels.confirm) } })
+    rememberFluidContextMenu(actions = {
+      hidden.flatMap { it.menu?.invoke() ?: listOf(it.contextAction(labels.back, labels.close, labels.confirm)) }
+    })
   } else {
     null
+  }
+  val declaredMenu = if (entry?.menu != null && interactive) rememberFluidToolbarMenu() else null
+  val source = if (declaredMenu != null) rememberFluidToolbarTransitionSource(item.id) else null
+  val sourceCanTravel = declaredMenu != null && groupShared && fluidMenuUsesField()
+  val active = menuSource.anchor(glass)
+  val groupInMenu = active?.groupBounds != null
+  val menuHidden = declaredMenu?.anchor?.hidden == true
+  val effects = if (groupInMenu) {
+    val density = LocalDensity.current.density
+    remember(density) { FluidToolbarEffects(density) }
+  } else {
+    null
+  }
+  val sourceTint = if (declaredMenu != null) GlassDefaults.controlTint() else null
+  val sourcePlane = if (declaredMenu != null) currentFluidGlassContainer(FluidCapsuleShape) else null
+  val sourceInk = if (declaredMenu != null) rememberGlassInk() else null
+  val sourceDark = if (declaredMenu != null) GlassDefaults.isDarkSurface() else false
+  val openDeclaredMenu: () -> Unit = {
+    if (declaredMenu != null && entry?.menu != null && active == null) {
+      val anchor = declaredMenu.anchor
+      anchor.face = { FluidToolbarFaceContent(face, textStyle) }
+      anchor.tintFrom = sourceTint
+      anchor.opticsFrom = GlassDefaults.buttonOptics()
+      sourceInk?.let { ink ->
+        sourcePlane?.adaptive?.let { ink.bind(it, sourceDark) } ?: ink.unbind()
+        anchor.ink = ink
+      }
+      val groupBounds = if (sourceCanTravel) source?.resolve()?.bounds else null
+      if (declaredMenu.open(entry.menu.invoke(), groupBounds) { consumed ->
+          if (groupCount == 1 || anchor.groupBounds != null) {
+            menuSource.transfer(glass, anchor, consumed)
+          }
+        }) haptics.play(FluidHapticEvent.Open)
+    }
   }
   // Al primo stato la faccia c'è già; un tasto nuovo dentro un vetro che resta parte dal vuoto e arriva sfocato.
   var arrived by remember { mutableStateOf(!entersBlurred) }
@@ -1350,10 +1460,13 @@ private fun FluidToolbarSlot(
       .width(width)
       .height(resolved.metrics.buttonWidthDp.dp)
       .then(if (interactive) Modifier.fluidToolbarTransitionSource(item.id, FluidGlassQualifiedId(namespace, glass)) else Modifier)
+      .then(if (declaredMenu != null) Modifier
+        .fluidMenuPointerRelay(declaredMenu.anchor.handOff)
+        .onGloballyPositioned { declaredMenu.anchor.restBounds = it.boundsInRoot() } else Modifier)
       .then(if (menu != null) Modifier.fluidContextMenuAnchor(menu) else Modifier),
     contentAlignment = Alignment.Center,
   ) {
-    if (item.selected || selection.value > 0f) {
+    if (active == null && (item.selected || selection.value > 0f)) {
       Box(
         Modifier
           .matchParentSize()
@@ -1386,12 +1499,30 @@ private fun FluidToolbarSlot(
             drawLayer(iconLayer)
           }
         })
-        .graphicsLayer { alpha = if (enabled) 1f else FluidToolbarDefaults.DisabledAlpha },
+        .graphicsLayer {
+          val dim = if (enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+          val phase = active?.groupProgress?.invoke() ?: 0f
+          val u = phase / FluidMotion.MenuGroupFaceProgressSpan
+          val role = GlassContentRole.Exit
+          alpha = when {
+            groupInMenu -> dim * GlassContentCurves.alpha(role, u, effects != null)
+            menuHidden -> 0f
+            else -> dim
+          }
+          val s = if (groupInMenu) GlassContentCurves.scale(role, u) else 1f
+          scaleX = s
+          scaleY = s
+          renderEffect = effects?.let {
+            val sigma = glassContentSigmaPx(GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur,
+              FluidMetrics.BarIconSize.toPx())
+            it.at(glassContentBlurRadiusPx(sigma))
+          }
+        },
     ) { shownFace ->
       if (shownFace != null) FluidToolbarFaceContent(shownFace, textStyle)
     }
     val badge = item.badge
-    if (badge != null) {
+    if (active == null && badge != null) {
       FluidBadge(
         count = badge.text?.toIntOrNull(),
         modifier = Modifier
@@ -1400,11 +1531,19 @@ private fun FluidToolbarSlot(
       )
     }
     // Il bersaglio: almeno 48 dp per lato, centrato sul posto, senza cambiare la misura del vetro.
-    if (interactive && item.id !in memory.transfers) Box(
+    if (interactive && active == null && item.id !in memory.transfers) Box(
       Modifier
         .requiredSize(max(width, FluidMetrics.TouchTarget), FluidMetrics.TouchTarget)
         .then(
           when {
+            declaredMenu != null -> Modifier.combinedClickable(
+              interactionSource = null,
+              indication = null,
+              enabled = enabled,
+              role = Role.Button,
+              onLongClick = openDeclaredMenu,
+              onClick = openDeclaredMenu,
+            )
             menu != null -> Modifier.clickable(
               interactionSource = remember { MutableInteractionSource() },
               indication = null,

@@ -2470,6 +2470,8 @@ internal class FluidBarTitleMotion(
   val pageCenter: () -> Offset,
   val chromeX: () -> Float,
   val chromeAlpha: () -> Float,
+  /** Lo spostamento verticale della pagina: zero sempre, tranne una pagina che si apre o torna con lo zoom (F5B.3). */
+  val pageY: () -> Float = { 0f },
 )
 
 /**
@@ -2577,6 +2579,7 @@ internal fun FluidTopBarTitle(
             scale *= pageScale
           }
           tx += lerp(motion.pageX(), motion.chromeX(), eased)
+          ty += motion.pageY() * (1f - eased)
           alpha *= lerp(1f, motion.chromeAlpha(), eased)
         }
 

@@ -163,6 +163,8 @@ fun FluidNavHost(
     ownOwners = false,
     // L'id della voce e' stabile alla ricreazione, la voce no: vedi [FluidPageHostImpl].
     pageKey = { entry -> entry.id },
+    // Lo zoom dalla sorgente (F5B.3), dichiarato sulla destinazione e letto dalla voce.
+    zoomSource = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoomSource?.invoke(entry) },
   ) { entry ->
     // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato
     // salvabile, come in NavHost.

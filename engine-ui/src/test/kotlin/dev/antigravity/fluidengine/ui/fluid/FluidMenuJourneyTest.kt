@@ -73,6 +73,59 @@ class FluidMenuJourneyTest {
   }
 
   @Test
+  fun theGroupGatherAndDestinationAreIndependentOfThePanelSize() {
+    val trigger = Offset(rest.right - 22f, rest.center.y)
+    val gather = fluidMenuJourneySeed(rest, trigger, panel.center, FluidMotion.MenuGatherEnd, grouped = true)
+    assertEquals(rest.center, gather.center)
+    assertEquals(rest.width * 0.60f, gather.width, 0.001f)
+    val mid = fluidMenuJourneySeed(rest, trigger, panel.center, FluidMotion.MenuExpandStart, grouped = true)
+    assertTrue(mid.center.y in panel.center.y..rest.center.y)
+    assertEquals(0f, fluidMenuExpansionProgress(FluidMotion.MenuExpandStart), 0f)
+    val destination = Offset(152f, 373f)
+    val final = fluidMenuJourneySeed(rest, trigger, destination, FluidMotion.MenuTravelEnd, grouped = true)
+    assertEquals(destination, final.center)
+    assertEquals(final.height, final.width, 0.001f)
+    assertEquals(1.04f, fluidMenuExpansionProgress(1.04f), 0f)
+  }
+
+  @Test
+  fun theLensBeginsWithInkAndFocusesWithoutMovingTheRestingRows() {
+    val clip = Rect(115f, 530f, 150f, 565f)
+    val map = fluidMenuLensMap(panel, clip)
+    assertTrue(fluidMenuLensAlpha(0f) > 0f && map.scale < 0.25f)
+    assertEquals(clip.center - panel.center, map.translation)
+    assertTrue(fluidMenuLensBlurDp(190f / 270f) < 0.5f)
+    assertEquals(0f, fluidMenuLensBlurDp(1f), 0f)
+    assertEquals(0f, fluidMenuLensStrength(1f), 0f)
+    assertEquals(FluidMenuContentMap.Identity, fluidMenuLensMap(panel, panel))
+    assertTrue(fluidMenuSpotAmount(0.35f) > 0f)
+    assertEquals(0f, fluidMenuSpotAmount(0.8f), 0f)
+  }
+
+  @Test
+  fun theInkResumesAtItsCurrentVisibilityWhenTheReturnIsInterrupted() = runTest {
+    val bench = JourneyBench(this)
+    val journey = FluidMenuJourney().apply {
+      prepare(anchor(), Offset.Zero, panel, radius = 22f, inflation = FluidMenuInflation.None, liquidMenu = true)
+      retarget(1f)
+    }
+    val opening = bench.scope.launch { journey.run(reducedMotion = false) }
+    bench.frames(8) { journey.progress.value }
+    journey.retarget(0f)
+    opening.cancel()
+    val returning = bench.scope.launch { journey.run(reducedMotion = false) }
+    val halfway = bench.frames(5) { journey.contentVisibility.value }.last()
+    assertTrue("l'inchiostro sta sparendo: $halfway", halfway > 0f && halfway < 1f)
+    journey.retarget(1f)
+    returning.cancel()
+    bench.scope.launch { journey.run(reducedMotion = false) }
+    assertEquals(halfway, journey.contentVisibility.value, 0f)
+    val resumed = bench.frames(5) { journey.contentVisibility.value }
+    assertTrue("l'inchiostro riprende da lì: $resumed", resumed.first() >= halfway && resumed.last() > halfway)
+    bench.close()
+  }
+
+  @Test
   fun theOpeningOvershootsThePanelAndSettlesOnIt() = runTest {
     val bench = JourneyBench(this)
     val journey = opened()

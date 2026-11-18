@@ -72,6 +72,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorFace
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuGeometryOf
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuLens
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuUsesField
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMenuPointOfLight
+import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuMaterialBlend
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerRelay
@@ -150,6 +155,7 @@ class FluidMorphMenuState internal constructor() {
   /** La larghezza di un'etichetta nel tipo delle voci, e la densita': il pannello si allarga per le voci lunghe (3.0.1). */
   internal var labelWidth: ((String) -> Float)? = null
   internal var density: Float = 1f
+  internal var liquidMenu: Boolean = false
 
   /** L'ancora del vecchio [open] pubblico, che un'ancora sua non ce l'ha. */
   private val publicAnchor = FluidMenuAnchor()
@@ -235,11 +241,12 @@ class FluidMorphMenuState internal constructor() {
       radius = m.radiusPx,
       inflation = fluidDropInflation(panel.width, size.width, m.edgeMinPx),
       freshStart = !reopening,
+      liquidMenu = liquidMenu,
     )
     journey.install(physics)
     selection.cancel()
     selection.geometry = fluidMenuGeometryOf(layout, items.map { it.enabled }, panel.translate(origin.x, origin.y))
-    anchor.hidden = true
+    anchor.consume(true)
     isOnScreen = true
     isOpen = true
     journey.retarget(1f)
@@ -260,7 +267,7 @@ class FluidMorphMenuState internal constructor() {
   /** Il ritorno e' finito: il tasto torna a disegnarsi nello stesso istante in cui l'host smonta. */
   internal fun finishClose() {
     if (isOpen) return
-    anchor?.hidden = false
+    anchor?.consume(false)
     anchor = null
     panelFrame = null
     panelLayout = null
@@ -418,6 +425,8 @@ fun FluidMorphMenuHost(
   backdrop: GlassBackdropState,
   modifier: Modifier = Modifier,
 ) {
+  state.liquidMenu = fluidMenuUsesField()
+  val pointOfLight = LocalFluidMenuPointOfLight.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -532,7 +541,10 @@ fun FluidMorphMenuHost(
               exports = menuGlass,
               // G1 (C-R2): il pannello nasce col lato, la misura e l'inchiostro del tasto.
               adoptFrom = anchor.ink?.state,
-            ),
+            )
+            .then(if (state.journey.liquidMenu && pointOfLight && android.os.Build.VERSION.SDK_INT >= 33) {
+              Modifier.glassMenuPointOfLight(state.journey, state.physics)
+            } else Modifier),
         )
 
         // La faccia del tasto: parte col viaggio d'andata, seguendo la sagoma, e torna con quello di
@@ -559,6 +571,11 @@ fun FluidMorphMenuHost(
 
         // Le voci: arrivano attaccate alla superficie e, al ritorno, la seguono finche' si spengono.
         GlassInkContent(menuInk, LocalContentColor.current) {
+          val panelInLayout = panel.translate(
+            panel.left.toInt() - panel.left,
+            panel.top.toInt() - panel.top,
+          )
+          val lens = if (state.journey.liquidMenu) FluidMenuLens(state.journey, state.physics, panelInLayout) else null
           FluidGlassMenuPanel(
             actions = state.actions,
             selection = state.selection,
@@ -567,10 +584,12 @@ fun FluidMorphMenuHost(
             pageBackdrop = backdrop,
             // F2.3b: con la dissolvenza dell'inchiostro attorno al passaggio di lato.
             contentAlpha = {
-              fluidMenuContentAlpha(progress(), closing = state.journey.closing) * (menuInk.state?.inkAlpha() ?: 1f)
+              val alpha = if (lens != null) fluidMenuLensAlpha(state.journey.focus.value) * state.journey.contentVisibility.value else
+                fluidMenuContentAlpha(progress(), closing = state.journey.closing)
+              alpha * (menuInk.state?.inkAlpha() ?: 1f)
             },
             contentMap = {
-              fluidMenuLiquidContentMap(
+              lens?.contentMap() ?: fluidMenuLiquidContentMap(
                 target = panel,
                 current = state.physics.contentBoundsNow(),
                 alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing) *
@@ -580,8 +599,9 @@ fun FluidMorphMenuHost(
             onPick = { index -> state.pick(index, haptics) },
             modifier = Modifier.frame(panel),
             paneTitle = LocalFluidLabels.current.actions,
+            lens = lens,
             // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
-            travelClip = { state.physics.travelClipIn(panel, progress()) },
+            travelClip = { state.physics.travelClipIn(if (lens != null) panelInLayout else panel, progress()) },
           )
         }
       }

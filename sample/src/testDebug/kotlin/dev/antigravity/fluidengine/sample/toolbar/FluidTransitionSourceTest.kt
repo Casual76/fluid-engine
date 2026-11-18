@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -24,6 +26,9 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
@@ -32,6 +37,8 @@ import dev.antigravity.fluidengine.ui.fluid.fluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarTransitionSource
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.page.FluidPageHost
@@ -78,6 +85,49 @@ class FluidTransitionSourceTest {
       shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(16))
       compose.waitForIdle()
     }
+  }
+
+  @Test fun `un menu dichiarato consuma e restituisce solo il suo gruppo`() {
+    var picked = 0
+    lateinit var source: FluidTransitionSource
+    lateinit var neighbour: FluidTransitionSource
+    compose.mainClock.autoAdvance = false
+    compose.setContent {
+      val host = rememberFluidGlassModalHostState()
+      val backdrop = rememberGlassBackdrop()
+      source = rememberFluidToolbarTransitionSource("menu")
+      neighbour = rememberFluidToolbarTransitionSource("separate")
+      FluidTheme(settings = remember { EngineSettings() }) {
+        CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
+          Box(Modifier.fillMaxSize()) {
+            FluidScreen("Note", toolbar = {
+              group("tools") {
+                button("first", FluidIcons.MoreHoriz, "Primo", onClick = {})
+                button("second", FluidIcons.MoreHoriz, "Secondo", onClick = {})
+                action("menu", FluidIcons.MoreHoriz, "Menu del gruppo") {
+                  listOf(FluidContextAction("Scegli bene") { picked++ })
+                }
+              }
+              group("other") { button("separate", FluidIcons.MoreHoriz, "Separato", onClick = {}) }
+            }) {}
+            FluidGlassModalHost(state = host, backdrop = backdrop)
+          }
+        }
+      }
+    }
+    advance(256)
+    val before = compose.runOnIdle { requireNotNull(source.resolve()) }
+    val separate = compose.runOnIdle { requireNotNull(neighbour.resolve()) }
+    assertTrue(before.bounds.width > separate.bounds.width * 2)
+    compose.onNodeWithContentDescription("Menu del gruppo").performClick()
+    advance(704)
+    compose.onNodeWithContentDescription("Primo").assertDoesNotExist()
+    assertEquals(separate, compose.runOnIdle { neighbour.resolve() })
+    compose.onNodeWithText("Scegli bene").performClick()
+    advance(960)
+    assertEquals(1, compose.runOnIdle { picked })
+    assertEquals(before, compose.runOnIdle { source.resolve() })
+    compose.onNodeWithContentDescription("Primo").assertExists()
   }
 
   @Test fun `stesso id prima sorgente posata poi seconda e infine nessuna`() {

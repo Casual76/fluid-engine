@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.translate
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
@@ -17,6 +18,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelPadding
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelWidth
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuRowGlyph
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuRowSidePadding
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuSectionGap
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
@@ -32,6 +34,14 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensMap
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensStrength
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuSpotAmount
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuSpotCenter
+import dev.antigravity.fluidengine.ui.fluid.GlassContentCurves
+import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuMaterialBlend
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelWidth
@@ -133,6 +143,17 @@ internal class MenuBuilt(
 /** Dalla cima della riga alla linea di base del testo (17 sp su una riga da 48 dp), a occhio. */
 private const val BaselineInRowDp = 30f
 
+internal data class MenuTraceVariant(
+  val threePhase: Boolean = true,
+  val grouped: Boolean = false,
+  val closingAtMs: Int? = null,
+  val alignToClose: Boolean = false,
+  val closeStiffness: Float = FluidMotion.DropCloseStiffness,
+  val inflationMultiplier: Float = 1f,
+  val inflationHeightMultiplier: Float = inflationMultiplier,
+  val pointOfLight: Boolean = false,
+)
+
 /**
  * @param dress chi veste la traccia: il vetro di oggi (F0.5, di serie) o il materiale nuovo (F1B.1). La corsa è
  *   la stessa, riga per riga: cambia l'elemento scritto per il tasto premuto e per la superficie del menu.
@@ -153,12 +174,13 @@ internal fun buildMenuTrace(
   unified: Boolean = false,
   /** Il fondo della traccia al posto di quello della scena (il lato scuro). */
   background: Map<String, Any?>? = null,
+  variant: MenuTraceVariant? = null,
 ): MenuBuilt {
   val d = scene.density
   val fps = scene.fps
   val palette = TodayPalette(dark)
   val host = Size(scene.hostDp.width * d, scene.hostDp.height * d)
-  val rest = scene.anchorDp.scaled(d)
+  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true) it.translate(88f * d, 0f) else it }
   val origin = Offset(scene.canvasOriginDp.x * d, scene.canvasOriginDp.y * d)
 
   // Le misure come le costruisce `rememberFluidMenuPanelMetrics`, con la riga di `bodyLarge` (17/23 sp).
@@ -191,7 +213,12 @@ internal fun buildMenuTrace(
     marginPx = metrics.marginPx,
     placement = FluidMenuPlacement.OverAnchor,
   )
-  val inflation = fluidDropInflation(panel.width, host.width, metrics.edgeMinPx)
+  val baseInflation = fluidDropInflation(panel.width, host.width, metrics.edgeMinPx)
+  val gain = variant?.inflationMultiplier ?: 1f
+  val inflation = baseInflation.copy(
+    x = baseInflation.x * gain,
+    y = baseInflation.y * (variant?.inflationHeightMultiplier ?: 1f),
+  )
 
   // La pressione del tasto: parte al contatto (t = -longPressMs) con la molla di LibrePods. Prima vale zero.
   val press = TodaySpring(FluidPressSprings.ExpandIn, 0f, 1f)
@@ -209,7 +236,8 @@ internal fun buildMenuTrace(
   // Il click lungo: la sagoma parte dal tasto COME IL DITO LO STA GONFIANDO (`open(true)` in FluidScreen).
   val anchor = FluidMenuAnchor().apply {
     restBounds = rest
-    pressedBounds = fluidPressedBounds(rest, transformAt(0.0))
+    pressedBounds = if (variant?.grouped == true) rest else fluidPressedBounds(rest, transformAt(0.0))
+    if (variant?.grouped == true) groupBounds = Rect(rest.left - 88f * d, rest.top, rest.right, rest.bottom)
   }
   val physics = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)).apply {
     density = d
@@ -226,9 +254,15 @@ internal fun buildMenuTrace(
     inflation = inflation,
     seed = null,
     freshStart = true,
+    liquidMenu = variant?.threePhase == true,
   )
   journey.install(physics)
   val progress = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
+  val closeAt = variant?.closingAtMs?.let { it * 1_000_000L }
+  val close = closeAt?.let {
+    val stiffness = variant?.closeStiffness ?: FluidMotion.DropCloseStiffness
+    TodaySpring(spring(FluidMotion.DropJourneyDamping, stiffness), progress.value(it), 0f, progress.velocity(it))
+  }
   val relax = TodaySpring(FluidMotion.snappy(), journey.anchorRelax.value, 1f)
   val driver = TodayLiquidDriver(physics, d)
   val material = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), GlassDefaults.panelOptics(compact = true).sanitized())
@@ -242,6 +276,7 @@ internal fun buildMenuTrace(
   // Il preambolo: il tasto (fermo, poi premuto) prima del click lungo, disegnato da glassSurface.
   val preambleFrames = ceil(scene.preambleMs * fps / 1000.0 - 1e-9).toInt()
   for (k in -preambleFrames until 0) {
+    if (variant?.alignToClose == true || variant?.grouped == true) break
     val t = glassTraceTimeMs(k, fps)
     val transform = transformAt(t)
     val face = todayIconLayer(
@@ -279,7 +314,11 @@ internal fun buildMenuTrace(
   val maxFrames = ceil(scene.maxMs * fps / 1000.0).toInt()
   while (k < maxFrames) {
     val nanos = glassTraceTimeNanos(k, fps)
-    val p = progress.value(nanos)
+    val tMs = glassTraceTimeMs(k, fps)
+    val closing = closeAt != null && nanos >= closeAt
+    val playNanos = if (closing) nanos - requireNotNull(closeAt) else nanos
+    val springNow = if (closing) requireNotNull(close) else progress
+    val p = springNow.value(playNanos)
     runBlocking {
       journey.progress.snapTo(p)
       journey.anchorRelax.snapTo(relax.value(nanos))
@@ -299,10 +338,21 @@ internal fun buildMenuTrace(
     )
     val bounds = physics.contentBoundsNow()
     val content = ArrayList<Map<String, Any?>>()
+    var lensClip: Map<String, Any?>? = null
 
     // La faccia del tasto: segue la sagoma e se ne va entro il 35% del viaggio.
     val faceMap = fluidMenuContentMap(target = rest, current = bounds)
-    content += todayIconLayer(
+    if (variant?.grouped == true) {
+      val u = p / FluidMotion.MenuGroupFaceProgressSpan
+      val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
+      if (alpha > 0f) {
+        listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
+          val face = todayIconLayer("tasto-${i + 1}", rest.translate((i - 2) * 44f * d, 0f), symbol, 26f,
+            palette.primary, origin, d, alpha = alpha)
+          content += face + ("blurDp" to GlassContentCurves.blur(GlassContentRole.Exit, u) * 3f)
+        }
+      }
+    } else content += todayIconLayer(
       name = "faccia",
       box = rest.translate(faceMap.translation.x, faceMap.translation.y),
       icon = scene.faceIcon,
@@ -317,10 +367,21 @@ internal fun buildMenuTrace(
     // Le voci: attaccate alla sagoma, scalate di poco, ritagliate dentro il corpo (`travelClipIn`). Lo strato
     // e' grande quanto la tela e le voci stanno dove la mappa del layer le porta; il ritaglio e' `clip`, sullo
     // schermo e non scalato con lo strato, come il `graphicsLayer` con la forma di `fluidMenuTravelClip`.
-    val alpha = fluidMenuContentAlpha(p, closing = false)
+    val focus = if (closing) {
+      val top = (requireNotNull(variant?.closingAtMs).toFloat() / FluidMotion.MenuContentFocusMillis).coerceAtMost(1f)
+      (top - playNanos / 1_000_000f / FluidMotion.MenuContentFocusMillis).coerceAtLeast(0f)
+    } else {
+      (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceAtMost(1f)
+    }
+    val lens = variant?.threePhase == true
+    val visibility = if (closing) (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f) else 1f
+    val alpha = if (lens) fluidMenuLensAlpha(focus) * visibility else fluidMenuContentAlpha(p, closing)
     if (alpha > 0f) {
-      val map = fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
       val clip = physics.travelClipIn(panelBox, p)
+      val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
+      val map = if (lens) fluidMenuLensMap(panelBox, visible) else
+        fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
+      val glyphDp = if (variant != null) FluidMenuRowGlyph.value else OggiMenuGlyphDp
       val cx = panelBox.width / 2f
       val cy = panelBox.height / 2f
       fun mapX(x: Float) = panelBox.left + cx + (x - cx) * map.scale + map.translation.x - origin.x
@@ -340,9 +401,9 @@ internal fun buildMenuTrace(
         items += linkedMapOf(
           "kind" to "icon",
           "icon" to item.icon,
-          "x" to round3(mapX(panelBox.width - (FluidMenuRowSidePadding.value + OggiMenuGlyphDp / 2f) * d) / d),
+          "x" to round3(mapX(panelBox.width - (FluidMenuRowSidePadding.value + glyphDp / 2f) * d) / d),
           "y" to round3(mapY(top + layout.rowHeightPx / 2f) / d),
-          "sizeDp" to round3(OggiMenuGlyphDp * map.scale),
+          "sizeDp" to round3(glyphDp * map.scale),
           "color" to glassColor(tone),
         )
       }
@@ -355,9 +416,13 @@ internal fun buildMenuTrace(
         "items" to items,
         "alpha" to alpha,
       )
+      if (lens && focus < 1f) {
+        layer["blurDp"] = fluidMenuLensBlurDp(focus) * map.scale
+        menuTraceContentLens(plan, origin, d, focus)?.let { layer["effect"] = it }
+      }
       if (clip != null) {
         val onCanvas = clip.translate(Offset(panelBox.left - origin.x, panelBox.top - origin.y))
-        layer["clip"] = linkedMapOf(
+        val clipData = linkedMapOf(
           "x" to round3(onCanvas.left / d),
           "y" to round3(onCanvas.top / d),
           "w" to round3(onCanvas.width / d),
@@ -369,23 +434,31 @@ internal fun buildMenuTrace(
             onCanvas.bottomLeftCornerRadius.x,
           ).map { round3(it / d) },
         )
+        // Lo strato della traccia ha un effetto solo. Con la lente il ritaglio è sul
+        // contenitore, come il layer esterno che ritaglia il pannello in Compose.
+        if (layer["effect"] != null) lensClip = clipData else layer["clip"] = clipData
       }
       content += layer
     }
 
-    frames += GlassTraceFrame(
-      glassTraceTimeMs(k, fps),
+    val offsetMs = if (variant?.alignToClose == true) requireNotNull(variant?.closingAtMs) else 0
+    if (tMs >= offsetMs - 100.001) frames += GlassTraceFrame(
+      tMs - offsetMs,
       still + if (look == null) {
-        liquid.element(
+        val element = liquid.element(
           "menu", physics, plan, blend, origin, scene.canvasWidthDp, scene.canvasHeightDp, content,
           // Il velo dei grandi nel tempo, come l'engine (F1B.2); le tracce di F1B.1 lo tengono sulla taglia.
           timeMs = if (unified) glassTraceTimeMs(k, fps) else Double.NaN,
         )
+        if (variant?.pointOfLight == true && !closing) {
+          menuTraceSpot(element, plan, journey, origin, d, fluidMenuSpotAmount(p))
+        }
+        lensClip?.let { element + ("contentClip" to listOf(it)) } ?: element
       } else {
         todayPhysicsElement("menu", plan, look, origin, d, scene.canvasWidthDp, scene.canvasHeightDp, content)
       },
     )
-    val settled = progress.finished(nanos) && physics.liquid.quiet
+    val settled = (closeAt == null || closing) && springNow.finished(playNanos) && physics.liquid.quiet
     if (settled) tail++ else tail = 0
     if (tail > scene.tailFrames) break
     k++
@@ -431,10 +504,10 @@ private const val OggiMenuGlyphDp = 20f
 internal object OggiMenuApertura {
   const val Name = "oggi-menu-apertura"
 
-  fun scene(): MenuScene = MenuScene(
+  fun scene(density: Float = 3f): MenuScene = MenuScene(
     name = Name,
     fps = 60,
-    density = 3f,
+    density = density,
     hostDp = Size(411f, 891f),
     anchorDp = Rect(16f, 820f, 60f, 864f),
     // Il ritaglio di Apple a 1,9 px/pt.

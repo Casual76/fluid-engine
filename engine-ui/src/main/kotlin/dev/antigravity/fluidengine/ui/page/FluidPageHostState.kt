@@ -22,7 +22,9 @@
  *   - sulla stessa pagina Slide e ShrinkSlide invertono push e pop senza perdere corsa e velocita';
  *     Expand finisce prima l'apertura; un dito riprende anche un annullo a meta';
  *     durante una conferma la pagina che esce non prende tocchi;
- *   - la pagina sotto non si disegna mentre e' coperta, i passi fra schede restano quelli di prima.
+ *   - la pagina sotto non si disegna mentre e' coperta, i passi fra schede restano quelli di prima;
+ *   - (4.0, F5B.3) Expand con una sorgente dichiarata e' uno zoom: la sagoma viaggia sullo stesso orologio della
+ *     corsa, ripartendo da quella che si vede a ogni cambio di fase (push, pop, dito, conferma, annullo).
  */
 package dev.antigravity.fluidengine.ui.page
 
@@ -40,15 +42,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEventHandler
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSourceGeometry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -155,7 +165,24 @@ class FluidPageHostState internal constructor() {
   internal var hostLeftInWindow = 0f
   internal var hostRightInWindow = 0f
   internal var windowWidth = 0f
-  private var cardRadii = FluidPageCorners.Zero
+  /** I raggi della carta (gli angoli del telefono dove l'host li tocca): scritti da [updateGeometry]; le tracce li danno a mano. */
+  internal var cardRadii = FluidPageCorners.Zero
+
+  /** Dove sta l'host nella radice Compose: le sorgenti dello zoom danno il loro riquadro lì. */
+  internal var hostOriginInRoot = Offset.Zero
+
+  // --- Lo zoom dalla sorgente (4.0, F5B.3) ------------------------------------------------------------------------
+
+  /**
+   * Il viaggio della sagoma del movimento in corso, o null: senza sorgente, con `Slide` e `ShrinkSlide`, con le
+   * animazioni ridotte e quando la sorgente non c'è e vale il ripiego (l'`Expand` di sempre). Uno stato solo, sostituito
+   * a ogni cambio di fase: il disegno lo rilegge e la sagoma riparte da quella che si vede.
+   */
+  internal var zoom: ZoomJourney? by mutableStateOf<ZoomJourney?>(null)
+    private set
+
+  /** Le sorgenti nascoste dalle pagine aperte con lo zoom, per pagina: rinascono quando la pagina esce dalla pila. */
+  private val consumed = HashMap<Any, FluidTransitionSource>()
 
   // --- Il cablaggio, rinfrescato a ogni composizione dell'host -------------------------------------
 
@@ -170,6 +197,11 @@ class FluidPageHostState internal constructor() {
   internal var backSwipeOf: (Any) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }
   internal var peerOf: ((Any, Any) -> Int)? = null
   internal var renderable: (Any) -> Boolean = { true }
+  internal var sourceOf: (Any) -> FluidTransitionSource? = { null }
+
+  /** Dove si legge una sorgente: la sua geometria di adesso, anche nella pagina coperta. Sostituibile nei test. */
+  internal var resolveSource: (FluidTransitionSource) -> FluidTransitionSourceGeometry? =
+    { it.resolve(includeCoveredPage = true) }
   internal var backHandler: NavigationEventHandler<*>? = null
 
   /**
@@ -243,7 +275,8 @@ class FluidPageHostState internal constructor() {
     PageRole.Upper -> if (kind == FluidPageMove.Peer) {
       FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).first
     } else {
-      FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).translation * direction
+      zoomContent()?.translation?.x
+        ?: (FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).translation * direction)
     }
     PageRole.Lower -> when {
       kind == FluidPageMove.Peer -> FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).second
@@ -262,10 +295,44 @@ class FluidPageHostState internal constructor() {
   /** La scala di una pagina in questo fotogramma, attorno al suo centro (o al punto toccato per Expand). */
   internal fun pageScale(role: PageRole): Float =
     if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer) {
-      FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).scale
+      zoomContent()?.scale ?: FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).scale
     } else {
       1f
     }
+
+  /**
+   * La traslazione verticale di una pagina in questo fotogramma, in px: zero sempre, tranne la pagina sopra durante uno
+   * zoom, che sta dentro la sua sagoma (scala attorno al centro dell'host, poi questo spostamento e [pageOffsetX]).
+   */
+  internal fun pageOffsetY(role: PageRole): Float =
+    if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer) zoomContent()?.translation?.y ?: 0f else 0f
+
+  /** Il riquadro di riposo di una pagina con la sua forma da carta: la sagoma d'arrivo di uno zoom. */
+  internal fun fullZoomShape(): FluidZoomShape = FluidZoomShape(Rect(0f, 0f, width, height), cardRadii)
+
+  /**
+   * La sagoma della pagina sopra in questo fotogramma, o null senza zoom. Mentre il dito la tiene la segue
+   * ([FluidZoom.follow]); altrimenti va dalla sagoma da cui la fase e' partita a quella d'arrivo, sulla corsa.
+   */
+  internal fun zoomShape(): FluidZoomShape? {
+    val journey = zoom ?: return null
+    if (crossfading || kind == FluidPageMove.Peer || kind == FluidPageMove.None) return null
+    val full = fullZoomShape()
+    return if (journey.following) {
+      FluidZoom.follow(journey.from, full, travelPx - journey.fromTravel, journey.fromTravel, direction, journey.pivot, width)
+    } else {
+      FluidZoom.lerp(journey.from, journey.to ?: full, FluidZoom.travelFraction(travelPx, journey.fromTravel, journey.toTravel))
+    }
+  }
+
+  /** Dove sta la pagina sopra dentro la sua sagoma: vedi [FluidZoom.content]. */
+  internal fun zoomContent(): FluidZoomContent? = zoomShape()?.let { FluidZoom.content(it, Rect(0f, 0f, width, height)) }
+
+  /**
+   * Vero mentre lo zoom tiene la pagina sopra sotto la riga dei controlli della barra: lì sotto c'è ancora la pagina
+   * sotto, e il vetro della barra rifrange quella (la registrazione della pagina sopra è intera e non scalata).
+   */
+  internal fun zoomBelowBar(): Boolean = zoomShape()?.let { it.bounds.top > barBottomPx + 0.5f } ?: false
 
   /**
    * Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma.
@@ -277,6 +344,11 @@ class FluidPageHostState internal constructor() {
    */
   internal fun upperCoverage(): Pair<Float, Float> {
     if (pendingPlacement != null && pendingPlacement == upper) return width to width
+    // Lo zoom copre un riquadro, non una striscia: per la barra (che sta in cima) copre solo quando la sagoma e' arrivata
+    // sotto i suoi controlli.
+    zoomShape()?.let { shape ->
+      return if (shape.bounds.top <= barBottomPx + 0.5f) shape.bounds.left to shape.bounds.right else width to width
+    }
     val x = pageOffsetX(PageRole.Upper)
     val inset = width * (1f - pageScale(PageRole.Upper)) / 2f
     return (x + inset) to (x + width - inset)
@@ -308,6 +380,7 @@ class FluidPageHostState internal constructor() {
       opening = true
       show(FluidPageMove.Push, from = from, to = to)
       phase = Phase.Pushing
+      aimZoom(0f, null)
       animateTravel(0f, FluidPageMotion.page(), velocityPx) { settle() }
       return
     }
@@ -321,6 +394,10 @@ class FluidPageHostState internal constructor() {
     show(FluidPageMove.Push, from = visibleSource, to = to)
     travelPx = exitTravel()
     phase = Phase.Pushing
+    // Lo zoom nasce dalla sorgente: la sagoma parte dal suo riquadro e dalla sua forma. Senza, l'Expand di sempre.
+    zoomSourceShape(to)?.let { source ->
+      zoom = ZoomJourney(source = source, from = source, fromTravel = travelPx, to = null, toTravel = 0f)
+    }
     if (!reducedMotion) animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
     if (phase == Phase.Pushing) pendingPlacement = to
   }
@@ -332,6 +409,9 @@ class FluidPageHostState internal constructor() {
   internal fun pagePlaced(page: Any, placedAtNanos: Long? = null) {
     if (pendingPlacement != page) return
     pendingPlacement = null
+    // La sorgente si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma, non prima: nel fotogramma del
+    // cambio di pila la pagina nuova non e' ancora composta, e una sorgente gia' nascosta lascerebbe un buco.
+    if (zoom != null && phase == Phase.Pushing && page == upper) consumeSource(page)
     if (phase == Phase.Peer) {
       runPeerClock(placedAtNanos)
     } else if (crossfading) {
@@ -363,7 +443,8 @@ class FluidPageHostState internal constructor() {
       opening = false
       show(FluidPageMove.Pop, from = from, to = to)
       phase = Phase.Popping
-      animateTravel(exitTravel(), FluidPageMotion.page(), velocityPx) { settle() }
+      aimZoom(exitTravel(), zoomSourceShape(from))
+      animateTravel(exitTravel(), returnSpring(), velocityPx) { settle() }
       return
     }
     finishNow()
@@ -380,7 +461,8 @@ class FluidPageHostState internal constructor() {
     show(FluidPageMove.Pop, from = from, to = to)
     travelPx = 0f
     phase = Phase.Popping
-    animateTravel(exitTravel(), FluidPageMotion.page(), 0f) { settle() }
+    startZoomBack(from, following = false)
+    animateTravel(exitTravel(), returnSpring(), 0f) { settle() }
   }
 
   /**
@@ -408,11 +490,14 @@ class FluidPageHostState internal constructor() {
     animateTravel(exitTravel(), FluidPageMotion.page(), 0f) { settle() }
   }
 
-  /** Expand cambia scala e origine fra i due versi: nessuna corsa di chiusura ricrea l'apertura. */
+  /**
+   * Expand cambia scala e origine fra i due versi: nessuna corsa di chiusura ricrea l'apertura. Lo zoom invece va e torna
+   * sulla stessa sagoma ripartendo da quella che si vede, e si inverte come Slide.
+   */
   private fun canReverseTravel(): Boolean = when (upperTransition) {
     // Questi stili ignorano opening in pageFrame: la corsa di ripresa e' gia' quella corretta.
     FluidPageTransition.Slide, FluidPageTransition.ShrinkSlide -> true
-    FluidPageTransition.Expand -> false
+    FluidPageTransition.Expand -> zoom != null
   }
 
   private fun beginPeer(from: Any, to: Any, peer: Int) {
@@ -492,6 +577,13 @@ class FluidPageHostState internal constructor() {
     val top = processed.lastOrNull()
     pendingPlacement = null
     phase = Phase.Idle
+    zoom = null
+    // La sorgente di una pagina che non c'e' piu' rinasce adesso: nello stesso fotogramma la pagina, gia' rientrata nella
+    // sagoma, smette di disegnarsi (il ruolo si legge dallo stato).
+    if (consumed.isNotEmpty()) {
+      val gone = consumed.keys.filter { it !in processed }
+      for (page in gone) consumed.remove(page)?.release()
+    }
     show(FluidPageMove.None, from = null, to = null)
     isInteractive = false
     travelPx = 0f
@@ -527,15 +619,37 @@ class FluidPageHostState internal constructor() {
     val animatable = Animatable(travelPx)
     velocityPx = initialVelocity
     job = scope.launch {
-      animatable.animateTo(target, if (crossfading) FluidMotion.crossFade() else spec, initialVelocity) {
-        travelPx = value
-        velocityPx = velocity
+      try {
+        animatable.animateTo(target, if (crossfading) FluidMotion.crossFade() else spec, initialVelocity) {
+          travelPx = value
+          velocityPx = velocity
+          if (zoomArrived(value)) throw ZoomArrived()
+        }
+      } catch (_: ZoomArrived) {
+        // La sagoma è sulla sorgente: il movimento finisce qui, e la sorgente rinasce in questo fotogramma.
       }
       job = null
       velocityPx = 0f
       onEnd()
     }
   }
+
+  /**
+   * Lo zoom che torna nella sorgente è finito quando la sagoma ci è arrivata (entro [FluidZoom.ArrivalDp]), non quando la
+   * corsa scende sotto mezzo pixel: la coda della molla critica teneva la pagina in miniatura ferma sulla card per un
+   * quinto di secondo prima che la card rinascesse (banco, `zoom-dito-interrotto`). Solo verso la sorgente: l'apertura e
+   * gli altri stili finiscono come sempre.
+   */
+  private fun zoomArrived(travel: Float): Boolean {
+    val journey = zoom ?: return false
+    val to = journey.to ?: return false
+    if (journey.following || journey.toTravel <= journey.fromTravel) return false
+    val left = 1f - FluidZoom.travelFraction(travel, journey.fromTravel, journey.toTravel)
+    return left * FluidZoom.distance(journey.from, to) <= FluidZoom.ArrivalDp * density
+  }
+
+  /** Il segnale con cui [animateTravel] ferma la molla di uno zoom arrivato: non è una cancellazione del lavoro. */
+  private class ZoomArrived : CancellationException("lo zoom e' arrivato nella sorgente")
 
   // --- Il dito -------------------------------------------------------------------------------------
 
@@ -582,6 +696,9 @@ class FluidPageHostState internal constructor() {
         opening = false
         onTransitionStart(listOfNotNull(upper, lower))
       }
+      // Lo zoom ripreso dal dito riparte dalla sagoma che si vede, sotto il punto toccato. Il sistema che si prende il
+      // dito dell'app a meta' gesto continua lo stesso gesto, senza ripartire.
+      if (!handOver) followZoom()
     } else {
       finishNow()
       val top = processed.last()
@@ -593,6 +710,7 @@ class FluidPageHostState internal constructor() {
       travelPx = 0f
       this.direction = direction
       onTransitionStart(listOf(top, below))
+      startZoomBack(top, following = true)
     }
     phase = Phase.Dragging
     show(FluidPageMove.Back, from = upper, to = lower)
@@ -684,11 +802,19 @@ class FluidPageHostState internal constructor() {
     show(FluidPageMove.Back, from = upper, to = lower)
     isInteractive = false
     val departing = upper
+    // Lo zoom torna nella sorgente da dove il dito l'ha lasciato; se la sorgente e' sparita, dove l'aveva trovata.
+    aimZoom(exitTravel(), departing?.let(::zoomSourceShape))
     // Prima onBack, poi la molla: la pila si accorcia mentre la pagina vola, e [beginPop] riconosce
     // il pop come il proprio invece di ricominciare.
     if (departing != null && departing in processed) onBack()
-    animateTravel(exitTravel(), FluidPageMotion.page(), velocity) { finishCommit(departing) }
+    animateTravel(exitTravel(), returnSpring(), velocity) { finishCommit(departing) }
   }
+
+  /**
+   * La molla di un ritorno: quella dello zoom misurata su Apple se una sagoma torna nella sorgente, altrimenti quella
+   * delle pagine (Slide, ShrinkSlide e l'Expand senza sorgente restano al bit come in F4A).
+   */
+  private fun returnSpring() = if (zoom != null) FluidPageMotion.zoomReturn() else FluidPageMotion.page()
 
   /**
    * La molla e' arrivata fuori. Se la pila non si e' ancora accorciata (con le animazioni ridotte la
@@ -709,6 +835,7 @@ class FluidPageHostState internal constructor() {
       job = null
       if (departing in processed) {
         phase = Phase.Cancelling
+        aimZoom(0f, null)
         animateTravel(0f, FluidPageMotion.pageReturn(), 0f) { settle() }
       } else {
         settle()
@@ -718,7 +845,90 @@ class FluidPageHostState internal constructor() {
 
   private fun cancelGesture(velocity: Float) {
     phase = Phase.Cancelling
+    aimZoom(0f, null)
     animateTravel(0f, FluidPageMotion.pageReturn(), velocity) { settle() }
+  }
+
+  // --- Lo zoom, fase per fase -----------------------------------------------------------------------------------
+
+  /**
+   * La sagoma della sorgente di [page] nelle coordinate dell'host, o null: senza sorgente dichiarata, con le animazioni
+   * ridotte, con uno stile diverso da Expand, o se la sorgente adesso non si trova (uscita dallo scorrimento, pagina
+   * cambiata). Si cerca anche nella pagina coperta: al ritorno la sorgente sta lì.
+   */
+  private fun zoomSourceShape(page: Any): FluidZoomShape? {
+    if (reducedMotion || transitionOf(page) != FluidPageTransition.Expand) return null
+    val geometry = sourceOf(page)?.let(resolveSource) ?: return null
+    val layoutDirection = if (layoutDirectionSign < 0) LayoutDirection.Rtl else LayoutDirection.Ltr
+    return FluidZoom.shapeOf(geometry, hostOriginInRoot, Density(density), layoutDirection).takeIf { it.isUsable }
+  }
+
+  /**
+   * Un ritorno che parte da riposo (il pop, o il dito che prende la pagina): con la sorgente è uno zoom verso di lei, e
+   * la sorgente si nasconde subito (la pagina sotto si disegna da questo fotogramma). Senza, il ripiego: la chiusura di
+   * Expand di sempre (rimpicciolisce e scivola), che da riposo parte dallo stesso fotogramma, senza salti.
+   */
+  private fun startZoomBack(page: Any, following: Boolean) {
+    zoom = null
+    val source = zoomSourceShape(page) ?: return
+    zoom = ZoomJourney(
+      source = source,
+      from = fullZoomShape(),
+      fromTravel = travelPx,
+      to = if (following) null else source,
+      toTravel = if (following) travelPx else exitTravel(),
+      following = following,
+      pivot = touchPoint(),
+    )
+    consumeSource(page)
+  }
+
+  /**
+   * La fase cambia bersaglio: la sagoma riparte da quella che si vede adesso, verso la sorgente se [toTravel] è
+   * l'uscita, altrimenti verso la pagina intera. [found] è la sorgente ritrovata adesso; null, si va dove la si era
+   * trovata l'ultima volta (è sparita nel frattempo: nessun salto, la sagoma atterra dov'era).
+   */
+  private fun aimZoom(toTravel: Float, found: FluidZoomShape?) {
+    val journey = zoom ?: return
+    val towardSource = toTravel > 0f
+    val source = if (towardSource) found ?: journey.source else journey.source
+    zoom = journey.copy(
+      source = source,
+      from = zoomShape() ?: journey.from,
+      fromTravel = travelPx,
+      to = if (towardSource) source else null,
+      toTravel = toTravel,
+      following = false,
+    )
+  }
+
+  /** Il dito prende la sagoma dov'è: da qui la segue, attorno al punto toccato. */
+  private fun followZoom() {
+    val journey = zoom ?: return
+    zoom = journey.copy(
+      from = zoomShape() ?: journey.from,
+      fromTravel = travelPx,
+      to = null,
+      toTravel = travelPx,
+      following = true,
+      pivot = touchPoint(),
+    )
+  }
+
+  /** Il punto dell'ultimo contatto, in px dell'host (il centro se non ce n'è stato uno). */
+  private fun touchPoint(): Offset = Offset(expandOrigin.pivotFractionX * width, expandOrigin.pivotFractionY * height)
+
+  private fun consumeSource(page: Any) {
+    if (page in consumed) return
+    val source = sourceOf(page) ?: return
+    source.consume()
+    consumed[page] = source
+  }
+
+  /** L'host esce di scena: le sorgenti nascoste tornano tutte. */
+  internal fun releaseSources() {
+    for (source in consumed.values) source.release()
+    consumed.clear()
   }
 
   /**
@@ -770,6 +980,7 @@ class FluidPageHostState internal constructor() {
     width = coordinates.size.width.toFloat()
     height = coordinates.size.height.toFloat()
     val bounds = coordinates.boundsInWindow()
+    hostOriginInRoot = coordinates.positionInRoot()
     hostLeftInWindow = bounds.left
     hostRightInWindow = bounds.right
     val root = view.rootView
@@ -805,3 +1016,20 @@ class FluidPageHostState internal constructor() {
 /** Uno stato per host, ricordato. */
 @Composable
 fun rememberFluidPageHostState(): FluidPageHostState = remember { FluidPageHostState() }
+
+/**
+ * Un tratto del viaggio della sagoma di uno zoom fra pagine (F5B.3): da [from], la sagoma che si vedeva quando la fase
+ * è cominciata (a corsa [fromTravel]), verso [to] a corsa [toTravel] (null: la pagina intera). Con [following] il dito la
+ * tiene, attorno a [pivot]. [source] è la sorgente com'era l'ultima volta che la si è trovata: il ritorno ci va anche se
+ * nel frattempo è sparita.
+ */
+@Immutable
+internal data class ZoomJourney(
+  val source: FluidZoomShape,
+  val from: FluidZoomShape,
+  val fromTravel: Float,
+  val to: FluidZoomShape?,
+  val toTravel: Float,
+  val following: Boolean = false,
+  val pivot: Offset = Offset.Zero,
+)

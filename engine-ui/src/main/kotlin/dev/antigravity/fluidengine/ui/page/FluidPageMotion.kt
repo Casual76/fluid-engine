@@ -174,6 +174,24 @@ object FluidPageMotion {
   fun pageReturn(): SpringSpec<Float> =
     spring(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy, VisibilityThresholdPx)
 
+  /**
+   * La risposta della molla dello zoom di UIKit, in secondi, misurata a tempo vero (4.0, F5B.3): WWDC24 10145, l'iPad
+   * della dimostrazione (iOS 18, 29,97 fps). L'apertura da una cella toccata, da ferma, e' una molla critica di risposta
+   * 0,71 s (scarto quadratico 0,002 su 24 fotogrammi, i lati della sagoma); il ritorno nella cella dopo il dito, partito
+   * con la velocita' del rilascio, sta fra 0,61 e 0,74 s. Misura e fit: `sessioni/f5b-3/strumenti/misura_10145.py`.
+   */
+  const val ResponseZoomSeconds: Double = 0.71
+  val ResponseZoom: Float = FluidMotion.stiffnessForResponse(ResponseZoomSeconds)
+
+  /**
+   * Il ritorno con lo zoom nella sorgente (pop, conferma del dito, pop che interrompe il push), solo quando c'e' una sagoma
+   * che torna: la molla misurata su Apple ([ResponseZoomSeconds]), critica. Piu' morbida di [page]: la sagoma rallenta per
+   * tutta la strada invece di arrivare presto e strisciare sulla card per l'ultimo decimo di secondo. Push, pop e conferma
+   * di `Slide`, `ShrinkSlide` e dell'`Expand` senza sorgente restano su [page].
+   */
+  fun zoomReturn(): SpringSpec<Float> =
+    spring(FluidMotion.DampingChrome, ResponseZoom, VisibilityThresholdPx)
+
   // --- La corsa --------------------------------------------------------------------------------
 
   /** Quanta corsa serve perche' la pagina sopra sia del tutto fuori. */

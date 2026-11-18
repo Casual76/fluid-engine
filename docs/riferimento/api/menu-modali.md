@@ -72,12 +72,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data class Fraction(val fraction: Float) : FluidSheetDetent()` — Una frazione dell'altezza di [Large], fra 0 e 1.
   - `data class Height(val height: Dp) : FluidSheetDetent()` — Un'altezza fissa del foglio, dal suo bordo alto al fondo dello schermo.
 - `enum class FluidSheetTransition` — Come un [FluidGlassSheet] entra e se ne va.
-- `@Composable fun FluidGlassSheet(visible: Boolean, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, content: @Composable ColumnScope.() -> Unit)` — Un foglio di vetro con detent, maniglia e chiusura col dito (in SwiftUI `sheet` + `presentationDetents` + `presentationDragIndicator`).
-- `@Composable fun <T : Any> FluidGlassSheet(item: T?, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, content: @Composable ColumnScope.(T) -> Unit)` — [FluidGlassSheet] che presenta **un dato** e resta intero mentre esce: la forma a `item` del portale ([FluidGlassModalPortal]), con le stesse ragioni. Aperto quando [item] non è nullo.
+- `@Composable fun FluidGlassSheet(visible: Boolean, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, source: FluidTransitionSource? = null, content: @Composable ColumnScope.() -> Unit)` — Un foglio di vetro con detent, maniglia e chiusura col dito (in SwiftUI `sheet` + `presentationDetents` + `presentationDragIndicator`).
+- `@Composable fun <T : Any> FluidGlassSheet(item: T?, onDismissRequest: () -> Unit, detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large), selectedDetent: FluidSheetDetent? = null, onSelectedDetentChange: (FluidSheetDetent) -> Unit = {}, dragIndicator: Boolean = true, transition: FluidSheetTransition = FluidSheetTransition.Slide, paneTitle: String? = null, paneTint: Color? = null, source: FluidTransitionSource? = null, content: @Composable ColumnScope.(T) -> Unit)` — [FluidGlassSheet] che presenta **un dato** e resta intero mentre esce: la forma a `item` del portale ([FluidGlassModalPortal]), con le stesse ragioni. Aperto quando [item] non è nullo.
 
 ## `engine-ui/ui/fluid/FluidMenu.kt`
 
 - `enum class FluidMenuOpensOn` — Quale gesto apre il menu di un tasto (3.0, fase 7).
+
+## `engine-ui/ui/fluid/FluidMenuJourney.kt`
+
+- `val LocalFluidMenuPointOfLight` — Accende il punto di luce in viaggio sui menu Liquid. La scelta di serie resta quella senza lampo.
 
 ## `engine-ui/ui/fluid/FluidNotification.kt`
 

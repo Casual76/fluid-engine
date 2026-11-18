@@ -87,11 +87,13 @@ class PagesDemoActivity : ComponentActivity() {
     val debuggable = isDebuggableApp()
     val glassLaunch = if (debuggable) GalleryGlassLaunch.parse { intent?.getStringExtra(it) } else GalleryGlassLaunch.None
     if (debuggable && savedInstanceState == null) GalleryGlassSwitches.applyAtLaunch(this, glassLaunch)
+    // La scena dello zoom dalla sorgente (F5B.3) sta qui per la stessa ragione delle pagine: il back e' dell'host.
+    val zoom = intent?.getBooleanExtra(ZoomDemoScene, false) == true
     setContent {
       val glass = rememberGalleryGlassSwitches(glassLaunch)
       CompositionLocalProvider(LocalFluidGlassModel provides glass.model) {
         FluidTheme(settings = remember { EngineSettings() }) {
-          PagesDemo()
+          if (zoom) ZoomDemo() else PagesDemo()
         }
       }
     }

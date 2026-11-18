@@ -209,6 +209,11 @@ Dalla 4.0 (F4A.3), con le pagine che dichiarano la barra, vale la sezione qui so
 
 ### La barra disegnata dal modello (4.0, F4A.3)
 
+> **Nello zoom dalla sorgente** (F5B.3) la barra fa quello che fa in un push: resta ferma e trasforma i tasti sul tempo
+> del piano. Il titolo grande della pagina che arriva viaggia con la sagoma (scala, spostamento orizzontale e verticale) e
+> si vede solo dentro; quello della pagina sotto si taglia dove la sagoma lo copre. Vedi [pagine.md](pagine.md), «Lo zoom
+> dalla sorgente».
+
 **Cos'e'.** Quando una delle pagine che la barra mostra ha dichiarato la sua barra (`FluidScreen(toolbar = { … })`,
 `FluidCollapsingTopBar(toolbar = …)`, `FluidPageChrome(toolbar = …)`; la DSL è in [toolbar.md](toolbar.md)), la
 `FluidPageBarSpec` porta il **modello** (`toolbar`) invece della riga delle azioni, e l'host disegna **una barra sola dal

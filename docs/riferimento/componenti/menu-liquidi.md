@@ -23,6 +23,7 @@ Il portale, l'host dei modali, l'avviso e i fogli stanno in [menu-modali.md](men
 |---|---|
 | un tasto che apre un menu **e basta** («Ordina», tre puntini) | `FluidMorphMenuButton(opensOnTap = true)`; nella barra `FluidBarAction(actions = …, opensOn = FluidMenuOpensOn.Tap)` |
 | un tasto con un'azione sua (il tocco) e un menu di varianti (il tenuto premuto) | `FluidMorphMenuButton` o `FluidBarAction(actions = …)` di serie |
+| un menu che usa tutto il vetro di un gruppo dichiarato | `toolbar { group(…) { action(id, icon, label, menu = { … }) } }` |
 | un menu su una riga di lista | `FluidListRow(contextActions = { … })` (anche `FluidVividCard`, `FluidSidebarRow`) |
 | un menu su una card o su una vista che non ha click propri | `Modifier.fluidContextMenu(actions = { … })` |
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` e `controller.open()` nel suo click lungo |
@@ -46,6 +47,19 @@ Il portale, l'host dei modali, l'avviso e i fogli stanno in [menu-modali.md](men
 Il **tenuto premuto apre sempre**, anche con `Tap`: è lui che porta il dito sul menu e permette di scegliere trascinando.
 `Tap` è per il tasto il cui *unico* mestiere è il menu (cinque app se lo riscrivevano a mano); un tasto che ha un'azione
 sua la tiene al tocco, e il menu si scopre tenendo premuto.
+
+## Il viaggio Liquid
+
+Con il materiale Liquid la capsula si raccoglie, la goccia risale verso il centro del pannello e la sagoma si espande
+durante l'ultimo tratto della risalita. Dentro una toolbar dichiarata `action(menu = …)` legge la capsula del gruppo
+dal registro del piano. Le icone del gruppo si sfocano sul posto nei primi 67–100 ms e tornano sullo stesso tracciato
+in chiusura. Se il pezzo manca, il menu parte dal tasto. Se un'azione della barra finisce in «Altro», le sue voci
+sono disponibili in quel menu.
+
+Le voci nascono in miniatura dentro la lente e si mettono a fuoco mentre il corpo si allarga. Un effetto sul layer delle
+voci usa il campo del corpo e il ritaglio resta attivo fino alla posa della goccia. Layout e scelta col dito usano i
+riquadri finali. Testo e altezza della riga conservano le misure. Icona e spunta sono `FluidIcon` da 22 dp.
+Il punto di luce è un'opzione spenta di serie. Per provarlo, fornisci `LocalFluidMenuPointOfLight` all'host.
 
 ## `FluidContextAction`
 

@@ -187,6 +187,12 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           subtitle = "Apertura da destra, indietro sotto il dito (3.0)",
           onClick = { context.startActivity(pagesDemoIntent(context, requestedModel)) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Zoom dalla sorgente",
+          subtitle = "Card che diventano pagine e tornano col dito; un foglio che nasce dal tasto (4.0)",
+          onClick = { context.startActivity(zoomDemoIntent(context, requestedModel)) },
+        )
       }
     }
 

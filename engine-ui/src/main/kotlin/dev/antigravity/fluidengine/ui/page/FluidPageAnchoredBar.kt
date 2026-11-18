@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -266,7 +267,10 @@ internal fun BoxScope.FluidAnchoredBar(
   } else {
     null
   }
-  val barBackdrop = combined ?: upperBackdrop ?: lowerBackdrop
+  // Lo zoom (F5B.3): finché la sagoma della pagina sopra non arriva sotto i controlli, sotto la barra c'è la pagina sotto,
+  // e la registrazione della pagina sopra (intera, non scalata) non va impilata: la barra rifrange solo quella sotto.
+  val zoomBelowBar by remember(state) { derivedStateOf { state.zoomBelowBar() } }
+  val barBackdrop = (if (zoomBelowBar) lowerBackdrop else null) ?: combined ?: upperBackdrop ?: lowerBackdrop
   if (hostModel) {
     HostBarPageContext(target.context ?: currentCompositionLocalContext) {
       if (barSpec?.search?.occupiesBottom != true) {
@@ -581,6 +585,15 @@ internal fun anchoredBarSplit(
   return anchoredBarSplitOf(from, to, upper, lower, into)
 }
 
+/**
+ * Il ritaglio di un titolo grande dalla sagoma di uno zoom (F5B.3): dentro per la pagina sopra, fuori per quella sotto.
+ * La sagoma è nelle coordinate dell'host, che sono quelle della barra (sta nel suo angolo in alto a sinistra).
+ */
+private inline fun DrawScope.clipZoom(zoom: FluidZoomShape, inside: Boolean, block: DrawScope.() -> Unit) {
+  val path = Path().apply { addRoundRect(zoom.toRoundRect()) }
+  clipPath(path, if (inside) ClipOp.Intersect else ClipOp.Difference, block)
+}
+
 /** La parte pura di [anchoredBarSplit]: la pagina sopra copre da [from] a [to] px. */
 internal fun anchoredBarSplitOf(
   from: Float,
@@ -643,6 +656,7 @@ private fun BoxScope.BarTitle(
       pageCenter = { Offset(state.width / 2f, state.height / 2f) },
       chromeX = { if (byTravel()) barTitleChrome(state, page, shiftPx).second else swap!!.step(page) * stepPx },
       chromeAlpha = { if (byTravel()) barTitleChrome(state, page, shiftPx).first else swap!!.alpha(page) },
+      pageY = { state.pageOffsetY(state.roleOf(page)) },
     )
   }
   val glyphPx = with(LocalDensity.current) { spec.compactStyle.fontSize.toPx() }
@@ -671,16 +685,23 @@ private fun BoxScope.BarTitle(
         .drawWithContent {
           when (state.roleOf(page)) {
             PageRole.Gone -> Unit
-            PageRole.Upper -> drawContent()
+            // Nello zoom (F5B.3) il titolo grande della pagina sopra si vede solo dentro la sua sagoma.
+            PageRole.Upper -> state.zoomShape()?.let { zoom ->
+              clipZoom(zoom, inside = true) { this@drawWithContent.drawContent() }
+            } ?: drawContent()
             // Il titolo grande della pagina sotto e' suo contenuto: dove la pagina sopra la copre, lo copre anche
             // lui. Col modello il titolo agganciato invece e' della barra (F4A.3): non si taglia con la pagina.
             PageRole.Lower -> if (state.kind != FluidPageMove.None &&
               (byTravel() || smoothStep(spec.collapseProgress.value.coerceIn(0f, 1f)) < 0.5f)
             ) {
               // La barra sta sopra tutte e due, quindi il taglio lo fa qui.
+              val zoom = state.zoomShape()
               val (left, right) = state.upperCoverage()
               val far = size.width * 4f + size.height * 4f
-              if (left > 0.5f) {
+              if (zoom != null) {
+                // Nello zoom la pagina sopra copre un riquadro, non una striscia (F5B.3).
+                clipZoom(zoom, inside = false) { this@drawWithContent.drawContent() }
+              } else if (left > 0.5f) {
                 clipRect(left = -far, top = -far, right = left, bottom = far) {
                   this@drawWithContent.drawContent()
                 }

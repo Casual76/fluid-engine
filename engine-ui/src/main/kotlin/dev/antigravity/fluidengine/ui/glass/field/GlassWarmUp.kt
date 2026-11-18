@@ -109,7 +109,11 @@ internal enum class GlassWarmStep {
   RingBody,
 
   /** La striscia del bordo dello scorrimento (F2.4): le due passate in catena, come le costruisce il suo nodo. */
-  EdgeBlur;
+  EdgeBlur,
+
+  /** Il campo del vetro applicato alla texture delle voci del menu. */
+  MenuContentSlab,
+  MenuContentRing;
 
   /** La sorgente del programma che questo passo compila. */
   val source: GlassShaderSource
@@ -121,6 +125,8 @@ internal enum class GlassWarmStep {
       GroupLight -> GlassShaderSources.Light8
       RingBody -> GlassShaderSources.BodyRing
       EdgeBlur -> GlassShaderSources.EdgeBlur
+      MenuContentSlab -> GlassShaderSources.MenuContentSlab
+      MenuContentRing -> GlassShaderSources.MenuContentRing
     }
 
   val family: GlassWarmFamily get() = GlassWarmFamily.entries.first { this in it.steps }
@@ -149,7 +155,10 @@ internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
    * La striscia del bordo dello scorrimento (F2.4): il programma più caro a freddo (43–51 ms in S1). La chiede
    * `FluidScrollEdge` quando entra in composizione e può disegnare.
    */
-  ScrollEdge(listOf(GlassWarmStep.EdgeBlur));
+  ScrollEdge(listOf(GlassWarmStep.EdgeBlur)),
+
+  /** I programmi delle voci in viaggio, scaldati quando compare il controllo che le può aprire. */
+  MenuContent(listOf(GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing));
 
   val sources: List<GlassShaderSource> get() = steps.map { it.source }
 }
@@ -739,6 +748,15 @@ internal object GlassOffscreenWarmer {
           0f,
           1f,
         )
+        GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing -> {
+          val shader = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
+            ?: error("${step.source.name} non è disponibile")
+          shader.setFloatUniform("menuScale", 1f)
+          shader.setFloatUniform("lensDepth", d)
+          val lens = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect()
+          val blur = android.graphics.RenderEffect.createBlurEffect(2f * d, 2f * d, android.graphics.Shader.TileMode.DECAL)
+          frame.recordBody(android.graphics.RenderEffect.createChainEffect(lens, blur), 0f, 1f)
+        }
       }
       frame.submit(blocking, handler, onReleased)
     } catch (t: Throwable) {

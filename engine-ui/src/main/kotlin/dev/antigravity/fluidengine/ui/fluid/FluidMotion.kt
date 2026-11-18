@@ -286,6 +286,30 @@ object FluidMotion {
   /** La scala del contenuto mentre arriva o se ne va: `0,86 + 0,14 · opacita'`. */
   const val LiquidContentMinScale = 0.86f
 
+  // Posizioni della molla d'apertura a circa 33, 67 e 83 ms. La risalita
+  // continua all'inizio dell'espansione, come nei fotogrammi B1 sulla foto.
+  internal const val MenuGatherEnd = 0.19f
+  internal const val MenuExpandStart = 0.52f
+  internal const val MenuTravelEnd = 0.66f
+  internal const val MenuGroupGatherWidth = 0.60f
+  internal const val MenuSeedDiameterFraction = 0.92f
+  internal const val MenuGroupTravelBias = 0.55f
+  internal const val MenuContentFocusMillis = 270
+  internal const val MenuContentExitMillis = 185
+  internal const val MenuContentInkFull = 0.72f
+  internal const val MenuContentFieldFade = 0.38f
+  internal const val MenuContentFieldEnd = 0.85f
+  internal const val MenuContentFirstAlpha = 0.28f
+  internal const val MenuContentMaxBlurDp = 5f
+  internal const val MenuGroupFaceProgressSpan = 0.98f
+  // R4 B1 (b): il bagliore è visibile fra 33 e 67 ms. Intensità candidata, a occhio.
+  internal const val MenuSpotStart = 0.12f
+  internal const val MenuSpotCrest = 0.34f
+  internal const val MenuSpotEnd = 0.55f
+  internal const val MenuSpotPeak = 0.36f
+  internal const val MenuSpotSide = 0.35f
+  internal const val MenuSpotRadius = 0.46f
+
   /** La lente in moto: piena a questa velocita' del corpo, in dp al secondo. */
   const val LiquidLensFullSpeedDp = 700f
 

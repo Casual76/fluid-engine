@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
@@ -94,6 +96,9 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
     ProvideFluidHapticTrace {
       FluidScreen(
         title = "Righe e fogli",
+        modifier = if (overlay in setOf(DemoOverlay.GlassSheet, DemoOverlay.SmallSheet, DemoOverlay.FadeSheet)) {
+          Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        } else Modifier,
         subtitle = "Interruttori, scelte, aspetto, conferme e avvisi con un campo.",
         onBack = onBack,
         extraBottomPadding = bottomInset,
@@ -361,9 +366,11 @@ private fun ColumnScope.DemoPlacesSheet(glass: Boolean) {
     DemoPlaces.forEach { (region, places) ->
       FluidSectionHeader(title = region)
       FluidListGroup(glass = glass) {
-        places.forEachIndexed { index, place ->
-          if (index > 0) FluidListDivider()
-          FluidListRow(title = place, subtitle = region, disclosure = false)
+        Column(Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+          places.forEachIndexed { index, place ->
+            if (index > 0) FluidListDivider()
+            FluidListRow(title = place, subtitle = region, disclosure = false)
+          }
         }
       }
     }

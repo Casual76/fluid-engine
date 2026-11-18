@@ -120,6 +120,40 @@ class FluidGlassSheetUiTest {
   }
 
   @Test
+  fun `il contatto ferma la molla prima di qualsiasi trascinamento`() {
+    compose.setContent {
+      Hosted {
+        FluidGlassSheet(
+          visible = true,
+          onDismissRequest = {},
+          detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
+        ) {
+          Box(Modifier.fillMaxSize().testTag("corpo"))
+        }
+      }
+    }
+    compose.waitForIdle()
+    val body = compose.onNodeWithTag("corpo").getUnclippedBoundsInRoot()
+    compose.mainClock.autoAdvance = false
+    try {
+      compose.onRoot().performTouchInput {
+        click(Offset(((body.left + body.right) / 2f).toPx(), (body.top - grabberStrip / 2f).toPx()))
+      }
+      compose.mainClock.advanceTimeBy(96)
+      val inFlight = bodyHeight()
+      assertTrue(inFlight > medium - grabberStrip && inFlight < large - grabberStrip)
+      compose.onRoot().performTouchInput { down(center) }
+      compose.mainClock.advanceTimeByFrame()
+      val held = bodyHeight()
+      compose.mainClock.advanceTimeBy(300)
+      assertNear("fermo sotto il dito", held, bodyHeight(), 0.5.dp)
+      compose.onRoot().performTouchInput { up() }
+    } finally {
+      compose.mainClock.autoAdvance = true
+    }
+  }
+
+  @Test
   fun `il detent scelto dall'app porta il foglio li', e torna`() {
     var selected by mutableStateOf<FluidSheetDetent>(FluidSheetDetent.Medium)
     compose.setContent {

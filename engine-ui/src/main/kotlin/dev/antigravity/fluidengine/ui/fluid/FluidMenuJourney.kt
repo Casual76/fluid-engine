@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -15,16 +17,20 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
+import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /*
  * Il viaggio di un menu (3.0): l'ancora che diventa il pannello e il pannello che torna ancora.
@@ -145,6 +151,77 @@ internal fun fluidMenuLiquidContentMap(target: Rect, current: Rect, alpha: Float
     translation = current.center - target.center,
     scale = FluidMotion.LiquidContentMinScale + (1f - FluidMotion.LiquidContentMinScale) * a,
   )
+}
+
+/** La sagoma seme si raccoglie sul posto, poi risale verso il punto da cui si apre la nuova forma. */
+internal fun fluidMenuJourneySeed(
+  source: Rect,
+  trigger: Offset,
+  expansionOrigin: Offset,
+  progress: Float,
+  grouped: Boolean,
+): Rect {
+  val gather = unitRamp(progress, 0f, FluidMotion.MenuGatherEnd)
+  val travel = unitRamp(progress, FluidMotion.MenuGatherEnd, FluidMotion.MenuTravelEnd)
+  val diameter = source.minDimension * FluidMotion.MenuSeedDiameterFraction
+  val gatheredWidth = if (grouped) source.width * FluidMotion.MenuGroupGatherWidth else diameter
+  val width = if (travel == 0f) {
+    source.width + (gatheredWidth - source.width) * gather
+  } else {
+    gatheredWidth + (diameter - gatheredWidth) * travel
+  }
+  val height = source.height + (diameter - source.height) * (gather * 0.25f + travel * 0.75f)
+  val center = androidx.compose.ui.geometry.lerp(source.center, expansionOrigin, travel) +
+    (source.center - trigger) * (FluidMotion.MenuGroupTravelBias * travel * (1f - travel) * 4f)
+  return Rect(center - Offset(width / 2f, height / 2f), Size(width, height))
+}
+
+/** Progresso del solo allargamento. Gli oltrepassi mantengono il guadagno della molla esistente. */
+internal fun fluidMenuExpansionProgress(progress: Float): Float =
+  if (progress in 0f..1f) unitRamp(progress, FluidMotion.MenuExpandStart, 1f) else progress
+
+internal fun fluidMenuLensMap(target: Rect, content: Rect): FluidMenuContentMap {
+  if (content.isEmpty || target.isEmpty) return FluidMenuContentMap.Identity
+  val scale = min(content.width / target.width, content.height / target.height).coerceIn(0.04f, 1f)
+  return FluidMenuContentMap(content.center - target.center, scale)
+}
+
+internal fun fluidMenuLensAlpha(focus: Float): Float =
+  FluidMotion.MenuContentFirstAlpha + (1f - FluidMotion.MenuContentFirstAlpha) * unitRamp(focus, 0f, FluidMotion.MenuContentInkFull)
+
+internal fun fluidMenuLensBlurDp(focus: Float): Float =
+  FluidMotion.MenuContentMaxBlurDp * (1f - focus.coerceIn(0f, 1f)).let { it * it }
+
+internal fun fluidMenuLensStrength(focus: Float): Float =
+  1f - unitRamp(focus, FluidMotion.MenuContentFieldFade, FluidMotion.MenuContentFieldEnd)
+
+internal fun fluidMenuSpotAmount(progress: Float): Float =
+  FluidMotion.MenuSpotPeak * unitRamp(progress, FluidMotion.MenuSpotStart, FluidMotion.MenuSpotCrest) *
+    (1f - unitRamp(progress, FluidMotion.MenuSpotCrest, FluidMotion.MenuSpotEnd))
+
+/** Accende il punto di luce in viaggio sui menu Liquid. La scelta di serie resta quella senza lampo. */
+val LocalFluidMenuPointOfLight = androidx.compose.runtime.compositionLocalOf { false }
+
+internal fun fluidMenuSpotCenter(body: Rect, source: Offset, destination: Offset): Offset {
+  val travel = destination - source
+  val length = travel.getDistance()
+  val direction = if (length > 0f) travel / length else Offset(0f, -1f)
+  return body.center + direction * (body.minDimension * FluidMotion.MenuSpotSide)
+}
+
+@androidx.compose.runtime.Composable
+internal fun fluidMenuUsesField(): Boolean {
+  val requested = LocalFluidGlassModel.current
+  val available = remember(requested) {
+    requested == FluidGlassModel.Liquid &&
+      dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported() &&
+      dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidShadersHealthy()
+  }
+  if (available) {
+    val view = LocalView.current
+    remember(view) { GlassWarmUp.request(GlassWarmFamily.MenuContent, view) }
+  }
+  return available
 }
 
 /**
@@ -573,6 +650,12 @@ internal class FluidMenuAnchor {
   /** Dove stava al click lungo, gonfiato dal dito: vedi [fluidPressedBounds]. */
   var pressedBounds: Rect = Rect.Zero
 
+  /** Capsula del gruppo fotografata prima di dichiararne vuoto il contenuto. */
+  var groupBounds: Rect? = null
+  var groupLease: ((Boolean) -> Unit)? = null
+  var groupProgress: () -> Float = { 0f }
+  var groupClip: () -> androidx.compose.ui.geometry.RoundRect? = { null }
+
   var face: (@Composable () -> Unit)? = null
 
   /**
@@ -589,6 +672,17 @@ internal class FluidMenuAnchor {
   val handOff = FluidMenuHandOff()
 
   var hidden by mutableStateOf(false)
+
+  fun consume(value: Boolean) {
+    hidden = value
+    groupLease?.invoke(value)
+    if (!value) {
+      groupBounds = null
+      groupLease = null
+      groupProgress = { 0f }
+      groupClip = { null }
+    }
+  }
 }
 
 /**
@@ -630,6 +724,13 @@ internal fun fluidMenuAnchorInkAlpha(anchor: FluidMenuAnchor): Float = anchor.in
 internal class FluidMenuJourney {
 
   val progress = Animatable(0f, ProgressThreshold)
+  val focus = Animatable(0f, ProgressThreshold)
+  var contentVisibility = Animatable(1f, ProgressThreshold)
+    private set
+
+  var liquidMenu: Boolean = false
+    private set
+  private var expansionOrigin: Offset = Offset.Zero
 
   /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
   var anchorRelax = Animatable(1f, ProgressThreshold)
@@ -668,8 +769,19 @@ internal class FluidMenuJourney {
   /** Il viaggio di ritorno e' finito: l'host puo' rimettere il tasto e smontare. */
   val settledClosed: Boolean get() = target == 0f && !progress.isRunning && progress.value <= ProgressThreshold
 
-  private val startFrameBlock: () -> Rect = { startFrame() }
-  private val progressBlock: () -> Float = { progress.value }
+  private val startFrameBlock: () -> Rect = {
+    val start = startFrame()
+    if (liquidMenu) {
+      val a = anchor
+      val trigger = a?.restBounds?.center?.minus(hostOrigin) ?: start.center
+      fluidMenuJourneySeed(start, trigger, expansionOrigin, progress.value, a?.groupBounds != null)
+    } else {
+      start
+    }
+  }
+  private val progressBlock: () -> Float = {
+    if (liquidMenu) fluidMenuExpansionProgress(progress.value) else progress.value
+  }
 
   /**
    * Il fotogramma di partenza di QUESTO istante, in coordinate dell'host: il tasto premuto che torna
@@ -677,7 +789,7 @@ internal class FluidMenuJourney {
    */
   fun startFrame(): Rect {
     val a = anchor ?: return seed ?: to
-    val r = lerp(a.pressedBounds, a.restBounds, anchorRelax.value.coerceIn(0f, 1f))
+    val r = a.groupBounds ?: lerp(a.pressedBounds, a.restBounds, anchorRelax.value.coerceIn(0f, 1f))
     return r.translate(-hostOrigin.x, -hostOrigin.y)
   }
 
@@ -696,12 +808,15 @@ internal class FluidMenuJourney {
     inflation: FluidMenuInflation,
     seed: Rect? = null,
     freshStart: Boolean = true,
+    liquidMenu: Boolean = false,
+    expansionOrigin: Offset = panel.center,
   ) {
     if (anchor != null && (freshStart || this.anchor !== anchor)) {
       // Una partenza nuova: la pressione si scioglie da qui. Un `Animatable` nuovo e non uno snapTo,
       // che e' sospeso: la partenza deve essere giusta gia' al primo fotogramma, che arriva prima di
       // qualunque coroutine.
       anchorRelax = Animatable(if (anchor.pressedBounds == anchor.restBounds) 1f else 0f, ProgressThreshold)
+      if (liquidMenu) contentVisibility = Animatable(1f, ProgressThreshold)
     }
     this.anchor = anchor
     this.hostOrigin = hostOrigin
@@ -709,7 +824,12 @@ internal class FluidMenuJourney {
     this.toRadius = radius
     this.inflation = inflation
     this.seed = seed
+    this.liquidMenu = liquidMenu
+    this.expansionOrigin = expansionOrigin
+    anchor?.groupProgress = progressBlockForGroup
   }
+
+  private val progressBlockForGroup: () -> Float = { progress.value }
 
   /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
   fun install(physics: FluidPhysicsState) {
@@ -718,7 +838,8 @@ internal class FluidMenuJourney {
     // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
     // F1B.3: il segnaposto ha la taglia del tasto a riposo (vedi [fluidMenuOriginFrame]).
     val start = if (a != null) {
-      fluidMenuOriginFrame(rest = a.restBounds, pressed = a.pressedBounds).translate(-hostOrigin.x, -hostOrigin.y)
+      val frame = a.groupBounds ?: fluidMenuOriginFrame(rest = a.restBounds, pressed = a.pressedBounds)
+      frame.translate(-hostOrigin.x, -hostOrigin.y)
     } else {
       seed ?: to
     }
@@ -748,24 +869,35 @@ internal class FluidMenuJourney {
   }
 
   /** Corre verso [target]. Sospende finche' non arriva; cancellabile (un [retarget] la sostituisce). */
-  suspend fun run(reducedMotion: Boolean) {
+  suspend fun run(reducedMotion: Boolean, withLens: Boolean = liquidMenu) {
     val t = target
     val v = seedVelocity
     seedVelocity = 0f
     if (reducedMotion) {
       anchorRelax.snapTo(1f)
       progress.snapTo(t)
+      focus.snapTo(t)
+      contentVisibility.snapTo(t)
       return
     }
-    if (t >= 1f) {
-      coroutineScope {
+    coroutineScope {
+      if (withLens) launch {
+        val duration = (FluidMotion.MenuContentFocusMillis * kotlin.math.abs(focus.value - t)).roundToInt()
+        focus.animateTo(t, tween(duration, easing = LinearEasing))
+      }
+      if (withLens) launch {
+        val visibility = contentVisibility
+        val duration = (FluidMotion.MenuContentExitMillis * kotlin.math.abs(visibility.value - t)).roundToInt()
+        visibility.animateTo(t, tween(duration, easing = LinearEasing))
+      }
+      if (t >= 1f) {
         val relax = anchorRelax
         if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
         // La goccia (3.0): l'andata in ~0,28 s (3.0.4; era 0,42), poco sottosmorzata, e il ritorno in ~0,50 s.
         progress.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = v)
+      } else {
+        progress.animateTo(0f, FluidMotion.dropClose(), initialVelocity = v)
       }
-    } else {
-      progress.animateTo(0f, FluidMotion.dropClose(), initialVelocity = v)
     }
   }
 

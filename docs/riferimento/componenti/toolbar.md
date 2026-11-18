@@ -171,6 +171,11 @@ L'host usa il contesto della pagina che dichiara la barra, così due pagine poss
 Il riferimento della pagina di partenza torna disponibile quando la pagina riprende il suo posto. Vedi
 [Sorgenti delle transizioni](menu-modali.md#sorgenti-delle-transizioni).
 
+Dalla 4.0 (F5B.3) il riferimento apre un foglio con lo zoom: `FluidGlassSheet(…, source =
+rememberFluidToolbarTransitionSource("sposta"))`. Il vetro nasce dalla capsula del gruppo e ci rientra; mentre il foglio è
+aperto il tasto è **consumato**: la sua faccia (l'icona) non si disegna, il vetro del gruppo e gli altri tasti restano,
+sotto lo scrim, come in Mail (WWDC25 284, 14:07). Vedi [menu-modali.md](menu-modali.md), «Il foglio che nasce dal tasto».
+
 ## La ricerca
 
 La pagina passa `FluidScreen(search = FluidSearchSpec(…))` oppure `search(spec)` nella dichiarazione della toolbar, che ha precedenza. `query` e `onQueryChange` restano dell’app. Per controllare l’apertura dall’esterno si passano insieme `active` e `onActiveChange`. Altrimenti la schermata conserva lo stato anche alla ricreazione dell’Activity.

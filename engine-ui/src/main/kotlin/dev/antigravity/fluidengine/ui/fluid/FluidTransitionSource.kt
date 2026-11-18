@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
@@ -46,6 +48,32 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
     return nodes.firstNotNullOfOrNull { it.resolve(includeCoveredPage = false) }
       ?: if (includeCoveredPage) nodes.firstNotNullOfOrNull { it.resolve(includeCoveredPage = true) } else null
   }
+
+  // F5B.3: la sorgente «consumata». Una presentazione nata da qui (lo zoom di una pagina o di un foglio) la nasconde
+  // finché è aperta e la restituisce al ritorno, nello stesso fotogramma in cui la sagoma ci rientra: la sorgente e
+  // l'arrivo non si vedono mai insieme. Un contatore per identità, perché due presentazioni possono tenere la stessa.
+  private var held = false
+
+  /** Nasconde la sorgente (tutte le viste con questa identità) finché non si chiama [release]. Idempotente. */
+  internal fun consume() {
+    if (held) return
+    held = true
+    consumedSources[key] = (consumedSources[key] ?: 0) + 1
+  }
+
+  /** Restituisce la sorgente tenuta da [consume]. Idempotente. */
+  internal fun release() {
+    if (!held) return
+    held = false
+    val left = (consumedSources[key] ?: 1) - 1
+    if (left <= 0) consumedSources.remove(key) else consumedSources[key] = left
+  }
+
+  /** Vero mentre questo riferimento tiene la sorgente nascosta. */
+  internal val isConsumed: Boolean get() = held
+
+  /** Vero se qualcuno tiene nascosta questa identità: è ciò che legge il disegno delle viste. */
+  internal val isHidden: Boolean get() = key in consumedSources
 }
 
 /**
@@ -59,6 +87,10 @@ data class FluidTransitionSourceGeometry(val bounds: Rect, val shape: Shape)
  * Dà a una vista un'origine per menu, presentazioni e zoom senza aggiungere disegno o cambiare la misura.
  * Applica il modificatore al riquadro che deve partire e dai la sua [shape] se ha un contorno proprio.
  * L'identità è la coppia [namespace] e [id]. Se è ripetuta, vale la prima sorgente posata ancora disponibile.
+ *
+ * Mentre una pagina o un foglio aperti con lo zoom da qui sono in scena (F5B.3) la sorgente è «consumata»: non disegna
+ * ciò che le sta **dopo** nella catena dei modificatori e rinasce quando la sagoma ci rientra. Mettilo quindi prima di
+ * fondo, bordo e contenuto (in testa alla catena), così sparisce tutta la vista e non solo il suo interno.
  */
 fun Modifier.fluidTransitionSource(
   id: Any,
@@ -94,6 +126,9 @@ internal data class FluidTransitionSourceKey(val owner: Any, val id: Any)
 // Solo i nodi posati. La fine di una registrazione lascia posto agli altri senza cambiare il loro ordine.
 private val transitionSources = mutableStateMapOf<FluidTransitionSourceKey, List<FluidTransitionSourceNode>>()
 
+// Le identità consumate da una presentazione aperta (F5B.3), con quante la tengono. Letto nel disegno dei nodi.
+private val consumedSources = mutableStateMapOf<FluidTransitionSourceKey, Int>()
+
 private data class FluidTransitionSourceElement(
   val key: FluidTransitionSourceKey,
   val shape: Shape,
@@ -104,10 +139,15 @@ private data class FluidTransitionSourceElement(
 }
 
 private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
-  Modifier.Node(), GlobalPositionAwareModifierNode, CompositionLocalConsumerModifierNode {
+  Modifier.Node(), GlobalPositionAwareModifierNode, CompositionLocalConsumerModifierNode, DrawModifierNode {
   private var source by mutableStateOf(source)
   private var coordinates: LayoutCoordinates? = null
   private var placedBounds by mutableStateOf<Rect?>(null)
+
+  // Consumata, la vista non disegna: la sua sagoma è in viaggio come pagina o foglio (F5B.3). A riposo passa e basta.
+  override fun ContentDrawScope.draw() {
+    if (source.key !in consumedSources) drawContent()
+  }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
     val firstPlacement = this.coordinates == null

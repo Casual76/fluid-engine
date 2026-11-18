@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Foglio di vetro con detent. Il velo copre anche i gruppi di vetro interni a tutta altezza. Durante la salita i gruppi leggono un'unica texture del foglio e un nuovo contatto ferma la molla.
+
 - Correzioni dopo S9, liste (F6.6). `FluidStepper` tenuto premuto ripete davvero: il tracciatore del dito prendeva il down, già consumato dal `clickable`, per una lista che ha preso il dito e fermava la ripetizione prima del primo passo (il tocco breve funzionava). Il glifo della capsula delle azioni a scorrimento è bianco dove il bianco fa almeno 3:1 col colore dell'azione (sul rosso di sistema era il quasi-nero); l'aspetto `Fill` è com'era.
 
 - Barre Liquid. Il riflesso laterale si raccorda al fondale durante il viaggio. Nella piega l'etichetta scelta resta leggibile nella prima tratta e il contorno del lettore resta in primo piano.
@@ -16,9 +18,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - La ricerca di `FluidScreen` trasforma la lente da 44 dp in un campo da 40 dp sul piano della barra, riunisce i comandi vicini e segue la tastiera con gli ambiti in linea.
 
+- Zoom dalla sorgente (F5B.3). `FluidPageTransition.Expand` con una sorgente dichiarata (`zoomSource` di `FluidPageHost` e di `composable`) nasce dalla card e ci torna, anche col dito che la rimpicciolisce sotto di sé, sulla corsa di sempre; il ritorno nella sorgente ha la molla dello zoom di UIKit misurata a tempo vero (`FluidPageMotion.zoomReturn()`, critica, 0,71 s), le altre transizioni restano sulla molla delle pagine; `FluidGlassSheet(source = …)` fa crescere il vetro dal tasto (anche della barra) con il contenuto sfocato fino a ≈300 ms. La sorgente è consumata finché la presentazione è in scena. La geometria è pura e riusabile (`FluidZoom`, `FluidZoomShape`); senza sorgente tutto resta com'era.
+
 - `toolbar { }` posa le azioni `BottomBar` sul piano flottante anche fra pagine. La capsula libera anima la propria larghezza e lo scambio dei simboli.
 
 - Sorgenti delle transizioni (F5A.1). `Modifier.fluidTransitionSource` espone riquadro e forma per identità. Le azioni della toolbar dichiarata espongono la capsula del proprio gruppo, anche durante il viaggio del piano.
+
+- Menu Liquid (F5A.2). Il tasto o il gruppo dichiarato con `action(menu = …)` si raccoglie in una goccia che risale e si espande verso il centro del pannello. Le voci viaggiano dentro il vetro in un layer sfocato e rifratto, con glifi da 22 dp. Il punto di luce è disponibile con `LocalFluidMenuPointOfLight`. La molla di ritorno conserva la taratura in uso.
 
 - Pagine e toolbar. Il push parte al cambio di pila, il movimento ridotto dissolve le pagine sul posto e il titolo entrante resta dentro il bordo di lettura. La ricerca fissata resta sopra la striscia e il titolo ritrova il proprio spazio anche a testo grande. Le azioni legacy si incrociano con i gruppi dichiarati.
 

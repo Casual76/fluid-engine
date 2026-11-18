@@ -10,6 +10,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.NavType
 import androidx.navigation.Navigator
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
 import dev.antigravity.fluidengine.ui.page.FluidPageScope
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
@@ -83,6 +84,10 @@ class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>() {
       internal set
     var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
       internal set
+
+    /** La sorgente dello zoom di una voce (4.0, F5B.3): vedi `composable(zoomSource = …)`. Null: nessuna. */
+    var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
+      internal set
   }
 
   companion object {
@@ -99,6 +104,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
 
   var transition: FluidPageTransition = FluidPageTransition.Slide
   var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
+  var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
 
   constructor(
     navigator: FluidPageNavigator,
@@ -125,6 +131,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
   override fun build(): FluidPageNavigator.Destination = super.build().also { destination ->
     destination.transition = transition
     destination.backSwipe = backSwipe
+    destination.zoomSource = zoomSource
   }
 }
 
@@ -136,6 +143,10 @@ private fun NavGraphBuilder.pageNavigator(): FluidPageNavigator =
  *
  * Stesso nome di `androidx.navigation.compose.composable` di proposito: migrare un grafo vuol dire
  * cambiare un import. Le animazioni di NavHost non ci sono piu': c'e' lo stile della pagina.
+ *
+ * [zoomSource] (4.0, F5B.3): con `transition = FluidPageTransition.Expand`, la sorgente da cui la voce si apre con lo
+ * zoom e a cui torna, letta dalla voce (di solito dai suoi argomenti: `FluidTransitionSource(entry.arguments…, ns)`).
+ * Vedi `FluidPageHost(zoomSource)`.
  */
 fun NavGraphBuilder.composable(
   route: String,
@@ -143,6 +154,7 @@ fun NavGraphBuilder.composable(
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
   backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
@@ -151,6 +163,7 @@ fun NavGraphBuilder.composable(
       deepLinks.forEach { link -> deepLink(link) }
       this.transition = transition
       this.backSwipe = backSwipe
+      this.zoomSource = zoomSource
     },
   )
 }
@@ -162,6 +175,7 @@ fun <T : Any> NavGraphBuilder.composable(
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
   backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
@@ -169,6 +183,7 @@ fun <T : Any> NavGraphBuilder.composable(
       deepLinks.forEach { link -> deepLink(link) }
       this.transition = transition
       this.backSwipe = backSwipe
+      this.zoomSource = zoomSource
     },
   )
 }
@@ -179,7 +194,8 @@ inline fun <reified T : Any> NavGraphBuilder.composable(
   deepLinks: List<NavDeepLink> = emptyList(),
   transition: FluidPageTransition = FluidPageTransition.Slide,
   backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  noinline zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
   noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
-  composable(T::class, typeMap, deepLinks, transition, backSwipe, content)
+  composable(T::class, typeMap, deepLinks, transition, backSwipe, zoomSource, content)
 }

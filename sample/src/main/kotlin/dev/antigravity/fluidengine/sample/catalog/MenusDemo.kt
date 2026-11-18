@@ -48,6 +48,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidScreen
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMenuPointOfLight
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenu
@@ -97,6 +100,7 @@ fun MenusDemo() {
       modifier = Modifier.padding(horizontal = 4.dp),
     )
     MorphSection(pick)
+    GroupMenuSection(pick)
     BarSection(pick)
     ContextScrimPicker()
     RowsSection(pick)
@@ -127,8 +131,14 @@ private fun MorphSection(pick: (String) -> Unit) {
   Stage(height = 360.dp) { backdrop ->
     val menu = rememberFluidMorphMenuState()
     var order by remember { mutableStateOf("Per data") }
+    var light by remember { mutableStateOf(false) }
     // Lo stato del menu arriva ai tasti dal fornitore (3.0.1): nessuno dei due lo riceve come parametro.
-    CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
+    CompositionLocalProvider(LocalFluidMorphMenuState provides menu, LocalFluidMenuPointOfLight provides light) {
+      FluidButton(
+        text = if (light) "Punto di luce acceso" else "Punto di luce spento",
+        onClick = { light = !light },
+        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+      )
       Row(
         modifier = Modifier
           .align(Alignment.BottomCenter)
@@ -160,6 +170,39 @@ private fun MorphSection(pick: (String) -> Unit) {
       }
       // L'host del palco: il menu cresce dentro il palco, sopra i tasti.
       FluidMorphMenuHost(state = menu, backdrop = backdrop)
+    }
+  }
+}
+
+@Composable
+private fun GroupMenuSection(pick: (String) -> Unit) {
+  FluidSectionHeader(
+    title = "Il gruppo che diventa menu",
+    detail = "Tocca o tieni premuto «Menu del gruppo». Il tasto «Modifica foto» resta al suo posto.",
+  )
+  val photo = remember { generateMeasurePhoto() }
+  FluidScreen(
+    title = "Foto",
+    modifier = Modifier.height(320.dp).clip(ContinuousCornerShape(FluidRadius.Group)).testTag("menus-group"),
+    toolbar = {
+      group(id = "photo-tools", placement = FluidToolbarPlacement.BottomBar) {
+        button("share-photo", FluidIcons.Share, "Condividi foto", { pick("Condividi foto") })
+        button("star-photo", FluidIcons.Filled.Star, "Preferiti foto", { pick("Preferiti foto") })
+        action("photo-menu", FluidIcons.MoreVert, "Menu del gruppo") { demoActions(pick) }
+        flexibleSpacer()
+      }
+      group(id = "photo-edit", placement = FluidToolbarPlacement.BottomBar) {
+        button("edit-photo", FluidIcons.Edit, "Modifica foto", { pick("Modifica foto") })
+      }
+    },
+  ) {
+    item {
+      Image(
+        bitmap = photo,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxWidth().height(228.dp),
+      )
     }
   }
 }

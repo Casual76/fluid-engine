@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -51,13 +52,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.CompositingStrategy
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
@@ -67,7 +74,12 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
@@ -84,6 +96,9 @@ import androidx.compose.ui.unit.toSize
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
 import dev.antigravity.fluidengine.ui.page.displayCornerRadii
 import androidx.compose.runtime.withFrameNanos
@@ -369,7 +384,7 @@ private class FluidSheetMotion {
   /** Il dito sul foglio, per il chiarore (coordinate del pannello, prima dello spostamento). */
   var touch: Offset by mutableStateOf(Offset.Unspecified)
   val glow = Animatable(0f)
-  var job: Job? = null
+  var job: Job? by mutableStateOf(null)
 
   var stops: FluidSheetStops? = null
   var stopsKey: Any? = null
@@ -378,6 +393,31 @@ private class FluidSheetMotion {
 
   /** Vero se il foglio ha i detent di un [FluidGlassSheet]; falso per il foglio alto quanto il contenuto. */
   var detented: Boolean = false
+
+  // Lo zoom dalla sorgente (F5B.3). Campi del layout, letti dal disegno dello stesso fotogramma.
+  /** Vero mentre il vetro ha la sagoma dello zoom (il layout lo misura lì, il contenuto resta alla misura d'arrivo). */
+  var zoomActive: Boolean = false
+
+  /** Il riquadro d'arrivo del foglio (al suo detent), nelle coordinate dell'area dell'host. */
+  var zoomFinal: Rect = Rect.Zero
+
+  /** L'ultima sagoma trovata della sorgente: se nel frattempo sparisce, il vetro ci rientra lo stesso. */
+  var zoomSource: Rect? = null
+
+  /** Dove sta l'area dell'host nella radice Compose, dov'è il riquadro di una sorgente. */
+  var rootOrigin: Offset = Offset.Zero
+
+  /** La sorgente nascosta mentre il foglio è in scena: torna quando il foglio esce. */
+  var consumed: FluidTransitionSource? = null
+
+  /** I millisecondi dall'apertura, per la nitidezza del contenuto: si fermano a [FluidSheetZoomSharpMillis]. */
+  var zoomElapsed: Float by mutableFloatStateOf(0f)
+
+  /** L'apertura dello zoom, 0..1, sulla molla misurata su Apple ([FluidSheetZoomSpring]); la chiusura è dell'host. */
+  val zoomOpen = Animatable(0f)
+
+  /** Il viaggio dello zoom adesso: l'apertura sua, ma mai oltre la molla dell'host (che alla chiusura scende). */
+  fun zoomTravel(slide: Float): Float = min(zoomOpen.value, slide)
 
   /**
    * Lo stesso fatto come stato, per la composizione (la forma): lo scrive il layout quando cambia. Un foglio con i detent
@@ -430,6 +470,9 @@ private fun FluidSheetPane(
   val sheetFill = if (backdrop == null) rememberGlassOpaquePanel() else null
   val sink = remember { FluidSheetSink() }
   val motion = remember { FluidSheetMotion() }
+  val scene = if (backdrop != null && motion.detentedLook && isRenderEffectSupported()) {
+    rememberSheetScene(backdrop)
+  } else null
   val currentOnDismiss by rememberUpdatedState(onDismiss)
   val currentReduced by rememberUpdatedState(reducedMotion)
   val statusBars = WindowInsets.statusBars
@@ -569,6 +612,25 @@ private fun FluidSheetPane(
     }
   }
 
+  // Lo zoom (F5B.3): l'orologio della nitidezza del contenuto, dal primo fotogramma del foglio; e la sorgente che torna a
+  // disegnarsi quando il foglio esce di scena (il vetro, all'ultimo fotogramma, e' gia' rientrato nel suo riquadro).
+  LaunchedEffect(motion) {
+    launch { if (currentReduced) motion.zoomOpen.snapTo(1f) else motion.zoomOpen.animateTo(1f, FluidSheetZoomSpring) }
+    var start = 0L
+    while (motion.zoomElapsed < FluidSheetZoomSharpMillis) {
+      withFrameNanos { now ->
+        if (start == 0L) start = now
+        motion.zoomElapsed = (now - start) / 1_000_000f
+      }
+    }
+  }
+  DisposableEffect(motion) {
+    onDispose {
+      motion.consumed?.release()
+      motion.consumed = null
+    }
+  }
+
   // La scelta dell'app: quando cambia, il foglio ci va con la molla. La prima scelta e' quella in cui si apre.
   LaunchedEffect(sink, motion) {
     var last: FluidSheetDetent? = null
@@ -631,18 +693,22 @@ private fun FluidSheetPane(
     modifier = Modifier
       .fillMaxSize()
       .imePadding()
+      .onPlaced { coordinates -> motion.rootOrigin = coordinates.positionInRoot() }
       .onSizeChanged { size ->
         val corners = displayCornerRadii(view)
         val next = FluidSheetScreen(size.toSize(), max(corners.bottomLeft, corners.bottomRight))
         if (next != screen) screen = next
       },
     content = {
-      Column(
+      val sharedMaterial = motion.detentedLook
+      Box(
+        propagateMinConstraints = true,
         modifier = Modifier
           .nestedScroll(nested)
           .draggable(
             orientation = Orientation.Vertical,
             state = rememberDraggableState { delta -> dragBy(delta) },
+            startDragImmediately = motion.detented && motion.job != null,
             onDragStarted = { grab() },
             onDragStopped = { velocity -> settle(-velocity) },
           )
@@ -672,7 +738,12 @@ private fun FluidSheetPane(
             val travelled = slide().coerceIn(0f, 1f)
             // Sotto il detent piu' basso il foglio scende intero, in pixel del dito.
             val sinkPx = if (stops != null) fluidSheetSinkPx(motion.position(stops, spec?.selected), stops) else 0f
-            if (spec?.transition == FluidSheetTransition.CrossFade) {
+            if (motion.zoomActive) {
+              // Lo zoom (F5B.3): la sagoma la fa il layout, dalla sorgente al detent (discesa del dito compresa); niente
+              // viaggio dal basso e niente dissolvenza, che sulla sorgente sarebbe un lampo.
+              translationY = 0f
+              alpha = 1f
+            } else if (spec?.transition == FluidSheetTransition.CrossFade) {
               // Entra al suo posto, in dissolvenza (iOS 27 `.crossFade`): la molla del foglio letta come opacita'.
               translationY = sinkPx
               alpha = fluidSheetCrossFadeAlpha(slide())
@@ -689,88 +760,115 @@ private fun FluidSheetPane(
             transformOrigin = TransformOrigin(0.5f, 1f)
           }
           .then(
-            if (backdrop != null) {
-              Modifier.glassSurfaceInked(
-                ink = sheetInk,
-                state = backdrop,
-                tint = GlassDefaults.panelTint(paneTint),
-                shape = shape,
-                role = GlassRole.Modal,
-                optics = GlassDefaults.panelOptics(),
-                // La pressione del materiale: la lente si approfondisce col dito, come in ogni vetro dell'engine.
-                pressed = { if (motion.detented) motion.glow.value.coerceIn(0f, 1f) else 0f },
-                exports = sheetGlass,
-              )
-            } else if (sheetFill != null) {
-              Modifier
-                .glassOpaquePanel(sheetFill.layerBackdrop, MaterialTheme.colorScheme.surfaceContainerHigh, shape)
-                .glassContainer(sheetFill)
-            } else {
-              Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
-            },
+            if (sharedMaterial) Modifier
+            else sheetBaseMaterial(backdrop, sheetFill, sheetGlass, sheetInk, paneTint, shape, motion),
           )
-          // Sopra il vetro e sotto il contenuto: il velo che verso la cima fa del foglio una pagina, e il chiarore del
-          // dito. Tutti e due letti in disegno: l'altezza del pannello e' gia' quella del fotogramma.
-          .drawWithCache {
-            val outline = shape.createOutline(size, layoutDirection, this)
-            onDrawBehind {
-              val stops = motion.stops
-              // Finche' il velo non ha inseguito niente (il foglio non si e' ancora mosso) vale il bersaglio del momento.
-              val veil = when {
-                !motion.detented || stops == null -> 0f
-                motion.veil < 0f -> fluidSheetLargeness(size.height, stops, motion.largePx, FluidSheetOpaqueBand)
-                else -> motion.veil.coerceIn(0f, 1f)
-              }
-              if (veil > 0.001f) drawOutline(outline, pageInk.copy(alpha = veil))
-              val glow = motion.glow.value.coerceIn(0f, 1f)
-              val touch = motion.touch
-              if (motion.detented && glow > 0.001f && touch.isSpecified) {
-                // Il tocco e' nelle coordinate del pannello prima dello spostamento: si riporta dove il dito sta.
-                val sinkPx = if (stops != null) fluidSheetSinkPx(motion.position(stops, sink.spec?.selected), stops) else 0f
-                val center = Offset(touch.x, touch.y - sinkPx)
-                drawOutline(
-                  outline,
-                  Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = glowAlpha * glow), Color.Transparent),
-                    center = center,
-                    radius = size.width * 0.75f,
-                  ),
-                )
-              }
-            }
-          }
-          .clip(shape)
           .semantics {
             paneTitle?.let { this.paneTitle = it }
             isTraversalGroup = true
           },
       ) {
-        CompositionLocalProvider(LocalFluidSheetSink provides sink) {
-          // La maniglia: c'e' sempre (lo spazio in cima e' lo stesso di prima); un foglio che non la vuole la nasconde
-          // in disegno. Toccata, passa al detent successivo.
-          FluidGrabber(
-            modifier = Modifier
-              .graphicsLayer { alpha = if (sink.spec?.dragIndicator == false) 0f else 1f }
-              .pointerInput(motion, sink) { detectTapGestures { cycle() } },
+        if (sharedMaterial) {
+          // Il pannello e i vetri al suo interno leggono la stessa immagine, compreso il velo.
+          // La registrazione è sotto la colonna: testo e controlli non possono campionare se stessi.
+          Box(
+            Modifier.matchParentSize()
+              .glassMaterialSource(sheetGlass)
+              .then(sheetBaseMaterial(scene?.backdrop ?: backdrop, sheetFill, null, sheetInk, paneTint, shape, motion))
+              .drawWithCache {
+                val outline = shape.createOutline(size, layoutDirection, this)
+                onDrawBehind {
+                  val stops = motion.stops
+                  val veil = when {
+                    stops == null -> 0f
+                    // Nello zoom il vetro diventa pagina mentre cresce, se al suo detent è opaco (284 f25411–f25413).
+                    motion.zoomActive -> fluidSheetZoomVeil(
+                      motion.zoomTravel(slide()),
+                      fluidSheetLargeness(motion.zoomFinal.height, stops, motion.largePx, FluidSheetOpaqueBand),
+                    )
+                    motion.veil < 0f -> fluidSheetLargeness(size.height, stops, motion.largePx, FluidSheetOpaqueBand)
+                    else -> motion.veil
+                  }
+                  if (veil > 0f) drawOutline(outline, pageInk.copy(alpha = veil))
+                }
+              },
           )
-          if (backdrop != null) {
-            // Come nel pop-up: il canvas del contenuto e' il foglio, e il vetro che ci sta sopra e'
-            // vetro impilato (`LocalFluidCanvasIsGlass`), non una card su una pagina.
-            CompositionLocalProvider(
-              LocalFluidCanvasBackdrop provides sheetGlass,
-              LocalFluidCanvasIsGlass provides true,
-            ) {
-              GlassInkContent(sheetInk, LocalContentColor.current) {
-                content()
-                footer?.invoke(this)
+        }
+        Column(
+          Modifier
+            .then(if (sharedMaterial) Modifier.glassContainer(sheetGlass) else Modifier)
+            .clip(shape)
+            .drawWithCache {
+              onDrawBehind {
+                val glow = motion.glow.value.coerceIn(0f, 1f)
+                val touch = motion.touch
+                if (motion.detented && glow > 0.001f && touch.isSpecified) {
+                  val sinkPx = motion.stops?.let { fluidSheetSinkPx(motion.position(it, sink.spec?.selected), it) } ?: 0f
+                  drawRect(Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = glowAlpha * glow), Color.Transparent),
+                    center = Offset(touch.x, touch.y - sinkPx),
+                    radius = size.width * 0.75f,
+                  ))
+                }
               }
             }
-          } else {
-            content()
-            footer?.invoke(this)
+            // Lo zoom (F5B.3): il vetro ha la sagoma che cresce, il contenuto la misura d'arrivo, in cima al vetro e al
+            // centro, ritagliato dal vetro (R7 A5, A7) e sfocato finché non è arrivato. Fuori dallo zoom passa e basta.
+            // Sta sulla colonna, dopo il ritaglio: col materiale condiviso (correzione del foglio dopo S9) il vetro è un
+            // figlio del pannello e deve restare alla misura della sagoma, non a quella d'arrivo.
+            .layout { measurable, constraints ->
+              val final = motion.zoomFinal
+              if (!motion.zoomActive || final.width < 1f || final.height < 1f) {
+                val placeable = measurable.measure(constraints)
+                return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+              }
+              val placeable = measurable.measure(Constraints.fixed(final.width.roundToInt(), final.height.roundToInt()))
+              layout(constraints.maxWidth, constraints.maxHeight) {
+                placeable.place(((constraints.maxWidth - placeable.width) / 2f).roundToInt(), 0)
+              }
+            }
+            .graphicsLayer {
+              val sigma = if (motion.zoomActive) {
+                FluidSheetZoomBlur.toPx() * fluidSheetZoomBlurFraction(motion.zoomElapsed, motion.zoomTravel(slide()))
+              } else {
+                0f
+              }
+              renderEffect = if (sigma > 0.05f) {
+                val radius = glassContentBlurRadiusPx(sigma)
+                BlurEffect(radius, radius, TileMode.Decal)
+              } else {
+                null
+              }
+            },
+        ) {
+          CompositionLocalProvider(LocalFluidSheetSink provides sink) {
+            // La maniglia: c'e' sempre (lo spazio in cima e' lo stesso di prima); un foglio che non la vuole la nasconde
+            // in disegno. Toccata, passa al detent successivo.
+            FluidGrabber(
+              modifier = Modifier
+                .graphicsLayer { alpha = if (sink.spec?.dragIndicator == false) 0f else 1f }
+                .pointerInput(motion, sink) { detectTapGestures { cycle() } },
+            )
+            if (backdrop != null) {
+              // Come nel pop-up: il canvas del contenuto e' il foglio, e il vetro che ci sta sopra e'
+              // vetro impilato (`LocalFluidCanvasIsGlass`), non una card su una pagina.
+              CompositionLocalProvider(
+                LocalFluidCanvasBackdrop provides sheetGlass,
+                LocalFluidCanvasIsGlass provides true,
+              ) {
+                GlassInkContent(sheetInk, LocalContentColor.current) {
+                  content()
+                  footer?.invoke(this)
+                }
+              }
+            } else {
+              content()
+              footer?.invoke(this)
+            }
           }
         }
       }
+      if (scene != null) Box(Modifier.fillMaxSize().then(scene.source))
     },
   ) { measurables, constraints ->
     // `density` qui fuori e' l'oggetto di composizione: nel layout serve il numero dello scope.
@@ -784,6 +882,7 @@ private fun FluidSheetPane(
     motion.largePx = large
     motion.windowHeightPx = windowHeight
     val panel = measurables.first()
+    val source = measurables.getOrNull(1)?.measure(constraints)
     if (spec != null) {
       // I detent di un FluidGlassSheet: il pannello e' alto quanto la sua altezza visibile, il contenuto con lui.
       val key = Triple(spec.detents, windowHeight, topInset)
@@ -798,9 +897,42 @@ private fun FluidSheetPane(
       val largeness = fluidSheetLargeness(visible, stops, large)
       val inset = fluidSheetInsetPx(largeness, scale)
       val width = min(windowWidth - 2f * inset, maxWidth).coerceAtLeast(0f).roundToInt()
-      val placeable = panel.measure(Constraints.fixed(width, visible.roundToInt().coerceAtLeast(0)))
-      layout(constraints.maxWidth, constraints.maxHeight) {
-        placeable.place(((windowWidth - placeable.width) / 2f).roundToInt(), (windowHeight - inset).roundToInt() - placeable.height)
+      val height = visible.roundToInt().coerceAtLeast(0)
+      val left = ((windowWidth - width) / 2f).roundToInt()
+      val top = (windowHeight - inset).roundToInt() - height
+      // Lo zoom (F5B.3): finché il foglio non è arrivato (la sua molla in apertura, quella dell'host in chiusura), il vetro
+      // ha la sagoma che va dalla sorgente al detent. La sorgente si cerca a ogni fotogramma (una barra può cambiare sotto
+      // il foglio); se sparisce, vale l'ultima trovata; se non c'era all'apertura, il foglio sale dal basso come sempre.
+      val zoom = spec.source?.takeIf { spec.transition == FluidSheetTransition.Slide && !currentReduced }?.let { source ->
+        val travelled = motion.zoomTravel(slide())
+        if (travelled >= 1f) return@let null
+        source.resolve()?.bounds?.translate(-motion.rootOrigin)?.takeIf { it.isFinite && !it.isEmpty }?.let { motion.zoomSource = it }
+        motion.zoomSource?.let { found ->
+          if (motion.consumed == null) {
+            source.consume()
+            motion.consumed = source
+          }
+          // Un foglio spinto giù dal dito prima di chiudersi rientra da dove si vede, non dal suo detent.
+          val sunk = fluidSheetSinkPx(motion.position(stops, spec.selected), stops)
+          fluidSheetZoomBounds(found, Rect(left.toFloat(), top + sunk, (left + width).toFloat(), top + height + sunk), travelled)
+        }
+      }
+      motion.zoomFinal = Rect(left.toFloat(), top.toFloat(), (left + width).toFloat(), (top + height).toFloat())
+      motion.zoomActive = zoom != null
+      if (zoom != null) {
+        val placeable = panel.measure(
+          Constraints.fixed(zoom.width.roundToInt().coerceAtLeast(1), zoom.height.roundToInt().coerceAtLeast(1)),
+        )
+        layout(constraints.maxWidth, constraints.maxHeight) {
+          source?.place(0, 0)
+          placeable.place(zoom.left.roundToInt(), zoom.top.roundToInt())
+        }
+      } else {
+        val placeable = panel.measure(Constraints.fixed(width, height))
+        layout(constraints.maxWidth, constraints.maxHeight) {
+          source?.place(0, 0)
+          placeable.place(left, top)
+        }
       }
     } else {
       // Il foglio di sempre, alto quanto il suo contenuto: com'era (piano, F5B-d), a filo dei lati fino a 620 dp e del
@@ -812,12 +944,68 @@ private fun FluidSheetPane(
       motion.stops = FluidSheetStops(FluidSheetContentDetents, floatArrayOf(placeable.height.toFloat()))
       motion.stopsKey = null
       motion.detented = false
+      motion.zoomActive = false
       if (motion.detentedLook) motion.detentedLook = false
       layout(constraints.maxWidth, constraints.maxHeight) {
+        source?.place(0, 0)
         placeable.place(((windowWidth - placeable.width) / 2f).roundToInt(), windowHeight.roundToInt() - placeable.height)
       }
     }
   }
+}
+
+private class FluidSheetScene(val backdrop: GlassBackdropState, val source: Modifier)
+
+/** Pagina e scrim si rasterizzano alla misura della finestra, anche quando il foglio cambia altezza.
+ * La lastra legge così la porzione corrente di una texture stabile, mantenendo posizione e ottica del vetro.
+ */
+@Composable
+private fun rememberSheetScene(input: GlassBackdropState): FluidSheetScene {
+  var origin by remember { mutableStateOf<LayoutCoordinates?>(null) }
+  val texture = rememberGraphicsLayer()
+  val scene = rememberLayerBackdrop(texture) {
+    val density = this
+    with(input.backdrop) { drawBackdrop(density, origin, null) }
+  }
+  return remember(input, scene) {
+    texture.compositingStrategy = CompositingStrategy.Offscreen
+    val image = object : Backdrop by scene {
+      // Le sonde e il prestito della pagina devono continuare a vedere le sorgenti originali.
+      override val layerSources get() = input.backdrop.layerSources
+      override fun forEachPart(block: (Backdrop) -> Unit) = input.backdrop.forEachPart(block)
+      override fun isReadyToSample() = scene.isReadyToSample() && input.backdrop.isReadyToSample()
+    }
+    FluidSheetScene(
+      GlassBackdropState(image, null, input.blurRadius),
+      Modifier.graphicsLayer().onGloballyPositioned { origin = it }.layerBackdrop(scene),
+    )
+  }
+}
+
+@Composable
+private fun sheetBaseMaterial(
+  backdrop: GlassBackdropState?,
+  sheetFill: GlassBackdropState?,
+  exports: GlassBackdropState?,
+  ink: GlassInk,
+  paneTint: Color?,
+  shape: Shape,
+  motion: FluidSheetMotion,
+): Modifier = when {
+  backdrop != null -> Modifier.glassSurfaceInked(
+    ink = ink,
+    state = backdrop,
+    tint = GlassDefaults.panelTint(paneTint),
+    shape = shape,
+    role = GlassRole.Modal,
+    optics = GlassDefaults.panelOptics(),
+    pressed = { if (motion.detented) motion.glow.value.coerceIn(0f, 1f) else 0f },
+    exports = exports,
+  )
+  sheetFill != null -> Modifier
+    .glassOpaquePanel(sheetFill.layerBackdrop, MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+    .glassContainer(sheetFill)
+  else -> Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
 }
 
 /**

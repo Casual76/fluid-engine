@@ -38,6 +38,7 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
 | un foglio con **altezze di riposo** (a metà, in cima), che il dito porta su e giù e che in cima diventa una pagina | `FluidGlassSheet(visible, onDismissRequest, detents = setOf(Medium, Large))` (4.0, sezione «Il foglio di vetro con i detent») |
+| un foglio che **nasce dal tasto** che lo apre (della barra, o una card) e ci rientra | `FluidGlassSheet(…, source = rememberFluidToolbarTransitionSource("id"))` o `source = FluidTransitionSource(id, ns)` (4.0, «Il foglio che nasce dal tasto») |
 | una conferma («Eliminare?», «Usare i dati mobili?») | `FluidConfirmSheet` |
 | un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
 | far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
@@ -78,6 +79,12 @@ per tenere conto dello scorrimento, della misura e della pagina corrente. Per lo
 `resolve(includeCoveredPage = true)` può trovare una vista ancora posata nella pagina sotto. Il risultato `null`
 permette al componente che presenta di usare il proprio ripiego. F5A.1 fornisce la geometria. Il collegamento è previsto in
 F5A.2, F5B.1 e F5B.3. Per i comandi dichiarati vedi [la toolbar](toolbar.md#le-sorgenti-delle-transizioni-f5a1).
+
+**La sorgente consumata (4.0, F5B.3).** Una pagina o un foglio aperti con lo zoom da una sorgente la **nascondono** finché
+sono in scena e la restituiscono nel fotogramma in cui la loro sagoma ci rientra: le due cose non si vedono mai insieme.
+Il modificatore nasconde ciò che gli sta **dopo** nella catena, quindi va messo in testa (prima di `clip`, fondo e
+contenuto). A riposo non disegna e non misura niente di suo. I collegamenti di F5B.3: le pagine (`FluidPageTransition.Expand`
+con `zoomSource`, [pagine.md](pagine.md)) e il foglio (`FluidGlassSheet(source = …)`, sotto).
 
 ## Regola trasversale: un portale dichiara, un host disegna
 
@@ -350,6 +357,7 @@ fun FluidGlassSheet(
   transition: FluidSheetTransition = FluidSheetTransition.Slide,   // o CrossFade (iOS 27)
   paneTitle: String? = null,
   paneTint: Color? = null,
+  source: FluidTransitionSource? = null,             // 4.0 (F5B.3): il tasto da cui nasce con lo zoom
   content: @Composable ColumnScope.() -> Unit,
 )
 // e la forma a dato: FluidGlassSheet(item: T?, onDismissRequest, …) { item -> … }
@@ -377,7 +385,8 @@ FluidGlassSheet(
   colore della pagina (`surface`: bianco, #1B1B1E sullo scuro) cresce fino a opaco **in continuo** nell'ultimo decimo
   del tratto, inseguendo l'altezza con 60 ms di ritardo: è ciò che fa il foglio di Apple (WWDC25 323, 6:47), dove i lati
   si aprono dalla metà del tratto e il bianco arriva subito dopo il foglio (vetro fino a 33 ms dopo l'arrivo, pieno a
-  ≈170 ms).
+  ≈170 ms). I gruppi di vetro dentro il foglio leggono lo stesso materiale, velo incluso. A tutta altezza la pagina
+  sottostante scompare anche dietro le righe dei gruppi.
 - **Le altezze.** `Large` arriva fin sotto la barra di stato (6 dp sotto); `Medium` è il 52% della finestra (misurato su
   Apple); `Fraction(f)` è una frazione di `Large`; `Height(dp)` un'altezza fissa del foglio. Tutte fra 64 dp e `Large`.
   Il foglio si apre al detent più basso, o a `selectedDetent`.
@@ -406,7 +415,39 @@ contenuto che non scorre e sta vicino al tetto di 640 dp andrebbe a capo e perde
 quello di `FluidGlassSheet`.
 
 **Non c'è ancora** (chiede l'host o il portale, che sono di F5B.1): `undimmedUpTo` (niente scrim fino a un detent, la
-pagina sotto toccabile), la sorgente dello zoom (`source`, F5B.3).
+pagina sotto toccabile).
+
+#### Il foglio che nasce dal tasto (`source`, 4.0, F5B.3)
+
+`navigationTransition(.zoom)` su un foglio, con `matchedTransitionSource` sul tasto (anche della barra: UIKit
+`preferredTransition = .zoom { _ in barButtonItem }`).
+
+```kotlin
+val sposta = rememberFluidToolbarTransitionSource("sposta")      // nel contesto della pagina che dichiara la barra
+FluidScreen(title = "Messaggio", toolbar = {
+  group("azioni") { button("sposta", FluidIcons.Folder, "Sposta", onClick = { aperto = true }) }
+}) { … }
+FluidGlassSheet(visible = aperto, onDismissRequest = { aperto = false }, paneTitle = "Sposta", source = sposta) { … }
+```
+
+- **Il vetro cresce dal tasto.** La sagoma va dal riquadro della sorgente (per un tasto della barra la capsula del suo
+  gruppo) al foglio al suo detent, i lati verso i bordi e la cima verso l'alto, sulla molla misurata su Apple
+  (`FluidSheetZoomSpring`, smorzamento critico, risposta 0,374 s: 31% a 67 ms, 50% a 100, 77% a 167, 96% a 300, senza
+  superare; WWDC25 284, f25409–f25420). In chiusura ci rientra sulla molla d'uscita dell'host. Gli angoli sono quelli del
+  foglio ridotti in proporzione finché non ci stanno: al primo fotogramma la capsula.
+- **Il contenuto è dentro dal principio**, alla sua misura d'arrivo, in cima al vetro e al centro, ritagliato dal vetro,
+  e **sfocato**: σ fino a 6 dp, nitido a ≈300 ms (`FluidSheetZoomSharpMillis`); alla chiusura torna sfocato mentre rientra.
+- **Il velo** di un foglio che a riposo è opaco (`Large`) cresce **mentre il vetro cresce**, fra il 45% e l'85% del
+  viaggio (`fluidSheetZoomVeil`): vetro fino a ≈100 ms, metà a ≈133, quasi pieno a ≈167, come Apple (284 f25411–f25413).
+  La fascia del foglio trascinato (l'ultimo decimo dell'altezza, F5B.2) qui lo farebbe bianco solo a ≈400 ms. Un foglio
+  a un detent parziale resta vetro.
+- **Il tasto è consumato** finché il foglio è in scena: la sua faccia non si disegna; il vetro del gruppo resta. Rinasce
+  quando il foglio esce (l'ultimo fotogramma del vetro è sul tasto).
+- **La pagina dietro** si scurisce con lo scrim dei modali. Apple la scurisce e **non la sfoca**; lo scrim dell'engine la
+  smeriglia appena (3,75 dp) per tutti i modali: è dell'host e dello scrim (F5B.1, contestuale), non del foglio.
+- **Il ripiego.** `source` nullo, `FluidSheetTransition.CrossFade`, le animazioni ridotte, o una sorgente che
+  all'apertura non si trova: il foglio sale dal basso come sempre. Una sorgente che sparisce a foglio aperto: il vetro
+  rientra dove l'aveva trovata l'ultima volta.
 
 
 ### `FluidSheetScaffold`
@@ -827,6 +868,12 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
   continua, il velo che insegue, rientro, angoli concentrici, dissolvenza, le due molle (salita e discesa) sulle curve di Apple. `FluidGlassSheetUiTest` (`sample`, 4): la
   dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano, il dito lo porta in cima e lo chiude, il
   foglio di oggi resta com'era. Le tracce del banco: `F5b2SheetTraceTest`.
+- Lo zoom dalla sorgente (F5B.3): `FluidZoomTest` (`engine-ui`, 10: sagome, dito, contenuto, raggi delle sorgenti, i numeri
+  del foglio dal tasto), `FluidPageZoomTest` (`engine-ui`, 8: la macchina delle pagine con la sorgente: avvio dalla sorgente,
+  nascosta e rinata, ripiego, gesto interrotto e ripreso, pop che inverte il push, il ritorno che finisce all'arrivo,
+  `Slide` e `ShrinkSlide` invariate),
+  `FluidZoomUiTest` (`sample`, 2: la pagina nasce dentro la card, il foglio nasce dal tasto della barra), le tracce
+  `F5b3ZoomTraceTest` (`tools/glassbench/traces/f5b-3`).
 - `FluidDateTimeMathTest` (`engine-ui`, 6) e `FluidDateTimeSheetTest` (`sample`, 10): salti e ripetizioni dell'ora legale, anni bisestili e confini di mese, primo giorno della settimana per lingua, limiti e riverifica del passato alla
   conferma, giorni locali a cavallo dell'ora legale e della mezzanotte, minuto iniziale dentro i limiti; la conferma una volta sola con la zona, l'annullo che non conferma, l'orologio riletto alla conferma, il foglio a testo grande, scuro,
   movimento ridotto e inglese, il back che annulla, lo stato che sopravvive al ripristino.
@@ -844,8 +891,9 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
 | `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`, in vigore `FluidContextScrimTuning`), il tetto della sfocatura |
 | `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
-| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici) e i suoi numeri (4.0, F5B.2) |
-| `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
+| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici) e i suoi numeri (4.0, F5B.2); lo zoom dal tasto: sagoma, sfocatura, molla (F5B.3) |
+| `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito, lo zoom dal tasto) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
+| `FluidTransitionSource.kt` | le sorgenti delle transizioni (F5A.1) e la sorgente consumata (F5B.3) |
 | `FluidLiftedPreview.kt` | la card sollevata del menu contestuale (`FluidLiftedPreview`): partenza dalla riga sotto il dito, l'immagine sulla sagoma (`fluidLiftContentMap`), l'anteprima personalizzata e lo scambio attraverso la sfocatura |
 | `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`) |
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso (`FluidAlertLayer`, la card, i pulsanti con la goccia) |

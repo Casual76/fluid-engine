@@ -25,6 +25,12 @@ enum class FluidPageTransition {
   /**
    * Si apre dal punto toccato (scala 0,91 → 1, opaca, la pagina sotto ferma) e torna indietro come
    * [ShrinkSlide]: la carta che si espande, per chi la vuole tenere.
+   *
+   * **Con una sorgente dichiarata è uno zoom** (4.0, F5B.3; `zoomSource` di `FluidPageHost` e di `composable`): la
+   * pagina nasce dal riquadro e dalla forma della sorgente e cresce fino allo schermo, intera e in scala dentro la sua
+   * sagoma; al pop ci rientra; col dito si rimpicciolisce sotto il dito e, se il dito torna, si riapre. La sorgente non
+   * si disegna mentre la pagina è aperta e rinasce quando la sagoma ci rientra. I tempi sono quelli di sempre (la stessa
+   * corsa e la stessa molla); se la sorgente non si trova (uscita dallo scorrimento) vale quanto detto sopra.
    */
   Expand,
 }

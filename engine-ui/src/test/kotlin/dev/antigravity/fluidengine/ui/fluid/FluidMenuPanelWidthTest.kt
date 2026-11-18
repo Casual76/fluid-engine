@@ -34,6 +34,7 @@ class FluidMenuPanelWidthTest {
 
   @Test
   fun `una voce lunga allarga il pannello quanto serve, icona e spunta comprese`() {
+    assertEquals(22f, FluidMenuRowGlyph.value, 0f)
     // 220 di testo + 32 di margini + 12 di respiro verticale contato come margine.
     val plain = width(listOf(220f))
     assertTrue("$plain", plain > 252f && plain < 340f)

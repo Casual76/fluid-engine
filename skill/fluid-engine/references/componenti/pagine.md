@@ -27,6 +27,7 @@ Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../re
 | una pila di chiavi mia, senza navigation | `FluidPageHost(stack, onBack) { key -> … }` |
 | una pagina che «si chiude da sola» (si rimpicciolisce e scivola via) | `composable(route, transition = FluidPageTransition.ShrinkSlide)` |
 | una pagina che si apre dal punto toccato | `transition = FluidPageTransition.Expand` |
+| una card (o un elemento qualunque) che **diventa la pagina** e ci torna, anche col dito (lo zoom di iOS) | `Modifier.fluidTransitionSource(id, ns)` sulla card + `composable(route, transition = Expand, zoomSource = { entry -> FluidTransitionSource(id, ns) })` (4.0, sezione «Lo zoom dalla sorgente») |
 | la pagina che si tira indietro da qualunque punto | `backSwipe = FluidBackSwipe.Anywhere` (di serie e' `EdgeOnly`) |
 | una pagina senza gesto indietro col dito | `backSwipe = FluidBackSwipe.Off` (il back di sistema e il tasto restano) |
 | una conferma «uscire senza salvare?» sul back | un `BackHandler` nella pagina: non serve spegnere il gesto |
@@ -208,6 +209,7 @@ navController.navigateToPeer("cerca")
   leaving: Set<K>? = null,                          // chiavi uscite dalla pila ma ancora disegnabili (null: tutte)
   state: FluidPageHostState = rememberFluidPageHostState(),
   pageColor: Color = MaterialTheme.colorScheme.background,
+  zoomSource: (K) -> FluidTransitionSource? = { null },  // 4.0: la sorgente dello zoom di una pagina Expand
   content: @Composable FluidPageScope.(K) -> Unit,
 )
 ```
@@ -295,7 +297,7 @@ Come una pagina entra e, soprattutto, come se ne va col dito. **Tutte e tre sono
 |---|---|---|
 | `Slide` (di serie) | da destra (da sinistra in RTL); la pagina sotto arretra di un terzo | arretra di `W/3 · (1 − uscita)` |
 | `ShrinkSlide` | prima rimpicciolisce sul posto fino al 90% nel primo 30% della corsa (smoothstep), poi scivola via; uscita a 1,25 larghezze (rimpicciolita al 90% e spostata di 0,95 W ha il bordo sinistro sul bordo destro dello schermo) | ferma e piena |
-| `Expand` | si apre dal punto toccato (scala 0,91 → 1, opaca); torna indietro come `ShrinkSlide` | ferma |
+| `Expand` | si apre dal punto toccato (scala 0,91 → 1, opaca); torna indietro come `ShrinkSlide`. **Con una sorgente è uno zoom** (4.0): nasce dalla sorgente e ci torna, vedi sotto | ferma |
 
 `ShrinkSlide` e' per la pagina che dice «sono una cosa sola che si chiude», non «torno indietro di un livello». La pagina sotto sta ferma con gli stili che rimpiccioliscono perche' una pagina sopra piu' piccola dello schermo lascia scoperte due strisce (sopra e sotto),
 e una pagina sotto spostata di lato le lascerebbe vuote: era lo sfondo nero della finestra in alto e in basso a destra (beta 2, sull'emulatore). Con `Slide` fra la pagina sotto e quella sopra non c'e' mai un buco (il bordo d'uscita della sotto sta sempre oltre il bordo d'ingresso della sopra).
@@ -308,6 +310,91 @@ sotto API 31 o su un display rettangolare restano retti e c'e' solo l'ombra) e o
 **Con le animazioni ridotte** (`LocalFluidMotionPolicy.reducedMotion`) push, pop e cambio di scheda usano una dissolvenza sul posto. Il gesto interattivo segue il dito e si posa al rilascio.
 
 **RTL.** La pagina esce a sinistra, sempre sotto il dito (`direction = −1`); il passo fra schede inverte il lato.
+
+## Lo zoom dalla sorgente (4.0, F5B.3)
+
+**Cos'è.** `navigationTransition(.zoom(sourceID:in:))` di SwiftUI: una card, una miniatura, un tasto **diventa la pagina**.
+La pagina nasce dal riquadro e dalla forma della sorgente e cresce fino allo schermo; al pop ci rientra; col dito si
+rimpicciolisce sotto il dito e torna nella sorgente, o si riapre se il dito ci ripensa. Mentre la pagina è aperta la
+sorgente non si disegna («consumata») e rinasce nel fotogramma in cui la sagoma ci rientra: **la sorgente e la pagina non
+si vedono mai insieme**.
+
+```kotlin
+val ns = rememberFluidGlassNamespace()                       // sopra FluidNavHost: lo usano griglia e grafo
+FluidNavHost(navController, startDestination = "griglia") {
+  composable("griglia") {
+    FluidScreen(title = "Luoghi") {
+      items(luoghi) { luogo ->
+        Card(Modifier.fluidPressable(onClick = { navController.navigate("luogo/${luogo.id}") })
+          .fluidTransitionSource(luogo.id, ns, ContinuousCornerShape(FluidRadius.Card))   // prima di forma e fondo
+          .clip(ContinuousCornerShape(FluidRadius.Card)))
+      }
+    }
+  }
+  composable(
+    "luogo/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType }),
+    transition = FluidPageTransition.Expand,
+    backSwipe = FluidBackSwipe.Anywhere,                     // la pagina si tira da ogni punto, come in iOS
+    zoomSource = { entry -> FluidTransitionSource(entry.arguments!!.getInt("id"), ns) },
+  ) { entry -> /* la pagina */ }
+}
+```
+
+Con `FluidPageHost` è `zoomSource = { key -> … }`. La scena della galleria è `ZoomDemo.kt` («Zoom dalla sorgente», in
+Chrome → Navigazione).
+
+**Come si muove.**
+- **Un orologio solo.** Lo zoom corre sulla stessa corsa di push, pop e gesto: la sagoma è una funzione della corsa.
+  Il push usa la molla delle pagine (F4A); **il ritorno nella sorgente** (pop, conferma del dito, pop che interrompe il
+  push) ha **una molla sua**, `FluidPageMotion.zoomReturn()`: quella dello zoom di UIKit misurata a tempo vero (WWDC24
+  10145, iOS 18: critica, risposta **0,71 s**, `ResponseZoomSeconds`), più morbida della molla delle pagine (0,34 s). Con
+  quella delle pagine la sagoma arrivava al 97% in 280 ms e poi strisciava sulla card; con questa rallenta per tutta la
+  strada. `Slide`, `ShrinkSlide` e l'`Expand` senza sorgente restano sulla molla delle pagine, al bit. A ogni cambio di fase (push, pop, il dito che prende, il rilascio che conferma o
+  annulla, un pop che interrompe il push) la sagoma **riparte da quella che si vede**: nessun salto, in nessun verso.
+  Lo zoom si inverte come `Slide` (l'Expand dal punto toccato no).
+- **La pagina sta intera nella sagoma**, in scala: la copre (nessun vuoto ai lati) ancorata **in alto al centro**, perché
+  la parte della pagina che corrisponde alla sua card (la foto, il titolo) sta in cima. Gli angoli vanno da quelli della
+  sorgente (il raggio circolare equivalente di una forma continua) a quelli del telefono. L'ombra della carta cresce con
+  l'apertura: nel primo fotogramma non compare di colpo.
+- **Il dito** (`FluidBackSwipe` di sempre, dal bordo o da ogni punto, e il back di sistema): la sagoma si rimpicciolisce
+  attorno al punto toccato fino al 60% a una larghezza intera (`FluidZoom.FollowShrink`, a occhio) e **il punto toccato
+  resta sotto il dito**. La regola del rilascio è quella delle pagine; confermato, la sagoma vola dalla sua posizione alla
+  sorgente; annullato, torna intera, e un dito la riprende a metà.
+- **La sorgente nascosta.** Si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma (non prima: nel
+  fotogramma del cambio di pila la pagina non è ancora composta) e rinasce quando la pagina esce dalla pila, a riposo.
+  Il ritorno finisce quando la sagoma è **arrivata** sulla sorgente (entro 1 dp, `FluidZoom.ArrivalDp`), non alla coda
+  della molla: nessun salto di forma alla fine. Apple negli ultimi fotogrammi dissolve la pagina nella cella (le due si
+  vedono insieme); qui no, la card rinasce quando la sagoma è arrivata. Il
+  modificatore nasconde ciò che gli sta **dopo** nella catena: va messo prima di forma, fondo e contenuto.
+- **Il ripiego.** Senza `zoomSource`, con le animazioni ridotte, o se la sorgente al momento non si trova (uscita dallo
+  scorrimento, pagina cambiata), vale l'`Expand` di sempre: dal punto toccato in andata, «rimpicciolisce e scivola» al
+  ritorno. Una sorgente sparita **a metà** di un ritorno già partito: la sagoma atterra dove l'aveva trovata.
+
+**La barra durante lo zoom** (scelta di F5B.3). La regola di F4A vale anche qui: la barra dell'host **resta ferma** e i
+suoi tasti si trasformano in quelli della pagina d'arrivo sul tempo del piano flottante, come in un push; la barra in
+basso dichiarata (F4B.1) pure. Apple fa così: in UIKit la barra è del controller di navigazione e non entra nello zoom, che
+porta solo il contenuto; in iOS 26 i suoi tasti di vetro si trasformano sul posto. Il **titolo grande** invece è
+contenuto: quello della pagina che arriva viaggia con la sagoma, in scala, e si vede solo dentro; quello della pagina
+sotto resta dov'è, coperto dove la sagoma lo copre. Il vetro della barra rifrange la pagina sotto finché la sagoma non
+arriva sotto la riga dei controlli (la registrazione della pagina sopra è intera e non scalata: impilata prima, la barra
+avrebbe mostrato la pagina d'arrivo sopra la griglia).
+
+**Regola 5 («mai un layer scalato sopra un vetro»).** La pagina che cresce è scalata dal suo layer, come quella di
+`ShrinkSlide` e dell'`Expand` di sempre. È sicuro per il vetro **dentro** la pagina: campiona la registrazione della pagina
+stessa, che sta sotto lo stesso layer, e lo scarto fra vetro e fondale si misura nello spazio della pagina
+(`localPositionOf`), che la scala non tocca; si vede in scala, giusto. Il vetro **fuori** dalla pagina (la barra
+dell'host, la tab bar) non è scalato: sta sopra le pagine, e per la sua rifrazione vale il punto sopra.
+
+**Per F6B («un elemento che diventa pagina»).** La geometria è in `ui/page/FluidZoom.kt`, pura e senza tempo: `FluidZoomShape`
+(riquadro e raggi), `FluidZoom.lerp` (la sagoma fra due sagome), `follow` (la sagoma sotto il dito), `content` e
+`contentClip` (la pagina dentro la sagoma, e il ritaglio nelle sue coordinate), `cornersOf`/`shapeOf` (la sorgente). I
+preset di F6B (mini lettore, card, tasto) danno i loro orologi e le loro sagome d'arrivo.
+
+**Trappole.**
+- Il namespace va ricordato **fuori** dal grafo (lo usano la griglia e `zoomSource`): uno nuovo a ogni composizione non
+  ritrova mai la sorgente.
+- `fluidTransitionSource` dopo `clip`/`background`: consumata, sparisce solo l'interno e resta la forma vuota.
+- Una sorgente che a riposo è coperta da un'altra cosa (una tab bar) torna lo stesso: la sagoma atterra sotto.
 
 ## Il passo fra schede: FluidPeerMove
 
@@ -352,6 +439,7 @@ cosi' switch, chip e fogli di Material si muovono sulle stesse molle della chrom
 | `page/FluidPageHostState.kt` | la macchina (`Idle`, `Pushing`, `Popping`, `Peer`, `Dragging`, `Committing`, `Cancelling`), `beginPush/Pop/Peer`, `commit`, `release`, `requestBack`, `fractionToward` |
 | `page/FluidPageTransition.kt` | `FluidPageTransition`, `FluidBackSwipe`, `FluidPeerMove`, `FluidPageMove` |
 | `page/FluidPageMotion.kt` | costanti e funzioni pure (corsa, rilascio, frame, parallasse, classificazione della pila, geometria della barra) |
+| `page/FluidZoom.kt` | la geometria dello zoom (4.0, F5B.3): `FluidZoomShape`, `FluidZoomContent`, `FluidZoom` (sagome, dito, contenuto, raggi della sorgente) |
 | `navigation/FluidNavHost.kt`, `FluidPageNavigator.kt`, `FluidPeerNavigation.kt` | l'host con navigation, il navigator e i builder `composable`, `navigateToPeer` |
 | `theme/RouteMotion.kt`, `theme/Motion.kt` | il vecchio (tabella sopra) e `FluidMotionScheme` |
 | il resto (input, barra, test) | [pagine-back-e-barra.md](pagine-back-e-barra.md) |

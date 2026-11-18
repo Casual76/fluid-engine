@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.os.Build
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -55,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.glass.field.GlassContentLensEffect
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
@@ -257,6 +261,7 @@ internal fun FluidGlassMenuPanel(
   modifier: Modifier = Modifier,
   paneTitle: String? = null,
   travelClip: (() -> RoundRect?)? = null,
+  lens: FluidMenuLens? = null,
 ) {
   val density = LocalDensity.current
   val coordinates = remember { FluidMenuCoordinates() }
@@ -266,6 +271,13 @@ internal fun FluidGlassMenuPanel(
   val band = MaterialTheme.colorScheme.onSurface.copy(alpha = if (GlassDefaults.isDarkSurface()) 0.08f else 0.05f)
   val insetPx = with(density) { FluidMenuSeparatorInset.toPx() }
   val hairlinePx = with(density) { 0.5.dp.toPx() }
+  val lensEffect = remember(lens != null) {
+    if (lens != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      GlassContentLensEffect()
+    } else {
+      null
+    }
+  }
 
   Box(
     modifier = modifier
@@ -310,6 +322,26 @@ internal fun FluidGlassMenuPanel(
           translationY = map.translation.y
           scaleX = map.scale
           scaleY = map.scale
+          renderEffect = if (lens != null && lensEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val focus = lens.journey.focus.value
+            val blur = fluidMenuLensBlurDp(focus)
+            val strength = fluidMenuLensStrength(focus)
+            if (blur > 0f || strength > 0f) {
+              val padding = Offset(size.width, size.height) * ((1f - map.scale) / 2f)
+              lensEffect.effect(
+                plan = lens.physics.ensurePlan(),
+                origin = lens.panelTopLeft + map.translation + padding,
+                scale = map.scale,
+                density = this.density,
+                blurDp = blur,
+                strength = strength,
+              )
+            } else {
+              null
+            }
+          } else {
+            null
+          }
         }
         .drawBehind {
           drawMenuSeparators(layout, actions, drop, separator, band, insetPx, hairlinePx)
@@ -331,6 +363,21 @@ internal fun FluidGlassMenuPanel(
   }
 }
 
+/** La texture delle voci parla le coordinate della stessa finestra da cui legge il campo. */
+internal class FluidMenuLens(
+  val journey: FluidMenuJourney,
+  val physics: FluidPhysicsState,
+  private val panel: Rect,
+) {
+  val panelTopLeft: Offset get() = panel.topLeft
+
+  fun contentMap(): FluidMenuContentMap {
+    val clip = physics.travelClipIn(panel, journey.progress.value)
+    val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panel.topLeft) } ?: panel
+    return fluidMenuLensMap(panel, visible)
+  }
+}
+
 /**
  * Il ritaglio del contenuto sul corpo di vetro in viaggio (3.0): un layer col clip acceso solo mentre
  * [clip] da' una sagoma. Nessuna trasformazione: le coordinate del pannello restano quelle del dito.
@@ -346,7 +393,7 @@ private fun Modifier.fluidMenuTravelClip(clip: () -> RoundRect?): Modifier = gra
 }
 
 /** Un rettangolo arrotondato gia' posato: l'outline e' lui, qualunque sia la taglia del nodo. */
-private class FluidMenuRoundRectShape(private val round: RoundRect) : Shape {
+internal class FluidMenuRoundRectShape(private val round: RoundRect) : Shape {
   override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
     Outline.Rounded(round)
 

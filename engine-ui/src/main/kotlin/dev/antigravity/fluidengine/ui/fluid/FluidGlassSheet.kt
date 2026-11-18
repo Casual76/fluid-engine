@@ -93,6 +93,14 @@ enum class FluidSheetTransition { Slide, CrossFade }
  * @param onSelectedDetentChange il detent in cui il foglio si è fermato dopo un gesto o un tocco sulla maniglia.
  * @param dragIndicator la maniglia in cima (36 × 5 dp). Il foglio si trascina comunque da ogni punto.
  * @param transition vedi [FluidSheetTransition].
+ * @param source il tasto (o l'elemento) da cui il foglio nasce con lo zoom (4.0, F5B.3; in SwiftUI
+ *   `matchedTransitionSource` sul tasto e `navigationTransition(.zoom)` sul foglio). Il vetro del foglio cresce dal
+ *   riquadro della sorgente fino al suo detent sulla molla di sempre; il contenuto è dentro dal primo fotogramma, alla sua
+ *   misura e sfocato, e diventa nitido a ≈300 ms; la pagina dietro si scurisce. Mentre il foglio è aperto la sorgente è
+ *   «consumata» (non si disegna) e alla chiusura il vetro ci rientra. Per un tasto della barra:
+ *   `rememberFluidToolbarTransitionSource(id)`; per un'altra vista: `FluidTransitionSource(id, namespace)` col
+ *   `Modifier.fluidTransitionSource` sulla vista. Null (di serie), con [FluidSheetTransition.CrossFade], con le
+ *   animazioni ridotte o se la sorgente all'apertura non si trova: il foglio sale dal basso come sempre.
  */
 @Composable
 fun FluidGlassSheet(
@@ -105,9 +113,10 @@ fun FluidGlassSheet(
   transition: FluidSheetTransition = FluidSheetTransition.Slide,
   paneTitle: String? = null,
   paneTint: Color? = null,
+  source: FluidTransitionSource? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition)
+  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source)
   FluidGlassModalPortal(
     visible = visible,
     onDismissRequest = onDismissRequest,
@@ -135,9 +144,10 @@ fun <T : Any> FluidGlassSheet(
   transition: FluidSheetTransition = FluidSheetTransition.Slide,
   paneTitle: String? = null,
   paneTint: Color? = null,
+  source: FluidTransitionSource? = null,
   content: @Composable ColumnScope.(T) -> Unit,
 ) {
-  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition)
+  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source)
   FluidGlassModalPortal(
     item = item,
     onDismissRequest = onDismissRequest,
@@ -171,6 +181,8 @@ internal data class FluidSheetSpec(
   val selected: FluidSheetDetent?,
   val dragIndicator: Boolean,
   val transition: FluidSheetTransition,
+  /** La sorgente dello zoom (F5B.3), o null. Va ricordata da chi la crea: è parte dell'uguaglianza della dichiarazione. */
+  val source: FluidTransitionSource? = null,
 )
 
 /**
@@ -453,6 +465,78 @@ internal fun fluidSheetBottomRadiusPx(
   val piece = Rect(insetPx, 0f, windowSize.width - insetPx, windowSize.height - insetPx)
   val container = FluidCornerRadii(topLeft = 0f, topRight = 0f, bottomRight = displayCornerPx, bottomLeft = displayCornerPx)
   return concentricCornerRadii(container, windowSize, piece, minimumPx).bottomLeft
+}
+
+// --- Lo zoom dalla sorgente (F5B.3) ---------------------------------------------------------------------------------
+
+/**
+ * La sfocatura del contenuto di un foglio che nasce dal tasto, al massimo (σ): il contenuto è dentro dal primo fotogramma,
+ * illeggibile (284 f25411–f25414: le righe della lista sono macchie). A occhio sulla clip, 2026-11-18.
+ */
+internal val FluidSheetZoomBlur: Dp = 6.dp
+
+/** Quando il contenuto di un foglio nato dal tasto è nitido: ≈300 ms dall'apertura (284 f25417, 14:08,08; R7 32). */
+internal const val FluidSheetZoomSharpMillis: Float = 300f
+
+/**
+ * La molla con cui il vetro di un foglio nato dal tasto cresce fino al suo detent: smorzamento critico, risposta 0,374 s
+ * (rigidezza 282). Misurata sul foglio di Apple (WWDC25 284, f25409–f25420, `sessioni/f5b-3/strumenti/misura_284.py`):
+ * la cima e i lati percorrono 33% a 67 ms, 49% a 100, 65% a 133, 78% a 167, 92% a 234, 97% a 300 e arrivano senza
+ * superare; questa fa 31, 50, 65, 77, 90, 96. Apple parte più svelto nel primo fotogramma (22% a 33 ms contro 11: il
+ * tocco gli dà una spinta). La molla con cui l'host porta in scena il foglio (`FluidMotion.PopoverOpenY`) supera del 3%
+ * ed è più avanti a metà strada (74% a 133 ms): per lo zoom il foglio usa questa in apertura, e quella dell'host in
+ * chiusura (quando il layer se ne va la decide l'host).
+ */
+internal val FluidSheetZoomSpring: SpringSpec<Float> = spring(dampingRatio = 1f, stiffness = 282f, visibilityThreshold = 0.001f)
+
+/**
+ * La fascia del viaggio dello zoom in cui il velo di un foglio nato dal tasto cresce: dal 45% all'85%. Il foglio di Apple
+ * diventa bianco **mentre cresce**, non dopo: vetro fino a ≈100 ms (284 f25411, viaggio ≈50%), metà a 133 (f25412, 65%),
+ * quasi pieno a 167 (f25413, 78%). La fascia del foglio trascinato (l'ultimo decimo dell'altezza, [FluidSheetOpaqueBand],
+ * tarata dove Apple resta vetro fino all'arrivo) qui lo farebbe bianco solo a ≈400 ms.
+ */
+internal const val FluidSheetZoomVeilFrom: Float = 0.45f
+internal const val FluidSheetZoomVeilTo: Float = 0.85f
+
+/**
+ * Il velo di un foglio che nasce dal tasto a viaggio [travel] dello zoom: una S nella fascia [FluidSheetZoomVeilFrom]–
+ * [FluidSheetZoomVeilTo], fino a [rest], il velo che il foglio ha al suo detent (pieno a `Large`, zero a un detent
+ * parziale, che resta vetro). A viaggio finito vale [rest]: nessun salto quando il foglio torna a quello di sempre.
+ */
+internal fun fluidSheetZoomVeil(travel: Float, rest: Float): Float {
+  val t = ((travel.finiteOr(1f) - FluidSheetZoomVeilFrom) / (FluidSheetZoomVeilTo - FluidSheetZoomVeilFrom)).coerceIn(0f, 1f)
+  return rest.finiteOr(0f).coerceIn(0f, 1f) * t * t * (3f - 2f * t)
+}
+
+/**
+ * Il riquadro del vetro di un foglio che nasce dalla sorgente [source] e arriva in [sheet], a viaggio [slide] della molla
+ * con cui l'host porta in scena il foglio. In larghezza non va mai oltre il foglio (la molla supera di qualche per cento, e
+ * il vetro uscirebbe dai lati); in altezza supera in cima come il foglio che sale dal basso, mai sotto il suo fondo.
+ */
+internal fun fluidSheetZoomBounds(source: Rect, sheet: Rect, slide: Float): Rect {
+  val s = slide.finiteOr(1f).coerceAtLeast(0f)
+  val across = s.coerceAtMost(1f)
+  fun l(a: Float, b: Float, f: Float) = a + (b - a) * f
+  val left = l(source.left, sheet.left, across)
+  val right = l(source.right, sheet.right, across)
+  val top = l(source.top, sheet.top, s)
+  val bottom = l(source.bottom, sheet.bottom, across)
+  return Rect(left, top, kotlin.math.max(left, right), kotlin.math.max(top, bottom))
+}
+
+/**
+ * Quanto è sfocato il contenuto di un foglio che nasce dal tasto, da 0 (nitido) a 1 ([FluidSheetZoomBlur]): il più
+ * sfocato fra l'orologio dell'apertura (pieno al primo fotogramma, nitido a [FluidSheetZoomSharpMillis]) e la sagoma
+ * (nitido quando il vetro è arrivato, sfocato man mano che rientra nella sorgente alla chiusura).
+ */
+internal fun fluidSheetZoomBlurFraction(elapsedMillis: Float, slide: Float): Float {
+  fun smooth(x: Float): Float {
+    val c = x.coerceIn(0f, 1f)
+    return c * c * (3f - 2f * c)
+  }
+  val byTime = 1f - smooth(elapsedMillis.finiteOr(FluidSheetZoomSharpMillis) / FluidSheetZoomSharpMillis)
+  val byShape = 1f - smooth((slide.finiteOr(1f) - 0.4f) / 0.6f)
+  return kotlin.math.max(byTime, byShape).coerceIn(0f, 1f)
 }
 
 /** L'opacità di un foglio che entra in dissolvenza ([FluidSheetTransition.CrossFade]) a viaggio [slide] della molla. */

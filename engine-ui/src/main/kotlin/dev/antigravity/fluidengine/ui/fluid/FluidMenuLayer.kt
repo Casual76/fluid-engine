@@ -30,6 +30,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -104,6 +106,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdropState?) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val liquidMenu = backdrop != null && entry.presentation == FluidGlassModalPresentation.Expand && fluidMenuUsesField()
   val journey = remember { FluidMenuJourney() }
   val fade = remember { Animatable(0f, 0.001f) }
   val physics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
@@ -159,7 +162,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
         if (reducedMotion) fade.snapTo(0f) else fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.MenuFadeOutMillis))
       }
     }
-    journey.run(reducedMotion)
+    journey.run(reducedMotion, withLens = liquidMenu)
   }
 
   if (!entry.visible && exitFinished) {
@@ -167,7 +170,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     // sagoma che li stava riportando a casa.
     SideEffect {
       entry.lifted = false
-      lastAnchor?.hidden = false
+      lastAnchor?.consume(false)
     }
     return
   }
@@ -186,6 +189,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     paneTint = lastPaneTint,
     anchor = if (entry.presentation == FluidGlassModalPresentation.Expand) lastAnchor else null,
     lift = lastLift,
+    withLens = liquidMenu,
   )
 }
 
@@ -204,6 +208,7 @@ private fun FluidMenuLayerContent(
   paneTint: Color?,
   anchor: FluidMenuAnchor?,
   lift: FluidContextLift? = null,
+  withLens: Boolean,
 ) {
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -265,6 +270,8 @@ private fun FluidMenuLayerContent(
     panelTint.copy(overlay = panelTint.overlay.compositeOver(scrimLook.color(dark)))
   }
   val progress: () -> Float = { journey.progress.value }
+  val liquidMenu = withLens && anchor != null
+  val pointOfLight = LocalFluidMenuPointOfLight.current
 
   Box(
     modifier = Modifier
@@ -356,8 +363,12 @@ private fun FluidMenuLayerContent(
             null
           },
           freshStart = fresh && journey.progress.value <= 0.001f,
+          liquidMenu = liquidMenu,
         )
         journey.install(physics)
+        if (anchor?.groupBounds != null) {
+          anchor.groupClip = { anchor.groupBounds?.let { physics.travelClipIn(it, progress()) } }
+        }
         val enabled = actions.map { it.enabled }
         val g = selection.geometry
         if (g == null || g.panel != panel || g.enabled != enabled) {
@@ -413,10 +424,13 @@ private fun FluidMenuLayerContent(
             exports = if (backdrop != null) paneGlass else null,
             // G1 (C-R2): il pannello nasce col lato, la misura e l'inchiostro del tasto.
             adoptFrom = anchor?.ink?.state,
-          ),
+          )
+          .then(if (liquidMenu && pointOfLight && android.os.Build.VERSION.SDK_INT >= 33) {
+            Modifier.glassMenuPointOfLight(journey, physics)
+          } else Modifier),
       )
 
-      if (anchor != null) {
+      if (anchor != null && anchor.groupBounds == null) {
         val rest = anchor.restBounds
         Box(
           modifier = Modifier
@@ -440,6 +454,11 @@ private fun FluidMenuLayerContent(
       }
 
       GlassInkContent(menuInk, LocalContentColor.current) {
+      val panelInLayout = panel.translate(
+        panel.left.roundToInt() - panel.left,
+        panel.top.roundToInt() - panel.top,
+      )
+      val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
       FluidGlassMenuPanel(
         actions = actions,
         selection = selection,
@@ -447,9 +466,13 @@ private fun FluidMenuLayerContent(
         panelMaterial = if (backdrop != null) paneGlass else null,
         pageBackdrop = backdrop,
         // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato (le voci stanno in un nodo fratello).
-        contentAlpha = { fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f) },
+        contentAlpha = {
+          val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value else
+            fluidMenuContentAlpha(progress(), journey.closing)
+          alpha * (menuInk.state?.inkAlpha() ?: 1f)
+        },
         contentMap = {
-          fluidMenuLiquidContentMap(
+          lens?.contentMap() ?: fluidMenuLiquidContentMap(
             target = panel,
             current = physics.contentBoundsNow(),
             alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
@@ -463,6 +486,7 @@ private fun FluidMenuLayerContent(
             height = with(density) { panel.height.toDp() },
           ),
         paneTitle = paneTitle ?: LocalFluidLabels.current.actions,
+        lens = lens,
         // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate.
         travelClip = {
           physics.travelClipIn(
@@ -473,6 +497,49 @@ private fun FluidMenuLayerContent(
       )
       }
     }
+  }
+}
+
+/** Portale leggero della barra. La posa del gruppo si legge prima di consegnarne il vetro all'host. */
+@Composable
+internal fun rememberFluidToolbarMenu(): FluidToolbarMenu {
+  val host = LocalFluidGlassModalHostState.current
+  val menu = remember(host) { FluidToolbarMenu(host) }
+  DisposableEffect(host, menu) {
+    host?.register(menu.entry)
+    onDispose {
+      menu.entry.visible = false
+      menu.anchor.consume(false)
+      menu.anchor.handOff.sink = null
+      host?.unregister(menu.entry)
+    }
+  }
+  return menu
+}
+
+internal class FluidToolbarMenu(private val host: FluidGlassModalHostState?) {
+  val anchor = FluidMenuAnchor()
+  val entry = FluidGlassModalEntry().apply {
+    presentation = FluidGlassModalPresentation.Expand
+    menuAnchor = anchor
+    menuHandOff = anchor.handOff
+    origin = { anchor.restBounds }
+    onDismissRequest = { visible = false }
+  }
+
+  fun open(actions: List<FluidContextAction>, group: Rect?, groupLease: (Boolean) -> Unit): Boolean {
+    val owner = host ?: return false
+    if (actions.isEmpty() || anchor.hidden || anchor.restBounds.isEmpty) return false
+    anchor.pressedBounds = anchor.restBounds
+    anchor.groupBounds = group?.takeUnless { it.isEmpty || it.width <= anchor.restBounds.width + 1f }
+    anchor.groupLease = groupLease
+    entry.actions = actions
+    entry.openedAt = owner.nextSequence()
+    entry.selection.cancel()
+    entry.visible = true
+    anchor.consume(true)
+    anchor.handOff.attach(entry.selection)
+    return true
   }
 }
 

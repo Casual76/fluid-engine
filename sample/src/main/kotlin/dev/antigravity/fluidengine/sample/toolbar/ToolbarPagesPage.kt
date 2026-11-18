@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,6 +24,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
+import dev.antigravity.fluidengine.ui.fluid.FluidBarMinimizeBehavior
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchPlacement
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -87,6 +91,21 @@ internal enum class ToolbarHostPage(val key: String, val title: String, val voic
     "Una pagina con lo slot `actions` di sempre accanto a una dichiarata: il suo indietro è nel modello (compare per " +
       "lente e resta fermo), la sua azione entra ed esce in dissolvenza con la corsa, come prima di F4A.3.",
   ),
+  Search(
+    "ricerca", "Ricerca",
+    "La barra dichiarata con la ricerca principale (giro di correzione di F4A, B1). Scorri: titolo, tasti e indietro si " +
+      "ritirano insieme, il campo resta sotto la barra di stato e si tocca.",
+  ),
+  LegacySearch(
+    "ricerca-vecchia", "Ricerca di prima",
+    "Lo slot `actions` di sempre con la ricerca principale (C8). Scorri: l'indietro, l'azione e il titolo si ritirano " +
+      "insieme, il campo resta e si tocca.",
+  ),
+  LegacyRead(
+    "lettura", "Lettura di prima",
+    "Lo slot `actions` di sempre che si ritira scorrendo verso il fondo, senza campo (C8, `OnScrollDown`): l'indietro e " +
+      "l'azione si ritirano insieme e tornano risalendo.",
+  ),
   ;
 
   /** La pagina che si apre da questa, o null alla fine della catena. */
@@ -96,8 +115,23 @@ internal enum class ToolbarHostPage(val key: String, val title: String, val voic
     Note -> Attachment
     Attachment -> Group
     Group -> Edit
-    Edit, Legacy -> null
+    Legacy -> LegacyRead
+    Edit, Search, LegacySearch, LegacyRead -> null
   }
+
+  /** La pagina con la ricerca che si apre da una scheda: quella dichiarata da «Note», quella di prima da «Cartelle». */
+  val search: ToolbarHostPage? get() = when (this) {
+    Notes -> Search
+    Folders -> LegacySearch
+    else -> null
+  }
+
+  /** Se la pagina dichiara la ricerca principale (il campo resta sotto la barra di stato quando la barra si ritira). */
+  val hasSearch: Boolean get() = this == Search || this == LegacySearch
+
+  /** Il ritiro della barra: quello di serie (che con la ricerca principale ritira), o verso il fondo per la lettura. */
+  val minimize: FluidBarMinimizeBehavior get() =
+    if (this == LegacyRead) FluidBarMinimizeBehavior.OnScrollDown else FluidBarMinimizeBehavior.Automatic
 
   /** Le due schede pari: un passo fra loro è un cambio di scheda, non un push. */
   val isTab: Boolean get() = this == Notes || this == Folders
@@ -107,7 +141,10 @@ internal enum class ToolbarHostPage(val key: String, val title: String, val voic
    * (Chiudi e la conferma nella pagina di modifica).
    */
   fun toolbar(close: () -> Unit): (FluidToolbarScope.() -> Unit)? = when (this) {
-    Legacy -> null
+    Legacy, LegacySearch, LegacyRead -> null
+    Search -> {
+      { button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {}) }
+    }
     Notes -> {
       { button("trail", FluidIcons.MoreHoriz, "Opzioni", onClick = {}) }
     }
@@ -177,29 +214,46 @@ internal object ToolbarPagesLaunch {
   /** `true`: la variante del gesto indietro che segue il dito ([FluidPageBarDiagnostics.gestureFollowsFinger]). */
   const val ExtraFollow = "pages.follow"
 
-  /** La pagina da cui partire (la catena fino a lei è già aperta): `nota`, `allegato`, `gruppo`, `modifica`, `cartelle`, `vecchia`. */
+  /**
+   * La pagina da cui partire (la catena fino a lei è già aperta): `nota`, `allegato`, `gruppo`, `modifica`, `cartelle`,
+   * `vecchia`, `ricerca`, `ricerca-vecchia`, `lettura`; oppure `sola`, un host di sole pagine di prima (mai una barra
+   * dichiarata: la barra dell'host resta quella di sempre) con «Ricerca di prima» sopra «Lettura di prima».
+   */
   const val ExtraStart = "pages.start"
+
+  /** Il valore di [ExtraStart] per l'host di sole pagine di prima. */
+  const val StartLegacyOnly = "sola"
 
   /** Il viaggio più lungo del piano (~900 ms) e un attimo fermo, più la molla della pagina. */
   const val DefaultAutoMs = 1_800L
 
   private val truthy = setOf("true", "1", "on", "yes", "si", "sì", "acceso")
 
-  data class Request(val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean)
+  data class Request(val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean, val legacyOnly: Boolean = false)
 
   fun parse(extra: (String) -> String?): Request {
     fun value(key: String): String? = extra(key)?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
-    val start = value(ExtraStart)?.let { name -> ToolbarHostPage.entries.firstOrNull { it.key == name || it.name.lowercase() == name } }
-      ?: ToolbarHostPage.Notes
+    val startName = value(ExtraStart)
+    val legacyOnly = startName == StartLegacyOnly
+    val start = if (legacyOnly) {
+      ToolbarHostPage.LegacySearch
+    } else {
+      startName?.let { name -> ToolbarHostPage.entries.firstOrNull { it.key == name || it.name.lowercase() == name } }
+        ?: ToolbarHostPage.Notes
+    }
     val auto = value(ExtraAuto)?.let { raw -> raw.toLongOrNull()?.takeIf { it > 0L } ?: if (raw in truthy) DefaultAutoMs else 0L } ?: 0L
     val follow = value(ExtraFollow)?.let { it in truthy } ?: false
-    return Request(start, auto, follow)
+    return Request(start, auto, follow, legacyOnly)
   }
 
   /** La pila che porta a [page]: la scheda, poi la catena fino a lei. */
-  fun stackTo(page: ToolbarHostPage): List<ToolbarHostPage> {
+  fun stackTo(page: ToolbarHostPage, legacyOnly: Boolean = false): List<ToolbarHostPage> {
+    if (legacyOnly) return listOf(ToolbarHostPage.LegacyRead, ToolbarHostPage.LegacySearch)
     if (page.isTab) return listOf(page)
     if (page == ToolbarHostPage.Legacy) return listOf(ToolbarHostPage.Folders, page)
+    if (page == ToolbarHostPage.LegacyRead) return listOf(ToolbarHostPage.Folders, ToolbarHostPage.Legacy, page)
+    if (page == ToolbarHostPage.Search) return listOf(ToolbarHostPage.Notes, page)
+    if (page == ToolbarHostPage.LegacySearch) return listOf(ToolbarHostPage.Folders, page)
     val chain = generateSequence(ToolbarHostPage.Note) { it.next }.takeWhile { it != page }.toList()
     return listOf(ToolbarHostPage.Notes) + chain + page
   }
@@ -231,7 +285,8 @@ internal fun ToolbarPagesContent(
   onBack: () -> Unit,
   hostState: FluidPageHostState = rememberFluidPageHostState(),
 ) {
-  var stack by remember { mutableStateOf(ToolbarPagesLaunch.stackTo(launched.start)) }
+  var stack by remember { mutableStateOf(ToolbarPagesLaunch.stackTo(launched.start, launched.legacyOnly)) }
+  val queries = remember { mutableStateMapOf<ToolbarHostPage, String>() }
   var auto by remember { mutableLongStateOf(launched.autoMs) }
   // L'interruttore è dell'engine (le prove della barra dell'host): lo si accende qui e lo si rimette a posto uscendo.
   DisposableEffect(Unit) {
@@ -267,16 +322,31 @@ internal fun ToolbarPagesContent(
       }
     },
   ) { page ->
+    // La radice della pila non ha l'indietro (le schede, e la prima pagina dell'host di sole pagine di prima).
+    val root = page.isTab || stack.firstOrNull() == page
+    val query = queries[page].orEmpty()
     FluidScreen(
       title = page.title,
       subtitle = "F4A.3 · fra pagine",
       modifier = Modifier.testTag("toolbar-pages-${page.key}"),
-      onBack = if (page.isTab) null else back,
+      onBack = if (root) null else back,
       extraBottomPadding = bottomInset,
       toolbar = page.toolbar(close = back),
       actions = {
-        if (page == ToolbarHostPage.Legacy) FluidBarAction(FluidIcons.IosShare, "Condividi (di prima)", onClick = {})
+        when (page) {
+          ToolbarHostPage.Legacy, ToolbarHostPage.LegacyRead ->
+            FluidBarAction(FluidIcons.IosShare, "Condividi (di prima)", onClick = {})
+          ToolbarHostPage.LegacySearch -> FluidBarAction(FluidIcons.Add, "Nuova (di prima)", onClick = {})
+          else -> Unit
+        }
       },
+      search = if (page.hasSearch) FluidSearchSpec(
+        query = query,
+        onQueryChange = { queries[page] = it },
+        placement = FluidSearchPlacement.Principal,
+        prompt = "Cerca in ${page.title}",
+      ) else null,
+      barMinimize = page.minimize,
     ) {
       item(key = "voice") {
         Text(
@@ -297,6 +367,16 @@ internal fun ToolbarPagesContent(
           )
         }
       }
+      page.search?.let { search ->
+        item(key = "search") {
+          FluidListRow(
+            title = "Apri «${search.title}»",
+            subtitle = "La ricerca principale: la barra si ritira scorrendo e il campo resta",
+            modifier = Modifier.testTag("toolbar-pages-search"),
+            onClick = { stack = stack + search },
+          )
+        }
+      }
       if (page.isTab) {
         val other = if (page == ToolbarHostPage.Notes) ToolbarHostPage.Folders else ToolbarHostPage.Notes
         item(key = "tab") {
@@ -310,7 +390,7 @@ internal fun ToolbarPagesContent(
         item(key = "exit") {
           FluidListRow(title = "Esci dalla prova", subtitle = "Torna alla galleria", onClick = onBack)
         }
-      } else {
+      } else if (!root) {
         item(key = "back") {
           FluidListRow(
             title = "Torna indietro",
@@ -337,8 +417,9 @@ internal fun ToolbarPagesContent(
         )
       }
       // Abbastanza righe da far scorrere la pagina sotto la barra: il titolo si aggancia e i tasti restano fermi.
-      items(count = 20, key = { "filler-$it" }) { index ->
-        FluidListRow(title = "Riga ${index + 1}", subtitle = "Per far scorrere la pagina sotto la barra")
+      val rows = (1..20).filter { query.isBlank() || "Riga $it".contains(query.trim(), ignoreCase = true) }
+      items(count = rows.size, key = { "filler-${rows[it]}" }) { index ->
+        FluidListRow(title = "Riga ${rows[index]}", subtitle = "Per far scorrere la pagina sotto la barra")
       }
     }
   }

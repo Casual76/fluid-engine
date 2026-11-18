@@ -76,8 +76,13 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso**, oltre ai vetri d'uscita (indietro e Chiudi): su
   iPhone si vedono indietro più tre vetri. Le uscite occupano comunque larghezza; quando il posto non basta escono prima
   i tasti `Low`, poi `Automatic`, poi `High`, a parità i più interni.
-  Indietro, Chiudi e principale non escono mai. Il tasto «Altro» apre un menu con le azioni nascoste (il menu
-  contestuale dell'engine; il menu di un gruppo vero arriva con F5A) e, per TalkBack, le offre come azioni del tasto.
+  Il tetto vale anche su tablet largo. Un gruppo esplicito tiene insieme i tasti visibili, ma la priorità decide
+  per ogni tasto chi resta in barra. Indietro, Chiudi e la principale hanno precedenza. In una finestra stretta
+  la conferma testuale si accorcia e il suo nome accessibile rimane intero. Se lo spazio fisico è insufficiente
+  anche per le lenti, «Altro» resta visibile e raccoglie i comandi. Le azioni disabilitate rimangono spente
+  nel menu e TalkBack propone solo le azioni eseguibili.
+  `BottomBar` colloca per ora il comando nel menu «Altro» della barra superiore. La barra inferiore arriva in F4B.
+  `PinnedTrailing` occupa il bordo destro. Il collegamento che lo sposta nel menu con la ricerca attiva arriva in F4B.2.
 - **Il piano**: la barra è un `FluidGlassContainer` alto quanto la riga; ogni gruppo è un pezzo con l'identità del suo
   vetro (`FluidToolbarGlassId`: il gruppo **alla nascita** del vetro, che il registro del piano espone), così un gruppo
   che cresce è lo stesso vetro, una divisione lascia il vetro alla parte più grande e le altre nascono dal vicino, una
@@ -85,8 +90,9 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   (troppo lontano, incrociato) non trascina il suo vetro.
 - **Il contenuto**: ogni tasto ha la sua chiave di contenuto (simbolo, tinta, selezione) in una
   `FluidGlassContentTransition` sua: un tasto che cambia icona la incrocia sfocandosi e il vetro non si muove; quello che
-  resta resta nitido. Un tasto nuovo dentro un vetro che c'era entra sfocato; uno che esce da un vetro che resta si sfoca
-  dove era, senza occupare posto, mentre il vetro si chiude. Chi arriva o se ne va con un vetro suo lo porta il piano.
+  resta mantiene la propria identità. Quando esce, il simbolo si sfoca alle coordinate che occupava nella barra.
+  Il vetro che si stringe può coprirlo. Quando si sostituisce il contenuto, entrata e uscita condividono la finestra R7.
+  Se l'identità ritorna durante l'uscita, la barra cancella la copia precedente.
   Il pezzo del gruppo passa `fluidGlassContentAnchor(Start/End)` secondo il lato (`Center` al centro): mentre la
   capsula cambia larghezza, il contenuto segue il bordo ancorato e ogni icona resta alla sua posizione d'arrivo,
   senza la deriva di metà variazione che produceva il centro. I bordi sono logici (anche RTL); un eventuale rimbalzo
@@ -102,15 +108,16 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **Il contenuto che resta** (F4A.5b): l'icona che resta in un gruppo che cambia larghezza **si ammorbidisce come in
   Apple** (0,8 della sfocatura dello scambio, nitida a ~300 ms) e torna: è la scelta di Alessio del 17 novembre 2026
   («morbido, come Apple»), sulle clip del telefono a tempo vero. Con `gallery.tune barkeep=sharp` resta nitida (com'era
-  fino a F4A.5). La stessa icona in **due vetri diversi** resta nitida in tutte e due (D2).
-- **Selezione e tinta per tasto**: `selected` è una pellicola dietro **quel** tasto (`GlassDefaults.selectionTint`) e la
-  sua icona nell'accento, anche in un gruppo di più icone: non passa agli altri. La principale tinta accanto a un gruppo
-  (a 12 dp, cioè nello stesso grappolo del piano) resta tinta: il contenitore disegna ogni tinta sulla sua striscia
-  ([piano-flottante.md](piano-flottante.md), «L'unione»).
-  Quando la principale nasce dal gruppo, parte dalla tinta del donatore e prende la propria mentre il suo contenuto
-  è sfocato; quando vi confluisce, perde la tinta nella finestra della sfocatura del contenuto uscente (R7 A4,
-  f3-rif2). La geometria continua il viaggio: due lastre coincidenti hanno già la stessa tinta. Una ripartenza a metà
-  conserva il colore già mostrato.
+  fino a F4A.5). Un’icona che conserva ID e simbolo ha una sola copia visibile lungo tutto lo scambio.
+  Quando cambia gruppo, l’icona segue la lastra tra il posto iniziale e quello finale. Le icone mantenute nello stesso
+  gruppo seguono la larghezza effettiva del vetro tra i propri centri nella barra. Se il posto coincide nei due stati, il
+  glifo resta sul pixel di layout anche quando il vetro rincula.
+  Il criterio è «chi resta non salta». In `principale` l'apertura del varco richiede 12 dp fra i due riposi
+  con l'ancora a destra. Il glifo e il suo bersaglio percorrono la stessa traiettoria e tornano allo slot al termine.
+- **Selezione e tinta per tasto.** `selected` colora lo sfondo del singolo posto e la sua icona. Il vetro di un’azione
+  principale ha la sua pellicola anche accanto a un gruppo neutro. La tinta sfuma attraverso il collo e si spegne
+  mentre la lastra entra nel vicino. Il simbolo assume il colore della nuova azione in proporzione alla pellicola visibile.
+  Il fondo della selezione e l'accento del glifo leggono lo stesso progresso. Una ripartenza del vetro conserva la pellicola già mostrata.
 - **Il titolo**: `Large` (di serie) è il titolo grande che scorre e si aggancia, com'era; `Inline` è solo quello
   agganciato (nessun titolo nella lista); `None` nessuno. Il **sottotitolo** sta sotto il titolo grande e, agganciato,
   sotto quello della barra, più piccolo (il titolo sale di 16 dp per fargli posto). Gli **inset** del titolo agganciato
@@ -118,17 +125,34 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **Semantica e bersagli**: ogni tasto ha il suo nome (`label`; indietro, Chiudi, conferma e «Altro» con le parole
   dell'engine) e il ruolo di pulsante, la selezione e il numero del badge come stato; il bersaglio è almeno 48 × 48 dp,
   centrato sul tasto, senza cambiare il vetro. Un tasto spento ha il contenuto al 38%.
+  Per un avatar o un contenuto libero si danno nome e comando al posto, per esempio
+  `item("profilo", label = "Profilo", onClick = apriProfilo) { Avatar() }`. TalkBack legge quel nome e invoca
+  la stessa azione dal trabocco. Per `back()` e `close()` il callback è obbligatorio e manca un parametro
+  `enabled`. Per rimuovere l'uscita durante un salvataggio occorre anche togliere l'eventuale `onBack` automatico.
   Le parole di serie vengono da `LocalFluidLabels`: `back`, `close`, **`confirm`** («Conferma» / «Confirm») e
   **`more`** («Altro» / «More»), personalizzabili alla radice e indipendenti da `dateTimeConfirm` e `actions`.
 
 ## La ricerca
 
 `FluidScreen(search = FluidSearchSpec(…))` o `search(spec)` nel blocco (che vince): un punto solo,
-`FluidToolbarSearchSlot` (`ui/fluid/toolbar/FluidToolbarSearch.kt`). In F4A posa il `FluidSearchField` di oggi **così
-com'è**, come primo elemento della lista sotto il titolo: sempre aperto, o richiudibile in un tondo se la pagina chiede
+`FluidToolbarSearchSlot` (`ui/fluid/toolbar/FluidToolbarSearch.kt`). Posa il `FluidSearchField` sotto il titolo:
+sempre aperto, o richiudibile in un tondo se la pagina chiede
 `behavior = CollapseToButton` e possiede l'apertura (`active`, `onActiveChange`); senza fuoco automatico. La posizione
 nella barra, il passaggio da tasto a campo, i vicini e la tastiera sono di F4B, che riscrive quel file senza toccare
 `FluidScreen` né la DSL.
+
+La schermata usa `query`, `onQueryChange`, `prompt` e `onSearch`. Con `CollapseToButton` legge anche `active`
+e `onActiveChange`. Senza un proprietario dello stato di apertura mostra il campo aperto. `suggestions`, `scopes`,
+`purpose` ed `expansion` acquisteranno effetto in F4B.2. In F4A le posizioni diverse da `Principal` usano il campo
+sotto il titolo. Solo `FluidScreen` posa il campo, anche se gli altri ingressi della DSL accettano `search(spec)`.
+
+Con `FluidSearchPlacement.Principal`, `FluidScreen` ritira la barra andando verso il fondo della lista. Titolo e tasti
+si sfocano e svaniscono seguendo il dito. Il campo conserva il fuoco, risale sul suo riempimento piatto e passa al
+vetro vicino alla barra di stato. Il rilascio a metà chiude la corsa con una molla e lo scorrimento inverso rivela la barra.
+Per le altre posizioni e le opzioni sugli inset, vedi [FluidScreen](schermata.md#fluidscreen).
+
+Con movimento ridotto il ritiro usa solo l'opacità per titolo e azioni. I cambi della barra dichiarata si incrociano in
+dissolvenza nei rispettivi posti di riposo e i bersagli del nuovo stato sono disponibili nella geometria finale.
 
 ## Dove si usa
 
@@ -183,7 +207,7 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
   raggiungibili da TalkBack); il menu che nasce dal gruppo è di F5A.
 - **I confronti sul PC** (`tools/glassbench/traces/f4a/`, F4A.5) eseguono risolutore, memoria e conducente Kotlin,
   ricetta e viaggi del contenuto; non eseguono il disegno Compose né la GPU. Tempi e sagome contro Apple non sono
-  una qualifica sul dispositivo. I limiti misurati e le tavole a tempo vero sono nel rapporto F4A.5.
+  una qualifica sul dispositivo. Le tavole del ritiro F4A.4 illustrano la geometria costruita nell'esportatore. I limiti misurati e le tavole a tempo vero sono nel rapporto F4A.5.
 - **Taratura del contesto** (F4A.5, poi F4A.5b): i tempi dei gruppi che cambiano larghezza sono quelli di Apple a
   tempo vero (sopra). Restano diversi: il riferimento ingrandito di 16:02 è ~1,35 volte più lento (non è a tempo vero)
   e lì la larghezza del gruppo che si allarga cresce più piano del suo bordo; da noi il bordo che si allarga supera il
@@ -195,7 +219,7 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `FluidToolbarDslTest` (engine): la DSL nel modello di F4A.1 (chiavi pure, larghezze misurate, l'indietro aggiunto da
   `onBack`, principale e conferma tinte e sole), il trabocco per priorità, l'identità dei vetri fra due stati (il gruppo
   che cresce, la divisione, «sfoglia ↔ seleziona» con l'indietro fermo), gli inset del titolo d'arrivo, la ricerca.
-- `FluidGlassTintSplitTest` (engine): le strisce di tinta di un grappolo.
+- `FluidGlassTintSplitTest` (engine): la corrispondenza fra lastra e pellicola nel grappolo.
 - `GlassPlaneLensIdentityTest`, `FluidToolbarExitTransitionTest` e `FluidToolbarAnchorsTest` (F4A.5): lente con un
   vicino, identità conservata fra figlie, ripartenza durante la lente, sottotitolo nell'host e modi `None`/`Principal`.
 - `F4aToolbarExportTest`: otto tracce a 120 Hz (tre stati nei due temi e nella variante «morbida», contesto, push/pop,
@@ -227,5 +251,5 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `…/ui/fluid/toolbar/FluidToolbarModel.kt`: il modello puro di F4A.1 (gruppi, priorità, trabocco, differenze).
 - `…/ui/fluid/toolbar/FluidToolbarSearch.kt`: il punto unico della ricerca.
 - `…/ui/fluid/FluidScreen.kt`: `toolbar`, `search`, il modo del titolo, il sottotitolo agganciato.
-- La galleria: `sample/…/toolbar/` (pagina «Barre (prova)», cinque scene; pagina «Barre fra pagine», F4A.3).
+- La galleria: `sample/…/toolbar/` («Barre (prova)», anche `toolbar.scene ritiro` e `telefono-apple` per il riferimento f8551; «Barre fra pagine», F4A.3).
 - `…/ui/page/FluidPageAnchoredBar.kt` e `FluidPageBar.kt`: la barra dell'host disegnata dal modello (F4A.3).

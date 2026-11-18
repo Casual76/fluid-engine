@@ -286,15 +286,12 @@ private fun ChromeStages(dark: Boolean) {
     }
     Caption("Un tasto colorato resta possibile, e non e' di serie: l'accento sull'azione principale.")
     BarStage(Modifier.testTag("icons-bar-tinted-$tag")) { backdrop ->
-      FluidPageChrome(title = "Bozza", onBack = {}, backdrop = backdrop) {
-        FluidBarAction(icon = FluidIcons.Edit, contentDescription = "Modifica", onClick = {})
-        FluidBarAction(
-          icon = FluidIcons.Send,
-          contentDescription = "Invia",
-          onClick = {},
-          tint = MaterialTheme.colorScheme.primary,
-        )
-      }
+      // La barra dichiarata (giro di correzione di F4A, F4A-d): il colore resta un attributo del tasto.
+      val accent = MaterialTheme.colorScheme.primary
+      FluidPageChrome(title = "Bozza", onBack = {}, backdrop = backdrop, toolbar = {
+        button("edit", FluidIcons.Edit, "Modifica", onClick = {})
+        button("send", FluidIcons.Send, "Invia", onClick = {}, tint = accent)
+      })
     }
     // La capsula flottante: tre azioni di serie, una accesa (accento e disco) e una distruttiva.
     IconStage(height = FluidMetrics.TabBarHeight + 32.dp, modifier = Modifier.testTag("icons-capsule-$tag")) { backdrop ->
@@ -361,10 +358,11 @@ private fun RtlStages() {
       Caption(if (direction == LayoutDirection.Rtl) "Da destra a sinistra" else "Da sinistra a destra")
       CompositionLocalProvider(LocalLayoutDirection provides direction) {
         BarStage(Modifier.testTag("icons-rtl-bar-$tag")) { backdrop ->
-          FluidPageChrome(title = "Note", onBack = {}, backdrop = backdrop) {
-            FluidBarAction(icon = FluidIcons.Share, contentDescription = "Condividi", onClick = {})
-            FluidBarAction(icon = FluidIcons.Send, contentDescription = "Invia", onClick = {})
-          }
+          // La barra dichiarata (giro di correzione di F4A, F4A-d): i posti sono logici, la barra si gira da sola.
+          FluidPageChrome(title = "Note", onBack = {}, backdrop = backdrop, toolbar = {
+            button("share", FluidIcons.Share, "Condividi", onClick = {})
+            button("send", FluidIcons.Send, "Invia", onClick = {})
+          })
         }
         Row(
           modifier = Modifier.fillMaxWidth().testTag("icons-rtl-row-$tag"),

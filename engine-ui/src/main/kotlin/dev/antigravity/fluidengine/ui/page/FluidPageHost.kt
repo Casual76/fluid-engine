@@ -339,9 +339,9 @@ private fun <K : Any> PageLayer(
     modifier = Modifier
       .fillMaxSize()
       .then(
-        if (isUpper && state.pendingPushPage == page) {
+        if (isUpper && state.pendingPlacement == page) {
           Modifier.onGloballyPositioned {
-            if (state.pendingPushPage == page) {
+            if (state.pendingPlacement == page) {
               fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page) }
             }
           }

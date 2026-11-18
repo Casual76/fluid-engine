@@ -197,7 +197,10 @@ sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
 **Ritiro della barra (F4A.4).** `Automatic` lo attiva solo per `FluidSearchPlacement.Principal`. `Never` conserva
 il titolo che si aggancia, `OnScrollDown` ritira verso il fondo e `OnScrollUp` verso l'inizio. La lista recupera
 lo spazio liberato durante il gesto, a meno che `barMinimizeAdjustsInsets = false`. Il campo principale risale
-fino alla barra di stato e resta a portata di tocco.
+fino alla barra di stato e resta a portata di tocco. Dentro un host di pagine (giro di correzione di F4A) si ritirano
+anche l'indietro, la barra dichiarata e la riga che riporta in cima, che l'host disegna: con la barra ritirata niente
+resta sopra il campo. Il titolo e le azioni seguono la loro pagina; ciò che è uno per host segue la corsa delle due pagine
+mentre si muovono ([pagine.md](pagine.md), «Una barra per host»).
 
 **Comportamento.**
 
@@ -251,7 +254,9 @@ fino alla barra di stato e resta a portata di tocco.
   traslazione della barra (sotto). La tab bar flottante si riapre con la **sua** regola, in [barre.md](barre.md).
 - *Dentro un host di pagine* (`FluidPageHost`/`FluidNavHost`, 3.0) la barra **non si disegna qui**: la schermata ne registra la
   specifica e la disegna l'host, una per host, ferma sopra le pagine che si muovono; le ancore del titolo si misurano solo a pagina
-  ferma e davanti. Vedi [pagine.md](pagine.md). Dentro un pannello o un foglio (cioe' dove `LocalFluidPageBar` e' nullo)
+  ferma e davanti. La copia del titolo grande si riapplica quando la pagina parte e quando si ferma (giro di correzione di
+  F4A): il titolo della pagina sotto, ridisegnato mentre era coperta, mancava per tutto il gesto indietro. Vedi
+  [pagine.md](pagine.md). Dentro un pannello o un foglio (cioe' dove `LocalFluidPageBar` e' nullo)
   disegna la sua come sempre; `FluidListDetailScaffold` mette quel nullo apposta sui due pannelli.
 - *Con `metrics`* scrive in composizione `contentWidth` (colonna meno i margini) e `fontScale`: la lista che le legge
   ha le colonne giuste al primo fotogramma.

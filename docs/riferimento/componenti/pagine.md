@@ -57,6 +57,12 @@ Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../re
    richiesta, e fra due pagine i tasti **restano al loro posto e si trasformano** in quelli della pagina d'arrivo (stesso `id`,
    stesso vetro), sul tempo del piano flottante; il gesto indietro li cambia solo al rilascio che conferma. Vedi
    `pagine-back-e-barra.md`, «La barra disegnata dal modello», e [toolbar.md](toolbar.md).
+   **La barra che si ritira scorrendo** (`FluidScreen(barMinimize = …)`, F4A.4) si ritira anche dentro un host (giro di
+   correzione di F4A): il titolo e le azioni di sempre di una pagina seguono la corsa della loro pagina; l'indietro, la barra
+   disegnata dal modello e la riga che riporta in cima (che sono una per host) seguono a riposo la pagina sopra e, mentre
+   due pagine si muovono, la corsa di ognuna pesata come lo sfondo della barra: fra una pagina con la barra ritirata e una
+   aperta i tasti tornano con la pagina, non in un fotogramma. A barra ritirata la riga non prende tocchi: il campo fissato
+   che sale fin lì si tocca.
 
 ## FluidNavHost, rememberFluidNavController, composable
 
@@ -254,6 +260,13 @@ FluidPageHost(stack = stack, onBack = { stack = stack.dropLast(1) }) { key ->
 **Cos'e'.** Lo stato di un host: cosa si sta muovendo, quanto, e se c'e' un dito. **Si legge, non si scrive** (lo pilotano la pila, il dito e il back di sistema). Si crea con `rememberFluidPageHostState()` (uno per host) e si passa a `FluidNavHost`/`FluidPageHost` per leggerlo da fuori
 (le shell: la tab bar che cambia visibilita' fra due pagine).
 
+**Il primo posizionamento (F4A.7, giro di correzione di F4A).** Nel push autonomo e nel cambio di scheda la pagina che
+arriva prende subito i comandi e si prepara fuori campo: la molla (o il passo fra schede) parte dal suo primo
+posizionamento, con la corsa intera, e la misura iniziale (che può comporre tutta la pagina) non ne consuma l'inizio.
+Finché non è posata non copre niente: la pagina che esce resta intera, titolo grande compreso. Un ritorno alla pagina di
+partenza durante la preparazione la lascia in vista; un ritorno più indietro (`[R,A] → [R,A,B] → [R]`) fa uscire la pagina
+che si vede (A), mai quella che non si è ancora posata. Il movimento ridotto porta subito a riposo.
+
 **Campi.**
 
 | campo | significato |
@@ -308,6 +321,8 @@ sotto API 31 o su un display rettangolare restano retti e c'e' solo l'ombra) e o
 
 **Comportamento.** Il passo dura `FluidMotion.DurationPeer` (280 ms, lineare poi curvato con `EaseEmphasized`); la pagina che arriva sta sopra, opaca, e percorre il 13% della larghezza (`FluidMotion.PeerSlideFraction`); quella che esce va dall'altra parte dello stesso tanto e sfuma nei suoi 150 ms
 (`DurationPeerFadeOut`, con `EaseIn`). Niente carta, niente gesto: un dito non separa una scheda da una scheda (`canStartGesture` e' falso se sotto e sopra sono pari). Con le animazioni ridotte il passo salta.
+Dalla 4.0 (giro di correzione di F4A) il passo parte dal primo posizionamento della scheda che arriva, come il push: prima
+il fotogramma lungo della prima composizione ne mangiava l'inizio (la scheda compariva già all'83% della sua corsa).
 
 ## Il vecchio, e cosa lo sostituisce
 

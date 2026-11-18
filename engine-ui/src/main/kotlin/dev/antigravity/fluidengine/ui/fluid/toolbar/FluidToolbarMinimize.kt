@@ -38,15 +38,36 @@ internal fun fluidBarMinimizeDirection(
   FluidBarMinimizeBehavior.OnScrollUp -> 1f
 }
 
+/**
+ * Quanto è ritirata la barra per chi la disegna: la schermata ([FluidToolbarMinimizeState], la sua corsa) o l'host delle
+ * pagine, che fra due pagine in movimento fonde le loro corse (giro di correzione di F4A, B1 e C8: l'indietro, la barra
+ * dichiarata e l'area toccabile dell'host sono uno per host e non appartengono a una pagina sola).
+ */
+@Stable
+internal interface FluidToolbarMinimizeProgress {
+  /** 0 a riposo, 1 ritirata del tutto. */
+  val progress: Float
+
+  /** Col movimento ridotto la barra si ritira solo in opacità, sul posto. */
+  val reducedMotion: Boolean
+
+  /** La corsa in px del contenuto che si ritira con la riga (titolo grande, campo); 0 per chi non la conosce. */
+  val travelPx: Float get() = 0f
+
+  /** Quanto della corsa è fatto, in px. */
+  val offsetPx: Float get() = travelPx * progress
+
+  val hidden: Boolean get() = progress >= 1f
+}
+
 /** La corsa appartiene alla schermata: una pagina sotto quella davanti conserva il suo riposo. */
 @Stable
-internal class FluidToolbarMinimizeState(val direction: Float, val reducedMotion: Boolean) {
+internal class FluidToolbarMinimizeState(val direction: Float, override val reducedMotion: Boolean) : FluidToolbarMinimizeProgress {
   private val position = mutableFloatStateOf(0f)
   private val distance = mutableFloatStateOf(0f)
-  val travelPx: Float get() = distance.floatValue
-  val offsetPx: Float get() = travelPx * position.floatValue
-  val progress: Float get() = position.floatValue
-  val hidden: Boolean get() = progress >= 1f
+  override val travelPx: Float get() = distance.floatValue
+  override val offsetPx: Float get() = travelPx * position.floatValue
+  override val progress: Float get() = position.floatValue
 
   fun measure(travelPx: Float) {
     distance.floatValue = travelPx.coerceAtLeast(0f)
@@ -79,7 +100,7 @@ internal class FluidToolbarMinimizeState(val direction: Float, val reducedMotion
   }
 }
 
-internal val LocalFluidToolbarMinimize = staticCompositionLocalOf<FluidToolbarMinimizeState?> { null }
+internal val LocalFluidToolbarMinimize = staticCompositionLocalOf<FluidToolbarMinimizeProgress?> { null }
 
 internal data class FluidToolbarMinimizeLook(val offsetPx: Float, val alpha: Float, val blur: Float)
 
@@ -105,7 +126,7 @@ internal fun fluidToolbarReducedFadeProgress(progress: Float, offsetPx: Float, f
 /** Il layout conserva la misura d'arrivo e smette di posare i bersagli quando sono svaniti. */
 @Composable
 internal fun Modifier.fluidToolbarMinimizeLayer(
-  minimize: FluidToolbarMinimizeState? = LocalFluidToolbarMinimize.current,
+  minimize: FluidToolbarMinimizeProgress? = LocalFluidToolbarMinimize.current,
   fullTravel: Boolean = false,
   reducedFadeDistancePx: Float? = null,
 ): Modifier {

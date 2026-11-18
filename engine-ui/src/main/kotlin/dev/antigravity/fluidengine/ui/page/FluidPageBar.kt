@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -18,8 +19,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTitleMorphState
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
+import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
 
 /**
  * Quello che una pagina dice della sua barra (3.0, fase 8): titolo, tasto indietro, azioni e i
@@ -57,7 +60,54 @@ internal data class FluidPageBarSpec(
   val toolbar: FluidToolbarDeclaration? = null,
   /** La dichiarazione è già registrata anche da FluidScreen: il sottotitolo arriva senza una seconda registrazione. */
   val subtitle: String? = toolbar?.subtitle,
+  /**
+   * La barra che si ritira scorrendo (F4A.4), se la pagina la chiede (`barMinimize`): null per una pagina che non si
+   * ritira. Il titolo e le azioni di sempre della pagina la leggono dal suo contesto; l'host la fonde con quella dell'altra
+   * pagina per ciò che è suo ([fluidPageBarMinimizeProgressOf]: l'indietro, la barra del modello, l'area toccabile).
+   */
+  val minimize: FluidToolbarMinimizeProgress? = null,
 )
+
+/**
+ * Quanto è ritirata la barra dell'host (giro di correzione di F4A, B1 e C8). L'indietro, la barra disegnata dal modello e
+ * l'area che riporta in cima sono **uno per host**: a riposo seguono la pagina sopra, mentre due pagine si muovono la
+ * corsa di ognuna pesata come lo sfondo della barra ([anchoredBarPageWeight]), così fra una pagina con la barra ritirata
+ * e una con la barra aperta i tasti compaiono e se ne vanno con la pagina invece che in un fotogramma. [entries] sono le
+ * pagine che la barra mostra, col loro ruolo e la loro corsa (0 per una pagina che non si ritira). Pura.
+ *
+ * Il titolo e le azioni di sempre restano della loro pagina: si ritirano con la corsa della pagina a cui appartengono.
+ */
+internal fun fluidPageBarMinimizeProgressOf(
+  entries: List<Pair<PageRole, Float>>,
+  moving: Boolean,
+  frontFraction: Float,
+): Float {
+  val upper = entries.firstOrNull { it.first == PageRole.Upper }?.second ?: 0f
+  if (!moving) return upper.coerceIn(0f, 1f)
+  var weight = 0f
+  var sum = 0f
+  for ((role, progress) in entries) {
+    val w = anchoredBarPageWeight(role, frontFraction)
+    weight += w
+    sum += w * progress.coerceIn(0f, 1f)
+  }
+  return if (weight > 0f) (sum / weight).coerceIn(0f, 1f) else upper.coerceIn(0f, 1f)
+}
+
+/** Il ritiro della barra dell'host: [fluidPageBarMinimizeProgressOf] sulle pagine che la barra mostra, letto in disegno. */
+@Stable
+internal class FluidPageBarMinimize(
+  private val state: FluidPageHostState,
+  private val shown: State<List<Pair<Any, FluidPageBarSpec>>>,
+  override val reducedMotion: Boolean,
+) : FluidToolbarMinimizeProgress {
+  override val progress: Float
+    get() = fluidPageBarMinimizeProgressOf(
+      shown.value.map { (page, spec) -> state.roleOf(page) to (spec.minimize?.progress ?: 0f) },
+      moving = state.isMoving,
+      frontFraction = state.frontFraction(),
+    )
+}
 
 // ================================================================================================================
 // La barra dell'host disegnata dal modello (F4A.3)

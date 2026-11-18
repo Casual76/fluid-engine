@@ -65,7 +65,6 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.sample.material.isDebuggableApp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
-import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -883,9 +882,10 @@ private fun ScrollScene(
     onBack = onBack,
     listState = listState,
     extraBottomPadding = bottomInset,
-    actions = {
-      FluidBarAction(FluidIcons.Add, "Scena successiva", onClick = { onChange(config.copy(scene = config.scene.next())) })
-      FluidBarAction(FluidIcons.Settings, "Barra piena", onClick = { onChange(config.copy(fullBar = !config.fullBar)) })
+    // La barra dichiarata (giro di correzione di F4A, F4A-d): gli stessi due tasti, senza slot libero.
+    toolbar = {
+      button("scene", FluidIcons.Add, "Scena successiva", onClick = { onChange(config.copy(scene = config.scene.next())) })
+      button("full-bar", FluidIcons.Settings, "Barra piena", onClick = { onChange(config.copy(fullBar = !config.fullBar)) })
     },
     modifier = Modifier.testTag("adaptive-scroll"),
   ) {

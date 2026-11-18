@@ -182,6 +182,8 @@ fun FluidScreen(
   metrics: FluidScreenMetrics? = null,
   toolbar: (FluidToolbarScope.() -> Unit)? = null,                  // 4.0: la barra dichiarata
   search: FluidSearchSpec? = null,                                    // 4.0: la ricerca della pagina
+  barMinimize: FluidBarMinimizeBehavior = FluidBarMinimizeBehavior.Automatic,
+  barMinimizeAdjustsInsets: Boolean = true,
   content: LazyListScope.() -> Unit,
 )
 ```
@@ -194,6 +196,14 @@ scritte, principale tinta, conferma, indietro e Chiudi, spaziatori, gruppi, prio
 **Vince su `actions`**, che resta identico per chi non lo usa; con `onBack` e senza un `back` o un `close` dichiarati
 l'indietro lo aggiunge la barra. `search` (o `search(spec)` nel blocco, che vince) posa il `FluidSearchField` di oggi
 sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
+
+**Ritiro della barra (F4A.4).** `Automatic` lo attiva solo per `FluidSearchPlacement.Principal`. `Never` conserva
+il titolo che si aggancia, `OnScrollDown` ritira verso il fondo e `OnScrollUp` verso l'inizio. La lista recupera
+lo spazio liberato durante il gesto, a meno che `barMinimizeAdjustsInsets = false`. Il campo principale risale
+fino alla barra di stato e resta a portata di tocco. Dentro un host di pagine (giro di correzione di F4A) si ritirano
+anche l'indietro, la barra dichiarata e la riga che riporta in cima, che l'host disegna: con la barra ritirata niente
+resta sopra il campo. Il titolo e le azioni seguono la loro pagina; ciò che è uno per host segue la corsa delle due pagine
+mentre si muovono ([pagine.md](pagine.md), «Una barra per host»).
 
 **Comportamento.**
 
@@ -247,7 +257,9 @@ sotto il titolo; F4B lo porta nella barra. Tutto in [toolbar.md](toolbar.md).
   traslazione della barra (sotto). La tab bar flottante si riapre con la **sua** regola, in [barre.md](barre.md).
 - *Dentro un host di pagine* (`FluidPageHost`/`FluidNavHost`, 3.0) la barra **non si disegna qui**: la schermata ne registra la
   specifica e la disegna l'host, una per host, ferma sopra le pagine che si muovono; le ancore del titolo si misurano solo a pagina
-  ferma e davanti. Vedi [pagine.md](pagine.md). Dentro un pannello o un foglio (cioe' dove `LocalFluidPageBar` e' nullo)
+  ferma e davanti. La copia del titolo grande si riapplica quando la pagina parte e quando si ferma (giro di correzione di
+  F4A): il titolo della pagina sotto, ridisegnato mentre era coperta, mancava per tutto il gesto indietro. Vedi
+  [pagine.md](pagine.md). Dentro un pannello o un foglio (cioe' dove `LocalFluidPageBar` e' nullo)
   disegna la sua come sempre; `FluidListDetailScaffold` mette quel nullo apposta sui due pannelli.
 - *Con `metrics`* scrive in composizione `contentWidth` (colonna meno i margini) e `fontScale`: la lista che le legge
   ha le colonne giuste al primo fotogramma.
@@ -455,12 +467,12 @@ val backdrop = chrome.activeBackdrop.value ?: fallback   // per la tab bar, i mo
 - **`ProvideFluidChrome` e' trasparente al layout**: fornisce solo i `CompositionLocal`, nessun nodo. Un `Modifier.weight`
   in una `Column` o un `matchParentSize` in un `Box` sotto di lui arrivano al genitore (`FluidChromeLayoutTest`). In F2.3c
   posava le pagine in un `Box` suo, che sovrapponeva i figli di una `Column` e poteva misurare zero; dalla 4.0 G1 non piu'.
-- **Lo scrittore di riserva** (4.0, F2.3c; dalla G1 un modificatore a se'): `Modifier.fluidChromePages()` sul contenitore
-  delle pagine, **fuori** dalla chrome. Registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo
-  registra da se' (non e' una `FluidScreen` e non ci posa `glassBackdropSource`): cosi' la tab bar sopra una pagina
-  qualunque rifrange cio' che ha dietro e gira. Uno per finestra; non cambia misura ne' posizione di niente, e un layer che
-  nessun vetro della chrome campiona non costa niente. Senza, si torna a prima di F2.3c: sopra una pagina che non registra
-  il fondale la chrome campiona un layer vuoto. Un vetro **dentro** il contenitore non chiede mai la riserva.
+- **Lo scrittore di riserva.** Metti `Modifier.fluidChromePages()` sul contenitore delle pagine e monta la chrome come
+  sorella del contenitore. Quando manca un fondale attivo e un vetro esterno chiede uno sfondo privo di produttore,
+  il modificatore registra le pagine in un layer privato. Il lettore esterno lo campiona attraverso il fondale di
+  riserva della shell. La pagina e i pannelli conservano i propri layer anche quando cambiano posizione o vengono
+  smontati. La posizione del lettore viene verificata a ogni cattura, perché il contenuto può spostarsi fra contenitori.
+  Una `FluidScreen` Liquid aggiunge al fondale il contributo del bordo inferiore mentre il produttore è montato.
 - `activeBackdrop`: l'**ultima registrazione fra quelle che si dichiarano davanti**; se nessuna lo dichiara,
   l'ultima in assoluto (anteprime, galleria, una schermata sola in un'Activity). *Davanti non e' «registrata per ultima»*:
   per tutto un back predittivo le due pagine sono composte e eleggere la piu' recente faceva rifrangere alla

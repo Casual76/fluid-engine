@@ -199,7 +199,11 @@ class FluidPageHostState internal constructor() {
   private var dragToken = 0
   private var processed by mutableStateOf<List<Any>>(emptyList())
   private var job: Job? = null
-  internal var pendingPushPage: Any? by mutableStateOf(null)
+  /**
+   * La pagina che entra e non si è ancora posata (F4A.7; dal giro di correzione di F4A anche nel cambio di scheda): il
+   * movimento parte dal suo primo posizionamento, e fino ad allora non copre niente ([upperCoverage]). Null a riposo.
+   */
+  internal var pendingPlacement: Any? by mutableStateOf(null)
     private set
 
   /** Il riconoscitore segue un dito che un figlio si e' preso: uno scorrimento puo' passargli la mano. */
@@ -253,8 +257,16 @@ class FluidPageHostState internal constructor() {
       1f
     }
 
-  /** Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma. */
+  /**
+   * Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma.
+   *
+   * Una pagina che aspetta il primo posizionamento non copre niente (giro di correzione di F4A, A4): non è ancora
+   * disegnata. Nel cambio di scheda la pagina che arriva parte al 13% della larghezza e da lì copriva già quasi tutto,
+   * e il titolo grande di quella che esce (disegnato dalla barra, tagliato dove la pagina sopra copre) spariva un
+   * fotogramma prima che la pagina nuova comparisse, col sottotitolo e il testo ancora fermi.
+   */
   internal fun upperCoverage(): Pair<Float, Float> {
+    if (pendingPlacement != null && pendingPlacement == upper) return width to width
     val x = pageOffsetX(PageRole.Upper)
     val inset = width * (1f - pageScale(PageRole.Upper)) / 2f
     return (x + inset) to (x + width - inset)
@@ -298,19 +310,31 @@ class FluidPageHostState internal constructor() {
     show(FluidPageMove.Push, from = from, to = to)
     travelPx = exitTravel()
     phase = Phase.Pushing
-    if (reducedMotion) settle() else pendingPushPage = to
+    if (reducedMotion) settle() else pendingPlacement = to
   }
 
-  /** La prima misura può comporre tutta la pagina. Il suo tempo precede lo zero della molla. */
+  /**
+   * La prima misura può comporre tutta la pagina. Il suo tempo precede lo zero della molla (F4A.7) e quello del passo fra
+   * schede (giro di correzione di F4A, A4: il primo fotogramma lungo mangiava l'inizio del passo, che compariva già
+   * all'83%).
+   */
   internal fun pagePlaced(page: Any) {
-    if (pendingPushPage != page) return
-    pendingPushPage = null
-    animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
+    if (pendingPlacement != page) return
+    pendingPlacement = null
+    if (phase == Phase.Peer) {
+      runPeerClock()
+    } else {
+      animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
+    }
   }
 
   private fun beginPop(from: Any, to: Any) {
-    if (pendingPushPage == from && lower == to) {
+    if (pendingPlacement == from && lower == to) {
       settle()
+      return
+    }
+    if (pendingPlacement == from) {
+      popUnplaced(from, to)
       return
     }
     if (upper == from && (phase == Phase.Committing || phase == Phase.Dragging || phase == Phase.Cancelling)) {
@@ -346,6 +370,31 @@ class FluidPageHostState internal constructor() {
     animateTravel(exitTravel(), FluidPageMotion.page(), 0f) { settle() }
   }
 
+  /**
+   * Un pop che arriva mentre la pagina che entrava ([from]) aspetta ancora il primo posizionamento, verso una pagina che
+   * non è quella che si vede ([to] più indietro: `[R,A] → [R,A,B] → [R]`). La pagina che entrava non si è mai vista e
+   * non esce: esce quella che si vede, la sotto, con lo stile suo (giro di correzione di F4A, C7). Prima il pop
+   * ricominciava da [from] a corsa zero, e con `Expand` (che non inverte) la pagina mai posata compariva a piena vista
+   * per uscire. Se la pagina che si vede non si può più disegnare, si va a riposo.
+   */
+  private fun popUnplaced(from: Any, to: Any) {
+    val visible = lower
+    finishNow()
+    if (visible == null || visible == from || !renderable(visible)) {
+      settle()
+      return
+    }
+    upperTransition = transitionOf(visible)
+    upper = visible
+    lower = to.takeIf(renderable)
+    opening = false
+    direction = layoutDirectionSign
+    show(FluidPageMove.Pop, from = visible, to = to)
+    travelPx = 0f
+    phase = Phase.Popping
+    animateTravel(exitTravel(), FluidPageMotion.page(), 0f) { settle() }
+  }
+
   /** Expand cambia scala e origine fra i due versi: nessuna corsa di chiusura ricrea l'apertura. */
   private fun canReverseTravel(): Boolean = when (upperTransition) {
     // Questi stili ignorano opening in pageFrame: la corsa di ripresa e' gia' quella corretta.
@@ -365,11 +414,21 @@ class FluidPageHostState internal constructor() {
     peerTime = 0f
     peerEased = 0f
     phase = Phase.Peer
-    val scope = scope
     if (reducedMotion || scope == null) {
       settle()
       return
     }
+    // Il passo parte dal primo posizionamento della scheda che arriva (A4): vedi [pagePlaced].
+    pendingPlacement = to
+  }
+
+  /** Il passo fra schede, dal primo posizionamento della scheda che arriva. */
+  private fun runPeerClock() {
+    val scope = scope ?: run {
+      settle()
+      return
+    }
+    job?.cancel()
     job = scope.launch {
       Animatable(0f).animateTo(1f, tween(FluidMotion.DurationPeer, easing = LinearEasing)) {
         peerTime = value
@@ -401,7 +460,7 @@ class FluidPageHostState internal constructor() {
 
   private fun settle(notify: Boolean = true) {
     val top = processed.lastOrNull()
-    pendingPushPage = null
+    pendingPlacement = null
     phase = Phase.Idle
     show(FluidPageMove.None, from = null, to = null)
     isInteractive = false
@@ -424,7 +483,7 @@ class FluidPageHostState internal constructor() {
     initialVelocity: Float,
     onEnd: () -> Unit,
   ) {
-    pendingPushPage = null
+    pendingPlacement = null
     job?.cancel()
     job = null
     val scope = scope
@@ -484,7 +543,7 @@ class FluidPageHostState internal constructor() {
     val handOver = takeOver && phase == Phase.Dragging
     if (!handOver && !canStartGesture()) return null
     val interruptPush = phase == Phase.Pushing && resumesTravelOnDrag()
-    pendingPushPage = null
+    pendingPlacement = null
     if (handOver || phase == Phase.Cancelling || interruptPush) {
       // Ripresa al volo: corsa, verso e pagine restano quelli di prima.
       job?.cancel()

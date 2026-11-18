@@ -33,6 +33,9 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDefaults
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarExtent
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarGlassId
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarGroupId
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLayer
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarResolved
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
@@ -218,7 +221,18 @@ internal fun FluidAnchoredBar(
     if (lowerKey != null && lowerSpec != null) add(lowerKey to lowerSpec)
     if (upperKey != null && upperSpec != null) add(upperKey to upperSpec)
   }
-  val currentShown by rememberUpdatedState(shown)
+  val shownState = rememberUpdatedState(shown)
+  val currentShown by shownState
+  // Il ritiro della barra (F4A.4) per ciò che è dell'host: l'indietro, la barra del modello e l'area che riporta in cima
+  // (giro di correzione di F4A, B1 e C8). Null se nessuna delle pagine che la barra mostra si ritira: allora non cambia
+  // niente, nemmeno l'albero.
+  val minimizeReduced = shown.firstNotNullOfOrNull { it.second.minimize }?.reducedMotion
+  val hostMinimize = if (minimizeReduced == null) {
+    null
+  } else {
+    remember(state, shownState, minimizeReduced) { FluidPageBarMinimize(state, shownState, minimizeReduced) }
+  }
+  val barHidden by remember(hostMinimize) { derivedStateOf { hostMinimize?.hidden == true } }
 
   // Il vetro: le due registrazioni impilate mentre ci si muove, quella della cima a riposo.
   val upperBackdrop = upperSpec?.backdrop
@@ -358,7 +372,8 @@ internal fun FluidAnchoredBar(
       // F2.3c: il titolo e i tasti prendono il lato dalla stessa decisione della striscia, col tema del lato.
       GlassInkContent(shade.ink, LocalContentColor.current) {
       FluidTopBarRow(
-        onTapTitle = { state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() },
+        // Con la barra ritirata la riga non prende più tocchi: sotto c'è il campo fissato, che sale fin lì (B1).
+        onTapTitle = if (barHidden) null else ({ state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() }),
       ) {
         if (moving && !modelMode) {
           // Fra il vetro della barra e le icone: i pezzi che viaggiano. Composta per tutto il movimento, disegna
@@ -436,7 +451,12 @@ internal fun FluidAnchoredBar(
         ) {
           Box(modifier = Modifier.onSizeChanged { insets.rowStart(it.width) }) {
             if (!hostModel && backKeys.isNotEmpty()) {
-              Box(if (activeSpec?.onBack == null) Modifier.clearAndSetSemantics { } else Modifier) {
+              // L'indietro di sempre si ritira con la barra, come le azioni della pagina (C8).
+              Box(
+                Modifier
+                  .fluidToolbarMinimizeLayer(hostMinimize)
+                  .then(if (activeSpec?.onBack == null) Modifier.clearAndSetSemantics { } else Modifier),
+              ) {
                 BarBackButton(state, journey) { state.interactionPage?.let { registry[it]?.spec?.onBack }?.invoke() }
               }
             } else {
@@ -469,6 +489,7 @@ internal fun FluidAnchoredBar(
             insets = insets,
             hidden = finger::overlay,
             snap = fingerLayer,
+            minimize = hostMinimize,
           )
         }
       }
@@ -1254,7 +1275,8 @@ private fun FluidBarTitleClock(swap: FluidBarTitleSwap, durationScale: Float) {
  * contenitore e la sua memoria vivono quanto l'host: cambiare pagina è cambiare il suo stato, e il piano lo trasforma.
  *
  * [hidden] la nasconde mentre la variante che segue il dito porta il vetro; [snap] le toglie il viaggio (il cambio che
- * arriva mentre la variante la tiene nascosta va al posto nuovo nel fotogramma dopo).
+ * arriva mentre la variante la tiene nascosta va al posto nuovo nel fotogramma dopo). [minimize] è il ritiro dell'host
+ * ([FluidPageBarMinimize]), o null se nessuna pagina si ritira.
  */
 @Composable
 private fun HostModelBar(
@@ -1266,6 +1288,7 @@ private fun HostModelBar(
   insets: FluidBarInsets,
   hidden: () -> Boolean,
   snap: Boolean,
+  minimize: FluidToolbarMinimizeProgress?,
 ) {
   CompositionLocalProvider(context) {
     val policy = LocalFluidMotionPolicy.current
@@ -1279,6 +1302,9 @@ private fun HostModelBar(
       // I tasti della barra restano a qualità piena mentre le pagine si muovono (vedi `BarActions`).
       LocalFluidGlassQuality provides null,
       LocalFluidMotionPolicy provides if (snap) FluidMotionPolicy(durationScale = 0f) else policy,
+      // Il ritiro dell'host, non quello della pagina del contesto (B1): la barra è una per host, e quando la sua pagina
+      // cambia fra una ritirata e una aperta i tasti seguono la corsa delle pagine invece di comparire in un fotogramma.
+      LocalFluidToolbarMinimize provides minimize,
     ) {
       FluidToolbarBar(
         declaration = declaration,

@@ -637,6 +637,21 @@ internal class FluidTitleMorphState(
   /** Rifa' le ancore con le coordinate che ha, appena [frozen] torna false. */
   fun refresh() = rebuildCompact()
 
+  /**
+   * Letta nel blocco del layer di una copia del titolo grande: il blocco si riesegue quando la pagina comincia o smette
+   * di muoversi nel suo host (giro di correzione di F4A, A3).
+   *
+   * Senza, il titolo grande della pagina sotto mancava per tutto il gesto indietro e compariva di colpo a riposo (D1 e
+   * `pages.follow`, debug e bench, sul Tab S9 in S7 e sull'emulatore): il sottotitolo c'era, la copia del titolo aveva
+   * opacità 1 e non veniva ridisegnata. Succede quando la pagina sotto non è mai stata davanti (la pila aperta all'avvio)
+   * e il titolo si è ridisegnato mentre era coperta (l'arrivo del suo carattere): riapplicare il layer al primo
+   * fotogramma del movimento lo fa tornare. La causa ultima, nel RenderThread, non è isolata: tenere la pagina coperta
+   * nell'albero di disegno con l'opacità a zero non bastava. Costa una rilettura del blocco a ogni partenza e arrivo.
+   */
+  fun followPageMotion() {
+    frozen()
+  }
+
   /** Distance the title travels between its two resting places. NaN until both are measured. */
   val travelPx: Float
     get() {
@@ -1698,6 +1713,7 @@ internal fun FluidLargeTitle(
         // Il titolo grande e' l'intestazione della pagina: TalkBack lo trova scorrendo per titoli.
         .semantics { heading() }
         .graphicsLayer {
+          morphState.followPageMotion()
           val morphing = shouldMorphTitle(
             fontScale = fontScale,
             expandedLineCount = morphState.expandedLineCount,
@@ -1722,6 +1738,8 @@ internal fun FluidLargeTitle(
       Text(
         text = it,
         modifier = Modifier.graphicsLayer {
+          // Come il titolo: si riapplica quando la pagina parte o si ferma (A3).
+          morphState.followPageMotion()
           alpha = 1f - smoothStep(
             (collapseProgress.value / SubtitleFadeFraction).coerceIn(0f, 1f),
           )
@@ -1777,6 +1795,7 @@ internal fun FluidTopBar(
           Row(Modifier.fluidToolbarMinimizeLayer(minimize), content = actions)
         }),
         context = currentCompositionLocalContext,
+        minimize = minimize,
         collapseProgress = collapseProgress,
         glassIntensity = glassIntensity,
         morphState = morphState,

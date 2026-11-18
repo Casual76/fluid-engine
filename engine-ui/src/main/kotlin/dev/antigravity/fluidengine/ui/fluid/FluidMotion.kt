@@ -43,6 +43,37 @@ import androidx.compose.ui.unit.IntSize
  */
 object FluidMotion {
 
+  // WWDC25 284, f5414..5421. Contorno esterno della capsula, un campione ogni 33,37 ms.
+  // L'interpolazione monotona mantiene la pendenza ai campioni senza un rimbalzo al tondo.
+  private fun tabContour(vararg samples: Float): TweenSpec<Float> = tween(
+    durationMillis = ((samples.size - 1) * 1001f / 30f + 0.5f).toInt(),
+    easing = Easing { fraction ->
+      val position = fraction.coerceIn(0f, 1f) * samples.lastIndex
+      val i = position.toInt().coerceAtMost(samples.lastIndex - 1)
+      val u = position - i
+      val delta = samples[i + 1] - samples[i]
+      fun tangent(index: Int): Float {
+        if (index == 0 || index == samples.lastIndex) return 0f
+        val a = samples[index] - samples[index - 1]
+        val b = samples[index + 1] - samples[index]
+        return if (a * b > 0f) 2f * a * b / (a + b) else 0f
+      }
+      samples[i] + u * ((1f - u) * ((1f - u) * tangent(i) - u * tangent(i + 1)) + u * (3f - 2f * u) * delta)
+    },
+  )
+
+  internal val FloatingTabFold = tabContour(0f, 0.05f, 0.52f, 0.70f, 0.86f, 0.94f, 0.98f, 1f)
+  internal val TabBarPlayer = tabContour(0f, 0.02f, 0.30f, 0.46f, 0.65f, 0.80f, 0.91f, 1f)
+  // Photos, f30302..30305. La tastiera copre il contorno nei fotogrammi successivi.
+  internal val TabBarSearch = tabContour(0f, 0.31f, 0.59f, 0.94f, 1f)
+
+  /** La pagina di ricerca dell’app può velarsi insieme alla barra. In Photos il primo frame conserva la foto. */
+  val FloatingTabSearchPage: TweenSpec<Float> = tabContour(0f, 0f, 0.60f, 0.97f, 1f)
+
+  /** La lente segue la pressione ottica: formata fra 133 e 200 ms (R1 T2). */
+  internal fun tabLensScale(pressure: Float, pressedScale: Float): Float =
+    1f + (pressedScale - 1f) * (pressure / 0.96f).coerceIn(0f, 1f)
+
   private const val TwoPi = 6.283185307179586
 
   /** Converts an Apple-style `response` (seconds) into a Compose stiffness. */

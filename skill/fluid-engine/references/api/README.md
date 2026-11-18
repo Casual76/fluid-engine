@@ -7,13 +7,13 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 8 | 126 |
+| [Barre di navigazione e di azione](barre.md) | 8 | 130 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 26 | 223 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
 | [Controlli](controlli.md) | 9 | 58 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 11 | 81 |
-| [Pressione, gesto e movimento](movimento.md) | 7 | 202 |
+| [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
 | [Vetro](vetro.md) | 31 | 247 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |
 | [Tema, forma, tipo](tema.md) | 8 | 108 |

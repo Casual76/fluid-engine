@@ -130,12 +130,15 @@ FluidFloatingTabBar(
 
 ### Come si ripiega (e quando no)
 
-Sono **tre stati visivi** su una sola scena: `INLINE` (ripiegata), `EXPANDED` (tutte le schede) e `SEARCH_EXPANDED`. Il passaggio e' un `AnimatedContent`
-con dissolvenza (`FluidMotion.FoldCrossFade`, rigidezza media-bassa critica) piu' elementi condivisi (`tabGroup`, `standaloneTab`, `accessory`, l'icona della scheda scelta), un
-impulso di sfocatura «gommosa» che sale a 12 dp a meta' e torna a zero (`GooeyPeakBlur`, `FluidMotion.GooeyMillis` = 300 ms) e la pillola che *cresce* in 300 ms (`PuckEnter`, scala di partenza 0,82):
-non fa parte dell'elemento condiviso, quindi l'unica cosa che la tiene con le altre e' la durata uguale. Dalla 4.0 la sfocatura gommosa
-(`Modifier.gooey`, `FluidGooey.kt`) **resta quella di prima** anche col materiale nuovo: è un effetto sul pannello della barra mentre si
-ripiega, non una strada del materiale, e passa al materiale nuovo con la tab bar che si riduce a un tasto, in una fase successiva del progetto.
+La barra ha tre pose: aperta, ripiegata e ricerca attiva. Da Android 13, con il materiale Liquid e il pannello di serie,
+il piano flottante misura solo la posa di arrivo. Capsula, tondo e banda mantengono ciascuno la propria identità. Il piano F3
+muove i tre vetri separatamente. Il mini lettore scende accanto al gruppo. Il glifo scelto converge dalla sua cella
+al centro del tondo e resta nitido mentre le altre icone e le etichette si sfocano. I tempi della piega (234 ms)
+e della ricerca (133 ms) seguono le rispettive sequenze Apple. La pagina e la tastiera sono gestite dall’app. Per la dissolvenza della pagina è disponibile
+`FluidMotion.FloatingTabSearchPage`. Il movimento ridotto applica
+la posa di arrivo direttamente. Con un pannello disegnato dall’app o col materiale Classic resta la piega a elementi
+condivisi e impulso di 12 dp. Per confrontare le due pieghe sulla stessa build c’è il tag diagnostico Android
+`log.tag.FluidTabBarGooey=DEBUG`; viene letto alla composizione della barra.
 
 **La decisione sta in `FluidFloatingTabBarScrollConnection`** (la connessione che l'app attacca alla pagina):
 
@@ -186,25 +189,13 @@ raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iO
 - **Selezione fatta altrove** (back, deep link, un'altra schermata): la pillola arriva con `animateToValue` (preme e si assesta come dopo un rilascio), perche' nient'altro la annuncia. La prima volta si posa senza animare.
 - **Rilasciare la pillola sulla scheda gia' scelta** chiama `onClick` di quella scheda: nella forma a elenco e' `onReselect`.
 - **Sulla scheda niente increspatura** (`indication = null` di serie dalla 3.0, fase 9): la pillola *e'* l'indicazione. La scheda **in linea** e il cerchio rispondono col bagliore del dito sul loro vetro e un `Tap`.
-- **Premuta, la pillola diventa lente.** Una *riga nascosta* (copia tinta d'accento della fila, **composta solo mentre la pillola e' premuta**: a riposo costava 8 ms a fotogramma) e' cio' che la
-  lente campiona, cosi' l'icona scelta si vede attraverso il vetro nel colore d'accento; la riga si registra due fotogrammi e poi si ferma (`tintedRowSettled`): serve un'immagine da rifrangere, non una viva.
-  L'icona scelta e' ridisegnata nitida *sopra* la pillola e sfuma in un terzo della rampa di pressione. L'inchiostro e' l'accento portato verso nero (chiaro) o bianco (scuro) del minimo che regge **3:1**
-  contro la pellicola del pannello sopra la pagina peggiore (`legibleInk`, `PuckInkMinContrast`): da 1,1:1 a 7,8:1 su un riquadro verde. Senza `backdrop` la pillola e' un disco piatto (`backgroundColor` da 50% a 100%).
-- **Col materiale nuovo (4.0, da Android 13) la pillola è vetro.** A riposo è il vetro della barra **un po' più
-  scuro** sui due temi (misure di iOS: 219 su una pagina a 238 nel chiaro, una decina di livelli sotto la barra nello
-  scuro), col filo sottile della barra (a metà sul chiaro) e l'ombra ridotta di un vetro dentro un vetro, senza una
-  seconda sfocatura: campiona la pagina e rifà da sé il materiale della barra (`GlassPuckProfile`, derivato dal profilo
-  di serie, senza numeri suoi salvo quanto è più scura). Premuta guarda la riga nascosta, che è il materiale della
-  barra con le icone d'accento, e posa sopra solo la differenza di scuro: premuta o no è la stessa pillola. **L'accento
-  sta sull'icona e sull'etichetta della scheda scelta** (`legibleInk`, almeno 3:1 contro la pellicola di serie della
-  barra), non sulla pillola. Sopra il contrasto di sistema standard pillola e riga nascosta prendono la pellicola densa
-  della barra con sopra la selezione (`glassPuckFilm`): restano lo stesso materiale della barra, e l'etichetta scelta,
-  che è testo, tiene almeno 4,5:1 e mai meno contrasto dell'inchiostro di prima. Premuta, la lente della pillola cresce
-  con la pressione da zero (a riposo non piega niente); filo e ombra restano quelli a riposo. Sotto Android 13 e con `FluidGlassModel.Classic` è la pillola di prima,
-  con la lavata d'accento.
-  *Come si verifica*: a schermo, la pillola è grigia e l'icona scelta è nell'accento; nella pagina «Parità» della
-  galleria, accanto a un tasto di vetro. *Se non va*: una pillola colorata d'accento sopra la barra vuol dire che
-  l'app ha scritto `puckColor` (sotto) o che quel dispositivo disegna il vetro di prima.
+- **Premuta, la pillola Liquid diventa lente.** La riga registra icone, segni ed etichette sul posto. La pillola
+  rilegge i glifi dove li attraversa e aumenta la rifrazione con la pressione, fino alla dispersione cromatica.
+  A riposo e premuta campiona lo stesso fondale e mantiene la stessa ricetta del velo, del filo e dell’ombra.
+  Il colore di selezione usa anche per l’icona il contrasto richiesto al testo (4,5:1 calcolato sulla pellicola).
+  Il rientro di serie vale 0,076 dell’altezza; l’altezza della pillola è quindi circa 0,85 H.
+  La misura di R5 M4 sul telefono è 219 livelli sulla pagina a 238. La bolla Classic conserva la riga nascosta tinta
+  e il ridisegno della scheda scelta. Senza fondale resta il disco piatto.
 - **Il colore di icone ed etichette: quello dell'app, e `onSurface` solo se nessuno l'ha deciso** (`floatingBarContentColor`). Le schede leggono `LocalContentColor`, che fuori da una `Surface` vale il suo valore di serie, `Color.Black`: su vetro scuro, nero su grigio scuro. Se il valore e' quello di serie la barra imposta `onSurface` del tema; qualunque altro valore (il colore di una `Surface`, un `LocalContentColor provides Ink` in radice) resta, cosi' un'app che aggiorna a parametri invariati non cambia aspetto. **Caso limite:** un'app che fornisce davvero il nero puro e' indistinguibile da una che non ha detto niente (un CompositionLocal non dice se e' stato impostato), quindi quel nero diventa `onSurface`; sul tema chiaro la differenza e' minima, e per tenerlo basta un colore non esattamente `Color.Black`. Mai un colore a mano.
 - La luce del dito sul vetro e' **additiva** (`GlassTouchHighlight(onGlass = true)`, bianca e stretta); sulla fila opaca di prima era nero all'8%, e su tema chiaro tenere premuta la pillola ingrigiva la fascia chiara in alto. Sul tema scuro non cambia niente.
 
@@ -215,6 +206,23 @@ e — dove c'e' un pannello — il vetro stesso, e quello che ci metti sopra res
 In linea la riga e' `[scheda][banda ‑ weight][cerchio]` a tutta larghezza e l'altezza la decide la banda; aperta la banda sta **sopra** la pillola, larga quanto lei (misurata: un fotogramma di `fillMaxWidth`).
 Con **tutte e due** le bande l'elemento condiviso `accessory` viaggia fra gli stati; con una sola, o dissolve (`animateEnterExitAccessory`). **Costo vero**: per far viaggiare un elemento condiviso vanno
 composte entrambe le copie per tutta la piega; l'alternativa dichiarata e' non avere due barre (e' dove va `FluidFoldingTabBar`...). Contenuto pesante (copertina, due righe, progresso) nella banda = lavoro doppio per 300 ms.
+
+### Destinazioni prominente e di ricerca
+
+Usa `standaloneTab(key, icon, role = FluidTabRole.Prominent, onClick = …)` per una destinazione che resta accessibile
+anche a barra ripiegata. Il tondo ha lo stesso diametro della barra aperta e contiene solo il glifo. Quando è scelto
+prende il colore d’accento e TalkBack lo annuncia come scheda selezionata. Con le misure di serie, il varco vale
+0,115 altezze della barra (circa 7 dp). Sono le proporzioni del telefono in R5 T6. Su un canvas ampio la capsula con tre
+destinazioni raggiunge 5,23 altezze; il gruppo resta centrato.
+
+Una barra può dichiarare una `Prominent` e una `Search`. La prominente occupa il tondo; la ricerca prende posto fra
+le destinazioni nell’ordine dichiarato, con il proprio `title`. Senza prominente il tondo spetta alla ricerca.
+La firma di `standaloneTab` senza ruolo continua a dichiarare un’azione, ad esempio «Scrivi». A barra piegata,
+una pressione lunga sul glifo corrente permette di scorrere fra le destinazioni raggruppate e scegliere al rilascio.
+
+Con `searchActivation = FluidTabSearchActivation.SearchTabSelection`, selezionare la chiave della ricerca apre
+`searchBarContent`. Il modificatore ricevuto va applicato al campo o a un suo antenato perché possa prendere il fuoco.
+Indietro torna all’ultima destinazione visitata, anche quando era la prominente. Con `Automatic` l’app guida il campo con `searchMode`.
 
 ### La ricerca nella barra
 

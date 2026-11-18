@@ -22,6 +22,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidMotion.kt`
 
 - `object FluidMotion` — Motion tokens calibrated the way Apple parameterises its springs.
+  - `val FloatingTabSearchPage: TweenSpec<Float>` — La pagina di ricerca dell’app può velarsi insieme alla barra. In Photos il primo frame conserva la foto.
   - `fun stiffnessForResponse(response: Double): Float` — Converts an Apple-style `response` (seconds) into a Compose stiffness.
   - `val ResponseInstant` — ~0.20s. Micro-feedback that must land before the finger lifts.
   - `val ResponseTitle` — ~0.26s. The large title's handoff: tight enough to track a finger, slow enough to be read.

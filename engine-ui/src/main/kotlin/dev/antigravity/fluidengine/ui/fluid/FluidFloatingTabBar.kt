@@ -45,6 +45,20 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import android.annotation.SuppressLint
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlin.math.roundToInt
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.selected
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -54,6 +68,8 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -68,6 +84,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
@@ -99,7 +116,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -121,6 +137,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -163,16 +181,13 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.InnerShadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 // LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): la pillola e la riga nascosta sul materiale nuovo.
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
-import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
 import dev.antigravity.fluidengine.ui.glass.field.glassFieldRenders
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckFilm
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckLensDepth
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckOptics
-import dev.antigravity.fluidengine.ui.glass.field.glassPuckOverRowProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckProfile
-import dev.antigravity.fluidengine.ui.glass.field.glassPuckRowProfile
 import dev.antigravity.fluidengine.ui.glass.field.glassShadow as glassFieldShadow
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.runtime.Stable
@@ -213,6 +228,12 @@ private enum class FluidFloatingTabBarVisual { INLINE, EXPANDED, SEARCH_EXPANDED
 // player's own ~48dp content height) so the search-expanded row doesn't read
 // shorter than the bar's own shrunk state.
 private val SearchBarRowHeight = 48.dp
+
+/** Una destinazione prominente conserva il suo tondo anche quando lo scorrimento ripiega la barra. */
+enum class FluidTabRole { Standard, Search, Prominent }
+
+/** In SearchTabSelection la destinazione di ricerca apre il campo e al ritorno riprende la scheda precedente. */
+enum class FluidTabSearchActivation { Automatic, SearchTabSelection }
 
 /**
  * A floating tab bar that transitions between inline and expanded states based on scroll behavior.
@@ -307,6 +328,37 @@ fun FluidFloatingTabBar(
     onExpandedWidthChanged: ((Int) -> Unit)? = null,
     content: FluidFloatingTabBarScope.() -> Unit
 ) {
+    FluidFloatingTabBar(
+        selectedTabKey, scrollConnection, modifier, tabBarContentModifier, inlineAccessory, expandedAccessory,
+        colors, glass, shapes, sizes, elevations, backdrop, accentColor, foldAlignment, searchMode,
+        searchBarContent, expandedContentWidthPx, onExpandedWidthChanged, FluidTabSearchActivation.Automatic, content,
+    )
+}
+
+/** Permette alla scheda Search di aprire il campo alla selezione mantenendo la firma delle app esistenti. */
+@Composable
+fun FluidFloatingTabBar(
+    selectedTabKey: Any?,
+    scrollConnection: FluidFloatingTabBarScrollConnection,
+    modifier: Modifier = Modifier,
+    tabBarContentModifier: Modifier = Modifier,
+    inlineAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
+    expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
+    colors: FluidFloatingTabBarColors = FluidFloatingTabBarDefaults.colors(),
+    glass: FluidFloatingTabBarGlass = FluidFloatingTabBarGlass(),
+    shapes: FluidFloatingTabBarShapes = FluidFloatingTabBarDefaults.shapes(),
+    sizes: FluidFloatingTabBarSizes = FluidFloatingTabBarDefaults.sizes(),
+    elevations: FluidFloatingTabBarElevations = FluidFloatingTabBarDefaults.elevations(),
+    backdrop: GlassBackdropState? = null,
+    accentColor: Color? = null,
+    foldAlignment: Alignment.Horizontal = Alignment.Start,
+    searchMode: Boolean = false,
+    searchBarContent: (@Composable (Modifier) -> Unit)? = null,
+    expandedContentWidthPx: Int? = null,
+    onExpandedWidthChanged: ((Int) -> Unit)? = null,
+    searchActivation: FluidTabSearchActivation,
+    content: FluidFloatingTabBarScope.() -> Unit
+) {
     // Rebuilt every composition, deliberately not remembered. The tabs hold
     // @Composable lambdas that close over selection state and colours; caching
     // them behind a key meant every value they captured had to be listed in that
@@ -314,7 +366,31 @@ fun FluidFloatingTabBar(
     // one navigation path only. Re-running the builder is a handful of
     // allocations for a few tabs, and it makes that whole class of bug
     // unrepresentable.
-    val scope = FluidFloatingTabBarScopeImpl().apply { content() }
+    val scope = FluidFloatingTabBarScopeImpl().apply(content)
+    val selectedGroup = scope.tabs.firstOrNull { it.key == selectedTabKey && it.role != FluidTabRole.Search }
+    var previousGroupKey by remember { mutableStateOf<Any?>(null) }
+    if (selectedGroup != null) SideEffect { previousGroupKey = selectedGroup.key }
+    scope.previousKey = previousGroupKey
+    val activateSearch = searchActivation == FluidTabSearchActivation.SearchTabSelection &&
+        scope.searchKey != null && selectedTabKey == scope.searchKey && searchBarContent != null
+    val keyboard = LocalSoftwareKeyboardController.current
+    val fieldFocus = remember { FocusRequester() }
+    var previousDestinationKey by remember { mutableStateOf<Any?>(null) }
+    val destination = scope.destination(selectedTabKey)
+    if (destination != null && destination.role != FluidTabRole.Search) SideEffect { previousDestinationKey = destination.key }
+    val returnTab = scope.destination(previousDestinationKey) ?: scope.tabs.firstOrNull { it.role != FluidTabRole.Search }
+    if (activateSearch && returnTab != null) BackHandler {
+        keyboard?.hide()
+        returnTab.onClick()
+    }
+    val fieldSearchContent: (@Composable (Modifier) -> Unit)? = if (activateSearch && searchBarContent != null) {
+        { fieldModifier ->
+            searchBarContent(fieldModifier.focusRequester(fieldFocus))
+            LaunchedEffect(Unit) {
+                if (runCatching { fieldFocus.requestFocus() }.getOrDefault(false)) keyboard?.show()
+            }
+        }
+    } else searchBarContent
 
     // Un cambio di pagina riapre la barra e chiude lo scorrimento in corso (3.0.1): un cambio di rotta
     // dall'host delle pagine della stessa finestra ([FluidRouteSignal]), un cambio di scheda da qui. Prima
@@ -322,7 +398,9 @@ fun FluidFloatingTabBar(
     // corta, per sempre — e il vetro col fermo dello scorrimento di una lista che non c'era piu'.
     val routeView = LocalView.current
     DisposableEffect(routeView, scrollConnection) {
-        val listener: () -> Unit = { scrollConnection.routeChanged() }
+        val listener: () -> Unit = {
+            if (scrollConnection.foldedSelection == null) scrollConnection.routeChanged() else scrollConnection.settle()
+        }
         FluidRouteSignal.listen(routeView, listener)
         onDispose { FluidRouteSignal.stop(routeView, listener) }
     }
@@ -331,11 +409,19 @@ fun FluidFloatingTabBar(
     val foldSignal = remember(routeView) { FluidTabBarFold.of(routeView) }
     SideEffect { foldSignal.value = scrollConnection.isInline }
     DisposableEffect(foldSignal) { onDispose { foldSignal.value = false } }
+    LaunchedEffect(scrollConnection, scrollConnection.foldedSelection) {
+        if (scrollConnection.foldedSelection != null) {
+            withFrameNanos {}
+            withFrameNanos {}
+            scrollConnection.foldedSelection = null
+        }
+    }
     var lastTabKey by remember(scrollConnection) { mutableStateOf(selectedTabKey) }
     LaunchedEffect(scrollConnection, selectedTabKey) {
         if (lastTabKey != selectedTabKey) {
             lastTabKey = selectedTabKey
-            scrollConnection.routeChanged()
+            if (selectedTabKey == scrollConnection.foldedSelection) scrollConnection.settle() else scrollConnection.routeChanged()
+            scrollConnection.foldedSelection = null
         }
     }
 
@@ -347,9 +433,11 @@ fun FluidFloatingTabBar(
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
+    var measuredGroupWidthPx by remember { mutableIntStateOf(0) }
+    val roleWidth = measuredGroupWidthPx.takeIf { scope.standaloneTab?.role == FluidTabRole.Prominent && it > 0 }
     val visual = when {
-        scrollConnection.isInline -> FluidFloatingTabBarVisual.INLINE
-        searchMode && searchBarContent != null -> FluidFloatingTabBarVisual.SEARCH_EXPANDED
+        scrollConnection.isInline && !activateSearch -> FluidFloatingTabBarVisual.INLINE
+        (searchMode || activateSearch) && searchBarContent != null -> FluidFloatingTabBarVisual.SEARCH_EXPANDED
         else -> FluidFloatingTabBarVisual.EXPANDED
     }
 
@@ -361,7 +449,14 @@ fun FluidFloatingTabBar(
     // condiviso sono un'animazione della transizione, e la terrebbero in moto. A scala normale la
     // chiave e' fissa e tutto e' come prima.
     val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-    val foldKey: Any = if (reducedMotion) visual else Unit
+    val planeEnabled = !tabBarGooeyRequested() && tabBarContentModifier === Modifier && backdropState != null &&
+        glassFieldRenders(shapes.tabBarShape) && glassFieldRenders(shapes.standaloneTabShape) &&
+        glassFieldRenders(shapes.accessoryShape) &&
+        rememberFluidGlassModel(shapes.tabBarShape, GlassFalloff.Uniform, GlassDefaults.optics(GlassRole.Floating)) == FluidGlassModel.Liquid
+    val sizes = if (planeEnabled && sizes.tabBarContentPadding == PaddingValues(4.dp)) {
+        sizes.copy(tabBarContentPadding = PaddingValues(sizes.barHeight * 0.076f))
+    } else sizes
+    val foldKey: Any = if (reducedMotion || planeEnabled) visual else Unit
 
     // updateTransition (rather than the sugared top-level AnimatedContent) so
     // the transition object is available here to drive the gooey blur pulse,
@@ -385,7 +480,10 @@ fun FluidFloatingTabBar(
         label = "gooeyProgress"
     ) { _ -> 0f }
 
-    SharedTransitionLayout(modifier = modifier) {
+    TabBarFieldHost(modifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor) {
+    SharedTransitionLayout {
+        val field = LocalTabBarField.current
+        val plane = if (field != null) LocalFluidGlassContainer.current else null
         // Wrapping AnimatedContent itself (not SharedTransitionLayout's own
         // modifier) so the offscreen gooey capture stays under
         // SharedTransitionLayout's own overlay mechanism — sharedElement-
@@ -396,8 +494,8 @@ fun FluidFloatingTabBar(
         // Held as a lambda rather than a Boolean so flipping it costs no
         // recomposition — the glass surfaces call it during draw. See
         // LocalFluidTabBarBackdropFrozen.
-        val frozenWhileAnimating = remember(transition) {
-            { transition.currentState != transition.targetState }
+        val frozenWhileAnimating = remember(transition, plane, field) {
+            { transition.currentState != transition.targetState || plane?.stage != null || field?.group?.stage != null || field?.player?.stage != null }
         }
         // LOCAL CHANGE: and the same fact where the caller can see it.
         //
@@ -407,18 +505,12 @@ fun FluidFloatingTabBar(
         // so reading the local there gave the default, "never frozen", and the
         // one moment the freeze exists for was the one it never covered. The
         // scroll connection is the object both sides already share.
-        val morphing = transition.currentState != transition.targetState
+        val morphing = frozenWhileAnimating()
         LaunchedEffect(scrollConnection, morphing) {
             scrollConnection.morphing = morphing
         }
 
-        // The bar's own pane, when the caller has not built one. See `tabBarContentModifier`.
-        //
-        // NOT frozen while the bar changes shape: the call below passes no `frozen`, so this pane
-        // takes a new capture on every frame of a fold. The caller's own pane is different — it
-        // reads `scrollConnection.morphing`, the note above, and holds itself by that fact. Holding
-        // this one too is a change of behaviour and not of text, and is left for a pass that can
-        // measure what a fold costs.
+        // Il campo registra il fondale sul piano. Il percorso legacy costruisce la propria superficie.
         val makesOwnGlass = tabBarContentModifier === Modifier && backdropState != null
         // E il caso opposto: il pannello l'ha costruito l'app. La barra non puo' vedere come sfoca,
         // quindi `FluidFloatingTabBarGlass.blurRadius` e' il suo raggio finale (vedi il KDoc).
@@ -428,7 +520,7 @@ fun FluidFloatingTabBar(
         // riga, il tondo della ricerca, l'accessorio): sono lo stesso modificatore, e girano insieme. Il pannello di
         // un'app (`tabBarContentModifier`) non lo sa fare: resta del lato del tema.
         val ink = rememberGlassInk()
-        val ownGlass = if (makesOwnGlass) {
+        val ownGlass = if (makesOwnGlass && field == null) {
             Modifier.glassSurfaceInked(
                 ink = ink,
                 state = backdropState,
@@ -482,34 +574,14 @@ fun FluidFloatingTabBar(
         GlassInkContent(ink, barInk) {
         // Always applied: `gooey` is a no-op at radius 0 (no offscreen layer,
         // no filter), so there is nothing to gate on and nothing to recompose.
-        Box(Modifier.gooey { gooeyBlurPx * gooeyProgress.value }) {
+        Box(if (planeEnabled) Modifier else Modifier.gooey { gooeyBlurPx * gooeyProgress.value }) {
             // E02: la stessa chiave della transizione, cosi' anche il contenuto e' nuovo per ogni stato.
             key(foldKey) {
             transition.AnimatedContent(
                 transitionSpec = { fadeIn(FluidMotion.FoldCrossFade) togetherWith fadeOut(FluidMotion.FoldCrossFade) },
                 contentAlignment = Alignment.BottomCenter
             ) { targetVisual ->
-            // The accessory is built for BOTH states, and it has to be.
-            //
-            // It used to be built only for the state being arrived at, on the
-            // grounds that both states are composed for the length of a fold
-            // and the accessory is the heaviest thing either of them holds — a
-            // cover to decode, two lines of text, controls, a progress line —
-            // so the other copy was built, measured and thrown away sixty times
-            // a second for nothing.
-            //
-            // Except it was not for nothing. This is a shared element, and a
-            // shared element interpolates between two sets of bounds: with only
-            // the arriving copy composed there is no second set, so nothing
-            // travels. The pill vanished from above the tabs and reappeared
-            // between them, which is exactly how it was described — "arrives
-            // from nothing and disappears into the cosmic void".
-            //
-            // The cost is real and it is the price of this architecture: two
-            // bars cross-faded with shared elements can only be continuous by
-            // composing both. The way out is not to save the composition but to
-            // stop having two bars — one bar and one number, which is what the
-            // engine's FluidFoldingTabBar is and where this is going.
+        // Nel campo F3 gli ID sopravvivono al cambio di layout. Il percorso gooey usa gli elementi condivisi.
             when (targetVisual) {
                 FluidFloatingTabBarVisual.INLINE -> InlineBar(
                     scope = scope,
@@ -517,13 +589,18 @@ fun FluidFloatingTabBar(
                     accessory = inlineAccessory,
                     isAccessoryShared = isAccessoryShared,
                     onInlineTabClick = { scrollConnection.expand() },
+                    onFoldedSelection = { tab ->
+                        if (tab.key != selectedTabKey) scrollConnection.foldedSelection = tab.key
+                        tab.onClick()
+                    },
                     colors = colors,
                     shapes = shapes,
                     sizes = sizes,
                     elevations = elevations,
                     tabBarContentModifier = ownGlass,
                     animatedVisibilityScope = this@AnimatedContent,
-                    foldAlignment = foldAlignment
+                    foldAlignment = foldAlignment,
+                    anchoredWidthPx = roleWidth,
                 )
                 FluidFloatingTabBarVisual.EXPANDED -> ExpandedBar(
                     scope = scope,
@@ -539,7 +616,10 @@ fun FluidFloatingTabBar(
                     animatedVisibilityScope = this@AnimatedContent,
                     backdrop = backdrop,
                     accentColor = accentColor,
-                    onWidthMeasured = onExpandedWidthChanged
+                    onWidthMeasured = { width ->
+                        if (scope.standaloneTab?.role == FluidTabRole.Prominent) measuredGroupWidthPx = width
+                        onExpandedWidthChanged?.invoke(width)
+                    }
                 )
                 FluidFloatingTabBarVisual.SEARCH_EXPANDED -> SearchExpandedBar(
                     scope = scope,
@@ -552,8 +632,8 @@ fun FluidFloatingTabBar(
                     elevations = elevations,
                     tabBarContentModifier = ownGlass,
                     animatedVisibilityScope = this@AnimatedContent,
-                    searchBarContent = searchBarContent ?: {},
-                    targetWidthPx = expandedContentWidthPx
+                    searchBarContent = fieldSearchContent ?: {},
+                    targetWidthPx = expandedContentWidthPx ?: roleWidth
                 )
             }
             }
@@ -561,6 +641,7 @@ fun FluidFloatingTabBar(
         }
         }
         }
+    }
     }
 }
 
@@ -680,7 +761,10 @@ class FluidFloatingTabBarScrollConnection(
 
     private var accumulatedScroll = 0f
 
+    internal var foldedSelection: Any? by mutableStateOf(null)
+
     fun expand() {
+        foldedSelection = null
         isInline = false
         accumulatedScroll = 0f
     }
@@ -1050,6 +1134,17 @@ interface FluidFloatingTabBarScope {
         indication: (@Composable () -> Indication)? = null,
         title: @Composable () -> Unit = {}
     )
+
+    /** Search cede il tondo a Prominent. Il titolo serve quando la ricerca rientra nel gruppo. */
+    fun standaloneTab(
+        key: Any,
+        icon: @Composable () -> Unit,
+        role: FluidTabRole,
+        onClick: () -> Unit,
+        indication: (@Composable () -> Indication)? = null,
+        title: @Composable () -> Unit = {},
+    ) = standaloneTab(key, icon, onClick, indication, title)
+
 }
 
 /**
@@ -1105,6 +1200,7 @@ private fun SharedTransitionScope.InlineBar(
     accessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)?,
     isAccessoryShared: Boolean,
     onInlineTabClick: () -> Unit,
+    onFoldedSelection: (FluidFloatingTabBarTab) -> Unit,
     colors: FluidFloatingTabBarColors,
     shapes: FluidFloatingTabBarShapes,
     sizes: FluidFloatingTabBarSizes,
@@ -1112,10 +1208,39 @@ private fun SharedTransitionScope.InlineBar(
     tabBarContentModifier: Modifier,
     animatedVisibilityScope: AnimatedVisibilityScope,
     foldAlignment: Alignment.Horizontal,
+    anchoredWidthPx: Int?,
 ) {
     val inlineTab = scope.getInlineTab(selectedTabKey)
     val standaloneTab = scope.standaloneTab
-    val hasInlineTab = inlineTab != null
+    val tabs = scope.tabs
+    val liveTabs by rememberUpdatedState(tabs)
+    val commit by rememberUpdatedState(onFoldedSelection)
+    var preview by remember(selectedTabKey) { mutableStateOf<Any?>(null) }
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
+    val haptics = LocalFluidHaptics.current
+    val scrub = if (inlineTab == null || tabs.size <= 1) Modifier else Modifier.pointerInput(
+        inlineTab.key, tabs.map { it.key }, direction,
+    ) {
+        var position = 0f
+        detectDragGesturesAfterLongPress(
+            onDragStart = {
+                position = liveTabs.indexOfFirst { it.key == inlineTab.key }.coerceAtLeast(0).toFloat()
+                preview = inlineTab.key
+            },
+            onDragCancel = { preview = null },
+            onDragEnd = {
+                val target = liveTabs.firstOrNull { it.key == preview }
+                preview = null
+                if (target != null && target.key != inlineTab.key) commit(target)
+            },
+        ) { change, delta ->
+            change.consume()
+            position = (position + direction * delta.x / size.width.coerceAtLeast(1)).coerceIn(0f, liveTabs.lastIndex.toFloat())
+            val next = liveTabs[position.roundToInt()].key
+            if (next != preview) haptics.play(FluidHapticEvent.Tick)
+            preview = next
+        }
+    }
 
     // Alone on the screen, and therefore bigger.
     //
@@ -1127,14 +1252,15 @@ private fun SharedTransitionScope.InlineBar(
     val solo = accessory == null && standaloneTab == null
     val inlineFloor = if (solo) sizes.inlineSoloHeight else sizes.inlineHeight
 
+    val anchoredWidth = anchoredWidthPx?.let { with(LocalDensity.current) { it.toDp() } }
     // With an accessory the row spans the full width ([tab][accessory][standalone],
     // iOS 26 Apple Music style); without one it packs to [foldAlignment].
     Row(
-        horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+        horizontalArrangement = Arrangement.spacedBy(tabBarGap(sizes, scope.standaloneTab?.role)),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .fillMaxWidth()
-            .then(if (accessory == null) Modifier.wrapContentWidth(foldAlignment) else Modifier)
+            .then(if (anchoredWidth != null) Modifier.width(anchoredWidth) else Modifier.fillMaxWidth())
+            .then(if (accessory == null && anchoredWidth == null) Modifier.wrapContentWidth(foldAlignment) else Modifier)
             .height(IntrinsicSize.Max)
             // Only without an accessory. With one, the band — a now-playing pill, two lines of
             // text and a progress line — is what decides how tall this row is, and a floor that
@@ -1147,47 +1273,54 @@ private fun SharedTransitionScope.InlineBar(
                 }
             )
     ) {
-        if (hasInlineTab) {
-            InlineTab(
-                inlineTab = inlineTab,
-                onInlineTabClick = onInlineTabClick,
-                shapes = shapes,
-                sizes = sizes,
-                colors = colors,
-                elevations = elevations,
-                animatedVisibilityScope = animatedVisibilityScope,
-                tabBarContentModifier = tabBarContentModifier,
-                // Alone, it takes the whole floor and squares itself off, so the bigger height
-                // is a bigger *button* and not a bigger gap around the same icon. In a row it
-                // stays content-sized, because there the thing it has to match is its neighbour.
-                modifier = if (solo) {
-                    Modifier
-                        .fillMaxHeight()
-                        .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                } else {
-                    Modifier
-                }
-            )
+        if (inlineTab != null) {
+            WithTabBarPlane(LocalTabBarField.current?.group) {
+                InlineTab(
+                    inlineTab = tabs.firstOrNull { it.key == preview } ?: inlineTab,
+                    selected = (preview ?: inlineTab.key) == selectedTabKey,
+                    onInlineTabClick = onInlineTabClick,
+                    shapes = shapes,
+                    sizes = sizes,
+                    colors = colors,
+                    elevations = elevations,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    tabBarContentModifier = tabBarContentModifier,
+                    // Alone, it takes the whole floor and squares itself off, so the bigger height
+                    // is a bigger *button* and not a bigger gap around the same icon. In a row it
+                    // stays content-sized, because there the thing it has to match is its neighbour.
+                    modifier = if (solo) {
+                        scrub
+                            .fillMaxHeight()
+                            .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                    } else {
+                        scrub
+                    }
+                )
+            }
         }
 
         if (accessory != null) {
-            InlineAccessory(
-                accessory = accessory,
-                isAccessoryShared = isAccessoryShared,
-                shapes = shapes,
-                colors = colors,
-                elevations = elevations,
-                tabBarContentModifier = tabBarContentModifier,
-                animatedVisibilityScope = animatedVisibilityScope,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
+            WithTabBarPlane(LocalTabBarField.current?.player) {
+                InlineAccessory(
+                    accessory = accessory,
+                    isAccessoryShared = isAccessoryShared,
+                    shapes = shapes,
+                    colors = colors,
+                    elevations = elevations,
+                    tabBarContentModifier = tabBarContentModifier,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+            }
         }
 
+        if (accessory == null && anchoredWidth != null && inlineTab != null) Spacer(Modifier.weight(1f))
         if (standaloneTab != null) {
             InlineStandaloneTab(
                 standaloneTab = standaloneTab,
+                selected = standaloneTab.role != FluidTabRole.Standard && standaloneTab.key == selectedTabKey,
                 shapes = shapes,
                 sizes = sizes,
                 colors = colors,
@@ -1209,6 +1342,186 @@ private fun SharedTransitionScope.InlineBar(
                     .aspectRatio(1f, matchHeightConstraintsFirst = true)
             )
         }
+    }
+}
+
+/** Il centro di una cella è il suo indice intero, anche quando il primo indice è a destra. */
+internal fun tabBarSlot(x: Float, width: Float, start: Float, cell: Float, count: Int, ltr: Boolean): Float {
+    val fromStart = if (ltr) x else width - x
+    return ((fromStart - start) / cell.coerceAtLeast(1f) - 0.5f).coerceIn(0f, (count - 1).coerceAtLeast(0).toFloat())
+}
+
+/** R5 T6: varco 0,106–0,117 H. Una spaziatura esplicita della app prevale. */
+internal fun tabBarGap(sizes: FluidFloatingTabBarSizes, role: FluidTabRole?): Dp =
+    if (role != null && role != FluidTabRole.Standard && sizes.componentSpacing == FluidFloatingTabBarDefaults.Spacing)
+        sizes.barHeight * 0.115f else sizes.componentSpacing
+
+private val TabBarOccupiedHeight = HorizontalAlignmentLine(::maxOf)
+
+private enum class TabBarPiece { Group, Standalone, Accessory, Search }
+
+private class TabBarField(
+    val backdrop: GlassBackdropState, val namespace: FluidGlassNamespace, val tint: GlassTint,
+    val group: FluidGlassContainerState, val player: FluidGlassContainerState, val accent: Color,
+) {
+    private val groupId = FluidGlassQualifiedId(namespace, TabBarPiece.Group)
+    var expandedWidth by mutableIntStateOf(0)
+    var compactWidth by mutableIntStateOf(0)
+
+    var expandedLayout: LayoutCoordinates? = null
+    private val centers = mutableMapOf<Pair<Any, Boolean>, Offset>()
+
+    fun recordCenter(key: Any, label: Boolean, child: LayoutCoordinates) {
+        val parent = expandedLayout?.takeIf { it.isAttached } ?: return
+        val local = parent.localPositionOf(child, Offset(child.size.width / 2f, child.size.height / 2f))
+        centers[key to label] = local - Offset(parent.size.width / 2f, parent.size.height / 2f)
+    }
+
+    fun center(key: Any, label: Boolean) = centers[key to label]
+
+    fun travellingBounds(): androidx.compose.ui.geometry.Rect? {
+        if (group.stage == null || compactWidth == 0 || expandedWidth <= compactWidth) return null
+        val flight = group.flightOf(groupId) ?: return null
+        return flight.bounds.takeUnless { flight.still || flight.bounds.width < compactWidth - 1f ||
+            flight.bounds.width > expandedWidth + 1f }
+    }
+}
+
+@Composable
+private fun WithTabBarPlane(plane: FluidGlassContainerState?, content: @Composable () -> Unit) {
+    if (plane == null) content() else CompositionLocalProvider(LocalFluidGlassContainer provides plane, content = content)
+}
+
+internal fun tabBarInkExtent(width: Float, expanded: Float, compact: Float): Float =
+    if (expanded <= compact) 0f else ((width - compact) / (expanded - compact)).coerceIn(0f, 1f)
+
+private fun Modifier.recordTabCenter(field: TabBarField?, tab: Any, label: Boolean = false): Modifier =
+    if (field == null) this else onGloballyPositioned { field.recordCenter(tab, label, it) }
+
+internal fun tabBarInkOffset(openOffset: Float, extent: Float) = openOffset * extent * extent
+
+internal fun tabBarLeavingAlpha(extent: Float): Float {
+    val u = ((extent - 0.5f) * 2f).coerceIn(0f, 1f)
+    return u * u * u * u * u
+}
+
+/** Inchiostro del viaggio sul palco F3. Il centro della cella raggiunge il centro del tondo. */
+@Composable
+private fun TabBarFlightInk(
+    field: TabBarField, scope: FluidFloatingTabBarScopeImpl, selected: Any?, searching: Boolean,
+    sizes: FluidFloatingTabBarSizes, modifier: Modifier,
+) {
+    val visible by remember(field) { derivedStateOf { field.travellingBounds() != null } }
+    if (!visible) return
+    val kept = scope.getInlineTab(selected, searching) ?: return
+    val tabs = scope.tabs
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val ordinary = floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme)
+    Box(modifier.clearAndSetSemantics { }) {
+        tabs.forEachIndexed { index, tab ->
+            val stays = kept.key == tab.key
+            @Composable fun Ink(label: Boolean, content: @Composable () -> Unit) {
+                Box(Modifier.align(Alignment.TopStart).graphicsLayer {
+                    val bounds = field.travellingBounds()
+                    if (bounds == null) {
+                        alpha = 0f
+                    } else {
+                        val extent = tabBarInkExtent(bounds.width, field.expandedWidth.toFloat(), field.compactWidth.toFloat())
+                        val sign = if (rtl) -1f else 1f
+                        val inset = sizes.tabBarContentPadding.calculateLeftPadding(if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr).toPx()
+                        val span = field.expandedWidth - 2f * inset + sizes.tabSpacing.toPx()
+                        val slot = ((index + 0.5f) / tabs.size - 0.5f) * span * sign
+                        val originX = if (rtl) (field.group.coordinates?.size?.width ?: 0) - size.width else 0f
+                        val center = field.center(tab.key, label)
+                        translationX = bounds.center.x + tabBarInkOffset(center?.x ?: slot, extent) - size.width / 2f - originX
+                        val offsetY = center?.y ?: (if (label) 14.dp else (-7).dp).toPx()
+                        translationY = bounds.center.y + offsetY * extent - size.height / 2f
+                        alpha = if (stays && !label) 1f else tabBarLeavingAlpha(extent)
+                        val blur = (1f - alpha) * 6.dp.toPx()
+                        renderEffect = if (blur > 0.1f) BlurEffect(blur, blur) else null
+                    }
+                }) { FluidGlassNested { content() } }
+            }
+            CompositionLocalProvider(
+                LocalContentColor provides if (stays && tab.key == selected) field.accent else ordinary,
+                LocalFluidIconSize provides FluidMetrics.TabBarIconSize,
+                LocalTextStyle provides FluidFloatingTabBarDefaults.labelStyle(),
+            ) {
+                Ink(false, tab.icon)
+                Ink(true, tab.title)
+            }
+        }
+    }
+}
+
+private val LocalTabBarField = staticCompositionLocalOf<TabBarField?> { null }
+
+/** Il riferimento verticale del palco è il fondo. Il chiamante continua a misurare la sola altezza della barra. */
+@Composable
+private fun TabBarFieldHost(
+    modifier: Modifier,
+    backdrop: GlassBackdropState?,
+    sizes: FluidFloatingTabBarSizes,
+    visual: FluidFloatingTabBarVisual,
+    scope: FluidFloatingTabBarScopeImpl,
+    selected: Any?,
+    accent: Color?,
+    content: @Composable () -> Unit,
+) {
+    if (backdrop == null) {
+        Box(modifier, propagateMinConstraints = true) { content() }
+        return
+    }
+    val namespace = rememberFluidGlassNamespace()
+    val tint = GlassDefaults.floatingTint()
+    val searching = visual == FluidFloatingTabBarVisual.SEARCH_EXPANDED
+    val motion = if (searching) FluidMotion.TabBarSearch else FluidMotion.FloatingTabFold
+    val animation = remember(motion) { FluidGlassAnimation.Custom(motion) }
+    val playerAnimation = remember { FluidGlassAnimation.Custom(FluidMotion.TabBarPlayer) }
+    // Tre superfici con lo stesso sistema di coordinate. I loro percorsi possono incrociarsi senza un collo.
+    FluidGlassContainer(
+        modifier.layout { measurable, constraints ->
+            val stage = measurable.measure(constraints)
+            val occupied = stage[TabBarOccupiedHeight].coerceIn(constraints.minHeight, constraints.maxHeight)
+            layout(stage.width, occupied) { stage.place(0, occupied - stage.height) }
+        }, spacing = 0.dp, animation = playerAnimation, propagateMinConstraints = true,
+    ) {
+        val player = checkNotNull(LocalFluidGlassContainer.current)
+        FluidGlassContainer(spacing = 0.dp, animation = animation, propagateMinConstraints = true) {
+            val group = checkNotNull(LocalFluidGlassContainer.current)
+            val primary = accent ?: MaterialTheme.colorScheme.primary
+            val field = remember(backdrop, namespace, tint, group, player, primary) { TabBarField(backdrop, namespace, tint, group, player, primary) }
+            FluidGlassContainer(spacing = 0.dp, animation = animation, propagateMinConstraints = true) {
+                CompositionLocalProvider(LocalTabBarField provides field) {
+                    Box(propagateMinConstraints = true) {
+                        Box(Modifier.layout { measurable, constraints ->
+                            val bar = measurable.measure(constraints)
+                            val fieldHeight = maxOf(bar.height, (sizes.barHeight * 2 + sizes.componentSpacing).roundToPx())
+                            val height = fieldHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
+                            layout(bar.width, height, mapOf(TabBarOccupiedHeight to bar.height)) { bar.place(0, height - bar.height) }
+                        }, propagateMinConstraints = true) { content() }
+                        TabBarFlightInk(field, scope, selected, searching, sizes, Modifier.matchParentSize())
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Modifier.tabBarPane(
+    piece: TabBarPiece, shape: Shape, elevation: Dp, background: Color, pane: Modifier, compact: Boolean = false,
+): Modifier {
+    val field = LocalTabBarField.current
+    return if (field != null) {
+        val measured = if (piece == TabBarPiece.Group) onSizeChanged {
+            if (compact) field.compactWidth = it.width else field.expandedWidth = it.width
+        } else this
+        val anchor = if (piece == TabBarPiece.Group && !compact) measured.onGloballyPositioned { field.expandedLayout = it } else measured
+        val glass = anchor.fluidGlassId(piece, field.namespace).fluidGlassPanel(field.backdrop, field.tint, shape)
+        if (piece == TabBarPiece.Group) glass.graphicsLayer { alpha = if (field.travellingBounds() == null) 1f else 0f } else glass
+    } else {
+        barShadow(shape, elevation, pane !== Modifier).background(background, shape).clip(shape).then(pane)
     }
 }
 
@@ -1260,23 +1573,17 @@ private fun Modifier.accessoryBand(
     elevation: Dp,
     tabBarContentModifier: Modifier,
 ): Modifier {
-    val hasGlassPane = tabBarContentModifier !== Modifier
-    return this
-        .barShadow(shape = shapes.accessoryShape, elevation = elevation, hasGlassPane = hasGlassPane)
-        .then(
-            if (hasGlassPane) {
-                Modifier
-            } else {
-                Modifier.background(color = colors.accessoryBackgroundColor, shape = shapes.accessoryShape)
-            }
-        )
-        .clip(shapes.accessoryShape)
-        .then(tabBarContentModifier)
+    return tabBarPane(
+        TabBarPiece.Accessory, shapes.accessoryShape, elevation,
+        if (tabBarContentModifier === Modifier) colors.accessoryBackgroundColor else Color.Transparent,
+        tabBarContentModifier,
+    )
 }
 
 @Composable
 private fun SharedTransitionScope.InlineTab(
     inlineTab: FluidFloatingTabBarTab,
+    selected: Boolean,
     onInlineTabClick: () -> Unit,
     shapes: FluidFloatingTabBarShapes,
     sizes: FluidFloatingTabBarSizes,
@@ -1291,7 +1598,7 @@ private fun SharedTransitionScope.InlineTab(
     // che risponde con un'onda di un altro materiale e' una barra che non e' tutta dello stesso vetro.
     val glowScope = rememberCoroutineScope()
     val onDark = GlassDefaults.isDarkSurface()
-    val onGlass = tabBarContentModifier !== Modifier
+    val onGlass = LocalTabBarField.current != null || tabBarContentModifier !== Modifier
     val glow = remember(glowScope, onDark, onGlass) {
         GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
     }
@@ -1308,17 +1615,7 @@ private fun SharedTransitionScope.InlineTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .barShadow(
-                shape = shapes.tabBarShape,
-                elevation = elevations.inlineElevation,
-                hasGlassPane = tabBarContentModifier !== Modifier
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.tabBarShape
-            )
-            .clip(shapes.tabBarShape)
-            .then(tabBarContentModifier)
+            .tabBarPane(TabBarPiece.Group, shapes.tabBarShape, elevations.inlineElevation, colors.backgroundColor, tabBarContentModifier, compact = true)
             .then(glow.gestureModifier)
             .then(glow.modifier)
             .tapClickable(
@@ -1339,7 +1636,9 @@ private fun SharedTransitionScope.InlineTab(
                         zIndexInOverlay = 1f
                     )
                 ) {
-                    inlineTab.icon()
+                    val field = LocalTabBarField.current
+                    if (field != null && selected) CompositionLocalProvider(LocalContentColor provides field.accent) { inlineTab.icon() }
+                    else inlineTab.icon()
                 }
             },
             title = { inlineTab.title() },
@@ -1348,9 +1647,24 @@ private fun SharedTransitionScope.InlineTab(
     }
 }
 
+/** La destinazione isolata resta riconoscibile mentre il colore della selezione passa al suo glifo. */
+@Composable
+private fun StandaloneTabIcon(tab: FluidFloatingTabBarTab, selected: Boolean) {
+    if (tab.role == FluidTabRole.Standard) {
+        tab.icon()
+        return
+    }
+    val amount by animateFloatAsState(if (selected) 1f else 0f,
+        if (LocalFluidMotionPolicy.current.reducedMotion) snap() else FluidMotion.crossFade(),
+        label = "standaloneSelection")
+    val color = androidx.compose.ui.graphics.lerp(LocalContentColor.current, MaterialTheme.colorScheme.primary, amount)
+    CompositionLocalProvider(LocalContentColor provides color) { tab.icon() }
+}
+
 @Composable
 private fun SharedTransitionScope.InlineStandaloneTab(
     standaloneTab: FluidFloatingTabBarTab,
+    selected: Boolean,
     shapes: FluidFloatingTabBarShapes,
     sizes: FluidFloatingTabBarSizes,
     colors: FluidFloatingTabBarColors,
@@ -1365,13 +1679,13 @@ private fun SharedTransitionScope.InlineStandaloneTab(
     val onDark = GlassDefaults.isDarkSurface()
     // Un pannello c'e' (quello della barra, o quello che l'app ha passato): la luce del dito si
     // somma invece di stendere nero su una faccia che trasmette. Vedi il puck in `ExpandedTabs`.
-    val onGlass = tabBarContentModifier !== Modifier
+    val onGlass = LocalTabBarField.current != null || tabBarContentModifier !== Modifier
     val glow = remember(glowScope, onDark, onGlass) {
         GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
     }
 
     Tab(
-        icon = standaloneTab.icon,
+        icon = { StandaloneTabIcon(standaloneTab, selected) },
         title = standaloneTab.title,
         isInline = true,
         isStandalone = true,
@@ -1381,24 +1695,15 @@ private fun SharedTransitionScope.InlineStandaloneTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .barShadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.inlineElevation,
-                hasGlassPane = tabBarContentModifier !== Modifier
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier)
+            .tabBarPane(TabBarPiece.Standalone, shapes.standaloneTabShape, elevations.inlineElevation, colors.backgroundColor, tabBarContentModifier)
+            .then(if (standaloneTab.role == FluidTabRole.Standard) Modifier else Modifier.semantics { this.selected = selected })
             .then(glow.gestureModifier)
             .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick,
                 // pm-f1/ge (E03): un tasto, non una zona.
-                role = Role.Button
+                role = if (standaloneTab.role == FluidTabRole.Standard) Role.Button else Role.Tab
             )
             // Unlike the regular tab pill (InlineTab, ExpandedTabs), this circle had
             // no inset at all — the icon sat flush against its edge.
@@ -1435,17 +1740,15 @@ private fun SharedTransitionScope.InlineAccessory(
                     }
                 )
         ) {
-            accessory(
-                Modifier
+            val band = Modifier
                     .fillMaxSize()
                     .accessoryBand(
                         shapes = shapes,
                         colors = colors,
                         elevation = elevations.inlineElevation,
                         tabBarContentModifier = tabBarContentModifier,
-                    ),
-                animatedVisibilityScope
-            )
+                    )
+            FluidGlassNested { accessory(band, animatedVisibilityScope) }
         }
     }
 }
@@ -1511,11 +1814,13 @@ private fun SharedTransitionScope.ExpandedBar(
             barWidth = barWidthPx.toDp(),
             standaloneWidth = circleWidthPx.toDp(),
             // No circle, no gap to leave for one.
-            gap = if (standaloneTab != null) sizes.componentSpacing else 0.dp,
+            gap = if (standaloneTab != null) tabBarGap(sizes, standaloneTab.role) else 0.dp,
             inset = sizes.tabBarContentPadding.calculateStartPadding(layoutDirection) +
                 sizes.tabBarContentPadding.calculateEndPadding(layoutDirection),
             tabsCount = tabsCount,
-            preferred = sizes.tabWidth,
+            preferred = if (standaloneTab != null && standaloneTab.role != FluidTabRole.Standard)
+                maxOf(sizes.tabWidth, (sizes.barHeight * 5.23f - sizes.tabBarContentPadding.calculateStartPadding(layoutDirection) -
+                    sizes.tabBarContentPadding.calculateEndPadding(layoutDirection)) / tabsCount.coerceAtLeast(1)) else sizes.tabWidth,
         )
         if (fitted != sizes.tabWidth) sizes.copy(tabWidth = fitted) else sizes
     }
@@ -1532,24 +1837,26 @@ private fun SharedTransitionScope.ExpandedBar(
         modifier = Modifier.fillMaxWidth().onSizeChanged { barWidthPx = it.width }
     ) {
         if (accessory != null) {
-            ExpandedAccessory(
-                accessory = accessory,
-                isAccessoryShared = isAccessoryShared,
-                shapes = shapes,
-                colors = colors,
-                elevations = elevations,
-                tabBarContentModifier = tabBarContentModifier,
-                animatedVisibilityScope = animatedVisibilityScope,
-                modifier = if (tabRowWidthPx > 0) {
-                    Modifier.width(with(density) { tabRowWidthPx.toDp() })
-                } else {
-                    Modifier.fillMaxWidth()
-                }
-            )
+            WithTabBarPlane(LocalTabBarField.current?.player) {
+                ExpandedAccessory(
+                    accessory = accessory,
+                    isAccessoryShared = isAccessoryShared,
+                    shapes = shapes,
+                    colors = colors,
+                    elevations = elevations,
+                    tabBarContentModifier = tabBarContentModifier,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = if (tabRowWidthPx > 0) {
+                        Modifier.width(with(density) { tabRowWidthPx.toDp() })
+                    } else {
+                        Modifier.fillMaxWidth()
+                    }
+                )
+            }
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+            horizontalArrangement = Arrangement.spacedBy(tabBarGap(sizes, scope.standaloneTab?.role)),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .height(IntrinsicSize.Max)
@@ -1565,32 +1872,35 @@ private fun SharedTransitionScope.ExpandedBar(
                 }
         ) {
             if (hasTabGroup) {
-                ExpandedTabs(
-                    scope = scope,
-                    selectedTabKey = selectedTabKey,
-                    shapes = shapes,
-                    sizes = fittedSizes,
-                    colors = colors,
-                    elevations = elevations,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    tabBarContentModifier = tabBarContentModifier,
-                    appSuppliesPane = appSuppliesPane,
-                    backdrop = backdrop,
-                    // The app's accent, when the caller has not named one. It used to be
-                    // `colors.backgroundColor` — the bar's own fill — which tinted the hidden row
-                    // the exact colour of the surface it sits on, so the accent-tinted copy of the
-                    // icon the puck exists to show was tinted into invisibility.
-                    accentColor = accentColor ?: MaterialTheme.colorScheme.primary,
-                    // Weighted, so the row can never hand it more than what is
-                    // left beside the circle; fill = false so a wide screen
-                    // does not stretch it past its own width either.
-                    modifier = Modifier.weight(1f, fill = false)
-                )
+                WithTabBarPlane(LocalTabBarField.current?.group) {
+                    ExpandedTabs(
+                        scope = scope,
+                        selectedTabKey = selectedTabKey,
+                        shapes = shapes,
+                        sizes = fittedSizes,
+                        colors = colors,
+                        elevations = elevations,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        tabBarContentModifier = tabBarContentModifier,
+                        appSuppliesPane = appSuppliesPane,
+                        backdrop = backdrop,
+                        // The app's accent, when the caller has not named one. It used to be
+                        // `colors.backgroundColor` — the bar's own fill — which tinted the hidden row
+                        // the exact colour of the surface it sits on, so the accent-tinted copy of the
+                        // icon the puck exists to show was tinted into invisibility.
+                        accentColor = accentColor ?: MaterialTheme.colorScheme.primary,
+                        // Weighted, so the row can never hand it more than what is
+                        // left beside the circle; fill = false so a wide screen
+                        // does not stretch it past its own width either.
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
             }
 
             if (standaloneTab != null) {
                 ExpandedStandaloneTab(
                     standaloneTab = standaloneTab,
+                selected = standaloneTab.role != FluidTabRole.Standard && standaloneTab.key == selectedTabKey,
                     shapes = shapes,
                     sizes = sizes,
                     colors = colors,
@@ -1645,7 +1955,7 @@ private fun SharedTransitionScope.SearchExpandedBar(
     // width.
     targetWidthPx: Int?,
 ) {
-    val inlineTab = scope.getInlineTab(selectedTabKey)
+    val inlineTab = scope.getInlineTab(selectedTabKey, searching = true)
     val density = LocalDensity.current
     val targetWidthModifier = if (targetWidthPx != null && targetWidthPx > 0) {
         Modifier.width(with(density) { targetWidthPx.toDp() })
@@ -1659,20 +1969,22 @@ private fun SharedTransitionScope.SearchExpandedBar(
         modifier = Modifier.fillMaxWidth()
     ) {
         if (accessory != null) {
-            ExpandedAccessory(
-                accessory = accessory,
-                isAccessoryShared = isAccessoryShared,
-                shapes = shapes,
-                colors = colors,
-                elevations = elevations,
-                tabBarContentModifier = tabBarContentModifier,
-                animatedVisibilityScope = animatedVisibilityScope,
-                modifier = targetWidthModifier
-            )
+            WithTabBarPlane(LocalTabBarField.current?.player) {
+                ExpandedAccessory(
+                    accessory = accessory,
+                    isAccessoryShared = isAccessoryShared,
+                    shapes = shapes,
+                    colors = colors,
+                    elevations = elevations,
+                    tabBarContentModifier = tabBarContentModifier,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    modifier = targetWidthModifier
+                )
+            }
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+            horizontalArrangement = Arrangement.spacedBy(tabBarGap(sizes, scope.standaloneTab?.role)),
             verticalAlignment = Alignment.CenterVertically,
             // Fixed rather than IntrinsicSize.Max: matches the mini player's own
             // inline (shrunk) height exactly instead of letting a short
@@ -1680,20 +1992,23 @@ private fun SharedTransitionScope.SearchExpandedBar(
             modifier = Modifier.height(SearchBarRowHeight).then(targetWidthModifier)
         ) {
             if (inlineTab != null) {
-                InlineTab(
-                    inlineTab = inlineTab,
-                    // Already expanded — a tap here should just navigate
-                    // (inlineTab.onClick, fired inside InlineTab itself), not
-                    // trigger the inline scroll-connection's expand().
-                    onInlineTabClick = {},
-                    shapes = shapes,
-                    sizes = sizes,
-                    colors = colors,
-                    elevations = elevations,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    tabBarContentModifier = tabBarContentModifier,
-                    modifier = Modifier.fillMaxHeight()
-                )
+                WithTabBarPlane(LocalTabBarField.current?.group) {
+                    InlineTab(
+                        inlineTab = inlineTab,
+                        selected = inlineTab.key == selectedTabKey,
+                        // Already expanded — a tap here should just navigate
+                        // (inlineTab.onClick, fired inside InlineTab itself), not
+                        // trigger the inline scroll-connection's expand().
+                        onInlineTabClick = {},
+                        shapes = shapes,
+                        sizes = sizes,
+                        colors = colors,
+                        elevations = elevations,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        tabBarContentModifier = tabBarContentModifier,
+                        modifier = Modifier.fillMaxHeight()
+                    )
+                }
             }
 
             searchBarContent(
@@ -1707,19 +2022,16 @@ private fun SharedTransitionScope.SearchExpandedBar(
                     // smoothly, and lets the search-inline (scrolled) state morph back
                     // down to a circle too.
                     .sharedElement(
-                        sharedContentState = rememberSharedContentState("standaloneTab"),
+                        sharedContentState = rememberSharedContentState(if (scope.standaloneTab?.role == FluidTabRole.Prominent) "searchField" else "standaloneTab"),
                         animatedVisibilityScope = animatedVisibilityScope,
                         zIndexInOverlay = 1f
                     )
-                    .barShadow(
-                        shape = shapes.tabBarShape,
-                        elevation = elevations.expandedElevation,
-                        hasGlassPane = tabBarContentModifier !== Modifier
-                    )
-                    .background(color = colors.backgroundColor, shape = shapes.tabBarShape)
-                    .clip(shapes.tabBarShape)
-                    .then(tabBarContentModifier)
+                    .tabBarPane(if (scope.standaloneTab?.role == FluidTabRole.Prominent) TabBarPiece.Search else TabBarPiece.Standalone, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier)
             )
+            scope.standaloneTab?.takeIf { it.role == FluidTabRole.Prominent }?.let { prominent ->
+                ExpandedStandaloneTab(prominent, prominent.key == selectedTabKey, shapes, sizes, colors, elevations,
+                    animatedVisibilityScope, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true), tabBarContentModifier)
+            }
         }
     }
 }
@@ -1727,6 +2039,7 @@ private fun SharedTransitionScope.SearchExpandedBar(
 @Composable
 private fun SharedTransitionScope.ExpandedStandaloneTab(
     standaloneTab: FluidFloatingTabBarTab,
+    selected: Boolean,
     shapes: FluidFloatingTabBarShapes,
     sizes: FluidFloatingTabBarSizes,
     colors: FluidFloatingTabBarColors,
@@ -1741,13 +2054,13 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
     val onDark = GlassDefaults.isDarkSurface()
     // Un pannello c'e' (quello della barra, o quello che l'app ha passato): la luce del dito si
     // somma invece di stendere nero su una faccia che trasmette. Vedi il puck in `ExpandedTabs`.
-    val onGlass = tabBarContentModifier !== Modifier
+    val onGlass = LocalTabBarField.current != null || tabBarContentModifier !== Modifier
     val glow = remember(glowScope, onDark, onGlass) {
         GlassTouchHighlight(animationScope = glowScope, onDarkSurface = onDark, onGlass = onGlass)
     }
 
     Tab(
-        icon = standaloneTab.icon,
+        icon = { StandaloneTabIcon(standaloneTab, selected) },
         title = standaloneTab.title,
         isInline = true,
         isStandalone = true,
@@ -1757,24 +2070,15 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .barShadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.expandedElevation,
-                hasGlassPane = tabBarContentModifier !== Modifier
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier)
+            .tabBarPane(TabBarPiece.Standalone, shapes.standaloneTabShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier)
+            .then(if (standaloneTab.role == FluidTabRole.Standard) Modifier else Modifier.semantics { this.selected = selected })
             .then(glow.gestureModifier)
             .then(glow.modifier)
             .tapClickable(
                 indication = standaloneTab.indication?.invoke(),
                 onClick = standaloneTab.onClick,
                 // pm-f1/ge (E03): un tasto, non una zona.
-                role = Role.Button
+                role = if (standaloneTab.role == FluidTabRole.Standard) Role.Button else Role.Tab
             )
             // Unlike the regular tab pill (ExpandedTabs), this circle had no inset
             // at all — the icon sat flush against its edge.
@@ -1810,15 +2114,13 @@ private fun SharedTransitionScope.ExpandedAccessory(
                 }
             )
     ) {
-        accessory(
-            Modifier.accessoryBand(
+        val band = Modifier.accessoryBand(
                 shapes = shapes,
                 colors = colors,
                 elevation = elevations.expandedElevation,
                 tabBarContentModifier = tabBarContentModifier,
-            ),
-            animatedVisibilityScope
-        )
+            )
+        FluidGlassNested { accessory(band, animatedVisibilityScope) }
     }
 }
 
@@ -1840,6 +2142,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     // The standalone tab (e.g. search) never appears here — it's always its
     // own floating circle, rendered as a sibling by ExpandedBar (see
     // ExpandedStandaloneTab). Only the regular tabs form this pill/puck group.
+    val field = LocalTabBarField.current
     val allTabs = scope.tabs
     val tabsCount = allTabs.size
     if (tabsCount == 0) return
@@ -1849,10 +2152,12 @@ private fun SharedTransitionScope.ExpandedTabs(
     // Home started selected, so its frozen onClick did scroll-to-top forever
     // instead of navigating. Read the live tabs through this instead.
     val currentTabs = rememberUpdatedState(allTabs)
+    val tabKeys = allTabs.map { it.key }
 
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val isLtr = layoutDirection == LayoutDirection.Ltr
+    val standaloneSelected by rememberUpdatedState(scope.standaloneTab?.let { it.role != FluidTabRole.Standard && it.key == selectedTabKey } == true)
     val animationScope = rememberCoroutineScope()
     val glassConfig = LocalFluidFloatingTabBarGlass.current
     // LOCAL CHANGE (pm-f1/ge, E02): con il movimento ridotto la pillola arriva al suo posto invece di
@@ -1958,7 +2263,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     // Read out here: what is below is a remembered object, not composition, and
     // a local cannot be asked for from inside one.
     val crossingHaptics = LocalFluidHaptics.current
-    val dampedDragAnimation = remember(animationScope, tabsCount) {
+    val dampedDragAnimation = remember(animationScope, tabsCount, isLtr) {
         GlassDragAnimation(
             animationScope = animationScope,
             initialValue = currentIndex.toFloat(),
@@ -2012,11 +2317,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
                 }
             },
-            // No `velocityDampingRatio`, so it is the library's 0.5: UNDERdamped, and on
-            // purpose. The stretch overshoots and rings a little after every change of
-            // speed — it is the jelly that feels right in the hand on this puck, and it is
-            // the same spring the slider and the switch thumbs have. (This note used to say
-            // the opposite, "critically damped", about a value that was never set to 1.)
+            velocityDampingRatio = if (field != null) 1f else 0.5f,
         )
     }
     // False until this bar has run its selection sync once. Expanding back from
@@ -2031,7 +2332,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     var hasSyncedSelection by remember(tabsCount) { mutableStateOf(false) }
     // Keeps the puck synced when selection changes from a tap (or external
     // navigation) rather than a drag on this bar.
-    LaunchedEffect(selectedTabKey, tabsCount) {
+    LaunchedEffect(selectedTabKey, tabKeys) {
         val index = allTabs.indexOfFirst { it.key == selectedTabKey }
         if (index != -1) {
             currentIndex = index
@@ -2067,7 +2368,7 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     val onDarkBar = GlassDefaults.isDarkSurface()
     // Il pannello esiste se la barra se lo fa da sola (c'e' un fondale) o se l'app ne ha passato uno.
-    val onGlass = tabBarContentModifier !== Modifier
+    val onGlass = LocalTabBarField.current != null || tabBarContentModifier !== Modifier
     val interactiveHighlight = remember(animationScope, onDarkBar, onGlass) {
         GlassTouchHighlight(
             animationScope = animationScope,
@@ -2145,7 +2446,6 @@ private fun SharedTransitionScope.ExpandedTabs(
     ) {
         rememberLiquidPuck(
             tabShape = shapes.tabShape,
-            tabBarShape = shapes.tabBarShape,
             optics = paneOptics,
             darkSide = onDarkBar,
             barShortSideDp = sizes.barHeight.value,
@@ -2193,25 +2493,64 @@ private fun SharedTransitionScope.ExpandedTabs(
                 sharedContentState = rememberSharedContentState("tabGroup"),
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
-            ),
+            )
+            .then(if (field == null) Modifier else Modifier.pointerInput(dampedDragAnimation, tabKeys, isLtr) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val width = liveTabWidthPx.coerceAtLeast(1f)
+                    fun slot(x: Float): Float = tabBarSlot(x, size.width.toFloat(), paddingStartPx, width, tabsCount, isLtr)
+                    val first = slot(down.position.x)
+                    val onPuck = !standaloneSelected && abs(first - dampedDragAnimation.value) <= 0.5f
+                    val start = if (onPuck) down else awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                    dampedDragAnimation.press()
+                    var dragging = !onPuck
+                    var position = if (onPuck) dampedDragAnimation.value else slot(start.position.x)
+                    var previous = position.roundToInt()
+                    if (dragging) dampedDragAnimation.updateValue(position)
+                    try {
+                        do {
+                            val touch = awaitPointerEvent(if (dragging) PointerEventPass.Initial else PointerEventPass.Main).changes.firstOrNull { it.id == start.id } ?: break
+                            if (touch.isConsumed && touch.pressed) break
+                            if (!touch.pressed) {
+                                if (dragging && !touch.isConsumed) {
+                                    touch.consume()
+                                    val target = position.roundToInt()
+                                    currentIndex = target
+                                    if (reducedMotionState.value) dampedDragAnimation.snapToValue(target.toFloat())
+                                    else dampedDragAnimation.updateValue(target.toFloat())
+                                    currentTabs.value.getOrNull(target)?.onClick?.invoke()
+                                }
+                                break
+                            }
+                            if (!dragging && abs(touch.position.x - down.position.x) > viewConfiguration.touchSlop) dragging = true
+                            if (dragging) {
+                                position = (first + (touch.position.x - down.position.x) / width * if (isLtr) 1 else -1)
+                                    .coerceIn(0f, (tabsCount - 1).toFloat())
+                                touch.consume()
+                                dampedDragAnimation.updateValue(position)
+                                if (previous != position.roundToInt()) crossingHaptics.play(FluidHapticEvent.Tick)
+                                previous = position.roundToInt()
+                            }
+                        } while (true)
+                    } finally {
+                        dampedDragAnimation.updateValue(currentIndex.toFloat())
+                        dampedDragAnimation.release()
+                    }
+                }
+            })
+            .then(if (field != null) Modifier.tabBarPane(
+                TabBarPiece.Group, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier,
+            ) else Modifier),
     ) {
         Row(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer { translationX = panelOffset }
-                .barShadow(
-                    shape = shapes.tabBarShape,
-                    elevation = elevations.expandedElevation,
-                    hasGlassPane = tabBarContentModifier !== Modifier
-                )
-                .background(
-                    color = colors.backgroundColor,
-                    shape = shapes.tabBarShape
-                )
-                .clip(shapes.tabBarShape)
-                .then(tabBarContentModifier)
+                .then(if (field == null) Modifier.tabBarPane(TabBarPiece.Group, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier) else Modifier)
                 .then(interactiveHighlight.modifier)
-                .padding(sizes.tabBarContentPadding),
+                .padding(sizes.tabBarContentPadding)
+                // La lente legge i glifi fermi dalla riga visibile, anche a pressione zero.
+                .then(if (liquidPuck != null) Modifier.layerBackdrop(tabsBackdrop) else Modifier),
             horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
         ) {
             allTabs.forEachIndexed { index, tab ->
@@ -2223,7 +2562,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     icon = {
                         if (badge == null) {
                         Box(
-                            modifier = Modifier
+                            modifier = Modifier.recordTabCenter(field, tab.key)
                                 .graphicsLayer {
                                     // Unselected tabs sat back at 60% until 4.0; now at full ink, like
                                     // Apple's (R6: 4,8:1 against 17:1). The selected one is never dimmed,
@@ -2268,7 +2607,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                             ) {
                                 FluidTabBadgeAnchor(badge) {
                                     Box(
-                                        Modifier.graphicsLayer {
+                                        Modifier.recordTabCenter(field, tab.key).graphicsLayer {
                                             alpha = if (tab.key == selectedTabKey) 1f else FluidTabUnselectedIconAlpha
                                         }
                                     ) {
@@ -2280,7 +2619,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     },
                     title = {
                         Box(
-                            Modifier.animateEnterExitTab(
+                            Modifier.recordTabCenter(field, tab.key, label = true).animateEnterExitTab(
                                 sharedTransitionScope = this@ExpandedTabs,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -2384,7 +2723,7 @@ private fun SharedTransitionScope.ExpandedTabs(
         // every frame the bar is on screen, which is every frame of every scroll:
         // measured at 8ms a frame on the home page, for a tint that only exists
         // while a finger is on the puck. Composed when that happens instead.
-        if (backdrop != null && tabsTinted) {
+        if (backdrop != null && tabsTinted && liquidPuck == null) {
             // Dal raggio di base e dal ruolo, come il pannello della barra (`glassSurface` fa la
             // stessa moltiplicazione): una frazione stabile, non qualcosa da ricalcolare a ogni
             // fotogramma. La regola della taglia non entra: e' dinamica, e sotto i 64 dp di una
@@ -2428,18 +2767,6 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // LOCAL CHANGE (F1B.4): sul materiale nuovo la riga e' il materiale della barra (vedi
                     // [LiquidPuck.rowModifier]). Il ramo `else` e' la catena di sempre, lasciata com'era anche
                     // nell'indentazione: la `.drawBackdrop(` qui sotto continua `else Modifier`.
-                    .then(if (liquidPuck != null) {
-                        liquidPuck.rowModifier(
-                            backdrop = backdrop,
-                            background = colors.backgroundColor,
-                            frozen = rememberFrozenOr(LocalFluidTabBarBackdropFrozen.current, tintedRowSettled),
-                        )
-                    } else Modifier
-                    // Ported from LiquidBottomTabs: this hidden row isn't just a
-                    // tinted icon cutout, it's a real blurred/lensed glass sample
-                    // of the screen behind the bar — that's what makes the puck
-                    // below look like it's made of the *bar's* frosted material
-                    // (not a flat color) when it slides underneath.
                     .drawBackdrop(
                         backdrop = backdrop,
                         shape = { shapes.tabBarShape },
@@ -2499,7 +2826,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                         // hidden row at a fraction of surface resolution and let the
                         // blur hide the upscale — was left at the 1f (full-res)
                         // default here even though liquidGlass already uses this.
-                    )) // LOCAL CHANGE (F1B.4): chiude il `.then(` del ramo Liquid qui sopra.
+                    )
                     .then(interactiveHighlight.modifier)
                     // NOT a second .padding(sizes.tabBarContentPadding) here — the one
                     // above (before drawBackdrop) already insets this row's measured
@@ -2514,7 +2841,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // vivido (a conti fatti 2.2:1 sul verde della galleria; senza pellicola, misurato, 1.1:1).
                     // LOCAL CHANGE (F1B, giro di correzione): col materiale nuovo la riga porta l'etichetta che si legge
                     // sotto la pillola premuta: l'inchiostro del testo (a contrasto standard e' lo stesso).
-                    .graphicsLayer(colorFilter = ColorFilter.tint(if (liquidPuck != null) puckTextInk else puckInk)),
+                    .graphicsLayer(colorFilter = ColorFilter.tint(puckInk)),
                 horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing)
             ) {
                 allTabs.forEachIndexed { index, tab ->
@@ -2581,6 +2908,10 @@ private fun SharedTransitionScope.ExpandedTabs(
         // See the `frozen` argument below: the puck may only hold a capture once
         // it has one. A lambda so flipping it costs no recomposition — the glass
         // asks during draw.
+        val groupSelection = animateFloatAsState(if (standaloneSelected) 0f else 1f,
+            if (reducedMotion) snap() else FluidMotion.crossFade(), label = "groupSelection")
+        val showPuck by remember(groupSelection) { derivedStateOf { groupSelection.value > 0f } }
+        if (showPuck) {
         val tabBarFrozen = LocalFluidTabBarBackdropFrozen.current
         val puckFrozen = remember(tabBarFrozen, puckEnter) {
             { tabBarFrozen() && puckEnter.value >= 1f }
@@ -2590,16 +2921,16 @@ private fun SharedTransitionScope.ExpandedTabs(
                 .padding(sizes.tabBarContentPadding)
                 .graphicsLayer {
                     val enter = puckEnter.value
-                    alpha = enter
+                    alpha = enter * groupSelection.value
                     val enterScale = lerp(PuckEnterScale, 1f, enter)
                     scaleX = enterScale
                     scaleY = enterScale
                     translationX =
                         if (isLtr) dampedDragAnimation.value * tabWidthPx + panelOffset
-                        else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
+                        else -dampedDragAnimation.value * tabWidthPx + panelOffset
                 }
                 .then(interactiveHighlight.gestureModifier)
-                .then(dampedDragAnimation.modifier)
+                .then(if (field == null) dampedDragAnimation.modifier else Modifier)
                 .width(sizes.tabWidth)
                 .fillMaxHeight()
                 // The puck's shape in plain paint, under the glass, while it is
@@ -2629,26 +2960,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // LOCAL CHANGE (F1B.4): la pillola sul materiale nuovo (vedi [LiquidPuck]). Stessa scelta del
                     // fondo del ramo di sempre (pagina, o pagina piu' riga nascosta mentre e' premuta), stessa
                     // crescita e stesso squash, stesso fermo. Il resto di questo `if` e' com'era.
-                    if (liquidPuck != null && backdrop != null) {
-                        liquidPuck.puckModifier(
-                            backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
-                                .takeIf { sampledRowIsHidden } ?: backdrop,
-                            overRow = sampledRowIsHidden,
-                            layerBlock = {
-                                // Lo stesso `layerBlock` del ramo di sempre: crescita e squash della goccia.
-                                scaleX = dampedDragAnimation.scaleX
-                                scaleY = dampedDragAnimation.scaleY
-                                val squash = glassDropSquash(
-                                    velocity = dampedDragAnimation.velocity,
-                                    divisor = GlassDropRecipe.SquashDivisor,
-                                    signed = true,
-                                    reducedMotion = false
-                                )
-                                scaleX /= squash.xDivisor
-                                scaleY *= squash.yFactor
-                            },
-                            frozen = puckFrozen,
-                        )
+                    if (liquidPuck != null) {
+                        Modifier
                     } else if (backdrop != null) {
                         Modifier.drawBackdrop(
                             // Only combined while the hidden row above exists.
@@ -2798,8 +3111,30 @@ private fun SharedTransitionScope.ExpandedTabs(
                             .clip(shapes.tabShape)
                     }
                 )
-        )
+        ) {
+            if (liquidPuck != null && backdrop != null) {
+                val stretch: GraphicsLayerScope.() -> Unit = {
+                    val squash = glassDropSquash(dampedDragAnimation.velocity, GlassDropRecipe.SquashDivisor,
+                        signed = true, reducedMotion = reducedMotion)
+                    val scale = FluidMotion.tabLensScale(dampedDragAnimation.pressProgress, dampedDragAnimation.pressedScale)
+                    scaleX = scale / squash.xDivisor
+                    scaleY = scale * squash.yFactor
+                }
+                Box(Modifier.matchParentSize().then(liquidPuck.puckModifier(backdrop, stretch, puckFrozen)))
+                val pigment = ColorFilter.tint(puckTextInk)
+                Box(Modifier.matchParentSize().graphicsLayer { colorFilter = pigment }.drawBackdrop(
+                    backdrop = tabsBackdrop,
+                    shape = { shapes.tabShape },
+                    effects = {
+                        val press = dampedDragAnimation.pressProgress
+                        lens(10.dp.toPx() * press, 12.dp.toPx() * press, chromaticAberration = press > 0.01f)
+                    },
+                    layerBlock = stretch, highlight = null, shadow = null, nestInContainer = false,
+                ))
+            }
+        }
 
+        if (liquidPuck == null) {
         // The selected icon, drawn a second time above the puck.
         //
         // What shows *through* the puck is the hidden accent-tinted tab row
@@ -2824,7 +3159,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 .graphicsLayer {
                     translationX =
                         if (isLtr) dampedDragAnimation.value * tabWidthPx + panelOffset
-                        else size.width - (dampedDragAnimation.value + 1f) * tabWidthPx + panelOffset
+                        else -dampedDragAnimation.value * tabWidthPx + panelOffset
                     scaleX = dampedDragAnimation.scaleX
                     scaleY = dampedDragAnimation.scaleY
                     // Settled state only. Fades roughly three times faster than the
@@ -2836,7 +3171,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     // strength over a puck still growing under it read as two
                     // things appearing at different times.
                     alpha = (1f - dampedDragAnimation.pressProgress * 3f)
-                        .fastCoerceIn(0f, 1f) * puckEnter.value *
+                        .fastCoerceIn(0f, 1f) * puckEnter.value * groupSelection.value *
                         // F2.3b: con l'inchiostro della barra quando gira. Questa scheda ridisegnata sta fuori dalla
                         // dissolvenza del contenuto: sul tablet restava nell'accento del lato vecchio per i sei
                         // fotogrammi in cui il resto e' trasparente, e passava all'altro di colpo.
@@ -2849,17 +3184,6 @@ private fun SharedTransitionScope.ExpandedTabs(
                 .clearAndSetSemantics {},
         ) {
             currentTabs.value.getOrNull(puckIndex)?.let { tab ->
-                // LOCAL CHANGE (F1B.4): sul materiale nuovo la pillola non e' piu' tinta d'accento, e la scelta
-                // la dicono pillola e colore del glifo (R6, come in iOS): l'icona e l'etichetta ridisegnate qui
-                // prendono l'inchiostro della riga nascosta che si vede quando la pillola e' premuta, cosi' il
-                // colore non salta fra riposo e pressione. Un'icona con la sua tinta scritta la tiene. Sul vetro
-                // di prima niente cambia.
-                // LOCAL CHANGE (F1B, chiusura): quell'inchiostro e' `puckTextInk`, lo stesso della riga nascosta, non
-                // piu' `puckInk`. A contrasto standard sono lo stesso colore; a contrasto di sistema alto `puckInk`
-                // restava l'accento tal quale e sul tablet l'icona scendeva a 2,9:1 accanto all'etichetta a 8,8:1.
-                CompositionLocalProvider(
-                    LocalContentColor provides if (liquidPuck != null) puckTextInk else LocalContentColor.current,
-                ) {
                 // Must go through Tab, not just tab.icon(): Tab is a Column of
                 // icon THEN title, so drawing the icon alone centres it on the
                 // puck while the row centres it on the icon+title pair — which is
@@ -2876,13 +3200,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                         { FluidTabBadgeAnchor(badge) { tab.icon() } }
                     },
                     // LOCAL CHANGE (F1B, giro di correzione): l'etichetta e' testo, col suo inchiostro (4,5:1).
-                    title = {
-                        if (liquidPuck != null) {
-                            CompositionLocalProvider(LocalContentColor provides puckTextInk) { tab.title() }
-                        } else {
-                            tab.title()
-                        }
-                    },
+                    title = tab.title,
                     isInline = false,
                     isStandalone = false,
                     // No press zoom: only visible at rest, where the row's own lerp
@@ -2892,33 +3210,17 @@ private fun SharedTransitionScope.ExpandedTabs(
                         .fillMaxSize()
                         .padding(sizes.tabExpandedContentPadding),
                 )
-                } // LOCAL CHANGE (F1B.4): chiude il `CompositionLocalProvider` dell'inchiostro.
             }
+        }
+        }
         }
     }
 }
 
-/**
- * LOCAL CHANGE (4.0, piano «iOS in Android» F1B.4): la pillola e la riga nascosta **sul materiale nuovo**
- * (`FluidGlassModel.Liquid`), coi profili di `glass/field/GlassPuckProfile.kt`.
- *
- * Tre superfici della ricetta (`GlassLiquidSurface`, la stessa classe che disegna ogni `glassSurface` `Liquid`):
- *  - [rest], la pillola a riposo: campiona la pagina cruda e rifa' il materiale della barra con sopra la selezione
- *    (`glassPuckProfile`);
- *  - [over], la pillola premuta: campiona la pagina **e** la riga nascosta, che porta gia' il materiale della barra,
- *    e ci posa solo la selezione (`glassPuckOverRowProfile`). Le due differiscono solo nella catena a monte e nel
- *    velo: la sagoma, la lente, il bordo e l'ombra sono gli stessi;
- *  - [row], la riga nascosta: il materiale della barra (`glassPuckRowProfile`).
- *
- * Geometria e tempi della pillola non cambiano: posizione, crescita sotto il dito, squash, comparsa, la riga nascosta
- * che esiste solo mentre la pillola e' premuta. Cambia cosa le veste. Sotto Android 13, con `FluidGlassModel.Classic`
- * o con una forma che il campo non sa rendere la barra non arriva qui e resta al pixel quella di prima.
- */
+/** La bolla conserva un solo materiale dalla pressione zero al rilascio. I glifi sono una seconda lettura trasparente. */
 @Stable
 private class LiquidPuck(
     val rest: GlassLiquidSurface,
-    val over: GlassLiquidSurface,
-    val row: GlassLiquidSurface,
     /** Il colore che cresce al posto della pillola mentre compare (vedi `puckEnter`): il suo velo. */
     val placeholder: Color,
 ) {
@@ -2926,40 +3228,12 @@ private class LiquidPuck(
     val shadow: Modifier =
         if (rest.castsShadow) Modifier.glassFieldShadow(rest.shadowOutline, rest.shadow) else Modifier
 
-    /**
-     * La riga nascosta: il materiale della barra sulla pagina, con il fondo della barra se l'app gliene ha dato uno.
-     * La luce no: il filo lo disegna la pillola, sulla sua sagoma.
-     */
-    fun rowModifier(backdrop: Backdrop, background: Color, frozen: () -> Boolean): Modifier = Modifier.drawBackdrop(
-        backdrop = backdrop,
-        shape = row.clipShapeBlock,
-        effects = row.effects,
-        highlight = null,
-        shadow = null,
-        innerShadow = null,
-        onDrawBackdrop = GlassLiquidOnDrawBackdrop,
-        onDrawSurface = if (background.alpha > 0f) {
-            { drawRect(background) }
-        } else {
-            null
-        },
-        backdropScale = row.captureScale,
-        frozen = frozen,
-        // Come la riga di sempre: e' il materiale del pannello rifatto dalla pagina cruda.
-        nestInContainer = false,
-    )
-
-    /**
-     * La pillola. [overRow] e' vero mentre campiona anche la riga nascosta: cambia nella stessa composizione che
-     * cambia [backdrop], quindi catena e fondo non si sfasano (come la sfocatura del ramo di sempre).
-     */
     fun puckModifier(
         backdrop: Backdrop,
-        overRow: Boolean,
         layerBlock: GraphicsLayerScope.() -> Unit,
         frozen: () -> Boolean,
     ): Modifier {
-        val surface = if (overRow) over else rest
+        val surface = rest
         return Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = surface.clipShapeBlock,
@@ -2995,7 +3269,6 @@ private class LiquidPuck(
 @Composable
 private fun rememberLiquidPuck(
     tabShape: Shape,
-    tabBarShape: Shape,
     optics: GlassOptics,
     darkSide: Boolean,
     barShortSideDp: Float,
@@ -3017,46 +3290,17 @@ private fun rememberLiquidPuck(
         { out, _ -> currentHost?.let { within -> out.unmeasured().also { it.darkness = within.sideNow } } }
     }
     // La pellicola cambia di rado (e' una scelta dell'app): quando cambia, le superfici si rifanno.
-    return remember(tabShape, tabBarShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm, preference) {
-        fun surface(
-            shape: Shape,
-            profile: GlassLiquidProfile,
-            pressedNow: () -> Float,
-            filmNow: () -> Color,
-            // LOCAL CHANGE (F1B, giro di correzione): la pillola ha la lente che sale con la pressione e il bordo pieno
-            // (`glassPuckOptics`, `glassPuckLensDepth`); la riga nascosta e' il materiale della barra, com'era.
-            puck: Boolean,
-        ) =
-            GlassLiquidSurface(
-                role = GlassRole.Floating,
-                optics = if (puck) glassPuckOptics(optics) else optics,
-                shape = shape,
-                darkSide = darkSide,
-                screenDensity = screenDensity,
-                intensity = { 1f },
-                opticalDepth = if (puck) {
-                    { glassPuckLensDepth(currentPressed()) }
-                } else {
-                    { 1f }
-                },
-                pressed = pressedNow,
-                quality = { quality?.level ?: 1f },
-                film = filmNow,
-                tint = { Color.Unspecified },
-                touch = { null },
-                profile = profile,
-                adaptive = fromHost,
-                preference = preference,
-            )
-        val restProfile = glassPuckProfile(barShortSideDp)
-        // La pellicola dell'app vince; senza, sotto contrasto, quella della barra con la selezione (`glassPuckFilm`).
+    return remember(tabShape, optics, darkSide, barShortSideDp, quality, screenDensity, film, barFilm, preference) {
+        val profile = glassPuckProfile(barShortSideDp)
         val restFilm = if (film.isSpecified) film else glassPuckFilm(barFilm, darkSide)
-        LiquidPuck(
-            rest = surface(tabShape, restProfile, { currentPressed() }, { restFilm }, puck = true),
-            over = surface(tabShape, glassPuckOverRowProfile(barShortSideDp), { currentPressed() }, { film }, puck = true),
-            row = surface(tabBarShape, glassPuckRowProfile(barShortSideDp), { 0f }, { barFilm }, puck = false),
-            placeholder = if (restFilm.isSpecified) restFilm else restProfile.veil(darkSide).color,
+        val surface = GlassLiquidSurface(
+            role = GlassRole.Floating, optics = glassPuckOptics(optics), shape = tabShape,
+            darkSide = darkSide, screenDensity = screenDensity, intensity = { 1f },
+            opticalDepth = { glassPuckLensDepth(currentPressed()) }, pressed = { currentPressed() },
+            quality = { quality?.level ?: 1f }, film = { restFilm }, tint = { Color.Unspecified },
+            touch = { null }, profile = profile, adaptive = fromHost, preference = preference,
         )
+        LiquidPuck(surface, if (restFilm.isSpecified) restFilm else profile.veil(darkSide).color)
     }
 }
 
@@ -3175,12 +3419,12 @@ private fun Tab(
                 }
             )
     ) {
-        icon()
+        FluidGlassNested { icon() }
         if (showTitle) {
             CompositionLocalProvider(
                 LocalTextStyle provides FluidFloatingTabBarDefaults.labelStyle()
             ) {
-                OneLine { title() }
+                OneLine { FluidGlassNested { title() } }
             }
         }
     }
@@ -3476,26 +3720,24 @@ private fun Modifier.animateEnterExitTab(
     }
 }
 
-private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
-    val tabs = mutableStateListOf<FluidFloatingTabBarTab>()
-    var standaloneTab: FluidFloatingTabBarTab? by mutableStateOf(null)
-        private set
-    private var inlineTab: FluidFloatingTabBarTab? = null
+internal class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
+    private val declared = mutableListOf<FluidFloatingTabBarTab>()
+    private var action: FluidFloatingTabBarTab? = null
+    private var prominent: FluidFloatingTabBarTab? = null
+    private var search: FluidFloatingTabBarTab? = null
+    val standaloneTab: FluidFloatingTabBarTab? get() = prominent ?: search ?: action
+    val searchKey: Any? get() = search?.key
+    val tabs: List<FluidFloatingTabBarTab> get() = declared.filter { it !== standaloneTab }
+    var previousKey: Any? = null
 
-    fun getInlineTab(selectedTabKey: Any?): FluidFloatingTabBarTab? {
-        // Screen-accurate: only ever report a regular tab as "the inline tab"
-        // when it's actually the current screen. selectedTabKey not matching
-        // any regular tab (e.g. currently on the standalone tab) falls back to
-        // the last regular tab that really was selected — never a hardcoded
-        // default like tabs.firstOrNull(), which would misrepresent Home as
-        // selected when the user has never actually been there.
-        val selectedTab = tabs.find { it.key == selectedTabKey }
-        if (selectedTab != null) {
-            inlineTab = selectedTab
-            return selectedTab
-        }
-        return inlineTab
-    }
+    fun destination(key: Any?): FluidFloatingTabBarTab? = declared.firstOrNull { it.key == key && it !== action }
+
+    fun getInlineTab(selectedTabKey: Any?, searching: Boolean = false): FluidFloatingTabBarTab? =
+        tabs.firstOrNull { it.key == selectedTabKey && (!searching || it.role != FluidTabRole.Search) }
+            ?: tabs.firstOrNull { it.key == previousKey }
+            ?: tabs.firstOrNull { it.key == selectedTabKey }
+            ?: if (standaloneTab?.let { it.role != FluidTabRole.Standard && selectedTabKey == it.key } == true)
+                tabs.firstOrNull { it.role != FluidTabRole.Search } else null
 
     override fun tab(
         key: Any,
@@ -3515,7 +3757,7 @@ private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
         onClick: () -> Unit,
         indication: (@Composable () -> Indication)?
     ) {
-        tabs.add(
+        declared.add(
             FluidFloatingTabBarTab(
                 key = key,
                 title = title,
@@ -3534,24 +3776,39 @@ private class FluidFloatingTabBarScopeImpl : FluidFloatingTabBarScope {
         indication: (@Composable () -> Indication)?,
         title: @Composable () -> Unit
     ) {
-        standaloneTab = FluidFloatingTabBarTab(
-            key = key,
-            title = title,
-            icon = icon,
-            onClick = onClick,
-            indication = indication
-        )
+        action?.let { declared.remove(it) }
+        action = FluidFloatingTabBarTab(key, title, icon, onClick, indication).also(declared::add)
+    }
+
+    override fun standaloneTab(
+        key: Any, icon: @Composable () -> Unit, role: FluidTabRole, onClick: () -> Unit,
+        indication: (@Composable () -> Indication)?, title: @Composable () -> Unit,
+    ) {
+        if (role == FluidTabRole.Standard) {
+            standaloneTab(key, icon, onClick, indication, title)
+            return
+        }
+        val tab = FluidFloatingTabBarTab(key, title, icon, onClick, indication, role = role)
+        if (role == FluidTabRole.Prominent) {
+            require(prominent == null) { "Una sola scheda Prominent per barra" }
+            prominent = tab
+        } else {
+            require(search == null) { "Una sola scheda Search per barra" }
+            search = tab
+        }
+        declared.add(tab)
     }
 }
 
-private data class FluidFloatingTabBarTab(
+internal data class FluidFloatingTabBarTab(
     val key: Any,
     val title: @Composable () -> Unit,
     val icon: @Composable () -> Unit,
     val onClick: () -> Unit,
     val indication: (@Composable () -> Indication)?,
     // pm-f1/ge (E01): disegnato solo dalla riga aperta (ExpandedTabs), mai dalla scheda in linea.
-    val badge: FluidTabBadge? = null
+    val badge: FluidTabBadge? = null,
+    val role: FluidTabRole = FluidTabRole.Standard,
 )
 
 /**

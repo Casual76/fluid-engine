@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.sample.catalog
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,6 +56,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidDrawer
 import dev.antigravity.fluidengine.ui.fluid.FluidDrawerState
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar
+import dev.antigravity.fluidengine.ui.fluid.FluidTabSearchActivation
+import dev.antigravity.fluidengine.ui.fluid.FluidTabRole
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
@@ -67,10 +72,12 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTabItem
 import dev.antigravity.fluidengine.ui.fluid.FluidTabRail
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
+import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidDrawerObscured
 import dev.antigravity.fluidengine.ui.fluid.fluidIdentityColor
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.icons.CalendarMonth
 import dev.antigravity.fluidengine.ui.fluid.icons.Archive
 import dev.antigravity.fluidengine.ui.fluid.icons.Delete
 import dev.antigravity.fluidengine.ui.fluid.icons.Drafts
@@ -81,6 +88,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Forum
 import dev.antigravity.fluidengine.ui.fluid.icons.Inbox
 import dev.antigravity.fluidengine.ui.fluid.icons.Label
 import dev.antigravity.fluidengine.ui.fluid.icons.Menu
+import dev.antigravity.fluidengine.ui.fluid.icons.PhotoLibrary
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.icons.Send
 import dev.antigravity.fluidengine.ui.fluid.icons.Settings
@@ -118,6 +126,7 @@ fun DrawerAndTabsDemo() {
     modifier = Modifier.fillMaxWidth().testTag("drawer-and-tabs-demo"),
     verticalArrangement = Arrangement.spacedBy(14.dp),
   ) {
+    TabDestinationsSection()
     PillSection()
     RailSection()
     DrawerSection()
@@ -184,6 +193,49 @@ private fun StagePage(topInset: Dp = 0.dp) {
 }
 
 // --- 1. La pillola ------------------------------------------------------------------------------------
+
+/** Tre destinazioni e un accessorio, per riprendere la stessa barra a riposo, piegata e in ricerca. */
+@Composable
+private fun TabDestinationsSection() {
+  FluidSectionHeader(title = "Scheda prominente", detail = "Trascina la bolla oppure tocca una destinazione.")
+  var selected by remember { mutableStateOf("Raccolta") }
+  var query by remember { mutableStateOf("") }
+  val scroll = rememberFluidFloatingTabBarScrollConnection()
+  var accessory by remember { mutableStateOf(true) }
+  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FluidButton(text = if (scroll.isInline) "Apri barra" else "Piega barra",
+      onClick = { if (scroll.isInline) scroll.expand() else scroll.inline() })
+    FluidButton(text = if (accessory) "Togli lettore" else "Mostra lettore", onClick = { accessory = !accessory })
+  }
+  val pageWash = animateFloatAsState(if (selected == "Cerca") 1f else 0f,
+    if (LocalFluidMotionPolicy.current.reducedMotion) snap() else FluidMotion.FloatingTabSearchPage, label = "paginaRicerca")
+  val surface = MaterialTheme.colorScheme.surface
+  Stage(height = 180.dp, modifier = Modifier.testTag("prominent-stage"), page = {
+    StagePage()
+    Box(Modifier.fillMaxSize().drawBehind { drawRect(surface, alpha = pageWash.value) })
+  }) { backdrop ->
+    FluidFloatingTabBar(
+      selectedTabKey = selected, scrollConnection = scroll, backdrop = backdrop,
+      modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 432.dp).padding(horizontal = 14.dp, vertical = 16.dp),
+      inlineAccessory = if (accessory) { band, _ -> Box(band, contentAlignment = Alignment.Center) { Text("In ascolto") } } else null,
+      expandedAccessory = if (accessory) { band, _ -> Box(band.fillMaxWidth().height(46.dp), contentAlignment = Alignment.Center) { Text("In ascolto") } } else null,
+      searchActivation = FluidTabSearchActivation.SearchTabSelection,
+      searchBarContent = { field -> androidx.compose.foundation.text.BasicTextField(
+        value = query, onValueChange = { query = it }, modifier = field.padding(12.dp), singleLine = true,
+        decorationBox = { input -> Box { if (query.isEmpty()) Text("Cerca"); input() } },
+      ) },
+    ) {
+      tab("Oggi", { Text("Oggi") }, { FluidIcon(FluidIcons.CalendarMonth, null) }, { selected = "Oggi" })
+      tab("Posta", { Text("Posta") }, { FluidIcon(FluidIcons.Filled.Inbox, null) }, { selected = "Posta" })
+      tab("Raccolta", { Text("Raccolta") }, { FluidIcon(FluidIcons.Filled.PhotoLibrary, null) }, { selected = "Raccolta" })
+      standaloneTab("Cerca", { FluidIcon(FluidIcons.Search, "Cerca") }, FluidTabRole.Search,
+        onClick = { selected = "Cerca" }, title = { Text("Cerca") })
+      standaloneTab("Preferiti", { FluidIcon(FluidIcons.Filled.Star, "Preferiti") }, FluidTabRole.Prominent,
+        onClick = { selected = "Preferiti" })
+    }
+  }
+  Text("Scheda attiva · $selected", style = MaterialTheme.typography.labelLarge)
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

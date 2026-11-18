@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 
+/** Confronto di galleria fra la piega storica e il campo del piano flottante. */
+internal fun tabBarGooeyRequested(): Boolean = android.util.Log.isLoggable("FluidTabBarGooey", android.util.Log.DEBUG)
+
 // Alpha (0..255 scale, matching this app's other ColorMatrix usage in
 // backdrop/effects/ColorFilter.kt) snaps from 0 to 1 across a narrow band
 // centered on 0.5 — steep enough to read as a crisp edge, not more blur.
@@ -83,7 +86,7 @@ fun Modifier.gooey(blurRadiusPx: () -> Float): Modifier {
     if (!isRenderEffectSupported()) return this
     return this.graphicsLayer {
         val radius = blurRadiusPx()
-        if (radius > 0f) {
+        if (radius >= 1f) {
             compositingStrategy = CompositingStrategy.Offscreen
             renderEffect = gooeyRenderEffect(radius)
         } else {

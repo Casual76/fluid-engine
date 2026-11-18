@@ -2265,6 +2265,59 @@ di oggi, scritto nella scheda.
 distanza dello spaziatore fisso; l'azione principale: spunta tinta piena / tinta più leggera; il bordo morbido sopra il
 campo fissato quando la barra è ritirata: com'è nelle altre pagine / più pieno.
 
+**Chiusura di F4A (2026-11-18).** Le sessioni sul Tab S9 sono state cinque:
+- S6: prima volta della barra sul dispositivo, con un crash nativo al ritorno di pagina;
+- S7: crash chiuso (`bb8f0e3`) e correzioni di F3-RIF4;
+- S8: dopo il primo giro di correzione;
+- `f4a-corr2`: secondo giro, verificato sul tablet;
+- una verifica sul tablet dentro F4A.7.
+
+I quattro critici del giro 0 (`artifacts/liquid-glass/review/F4A/`) hanno trovato due bloccanti nel codice:
+- due spaziatori in gruppi diversi mandavano la barra in eccezione;
+- la riserva della chrome poteva ancora chiudere un ciclo di RenderNode attraverso un export vivo.
+
+Hanno trovato anche un bloccante a vista: le icone di un vetro che se ne va sparivano in un fotogramma. Era una regressione
+di `f490f12`.
+
+Due giri di correzione li hanno chiusi:
+- primo giro: pacchetti barra `45703fb`, pagine `ee6bc11` e grafo `da4e8ff`;
+- correzione del filo `1c9e9aa`;
+- secondo giro: `6ab6a55`.
+
+Sul tablet passano:
+- uscite e incroci delle icone, senza capsule vuote né fantasmi;
+- il tocco che segue il glifo in viaggio;
+- «Altro» sempre raggiungibile;
+- il titolo nel gesto indietro e nel cambio di scheda (primo passo al 13%);
+- il ritiro della barra, anche dentro l'host e con la ricerca fissata visibile;
+- il movimento ridotto senza lampi (0 fotogrammi neri su 953);
+- il testo al 200% senza sovrapposizioni;
+- i puntini fermi in bench (≤ 0,2 px);
+- la selezione con fondo e glifo insieme (≤ 8 ms);
+- più di 3 minuti di giro continuo senza chiusure in debug e bench.
+
+**F4A.7, il primo fotogramma del push.** Il profilo mostra che il push compone le righe della pagina che entra dentro la
+misura: 23–28 ms in bench, ~75 in debug, e la barra non c'entra. L'attesa del posizionamento è stata tolta nel secondo giro:
+non toglieva scadenze e ritardava il primo movimento di 34 ms. Il push riparte subito, con il primo movimento a ~69 ms dal
+cambio di pila. Il costo vero resta aperto (riga sotto).
+
+**Decisioni dell'orchestratore.**
+- I 12 dp delle icone che restano in «principale» quando la stella si separa sono la geometria minima con l'ancora a destra:
+  si muovono in continuo e non saltano. È scritto nella scheda (d'accordo il critico D).
+- `diagnosticHost()` della bench passa a F7.
+- Il contrasto dell'inchiostro sotto la luce del dito passa a F6.4.
+
+**Debiti e fase che li chiude.**
+
+| debito | misura | fase |
+|---|---|---|
+| la composizione della pagina che entra nel primo fotogramma del push | bench 3–5 scadenze su 6–9 nei primi 100 ms; frame peggiore ~43–51 ms | **F4A.7b** (precomposizione o composizione a pezzi prima del viaggio), poi F7 |
+| il pop che interrompe un push salta di più in debug | bench con posizioni intermedie; debug con passi da 250–480 px | F4A.7b / F7 |
+| i tre puntini in debug | 1,25 px nel primo pop (bench ≤ 0,2) | F7 (fotogramma lungo della debug) |
+| TalkBack ascoltato, inversione del gesto senza sollevare il dito, parità al pixel delle pagine con `actions` | NV in S8 e corr2 | prima sessione con TalkBack (F6.7) |
+| i bersagli dei tasti di sempre a 44 dp | – | F6.4 |
+| sull'emulatore swiftshader `GlassBody8ShaderString` e `GlassBodyFilms8ShaderString` non compilano («program is too large») | Tab S9 ok | F7, sulle GPU deboli |
+
 ---
 
 ### F4B · In basso: capsula, ricerca, tab bar

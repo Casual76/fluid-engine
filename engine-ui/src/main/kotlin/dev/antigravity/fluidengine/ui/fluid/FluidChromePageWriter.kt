@@ -14,6 +14,7 @@ import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.TraversableNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.input.nestedscroll.nestedScrollModifierNode
 import androidx.compose.ui.platform.InspectorInfo
@@ -23,7 +24,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWrit
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriterKey
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriters
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRecordingStack
-import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.chromeWritesFallback
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRevisionListener
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.materialLayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.internal.checkRecordingParent
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 
 /**
@@ -62,10 +65,9 @@ fun Modifier.fluidChromePages(): Modifier = this then FluidChromePageWriterEleme
  * pagina «Adattività» non girava mai (la sua sonda trovava un layer senza scrittore e non leggeva), e sopra il nero era un
  * grigio medio con le icone scure.
  *
- * Questo nodo registra le pagine **dentro** ogni layer che un vetro **fuori** dalle pagine campiona e che nessuna pagina
- * registra ([chromeWritesFallback]); appena una pagina lo registra da sé (`LayerBackdrop.hasPageWriter`), lascia. A ogni
- * registrazione avvisa ([LayerBackdrop.bumpRevision]), e lo scorrimento delle pagine dentro di lui è un cambio dello
- * sfondo come per ogni sorgente. Un layer che nessuno gli chiede non costa niente: il nodo disegna e basta.
+ * La registrazione della pagina appartiene a questo nodo. Le sorgenti dei vetri esterni possono
+ * leggerla quando manca un fondale attivo. Restano di proprietà di chi le ha create anche se il
+ * loro produttore si stacca durante un pop.
  */
 internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, GlobalPositionAwareModifierNode,
   CompositionLocalConsumerModifierNode, TraversableNode, LayerFallbackWriter {
@@ -75,15 +77,21 @@ internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, G
 
   /** I layer che i vetri fuori dalle pagine campionano, con quanti vetri li campionano. */
   private val adopted = LinkedHashMap<LayerBackdrop, Int>()
+  private var pages: LayerBackdrop? = null
   private var coordinates: LayoutCoordinates? = null
   private var root: View? = null
+
+  private val pageRevision = LayerRevisionListener { target, _ ->
+    for (source in adopted.keys) if (source.chromeFallback === target) source.bumpRevision()
+  }
 
   /** Lo scorrimento di una pagina dentro la chrome: avvisa i layer che sta registrando. */
   private val scroll = object : NestedScrollConnection {
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
       if (consumed != Offset.Zero) {
         val now = android.os.SystemClock.uptimeMillis()
-        for (layer in writing()) {
+        for (layer in adopted.keys) {
+          if (layer.chromeFallback == null || layer.chromeFallback !== pages) continue
           layer.scrollMotion.note(now, consumed.y)
           layer.bumpRevision()
         }
@@ -105,7 +113,7 @@ internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, G
   override fun onDetach() {
     root?.let { LayerFallbackWriters.unregister(it, this) }
     root = null
-    for (layer in adopted.keys) leave(layer)
+    retireRecording()
     adopted.clear()
     coordinates = null
   }
@@ -118,6 +126,12 @@ internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, G
 
   override fun release(layer: LayerBackdrop) {
     val count = (adopted[layer] ?: return) - 1
+    // Una cattura esterna può sopravvivere al distacco, anche se un altro vetro usa la
+    // stessa sorgente. Il vecchio layer resta leggibile ma la shell non lo registra di nuovo.
+    if (pages != null && layer.chromeFallback === pages) {
+      retireRecording()
+      if (isAttached) invalidateDraw()
+    }
     if (count > 0) {
       adopted[layer] = count
       return
@@ -127,61 +141,59 @@ internal class FluidChromePageWriterNode : DelegatingNode(), DrawModifierNode, G
   }
 
   private fun leave(layer: LayerBackdrop) {
-    if (layer.fallbackWriter !== this) return
-    layer.fallbackWriter = null
-    if (layer.ownerNode == null) layer.layerCoordinates = null
+    if (layer.chromeFallback === pages) layer.chromeFallback = null
   }
 
-  /** I layer che registra adesso. Legge `hasPageWriter` (stato): quando una pagina arriva o se ne va, ridisegna. */
-  private fun writing(): List<LayerBackdrop> {
-    if (adopted.isEmpty()) return emptyList()
-    val out = ArrayList<LayerBackdrop>(adopted.size)
-    for (layer in adopted.keys) {
-      // Uno scrittore c'è se una pagina lo registra (`hasPageWriter`, stato: arriva e se ne va) o se è l'export di un
-      // pannello (`ownerNode`). Sono su richiesta tutti e due, quindi `onDemand` non li distingue.
-      val needsFallback = chromeWritesFallback(
-        adopted = true,
-        hasPageWriter = layer.hasPageWriter || layer.ownerNode != null,
-        released = layer.graphicsLayer.isReleased,
-      )
-      if (needsFallback) {
-        out += layer
-      } else if (layer.graphicsLayer.isReleased) {
-        // Rilasciato da Compose (f4a-crash): una cattura può ancora tenerlo, e registrarci la pagina che la contiene
-        // chiuderebbe un ciclo di RenderNode. Lascia del tutto, coordinate comprese.
-        leave(layer)
-      } else if (layer.fallbackWriter === this) {
-        // Una pagina lo registra adesso: lascia (le coordinate le scrive lei).
-        layer.fallbackWriter = null
-      }
-    }
-    return out
+  private fun retireRecording() {
+    val target = pages ?: return
+    for (source in adopted.keys) leave(source)
+    target.removeRevisionListener(pageRevision)
+    target.layerCoordinates = null
+    requireGraphicsContext().releaseGraphicsLayer(target.graphicsLayer)
+    pages = null
+  }
+
+  private fun ContentDrawScope.drawPages() {
+    drawContent()
+    checkRecordingParent(this, this@FluidChromePageWriterNode)
   }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
     this.coordinates = coordinates
-    if (!coordinates.isAttached) return
-    for (layer in adopted.keys) if (layer.fallbackWriter === this) layer.layerCoordinates = coordinates
+    pages?.layerCoordinates = coordinates
   }
 
   override fun ContentDrawScope.draw() {
-    val layers = writing()
-    if (layers.isEmpty()) {
-      drawContent()
+    if (adopted.isEmpty()) {
+      drawPages()
       return
     }
-    for (layer in layers) LayerRecordingStack.enter(layer)
-    try {
-      drawContent()
-      for (layer in layers) {
-        recordLayer(this@FluidChromePageWriterNode, layer.graphicsLayer) { layer.onDraw(this@draw) }
-        layer.fallbackWriter = this@FluidChromePageWriterNode
-        coordinates?.let { if (it.isAttached) layer.layerCoordinates = it }
-      }
-    } finally {
-      for (layer in layers) LayerRecordingStack.exit(layer)
+    val active = currentValueOf(LocalFluidChromeController)?.activeBackdrop?.value
+    val readers = adopted.keys.filter { source ->
+      val needsPages = active == null && source.ownerNode == null && !source.graphicsLayer.isReleased
+      if (!needsPages) leave(source)
+      needsPages
     }
-    for (layer in layers) layer.bumpRevision()
+    if (readers.isEmpty()) {
+      retireRecording()
+      drawPages()
+      return
+    }
+    val target = pages ?: materialLayerBackdrop(requireGraphicsContext().createGraphicsLayer()).also {
+      it.addRevisionListener(pageRevision)
+      pages = it
+    }
+    LayerRecordingStack.enter(target)
+    try {
+      drawPages()
+      if (pages !== target || target.graphicsLayer.isReleased) return
+      recordLayer(this@FluidChromePageWriterNode, target.graphicsLayer) { this@draw.drawContent() }
+    } finally {
+      LayerRecordingStack.exit(target)
+    }
+    if (target.layerCoordinates !== coordinates) target.layerCoordinates = coordinates
+    for (source in readers) source.chromeFallback = target
+    target.bumpRevision()
   }
 }
 

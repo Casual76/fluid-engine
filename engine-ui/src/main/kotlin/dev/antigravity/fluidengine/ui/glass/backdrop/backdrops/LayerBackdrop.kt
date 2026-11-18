@@ -27,6 +27,7 @@
 package dev.antigravity.fluidengine.ui.glass.backdrop.backdrops
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRecordedByDrawBackdropNode
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.InverseLayerScope
+import java.lang.ref.WeakReference
 
 private val DefaultOnDraw: ContentDrawScope.() -> Unit = { drawContent() }
 
@@ -79,10 +81,14 @@ class LayerBackdrop internal constructor(
     // against the source's *old* position. That is a pane of glass whose refraction is fixed to
     // where the page stood mid-transition: a band of the backdrop stays sharp until something else
     // happens to redraw the pane.
-    internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
+    private var ownCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
+
+    internal var layerCoordinates: LayoutCoordinates?
+        get() = ownCoordinates ?: chromeFallback?.ownCoordinates
+        set(value) { ownCoordinates = value }
 
     /** Senza le coordinate del layer, `drawBackdrop` esce senza disegnare: non c'e' niente da tenere. */
-    override fun isReadyToSample(): Boolean = layerCoordinates != null
+    override fun isReadyToSample(): Boolean = !graphicsLayer.isReleased && layerCoordinates?.isAttached == true
 
     /**
      * Fluid Engine addition (2.13.0): il nodo che registra questo layer, quando e' uno dei nostri.
@@ -90,22 +96,27 @@ class LayerBackdrop internal constructor(
      * Serve al vetro su vetro per sapere se una registrazione sta *dentro* il pannello su cui una
      * superficie appoggia (e quindi va sopra al materiale del pannello) o fuori (e quindi sotto).
      */
-    internal var ownerNode: Modifier.Node? = null
+    internal var ownerNode: Modifier.Node? by mutableStateOf(null)
 
-    /**
-     * Fluid Engine addition (4.0.0, F2.3c): se un `layerBackdrop` (una pagina) registra questo layer adesso. Stato di
-     * snapshot apposta, a differenza di [ownerNode]: lo legge in disegno lo scrittore di riserva della chrome
-     * ([fallbackWriter]), che deve riprendere a registrare quando la pagina se ne va.
-     */
-    internal var hasPageWriter: Boolean by mutableStateOf(false)
+    /** Prestito per i lettori esterni. Solo la shell registra in questo layer privato. */
+    internal var chromeFallback: LayerBackdrop? by mutableStateOf(null)
 
-    /**
-     * Fluid Engine addition (4.0.0, F2.3c): chi registra questo layer quando nessuna pagina lo fa. È la chrome
-     * (`ProvideFluidChrome`): una tab bar, un modale, un menu montati sopra la pagina campionano il fondale che la shell
-     * gli dà, e se la pagina davanti non lo registra (non è una `FluidScreen` e non lo registra da sé) il fondale resta
-     * vuoto: il vetro non ha niente da rifrangere e la sua sonda non legge mai. Vedi [LayerFallbackWriter].
+    /** Una cattura interna deve continuare a vedere solo la propria sorgente, anche se una
+     * superficie esterna ha chiesto lo stesso fondale. Vale anche per le sonde fuori dal draw.
      */
-    internal var fallbackWriter: Modifier.Node? = null
+    internal fun sourceFor(reader: LayoutCoordinates): LayerBackdrop? {
+        if (graphicsLayer.isReleased || !reader.isAttached) return null
+        if (ownCoordinates?.isAttached == true) return this
+        val shell = chromeFallback ?: return null
+        val pages = shell.ownCoordinates ?: return null
+        if (ownerNode != null || !pages.isAttached || shell.graphicsLayer.isReleased) return null
+        var ancestor: LayoutCoordinates? = reader
+        while (ancestor != null) {
+            if (ancestor === pages) return null
+            ancestor = ancestor.parentCoordinates
+        }
+        return shell
+    }
 
     /**
      * Fluid Engine addition (2.13.0): registrato solo su richiesta.
@@ -186,7 +197,7 @@ class LayerBackdrop internal constructor(
             val listeners = revisionListeners
             for (listener in listeners) listener.onRevision(this, revision)
             val outer = containers
-            for (container in outer) container.bumpRevision()
+            for (container in outer) container.get()?.bumpRevision()
         } finally {
             bumping = false
         }
@@ -208,16 +219,18 @@ class LayerBackdrop internal constructor(
      * colore dentro la registrazione della chrome e la tab bar sopra non girava. Chi sta dentro avvisa anche chi lo
      * contiene. Li impara mentre si disegna dentro la registrazione di fuori ([LayerRecordingStack]).
      */
-    private var containers: Array<LayerBackdrop> = NoContainers
+    // Una pagina può sopravvivere a più registrazioni della shell. L'avviso
+    // delle revisioni non deve prolungare la vita dei vecchi contenitori.
+    private var containers: Array<WeakReference<LayerBackdrop>> = NoContainers
 
     /** Fluid Engine addition (4.0.0, F2.3c): [outer] contiene questo layer nella sua registrazione. */
     internal fun noteContainer(outer: LayerBackdrop) {
-        if (outer === this || containers.any { it === outer }) return
-        containers += outer
+        if (outer === this || containers.any { it.get() === outer }) return
+        containers = (containers.filter { it.get() != null } + WeakReference(outer)).toTypedArray()
     }
 
     /** Fluid Engine addition (4.0.0, F2.3c): quanti layer contengono questo. Per i test. */
-    internal val containerCount: Int get() = containers.size
+    internal val containerCount: Int get() = containers.count { it.get() != null }
 
     /**
      * Fluid Engine addition (F2.1): se questo layer avvisa quando si ri-registra. Vero quando lo registra un
@@ -226,7 +239,7 @@ class LayerBackdrop internal constructor(
      */
     internal val announcesRevisions: Boolean
         get() = isRecordedByLayerBackdropNode() || isRecordedByDrawBackdropNode() ||
-            (ownerNode == null && fallbackWriter != null)
+            (ownerNode == null && chromeFallback != null)
 
     private var inverseLayerScope: InverseLayerScope? = null
 
@@ -236,7 +249,8 @@ class LayerBackdrop internal constructor(
         layerBlock: (GraphicsLayerScope.() -> Unit)?
     ) {
         val coordinates = coordinates ?: return
-        val layerCoordinates = layerCoordinates ?: return
+        val source = sourceFor(coordinates) ?: return
+        val layerCoordinates = source.ownCoordinates ?: return
         withTransform({
             if (layerBlock != null) {
                 with(obtainInverseLayerScope()) { inverseTransform(density, layerBlock) }
@@ -250,7 +264,7 @@ class LayerBackdrop internal constructor(
                 }
             translate(-offset.x, -offset.y)
         }) {
-            drawLayer(graphicsLayer)
+            drawLayer(source.graphicsLayer)
         }
     }
 
@@ -294,7 +308,7 @@ internal class ReaderCount {
  */
 internal fun exportWanted(onDemand: Boolean, readers: Int): Boolean = !onDemand || readers > 0
 
-private val NoContainers = emptyArray<LayerBackdrop>()
+private val NoContainers = emptyArray<WeakReference<LayerBackdrop>>()
 
 /**
  * Fluid Engine addition (4.0.0, F2.3c): i layer che si stanno registrando adesso, dal più esterno. Chi si disegna mentre
@@ -319,11 +333,11 @@ internal object LayerRecordingStack {
 }
 
 /**
- * Fluid Engine addition (4.0.0, F2.3c): chi registra, in una finestra, i layer che un vetro campiona e che nessuna
- * pagina registra ([LayerBackdrop.fallbackWriter]). Lo è la chrome (`ProvideFluidChrome`), una per finestra.
+ * La shell registra le pagine in un layer privato. I vetri esterni segnalano la loro sorgente
+ * di base per ricevere [LayerBackdrop.chromeFallback] quando manca il fondale attivo.
  */
 internal interface LayerFallbackWriter {
-    /** Un vetro fuori dalla pagina campiona [layer]: se nessuna pagina lo registra, lo registra la chrome. */
+    /** Un vetro fuori dalla pagina chiede lo sfondo [layer]. */
     fun adopt(layer: LayerBackdrop)
 
     /** Quel vetro non lo campiona più. */
@@ -332,17 +346,19 @@ internal interface LayerFallbackWriter {
 
 /** Fluid Engine addition (4.0.0, F2.3c): gli scrittori di riserva, per finestra (la vista radice). */
 internal object LayerFallbackWriters {
-    private val byRoot = java.util.WeakHashMap<android.view.View, LayerFallbackWriter>()
+    private val byRoot = java.util.WeakHashMap<android.view.View, MutableState<LayerFallbackWriter?>>()
+    private fun entry(root: android.view.View) = byRoot.getOrPut(root) { mutableStateOf(null) }
 
     fun register(root: android.view.View, writer: LayerFallbackWriter) {
-        byRoot[root] = writer
+        entry(root).value = writer
     }
 
     fun unregister(root: android.view.View, writer: LayerFallbackWriter) {
-        if (byRoot[root] === writer) byRoot.remove(root)
+        val entry = byRoot[root] ?: return
+        if (entry.value === writer) entry.value = null
     }
 
-    fun of(root: android.view.View): LayerFallbackWriter? = byRoot[root]
+    fun of(root: android.view.View): LayerFallbackWriter? = entry(root).value
 }
 
 /**
@@ -350,14 +366,6 @@ internal object LayerFallbackWriters {
  * non chiede mai la registrazione di riserva: campionerebbe una registrazione che contiene sé stesso.
  */
 internal const val LayerFallbackWriterKey: String = "dev.antigravity.fluidengine.LayerFallbackWriter"
-
-/**
- * Fluid Engine addition (4.0.0, F2.3c): se la chrome registra [this] come riserva: qualcuno fuori dalla pagina lo
- * campiona ([adopted]) e nessuna pagina lo registra. Dopo il rilascio di Compose, una cattura può ancora tenere
- * il vecchio layer per riferimento. Registrarci l'intera pagina che contiene quella cattura chiuderebbe un ciclo.
- */
-internal fun chromeWritesFallback(adopted: Boolean, hasPageWriter: Boolean, released: Boolean): Boolean =
-    adopted && !hasPageWriter && !released
 
 /**
  * Fluid Engine addition (4.0.0, G1): il moto recente dello scorrimento di un layer, per le varianti «cosa fa il vetro

@@ -64,15 +64,13 @@ private class LayerBackdropElement(
 
     override fun update(node: LayerBackdropNode) {
         if (node.backdrop != backdrop) {
-            node.backdrop.layerCoordinates = null
             if (node.backdrop.ownerNode === node) {
+                node.backdrop.layerCoordinates = null
                 node.backdrop.ownerNode = null
-                node.backdrop.hasPageWriter = false
             }
             node.backdrop = backdrop
             if (node.isAttached) {
                 backdrop.ownerNode = node
-                backdrop.hasPageWriter = true
             }
         }
         node.frozen = frozen
@@ -129,12 +127,10 @@ private class LayerBackdropNode(
     override fun onAttach() {
         // Fluid Engine addition (2.13.0): chi registra questo layer, per il vetro su vetro.
         backdrop.ownerNode = this
-        // Fluid Engine addition (4.0.0, F2.3c): una pagina lo registra, la chrome lascia.
-        backdrop.hasPageWriter = true
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-        if (coordinates.isAttached) {
+        if (coordinates.isAttached && backdrop.ownerNode === this) {
             backdrop.layerCoordinates = coordinates
         }
     }
@@ -148,10 +144,9 @@ private class LayerBackdropNode(
     }
 
     override fun onDetach() {
-        backdrop.layerCoordinates = null
         if (backdrop.ownerNode === this) {
+            backdrop.layerCoordinates = null
             backdrop.ownerNode = null
-            backdrop.hasPageWriter = false
         }
     }
 }

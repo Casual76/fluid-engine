@@ -948,9 +948,10 @@ private fun FluidScreenLayout(
   // basso cattura la pagina e basta: niente giri. A pagina ferma l'export non si registra di nuovo e avvisa solo quando
   // lo fa (F2.3), quindi non costa niente.
   val bottomGlass = key(bottomEdges != null) { if (bottomEdges != null) rememberGlassBackdrop() else null }
-  val chromeBackdrop = key(backdrop, bottomGlass) {
-    if (bottomGlass == null) backdrop else rememberCombinedGlassBackdrop(backdrop, bottomGlass)
-  }
+  // Il bordo può restare smontato (nessun controllo in basso). Una pila con un export
+  // senza produttore risulterebbe sempre impreparata anche con la pagina già posizionata.
+  val visibleBottom = bottomGlass?.takeIf { it.layerBackdrop?.ownerNode != null }
+  val chromeBackdrop = if (visibleBottom == null) backdrop else rememberCombinedGlassBackdrop(backdrop, visibleBottom)
 
   // Dal seguito di F2.5: la lista che scorre non rifà la registrazione della pagina (si sposta il layer del contenuto,
   // sotto `glassBackdropSource`, e il nodo che registra non ridisegna), quindi la pagina non avvisa e le sonde dei vetri
@@ -2819,7 +2820,7 @@ private fun FluidBarActionImpl(
  * pagine in un `Box` per esserne lo **scrittore di riserva**; dalla 4.0 G1 lo scrittore è un modificatore a sé,
  * [fluidChromePages], da posare sul contenitore delle pagine: con quello, se la chrome sopra le pagine (la tab bar, i
  * modali, i menu) campiona un fondale che nessuna pagina registra (il `fallback` della shell quando la pagina davanti
- * non è una [FluidScreen]), lo registra il contenitore, con le pagine dentro, e la tab bar sopra una pagina qualunque
+ * non è una [FluidScreen]), il contenitore rende leggibile la sua registrazione privata, e la tab bar sopra una pagina qualunque
  * rifrange ciò che ha davvero dietro e gira quando cambia.
  */
 @Composable

@@ -7,11 +7,14 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.materialLayerBack
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRecordingStack
-import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.chromeWritesFallback
+import androidx.compose.ui.layout.LayoutCoordinates
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
 
 /**
@@ -551,28 +554,65 @@ class GlassProbeSchedulerTest {
   }
 
   @Test
-  fun `la chrome registra un layer solo se un vetro fuori lo campiona e nessuna pagina lo registra`() {
-    assertTrue(chromeWritesFallback(adopted = true, hasPageWriter = false, released = false))
-    assertFalse("una pagina lo registra: è lei lo scrittore", chromeWritesFallback(adopted = true, hasPageWriter = true, released = false))
-    assertFalse("nessuno lo campiona: niente da registrare", chromeWritesFallback(adopted = false, hasPageWriter = false, released = false))
+  fun `un export vivo resta distinto dalla registrazione della shell anche se manca il produttore`() {
+    val shell = materialLayerBackdrop(fakeLayer())
+    val export = materialLayerBackdrop(fakeLayer())
+    val pages = coordinates()
+    shell.layerCoordinates = pages
+    export.chromeFallback = shell
+    assertSame(shell, export.sourceFor(coordinates()))
+    assertNull(export.sourceFor(coordinates(parent = pages)))
+    assertTrue(export.announcesRevisions)
+    export.layerCoordinates = coordinates()
+    assertSame(export, export.sourceFor(coordinates(parent = pages)))
+    assertNotSame(export.graphicsLayer, shell.graphicsLayer)
   }
 
   @Test
-  fun `al pop una cattura che tiene il layer dismesso non autorizza a registrarci la pagina`() {
-    // La pagina è uscita, la cattura della barra la riferisce ancora: scriverle la pagina intera
-    // aggiungerebbe l'arco inverso, dal vecchio fondale al vetro che lo disegna.
-    assertFalse(chromeWritesFallback(adopted = true, hasPageWriter = false, released = true))
+  fun `il corpo composto prima della misura rilegge la parentela alla posa e al cambio di contenitore`() {
+    val shell = materialLayerBackdrop(fakeLayer())
+    val requested = materialLayerBackdrop(fakeLayer())
+    val pages = coordinates()
+    val outside = coordinates()
+    var parent = outside
+    val movableBody = coordinates { parent }
+    val glass = coordinates(parent = movableBody)
+    requested.chromeFallback = shell
+    assertNull(requested.sourceFor(glass))
+    shell.layerCoordinates = pages
+    assertSame(shell, requested.sourceFor(glass))
+    parent = pages
+    assertNull(requested.sourceFor(glass))
+    parent = outside
+    assertSame(shell, requested.sourceFor(glass))
   }
 
   @Test
-  fun `un layer registrato dalla chrome come riserva avvisa`() {
-    val source = materialLayerBackdrop(fakeLayer())
-    assertFalse(source.announcesRevisions)
-    source.fallbackWriter = object : androidx.compose.ui.Modifier.Node() {}
-    assertTrue("la sonda di chi lo campiona aspetta i suoi avvisi, senza cadenza fissa", source.announcesRevisions)
+  fun `al pop un layer rilasciato ancora referenziato non viene campionato né riusato`() {
+    val requested = materialLayerBackdrop(fakeLayer())
+    val shell = materialLayerBackdrop(fakeLayer())
+    shell.layerCoordinates = coordinates()
+    requested.chromeFallback = shell
+    assertSame(shell, requested.sourceFor(coordinates()))
+    GraphicsLayer::class.java.getDeclaredField("isReleased").apply { isAccessible = true }
+      .setBoolean(requested.graphicsLayer, true)
+    assertFalse(requested.isReadyToSample())
+    assertNull(requested.sourceFor(coordinates()))
+    assertFalse(shell.graphicsLayer.isReleased)
   }
 
-  private companion object {
+  private fun coordinates(parent: LayoutCoordinates? = null, current: () -> LayoutCoordinates? = { parent }): LayoutCoordinates =
+    Proxy.newProxyInstance(LayoutCoordinates::class.java.classLoader, arrayOf(LayoutCoordinates::class.java)) { proxy, method, args ->
+      when (method.name) {
+        "isAttached" -> true
+        "getParentCoordinates", "getParentLayoutCoordinates" -> current()
+        "equals" -> proxy === args?.get(0)
+        "hashCode" -> System.identityHashCode(proxy)
+        else -> defaultOf(method)
+      }
+    } as LayoutCoordinates
+
+  internal companion object {
     const val FrameMillis = 8L
 
     /**

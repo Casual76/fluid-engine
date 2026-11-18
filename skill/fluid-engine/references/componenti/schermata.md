@@ -459,12 +459,12 @@ val backdrop = chrome.activeBackdrop.value ?: fallback   // per la tab bar, i mo
 - **`ProvideFluidChrome` e' trasparente al layout**: fornisce solo i `CompositionLocal`, nessun nodo. Un `Modifier.weight`
   in una `Column` o un `matchParentSize` in un `Box` sotto di lui arrivano al genitore (`FluidChromeLayoutTest`). In F2.3c
   posava le pagine in un `Box` suo, che sovrapponeva i figli di una `Column` e poteva misurare zero; dalla 4.0 G1 non piu'.
-- **Lo scrittore di riserva** (4.0, F2.3c; dalla G1 un modificatore a se'): `Modifier.fluidChromePages()` sul contenitore
-  delle pagine, **fuori** dalla chrome. Registra le pagine dentro il `fallback` della shell quando la pagina davanti non lo
-  registra da se' (non e' una `FluidScreen` e non ci posa `glassBackdropSource`): cosi' la tab bar sopra una pagina
-  qualunque rifrange cio' che ha dietro e gira. Uno per finestra; non cambia misura ne' posizione di niente, e un layer che
-  nessun vetro della chrome campiona non costa niente. Senza, si torna a prima di F2.3c: sopra una pagina che non registra
-  il fondale la chrome campiona un layer vuoto. Un vetro **dentro** il contenitore non chiede mai la riserva.
+- **Lo scrittore di riserva.** Metti `Modifier.fluidChromePages()` sul contenitore delle pagine e monta la chrome come
+  sorella del contenitore. Quando manca un fondale attivo e un vetro esterno chiede uno sfondo privo di produttore,
+  il modificatore registra le pagine in un layer privato. Il lettore esterno lo campiona attraverso il fondale di
+  riserva della shell. La pagina e i pannelli conservano i propri layer anche quando cambiano posizione o vengono
+  smontati. La posizione del lettore viene verificata a ogni cattura, perché il contenuto può spostarsi fra contenitori.
+  Una `FluidScreen` Liquid aggiunge al fondale il contributo del bordo inferiore mentre il produttore è montato.
 - `activeBackdrop`: l'**ultima registrazione fra quelle che si dichiarano davanti**; se nessuna lo dichiara,
   l'ultima in assoluto (anteprime, galleria, una schermata sola in un'Activity). *Davanti non e' «registrata per ultima»*:
   per tutto un back predittivo le due pagine sono composte e eleggere la piu' recente faceva rifrangere alla

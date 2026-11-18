@@ -700,10 +700,24 @@ private class DrawBackdropNode(
 
     private var recordedSize: IntSize = IntSize.Zero
     private var recordedSelfOffset: Offset? = null
-    private var recordedSourceOffsets: List<Offset>? = null
+    private var recordedSourceOffsets: List<SamplePosition>? = null
 
     /** Vero dopo una cattura **valida**: e' questo, non "abbiamo provato", che spegne `sampleOnce`. */
     private var sampled = false
+    private var borrowed: List<Pair<LayerBackdrop, LayerBackdrop>> = emptyList()
+
+    private fun borrowedSources(): List<Pair<LayerBackdrop, LayerBackdrop>> {
+        val reader = layoutCoordinates ?: return emptyList()
+        var result: MutableList<Pair<LayerBackdrop, LayerBackdrop>>? = null
+        for (source in sampledBackdrop.layerSources) {
+            if (source !is LayerBackdrop) continue
+            val shell = source.chromeFallback ?: continue
+            if (source.sourceFor(reader) !== shell) continue
+            if (result == null) result = ArrayList()
+            result.add(source to shell)
+        }
+        return result ?: emptyList()
+    }
 
     /** Quando e' stata presa l'ultima cattura valida, per [resampleIntervalMillis]. */
     private var lastRecordedAt = 0L
@@ -785,18 +799,20 @@ private class DrawBackdropNode(
      * Null means at least one source has not been positioned yet, or the backdrop cannot say what it
      * is made of — either way the answer is to record, which is what every backdrop did before.
      */
-    private fun currentSourceOffsets(): List<Offset>? {
+    private data class SamplePosition(val source: LayerBackdrop, val offset: Offset)
+
+    private fun currentSourceOffsets(): List<SamplePosition>? {
         val sources = sampledBackdrop.layerSources
         if (sources.isEmpty()) return null
         val self = layoutCoordinates ?: return null
         if (!self.isAttached) return null
-        val offsets = ArrayList<Offset>(sources.size)
+        val offsets = ArrayList<SamplePosition>(sources.size)
         for (source in sources) {
-            val layer = source as? LayerBackdrop ?: return null
+            val layer = (source as? LayerBackdrop)?.sourceFor(self) ?: return null
             val sourceCoordinates = layer.layerCoordinates ?: return null
             if (!sourceCoordinates.isAttached) return null
             offsets += try {
-                sourceCoordinates.localPositionOf(self)
+                SamplePosition(layer, sourceCoordinates.localPositionOf(self))
             } catch (_: Exception) {
                 return null
             }
@@ -869,6 +885,11 @@ private class DrawBackdropNode(
                 ((size.width * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
                 ((size.height * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
             )
+            // Una posa può spostare la cattura dentro le pagine. Una cattura della vecchia
+            // riserva va sostituita anche se il vetro è congelato o campiona una volta sola.
+            val reader = layoutCoordinates
+            val lostLoan = borrowed.any { (source, shell) -> reader == null || source.sourceFor(reader) !== shell }
+            if (lostLoan) sampled = false
             val sourceOffsets = currentSourceOffsets()
             val selfOffset = layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()
 
@@ -940,6 +961,7 @@ private class DrawBackdropNode(
             if (sourceGone) surfaceDirty = true
 
             val needsRecord = when {
+                lostLoan -> true
                 holding -> false
                 sourceGone -> false
                 refreshAfterHold -> true
@@ -953,6 +975,7 @@ private class DrawBackdropNode(
                     size = recordSize,
                     block = recordBackdropBlock
                 )
+                borrowed = borrowedSources()
                 // Fluid Engine addition: a capture only *counts* if the backdrop had something to
                 // give. `LayerBackdrop.drawBackdrop` returns silently when its coordinates are not
                 // attached yet, and with `sampleOnce` that empty capture used to be kept for the
@@ -1005,7 +1028,7 @@ private class DrawBackdropNode(
 
     override fun ContentDrawScope.draw() {
         // Fluid Engine addition (4.0.0, F2.3c): uno scrittore di riserva arrivato dopo l'attacco (la chrome rifatta).
-        if (fallbackWriter == null) adoptFallbacks()
+        adoptFallbacks()
         if (containerDirty) resolveContainer()
         effectiveScale = fitToTexture(
             backdropScale * quantiseScaleFactor(backdropScaleFactor()),
@@ -1078,7 +1101,7 @@ private class DrawBackdropNode(
                     layoutCoordinates = null
                 }
             }
-            exportedBackdrop?.layerCoordinates = coordinates
+            exportedBackdrop?.takeIf { it.ownerNode === this }?.layerCoordinates = coordinates
             ownMaterial?.layerCoordinates = coordinates
         }
     }
@@ -1218,6 +1241,8 @@ private class DrawBackdropNode(
 
     override fun onDetach() {
         cancelBeforeFrame()
+        borrowed = emptyList()
+        sampled = false
         val graphicsContext = requireGraphicsContext()
         graphicsLayer?.let { layer ->
             graphicsContext.releaseGraphicsLayer(layer)
@@ -1274,8 +1299,10 @@ private class DrawBackdropNode(
 
     fun unbindExport() {
         val export = exportedBackdrop ?: return
-        export.layerCoordinates = null
-        if (export.ownerNode === this) export.ownerNode = null
+        if (export.ownerNode === this) {
+            export.layerCoordinates = null
+            export.ownerNode = null
+        }
         if (export.onFirstReader === wakeExport) export.onFirstReader = null
         notifyNestedReaders()
     }
@@ -1304,34 +1331,34 @@ private class DrawBackdropNode(
 
     // --- Fluid Engine addition (4.0.0, F2.3c): lo scrittore di riserva ---------------------------------------
 
-    private var fallbackAdopted: List<LayerBackdrop> = emptyList()
+    private var fallbackAdopted: LayerBackdrop? = null
     private var fallbackWriter: LayerFallbackWriter? = null
 
     /**
      * Un vetro **fuori** dalla pagina (la tab bar, un modale, un menu montati dalla chrome) chiede alla chrome della
-     * sua finestra di registrare i layer che campiona, se nessuna pagina lo fa. Dentro la pagina mai: campionerebbe una
-     * registrazione che contiene sé stesso. Vedi `LayerBackdrop.fallbackWriter`.
+     * sua finestra la registrazione di riserva quando la pagina non pubblica il fondale. Dentro la pagina mai: campionerebbe una
+     * registrazione che contiene sé stesso. Vedi `LayerBackdrop.chromeFallback`.
      */
     fun adoptFallbacks() {
-        if (!isAttached || fallbackWriter != null) return
+        if (!isAttached) return
         // Un vetro dentro le pagine non chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
         // Dalla 4.0 G1 «dentro» vuol dire sotto il nodo scrittore (`Modifier.fluidChromePages`), non un CompositionLocal.
-        if (findNearestAncestor(LayerFallbackWriterKey) != null) return
-        val writer = LayerFallbackWriters.of(currentValueOf(LocalView).rootView) ?: return
-        val layers = ArrayList<LayerBackdrop>(0)
-        // Le sorgenti vere sotto gli involucri (sfocatura, combinazioni): `layerSources`, come la sonda.
-        // Tutti: un export ha il suo scrittore (il pannello), e lo scrittore di riserva lo lascia stare da sé.
-        for (part in backdrop.layerSources) if (part is LayerBackdrop && part !in layers) layers += part
-        if (layers.isEmpty()) return
-        layers.forEach { writer.adopt(it) }
-        fallbackAdopted = layers
+        val writer = if (findNearestAncestor(LayerFallbackWriterKey) == null)
+            LayerFallbackWriters.of(currentValueOf(LocalView).rootView) else null
+        if (writer === fallbackWriter) return
+        releaseFallbacks()
+        if (writer == null) return
+        // Solo lo sfondo di base. Gli export sovrapposti conservano il loro produttore.
+        val base = backdrop.layerSources.firstOrNull() as? LayerBackdrop ?: return
+        writer.adopt(base)
+        fallbackAdopted = base
         fallbackWriter = writer
     }
 
     private fun releaseFallbacks() {
         val writer = fallbackWriter ?: return
-        fallbackAdopted.forEach { writer.release(it) }
-        fallbackAdopted = emptyList()
+        fallbackAdopted?.let { writer.release(it) }
+        fallbackAdopted = null
         fallbackWriter = null
     }
 

@@ -52,4 +52,5 @@ internal fun DrawScope.recordLayer(
             drawContext.density = prevDensity
         }
     }
+    checkRecordedGraph(layer, node)
 }

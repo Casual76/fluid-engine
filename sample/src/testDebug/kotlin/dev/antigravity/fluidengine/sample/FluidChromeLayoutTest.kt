@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.sample
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.BoxScope
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -21,6 +25,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidScrollToTopBus
 import dev.antigravity.fluidengine.ui.fluid.ProvideFluidChrome
 import dev.antigravity.fluidengine.ui.fluid.fluidChromePages
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -41,6 +48,38 @@ class FluidChromeLayoutTest {
 
   @get:Rule
   val compose = createAndroidComposeRule<ComponentActivity>()
+
+  @Test
+  fun movingPageContentOutsideSubcompositionKeepsTheExternalLayerReadOnly() {
+    val constrained = mutableStateOf(true)
+    lateinit var external: LayerBackdrop
+    var placements = 0
+    compose.setContent {
+      external = rememberLayerBackdrop()
+      val body = remember { movableContentOf {
+        Spacer(Modifier.size(96.dp).onGloballyPositioned { placements++ })
+      } }
+      Box {
+        Box(Modifier.fluidChromePages()) {
+          if (constrained.value) {
+            BoxWithConstraints { if (maxWidth > 0.dp) body() }
+          } else {
+            Box { body() }
+          }
+        }
+        Box(Modifier.size(24.dp).drawPlainBackdrop(external, { RectangleShape }, {}))
+      }
+    }
+    compose.runOnIdle {
+      assertEquals(IntSize.Zero, external.graphicsLayer.size)
+      placements = 0
+      constrained.value = false
+    }
+    compose.runOnIdle {
+      org.junit.Assert.assertTrue("il corpo è stato riposizionato", placements > 0)
+      assertEquals("la destinazione del lettore resta intatta", IntSize.Zero, external.graphicsLayer.size)
+    }
+  }
 
   @Test
   fun inAColumnThePageTakesTheWeightAndTheBarStaysBelowIt() {

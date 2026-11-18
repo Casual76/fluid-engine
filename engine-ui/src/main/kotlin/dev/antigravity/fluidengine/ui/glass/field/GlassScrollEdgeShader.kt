@@ -135,6 +135,17 @@ internal const val GlassEdgeBlurMaxRadiusPx: Float = 38.5f
  *
  * `grain`: mezzo livello di grana fissa sul velo (la stessa formula del corpo del vetro, `GlassBodyShader`), contro gli
  * scalini a 8 bit di una rampa lenta su una tinta unita. Pesa zero dove il velo non c'è.
+ *
+ * ### Nessuna lettura dietro una condizione che dipende dalla posizione (A6, F4A «filo»)
+ * Le letture di `content` stanno tutte in un flusso che ogni pixel percorre allo stesso modo: il solo ramo che le
+ * contiene guarda un uniforme (`blurShare`), mai `s`, `d`, `a` o `coord`. Prima, dove la sfocatura scendeva sotto
+ * 0,0001 il programma saltava le 41 letture (`if (s > 0.0001)`): il confine di quel ramo cadeva fra due righe di pixel e,
+ * quando separava una riga pari dalla dispari seguente, il gruppo 2×2 con cui la GPU esegue i pixel restava diviso, e la
+ * riga che stava dentro il ramo usciva a 255,255,255: un filo bianco largo come lo schermo sotto i tasti, a y=226 sul
+ * tablet da 320 dpi con i tasti a 68 dp. Non si vedeva sul banco (Skia su CPU non ha gruppi). Ora il ciclo gira dove
+ * `blurShare` non è zero, e lo `s` troppo piccolo si sceglie **dopo**, con un'assegnazione senza letture: dove prima il
+ * ramo saltava, il risultato è la stessa lettura del centro, al bit. Costa il ciclo anche sulla coda senza sfocatura
+ * (l'ultimo 12% della striscia morbida in alto); la striscia che non sfoca (`blurShare` zero, in basso) non lo paga.
  */
 internal const val GlassEdgeBlurShaderString = """
 uniform shader content;
@@ -220,8 +231,10 @@ half4 main(float2 coord) {
     float d = edgeDepth(coord);
     float a = amountAt(coord.x);
     float s = blurWeight(d, a);
-    float4 sum = float4(content.eval(clampToBounds(coord))) * centerWeight;
-    if (s > 0.0001) {
+    float4 center = float4(content.eval(clampToBounds(coord)));
+    float4 sum = center;
+    if (blurShare > 0.0) {
+        sum = center * centerWeight;
         for (int i = 0; i < $GlassEdgeBlurTapPairs; i++) {
             float2 tap = taps[i];
             if (tap.y > 0.0) {
@@ -230,8 +243,7 @@ half4 main(float2 coord) {
                 sum += float4(content.eval(clampToBounds(coord + o))) * tap.y;
             }
         }
-    } else {
-        sum = float4(content.eval(clampToBounds(coord)));
+        if (!(s > 0.0001)) sum = center;
     }
     if (finish < 0.5) {
         return half4(sum);

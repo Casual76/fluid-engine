@@ -350,4 +350,116 @@ class GlassScrollEdgeTest {
       }
     }
   }
+
+  // --- Nessuna lettura dietro una condizione che dipende dalla posizione (A6, F4A «filo») ---------------------
+
+  @Test
+  fun theStripProgramReadsTheContentOnlyUnderUniformConditions() {
+    // Il filo bianco di 1 px sotto i tasti veniva da un ramo `if (s > 0.0001)` attorno alle letture: se il suo confine
+    // separava una riga pari dalla dispari seguente, la GPU (pixel a gruppi di 2×2) lasciava indefinito il risultato.
+    // Il banco, che non ha gruppi, non lo vede; la sorgente sì.
+    val offenders = glassSamplesUnderPositionConditions(GlassEdgeBlurShaderString)
+    assertTrue("letture dietro una condizione che cambia da pixel a pixel: $offenders", offenders.isEmpty())
+    assertTrue("il programma legge davvero il contenuto", GlassEdgeBlurShaderString.contains("content.eval("))
+  }
+
+  @Test
+  fun theDetectorSeesTheBranchThatDrewTheLine() {
+    val before = """
+      half4 main(float2 coord) {
+        float s = blurWeight(d, a);
+        float4 sum = float4(content.eval(coord)) * centerWeight;
+        if (s > 0.0001) {
+          for (int i = 0; i < 20; i++) {
+            float2 tap = taps[i];
+            if (tap.y > 0.0) { sum += float4(content.eval(coord - o)) * tap.y; }
+          }
+        } else {
+          sum = float4(content.eval(coord));
+        }
+        return half4(sum);
+      }
+    """
+    // La lettura nel ciclo e quella dell'`else` (la condizione dell'`else` è quella dell'`if` che lo precede).
+    assertEquals(2, glassSamplesUnderPositionConditions(before).size)
+    val after = """
+      half4 main(float2 coord) {
+        float s = blurWeight(d, a);
+        float4 center = float4(content.eval(coord));
+        float4 sum = center;
+        if (blurShare > 0.0) {
+          for (int i = 0; i < 20; i++) {
+            float2 tap = taps[i];
+            if (tap.y > 0.0) { sum += float4(content.eval(coord - o)) * tap.y; }
+          }
+          if (!(s > 0.0001)) sum = center;
+        }
+        return half4(sum);
+      }
+    """
+    assertEquals(emptyList<String>(), glassSamplesUnderPositionConditions(after))
+  }
+}
+
+/** Ciò che cambia da pixel a pixel nello shader della striscia: una condizione che lo nomina non è uniforme. */
+private val PerPixelNames = setOf("coord", "d", "a", "s", "w", "v", "c", "cover", "sum", "o", "p")
+
+/**
+ * Le letture `content.eval(` che stanno dentro un ramo (`if`, `for`, `while`, `else`) la cui condizione nomina un valore
+ * che cambia da pixel a pixel: sono quelle che una GPU può lasciare indefinite sul confine del ramo. Vuota = tutte le
+ * letture sono in un flusso uniforme. Una lettura in fondo a una funzione, senza rami attorno, non conta.
+ */
+private fun glassSamplesUnderPositionConditions(source: String): List<String> {
+  val offenders = ArrayList<String>()
+  var at = source.indexOf("content.eval(")
+  while (at >= 0) {
+    var depth = 0
+    for (i in at - 1 downTo 0) {
+      when (source[i]) {
+        '}' -> depth++
+        '{' -> if (depth > 0) depth-- else {
+          val condition = glassBlockCondition(source, i)
+          val names = Regex("[A-Za-z_][A-Za-z0-9_]*").findAll(condition).map { it.value }.toSet()
+          val perPixel = names intersect PerPixelNames
+          if (perPixel.isNotEmpty()) offenders += "«$condition» nomina $perPixel"
+        }
+      }
+    }
+    at = source.indexOf("content.eval(", at + 1)
+  }
+  return offenders
+}
+
+/** La condizione del blocco aperto da `{` in [open]: dentro le parentesi di `if`/`for`/`while`, quella dell'`if` per un `else`, vuota per il resto. */
+private fun glassBlockCondition(source: String, open: Int): String {
+  var i = open - 1
+  while (i >= 0 && source[i].isWhitespace()) i--
+  if (i < 0) return ""
+  if (source[i] == ')') {
+    var depth = 0
+    var j = i
+    while (j >= 0) {
+      if (source[j] == ')') depth++
+      if (source[j] == '(' && --depth == 0) break
+      j--
+    }
+    val word = source.substring(0, j).trimEnd().takeLastWhile { it.isLetterOrDigit() || it == '_' }
+    return if (word == "if" || word == "for" || word == "while") source.substring(j + 1, i) else ""
+  }
+  val word = source.substring(0, i + 1).takeLastWhile { it.isLetter() }
+  if (word == "else") {
+    var k = i - word.length
+    while (k >= 0 && source[k].isWhitespace()) k--
+    if (k >= 0 && source[k] == '}') {
+      var depth = 0
+      var j = k
+      while (j >= 0) {
+        if (source[j] == '}') depth++
+        if (source[j] == '{' && --depth == 0) break
+        j--
+      }
+      return glassBlockCondition(source, j)
+    }
+  }
+  return ""
 }

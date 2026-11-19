@@ -83,6 +83,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -136,6 +137,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -167,6 +169,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -279,6 +282,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -332,6 +336,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -363,6 +368,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -425,6 +431,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -474,6 +481,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -527,6 +535,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -558,6 +567,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -670,6 +680,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -723,6 +734,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -754,6 +766,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -816,6 +829,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -865,6 +879,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -918,6 +933,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -949,6 +965,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1061,6 +1078,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1114,6 +1132,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1145,6 +1164,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1207,6 +1227,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -1256,6 +1277,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1309,6 +1331,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1340,6 +1363,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1452,6 +1476,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1505,6 +1530,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1536,6 +1562,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1566,13 +1593,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.993858,
-              "blurDp": 0.018427,
+              "alpha": 0.944905,
+              "blurDp": 1.274226,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 25.031906,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1580,7 +1607,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 73.031906,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1588,7 +1615,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 121.031906,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1597,7 +1624,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.006142,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -1647,6 +1675,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1700,6 +1729,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1731,6 +1761,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1843,6 +1874,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1896,6 +1928,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1927,6 +1960,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1957,13 +1991,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.973711,
-              "blurDp": 0.078866,
+              "alpha": 0.802745,
+              "blurDp": 2.186456,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 28.416428,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1971,7 +2005,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 76.416428,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1979,7 +2013,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 124.416428,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -1988,7 +2022,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.026289,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -2038,6 +2073,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2091,6 +2127,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2122,6 +2159,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2234,6 +2272,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2287,6 +2326,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2318,6 +2358,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2348,13 +2389,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.936779,
-              "blurDp": 0.189663,
+              "alpha": 0.608207,
+              "blurDp": 2.73669,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 34.62114,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2362,7 +2403,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 82.62114,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2370,7 +2411,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 130.62114,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2379,7 +2420,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.063221,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -2429,6 +2471,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2482,6 +2525,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2513,6 +2557,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2625,6 +2670,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2678,6 +2724,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2709,6 +2756,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2739,13 +2787,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.880504,
-              "blurDp": 0.358489,
+              "alpha": 0.395979,
+              "blurDp": 2.924928,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 44.075394,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2753,7 +2801,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 92.075394,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2761,7 +2809,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 140.075394,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -2770,7 +2818,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.119496,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -2820,6 +2869,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2873,6 +2923,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2904,6 +2955,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3016,6 +3068,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3069,6 +3122,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3100,6 +3154,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3130,13 +3185,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.803879,
-              "blurDp": 0.588363,
+              "alpha": 0.200748,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 56.948273,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3144,7 +3199,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 104.948273,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3152,7 +3207,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 152.948273,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3161,7 +3216,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.196121,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -3211,6 +3267,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3264,6 +3321,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3295,6 +3353,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3407,6 +3466,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3460,6 +3520,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3491,6 +3552,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3521,13 +3583,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.709485,
-              "blurDp": 0.871545,
+              "alpha": 0.0572,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 72.806503,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3535,7 +3597,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 120.806503,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3543,7 +3605,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 168.806503,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3552,7 +3614,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.290515,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -3602,6 +3665,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3655,6 +3719,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3686,6 +3751,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3798,6 +3864,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3851,6 +3918,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3882,6 +3950,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3912,13 +3981,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.604601,
-              "blurDp": 1.186196,
+              "alpha": 0.000024,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 90.426979,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3926,7 +3995,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 138.426971,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3934,7 +4003,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 186.426971,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -3943,7 +4012,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.395399,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -3993,6 +4063,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4046,6 +4117,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4077,6 +4149,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4189,6 +4262,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4242,6 +4316,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4273,6 +4348,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4303,13 +4379,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.499069,
-              "blurDp": 1.502793,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 108.156441,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4317,7 +4393,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 156.156433,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4325,7 +4401,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 204.156433,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4334,7 +4410,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.500931,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -4384,6 +4461,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4437,6 +4515,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4468,6 +4547,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4580,6 +4660,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4633,6 +4714,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4664,6 +4746,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4694,13 +4777,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.401095,
-              "blurDp": 1.796716,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 124.616112,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4708,7 +4791,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 172.616119,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4716,7 +4799,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 220.616119,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -4725,7 +4808,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.598905,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -4775,6 +4859,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4828,6 +4913,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4859,6 +4945,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4971,6 +5058,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5024,6 +5112,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5055,6 +5144,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5085,13 +5175,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.315038,
-              "blurDp": 2.054887,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 139.073669,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5099,7 +5189,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 187.073669,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5107,7 +5197,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 235.073669,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5116,7 +5206,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.684962,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -5166,6 +5257,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5219,6 +5311,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5250,6 +5343,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5362,6 +5456,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5415,6 +5510,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5446,6 +5542,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5476,13 +5573,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.242033,
-              "blurDp": 2.273902,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 151.338531,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5490,7 +5587,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 199.338531,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5498,7 +5595,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 247.338531,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5507,7 +5604,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.757967,
+              "alpha": 0.100934,
+              "blurDp": 2.629767,
               "items": [
                 {
                   "kind": "icon",
@@ -5557,6 +5655,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5610,6 +5709,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5641,6 +5741,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5753,6 +5854,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5806,6 +5908,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5837,6 +5940,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5867,13 +5971,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.181474,
-              "blurDp": 2.455577,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 161.512314,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5881,7 +5985,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 209.512314,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5889,7 +5993,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 257.512329,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -5898,7 +6002,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.818526,
+              "alpha": 0.348534,
+              "blurDp": 1.905539,
               "items": [
                 {
                   "kind": "icon",
@@ -5948,6 +6053,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6001,6 +6107,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6032,6 +6139,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6144,6 +6252,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6197,6 +6306,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6228,6 +6338,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6258,13 +6369,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.132092,
-              "blurDp": 2.603723,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 169.808472,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6272,7 +6383,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 217.808472,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6280,7 +6391,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 265.808472,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6289,7 +6400,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.867908,
+              "alpha": 0.645685,
+              "blurDp": 1.036371,
               "items": [
                 {
                   "kind": "icon",
@@ -6339,6 +6451,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6392,6 +6505,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6423,6 +6537,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6535,6 +6650,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6588,6 +6704,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6619,6 +6736,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6649,13 +6767,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.0925,
-              "blurDp": 2.722499,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 176.459961,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6663,7 +6781,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 224.459961,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6671,7 +6789,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 272.459961,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -6680,7 +6798,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.9075,
+              "alpha": 0.895228,
+              "blurDp": 0.306459,
               "items": [
                 {
                   "kind": "icon",
@@ -6730,6 +6849,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6783,6 +6903,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6814,6 +6935,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6926,6 +7048,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6979,6 +7102,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7010,6 +7134,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7040,13 +7165,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.061412,
-              "blurDp": 2.815763,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 181.682709,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7054,7 +7179,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 229.682709,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7062,7 +7187,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 277.682709,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7071,7 +7196,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.938588,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -7121,6 +7247,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7174,6 +7301,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7205,6 +7333,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7317,6 +7446,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7370,6 +7500,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7401,6 +7532,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7431,13 +7563,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.037711,
-              "blurDp": 2.886866,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 185.664505,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7445,7 +7577,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 233.664505,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7453,7 +7585,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 281.66449,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7462,7 +7594,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.962289,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -7512,6 +7645,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7565,6 +7699,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7596,6 +7731,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7708,6 +7844,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7761,6 +7898,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7792,6 +7930,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7822,13 +7961,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.020451,
-              "blurDp": 2.938646,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 188.564209,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7836,7 +7975,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 236.564209,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7844,7 +7983,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 284.564209,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -7853,7 +7992,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.979549,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -7903,6 +8043,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7956,6 +8097,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7987,6 +8129,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8099,6 +8242,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8152,6 +8296,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8183,6 +8328,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8213,13 +8359,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.008839,
-              "blurDp": 2.973484,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 190.515091,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8227,7 +8373,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 238.515091,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8235,7 +8381,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 286.515076,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8244,7 +8390,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.991161,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -8294,6 +8441,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8347,6 +8495,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8378,6 +8527,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8490,6 +8640,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8543,6 +8694,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8574,6 +8726,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8604,13 +8757,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.002209,
-              "blurDp": 2.993373,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 191.628922,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8618,7 +8771,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 239.628922,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8626,7 +8779,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 287.628906,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -8635,7 +8788,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.997791,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -8685,6 +8839,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8738,6 +8893,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8769,6 +8925,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8881,6 +9038,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8934,6 +9092,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8965,6 +9124,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8995,13 +9155,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.000003,
-              "blurDp": 2.999991,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 191.999512,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9009,7 +9169,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 239.999512,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9017,7 +9177,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 287.999512,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9026,7 +9186,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.999997,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -9076,6 +9237,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -9129,6 +9291,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9160,6 +9323,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9272,6 +9436,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -9325,6 +9490,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9356,6 +9522,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9387,12 +9554,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9400,7 +9567,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9408,7 +9575,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9418,6 +9585,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -9467,6 +9635,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -9520,6 +9689,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9551,6 +9721,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9663,6 +9834,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -9716,6 +9888,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9747,6 +9920,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9778,12 +9952,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9791,7 +9965,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9799,7 +9973,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -9809,6 +9983,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -9858,6 +10033,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -9911,6 +10087,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -9942,6 +10119,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10054,6 +10232,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -10107,6 +10286,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10138,6 +10318,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10169,12 +10350,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10182,7 +10363,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10190,7 +10371,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10200,6 +10381,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -10249,6 +10431,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -10302,6 +10485,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10333,6 +10517,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10445,6 +10630,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -10498,6 +10684,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10529,6 +10716,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10560,12 +10748,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10573,7 +10761,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10581,7 +10769,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10591,6 +10779,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -10640,6 +10829,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -10693,6 +10883,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10724,6 +10915,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10836,6 +11028,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -10889,6 +11082,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10920,6 +11114,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -10951,12 +11146,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10964,7 +11159,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10972,7 +11167,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -10982,6 +11177,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -11031,6 +11227,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -11084,6 +11281,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11115,6 +11313,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11227,6 +11426,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -11280,6 +11480,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11311,6 +11512,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11342,12 +11544,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11355,7 +11557,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11363,7 +11565,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11373,6 +11575,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -11422,6 +11625,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -11475,6 +11679,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11506,6 +11711,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11618,6 +11824,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -11671,6 +11878,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11702,6 +11910,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11733,12 +11942,12 @@
             {
               "name": "comandi",
               "alpha": 0,
-              "blurDp": 3,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 192,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11746,7 +11955,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 240,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11754,7 +11963,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 288,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -11764,6 +11973,7 @@
             {
               "name": "altro",
               "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
@@ -11813,6 +12023,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -11866,6 +12077,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -11897,6 +12109,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12009,6 +12222,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -12062,6 +12276,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12093,6 +12308,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12123,13 +12339,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.006142,
-              "blurDp": 2.981573,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 190.968094,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12137,7 +12353,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 238.968094,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12145,7 +12361,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 286.968079,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12154,7 +12370,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.993858,
+              "alpha": 0.895228,
+              "blurDp": 0.306459,
               "items": [
                 {
                   "kind": "icon",
@@ -12204,6 +12421,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -12257,6 +12475,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12288,6 +12507,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12400,6 +12620,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -12453,6 +12674,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12484,6 +12706,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12514,13 +12737,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.026288,
-              "blurDp": 2.921135,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 187.583572,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12528,7 +12751,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 235.583572,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12536,7 +12759,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 283.583557,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12545,7 +12768,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.973712,
+              "alpha": 0.645685,
+              "blurDp": 1.036371,
               "items": [
                 {
                   "kind": "icon",
@@ -12595,6 +12819,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -12648,6 +12873,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12679,6 +12905,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12791,6 +13018,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -12844,6 +13072,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12875,6 +13104,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -12905,13 +13135,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.063221,
-              "blurDp": 2.810337,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 181.37886,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12919,7 +13149,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 229.37886,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12927,7 +13157,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 277.378845,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -12936,7 +13166,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.936779,
+              "alpha": 0.348534,
+              "blurDp": 1.905539,
               "items": [
                 {
                   "kind": "icon",
@@ -12986,6 +13217,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -13039,6 +13271,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13070,6 +13303,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13182,6 +13416,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -13235,6 +13470,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13266,6 +13502,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13296,13 +13533,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.119496,
-              "blurDp": 2.641511,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 171.924622,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13310,7 +13547,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 219.924622,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13318,7 +13555,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 267.924622,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13327,7 +13564,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.880504,
+              "alpha": 0.100934,
+              "blurDp": 2.629767,
               "items": [
                 {
                   "kind": "icon",
@@ -13377,6 +13615,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -13430,6 +13669,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13461,6 +13701,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13573,6 +13814,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -13626,6 +13868,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13657,6 +13900,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13687,13 +13931,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.196121,
-              "blurDp": 2.411638,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 159.051712,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13701,7 +13945,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 207.051712,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13709,7 +13953,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 255.051712,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -13718,7 +13962,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.803879,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -13768,6 +14013,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -13821,6 +14067,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13852,6 +14099,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -13964,6 +14212,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14017,6 +14266,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14048,6 +14298,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14078,13 +14329,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.290515,
-              "blurDp": 2.128455,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 143.193481,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14092,7 +14343,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 191.193481,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14100,7 +14351,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 239.193481,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14109,7 +14360,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.709485,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -14159,6 +14411,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14212,6 +14465,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14243,6 +14497,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14355,6 +14610,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14408,6 +14664,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14439,6 +14696,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14469,13 +14727,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.395399,
-              "blurDp": 1.813804,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 125.573021,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14483,7 +14741,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 173.573029,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14491,7 +14749,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 221.573029,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14500,7 +14758,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.604601,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -14550,6 +14809,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14603,6 +14863,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14634,6 +14895,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14746,6 +15008,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14799,6 +15062,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14830,6 +15094,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -14860,13 +15125,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.500931,
-              "blurDp": 1.497206,
+              "alpha": 0.000024,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 107.843559,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14874,7 +15139,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 155.843567,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14882,7 +15147,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 203.843567,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -14891,7 +15156,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.499069,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -14941,6 +15207,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -14994,6 +15261,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15025,6 +15293,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15137,6 +15406,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -15190,6 +15460,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15221,6 +15492,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15251,13 +15523,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.598905,
-              "blurDp": 1.203284,
+              "alpha": 0.0572,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 91.383888,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15265,7 +15537,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 139.383881,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15273,7 +15545,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 187.383881,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15282,7 +15554,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.401095,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -15332,6 +15605,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -15385,6 +15659,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15416,6 +15691,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15528,6 +15804,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -15581,6 +15858,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15612,6 +15890,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15642,13 +15921,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.684962,
-              "blurDp": 0.945113,
+              "alpha": 0.200748,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 76.926331,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15656,7 +15935,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 124.926331,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15664,7 +15943,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 172.926331,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -15673,7 +15952,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.315038,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -15723,6 +16003,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -15776,6 +16057,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15807,6 +16089,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -15919,6 +16202,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -15972,6 +16256,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16003,6 +16288,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16033,13 +16319,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.757967,
-              "blurDp": 0.726098,
+              "alpha": 0.395979,
+              "blurDp": 2.924928,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 64.661469,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16047,7 +16333,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 112.661469,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16055,7 +16341,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 160.661469,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16064,7 +16350,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.242033,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -16114,6 +16401,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -16167,6 +16455,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16198,6 +16487,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16310,6 +16600,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -16363,6 +16654,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16394,6 +16686,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16424,13 +16717,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.818525,
-              "blurDp": 0.544424,
+              "alpha": 0.608208,
+              "blurDp": 2.73669,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 54.487686,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16438,7 +16731,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 102.487686,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16446,7 +16739,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 150.487686,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16455,7 +16748,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.181475,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -16505,6 +16799,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -16558,6 +16853,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16589,6 +16885,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16701,6 +16998,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -16754,6 +17052,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16785,6 +17084,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16815,13 +17115,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.867908,
-              "blurDp": 0.396277,
+              "alpha": 0.802745,
+              "blurDp": 2.186456,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 46.191544,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16829,7 +17129,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 94.191544,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16837,7 +17137,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 142.191544,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -16846,7 +17146,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.132092,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -16896,6 +17197,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -16949,6 +17251,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -16980,6 +17283,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17092,6 +17396,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -17145,6 +17450,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17176,6 +17482,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17206,13 +17513,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.9075,
-              "blurDp": 0.277501,
+              "alpha": 0.944905,
+              "blurDp": 1.274226,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 39.540039,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17220,7 +17527,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 87.540039,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17228,7 +17535,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 135.540039,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17237,7 +17544,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.0925,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -17287,6 +17595,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -17340,6 +17649,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17371,6 +17681,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17483,6 +17794,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -17536,6 +17848,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17567,6 +17880,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17597,13 +17911,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.938587,
-              "blurDp": 0.184238,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 34.317276,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17611,7 +17925,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 82.317276,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17619,7 +17933,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 130.317276,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -17628,7 +17942,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.061413,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -17678,6 +17993,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -17731,6 +18047,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17762,6 +18079,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17874,6 +18192,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -17927,6 +18246,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17958,6 +18278,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -17988,13 +18309,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.962289,
-              "blurDp": 0.113134,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 30.335495,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18002,7 +18323,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 78.335495,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18010,7 +18331,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 126.335495,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18019,7 +18340,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.037711,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -18069,6 +18391,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -18122,6 +18445,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18153,6 +18477,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18265,6 +18590,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -18318,6 +18644,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18349,6 +18676,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18379,13 +18707,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.979549,
-              "blurDp": 0.061354,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 27.435791,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18393,7 +18721,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 75.435791,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18401,7 +18729,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 123.435791,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18410,7 +18738,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.020451,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -18460,6 +18789,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -18513,6 +18843,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18544,6 +18875,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18656,6 +18988,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -18709,6 +19042,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18740,6 +19074,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18770,13 +19105,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.991161,
-              "blurDp": 0.026516,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 25.484909,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18784,7 +19119,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 73.484909,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18792,7 +19127,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 121.484909,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -18801,7 +19136,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.008839,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -18851,6 +19187,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -18904,6 +19241,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -18935,6 +19273,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19047,6 +19386,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -19100,6 +19440,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19131,6 +19472,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19161,13 +19503,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.997791,
-              "blurDp": 0.006627,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 24.371078,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19175,7 +19517,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 72.371078,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19183,7 +19525,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 120.371078,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19192,7 +19534,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.002209,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -19242,6 +19585,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -19295,6 +19639,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19326,6 +19671,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19438,6 +19784,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -19491,6 +19838,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19522,6 +19870,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19552,13 +19901,13 @@
           "content": [
             {
               "name": "comandi",
-              "alpha": 0.999997,
-              "blurDp": 0.000009,
+              "alpha": 1,
+              "blurDp": 0,
               "items": [
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite",
-                  "x": 24,
+                  "x": 24.000488,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19566,7 +19915,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:ios_share",
-                  "x": 72,
+                  "x": 72.000488,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19574,7 +19923,7 @@
                 {
                   "kind": "icon",
                   "icon": "fluid:add",
-                  "x": 120,
+                  "x": 120.000488,
                   "y": 24,
                   "sizeDp": 22,
                   "color": "#F2F2F5"
@@ -19583,7 +19932,8 @@
             },
             {
               "name": "altro",
-              "alpha": 0.000003,
+              "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -19633,6 +19983,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -19686,6 +20037,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19717,6 +20069,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19829,6 +20182,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -19882,6 +20236,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19913,6 +20268,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -19975,6 +20331,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -20024,6 +20381,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -20077,6 +20435,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20108,6 +20467,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20220,6 +20580,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -20273,6 +20634,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20304,6 +20666,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20366,6 +20729,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -20415,6 +20779,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -20468,6 +20833,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20499,6 +20865,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20611,6 +20978,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -20664,6 +21032,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20695,6 +21064,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20757,6 +21127,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",
@@ -20806,6 +21177,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -20859,6 +21231,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -20890,6 +21263,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -21002,6 +21376,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -21055,6 +21430,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -21086,6 +21462,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -21148,6 +21525,7 @@
             {
               "name": "altro",
               "alpha": 0,
+              "blurDp": 2.925,
               "items": [
                 {
                   "kind": "icon",

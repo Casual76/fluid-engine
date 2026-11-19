@@ -5,7 +5,9 @@ import android.os.Build
 import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -46,6 +48,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -169,6 +172,35 @@ internal val LocalToolbarSearch = compositionLocalOf<ToolbarSearch?> { null }
 // WWDC25 256, f7320..7330, a 30000/1001 Hz. Curva del centro della lente nella clip a 1×.
 internal val ToolbarSearchTiming = tween<Float>(334, easing = CubicBezierEasing(.38f, 0f, .35f, 1f))
 internal val ToolbarSearchAnimation = FluidGlassAnimation.Custom(ToolbarSearchTiming)
+// Salute (WWDC25 256): il gruppo perde il fuoco al primo movimento e il nuovo segno entra a gruppo raccolto.
+internal const val ToolbarSearchInkMillis = 250
+
+internal fun toolbarSearchInkAlpha(progress: Float, overflow: Boolean): Float {
+  val millis = progress * ToolbarSearchInkMillis
+  return if (overflow) smoothStep(((millis - 167f) / (ToolbarSearchInkMillis - 167f)).coerceIn(0f, 1f))
+  else 1f - smoothStep((millis / 117f).coerceIn(0f, 1f))
+}
+
+internal fun toolbarSearchInkBlur(progress: Float, overflow: Boolean): Float {
+  val millis = progress * ToolbarSearchInkMillis
+  if (overflow) return 1f - toolbarSearchInkAlpha(progress, true)
+  val remaining = 1f - (millis / 67f).coerceIn(0f, 1f)
+  return 1f - remaining * remaining
+}
+
+/** Invertendo la ricerca i due strati ripercorrono lo stesso orologio a partire dal fotogramma visibile. */
+@Composable
+internal fun rememberToolbarSearchInk(active: Boolean): State<Float> {
+  val target = if (active) 1f else 0f
+  val phase = remember { Animatable(target) }
+  val scale = LocalFluidMotionPolicy.current.durationScale
+  LaunchedEffect(active, scale) {
+    val remaining = kotlin.math.abs(target - phase.value)
+    phase.animateTo(target, tween((ToolbarSearchInkMillis * remaining * scale).roundToInt(), easing = LinearEasing))
+  }
+  return phase.asState()
+}
+
 internal val LocalPrincipalSearchActive = compositionLocalOf { false }
 private val SearchLabels = FluidSearchLabels()
 private val SearchOnly = buildFluidToolbar(null) {}
@@ -349,7 +381,7 @@ internal fun FluidToolbarSearchOverlay(
       }
       Box(Modifier.fillMaxWidth().offset { IntOffset(0, toolbarSearchOffset(available, rowHeight.roundToPx(), position.value)) }
         .height(rowHeight).then(if (active) Modifier else Modifier.fluidToolbarMinimizeLayer(minimize, towardsBottom = search.atBottom))) {
-        FluidToolbarGroups(page, pose.neighbours, reduced, interactive = true) { namespace ->
+        FluidToolbarGroups(page, pose.neighbours, reduced, interactive = true, searchActive = active) { namespace ->
           Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { ToolbarSearchField(search, pose, namespace, Modifier) }
         }
       }

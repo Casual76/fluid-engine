@@ -56,6 +56,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -126,6 +127,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -738,10 +740,15 @@ internal class FluidToolbarMemory {
 
   var arrivals by mutableStateOf(emptyMap<Any, FluidToolbarElement>())
     private set
+  var searchArrivals: Set<Any> = emptySet()
+    private set
+  private var previousSearchActive: Boolean? = null
   private var ghostSerial = 0
 
-  fun update(next: FluidToolbarResolved, motion: FluidToolbarMotion) {
+  fun update(next: FluidToolbarResolved, motion: FluidToolbarMotion, searchActive: Boolean? = null) {
     val before = resolved
+    val searchChanged = searchActive != null && previousSearchActive != null && searchActive != previousSearchActive
+    previousSearchActive = searchActive
     if (before == next) return
     if (before == null) {
       glassIds = fluidToolbarGlassIds(next)
@@ -789,14 +796,20 @@ internal class FluidToolbarMemory {
       val entering = diff.elements.mapNotNull { change ->
         change.to?.takeIf { !it.inOverflow && (change.from == null || change.from.inOverflow) }
       }
+      val searchSwap = searchChanged && motion == FluidToolbarMotion.Full
       val fresh = leaving.filter { it.item.contentKey == null }.map { old ->
-        FluidToolbarGhost(ghostSerial++, old, glassIds.getValue(old.groupId!!), glassIds[old.groupId] in ids.values)
+        FluidToolbarGhost(ghostSerial++, old, glassIds.getValue(old.groupId!!), glassIds[old.groupId] in ids.values,
+          searchSwap)
       }
       val visible = next.elements.filterNot { it.inOverflow }.mapTo(HashSet()) { it.item.id }
       ghosts = ghosts.filter { it.element.item.id !in visible && fresh.none { new -> new.element.item.id == it.element.item.id } } + fresh
       // Uno scambio avvia i due contenuti sullo stesso orologio, anche se cambia il vetro.
-      arrivals = arrivals.filter { (id, element) -> next.element(id) == element } +
-        entering.filter { end -> end.item.contentKey == null && leaving.any { it.side == end.side } }.associateBy { it.item.id }
+      val newArrivals = entering.filter { end ->
+        end.item.contentKey == null && (searchSwap || leaving.any { it.side == end.side })
+      }.associateBy { it.item.id }
+      val keptArrivals = arrivals.filter { (id, element) -> next.element(id) == element }
+      searchArrivals = (searchArrivals intersect keptArrivals.keys) + if (searchSwap) newArrivals.keys else emptySet()
+      arrivals = keptArrivals + newArrivals
       previousIds = before.elements.filter { !it.inOverflow }.mapTo(HashSet()) { it.item.id }
       previousGlass = glassIds.values.toSet()
       glassIds = ids
@@ -810,7 +823,10 @@ internal class FluidToolbarMemory {
   }
 
   fun finishArrival(element: FluidToolbarElement) {
-    if (arrivals[element.item.id] === element) arrivals = arrivals - element.item.id
+    if (arrivals[element.item.id] === element) {
+      searchArrivals = searchArrivals - element.item.id
+      arrivals = arrivals - element.item.id
+    }
   }
 
   fun forget(ghost: FluidToolbarGhost) {
@@ -879,6 +895,7 @@ internal data class FluidToolbarGhost(
   val element: FluidToolbarElement,
   val glass: FluidToolbarGlassId,
   val glassStays: Boolean,
+  val searchSwap: Boolean = false,
 )
 
 // ================================================================================================================
@@ -978,10 +995,12 @@ internal fun FluidToolbarGroups(
   resolved: FluidToolbarResolved,
   reducedMotion: Boolean,
   interactive: Boolean,
+  searchActive: Boolean? = null,
   searchField: (@Composable (FluidGlassNamespace) -> Unit)? = null,
 ) {
     val memory = remember { FluidToolbarMemory() }
-    memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full)
+    memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full, searchActive)
+    val searchInk = if (searchActive != null && !reducedMotion) rememberToolbarSearchInk(searchActive) else null
     val selection = HashMap<Any, State<Float>>()
     val duration = (GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale).toInt()
     for (element in resolved.elements) {
@@ -1048,12 +1067,14 @@ internal fun FluidToolbarGroups(
           val element = ghost.element
           FluidToolbarFadingFace(element, ghost.glass, namespace, plane, entering = false,
             clipToGlass = ghost.glassStays, effects = effects, height = resolved.metrics.buttonWidthDp.dp,
+            searchInk = searchInk.takeIf { ghost.searchSwap },
             modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp)) { memory.forget(ghost) }
         }
         for (element in arrivals.values) key(element) {
           val glass = memory.glassIds.getValue(element.groupId!!)
           FluidToolbarFadingFace(element, glass, namespace, plane, entering = true,
             clipToGlass = true, effects = effects, height = resolved.metrics.buttonWidthDp.dp,
+            searchInk = searchInk.takeIf { element.item.id in memory.searchArrivals },
             modifier = Modifier.align(Alignment.CenterStart).offset(x = element.leftDp.dp),
             group = resolved.groups.first { it.id == element.groupId }) { memory.finishArrival(element) }
         }
@@ -1625,16 +1646,23 @@ private class FluidToolbarEffects(density: Float) {
 private fun FluidToolbarFadingFace(
   element: FluidToolbarElement, glass: FluidToolbarGlassId, namespace: FluidGlassNamespace,
   plane: FluidGlassContainerState?, entering: Boolean, clipToGlass: Boolean,
-  effects: FluidToolbarEffects, height: Dp, modifier: Modifier, group: FluidToolbarGroup? = null, finished: () -> Unit,
+  effects: FluidToolbarEffects, height: Dp, modifier: Modifier, group: FluidToolbarGroup? = null,
+  searchInk: State<Float>? = null, finished: () -> Unit,
 ) {
   val item = element.item
+  val overflow = item.id == FluidToolbarOverflowId
   val role = if (entering) GlassContentRole.Enter else GlassContentRole.Exit
   val duration = GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale
   val end = GlassContentCurves.end(role)
   val phase = remember { Animatable(0f) }
   val qualified = remember(namespace, glass) { FluidGlassQualifiedId(namespace, glass) }
-  LaunchedEffect(phase) {
-    phase.animateTo(end, tween((end * duration).roundToInt(), easing = LinearEasing))
+  LaunchedEffect(phase, searchInk) {
+    if (searchInk == null) {
+      phase.animateTo(end, tween((end * duration).roundToInt(), easing = LinearEasing))
+    } else {
+      val target = if (entering == overflow) 1f else 0f
+      snapshotFlow { searchInk.value }.first { it == target }
+    }
     if (entering) {
       do { withFrameNanos { } } while (plane?.stage != null || plane?.measurePending == true)
     }
@@ -1672,10 +1700,14 @@ private fun FluidToolbarFadingFace(
     }
     .graphicsLayer {
       val u = phase.value
-      alpha = GlassContentCurves.alpha(role, u, blurAvailable) * if (item.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
-      scaleX = GlassContentCurves.scale(role, u)
+      val inkPhase = searchInk?.value
+      val opacity = if (inkPhase == null) GlassContentCurves.alpha(role, u, blurAvailable)
+        else toolbarSearchInkAlpha(inkPhase, overflow)
+      alpha = opacity * if (item.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+      scaleX = if (inkPhase == null) GlassContentCurves.scale(role, u) else 1f
       scaleY = scaleX
-      val blur = GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur
+      val blur = (if (inkPhase == null) GlassContentCurves.blur(role, u)
+        else toolbarSearchInkBlur(inkPhase, overflow)) * GlassContentDefaults.PeakBlur
       renderEffect = if (blurAvailable) effects.at(glassContentBlurRadiusPx(glassContentSigmaPx(blur, face.size.toPx()))) else null
     }, contentAlignment = Alignment.Center) {
     FluidToolbarFaceContent(face, FluidToolbarDefaults.textStyle())

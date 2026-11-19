@@ -69,6 +69,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
@@ -217,6 +218,16 @@ private const val PuckEnterScale = 0.82f
 
 private const val PuckRestHighlightAlpha = 0.5f
 private const val PuckRestShadowAlpha = 0.35f
+
+/** R1 T2, Home → New a 60 Hz. Al tocco la lente rientra mentre la selezione finisce la corsa. */
+internal fun tabBarTapLensPressure(from: Float) = keyframes<Float> {
+    durationMillis = 217
+    maxOf(0.12f, from) at 33
+    maxOf(0.55f, from) at 67
+    0.96f at 100
+    0.96f at 133
+    0.08f at 200
+}
 
 // Vendored addition: the three shapes the bar can render. INLINE is the
 // scroll-collapsed row (unchanged by search mode); EXPANDED is the normal
@@ -2302,6 +2313,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     // destination) on top of whatever the tapped tab's own tapClickable just
     // navigated to. Gate the puck's own navigate-on-release to genuine drags.
     var hasDraggedPuck = false
+    val tapTravel = remember(animationScope, tabsCount, isLtr) { mutableStateOf(false) }
     // Read out here: what is below is a remembered object, not composition, and
     // a local cannot be asked for from inside one.
     val crossingHaptics = LocalFluidHaptics.current
@@ -2316,7 +2328,10 @@ private fun SharedTransitionScope.ExpandedTabs(
             // fraction of our own tab width — a proportional scale factor, not
             // an absolute size, so it should track the source value directly.
             pressedScale = 78f / 56f,
-            onDragStarted = { hasDraggedPuck = false },
+            onDragStarted = {
+                hasDraggedPuck = false
+                tapTravel.value = false
+            },
             onDragStopped = {
                 val targetIndex = targetValue.fastRoundToInt().coerceIn(0, tabsCount - 1)
                 currentIndex = targetIndex
@@ -2389,6 +2404,7 @@ private fun SharedTransitionScope.ExpandedTabs(
             // a second animation on top of the first is what made a tapped tab move, stop and
             // move again. This is the confirmation, not the instruction.
             if (dampedDragAnimation.targetValue.fastRoundToInt() == index) return@LaunchedEffect
+            tapTravel.value = false
 
             // Everything else is a selection that happened somewhere other than this bar — a
             // deep link, a back gesture, a screen navigating on its own — and it is re-pinned on
@@ -2471,8 +2487,12 @@ private fun SharedTransitionScope.ExpandedTabs(
     // registers this whole composable as a reader of an animation, so it recomposed on every
     // frame of every press — the row, its tabs, their icons and labels, sixty times a second,
     // for a Boolean that changes exactly twice per gesture.
-    val tabsTinted by remember(dampedDragAnimation) {
-        derivedStateOf { dampedDragAnimation.pressProgress > 0f }
+    val tapLensPressure = remember(dampedDragAnimation) { Animatable(0f) }
+    val lensPressure = remember(dampedDragAnimation) {
+        { maxOf(dampedDragAnimation.pressProgress, tapLensPressure.value) }
+    }
+    val tabsTinted by remember(lensPressure) {
+        derivedStateOf { lensPressure() > 0f }
     }
     // Letta una volta qui, in composizione, e passata al puck cosi': la scelta di cosa campionare e
     // quella di quanto sfocare devono cambiare nello stesso fotogramma, e una lambda che rileggesse
@@ -2491,7 +2511,7 @@ private fun SharedTransitionScope.ExpandedTabs(
             optics = paneOptics,
             darkSide = onDarkBar,
             barShortSideDp = sizes.barHeight.value,
-            pressed = { dampedDragAnimation.pressProgress },
+            pressed = lensPressure,
             film = if (glassConfig.puckColor.isSpecified) puckWash.copy(alpha = puckWash.alpha * puckRestAlpha) else Color.Unspecified,
             // LOCAL CHANGE (F1B.5, giro di correzione): sopra il contrasto standard pillola e riga nascosta seguono la
             // pellicola della barra (vedi `barFilm` qui sopra).
@@ -2544,6 +2564,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     val first = slot(down.position.x)
                     val onPuck = !standaloneSelected && abs(first - dampedDragAnimation.value) <= 0.5f
                     val start = if (onPuck) down else awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                    tapTravel.value = false
                     dampedDragAnimation.press()
                     var dragging = !onPuck
                     var position = if (onPuck) dampedDragAnimation.value else slot(start.position.x)
@@ -2672,7 +2693,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     isInline = false,
                     isStandalone = false,
                     contentScale = if (index == currentIndex) {
-                        { lerp(1f, 1.12f, dampedDragAnimation.pressProgress) }
+                        { lerp(1f, 1.12f, lensPressure()) }
                     } else {
                         null
                     },
@@ -2713,16 +2734,17 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     tab.onClick()
                                 } else if (index != currentIndex) {
                                     currentIndex = index
-                                    // animateToValue, which is press-travel-release: the puck
-                                    // grows into glass, crosses, and settles, exactly as if a
-                                    // finger had dragged it there and let go. A bare spring to
-                                    // the new position was the first answer here and it was the
-                                    // wrong one — it slid a coloured pill across without ever
-                                    // becoming the material, so tapping and dragging produced two
-                                    // different controls. What made the old behaviour read badly
-                                    // was never the press, it was that none of this could start
-                                    // until the app had navigated.
-                                    dampedDragAnimation.animateToValue(index.toFloat())
+                                    // Il tocco Liquid fa ancora lente; il rientro ottico può partire
+                                    // anche mentre la molla sta finendo la corsa verso la scheda.
+                                    if (liquidPuck != null) {
+                                        tapTravel.value = true
+                                        dampedDragAnimation.updateValue(index.toFloat())
+                                        animationScope.launch {
+                                            tapLensPressure.animateTo(0f, tabBarTapLensPressure(tapLensPressure.value))
+                                        }
+                                    } else {
+                                        dampedDragAnimation.animateToValue(index.toFloat())
+                                    }
                                     // And the page waits for it.
                                     //
                                     // Not politeness: the puck's animation is driven by wall
@@ -2901,7 +2923,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                         // press/drag, the accent-tinted copy visibly drifts from the
                         // real icon on top, reading as a ghosted double image.
                         contentScale = if (index == currentIndex) {
-                            { lerp(1f, 1.12f, dampedDragAnimation.pressProgress) }
+                            { lerp(1f, 1.12f, lensPressure()) }
                         } else {
                             null
                         },
@@ -3156,9 +3178,11 @@ private fun SharedTransitionScope.ExpandedTabs(
         ) {
             if (liquidPuck != null && backdrop != null) {
                 val stretch: GraphicsLayerScope.() -> Unit = {
-                    val squash = glassDropSquash(dampedDragAnimation.velocity, GlassDropRecipe.SquashDivisor,
+                    // Sul tocco si vede il polso della lente. Lo stiramento col dito resta al trascinamento.
+                    val velocity = if (tapTravel.value) 0f else dampedDragAnimation.velocity
+                    val squash = glassDropSquash(velocity, GlassDropRecipe.SquashDivisor,
                         signed = true, reducedMotion = reducedMotion)
-                    val scale = FluidMotion.tabLensScale(dampedDragAnimation.pressProgress, dampedDragAnimation.pressedScale)
+                    val scale = FluidMotion.tabLensScale(lensPressure(), dampedDragAnimation.pressedScale)
                     scaleX = scale / squash.xDivisor
                     scaleY = scale * squash.yFactor
                 }
@@ -3168,7 +3192,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     backdrop = tabsBackdrop,
                     shape = { shapes.tabShape },
                     effects = {
-                        val press = dampedDragAnimation.pressProgress
+                        val press = lensPressure()
                         lens(10.dp.toPx() * press, 12.dp.toPx() * press, chromaticAberration = press > 0.01f)
                     },
                     layerBlock = stretch, highlight = null, shadow = null, nestInContainer = false,

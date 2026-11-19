@@ -2,7 +2,9 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.animation.core.FloatSpringSpec
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.VectorConverter
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckOptics
 import dev.antigravity.fluidengine.ui.glass.field.glassPuckProfile
@@ -175,6 +177,21 @@ internal class FluidFloatingTabBarFieldTest {
     }
   }
 
+  private fun sampleTapPressure(ms: Double, from: Float = 0f): Float =
+    tabBarTapLensPressure(from).vectorize(Float.VectorConverter)
+      .getValueFromNanos((ms.coerceAtLeast(0.0) * 1_000_000).toLong(),
+      AnimationVector1D(from), AnimationVector1D(0f), AnimationVector1D(0f)).value
+
+  @Test fun tapLensIsNearRestAt200MsEvenWhenRetargetedWhileInflated() {
+    assertEquals(0f, sampleTapPressure(0.0), 0f)
+    assertEquals(0.96f, sampleTapPressure(117.0), .001f)
+    assertEquals(0.08f, sampleTapPressure(200.0), .001f)
+    assertEquals(0f, sampleTapPressure(217.0), 0f)
+    assertEquals(0.55f, sampleTapPressure(0.0, from = 0.55f), 0f)
+    assertEquals(0.7f, sampleTapPressure(33.0, from = 0.7f), 0f)
+    assertEquals(0f, sampleTapPressure(217.0, from = 0.55f), 0f)
+  }
+
   @Test fun exportSelectionAndPressure() {
     val directory = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4B3_DIR")) ?: return
     val height = 62f
@@ -207,7 +224,8 @@ internal class FluidFloatingTabBarFieldTest {
       val name = if (move) "bolla-cambio" else "bolla-pressione"
       val frames = (-3..45).map { index ->
         val time = index * 1000.0 / 60
-        val press = if (time <= 300) FluidMotion.DropPress.sample(time, 0f, 1f)
+        val press = if (move) sampleTapPressure(time)
+          else if (time <= 300) FluidMotion.DropPress.sample(time, 0f, 1f)
           else FluidMotion.DropPress.sample(time - 300, FluidMotion.DropPress.sample(300.0, 0f, 1f), 0f)
         val pos = if (move) FluidMotion.dropValue(0.001f).sample(time, 0f, 1f) else 0f
         val scale = FluidMotion.tabLensScale(press, 78f / 56f)
@@ -218,7 +236,8 @@ internal class FluidFloatingTabBarFieldTest {
         val puck = liquidElement(slab("bolla", x, y, w, h, tabs(19 + inset - x, 20 + inset - y, accent)),
           glassRecipe(GlassRole.Floating, w, h, false, optics = glassPuckOptics(optics), pressed = press,
             opticalDepth = glassPuckLensDepth(press), profile = glassPuckProfile(height)), null,
-          "Profilo del componente; pressione tenuta 300 ms. Il banco approssima la lettura dei glifi senza dispersione.")
+          if (move) "Profilo del tocco breve. Il banco approssima la lettura dei glifi senza dispersione."
+          else "Profilo del componente; pressione tenuta 300 ms. Il banco approssima la lettura dei glifi senza dispersione.")
         val layers = listOf(bar, circle, puck).map { element ->
           motionPane(element, listOf(mapOf("name" to "inchiostro", "items" to element.getValue("items"))))
         }

@@ -93,6 +93,38 @@ internal class FluidToolbarSearchTest {
     }
   }
 
+  @Test fun onlySearchActivationAndDeactivationGiveTheGlyphsACommonClock() {
+    val idle = pose(false).neighbours
+    val active = pose(true).neighbours
+    val memory = FluidToolbarMemory()
+    memory.update(idle, FluidToolbarMotion.Full, searchActive = false)
+    memory.update(active, FluidToolbarMotion.Full, searchActive = true)
+    assertEquals(setOf(FluidToolbarOverflowId), memory.searchArrivals)
+    assertEquals(3, memory.ghosts.count { it.searchSwap })
+    memory.update(idle, FluidToolbarMotion.Full, searchActive = false)
+    assertEquals(setOf<Any>(0, 1, 2), memory.searchArrivals)
+    assertEquals(FluidToolbarOverflowId, memory.ghosts.single { it.searchSwap }.element.item.id)
+
+    val regular = FluidToolbarMemory()
+    regular.update(idle, FluidToolbarMotion.Full)
+    regular.update(active, FluidToolbarMotion.Full)
+    assertTrue(regular.searchArrivals.isEmpty())
+    assertTrue(regular.ghosts.none { it.searchSwap })
+  }
+
+  @Test fun commandInkBlursImmediatelyAndNeverOverlapsOverflowInkInEitherDirection() {
+    assertEquals(1f, toolbarSearchInkAlpha(0f, false), 0f)
+    assertEquals(0f, toolbarSearchInkBlur(0f, false), 0f)
+    assertTrue(toolbarSearchInkBlur((1000f / 60) / ToolbarSearchInkMillis, false) > .4f)
+    for (millis in 0..ToolbarSearchInkMillis) {
+      val phase = millis.toFloat() / ToolbarSearchInkMillis
+      assertEquals(0f, toolbarSearchInkAlpha(phase, false) * toolbarSearchInkAlpha(phase, true), 0f)
+      if (millis <= 167) assertEquals(0f, toolbarSearchInkAlpha(phase, true), 0f)
+    }
+    assertEquals(1f, toolbarSearchInkAlpha(1f, true), 0f)
+    assertEquals(0f, toolbarSearchInkBlur(1f, true), 0f)
+  }
+
   /** La traccia prende pose, curva F3, inchiostro R7 e ricetta dal codice. I glifi sono esemplificativi. */
   @Test fun exportSearch() {
     val dir = GlassTraceOutput.requestedDir(System.getenv("GLASS_F4B2_DIR")) ?: return
@@ -133,10 +165,17 @@ internal class FluidToolbarSearchTest {
               "items" to listOf(mapOf("kind" to "text", "text" to "Cerca nelle foto", "sizeDp" to 16,
                 "x" to 48, "y" to r.height / 2 + 6, "color" to color), icon("close", r.width - 20))),
           ) else {
-            val fraction = ((r.width - metrics.buttonWidthDp) / (metrics.buttonWidthDp * 2)).coerceIn(0f, 1f)
-            listOf(mapOf("name" to "comandi", "alpha" to fraction, "blurDp" to (1f - fraction) * 3,
-              "items" to listOf(icon("favorite", 24f), icon("ios_share", 72f), icon("add", 120f))),
-              mapOf("name" to "altro", "alpha" to 1f - fraction, "items" to listOf(icon("more_horiz", r.width / 2))))
+            val elapsed = (time.toFloat() / ToolbarSearchInkMillis).coerceIn(0f, 1f)
+            val phase = if (closing) 1f - elapsed else elapsed
+            fun layer(name: String, overflow: Boolean, icons: List<Map<String, Any>>) = mapOf(
+              "name" to name, "alpha" to toolbarSearchInkAlpha(phase, overflow),
+              "blurDp" to glassContentSigmaPx(toolbarSearchInkBlur(phase, overflow) * GlassContentDefaults.PeakBlur,
+                fluidToolbarIconSize(FluidToolbarRole.Overflow).value),
+              "items" to icons,
+            )
+            val x = restPose.neighbours.groups.single().leftDp - r.left
+            listOf(layer("comandi", false, listOf(icon("favorite", x + 24), icon("ios_share", x + 72), icon("add", x + 120))),
+              layer("altro", true, listOf(icon("more_horiz", r.width / 2))))
           }
           @Suppress("UNCHECKED_CAST")
           val body = (element.getValue("body") as Map<String, Any?>).getValue("uniforms") as MutableMap<String, Any?>

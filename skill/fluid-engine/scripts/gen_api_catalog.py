@@ -75,7 +75,7 @@ UI_FLUID_FILES = {
         "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu", "FluidTransitionSource",
         # il foglio di vetro con i detent (F5B.2)
         "FluidGlassSheet",
-        "FluidMenu", "FluidMenuJourney", "FluidMenuLayer",
+        "FluidMenu", "FluidMenuJourney", "FluidMenuBirth", "FluidMenuLayer",
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
         "FluidPromptAlert", "FluidNotification", "FluidDrawer", "FluidDateTimeSheet",
         "FluidDateTimeMath",

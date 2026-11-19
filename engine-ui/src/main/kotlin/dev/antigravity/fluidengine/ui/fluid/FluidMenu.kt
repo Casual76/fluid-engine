@@ -234,6 +234,16 @@ internal class FluidMenuSelection(
       if (value != null) replayPending(value)
     }
 
+  /**
+   * Dove il dito cade nella geometria a riposo ([geometry]), dato dove sta sullo schermo: mentre il menu nasce (o torna) le voci
+   * si disegnano spostate e scalate col corpo (la mappa del contenuto: il distacco e la crescita della nascita), e il dito mira
+   * a quelle che vede. La scrive l'host ([fluidMenuPointerAtRest]); null, il dito e' gia' nella geometria. Non tiene conto
+   * della piega della lente, che e' una distorsione e non una mappa. Lo slop si misura sullo schermo.
+   */
+  var pointerMap: ((Offset) -> Offset)? = null
+
+  private fun atRest(root: Offset): Offset = pointerMap?.invoke(root) ?: root
+
   /** La voce abilitata sotto il dito, o −1. SOLO in disegno: vedi la nota sulla classe. */
   var hovered: Int by mutableIntStateOf(-1)
     private set
@@ -332,7 +342,7 @@ internal class FluidMenuSelection(
   }
 
   private fun applyHover(g: FluidMenuGeometry, root: Offset, onDown: Boolean) {
-    val cell = fluidMenuCellAt(g, root)
+    val cell = fluidMenuCellAt(g, atRest(root))
     val enabled = g.isEnabled(cell)
     val tick = fluidMenuHoverTicks(previous = hovered, next = cell, onDown = onDown, enabled = enabled)
     hovered = if (enabled) cell else -1
@@ -353,7 +363,7 @@ internal class FluidMenuSelection(
       // Senza geometria non si sa dove il dito sia caduto: nessuna scelta, il menu resta aperto.
       FluidMenuRelease.StayOpen
     } else {
-      val cell = fluidMenuCellAt(g, root)
+      val cell = fluidMenuCellAt(g, atRest(root))
       fluidMenuRelease(owner, armed, cell, g.isEnabled(cell))
     }
     // Lo stato prima della callback: una scelta che chiude il menu non deve ritrovarsi un dito

@@ -1,0 +1,3678 @@
+{
+  "schema": 1,
+  "name": "chiude-tasto-scuro",
+  "phase": "tasto",
+  "fps": 60,
+  "durationMs": 283.333333,
+  "density": 1.5,
+  "theme": "dark",
+  "size": [300, 253],
+  "_": "Sessione contestuale, fase tasto: il menu Liquid dal tasto e dal gruppo, numeri dalle funzioni dell'engine, orologio e assemblaggio ricostruiti nel test (OggiMenuApertura.kt). Senza bordo, banda fra le sezioni e scrim della pagina. Il congedo a menu fermo, t = 0 alla richiesta. Scuro.",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#1C1C1E"
+  },
+  "page": [
+    {
+      "kind": "background",
+      "x": 19,
+      "y": 21,
+      "w": 116,
+      "h": 167,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 46,
+        "detail": 0.5,
+        "palette": ["#E6E6E6", "#DCDCDC", "#2F5D34", "#E9E9E9", "#3F7A45", "#D2D2D2"]
+      }
+    },
+    {
+      "kind": "background",
+      "x": 147,
+      "y": 21,
+      "w": 114,
+      "h": 167,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 46,
+        "detail": 0.5,
+        "palette": ["#DEDEDE", "#5B4BA8", "#E6E6E6", "#7C6BD0", "#A8A8A8", "#E0E0E0"]
+      }
+    },
+    {
+      "kind": "background",
+      "x": 274,
+      "y": 21,
+      "w": 40,
+      "h": 167,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 46,
+        "detail": 0.5,
+        "palette": ["#D8D2C8", "#C9B9A0", "#E4E0DA", "#B5A58C", "#E9E6E1", "#CFC6B8"]
+      }
+    }
+  ],
+  "apple": [
+    {
+      "name": "telefono",
+      "video": "wwdc2025-219_hd",
+      "t0Frame": 9187,
+      "crop": [559, 280, 570, 481],
+      "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_chiusura_f9185-9200.jpg",
+      "note": "R4 B1 (a), classe A: il ritorno del menu dal tasto, riferimento affine per il congedo del contestuale."
+    }
+  ],
+  "frames": [
+    {
+      "t": -100,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#78788063",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -83.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#74747C66",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -66.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#7171786A",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -50,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#6D6D756D",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#69697171",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#66666D74",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.78274,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["150dp", "119dp", "126dp", "102dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#62626978",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["150dp", "119dp"],
+              "glowRadius": "252dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.846dp"],
+              "shadowRadii": ["0dp", "39.815dp"],
+              "shadowAlphas": [0, 0.200524],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 127,
+              "y": 96,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40,
+                  "y": 53,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 249,
+                  "y": 47,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40,
+                  "y": 101,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 249,
+                  "y": 95,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40,
+                  "y": 149,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 249,
+                  "y": 143,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40,
+                  "y": 197,
+                  "sizeDp": 17,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 249,
+                  "y": 191,
+                  "sizeDp": 22,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.766229,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["149.363dp", "119.884dp", "125.22dp", "101.369dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#5E5E667B",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["149.363dp", "119.884dp"],
+              "glowRadius": "250.441dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.831dp"],
+              "shadowRadii": ["0dp", "39.74dp"],
+              "shadowAlphas": [0, 0.20026],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 126.363,
+              "y": 96.884,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40.043,
+                  "y": 54.292,
+                  "sizeDp": 16.895,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 247.75,
+                  "y": 48.329,
+                  "sizeDp": 21.864,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40.043,
+                  "y": 101.995,
+                  "sizeDp": 16.895,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 247.75,
+                  "y": 96.032,
+                  "sizeDp": 21.864,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40.043,
+                  "y": 149.698,
+                  "sizeDp": 16.895,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 247.75,
+                  "y": 143.735,
+                  "sizeDp": 21.864,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40.043,
+                  "y": 197.401,
+                  "sizeDp": 16.895,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 247.75,
+                  "y": 191.438,
+                  "sizeDp": 21.864,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0.881961,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "9.213dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["141.363dp", "762.884dp", "125.22dp", "101.369dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.716544,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["147.451dp", "122.535dp", "122.881dp", "99.475dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#5B5B627F",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["147.451dp", "122.535dp"],
+              "glowRadius": "245.763dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.787dp"],
+              "shadowRadii": ["0dp", "39.515dp"],
+              "shadowAlphas": [0, 0.199465],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 124.451,
+              "y": 99.535,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 40.062,
+                  "y": 57.919,
+                  "sizeDp": 16.644,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 244.68,
+                  "y": 52.044,
+                  "sizeDp": 21.539,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 40.062,
+                  "y": 104.912,
+                  "sizeDp": 16.644,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 244.68,
+                  "y": 99.038,
+                  "sizeDp": 21.539,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 40.062,
+                  "y": 151.905,
+                  "sizeDp": 16.644,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 244.68,
+                  "y": 146.031,
+                  "sizeDp": 21.539,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 40.062,
+                  "y": 198.899,
+                  "sizeDp": 16.644,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 244.68,
+                  "y": 193.025,
+                  "sizeDp": 21.539,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 2.424073,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["139.451dp", "765.534dp", "122.881dp", "99.475dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.633424,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["144.264dp", "126.953dp", "118.983dp", "96.319dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#57575E82",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["144.264dp", "126.953dp"],
+              "glowRadius": "237.966dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.713dp"],
+              "shadowRadii": ["0dp", "39.138dp"],
+              "shadowAlphas": [0, 0.198135],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 121.264,
+              "y": 103.953,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 37.496,
+                  "y": 58.123,
+                  "sizeDp": 17.729,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 255.456,
+                  "y": 51.866,
+                  "sizeDp": 22.943,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 37.496,
+                  "y": 108.181,
+                  "sizeDp": 17.729,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 255.456,
+                  "y": 101.924,
+                  "sizeDp": 22.943,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 37.496,
+                  "y": 158.239,
+                  "sizeDp": 17.729,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 255.456,
+                  "y": 151.982,
+                  "sizeDp": 22.943,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 37.496,
+                  "y": 208.297,
+                  "sizeDp": 17.729,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 255.456,
+                  "y": 202.04,
+                  "sizeDp": 22.943,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 3.992244,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["136.264dp", "769.953dp", "118.983dp", "96.319dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.517076,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["139.802dp", "133.138dp", "113.525dp", "91.901dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#53535A85",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["139.802dp", "133.138dp"],
+              "glowRadius": "227.05dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.609dp"],
+              "shadowRadii": ["0dp", "38.611dp"],
+              "shadowAlphas": [0, 0.196273],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 116.802,
+              "y": 110.138,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 34.508,
+                  "y": 59.769,
+                  "sizeDp": 18.898,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 266.844,
+                  "y": 53.099,
+                  "sizeDp": 24.456,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 34.508,
+                  "y": 113.128,
+                  "sizeDp": 18.898,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 266.844,
+                  "y": 106.458,
+                  "sizeDp": 24.456,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 34.508,
+                  "y": 166.488,
+                  "sizeDp": 18.898,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 266.844,
+                  "y": 159.818,
+                  "sizeDp": 24.456,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 34.508,
+                  "y": 219.847,
+                  "sizeDp": 18.898,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 266.844,
+                  "y": 213.177,
+                  "sizeDp": 24.456,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 5.154181,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["131.802dp", "776.138dp", "113.525dp", "91.901dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.360912,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["130.343dp", "138.791dp", "105.32dp", "85.9dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["23.146dp", "23.146dp", "23.146dp", "23.146dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#50505689",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.463dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["130.343dp", "138.791dp"],
+              "glowRadius": "210.64dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.469dp"],
+              "shadowRadii": ["0dp", "37.903dp"],
+              "shadowAlphas": [0, 0.193775],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 107.343,
+              "y": 115.791,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 28.028,
+                  "y": 60.315,
+                  "sizeDp": 20.214,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 276.536,
+                  "y": 53.181,
+                  "sizeDp": 26.159,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 28.028,
+                  "y": 117.388,
+                  "sizeDp": 20.214,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 276.536,
+                  "y": 110.254,
+                  "sizeDp": 26.159,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 28.028,
+                  "y": 174.462,
+                  "sizeDp": 20.214,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 276.536,
+                  "y": 167.328,
+                  "sizeDp": 26.159,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 28.028,
+                  "y": 231.536,
+                  "sizeDp": 20.214,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 276.536,
+                  "y": 224.401,
+                  "sizeDp": 26.159,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.928681,
+              "blurDp": 5.890246,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["122.343dp", "781.791dp", "105.32dp", "85.9dp"],
+                  "pieceRadii": ["23.146dp", "23.146dp", "23.146dp", "23.146dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.008945,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["107.391dp", "152.31dp", "85.5dp", "71.428dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["25.956dp", "25.956dp", "25.956dp", "25.956dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "34.286dp",
+              "refraction": "-30.857dp",
+              "dome": 0,
+              "dispersion": 0.00206,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#4C4C538C",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.519dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["107.391dp", "152.31dp"],
+              "glowRadius": "171dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.155dp"],
+              "shadowRadii": ["0dp", "36.307dp"],
+              "shadowAlphas": [0, 0.188143],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 84.391,
+              "y": 129.31,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 15.262,
+                  "y": 68.216,
+                  "sizeDp": 21.661,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 281.56,
+                  "y": 60.571,
+                  "sizeDp": 28.031,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 15.262,
+                  "y": 129.375,
+                  "sizeDp": 21.661,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 281.56,
+                  "y": 121.73,
+                  "sizeDp": 28.031,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 15.262,
+                  "y": 190.535,
+                  "sizeDp": 21.661,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 281.56,
+                  "y": 182.89,
+                  "sizeDp": 28.031,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 15.262,
+                  "y": 251.694,
+                  "sizeDp": 21.661,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 281.56,
+                  "y": 244.049,
+                  "sizeDp": 28.031,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.745174,
+              "blurDp": 6.370769,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "34.286dp",
+                  "lensPull": "14.4dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["99.391dp", "795.31dp", "85.5dp", "71.428dp"],
+                  "pieceRadii": ["25.956dp", "25.956dp", "25.956dp", "25.956dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.677451,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["79.845dp", "168.534dp", "61.713dp", "54.06dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.049dp", "24.049dp", "24.049dp", "24.049dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "25.949dp",
+              "refraction": "-23.354dp",
+              "dome": 0.078162,
+              "dispersion": 0.022521,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#48484F90",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["79.845dp", "168.534dp"],
+              "glowRadius": "123.426dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.859dp"],
+              "shadowRadii": ["0dp", "34.804dp"],
+              "shadowAlphas": [0, 0.182839],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 56.845,
+              "y": 145.534,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -1.342,
+                  "y": 74.814,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 295.438,
+                  "y": 66.294,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -1.342,
+                  "y": 142.974,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 295.438,
+                  "y": 134.454,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -1.342,
+                  "y": 211.134,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 295.438,
+                  "y": 202.614,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -1.342,
+                  "y": 279.294,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 295.438,
+                  "y": 270.774,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.505,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "25.949dp",
+                  "lensPull": "10.898dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["71.845dp", "811.534dp", "61.713dp", "54.06dp"],
+                  "pieceRadii": ["24.049dp", "24.049dp", "24.049dp", "24.049dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.522118,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["56.712dp", "182.159dp", "41.737dp", "39.474dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["26.372dp", "26.372dp", "26.372dp", "26.372dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "18.947dp",
+              "refraction": "-17.053dp",
+              "dome": 0.27008,
+              "dispersion": 0.059976,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#45454B93",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["56.712dp", "182.159dp"],
+              "glowRadius": "83.474dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.72dp"],
+              "shadowRadii": ["0dp", "34.1dp"],
+              "shadowAlphas": [0, 0.180354],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 33.712,
+              "y": 159.159,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -11.691,
+                  "y": 88.439,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 285.089,
+                  "y": 79.919,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -11.691,
+                  "y": 156.599,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 285.089,
+                  "y": 148.079,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -11.691,
+                  "y": 224.759,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 285.089,
+                  "y": 216.239,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -11.691,
+                  "y": 292.919,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 285.089,
+                  "y": 284.399,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.263715,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "18.948dp",
+                  "lensPull": "7.958dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["48.712dp", "825.159dp", "41.737dp", "39.474dp"],
+                  "pieceRadii": ["26.372dp", "26.372dp", "26.372dp", "26.372dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500746,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "187.88dp", "33.35dp", "33.35dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["33.35dp", "33.35dp", "33.35dp", "33.35dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "16.008dp",
+              "refraction": "-14.407dp",
+              "dome": 0.350658,
+              "dispersion": 0.108326,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#41414797",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "187.88dp"],
+              "glowRadius": "66.7dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.701dp"],
+              "shadowRadii": ["0dp", "34.003dp"],
+              "shadowAlphas": [0, 0.180012],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 164.88,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -16.035,
+                  "y": 94.16,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 280.745,
+                  "y": 85.64,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -16.035,
+                  "y": 162.32,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 280.745,
+                  "y": 153.8,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -16.035,
+                  "y": 230.48,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 280.745,
+                  "y": 221.96,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -16.035,
+                  "y": 298.64,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 280.745,
+                  "y": 290.12,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.076874,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "16.008dp",
+                  "lensPull": "6.723dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["39dp", "830.88dp", "33.35dp", "33.35dp"],
+                  "pieceRadii": ["33.35dp", "33.35dp", "33.35dp", "33.35dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500029,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "188.94dp", "32.266dp", "32.266dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["32.266dp", "32.266dp", "32.266dp", "32.266dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.487dp",
+              "refraction": "-13.939dp",
+              "dome": 0.364926,
+              "dispersion": 0.161471,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#3D3D449A",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "188.94dp"],
+              "glowRadius": "64.531dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 165.94,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -15.341,
+                  "y": 95.22,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 281.439,
+                  "y": 86.7,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -15.341,
+                  "y": 163.38,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 281.439,
+                  "y": 154.86,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -15.341,
+                  "y": 231.54,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 281.439,
+                  "y": 223.02,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -15.341,
+                  "y": 299.7,
+                  "sizeDp": 24.14,
+                  "color": "#F2F2F5FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 281.439,
+                  "y": 291.18,
+                  "sizeDp": 31.24,
+                  "color": "#F2F2F5FF"
+                }
+              ],
+              "alpha": 0.000033,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "15.487dp",
+                  "lensPull": "6.505dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["39dp", "831.94dp", "32.266dp", "32.266dp"],
+                  "pieceRadii": ["32.266dp", "32.266dp", "32.266dp", "32.266dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "191.466dp", "29.683dp", "29.683dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["29.683dp", "29.683dp", "29.683dp", "29.683dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "14.248dp",
+              "refraction": "-12.823dp",
+              "dome": 0.39891,
+              "dispersion": 0.21331,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#3A3A409E",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "191.466dp"],
+              "glowRadius": "59.366dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 168.466,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "194.473dp", "26.607dp", "26.607dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["26.607dp", "26.607dp", "26.607dp", "26.607dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "12.772dp",
+              "refraction": "-11.494dp",
+              "dome": 0.439377,
+              "dispersion": 0.257743,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "194.473dp"],
+              "glowRadius": "53.215dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 171.473,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0,
+              "scale": 1.12
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "196.979dp", "24.045dp", "24.045dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.045dp", "24.045dp", "24.045dp", "24.045dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "11.541dp",
+              "refraction": "-10.387dp",
+              "dome": 0.473096,
+              "dispersion": 0.288672,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "196.979dp"],
+              "glowRadius": "48.089dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 173.979,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 0.437751,
+              "scale": 1.04542
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "198dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["23dp", "23dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "11.04dp",
+              "refraction": "-9.936dp",
+              "dome": 0.486842,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "198dp"],
+              "glowRadius": "46dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 1,
+              "scale": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "198dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["23dp", "23dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "11.04dp",
+              "refraction": "-9.936dp",
+              "dome": 0.486842,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "198dp"],
+              "glowRadius": "46dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 1,
+              "scale": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "198dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["23dp", "23dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "11.04dp",
+              "refraction": "-9.936dp",
+              "dome": 0.486842,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "198dp"],
+              "glowRadius": "46dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 1,
+              "scale": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 253,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["47dp", "198dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["23dp", "23dp", "23dp", "23dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "11.04dp",
+              "refraction": "-9.936dp",
+              "dome": 0.486842,
+              "dispersion": 0.3,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": ["47dp", "198dp"],
+              "glowRadius": "46dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.18],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "faccia",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#2ED8A0FF",
+              "alpha": 1,
+              "scale": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    }
+  ]
+}

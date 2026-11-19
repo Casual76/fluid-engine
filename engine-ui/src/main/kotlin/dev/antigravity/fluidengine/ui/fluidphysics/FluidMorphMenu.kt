@@ -80,9 +80,9 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuAnchorInkAlpha
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorFace
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerAtRest
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuLens
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuReturnSurface
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuUsesField
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMenuPointOfLight
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
@@ -298,6 +298,8 @@ class FluidMorphMenuState internal constructor() {
       anchor = source, hostOrigin = origin, panel = panel, radius = m.radiusPx,
       inflation = fluidDropInflation(panel.width, host.width, m.edgeMinPx),
       freshStart = fresh, liquidMenu = liquidMenu,
+      // La nascita di Apple anche qui (sessione contestuale, fase tasto): il tasto come B1 (a).
+      appleBirth = liquidMenu,
     )
     val from = levels.fromPanel
     if (levels.morphing && from != null) {
@@ -676,11 +678,26 @@ fun FluidMorphMenuHost(
           )
           val lens = if (state.journey.liquidMenu) FluidMenuLens(state.journey, state.physics, panelInLayout) else null
           val baseAlpha: () -> Float = {
-            val alpha = if (lens != null) fluidMenuLensAlpha(state.journey.focus.value) * state.journey.contentVisibility.value else
+            val alpha = if (lens != null) state.journey.lensInkAlpha() else
               fluidMenuContentAlpha(progress(), closing = state.journey.closing)
             alpha * (menuInk.state?.inkAlpha() ?: 1f)
           }
           val blurAvailable = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+          // Dove si disegnano le voci in questo istante: la stessa mappa per il layer e per il dito che sceglie.
+          val contentMapNow: () -> FluidMenuContentMap = {
+            if (levels.driving) {
+              FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
+            } else {
+              lens?.contentMap() ?: fluidMenuLiquidContentMap(panel, state.physics.contentBoundsNow(), baseAlpha())
+            }
+          }
+          // Il dito mira alle voci che vede (sessione contestuale, fase tasto); la geometria delle celle parla la radice.
+          SideEffect {
+            val origin = state.hostOrigin ?: Offset.Zero
+            state.selection.pointerMap = { root ->
+              if (levels.driving) root else fluidMenuPointerAtRest(root - origin, panelInLayout, contentMapNow()) + origin
+            }
+          }
           val tileLabels = placed.elementSize == FluidMenuElementSize.Medium
           val outgoing = placed.previous?.let { (oldCells, oldFrame) ->
             FluidMenuOutgoingLevel(
@@ -704,13 +721,7 @@ fun FluidMorphMenuHost(
               val levelAlpha = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
               baseAlpha() * levelAlpha
             },
-            contentMap = {
-              if (levels.driving) {
-                FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
-              } else {
-                lens?.contentMap() ?: fluidMenuLiquidContentMap(panel, state.physics.contentBoundsNow(), baseAlpha())
-              }
-            },
+            contentMap = contentMapNow,
             onPick = { index -> state.pick(index, haptics, scope, reducedMotion) },
             modifier = Modifier.frame(panel),
             paneTitle = LocalFluidLabels.current.actions,

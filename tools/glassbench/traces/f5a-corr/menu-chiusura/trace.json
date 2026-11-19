@@ -1402,7 +1402,7 @@
                   "color": "#121214FF"
                 }
               ],
-              "alpha": 0.570113,
+              "alpha": 1,
               "blurDp": 0.881961,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -1523,70 +1523,70 @@
                 {
                   "kind": "text",
                   "text": "Tracking",
-                  "x": 40.173,
-                  "y": 58.168,
-                  "sizeDp": 16.579,
+                  "x": 40.062,
+                  "y": 57.919,
+                  "sizeDp": 16.644,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:archive|circle",
-                  "x": 244,
-                  "y": 52.317,
-                  "sizeDp": 21.455,
+                  "x": 244.68,
+                  "y": 52.044,
+                  "sizeDp": 21.539,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Wishlist",
-                  "x": 40.173,
-                  "y": 104.98,
-                  "sizeDp": 16.579,
+                  "x": 40.062,
+                  "y": 104.912,
+                  "sizeDp": 16.644,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite|circle",
-                  "x": 244,
-                  "y": 99.129,
-                  "sizeDp": 21.455,
+                  "x": 244.68,
+                  "y": 99.038,
+                  "sizeDp": 21.539,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Orders",
-                  "x": 40.173,
-                  "y": 151.792,
-                  "sizeDp": 16.579,
+                  "x": 40.062,
+                  "y": 151.905,
+                  "sizeDp": 16.644,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:person|circle",
-                  "x": 244,
-                  "y": 145.94,
-                  "sizeDp": 21.455,
+                  "x": 244.68,
+                  "y": 146.031,
+                  "sizeDp": 21.539,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Recents",
-                  "x": 40.173,
-                  "y": 198.604,
-                  "sizeDp": 16.579,
+                  "x": 40.062,
+                  "y": 198.899,
+                  "sizeDp": 16.644,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:history|circle",
-                  "x": 244,
-                  "y": 192.752,
-                  "sizeDp": 21.455,
+                  "x": 244.68,
+                  "y": 193.025,
+                  "sizeDp": 21.539,
                   "color": "#121214FF"
                 }
               ],
-              "alpha": 0.228463,
-              "blurDp": 2.414708,
+              "alpha": 1,
+              "blurDp": 2.424073,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
                 "uniforms": {
@@ -1706,70 +1706,70 @@
                 {
                   "kind": "text",
                   "text": "Tracking",
-                  "x": 40.39,
-                  "y": 64.628,
-                  "sizeDp": 16.053,
+                  "x": 37.496,
+                  "y": 58.123,
+                  "sizeDp": 17.729,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:archive|circle",
-                  "x": 237.75,
-                  "y": 58.963,
-                  "sizeDp": 20.775,
+                  "x": 255.456,
+                  "y": 51.866,
+                  "sizeDp": 22.943,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Wishlist",
-                  "x": 40.39,
-                  "y": 109.955,
-                  "sizeDp": 16.053,
+                  "x": 37.496,
+                  "y": 108.181,
+                  "sizeDp": 17.729,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite|circle",
-                  "x": 237.75,
-                  "y": 104.289,
-                  "sizeDp": 20.775,
+                  "x": 255.456,
+                  "y": 101.924,
+                  "sizeDp": 22.943,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Orders",
-                  "x": 40.39,
-                  "y": 155.282,
-                  "sizeDp": 16.053,
+                  "x": 37.496,
+                  "y": 158.239,
+                  "sizeDp": 17.729,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:person|circle",
-                  "x": 237.75,
-                  "y": 149.616,
-                  "sizeDp": 20.775,
+                  "x": 255.456,
+                  "y": 151.982,
+                  "sizeDp": 22.943,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Recents",
-                  "x": 40.39,
-                  "y": 200.609,
-                  "sizeDp": 16.053,
+                  "x": 37.496,
+                  "y": 208.297,
+                  "sizeDp": 17.729,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:history|circle",
-                  "x": 237.75,
-                  "y": 194.943,
-                  "sizeDp": 20.775,
+                  "x": 255.456,
+                  "y": 202.04,
+                  "sizeDp": 22.943,
                   "color": "#121214FF"
                 }
               ],
-              "alpha": 0.08,
-              "blurDp": 3.61493,
+              "alpha": 1,
+              "blurDp": 3.992244,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
                 "uniforms": {
@@ -1889,70 +1889,70 @@
                 {
                   "kind": "text",
                   "text": "Tracking",
-                  "x": 40.693,
-                  "y": 73.673,
-                  "sizeDp": 15.317,
+                  "x": 34.508,
+                  "y": 59.769,
+                  "sizeDp": 18.898,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:archive|circle",
-                  "x": 229,
-                  "y": 68.267,
-                  "sizeDp": 19.822,
+                  "x": 266.844,
+                  "y": 53.099,
+                  "sizeDp": 24.456,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Wishlist",
-                  "x": 40.693,
-                  "y": 116.92,
-                  "sizeDp": 15.317,
+                  "x": 34.508,
+                  "y": 113.128,
+                  "sizeDp": 18.898,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite|circle",
-                  "x": 229,
-                  "y": 111.514,
-                  "sizeDp": 19.822,
+                  "x": 266.844,
+                  "y": 106.458,
+                  "sizeDp": 24.456,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Orders",
-                  "x": 40.693,
-                  "y": 160.168,
-                  "sizeDp": 15.317,
+                  "x": 34.508,
+                  "y": 166.488,
+                  "sizeDp": 18.898,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:person|circle",
-                  "x": 229,
-                  "y": 154.762,
-                  "sizeDp": 19.822,
+                  "x": 266.844,
+                  "y": 159.818,
+                  "sizeDp": 24.456,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Recents",
-                  "x": 40.693,
-                  "y": 203.416,
-                  "sizeDp": 15.317,
+                  "x": 34.508,
+                  "y": 219.847,
+                  "sizeDp": 18.898,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:history|circle",
-                  "x": 229,
-                  "y": 198.01,
-                  "sizeDp": 19.822,
+                  "x": 266.844,
+                  "y": 213.177,
+                  "sizeDp": 24.456,
                   "color": "#121214FF"
                 }
               ],
-              "alpha": 0.02131,
-              "blurDp": 4.17744,
+              "alpha": 1,
+              "blurDp": 5.154181,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
                 "uniforms": {
@@ -2072,70 +2072,70 @@
                 {
                   "kind": "text",
                   "text": "Tracking",
-                  "x": 38.397,
-                  "y": 83.623,
-                  "sizeDp": 14.21,
+                  "x": 28.028,
+                  "y": 60.315,
+                  "sizeDp": 20.214,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:archive|circle",
-                  "x": 213.095,
-                  "y": 78.608,
-                  "sizeDp": 18.389,
+                  "x": 276.536,
+                  "y": 53.181,
+                  "sizeDp": 26.159,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Wishlist",
-                  "x": 38.397,
-                  "y": 123.745,
-                  "sizeDp": 14.21,
+                  "x": 28.028,
+                  "y": 117.388,
+                  "sizeDp": 20.214,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:favorite|circle",
-                  "x": 213.095,
-                  "y": 118.73,
-                  "sizeDp": 18.389,
+                  "x": 276.536,
+                  "y": 110.254,
+                  "sizeDp": 26.159,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Orders",
-                  "x": 38.397,
-                  "y": 163.867,
-                  "sizeDp": 14.21,
+                  "x": 28.028,
+                  "y": 174.462,
+                  "sizeDp": 20.214,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:person|circle",
-                  "x": 213.095,
-                  "y": 158.852,
-                  "sizeDp": 18.389,
+                  "x": 276.536,
+                  "y": 167.328,
+                  "sizeDp": 26.159,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Recents",
-                  "x": 38.397,
-                  "y": 203.989,
-                  "sizeDp": 14.21,
+                  "x": 28.028,
+                  "y": 231.536,
+                  "sizeDp": 20.214,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:history|circle",
-                  "x": 213.095,
-                  "y": 198.974,
-                  "sizeDp": 18.389,
+                  "x": 276.536,
+                  "y": 224.401,
+                  "sizeDp": 26.159,
                   "color": "#121214FF"
                 }
               ],
-              "alpha": 0.001562,
-              "blurDp": 4.140765,
+              "alpha": 0.928681,
+              "blurDp": 5.890246,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
                 "uniforms": {
@@ -2244,6 +2244,99 @@
               "color": "#1F9E6EFF",
               "alpha": 0,
               "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": 15.262,
+                  "y": 68.216,
+                  "sizeDp": 21.661,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 281.56,
+                  "y": 60.571,
+                  "sizeDp": 28.031,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": 15.262,
+                  "y": 129.375,
+                  "sizeDp": 21.661,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 281.56,
+                  "y": 121.73,
+                  "sizeDp": 28.031,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": 15.262,
+                  "y": 190.535,
+                  "sizeDp": 21.661,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 281.56,
+                  "y": 182.89,
+                  "sizeDp": 28.031,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": 15.262,
+                  "y": 251.694,
+                  "sizeDp": 21.661,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 281.56,
+                  "y": 244.049,
+                  "sizeDp": 28.031,
+                  "color": "#121214FF"
+                }
+              ],
+              "alpha": 0.745174,
+              "blurDp": 6.370769,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "34.286dp",
+                  "lensPull": "14.4dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["99.391dp", "795.31dp", "85.5dp", "71.428dp"],
+                  "pieceRadii": ["25.956dp", "25.956dp", "25.956dp", "25.956dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
             }
           ],
           "contentClip": "alpha"
@@ -2334,6 +2427,99 @@
               "color": "#1F9E6EFF",
               "alpha": 0,
               "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -1.342,
+                  "y": 74.814,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 295.438,
+                  "y": 66.294,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -1.342,
+                  "y": 142.974,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 295.438,
+                  "y": 134.454,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -1.342,
+                  "y": 211.134,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 295.438,
+                  "y": 202.614,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -1.342,
+                  "y": 279.294,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 295.438,
+                  "y": 270.774,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                }
+              ],
+              "alpha": 0.505,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "25.949dp",
+                  "lensPull": "10.898dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["71.845dp", "811.534dp", "61.713dp", "54.06dp"],
+                  "pieceRadii": ["24.049dp", "24.049dp", "24.049dp", "24.049dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
             }
           ],
           "contentClip": "alpha"
@@ -2424,6 +2610,99 @@
               "color": "#1F9E6EFF",
               "alpha": 0,
               "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -11.691,
+                  "y": 88.439,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 285.089,
+                  "y": 79.919,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -11.691,
+                  "y": 156.599,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 285.089,
+                  "y": 148.079,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -11.691,
+                  "y": 224.759,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 285.089,
+                  "y": 216.239,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -11.691,
+                  "y": 292.919,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 285.089,
+                  "y": 284.399,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                }
+              ],
+              "alpha": 0.263715,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "18.948dp",
+                  "lensPull": "7.958dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["48.712dp", "825.159dp", "41.737dp", "39.474dp"],
+                  "pieceRadii": ["26.372dp", "26.372dp", "26.372dp", "26.372dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
             }
           ],
           "contentClip": "alpha"
@@ -2514,6 +2793,99 @@
               "color": "#1F9E6EFF",
               "alpha": 0,
               "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -16.035,
+                  "y": 94.16,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 280.745,
+                  "y": 85.64,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -16.035,
+                  "y": 162.32,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 280.745,
+                  "y": 153.8,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -16.035,
+                  "y": 230.48,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 280.745,
+                  "y": 221.96,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -16.035,
+                  "y": 298.64,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 280.745,
+                  "y": 290.12,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                }
+              ],
+              "alpha": 0.076874,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "16.008dp",
+                  "lensPull": "6.723dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["39dp", "830.88dp", "33.35dp", "33.35dp"],
+                  "pieceRadii": ["33.35dp", "33.35dp", "33.35dp", "33.35dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
             }
           ],
           "contentClip": "alpha"
@@ -2604,6 +2976,99 @@
               "color": "#1F9E6EFF",
               "alpha": 0,
               "scale": 1.12
+            },
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 300,
+              "h": 253,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Tracking",
+                  "x": -15.341,
+                  "y": 95.22,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:archive|circle",
+                  "x": 281.439,
+                  "y": 86.7,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wishlist",
+                  "x": -15.341,
+                  "y": 163.38,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:favorite|circle",
+                  "x": 281.439,
+                  "y": 154.86,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Orders",
+                  "x": -15.341,
+                  "y": 231.54,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:person|circle",
+                  "x": 281.439,
+                  "y": 223.02,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Recents",
+                  "x": -15.341,
+                  "y": 299.7,
+                  "sizeDp": 24.14,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:history|circle",
+                  "x": 281.439,
+                  "y": 291.18,
+                  "sizeDp": 31.24,
+                  "color": "#121214FF"
+                }
+              ],
+              "alpha": 0.000033,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["-8dp", "643dp"],
+                  "menuScale": 1,
+                  "lensDepth": "15.487dp",
+                  "lensPull": "6.505dp",
+                  "clipInk": 1,
+                  "pieceCount": 1,
+                  "pieceRect": ["39dp", "831.94dp", "32.266dp", "32.266dp"],
+                  "pieceRadii": ["32.266dp", "32.266dp", "32.266dp", "32.266dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
             }
           ],
           "contentClip": "alpha"

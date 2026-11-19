@@ -162,8 +162,10 @@ internal object F5a5MenuTraces {
       "le sezioni e scrim della pagina."
     val opening = menu(MenuTraceVariant(pointOfLight = true), "menu-apertura")
     val openingGroup = menu(MenuTraceVariant(grouped = true, pointOfLight = true), "menu-apertura-gruppo")
-    val closing = menu(MenuTraceVariant(closingAtMs = 700, alignToClose = true), "menu-chiusura")
-    val closingGroup = menu(MenuTraceVariant(grouped = true, closingAtMs = 700, alignToClose = true), "menu-chiusura-gruppo")
+    // Il congedo a menu fermo: dalla sessione contestuale (fase tasto) il gruppo nasce come la graffetta ed e' fermo a
+    // ~868 ms, e la richiesta passa da 700 a 900 ms (t = 0 resta la richiesta).
+    val closing = menu(MenuTraceVariant(closingAtMs = 900, alignToClose = true), "menu-chiusura")
+    val closingGroup = menu(MenuTraceVariant(grouped = true, closingAtMs = 900, alignToClose = true), "menu-chiusura-gruppo")
     val interrupted = menu(MenuTraceVariant(closingAtMs = InterruptMs, pointOfLight = true), "menu-interrotto")
     val contextScenes = FluidContextScrimLevel.entries.associateWith {
       F5a4ContextTraces.build(it, dark = false, corrected = true)
@@ -261,12 +263,20 @@ class F5a5MenuTraceTest {
     }
     val byName = traces.associate { it.first.name to it.first }
 
-    // L'apertura: inchiostro e lente al primo fotogramma (F5A-b), e Apple a f9148.
-    for (name in listOf("menu-apertura", "menu-apertura-gruppo", "menu-interrotto")) {
-      val first = requireNotNull(byName[name]).frames.first { it.tMs >= 0.0 }.elements.first { it["name"] == "menu" }
-      val content = (first["content"] as List<*>).filterIsInstance<Map<*, *>>()
-      assertTrue("$name: inchiostro e lente al primo fotogramma", content.any { it["name"] == "voci" && it["effect"] != null && (it["alpha"] as Float) > 0f })
+    // L'apertura (sessione contestuale, fase tasto): le voci entrano nella goccia quando in Apple. Il tasto come B1 (a):
+    // nella lente dal primo fotogramma dopo il click lungo (a 33 ms in Apple si legge gia' «Wis»). Il gruppo come la
+    // graffetta B1 (b): niente prima di 67 ms, dentro la lente da 117 ms.
+    fun inkLayer(frame: GlassTraceFrame) = (frame.elements.first { it["name"] == "menu" }["content"] as List<*>)
+      .filterIsInstance<Map<*, *>>().firstOrNull { it["name"] == "voci" && (it["alpha"] as Float) > 0f }
+    for (name in listOf("menu-apertura", "menu-interrotto")) {
+      val frames = requireNotNull(byName[name]).frames
+      assertTrue("$name: niente voci sul tasto a 0 ms", inkLayer(frames.first { it.tMs >= 0.0 }) == null)
+      val second = frames.first { it.tMs >= 16.0 }
+      assertTrue("$name: inchiostro e lente a ${second.tMs} ms", inkLayer(second)?.get("effect") != null)
     }
+    val groupFrames = requireNotNull(byName["menu-apertura-gruppo"]).frames
+    for (frame in groupFrames.filter { it.tMs in 0.0..66.0 }) assertTrue("gruppo: voci a ${frame.tMs} ms", inkLayer(frame) == null)
+    assertTrue("gruppo: voci nella lente a 117 ms", inkLayer(groupFrames.first { it.tMs >= 117.0 })?.get("effect") != null)
     // Il contestuale (sessione contestuale, giro di correzione): le voci entrano nella goccia come in B1 (b), niente prima di
     // 67 ms (la goccia e' solo lente), dentro la lente da 117 ms.
     fun contextInk(frame: GlassTraceFrame): Float = frame.elements.firstOrNull { it["name"] == "menu" }
@@ -284,7 +294,9 @@ class F5a5MenuTraceTest {
         val layers = (window["content"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
         val ink = layers.firstOrNull { it["name"] == "voci" }
         if (frame.tMs in 33.0..34.0) assertTrue((ink?.get("blurDp") as? Float ?: 0f) > 2f)
-        if (frame.tMs >= 90.0) assertTrue(ink == null)
+        // L'inchiostro di Apple al congedo (B1 a, come il contestuale): sfocato ma dentro il vetro a 67 ms, via a 167.
+        if (frame.tMs in 66.0..67.0) assertTrue("$name: voci a ${frame.tMs} ms", ink != null)
+        if (frame.tMs >= 167.0) assertTrue("$name: voci a ${frame.tMs} ms", ink == null)
         if (ink != null) assertTrue(layers.filter {
           it["name"] == "faccia" || (it["name"] as? String)?.startsWith("tasto-") == true
         }.none { (it["alpha"] as? Float ?: 0f) > 0f })

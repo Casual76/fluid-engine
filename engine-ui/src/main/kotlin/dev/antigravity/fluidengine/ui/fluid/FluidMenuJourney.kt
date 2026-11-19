@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidDropWarp
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidPhysicsLiquid
@@ -34,6 +35,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -212,6 +214,21 @@ internal data class FluidMenuContentMap(val translation: Offset, val scale: Floa
 }
 
 /**
+ * Dove cade nella geometria a riposo del pannello [panel] un punto [root] dello schermo, quando le voci si disegnano con
+ * [map] (un `graphicsLayer` grande quanto il pannello, scalato attorno al suo centro e traslato): l'inversa della mappa. Serve
+ * al dito che sceglie mentre il menu nasce (`FluidMenuSelection.pointerMap`): la voce che si vede staccata col corpo o
+ * rimpicciolita nella goccia e' quella che si sceglie. Identita' per la mappa identita' o una scala degenere.
+ */
+internal fun fluidMenuPointerAtRest(root: Offset, panel: Rect, map: FluidMenuContentMap): Offset {
+  if (map == FluidMenuContentMap.Identity || !(map.scale > 0.0001f)) return root
+  val c = panel.center
+  return Offset(
+    c.x + (root.x - map.translation.x - c.x) / map.scale,
+    c.y + (root.y - map.translation.y - c.y) / map.scale,
+  )
+}
+
+/**
  * La mappa che porta il contenuto, posato alla taglia della posa finale ([target]), sulla sagoma di
  * questo istante ([current]): traslato sul centro corrente e scalato di quanto la sagoma e' piu'
  * piccola o grande del traguardo. E' la regola di `fluidPhysicsContent` (Incoming), che viaggia con
@@ -322,20 +339,32 @@ internal fun fluidMenuLensMap(
   button: Boolean = false,
   progress: Float = 0f,
   focus: Float = 1f,
+  /**
+   * Il congedo di un menu dal tasto nato come Apple: l'ingrandimento cresce mentre la goccia si stringe, come in B1 (a)
+   * (a 33 ms le voci sono ancora alla loro misura, a ~100 ms a 1,35×), e non segue la messa a fuoco che torna.
+   */
+  returning: Boolean = false,
 ): FluidMenuContentMap {
   if (content.isEmpty || target.isEmpty) return FluidMenuContentMap.Identity
   val fitted = min(content.width / target.width, content.height / target.height).coerceIn(0.04f, 1f)
-  val zoom = if (button) {
-    unitRamp(progress, FluidMotion.MenuButtonGatherEnd, FluidMotion.MenuButtonFirstRise) *
+  val zoom = when {
+    !button -> 0f
+    returning -> unitRamp(1f - progress, MenuReturnZoomFrom, MenuReturnZoomTo)
+    else -> unitRamp(progress, FluidMotion.MenuButtonGatherEnd, FluidMotion.MenuButtonFirstRise) *
       (1f - unitRamp(focus, 0.37f, 0.63f))
-  } else {
-    0f
   }
   val extra = (FluidMotion.MenuButtonLensMagnification - fitted) * zoom
   // Mentre il bordo ritaglia le righe estreme, il centro dell'inchiostro resta nella bolla.
   val inset = Offset(target.width * FluidMotion.MenuButtonLensInkPivot * extra, 0f)
   return FluidMenuContentMap(content.center - target.center + inset, fitted + extra)
 }
+
+/**
+ * Dove cresce l'ingrandimento delle voci al congedo del menu dal tasto nato come Apple, in frazioni del ritorno (233 ms):
+ * da 33 ms (0,14) a ~117 ms (0,5). B1 (a): f9188 alla misura, f9189 a ~1,15×, f9190 a ~1,35×.
+ */
+private const val MenuReturnZoomFrom = 0.14f
+private const val MenuReturnZoomTo = 0.5f
 
 internal fun fluidMenuLensAlpha(focus: Float): Float =
   FluidMotion.MenuContentFirstAlpha + (1f - FluidMotion.MenuContentFirstAlpha) * unitRamp(focus, 0f, FluidMotion.MenuContentInkFull)
@@ -884,13 +913,62 @@ internal class FluidMenuJourney {
   private var expansionOrigin: Offset = Offset.Zero
 
   val usesButtonTravel: Boolean get() = liquidMenu && anchor?.let { it.groupBounds == null } == true
-  val magnifiesInk: Boolean get() = usesButtonTravel && !returningOnContour
+  /**
+   * La lente ingrandisce le voci del tasto singolo. Con la nascita di Apple anche al ritorno: in B1 (a) le voci che se ne
+   * vanno sono ingrandite dalla goccia che si stringe («Orders», «Wishlis» a ~1,35× a 100 ms, f9190).
+   */
+  val magnifiesInk: Boolean get() = usesButtonTravel && (born || !returningOnContour)
   private var returningOnContour by mutableStateOf(false)
   val controlledReturn: Boolean get() = returningOnContour
   var openingAge = Animatable(0f, ProgressThreshold)
     private set
-  val faceProgress: Float get() =
-    if (returningOnContour) fluidMenuReturnFaceProgress(progress.value) else progress.value
+
+  /**
+   * La nascita di Apple per i menu col vetro liquido che partono da un tasto o da un gruppo (sessione «contestuale», fase
+   * tasto): il tasto singolo come B1 (a), il gruppo come la graffetta B1 (b) ([FluidMenuBirth.kt]). Chiesta dall'host in
+   * [prepare]; senza, il viaggio e' quello di prima (le tracce storiche e i menu senza vetro liquido).
+   */
+  var appleBirth: Boolean = false
+    private set
+
+  /** I millisecondi della nascita, in disegno: ricreato a un'apertura nuova, come [openingAge]. */
+  var birthClock = Animatable(BirthDoneMillis, 0.5f)
+    private set
+
+  /** La sagoma al congedo, se la nascita non era finita: il ritorno parte da li'. Null: dal pannello. */
+  private var frozen: FluidForm.Slab? = null
+  private var frozenProgress = 1f
+  private var frozenMillis = -1f
+
+  /** La nascita di Apple e' accesa: menu liquido, chiesta dall'host, da un tasto o da un gruppo. */
+  val born: Boolean get() = appleBirth && liquidMenu && anchor != null
+
+  /** Il menu nasce da un gruppo (la graffetta) e non da un tasto singolo. */
+  private val fromGroup: Boolean get() = anchor?.groupBounds != null
+
+  val faceProgress: Float get() = when {
+    returningOnContour -> fluidMenuReturnFaceProgress(progress.value)
+    born && !closing -> fluidMenuBirthFaceProgress(birthClock.value)
+    else -> progress.value
+  }
+
+  /**
+   * Quanto delle voci c'e' nella goccia in apertura (B1 a: subito, ingrandite; B1 b: da 67 a 117 ms). 1 senza la nascita
+   * e in chiusura, dove l'inchiostro e' [contentVisibility].
+   */
+  fun birthInk(): Float = if (!born || closing) 1f else fluidMenuBirthInk(fromGroup, birthClock.value)
+
+  /**
+   * L'opacita' delle voci nella lente: quella della messa a fuoco ([fluidMenuLensAlpha]) per l'inchiostro, e con la nascita
+   * le voci che entrano quando in Apple ([birthInk]). Al congedo con la nascita solo l'inchiostro di Apple
+   * ([contentVisibility], [fluidContextExitInkSpec]): in B1 (a) le voci che se ne vanno sono sfocate ma piene fino a ~100 ms,
+   * e la messa a fuoco che torna in 100 ms le avrebbe gia' spente a 0,3 verso 67 ms.
+   */
+  fun lensInkAlpha(): Float =
+    if (born && closing) contentVisibility.value else fluidMenuLensAlpha(focus.value) * contentVisibility.value * birthInk()
+
+  /** Il congedo di un menu nato come Apple: la lente del tasto ingrandisce le voci che se ne vanno (vedi [fluidMenuLensMap]). */
+  val bornReturn: Boolean get() = born && closing
 
   fun faceAlpha(physics: FluidPhysicsState): Float =
     if (closing && liquidMenu && !controlledReturn && anchor != null) {
@@ -936,7 +1014,11 @@ internal class FluidMenuJourney {
 
   private val startFrameBlock: () -> Rect = {
     val start = startFrame()
-    if (liquidMenu && !returningOnContour) {
+    if (born) {
+      // La goccia e' ancorata dove nasce: al tasto premuto (nel gruppo, la goccia sul tasto e non il centro della capsula).
+      // Al ritorno, come prima, alla sorgente intera.
+      if (fromGroup && !closing) birthDrop() else start
+    } else if (liquidMenu && !returningOnContour) {
       val a = anchor
       val trigger = a?.restBounds?.center?.minus(hostOrigin) ?: start.center
       fluidMenuJourneySeed(start, trigger, expansionOrigin, progress.value, a?.groupBounds != null)
@@ -945,13 +1027,14 @@ internal class FluidMenuJourney {
     }
   }
   private val progressBlock: () -> Float = {
-    if (liquidMenu && !returningOnContour && anchor?.groupBounds != null) {
+    if (liquidMenu && !born && !returningOnContour && anchor?.groupBounds != null) {
       fluidMenuExpansionProgress(progress.value)
     } else {
       progress.value
     }
   }
   private val travelBlock: () -> FluidForm.Slab? = travel@{
+    if (born) return@travel birthTravel()
     val p = progress.value
     if (p >= 1f && openingAge.value == 1f) return@travel null
     val panel = FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
@@ -989,6 +1072,143 @@ internal class FluidMenuJourney {
     return r.translate(-hostOrigin.x, -hostOrigin.y)
   }
 
+  // --- La nascita di Apple (sessione contestuale, fase tasto) --------------------------------------------------------
+
+  /** Il tasto premuto del gruppo, in coordinate dell'host. */
+  private fun birthTrigger(): Rect {
+    val r = anchor?.restBounds ?: return to
+    return r.translate(-hostOrigin.x, -hostOrigin.y)
+  }
+
+  /** La goccia sul tasto premuto del gruppo, in coordinate dell'host ([fluidGroupBirthDrop]). */
+  private fun birthDrop(): Rect = fluidGroupBirthDrop(birthTrigger())
+
+  /**
+   * La sagoma della nascita a [ms]: il tasto come B1 (a), il gruppo come B1 (b). Null dalla fine: il pannello. Con [lead]
+   * quella da chiedere alla goccia (in anticipo, perche' quella che si vede sia Apple); senza, quella che si vede.
+   */
+  private fun birthSlabAt(ms: Float, lead: Boolean = true): FluidForm.Slab? {
+    val a = anchor ?: return null
+    val group = a.groupBounds
+    return if (group != null) {
+      fluidGroupBirthSlab(group.translate(-hostOrigin.x, -hostOrigin.y), birthTrigger(), to, toRadius, ms, lead)
+    } else {
+      fluidButtonBirthSlab(startFrame(), to, toRadius, ms, lead)
+    }
+  }
+
+  /**
+   * La sagoma di questo istante con la nascita accesa: in apertura quella di Apple all'istante dell'orologio; in chiusura
+   * il ritorno dei menu ([fluidMenuReturnSlab], i 233 ms di B1 a) verso la sorgente, dal pannello o dalla sagoma fermata al
+   * congedo. Null a riposo.
+   */
+  private fun birthTravel(): FluidForm.Slab? {
+    if (!closing) return birthSlabAt(birthClock.value)
+    val source = startFrame()
+    val from = FluidForm.Slab(source, FluidCornerRadii.all(source.minDimension / 2f))
+    val home = frozen ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
+    val q = (progress.value / frozenProgress.coerceAtLeast(ProgressThreshold)).coerceIn(0f, 1f)
+    return fluidMenuReturnSlab(from, home, q)
+  }
+
+  /**
+   * Il contorno della nascita, per `driveExternally(travelWarp = ...)`: nel gruppo la goccia con la lente, il fagiolo e
+   * l'uovo storto con la coda verso il tasto ([fluidGroupBirthWarp]); al congedo a meta' nascita quello di quell'istante,
+   * che si spegne mentre il ritorno lascia la sagoma fermata. Il tasto singolo non ne ha: B1 (a) e' un rettangolo
+   * arrotondato che cresce, senza uovo.
+   */
+  private val warpBlock: () -> FluidDropWarp? = warp@{
+    if (!born || !fromGroup) return@warp null
+    if (closing) {
+      if (frozenMillis < 0f) return@warp null
+      val slab = birthTravel() ?: return@warp null
+      val q = (progress.value / frozenProgress.coerceAtLeast(ProgressThreshold)).coerceIn(0f, 1f)
+      return@warp fluidGroupBirthWarpFading(birthTrigger(), to, slab, frozenMillis, q)
+    }
+    val ms = birthClock.value
+    val slab = birthSlabAt(ms) ?: return@warp null
+    fluidGroupBirthWarp(birthTrigger(), to, slab, ms)
+  }
+
+  /**
+   * Ferma la sagoma della nascita al congedo, nell'istante in cui si decide (vedi [retarget]): quella che si vede, senza
+   * l'anticipo per la goccia. Con l'anticipo il ritorno partiva da una sagoma piu' avanti di quella sullo schermo, e il
+   * corpo cresceva ancora del 7% per due fotogrammi prima di tornare (primo giro della fase tasto, `interrotto-gruppo`).
+   */
+  private fun freezeBirth() {
+    val ms = birthClock.value
+    val slab = if (ms < fluidMenuBirthEndMillis(fromGroup)) birthSlabAt(ms, lead = false) else null
+    frozen = slab
+    frozenProgress = if (slab != null) progress.value.coerceAtLeast(ProgressThreshold) else 1f
+    frozenMillis = if (slab != null) ms else -1f
+  }
+
+  /**
+   * L'apertura con la nascita: l'orologio fino alla fine, il progresso del viaggio sul profilo di Apple, la messa a fuoco
+   * (B1 a: lineare in 270 ms, come prima; B1 b: in 334 ms come il contestuale), l'inchiostro che riprende da dove si trova.
+   * Un menu riaperto a meta' chiusura riprende la nascita dall'istante del suo progresso.
+   */
+  private suspend fun openBirth(): Unit = coroutineScope {
+    val group = fromGroup
+    val end = fluidMenuBirthEndMillis(group)
+    val from = progress.value
+    val start = if (from <= ProgressThreshold) birthClock.value.coerceIn(0f, end) else fluidMenuBirthMillisAt(group, from)
+    birthClock.snapTo(start)
+    frozen = null
+    frozenProgress = 1f
+    frozenMillis = -1f
+    val remaining = (end - start).coerceAtLeast(1f)
+    val millis = ceil(remaining).toInt()
+    launch { birthClock.animateTo(end, tween(millis, easing = LinearEasing)) }
+    launch {
+      val f = focus.value
+      val spec = if (group) {
+        tween<Float>((FluidContextFocusMillis * (1f - f)).toInt().coerceAtLeast(1), easing = FluidContextFocusEasing)
+      } else {
+        tween((FluidMotion.MenuContentFocusMillis * (1f - f)).roundToInt(), easing = LinearEasing)
+      }
+      focus.animateTo(1f, spec)
+    }
+    launch {
+      val visibility = contentVisibility
+      val duration = (FluidMotion.MenuContentExitMillis * (1f - visibility.value)).roundToInt()
+      visibility.animateTo(1f, tween(duration, easing = LinearEasing))
+    }
+    // Il superamento e' nel profilo di Apple: l'accento del viaggio di prima non serve.
+    launch { openingAge.snapTo(1f) }
+    val relax = anchorRelax
+    if (relax.value < 1f) launch { relax.animateTo(1f, FluidMotion.snappy()) }
+    val span = 1f - from
+    if (span > 0.0001f) {
+      progress.animateTo(
+        1f,
+        tween(millis, easing = Easing { f -> (fluidMenuBirthProgress(group, start + f * remaining) - from) / span }),
+      )
+    } else {
+      progress.snapTo(1f)
+    }
+  }
+
+  /**
+   * Il congedo con la nascita: il ritorno di 233 ms dal pannello fermo (o la molla dei menu liquidi da una nascita a
+   * meta'), le voci che si sfocano subito ma restano dentro il vetro fino a ~67 ms e se ne vanno entro ~167
+   * ([fluidContextExitInkSpec], l'inchiostro di B1 a, lo stesso del contestuale).
+   */
+  private suspend fun closeBirth(velocity: Float): Unit = coroutineScope {
+    birthClock.stop()
+    launch { focus.animateTo(0f, fluidMenuReturnFocusSpec(focus.value)) }
+    launch {
+      val visibility = contentVisibility
+      visibility.animateTo(0f, fluidContextExitInkSpec(visibility.value))
+    }
+    val spec = if (returningOnContour && progress.value == 1f) {
+      fluidMenuReturnSpec()
+    } else {
+      androidx.compose.animation.core.spring<Float>(FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness)
+    }
+    progress.animateTo(0f, spec, initialVelocity = velocity)
+  }
+
   /**
    * Prepara un'apertura: l'ancora (o il seme), il pannello e il gonfiore. Non tocca [progress]: un
    * menu riaperto mentre si chiudeva riparte da dove si trova.
@@ -1006,6 +1226,11 @@ internal class FluidMenuJourney {
     freshStart: Boolean = true,
     liquidMenu: Boolean = false,
     expansionOrigin: Offset = panel.center,
+    /**
+     * La nascita di Apple ([born]): il tasto come B1 (a), il gruppo come la graffetta B1 (b). Vale solo per un menu liquido
+     * con un'ancora.
+     */
+    appleBirth: Boolean = false,
   ) {
     if (anchor != null && (freshStart || this.anchor !== anchor)) {
       // Una partenza nuova: la pressione si scioglie da qui. Un `Animatable` nuovo e non uno snapTo,
@@ -1017,7 +1242,15 @@ internal class FluidMenuJourney {
       contentVisibility = Animatable(1f, ProgressThreshold)
       openingAge = Animatable(0f, ProgressThreshold)
       returningOnContour = false
+      if (appleBirth) {
+        // Un `Animatable` nuovo e non uno snapTo, come `anchorRelax`: il primo fotogramma arriva prima di qualunque coroutine.
+        birthClock = Animatable(0f, 0.5f)
+        frozen = null
+        frozenProgress = 1f
+        frozenMillis = -1f
+      }
     }
+    this.appleBirth = appleBirth
     this.anchor = anchor
     this.hostOrigin = hostOrigin
     this.to = panel
@@ -1036,10 +1269,15 @@ internal class FluidMenuJourney {
   fun install(physics: FluidPhysicsState) {
     val a = anchor
     physics.useSampledDropFrame = liquidMenu && a != null
+    // La goccia del tasto singolo e' piu' tesa (B1 a: una sagoma netta e rapidissima); le altre quella di serie.
+    physics.dropAnchorReachDp = if (born && !fromGroup) FluidButtonBirthProfile.DropReachDp else FluidMotion.DropAnchorReachDp
     // Il `from` e' fisso per un'apertura (il tasto premuto, o il seme): e' il segnaposto con cui
     // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
     // F1B.3: il segnaposto ha la taglia del tasto a riposo (vedi [fluidMenuOriginFrame]).
-    val start = if (a != null) {
+    val start = if (a != null && born && a.groupBounds != null) {
+      // La nascita del gruppo e' ancorata alla goccia sul tasto anche a progresso oltre l'1 (vedi `dropAnchorNow`).
+      birthDrop()
+    } else if (a != null) {
       val frame = a.groupBounds ?: fluidMenuOriginFrame(rest = a.restBounds, pressed = a.pressedBounds)
       frame.translate(-hostOrigin.x, -hostOrigin.y)
     } else {
@@ -1058,6 +1296,7 @@ internal class FluidMenuJourney {
       overshootInflationY = if (liquidMenu) 0f else inflation.y,
       startFrame = if (a != null) startFrameBlock else null,
       travelSlab = travelBlock.takeIf { liquidMenu },
+      travelWarp = warpBlock.takeIf { born },
     )
   }
 
@@ -1073,6 +1312,8 @@ internal class FluidMenuJourney {
       if (t == 0f && !progress.isRunning && progress.value == 1f) returningOnContour = true
       if (t == 1f && progress.value <= 0f) returningOnContour = false
     }
+    // La sagoma della nascita si ferma ADESSO: dal prossimo fotogramma la chiusura parte da lei, non dal pannello pieno.
+    if (born && t == 0f) freezeBirth()
     seedVelocity = progress.velocity
     target = t
   }
@@ -1088,6 +1329,11 @@ internal class FluidMenuJourney {
       focus.snapTo(t)
       contentVisibility.snapTo(t)
       openingAge.snapTo(1f)
+      birthClock.snapTo(BirthDoneMillis)
+      return
+    }
+    if (born && withLens) {
+      if (t >= 1f) openBirth() else closeBirth(v)
       return
     }
     coroutineScope {
@@ -1133,5 +1379,8 @@ internal class FluidMenuJourney {
 
   private companion object {
     const val ProgressThreshold = 0.001f
+
+    /** L'orologio di una nascita finita (o mai cominciata): oltre la fine di tutte e due. */
+    const val BirthDoneMillis = 10_000f
   }
 }

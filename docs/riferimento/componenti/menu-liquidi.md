@@ -200,38 +200,57 @@ La stessa dichiarazione porta la fila, l'ordine e il sottomenu anche al tasto ch
 simbolo (si vedrebbe l'etichetta stretta nella tessera); `keepsMenuOpen` su una `listOf(…)` fotografata, se la voce deve cambiare
 aspetto.
 
-## Il menu dal tasto e dal gruppo: il viaggio in tre tempi
+## Il menu dal tasto e dal gruppo: la nascita di Apple
 
 **Cosa si vede** (vetro Liquid, campo del vetro disponibile: dall'API 33, con gli shader in salute; altrimenti vedi «Senza il
-campo»).
+campo»). Dalla sessione «contestuale» (fase tasto) i due menu nascono **come quelli di Apple**, ognuno sul suo riferimento: il tasto
+singolo come il menu dal tasto del telefono (WWDC25 219 a 5:06, «B1 a»), il gruppo come la graffetta sulla foto (7:15, «B1 b»), la
+stessa nascita del contestuale. Il tasto singolo è più rapido perché Apple lo fa così.
 
-1. **Si raccoglie.** Il tasto premuto si stringe sul posto nei primi fotogrammi. Dal **gruppo** (un'azione con `menu` dentro un
-   gruppo con lo sfondo condiviso di una barra dichiarata) è tutta la capsula del gruppo a farlo: si stringe al 60% della sua
-   larghezza in circa 33 ms, e le altre icone del gruppo si sfocano sul posto e spariscono entro 67–100 ms con le curve del cambio
-   di contenuto della barra. La barra conserva il gruppo misurato e il bersaglio della pressione fino al rilascio del dito.
-2. **Sale come goccia.** La goccia va verso il **centro del menu** a riposo; un punto di luce forte le passa sul fianco lontano dal
-   tasto fra il 12% e il 55% del viaggio (il bagliore dello strato della luce, nessun termine speculare nuovo).
-3. **Si apre da lì.** L'espansione comincia mentre la goccia sta ancora salendo; la sagoma è goccia, uovo, quadrato panciuto, mai un
-   rettangolo che cambia misura. Supera la misura del pannello **una volta**, verso il lato lontano dal tasto, e si posa senza una
-   seconda oscillazione visibile.
+**Dal tasto singolo** (B1 a, `FluidButtonBirthProfile`):
 
-**Le voci stanno nella lente.** Sono dentro dal primo fotogramma, all'alfa 0,28, sfocate (fino a 5 dp) e piegate dallo stesso campo
-che disegna la sagoma (la lente del contenuto, `GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci). Dal tasto la lente le ingrandisce fino a
-1,42× nella prima risalita e poi le riporta alla misura di lettura; dal gruppo crescono dentro la goccia. La messa a fuoco dura 270
-ms dal primo fotogramma: inchiostro pieno verso ≈195 ms, la piega si spegne fra ≈100 e ≈230 ms (prima e ultima riga restano piegate
-più a lungo), nitide a 270 ms. Dopo la sfocatura, lo stesso campo che disegna il vetro ritaglia anche l'inchiostro delle voci. Il layout, le celle e
-la scelta col dito usano sempre i riquadri del pannello a riposo: il dito che ha aperto può scegliere durante il viaggio.
+1. **Una goccia sul tasto.** Il tasto premuto diventa una goccia quasi quadrata, con gli angoli molto arrotondati (al 31% del lato
+   corto a 33 ms, al 20% a 100 ms, poi verso il raggio del pannello): cresce dall'angolo del tasto, e il lato del tasto sul margine
+   resta fermo. A 33 ms è al 58% del menu, a 67 ms all'80%.
+2. **Pieno a ~133 ms, poi rilascia.** Il corpo arriva alla misura del pannello verso 110–133 ms e **sale** sopra la posa (il bordo
+   lontano fino al 7–8%, il bordo vicino resta un 5% sopra il tasto) allargandosi del 3–4% a 167–200 ms; poi scende e si posa, fermo
+   a ~367 ms. Nessun uovo: la sagoma è un rettangolo arrotondato che cresce.
+3. **Le voci subito, ingrandite.** Entrano nei primi 33 ms (a 33 ms in Apple si legge già «Wis»), piegate e ingrandite dalla lente
+   fino a 1,42×, e si mettono a fuoco in 270 ms (Apple: a fuoco a ~267 ms).
 
-**I tempi.** Il superamento raggiunge il picco attorno a 158 ms. Il bordo verticale lontano dal tasto
-si sposta fino al 6% dell'altezza e la larghezza cresce fino al 3,4% nei margini disponibili.
-Al congedo da fermo il bordo lontano cede nei primi 67 ms. Poi il corpo si raccoglie in una bolla
-sulla colonna del tasto e si posa in circa 233 ms. La sfocatura delle voci ha una curva di 100 ms,
-l'inchiostro si spegne in 90 ms. Quando la bolla tocca casa, la capsula del gruppo e le sue icone tornano insieme.
-Le tracce del banco sono in `tools/glassbench/traces/f5a-corr/`.
+**Dal gruppo** (un'azione con `menu` dentro un gruppo con lo sfondo condiviso di una barra dichiarata; B1 b, la graffetta):
 
-**Un congedo a metà apertura torna indietro da dove si trova**, con la sua velocità (`retarget` la legge *prima* che la molla vecchia
-venga cancellata: un `Animatable` cancellato azzera la sua velocità), e la goccia continua dal contorno che sta già seguendo. Le
-voci perdono definizione da subito, senza scatti.
+1. **Le icone si sfocano ed escono** (sfocate al massimo a ~41 ms, via a ~54 ms, con le curve del cambio di contenuto della barra),
+   mentre **la capsula si stringe in una goccia sul tasto premuto** (al 63–67% della sua larghezza a 33 ms, la goccia a 67 ms).
+2. **La goccia sale con la lente**: limpida, ingrandisce ciò che ha sotto (67–117 ms); le voci minuscole entrano fra 67 e 117 ms.
+3. **Fagiolo, poi uovo storto con la coda verso il tasto** (133–233 ms), che si stacca dalla barra (fino al 15% dell'altezza a ~234
+   ms) e torna.
+4. **Il corpo si allarga** a botte e **si posa nel rettangolo** col superamento di Apple (3% a 367–467 ms): pieno verso 334 ms,
+   fermo verso 770–868 ms; voci a fuoco a ~334 ms.
+
+È la nascita del contestuale ([sotto](#la-nascita-del-contestuale-fluidcontextbirth-in-fluidcontextmenukt)) col seme sul tasto
+premuto: `fluidGroupBirthSlab` raccoglie la capsula nella goccia e poi chiama `fluidContextBirthSlab`; il contorno è
+`fluidContextBirthWarp` con la coda sul tasto.
+
+**Le voci stanno nella lente**, sfocate (fino a 5 dp) e piegate dallo stesso campo che disegna la sagoma (la lente del contenuto,
+`GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci); lo stesso campo ritaglia l'inchiostro anche sui fianchi
+concavi. Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
+voci stanno col corpo (staccate dalla sorgente, rimpicciolite nella goccia: nel gruppo e nel contestuale fino a ~23 dp dal loro
+riquadro a 300 ms, ~45–50 dp a 200 ms, sotto i 5 dp da ~500 ms), e la selezione riporta il punto del dito attraverso la stessa
+mappa con cui si disegnano (`FluidMenuSelection.pointerMap`, `fluidMenuPointerAtRest`: spostamento e scala, non la piega della
+lente). Così il dito che ha aperto può scegliere durante il viaggio.
+
+**Il congedo** da fermo: il bordo lontano cede nei primi 67 ms, poi il corpo si raccoglie in una bolla sulla colonna del tasto e si
+posa in circa 233 ms. Le voci si sfocano subito (curva di 100 ms) ma **restano dentro il vetro fino a ~67 ms e se ne vanno entro
+~167** (l'inchiostro di Apple, `fluidContextExitInkSpec`, lo stesso del contestuale): mai un vetro vuoto che si stringe; fino a
+lì sono sfocate ma piene (`FluidMenuJourney.lensInkAlpha`). Dal tasto singolo la lente le ingrandisce anche mentre se ne vanno,
+come in B1 (a): alla loro misura a 33 ms, ~1,35× a 100 ms, 1,42× a ~117 ms (`fluidMenuLensMap(returning = true)`). Quando la
+bolla tocca casa, la capsula del gruppo e le sue icone tornano insieme. Le tracce del banco sono in `tools/glassbench/traces/tasto/`
+e `f5a-corr/`.
+
+**Un congedo a metà apertura torna indietro dalla sagoma che c'era**: la nascita si ferma nell'istante in cui si decide
+(`retarget`) e il ritorno parte da lì, con la molla dei menu liquidi; nel gruppo l'uovo si spegne mentre il ritorno lascia la sagoma
+fermata. Riaperto a metà chiusura, il menu riprende la nascita dall'istante del suo progresso.
 
 **Il punto di luce** è acceso di serie (`LocalFluidMenuPointOfLight`, vero); dall'API 33. Un'app che non lo vuole lo spegne una volta
 sola, attorno all'host:
@@ -579,18 +598,35 @@ azioni della barra con `FluidBarAction(actions)` **non passano di qui** e non ca
 ### Il viaggio (`FluidMenuJourney`)
 
 Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può superare 1) che guida la finestra di Fluid-physics con
-`driveExternally`. Col campo del vetro il menu dal tasto segue un contorno che ha curve distinte per larghezza, altezza, centro e
-raggio (`fluidMenuButtonTravel`; dal gruppo `fluidMenuJourneySeed`, che parte dalla capsula raccolta). Il
-contestuale Liquid ha una nascita sua (`FluidContextBirth`, sotto): il progresso del viaggio lo segue, e la chiusura e' quella del
-viaggio. Il viaggio senza campo interpola fra seme e pannello.
+`driveExternally`. Col campo del vetro i menu dal tasto e dal gruppo nascono come Apple (`prepare(appleBirth = true)`, che
+`FluidMenuLayer` e `FluidMorphMenuHost` chiedono per i menu liquidi con un'ancora): un orologio in millisecondi
+(`FluidMenuJourney.birthClock`) guida la sagoma (`fluidButtonBirthSlab`, `fluidGroupBirthSlab`) e il suo contorno (nel gruppo),
+e il progresso del viaggio corre nello stesso fotogramma sul bordo lontano di Apple (`fluidMenuBirthProgress`): è il numero che
+leggono gli altri pezzi (materiale, lente delle voci, punto di luce, verso della chiusura). Senza la nascita (le tracce storiche) il
+menu dal tasto segue `fluidMenuButtonTravel` e quello dal gruppo `fluidMenuJourneySeed`. Il contestuale Liquid ha una nascita sua
+(`FluidContextBirth`, sotto). Il viaggio senza campo interpola fra seme e pannello.
+
+| la nascita dal tasto e dal gruppo | valore |
+|---|---|
+| modelli | il tasto: B1 (a), f9148 → f9160, contorni letti sul video HD (±6 px, la posa sui bordi di f9156–f9170); il gruppo: B1 (b), la graffetta, i profili del contestuale |
+| orologio | lineare, 0 → 400,4 ms dal tasto (`FluidButtonBirthProfile.EndMillis`), 0 → 867,5 ms dal gruppo; 1 esatto alla fine |
+| tasto: profili | bordo vicino, lontano, larghezza (`Near`, `Far`, `Width`); dal nostro tasto ad Apple in 67 ms (`BlendMillis`); angoli dal 31% al 12% del lato corto (`Corner`), al raggio del pannello fra 200 e 334 ms |
+| tasto: la goccia | più tesa: l'ancora arriva a 300 dp invece di 110 (`DropReachDp`, `FluidPhysicsState.dropAnchorReachDp`), perché B1 (a) cresce del 22% del menu in un fotogramma e con la goccia di serie l'angolo lontano restava indietro di 60–70 ms; anticipo del lontano 11–30 ms, della larghezza 12–30 ms, del vicino 12–15 ms (`FarLead`, `WidthLead`, `NearLead`); superamento chiesto tutto |
+| gruppo: raccolta | la capsula nella goccia sul tasto premuto in 67 ms (`FluidGroupGatherMillis`, `fluidGroupBirthDrop`), poi `fluidContextBirthSlab` col seme lì |
+| gruppo: contorno | `fluidGroupBirthWarp`: quello del contestuale con la coda sul tasto; mentre la capsula si raccoglie solo la lente |
+| facce | via col tempo della nascita (`fluidMenuBirthFaceProgress`, 83 ms): la faccia del tasto a ~29 ms, le icone del gruppo a ~54 ms |
+| voci in entrata | il tasto nei primi 33 ms, il gruppo da 67 a 117 ms (`fluidMenuBirthInk`) |
+| messa a fuoco | il tasto lineare in 270 ms; il gruppo in 334 ms con l'andamento del contestuale |
+| congedo | dal pannello fermo `fluidMenuReturnSlab` in 233 ms; a metà nascita dalla sagoma fermata al congedo con la molla 900; inchiostro di B1 a (`fluidContextExitInkSpec`) |
+| coppia lastra–contorno | la goccia disegna lastra **e** contorno del passo in cui ha integrato (`useSampledDropFrame`, S4) |
 
 | cosa | valore |
 |---|---|
-| andata | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 |
+| andata senza la nascita | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 |
 | ritorno col campo da fermo | `fluidMenuReturnSlab`: bordo lontano, bolla sulla sorgente, posa in 233 ms |
 | ritorno senza campo | `FluidMotion.dropClose()`, smorzamento 0,72, rigidezza 158, ≈0,5 s |
 | raccolta del gruppo | al 60% della larghezza (`MenuGroupGatherWidth`) |
-| voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, curva di sfocatura d'uscita in 100 ms e inchiostro a zero in 90 ms, ingrandimento dal tasto fino a 1,42× |
+| voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, curva di sfocatura d'uscita in 100 ms, ingrandimento dal tasto fino a 1,42×; inchiostro d'uscita di Apple con la nascita (pieno fino a 67 ms, via entro 167), in 90 ms senza |
 | voci senza lente | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`), all'uscita fra 0,94 e 0,62; scala `0,86 + 0,14·opacità` |
 | la faccia del tasto | piena alla partenza, spenta entro 0,35 (`MenuFaceTo`) |
 | il materiale | dal tasto al pannello con uno smoothstep fino al 60%: niente scalino di luminosità quando il viaggio si posa |
@@ -726,7 +762,14 @@ Puri, in `engine-ui` (JVM):
 - `FluidMenuPanelTest`, `FluidMenuPanelWidthTest`: la riga che segue il font, le sezioni, il pannello sopra/sotto/sull'ancora/accanto,
   il seme, la larghezza (252 → 340, mai oltre lo schermo) con l'icona da 22 dp.
 - `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, l'inversione a
-  100 ms, riaprire mentre si chiude; i tre tempi (raccolta, risalita verso il centro, espansione), la messa a fuoco delle voci.
+  100 ms, riaprire mentre si chiude; i tre tempi (raccolta, risalita verso il centro, espansione), la messa a fuoco delle voci. Con
+  la nascita di Apple: il tasto sull'orologio di B1 (a) (quasi pieno a ~96 ms, il superamento, 1 esatto alla fine) e il congedo con
+  l'inchiostro di Apple; il gruppo dalla capsula alla goccia sul tasto, le icone via entro 55 ms, l'uovo con la coda sul tasto; il
+  congedo a metà nascita dalla sagoma che c'era; il movimento ridotto; senza la nascita il viaggio di prima.
+- `FluidMenuBirthTest`: le funzioni pure della nascita dal tasto e dal gruppo: esatta sul tasto e sul pannello, la sagoma di Apple
+  senza anticipo entro lo 0,2%, il lato sul margine fermo, gli angoli della goccia, il progresso e la sua inversa, le voci in
+  entrata, la capsula che si raccoglie (63% a 33 ms), la coda sul tasto, l'uovo che si spegne al congedo, le facce; il dito
+  riportato attraverso la mappa delle voci sceglie la riga che si vede, non quella che a riposo sta sotto il punto.
 - `FluidMenuMotionTest`: le finestre di opacità e il loro verso, la mappa del contenuto, il gonfiore, i token.
 - `FluidMenuStructureTest`: un menu di sempre ha le stesse celle al bit; `Priority` capovolge solo verso l'alto, e `Automatic` lo fa per i menu dei tasti; la
   fila `Small`/`Medium`; la goccia che cambia misura fra tessera e riga; la riga col sottotitolo; il sottomenu e il suo pannello dallo
@@ -756,6 +799,8 @@ Nel `sample` (Robolectric, aptica registrata):
 - `FluidMenuStructureBehaviourTest`: il sottomenu che si apre senza chiudere, il figlio che sceglie e chiude, l'intestazione e il back
   che tornano indietro, `keepsMenuOpen` con la spunta che si aggiorna, `Priority` su un tasto in basso, la fila `Small`.
 - `FluidTransitionSourceTest`: la capsula del gruppo come sorgente, il gruppo che si consuma e ritorna, la scelta di una voce.
+- `FluidMenuBirthPickTest`: il dito che tiene premuto e rilascia a metà nascita (~200 e ~300 ms) sopra una voce visibile sceglie
+  quella voce, nel menu del gruppo e nel contestuale.
 - `FluidApiAdditionsTest`: `selected` per TalkBack, `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
   fornitore. `FluidButtonDragTest`: il tocco sul tasto che si trasforma fa i tre colpi di un tasto e non apre.
 
@@ -773,6 +818,11 @@ Sul banco del movimento (`tools/glassbench/traces/`, scritte dal codice dei test
   (entro il 5% sui bordi, il 4% sul bordo vicino), misura le voci dentro il vetro con la mappa della lente che si disegna, e tiene il
   costo: al più tre superfici, tre catture e una sola a tutto schermo per fotogramma. Le `f5a-corr/contestuale-*` seguono la stessa
   nascita.
+- `tasto/` (`TastoTraceTest`): la nascita del menu dal tasto (`apre-tasto`, contro B1 a, f9148) e dal gruppo (`apre-gruppo`, e
+  `apre-graffetta` col tasto a sinistra come la graffetta, contro B1 b, f13046), il congedo da fermo (`chiude-tasto`, `chiude-gruppo`,
+  contro f9187) e a metà nascita (`interrotto-gruppo`), in chiaro e in scuro. Il test stampa la sagoma vera contro i contorni di
+  Apple fotogramma per fotogramma (il tasto entro il 6% sui bordi, il 5% sul vicino) e tiene il costo: un solo elemento per
+  fotogramma. Le `f5a-corr/menu-*` seguono la stessa nascita (il congedo a menu fermo ora a 900 ms).
 
 **Non è provato** al PC: il vetro e la goccia sul vetro dentro i test Robolectric (gli host dei test non hanno fondale), il cambio di
 proprietario fra tasto e finestra, il menu dal vero a 120 Hz, il costo della lente sul layer delle voci: sono del tablet.

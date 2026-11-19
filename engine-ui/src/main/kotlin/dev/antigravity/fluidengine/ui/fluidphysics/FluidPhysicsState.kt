@@ -277,6 +277,16 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   internal var useSampledDropFrame = false
   private var sampledDropSlab: FluidForm.Slab? = null
 
+  /** Il contorno ([FluidDropWarp]) su cui il passo ha integrato gli scarti, con [sampledDropSlab]: vanno in coppia. */
+  private var sampledDropWarp: FluidDropWarp? = null
+
+  /**
+   * Fin dove arriva l'ancora della goccia, in dp: vicino all'ancora le molle sono rigide e seguono il moto della sagoma,
+   * lontano morbide (la coda). Di serie [FluidMotion.DropAnchorReachDp]; la nascita del menu dal tasto (B1 a, una sagoma
+   * netta e rapidissima) la allunga (`FluidButtonBirthProfile.DropReachDp`).
+   */
+  internal var dropAnchorReachDp: Float = FluidMotion.DropAnchorReachDp
+
   /** La tensione del bordo della goccia, frazione di quella del banco: la scrive la superficie. */
   internal var dropEdgeTension: Float = FluidMotion.DropEdgeTensionDefault
 
@@ -722,8 +732,11 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   private fun buildDropPlan(plan: PhysicsRenderPlan, current: FluidForm.Slab, warp: FluidDropWarp? = null) {
     // La molla e l'integratore ricevono lo stesso vsync, ma possono svegliarsi in ordine diverso.
     // Gli scarti appartengono alla lastra campionata: applicarli alla prossima ripiega l'anello.
-    val rest = if (useSampledDropFrame) sampledDropSlab ?: current else current
-    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters, fieldCorners = liquidBody, warp = warp)
+    val sampled = if (useSampledDropFrame) sampledDropSlab else null
+    val rest = sampled ?: current
+    // Anche il contorno della nascita (il menu dal gruppo) e' quello del passo: lastra e contorno vanno in coppia.
+    val paired = if (sampled != null) sampledDropWarp else warp
+    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters, fieldCorners = liquidBody, warp = paired)
     plan.writeRing(dropRing, DropRenderPoints, smoothPath = false)
     plan.soften = 0f
     val dx = liquid.offsetX
@@ -733,9 +746,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     plan.contentBounds = moved
     // Il ritaglio e' il vetro di adesso, non la sagoma a riposo: dove la goccia e' rimasta indietro il
     // contenuto non sta sopra la pagina (vedi [dropInnerClip]).
-    plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint, warp)
+    plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint, paired)
     plan.dropRest = rest
-    plan.dropWarp = warp
+    plan.dropWarp = paired
     plan.dropReach = reach
     plan.dropSettle = physicsDropSettle(liquid.lens, reach / density.coerceAtLeast(0.0001f))
   }
@@ -871,13 +884,16 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val warp = dropWarpNow()
     sampleRestContour(slab, liquid.points, dropRest, dropPerimeter, warp)
     val anchor = dropAnchorNow()
-    if (useSampledDropFrame) sampledDropSlab = slab
+    if (useSampledDropFrame) {
+      sampledDropSlab = slab
+      sampledDropWarp = warp
+    }
     return liquid.step(
       timeNanos = timeNanos,
       restContour = dropRest,
       anchorX = anchor.x,
       anchorY = anchor.y,
-      reachPx = FluidMotion.DropAnchorReachDp * density,
+      reachPx = dropAnchorReachDp * density,
       density = density,
       edgeTension = dropEdgeTension,
       lensFloor = warp?.lens ?: 0f,

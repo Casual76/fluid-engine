@@ -140,6 +140,8 @@ internal class ContextBuilt(
   val menuCloseBounds: List<Pair<Double, Rect>> = emptyList(),
   /** La card a ogni fotogramma dell'apertura: (ms, riquadro in pixel dello schermo). */
   val cardOpenBounds: List<Pair<Double, Rect>> = emptyList(),
+  /** In apertura, quanto si vede lontana la voce piu' spostata dal suo riquadro di scelta, (ms, dp): sessione contestuale, fase tasto. */
+  val rowShift: List<Pair<Double, Float>> = emptyList(),
 )
 
 internal object F5a4ContextTraces {
@@ -341,6 +343,7 @@ internal object F5a4ContextTraces {
     var inkWorstOpenMs = 0.0
     var inkWorstOpenWhere = ""
     val menuOpenBounds = ArrayList<Pair<Double, Rect>>()
+    val rowShift = ArrayList<Pair<Double, Float>>()
     val menuCloseBounds = ArrayList<Pair<Double, Rect>>()
     val cardOpenBounds = ArrayList<Pair<Double, Rect>>()
 
@@ -414,6 +417,16 @@ internal object F5a4ContextTraces {
         } else {
           fluidMenuLiquidContentMap(target = panel, current = menuPhysics.contentBoundsNow(), alpha = inkAlpha)
         }
+        if (!closing) {
+          // Il centro di ogni riga, dove si vede contro il suo riquadro di scelta (`FluidMenuSelection.pointerMap`).
+          val cy = panelBox.height / 2f
+          var worst = 0f
+          for (i in layout.tops.indices) {
+            val dy = (layout.tops[i] + layout.rowHeightPx / 2f - cy) * (inkMap.scale - 1f) + inkMap.translation.y
+            worst = maxOf(worst, kotlin.math.hypot(inkMap.translation.x, dy) / D)
+          }
+          rowShift += tMs to worst
+        }
         val now = menuInkOutsidePx(layout, panelBox, menuPlan, inkMap, clipNow)
         if (closing) {
           inkClose = maxOf(inkClose, now)
@@ -486,6 +499,7 @@ internal object F5a4ContextTraces {
       inkWorstOpenMs = inkWorstOpenMs,
       inkWorstOpenWhere = inkWorstOpenWhere,
       menuOpenBounds = menuOpenBounds,
+      rowShift = rowShift,
       menuCloseBounds = menuCloseBounds,
       cardOpenBounds = cardOpenBounds,
     )

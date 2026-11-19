@@ -448,6 +448,8 @@ private fun FluidMenuLayerContent(
           },
           freshStart = fresh && journey.progress.value <= 0.001f,
           liquidMenu = liquidMenu,
+          // Il menu dal tasto e dal gruppo nasce come quelli di Apple (B1 a e la graffetta B1 b): sessione contestuale.
+          appleBirth = liquidMenu && anchor != null,
         )
         // Mentre il vetro passa da un livello all'altro (F5A.3) lo guida il cambio di livello, da dove stava al
         // pannello nuovo, con la molla d'andata del menu; finito, torna al viaggio, che a quel punto sta proprio li'.
@@ -571,13 +573,34 @@ private fun FluidMenuLayerContent(
       val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
       // L'opacita' del contenuto prima del cambio di livello: il viaggio (o la lente) e l'inchiostro.
       val baseAlpha: () -> Float = {
-        // Nella nascita del contestuale le voci entrano nella goccia quando in B1 (b): a 67 ms la goccia e' solo lente.
-        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value * windowAmount() *
-          (birth?.inkPresence(journey) ?: 1f) else
+        // Nella nascita del contestuale le voci entrano nella goccia quando in B1 (b): a 67 ms la goccia e' solo lente. Nella
+        // nascita del menu dal tasto subito (B1 a), in quella dal gruppo come nel contestuale.
+        val alpha = if (lens != null) journey.lensInkAlpha() * windowAmount() * (birth?.inkPresence(journey) ?: 1f) else
           fluidMenuContentAlpha(progress(), journey.closing)
         alpha * (menuInk.state?.inkAlpha() ?: 1f)
       }
       val blurAvailable = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+      // Dove si disegnano le voci in questo istante: la stessa mappa per il layer e per il dito che sceglie.
+      val contentMapNow: () -> FluidMenuContentMap = {
+        if (levels.swapping || levels.morphing) {
+          // Il livello sta fermo dove si posa e cambia solo di poco la scala: e' il vetro che cambia forma attorno.
+          FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
+        } else {
+          lens?.contentMap() ?: fluidMenuLiquidContentMap(
+            target = panel,
+            current = physics.contentBoundsNow(),
+            alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
+          )
+        }
+      }
+      // Il dito mira alle voci che vede (sessione contestuale, fase tasto): durante la nascita le voci stanno col corpo,
+      // staccato dalla barra o rimpicciolito nella goccia; la scelta cerca la voce a riposo sotto il punto riportato indietro.
+      // Durante un cambio di livello il dito resta sui riquadri del livello che arriva, com'era.
+      SideEffect {
+        selection.pointerMap = { root ->
+          if (levels.swapping || levels.morphing) root else fluidMenuPointerAtRest(root, panelInLayout, contentMapNow())
+        }
+      }
       // F5A.3: il livello che se ne va, posato dov'era e disegnato sotto quello che arriva finche' svanisce.
       val outgoing = leaving?.let { (cells, rect) ->
         FluidMenuOutgoingLevel(
@@ -602,18 +625,7 @@ private fun FluidMenuLayerContent(
           val level = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
           baseAlpha() * level
         },
-        contentMap = {
-          if (levels.swapping || levels.morphing) {
-            // Il livello sta fermo dove si posa e cambia solo di poco la scala: e' il vetro che cambia forma attorno.
-            FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
-          } else {
-            lens?.contentMap() ?: fluidMenuLiquidContentMap(
-              target = panel,
-              current = physics.contentBoundsNow(),
-              alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
-            )
-          }
-        },
+        contentMap = contentMapNow,
         onPick = pick,
         modifier = Modifier
           .offset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
@@ -653,6 +665,7 @@ private fun installMenuTravel(journey: FluidMenuJourney, physics: FluidPhysicsSt
     journey.install(physics)
     return
   }
+  physics.dropAnchorReachDp = FluidMotion.DropAnchorReachDp
   physics.driveExternally(
     from = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f)),
     to = FluidForm.Slab(journey.to, FluidCornerRadii.all(journey.toRadius)),

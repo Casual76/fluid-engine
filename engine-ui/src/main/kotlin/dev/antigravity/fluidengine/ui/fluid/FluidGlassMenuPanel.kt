@@ -539,7 +539,9 @@ internal class FluidMenuLens(
   fun contentMap(): FluidMenuContentMap {
     val clip = physics.travelClipIn(panel, journey.progress.value)
     val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panel.topLeft) } ?: panel
-    return fluidMenuLensMap(panel, visible, journey.magnifiesInk, journey.progress.value, journey.focus.value)
+    return fluidMenuLensMap(
+      panel, visible, journey.magnifiesInk, journey.progress.value, journey.focus.value, returning = journey.bornReturn,
+    )
   }
 }
 

@@ -8,6 +8,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidContextFocusEasing
+import dev.antigravity.fluidengine.ui.fluid.FluidContextFocusMillis
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorGap
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuEdgeMargin
@@ -29,12 +31,14 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
+import dev.antigravity.fluidengine.ui.fluid.fluidContextExitInkSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuBirthEndMillis
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuBirthProgress
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensMap
@@ -142,6 +146,14 @@ internal class MenuBuilt(
   val pressedPx: Rect,
   val ringFrames: Int,
   val integratedFrames: Int,
+  /** La sagoma vera del menu (l'anello come lo disegna lo shader) in apertura, (ms, pixel dell'host): la nascita. */
+  val openBounds: List<Pair<Double, Rect>> = emptyList(),
+  /** Lo stesso al congedo, ms dalla richiesta. */
+  val closeBounds: List<Pair<Double, Rect>> = emptyList(),
+  /** La nascita di Apple era accesa (`FluidMenuJourney.born`). */
+  val born: Boolean = false,
+  /** In apertura, quanto si vede lontana la voce piu' spostata dal suo riquadro di scelta, (ms, dp). */
+  val rowShift: List<Pair<Double, Float>> = emptyList(),
 )
 
 /** Dalla cima della riga alla linea di base del testo (17 sp su una riga da 48 dp), a occhio. */
@@ -157,6 +169,11 @@ internal data class MenuTraceVariant(
   val inflationHeightMultiplier: Float = inflationMultiplier,
   val pointOfLight: Boolean = false,
   val corrected: Boolean = false,
+  /**
+   * Il tasto premuto del gruppo e' il primo a sinistra (come la graffetta di Apple) e la capsula si allunga a destra; di
+   * serie e' l'ultimo a destra (la scena di F5A).
+   */
+  val triggerAtStart: Boolean = false,
 )
 
 /**
@@ -187,7 +204,8 @@ internal fun buildMenuTrace(
   val host = Size(scene.hostDp.width * d, scene.hostDp.height * d)
   val pitch = if (variant?.corrected == true) FluidMetrics.GroupItemPitch.value else 44f
   val groupShift = pitch * 2 * d
-  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true) it.translate(groupShift, 0f) else it }
+  val atStart = variant?.triggerAtStart == true
+  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true && !atStart) it.translate(groupShift, 0f) else it }
   val origin = Offset(scene.canvasOriginDp.x * d, scene.canvasOriginDp.y * d)
 
   // Le misure come le costruisce `rememberFluidMenuPanelMetrics`, con la riga di `bodyLarge` (17/23 sp).
@@ -244,7 +262,10 @@ internal fun buildMenuTrace(
   val anchor = FluidMenuAnchor().apply {
     restBounds = rest
     pressedBounds = if (variant?.grouped == true) rest else fluidPressedBounds(rest, transformAt(0.0))
-    if (variant?.grouped == true) groupBounds = Rect(rest.left - groupShift, rest.top, rest.right, rest.bottom)
+    if (variant?.grouped == true) {
+      groupBounds = if (atStart) Rect(rest.left, rest.top, rest.right + groupShift, rest.bottom)
+        else Rect(rest.left - groupShift, rest.top, rest.right, rest.bottom)
+    }
   }
   val physics = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)).apply {
     density = d
@@ -262,21 +283,43 @@ internal fun buildMenuTrace(
     seed = null,
     freshStart = true,
     liquidMenu = variant?.threePhase == true,
+    // Le tracce del menu di oggi (F5A corretto, fase tasto) nascono come Apple: il tasto come B1 (a), il gruppo come B1 (b).
+    appleBirth = variant?.threePhase == true && variant.corrected,
   )
   if (variant?.threePhase == true) journey.retarget(1f)
   journey.install(physics)
+  val born = journey.born
+  val group = variant?.grouped == true
+  // L'orologio della nascita (`FluidMenuJourney.openBirth`): il progresso sul profilo di Apple, la messa a fuoco del tasto
+  // lineare in 270 ms, quella del gruppo in 334 ms come il contestuale.
+  fun bornProgress(ms: Double): Float = fluidMenuBirthProgress(group, ms.toFloat())
+  fun bornFocus(ms: Double): Float = if (group) {
+    FluidContextFocusEasing.transform((ms / FluidContextFocusMillis).toFloat().coerceIn(0f, 1f))
+  } else {
+    (ms / FluidMotion.MenuContentFocusMillis).toFloat().coerceIn(0f, 1f)
+  }
+  val birthEnd = fluidMenuBirthEndMillis(group).toDouble()
   val progress = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
   val closeAt = variant?.closingAtMs?.let { it * 1_000_000L }
   val close = closeAt?.let {
     val stiffness = variant?.closeStiffness ?: FluidMotion.DropCloseStiffness
-    val from = progress.value(it)
+    val closeMs = it / 1_000_000.0
+    val from = if (born) bornProgress(closeMs) else progress.value(it)
+    // La velocita' del progresso al congedo: quella della corsa di Apple (per secondo), o quella della molla.
+    val velocity = if (born) (bornProgress(closeMs + 1.0) - bornProgress(closeMs - 1.0)) * 500f else progress.velocity(it)
     val spec = if (variant?.corrected == true && from == 1f) fluidMenuReturnSpec()
       else spring(FluidMotion.DropJourneyDamping, stiffness)
-    TodaySpring(spec, from, 0f, progress.velocity(it))
+    // Senza la nascita la velocita' e' quella della molla, com'era (le tracce storiche non cambiano).
+    TodaySpring(spec, from, 0f, if (born && from == 1f) 0f else velocity)
   }
-  val focusAtClose = ((variant?.closingAtMs ?: 0).toFloat() / FluidMotion.MenuContentFocusMillis).coerceAtMost(1f)
+  val focusAtClose = if (born) bornFocus((variant?.closingAtMs ?: 0).toDouble()) else
+    ((variant?.closingAtMs ?: 0).toFloat() / FluidMotion.MenuContentFocusMillis).coerceAtMost(1f)
   val exitFocus = TodaySpring(fluidMenuReturnFocusSpec(focusAtClose), focusAtClose, 0f)
-  val exitInk = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
+  // Al congedo l'inchiostro di Apple (B1 a, lo stesso del contestuale): pieno fino a ~67 ms, via entro ~167.
+  val exitInk = TodaySpring(if (born) fluidContextExitInkSpec(1f) else fluidMenuReturnInkSpec(1f), 1f, 0f)
+  val openBounds = ArrayList<Pair<Double, Rect>>()
+  val closeBounds = ArrayList<Pair<Double, Rect>>()
+  val rowShift = ArrayList<Pair<Double, Float>>()
   val relax = TodaySpring(FluidMotion.snappy(), journey.anchorRelax.value, 1f)
   val driver = TodayLiquidDriver(physics, d)
   val material = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), GlassDefaults.panelOptics(compact = true).sanitized())
@@ -332,9 +375,18 @@ internal fun buildMenuTrace(
     val closing = closeAt != null && nanos >= closeAt
     val playNanos = if (closing) nanos - requireNotNull(closeAt) else nanos
     val springNow = if (closing) requireNotNull(close) else progress
-    val p = springNow.value(playNanos)
+    val p = if (born && !closing) bornProgress(tMs) else springNow.value(playNanos)
+    if (closing && born && !journey.closing) {
+      // Il congedo ferma la sagoma della nascita nell'istante in cui si chiede (`FluidMenuJourney.retarget`).
+      val closeMs = requireNotNull(closeAt) / 1_000_000.0
+      runBlocking {
+        journey.birthClock.snapTo(closeMs.toFloat())
+        journey.progress.snapTo(bornProgress(closeMs))
+      }
+    }
     if (closing && variant?.threePhase == true) journey.retarget(0f)
     runBlocking {
+      if (born && !closing) journey.birthClock.snapTo(tMs.toFloat())
       journey.progress.snapTo(p)
       journey.anchorRelax.snapTo(relax.value(nanos))
       if (variant?.corrected == true) {
@@ -345,6 +397,9 @@ internal fun buildMenuTrace(
     driver.frame(nanos)
     val plan = physics.ensurePlan()
     if (plan.mode == PlanModePoly) ringFrames++
+    if (born) {
+      if (closing) closeBounds += (tMs - requireNotNull(closeAt) / 1_000_000.0) to plan.bounds else openBounds += tMs to plan.bounds
+    }
 
     val blend = fluidMenuMaterialBlend(p)
     val look = if (dress == TraceDress.Liquid) null else todayPhysicsLook(
@@ -369,7 +424,7 @@ internal fun buildMenuTrace(
       if (alpha > 0f) {
         listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
           val iconSize = if (variant.corrected) FluidMetrics.BarIconSize.value else 26f
-          val face = todayIconLayer("tasto-${i + 1}", rest.translate((i - 2) * pitch * d, 0f), symbol, iconSize,
+          val face = todayIconLayer("tasto-${i + 1}", rest.translate((if (atStart) i else i - 2) * pitch * d, 0f), symbol, iconSize,
             palette.primary, origin, d, alpha = alpha)
           content += face + ("blurDp" to GlassContentCurves.blur(GlassContentRole.Exit, u) * 3f)
         }
@@ -392,6 +447,7 @@ internal fun buildMenuTrace(
     val focus = when {
       closing && variant?.corrected == true -> exitFocus.value(playNanos)
       closing -> (focusAtClose - playNanos / 1_000_000f / FluidMotion.MenuContentFocusMillis).coerceAtLeast(0f)
+      born -> bornFocus(tMs)
       else -> (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceAtMost(1f)
     }
     val lens = variant?.threePhase == true
@@ -400,15 +456,32 @@ internal fun buildMenuTrace(
       closing -> (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f)
       else -> 1f
     }
-    val alpha = if (lens) fluidMenuLensAlpha(focus) * visibility else fluidMenuContentAlpha(p, closing)
+    // L'opacita' delle voci come la calcola l'engine (`FluidMenuJourney.lensInkAlpha`): nella nascita le voci entrano nella
+    // goccia quando in Apple (subito nel tasto, da 67 ms nel gruppo), e al congedo restano piene finche' c'e' l'inchiostro.
+    runBlocking {
+      journey.focus.snapTo(focus)
+      journey.contentVisibility.snapTo(visibility)
+    }
+    val alpha = if (lens) journey.lensInkAlpha() else fluidMenuContentAlpha(p, closing)
     if (alpha > 0f) {
       val clip = physics.travelClipIn(panelBox, p)
       val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
-      val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.magnifiesInk, p, focus) else
+      val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.magnifiesInk, p, focus, returning = journey.bornReturn) else
         fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
       val glyphDp = if (variant != null) FluidMenuRowGlyph.value else OggiMenuGlyphDp
       val cx = panelBox.width / 2f
       val cy = panelBox.height / 2f
+      // Quanto si vede lontana una voce dal suo riquadro di scelta (il centro della riga a riposo), in dp: lo scarto che
+      // `FluidMenuSelection.pointerMap` riporta indietro.
+      if (born && !closing) {
+        var worst = 0f
+        for (i in scene.items.indices) {
+          val y = layout.tops[i] + layout.rowHeightPx / 2f
+          val dy = (y - cy) * (map.scale - 1f) + map.translation.y
+          worst = maxOf(worst, kotlin.math.hypot(map.translation.x, dy) / d)
+        }
+        rowShift += tMs to worst
+      }
       fun mapX(x: Float) = panelBox.left + cx + (x - cx) * map.scale + map.translation.x - origin.x
       fun mapY(y: Float) = panelBox.top + cy + (y - cy) * map.scale + map.translation.y - origin.y
       val items = ArrayList<Map<String, Any?>>()
@@ -484,7 +557,8 @@ internal fun buildMenuTrace(
         todayPhysicsElement("menu", plan, look, origin, d, scene.canvasWidthDp, scene.canvasHeightDp, content)
       },
     )
-    val settled = (closeAt == null || closing) && springNow.finished(playNanos) && physics.liquid.quiet
+    val settled = (closeAt == null || closing) && springNow.finished(playNanos) && physics.liquid.quiet &&
+      (!born || closing || tMs >= birthEnd)
     if (settled) tail++ else tail = 0
     if (tail > scene.tailFrames) break
     k++
@@ -504,7 +578,7 @@ internal fun buildMenuTrace(
     fps = fps,
     head = head,
   )
-  return MenuBuilt(trace, panel, anchor.pressedBounds, ringFrames, driver.integratedFrames)
+  return MenuBuilt(trace, panel, anchor.pressedBounds, ringFrames, driver.integratedFrames, openBounds, closeBounds, born, rowShift)
 }
 
 /** Il colore di una voce: `FluidGlassMenuRow` (`error` per le distruttive, il 38% d'opacita' per le spente). */

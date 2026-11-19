@@ -193,7 +193,10 @@ class FluidTransitionSourceTest {
       val downAt = compose.onNodeWithContentDescription(source).fetchSemanticsNode().boundsInRoot.center
       val shareAt = compose.onNodeWithContentDescription("Condividi foto").fetchSemanticsNode().boundsInRoot.center
       root.performTouchInput { down(downAt) }
-      advance(768)
+      // La voce si legge a menu fermo: dalla sessione «contestuale» (fase tasto) il menu del gruppo nasce come la graffetta di
+      // Apple ed e' fermo ~870 ms dopo il click lungo; prima, a ~270 ms dalla nascita, il corpo e' ancora staccato dalla barra e
+      // le voci sono nella goccia, lontane dai riquadri a riposo su cui il dito sceglie.
+      advance(1400)
       val cell = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot
       val target = if (label == "Condividi") cell.center.copy(x = shareAt.x.coerceIn(cell.left, cell.right - 1f)) else cell.center
       root.performTouchInput {

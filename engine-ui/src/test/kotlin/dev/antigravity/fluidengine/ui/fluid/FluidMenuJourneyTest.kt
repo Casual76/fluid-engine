@@ -393,4 +393,121 @@ class FluidMenuJourneyTest {
     journey.retarget(0f)
     assertTrue(journey.closing)
   }
+
+  // --- La nascita di Apple (sessione contestuale, fase tasto) ---------------------------------------------------------
+
+  private fun born(anchor: FluidMenuAnchor = anchor()): FluidMenuJourney = FluidMenuJourney().apply {
+    prepare(anchor, Offset.Zero, panel, radius = 22f, inflation = FluidMenuInflation.None, liquidMenu = true, appleBirth = true)
+    retarget(1f)
+  }
+
+  @Test
+  fun theButtonMenuIsBornOnApplesClockAndLeavesWithApplesInk() = runTest {
+    val bench = JourneyBench(this)
+    val journey = born()
+    assertTrue(journey.born)
+    bench.scope.launch { journey.run(reducedMotion = false) }
+    // B1 (a): quasi pieno a ~100 ms, supera del 10% di corsa a 167 ms, fermo e 1 esatto alla fine (400 ms).
+    val progress = bench.frames(30) { journey.progress.value }
+    assertTrue("a ~96 ms: ${progress[6]}", progress[6] > 0.9f)
+    assertTrue("il superamento: ${progress.max()}", progress.max() > 1.05f)
+    assertEquals(1f, progress.last(), 0f)
+    assertEquals(1f, journey.focus.value, 0f)
+    assertFalse(journey.progress.isRunning)
+
+    // Il congedo a menu fermo: i 233 ms del ritorno, l'inchiostro pieno fino a ~67 ms e via entro ~167.
+    journey.retarget(0f)
+    assertTrue(journey.controlledReturn)
+    bench.scope.launch { journey.run(reducedMotion = false) }
+    val ink = bench.frames(12) { journey.contentVisibility.value }
+    assertTrue("a 48 ms: ${ink[3]}", ink[3] > 0.99f)
+    // Le voci che se ne vanno restano piene finche' c'e' l'inchiostro (la messa a fuoco che torna non le spegne).
+    assertTrue(journey.bornReturn)
+    assertEquals(journey.contentVisibility.value, journey.lensInkAlpha(), 0f)
+    assertTrue("a 128 ms: ${ink[8]}", ink[8] in 0.01f..0.9f)
+    assertEquals(0f, ink[11], 0f)
+    bench.frames(4) { journey.progress.value }
+    assertEquals(0f, journey.progress.value, 0f)
+    assertTrue(journey.settledClosed)
+    bench.close()
+  }
+
+  @Test
+  fun theGroupMenuIsBornFromTheCapsuleLikeThePaperclip() = runTest {
+    // La graffetta: il tasto premuto a sinistra della capsula, sul margine del pannello.
+    val capsule = Rect(40f, 600f, 172f, 644f)
+    val trigger = Rect(40f, 600f, 84f, 644f)
+    val a = FluidMenuAnchor().apply {
+      restBounds = trigger
+      pressedBounds = trigger
+      groupBounds = capsule
+    }
+    val journey = born(a)
+    val physics = FluidPhysicsState(FluidForm.circle(Offset.Zero, 1f))
+    journey.install(physics)
+    assertEquals(FluidMotion.DropAnchorReachDp, physics.dropAnchorReachDp, 0f)
+    assertEquals(capsule, requireNotNull(physics.dropRestSlabNow()).frame)
+    // Le icone del gruppo: sfocate e via prima di 67 ms. Le voci: niente prima di 67 ms.
+    journey.birthClock.snapTo(55f)
+    assertTrue(journey.faceProgress / FluidMotion.MenuGroupFaceProgressSpan > 0.66f)
+    assertEquals(0f, journey.birthInk(), 0f)
+    // A 67 ms la goccia sul tasto: il lato del tasto fermo, stretta come una goccia.
+    journey.birthClock.snapTo(FluidGroupGatherMillis)
+    val drop = requireNotNull(physics.dropRestSlabNow()).frame
+    assertEquals(trigger.left, drop.left, 0.5f)
+    assertTrue("larga ${drop.width}", drop.width < capsule.width * 0.6f)
+    // A 167 ms l'uovo con la coda sul tasto.
+    journey.birthClock.snapTo(166.8f)
+    val warp = requireNotNull(physics.dropWarpNow())
+    assertTrue(warp.tailTaper > 0.3f)
+    assertEquals(trigger.center.x, warp.tailX, 0.5f)
+  }
+
+  @Test
+  fun aBornMenuClosedHalfwayGoesBackFromTheShapeItHad() = runTest {
+    val journey = born()
+    val physics = FluidPhysicsState(FluidForm.circle(Offset.Zero, 1f))
+    journey.install(physics)
+    // La goccia del tasto singolo e' piu' tesa (B1 a); senza la nascita torna quella di serie.
+    assertEquals(FluidButtonBirthProfile.DropReachDp, physics.dropAnchorReachDp, 0f)
+    journey.birthClock.snapTo(80f)
+    journey.progress.snapTo(fluidButtonBirthProgress(80f))
+    assertEquals(fluidButtonBirthSlab(journey.startFrame(), panel, 22f, 80f), physics.dropRestSlabNow())
+    journey.retarget(0f)
+    assertFalse(journey.controlledReturn)
+    // Il ritorno parte dalla sagoma che si vede (quella di Apple a 80 ms), non da quella chiesta in anticipo alla goccia.
+    assertEquals(fluidButtonBirthSlab(journey.startFrame(), panel, 22f, 80f, leadForDrop = false), physics.dropRestSlabNow())
+  }
+
+  @Test
+  fun theInkLeavingABornButtonMenuGrowsInTheLensLikeB1a() {
+    // B1 (a): a 33 ms le voci sono alla loro misura, a ~100 ms ingrandite (1,35×), fino a 1,42× a ~117 ms.
+    val clip = Rect(80f, 410f, 190f, 540f)
+    fun at(ms: Float) = fluidMenuLensMap(panel, clip, button = true, progress = 1f - ms / 233f, focus = 0.1f, returning = true)
+    val fitted = fluidMenuLensMap(panel, clip, progress = 0.5f, focus = 1f).scale
+    assertEquals(fitted, at(33f).scale, 0.01f)
+    assertTrue(at(67f).scale > fitted && at(67f).scale < 1.42f)
+    assertEquals(1.42f, at(117f).scale, 0.01f)
+    // Senza la nascita il ritorno non ingrandisce: le voci seguono la goccia che si stringe.
+    assertEquals(fitted, fluidMenuLensMap(panel, clip, button = false, progress = 0.5f, focus = 0.1f, returning = true).scale, 0f)
+  }
+
+  @Test
+  fun withReducedMotionABornMenuIsThePanelAtOnce() = runTest {
+    val journey = born()
+    val physics = FluidPhysicsState(FluidForm.circle(Offset.Zero, 1f))
+    journey.install(physics)
+    journey.run(reducedMotion = true)
+    assertEquals(panel, requireNotNull(physics.dropRestSlabNow()).frame)
+  }
+
+  @Test
+  fun withoutTheBirthTheLiquidMenuTravelsAsBefore() {
+    val journey = FluidMenuJourney().apply {
+      prepare(anchor(), Offset.Zero, panel, radius = 22f, inflation = FluidMenuInflation.None, liquidMenu = true)
+      retarget(1f)
+    }
+    assertFalse(journey.born)
+    assertEquals(1f, journey.birthInk(), 0f)
+  }
 }

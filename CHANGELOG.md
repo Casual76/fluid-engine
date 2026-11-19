@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Menu dal tasto e dal gruppo come quelli di Apple. Col vetro liquido il menu dal tasto singolo nasce come il menu dal tasto del telefono di Apple (WWDC25 219, 5:06): una goccia quasi quadrata che cresce dall'angolo del tasto, piena a ~133 ms, sale sopra la posa del 5–8% e si posa a ~367 ms, con le voci ingrandite dalla lente. Il menu dal gruppo nasce come la graffetta (7:15), la stessa nascita del contestuale: le icone si sfocano, la capsula si stringe in una goccia sul tasto, la goccia sale con la lente, diventa uovo con la coda verso il tasto e si posa nel rettangolo verso 334 ms. Al congedo le voci restano sfocate dentro il vetro fino a ~67 ms e se ne vanno entro ~167 ms, come Apple. Il dito sceglie la voce che vede anche a metà nascita, quando le voci stanno ancora nella goccia staccata (vale anche per il contestuale). `FluidMenuLayer` e `FluidMorphMenuHost` la chiedono da soli; nessuna firma pubblica cambia. Le prove stanno in `tools/glassbench/traces/tasto/`.
+
 - Menu Liquid dal tasto e dal gruppo. Le voci seguono il bordo della goccia, il congedo in volo conserva il contorno e il gruppo restituisce insieme capsula e icone. Il dito che apre può scegliere al rilascio.
 
 - Zoom dalla sorgente. Il titolo grande della pagina, che la barra disegna sopra le pagine, segue la dissolvenza della sua pagina: al ritorno se ne va con lei e la card è sola verso 200 ms, col tasto e col dito; all'apertura compare con la pagina. Prima restava nitido sulla card fino all'arrivo. Il ritaglio dei titoli nella sagoma tiene conto della barra di stato, così il titolo della pagina sotto non sporge più sopra quella che si apre. Nessuna firma pubblica cambia.

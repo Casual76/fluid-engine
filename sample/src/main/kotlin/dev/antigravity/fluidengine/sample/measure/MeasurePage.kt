@@ -60,18 +60,40 @@ import java.util.Locale
  * Senza `measure.scene` la pagina mostra l'elenco delle scene, ognuna con i suoi default. Tutti gli
  * extra, i comandi di ogni scena e la mappa cancello → scena → soglia stanno in `LEGGIMI.md`, accanto a
  * questo file. Gli extra si leggono solo nella build di debug, come `gallery.page`.
+ *
+ * Dal pacchetto F7.1 la pagina ha anche gli **scenari fissi** dei bilanci di F7 ([MeasureScenario]), lanciati con
+ * `--es measure.scenario <nome>`: componenti veri guidati dallo stato o da un dito finto, con i segnali `SCENARIO`
+ * in logcat che `tools/qa/perf-glass.sh` legge. Uno scenario chiesto vince su una scena.
  */
 @Composable
 internal fun MeasurePage(bottomInset: Dp, onBack: () -> Unit) {
   val context = LocalContext.current
   val activity = remember(context) { context.findActivity() }
-  val launched = remember(activity) {
-    if (context.isDebuggableApp() && activity != null) MeasureConfig.parse { activity.intent?.getStringExtra(it) } else null
+  val extras = remember(activity) {
+    if (context.isDebuggableApp() && activity != null) { name: String -> activity.intent?.getStringExtra(name) } else null
   }
+  val launchedScenario = remember(extras) { extras?.let { ScenarioConfig.parse(it) } }
+  val meterOn = remember(extras) { extras?.invoke(ExtraMeter)?.trim()?.lowercase(Locale.ROOT)?.let { it in MeterOn } == true }
+  val launched = remember(extras) { if (launchedScenario == null) extras?.let { MeasureConfig.parse(it) } else null }
   var picked by remember { mutableStateOf<MeasureConfig?>(null) }
+  var pickedScenario by remember { mutableStateOf<ScenarioConfig?>(null) }
+  val scenario = launchedScenario ?: pickedScenario
+  if (scenario != null) {
+    // Come una scena: uno scenario scelto dall'elenco si lascia con «Indietro», uno lanciato con gli extra resta.
+    BackHandler(enabled = launchedScenario == null) { pickedScenario = null }
+    key(scenario) {
+      ScenarioRun(config = scenario, window = activity?.window, bottomInset = bottomInset, meterOn = meterOn)
+    }
+    return
+  }
   val config = launched ?: picked
   if (config == null) {
-    MeasureMenu(bottomInset = bottomInset, onBack = onBack, onPick = { picked = MeasureConfig.defaults(it) })
+    MeasureMenu(
+      bottomInset = bottomInset,
+      onBack = onBack,
+      onPick = { picked = MeasureConfig.defaults(it) },
+      onPickScenario = { pickedScenario = ScenarioConfig(it) },
+    )
   } else {
     // Una scena scelta dall'elenco si lascia con «Indietro» e si torna all'elenco; una lanciata con gli
     // extra resta finché non la si rilancia, e l'«Indietro» è quello della galleria.
@@ -82,9 +104,18 @@ internal fun MeasurePage(bottomInset: Dp, onBack: () -> Unit) {
   }
 }
 
-/** L'elenco delle scene, per chi arriva dalla navigazione della galleria. */
+/** Con `--es measure.meter on` uno scenario scrive anche la sua riga `RIS` (vedi [ScenarioRun]). */
+private const val ExtraMeter = "measure.meter"
+private val MeterOn = setOf("on", "true", "1", "si")
+
+/** L'elenco delle scene e degli scenari, per chi arriva dalla navigazione della galleria. */
 @Composable
-private fun MeasureMenu(bottomInset: Dp, onBack: () -> Unit, onPick: (MeasureScene) -> Unit) {
+private fun MeasureMenu(
+  bottomInset: Dp,
+  onBack: () -> Unit,
+  onPick: (MeasureScene) -> Unit,
+  onPickScenario: (MeasureScenario) -> Unit,
+) {
   FluidScreen(
     title = "Misure",
     subtitle = "Scene fisse per i cancelli della prima sessione. I numeri vanno in logcat: adb logcat -s FluidMisure.",
@@ -99,6 +130,18 @@ private fun MeasureMenu(bottomInset: Dp, onBack: () -> Unit, onPick: (MeasureSce
             title = scene.title,
             subtitle = "${scene.detail} (measure.scene ${scene.key})",
             onClick = { onPick(scene) },
+          )
+        }
+      }
+    }
+    item(key = "measure-scenarios") {
+      FluidListGroup {
+        MeasureScenario.entries.forEachIndexed { index, scenario ->
+          if (index > 0) FluidListDivider()
+          FluidListRow(
+            title = scenario.title,
+            subtitle = "${scenario.detail} (measure.scenario ${scenario.key})",
+            onClick = { onPickScenario(scenario) },
           )
         }
       }
@@ -161,7 +204,7 @@ private fun MeasureRun(config: MeasureConfig, window: Window?, bottomInset: Dp) 
  * togliere anche questo dal conto, `--es measure.hud off`.
  */
 @Composable
-private fun BoxScope.MeasureHud(report: MeasureReport) {
+internal fun BoxScope.MeasureHud(report: MeasureReport) {
   if (report.lines.isEmpty()) return
   Column(
     modifier = Modifier

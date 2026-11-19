@@ -1,0 +1,24 @@
+# Copioni a gesti per l'APK della partenza di F1B (baseline/fluid-glass-liquid-f1a-finale-debug.apk), Tab S9 in
+# verticale a 1600x2560. Sono le prove (c), (f) e (h) di moto/f1b/partenza/strumenti/lotto-gfx-cfh.sh, con gli stessi
+# punti e la stessa cadenza; il tocco passa da agent-device invece che da `input` (regole del tablet).
+#
+# Uso: perf-glass.sh ... --apk partenza=<f1a-finale-debug.apk>,gesti=tools/qa/perf-gesti-partenza-f1b.txt
+#
+# Formato: id | pagina della galleria (gallery.page, o - per la scheda di partenza) | passi separati da ;
+#   un comando di agent-device (press X Y, longpress X Y MS, gesture pan X Y DX DY MS, back --system, ...)
+#   attendi MS     una pausa
+#   azzera         gfxinfo reset: la preparazione e' finita, la misura comincia qui
+#   dump           una lettura dei framestats (nessuna qui: come allora, solo il dump finale dello script)
+#
+# Da verificare in S5 prima della prima corsa (snapshot -i di agent-device): che i punti cadano ancora sui bersagli
+# scritti accanto. Lo script di allora e' stato scritto su questo APK e su questo tablet.
+
+# (f) Menu liquidi, riga «Nota della riunione» tenuta 800 ms; chiusura con un tocco fuori (800, 450).
+f1b-f | menus | attendi 4000; azzera; longpress 235 1906 800; attendi 1400; press 800 450; attendi 1800; longpress 235 1906 800; attendi 1400; press 800 450; attendi 1800; longpress 235 1906 800; attendi 1400; press 800 450; attendi 1800
+
+# (c) Scheda Fisica (tocco sulla barra in 612, 2430), due scorrimenti, poi il controllo segmentato del palco
+#     «Tasti → Menù → Pop-up» in y 2133: Menù (800), Pop-up (1302), Menù (800), Tasti (298), ogni 1,6 s, due giri.
+f1b-c | - | attendi 2500; press 612 2430; attendi 5000; gesture pan 800 2100 0 -1400 400; attendi 1200; gesture pan 800 2100 0 -1400 400; attendi 3000; azzera; press 800 2133; attendi 1600; press 1302 2133; attendi 1600; press 800 2133; attendi 1600; press 298 2133; attendi 1600; press 800 2133; attendi 1600; press 1302 2133; attendi 1600; press 800 2133; attendi 1600; press 298 2133; attendi 1600
+
+# (h) Scheda Chrome (tocco sulla barra in 987, 2430), riga «Card che si espande» in (250, 497), chiusura con l'Indietro.
+f1b-h | - | attendi 2500; press 987 2430; attendi 5000; azzera; press 250 497; attendi 1900; back --system; attendi 1900; press 250 497; attendi 1900; back --system; attendi 1900; press 250 497; attendi 1900; back --system; attendi 1900

@@ -354,3 +354,64 @@ qui sotto è quella scritta prima di S1: dove dice `total_ms p90` si legge con q
   cache dell'engine al primo disegno, e quella seconda finisce in `first_ui_ms`. `first_render_ms` e
   `first_gpu_ms` sono il programma della GPU. A caldo i programmi arrivano dal disco, **se il processo
   di prima è vissuto abbastanza da scriverceli** (vedi sopra).
+
+## Gli scenari fissi (F7.1)
+
+Il pacchetto F7.1 aggiunge alla pagina gli **scenari fissi** dei bilanci di F7 (piano, sezione F7): componenti veri
+dell'engine, non prototipi, guidati dallo stato o da un dito finto dentro l'app (`MaterialFinger`, gli stessi
+`MotionEvent` che consegna il sistema). Niente tocchi da fuori: lo stesso moto a ogni lancio, su ogni APK che ha la
+pagina. Il codice è in `MeasureScenario.kt` (nomi, tratti, tempi), `MeasureScenarioRun.kt` (la corsa e i segnali) e
+`MeasureScenarioScenes.kt` (le scene). Uno scenario chiesto vince su una scena.
+
+```bash
+adb shell am start -S -W -n $PKG/$ACT --es gallery.page measure --es measure.scenario menu-tasto [--es gallery.theme dark]
+adb logcat -v monotonic -s FluidMisure
+```
+
+| scenario | cosa fa | tratti di un ciclo (viaggio + quiete, ms) | cicli |
+|---|---|---|---|
+| `scorrimento-foto` | lista di foto sotto la barra dichiarata e la tab bar, trascinata dal dito (col lancio) | `su` 1500+1200 · `giu` 1500+1200 | 3 |
+| `scorrimento-testo` | la stessa, di testo | come sopra | 3 |
+| `menu-tasto` | «Ordina», il tasto che diventa il suo menu: tocco, poi `dismiss()` | `apre` 900+1200 · `chiude` 900+1200 | 3 |
+| `menu-gruppo` | il gruppo della barra che diventa menu: tocco su «Menu del gruppo», chiusura dall'host | come sopra | 3 |
+| `contestuale` | una riga tenuta premuta (≥ 600 ms) apre il menu; chiusura dall'host | `apre` 1400+1200 · `chiude` 900+1200 | 3 |
+| `barra-contesto` | sfoglia → seleziona e ritorno, dallo stato | `cambia` 900+1200 · `torna` 900+1200 | 3 |
+| `capsula-premuta` | capsula grande tenuta 1,6 s dal dito che scivola | `tieni` 2200+1200 | 3 |
+| `foglio-sale` | foglio di vetro (media e grande) che sale alla media e scende | `sale` 1000+1200 · `scende` 900+1200 | 3 |
+| `foglio-trascinato` | il foglio aperto a metà, trascinato in alto e riportato giù | `su` 1200+1200 · `giu` 1200+1200 | 3 |
+| `otto-lastre` | otto pannelli di vetro fermi su una lista di foto trascinata | `su` 1500+1200 · `giu` 1500+1200 | 3 |
+| `push-pop` | due `FluidScreen` con la barra in `FluidPageHost`, pila cambiata dallo stato | `push` 900+1200 · `pop` 900+1200 | 3 |
+| `zoom-card` | una card che si apre a pagina intera con lo zoom dalla sorgente | `apre` 1000+1200 · `chiude` 1000+1200 | 3 |
+| `f1b-c` | F1B (c): il palco del Playground, Menù → Pop-up → Menù → Tasti | quattro tratti da 1200+400 | 2 |
+| `f1b-f` | F1B (f): riga tenuta 800 ms, menu aperto 1,4 s, chiuso, 1,8 s | `apre` 2200+0 · `chiude` 1800+0 | 3 |
+| `f1b-h` | F1B (h): «Card che si espande» toccata, pop-up 1,9 s, chiuso, 1,9 s | `apre` 1900+0 · `chiude` 1900+0 | 3 |
+
+Ogni corsa parte allo stesso modo: 3 s di attesa (`measure.warmup`), la riga `PRONTO`, 1,5 s di margine
+(`measure.lead`: lo script azzera gfxinfo lì dentro), poi i tratti. Gli extra: `measure.cycles`, `measure.warmup` e
+`measure.lead` in secondi, `measure.hud off`, `measure.meter on` (anche la riga `RIS` dai `FrameMetrics`: spenta di
+serie, perché l'ascoltatore costa al RenderThread e la 3.1.2 non l'avrebbe).
+
+Le righe, tutte col tag `FluidMisure` e `t_ns` in `CLOCK_MONOTONIC` (lo stesso di `IntendedVsync` nei framestats):
+
+| riga | quando |
+|---|---|
+| `SCENARIO PRONTO id=… cicli=… fasi=… sondaggi=si\|no t_ns=…` | la scena è composta e pronta; fra 1,5 s il primo viaggio |
+| `SCENARIO INIZIO id=… ciclo=k/N fase=… t_ns=…` | nel fotogramma in cui l'azione del tratto parte (`t_ns` è il tempo del fotogramma) |
+| `SCENARIO SONDA … t_ns=…` | a metà dei viaggi più lunghi di un secondo: lo script legge i framestats lì (il dump ne tiene 120) |
+| `SCENARIO FINE … t_ns=… [nota=…]` | il viaggio è finito; segue la quiete, in cui lo script legge i framestats senza sporcare niente |
+| `SCENARIO CHIUSO id=… durata_ms=… t_ns=…` | la corsa è finita |
+| `SCENARIO ERRORE id=… motivo=…` | la scena non si è preparata o un bersaglio non c'era: la corsa non vale |
+
+Ogni viaggio è anche una sezione asincrona `Scenario <id> <ciclo> <fase>` in Perfetto. Sullo schermo vanno solo
+`PRONTO`, `CHIUSO` ed `ERRORE`: una riga nuova nel riquadro durante un viaggio sarebbe essa stessa un costo.
+
+Le prove di F1B (`f1b-*`) dicono `sondaggi=no`: là il confronto è col `gfxinfo` dell'intera prova presa a mano in F1B
+(reset, gesti, un dump alla fine, `moto/f1b/partenza/strumenti/lotto-gfx-cfh.sh`), e un dump nel mezzo sporcherebbe i
+percentili. La cadenza è quella degli script di allora. Differenze dichiarate: in (c) mancano gli strati di testo della
+demo e le forme le sceglie lo stato e non il controllo segmentato; in (f) la chiusura passa dall'host dei modali e non
+da un tocco fuori; in (h) la chiusura è lo stato, come l'«Indietro» di allora. La pagina attorno è più semplice di
+quelle di allora (niente sfondo animato di Chrome, niente altre demo nella stessa lista).
+
+Le corse e il riassunto: `tools/qa/perf-glass.sh` (giri alternati fra gli APK, tablet freddo, framestats e Perfetto a
+richiesta) e `tools/qa/perf-summary.py` (scadenze nei primi 100 ms, p50/p90/p95, jank, passi lunghi, colonne
+affiancate). Le definizioni stanno in testa allo script Python.

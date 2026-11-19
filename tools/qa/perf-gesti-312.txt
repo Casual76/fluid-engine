@@ -1,0 +1,32 @@
+# Copioni a gesti per la 3.1.2 di riferimento (baseline/fluid-glass-3.1.2-rilasciata-add6134-debug.apk), la colonna
+# «3.1.2» dei bilanci di F7. La 3.1.2 non ha la pagina «Misure»: gli scenari si rifanno sulle sue pagine con
+# agent-device, e l'origine dei viaggi la danno i fotogrammi con un InputEventId (perf-summary.py, origine `input`).
+#
+# Uso: perf-glass.sh ... --apk rif=<3.1.2-debug.apk>,gesti=tools/qa/perf-gesti-312.txt
+#
+# Formato e passi: come tools/qa/perf-gesti-partenza-f1b.txt (attendi, azzera, dump, comandi di agent-device).
+# Con `dump` nelle pause il riassunto chiede i primi 100 ms di ogni viaggio; senza, legge solo il dump finale.
+#
+# DA RICONOSCERE IN S5. Le coordinate della 3.1.2 sul Tab S9 non sono mai state scritte: prima della prima corsa, per
+# ogni riga, aprire la pagina, prendere `snapshot -i` con agent-device e mettere qui i punti veri (protocollo in
+# artifacts/liquid-glass/sessioni/f7-1/riprese.md). Finche' una riga resta commentata, perf-glass.sh segna la corsa
+# `senza-copione` e la salta: la colonna 3.1.2 di quello scenario resta vuota, mai inventata.
+#
+# Equivalenti nella galleria della 3.1.2 (pagine che esistevano in add6134), da confermare con lo snapshot:
+#   scorrimento-foto / -testo  -> nessuna lista di foto sotto barra e tab bar uguale: «Liste lunghe e righe»
+#                                 (gallery.page longlists) come lista con barra e tab bar, solo testo
+#   menu-tasto                 -> Menu liquidi, «Ordina» (gallery.page menus)
+#   menu-gruppo                -> nessun gruppo dichiarato nella 3.1.2: la colonna resta vuota
+#   contestuale                -> Menu liquidi, riga con le azioni (gallery.page menus)
+#   barra-contesto             -> nessuna barra dichiarata nella 3.1.2: vuota
+#   capsula-premuta            -> scheda Controlli, tasto di vetro tenuto (longpress lungo)
+#   foglio-sale / -trascinato  -> Righe e fogli, foglio di vetro (gallery.page rowsandsheets)
+#   otto-lastre                -> nessuna pagina con otto lastre: vuota
+#   push-pop                   -> nessun FluidPageHost nella 3.1.2: vuota
+#   zoom-card                  -> nessuno zoom dalla sorgente: vuota
+#   f1b-c / f1b-f / f1b-h      -> come nella partenza di F1B, se la 3.1.2 ha le stesse pagine (Fisica, Menu, Chrome)
+#
+# Esempi da completare (tolto il cancelletto, con i punti dello snapshot):
+# menu-tasto | menus | attendi 4000; azzera; press X Y; attendi 900; dump; attendi 300; press 800 450; attendi 900; dump; attendi 300; press X Y; attendi 900; dump; attendi 300; press 800 450; attendi 900; dump; attendi 300; press X Y; attendi 900; dump; attendi 300; press 800 450; attendi 900; dump
+# contestuale | menus | attendi 4000; azzera; longpress X Y 600; attendi 800; dump; attendi 300; press 800 450; attendi 900; dump; attendi 300; longpress X Y 600; attendi 800; dump; attendi 300; press 800 450; attendi 900; dump; attendi 300; longpress X Y 600; attendi 800; dump; attendi 300; press 800 450; attendi 900; dump
+# foglio-sale | rowsandsheets | attendi 4000; azzera; press X Y; attendi 1000; dump; attendi 300; back --system; attendi 900; dump; attendi 300; press X Y; attendi 1000; dump; attendi 300; back --system; attendi 900; dump; attendi 300; press X Y; attendi 1000; dump; attendi 300; back --system; attendi 900; dump

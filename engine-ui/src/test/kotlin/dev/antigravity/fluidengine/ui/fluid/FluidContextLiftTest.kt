@@ -370,25 +370,43 @@ class FluidContextLiftTest {
   }
 
   /**
-   * S4b sul Tab S9 (NO 3, A f72-75): il filo chiaro attorno alla foto anche all'**andata**. La card si gonfia piu' alta che
-   * larga ([FluidMotion.LiftedSwellY]), l'immagine la segue con una scala sola (la minore dei due lati) e il vetro restava
-   * scoperto su due lati. Con un'anteprima personalizzata il vetro sta dentro l'immagine in tutti e due i versi; una riga
-   * senza anteprima e' lei stessa il vetro, e non si ritaglia.
+   * S4c sul Tab S9 (ripresa 22): nello scambio fra la tessera e l'anteprima si vedevano due contorni (A f0271, B f0707,
+   * C f1143), il filo chiaro attorno alla tessera al ritorno e, nel tema scuro, i bordi blu della tessera come secondo
+   * profilo. Erano le due immagini, ognuna ritagliata sulla sua cornice con la scala che la contiene: proporzioni diverse,
+   * cornici diverse. Ora il contorno e' uno, quello del corpo: le due immagini lo riempiono (la scala maggiore) e il vetro sta
+   * sotto di loro sulla stessa sagoma, all'andata come al ritorno e nel gonfiore dell'arrivo. Una riga senza anteprima non
+   * cambia: e' lei stessa il vetro, contenuta e non ritagliata.
    */
   @Test
-  fun aCustomPreviewKeepsItsGlassInsideTheImageOnTheWayOutToo() {
+  fun aCustomPreviewSwapsInsideOneOutlineTheBody() {
     val tile = Rect(80f, 80f, 200f, 200f)
     val preview = Rect(30f, 50f, 310f, 230f)
-    // Il gonfiore dell'arrivo: piu' alto che largo.
-    val swollen = Rect(preview.left - 4f, preview.top - 9f, preview.right + 4f, preview.bottom + 9f)
-    val frame = requireNotNull(fluidLiftMaterialFrame(custom = true, incoming = 1f, outgoing = 0f, bounds = tile, rest = preview, current = swollen))
-    assertRect(fluidLiftPaintedFrame(preview, swollen), frame)
-    assertTrue("il vetro non sporge dai fianchi: $frame dentro $swollen", frame.top > swollen.top && frame.bottom < swollen.bottom)
-    // Prima dello scambio il vetro segue la tessera, dopo l'anteprima: lo stesso ritaglio dell'immagine davanti.
-    assertRect(
-      fluidLiftPaintedFrame(tile, swollen),
-      requireNotNull(fluidLiftMaterialFrame(custom = true, incoming = 0.2f, outgoing = 0.8f, bounds = tile, rest = preview, current = swollen)),
+    // Il gonfiore dell'arrivo (piu' alto che largo), una sagoma a meta' strada e la tessera appena gonfiata.
+    val bodies = listOf(
+      Rect(preview.left - 4f, preview.top - 9f, preview.right + 4f, preview.bottom + 9f),
+      lerp(tile, preview, 0.5f),
+      Rect(tile.left - 2f, tile.top - 2f, tile.right + 2f, tile.bottom + 2f),
     )
-    assertEquals(null, fluidLiftMaterialFrame(custom = false, incoming = 1f, outgoing = 1f, bounds = tile, rest = preview, current = swollen))
+    for (body in bodies) {
+      // Il vetro: la sagoma del corpo, ne' piu' ne' meno.
+      assertRect(body, requireNotNull(fluidLiftMaterialFrame(custom = true, current = body)))
+      // Le due immagini coprono tutta la sagoma, centrate su di lei: quello che sporge lo taglia il contorno del corpo.
+      for ((name, natural) in listOf("tessera" to tile, "anteprima" to preview)) {
+        val painted = fluidLiftPaintedFrame(natural, body, fill = true)
+        assertEquals("$name centrata", body.center.x, painted.center.x, eps)
+        assertEquals("$name centrata", body.center.y, painted.center.y, eps)
+        assertTrue(
+          "$name copre il corpo: $painted contro $body",
+          painted.left <= body.left + eps && painted.top <= body.top + eps &&
+            painted.right >= body.right - eps && painted.bottom >= body.bottom - eps,
+        )
+        // Una scala sola: l'immagine non si stira.
+        assertEquals("$name senza stiramento", natural.width / natural.height, painted.width / painted.height, 1e-3f)
+      }
+    }
+    // Una riga senza anteprima e' lei stessa il vetro: niente ritaglio, e il contenuto resta contenuto.
+    assertEquals(null, fluidLiftMaterialFrame(custom = false, current = bodies[0]))
+    assertEquals(minOf(bodies[0].width / preview.width, bodies[0].height / preview.height), fluidLiftContentMap(preview, bodies[0]).scale, eps)
+    assertEquals(maxOf(bodies[0].width / preview.width, bodies[0].height / preview.height), fluidLiftContentMap(preview, bodies[0], fill = true).scale, eps)
   }
 }

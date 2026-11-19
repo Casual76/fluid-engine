@@ -245,8 +245,11 @@ voci stanno col corpo (staccate dalla sorgente, rimpicciolite nella goccia: nel 
 riquadro a 300 ms, ~45–50 dp a 200 ms, sotto i 5 dp da ~500 ms), e la selezione riporta il punto del dito attraverso la stessa
 mappa con cui si disegnano (`FluidMenuSelection.pointerMap`, `fluidMenuPointerAtRest`: spostamento e scala, non la piega della
 lente). Così il dito che ha aperto può scegliere durante il viaggio. Pannello, voci, faccia del tasto e card sollevata si posano
-in coordinate della finestra come il vetro (`absoluteOffset`): in RTL le voci restano nel vetro. Fino a S4b `offset` le specchiava
-dall'altra parte dello schermo, e il pannello si posava vuoto.
+in coordinate della finestra come il vetro (`absoluteOffset`), dentro un contenitore che posa in alto a sinistra anche in RTL
+(`AbsoluteAlignment.TopLeft`, nel livello dei menu e nell'host del menu che si trasforma): in RTL le voci restano nel vetro. Fino a
+S4b `offset` le specchiava dall'altra parte dello schermo; fino a S4c il contenitore allineava all'inizio, che in RTL è a destra, e
+`absoluteOffset` partiva da lì (x = larghezza dell'host − quella del pannello + la sua sinistra): «Altro» con le voci a destra e
+tagliate, il gruppo e il contestuale col pannello vuoto (ripresa 24).
 
 **Il congedo** da fermo: il bordo lontano cede nei primi 67 ms, poi il corpo si raccoglie in una bolla sulla colonna del tasto e si
 posa in circa 233 ms. Le voci si sfocano subito (curva di 100 ms) ma **restano dentro il vetro fino a ~67 ms e se ne vanno entro
@@ -542,10 +545,14 @@ Box(
   sfocati fino a 8 dp per la parte che manca, coi bordi tenuti: `Clamp`, non `Decal`). Il vetro della card, con un'anteprima
   personalizzata, è la piattaforma dell'anteprima: arriva e se ne va con lei (al cubo della sua opacità), così nello scambio, quando i
   contenuti sono in parte trasparenti, dietro non traspare la pellicola chiara né il filo di luce del vetro — il bordo bianco attorno
-  alla foto che rientrava (S10a, ritrovato da S4 sul tablet). Il vetro sta anche **dentro l'immagine**, all'andata come al ritorno
-  (`fluidLiftMaterialFrame`): nel gonfiore dell'arrivo la card cresce più in alto che in largo e l'immagine la segue con una scala
-  sola, e il vetro restava scoperto su due lati (S4b, A f72–75). La sfocatura `Clamp` dello scambio non esce dal layer, che ha il suo
-  ritaglio. La taglia si misura al primo fotogramma, in cui card e goccia sono ancora spente.
+  alla foto che rientrava (S10a, ritrovato da S4 sul tablet). **Il contorno dello scambio è uno solo, quello del corpo**: le due
+  immagini (l'elemento che se ne va e l'anteprima che arriva) lo riempiono con una scala sola, la maggiore dei due lati
+  (`fluidLiftContentMap(fill = true)`), e un ritaglio comune sulla sagoma di adesso taglia quello che sporge; il vetro sta sotto di
+  loro sulla stessa sagoma (`fluidLiftMaterialFrame`). Fino a S4c ogni immagine aveva la sua cornice, scalata per stare dentro: con
+  proporzioni diverse (una tessera quadrata, una foto larga) nello scambio si vedevano due contorni, il filo chiaro attorno alla
+  tessera al ritorno e, nel tema scuro, i suoi bordi colorati come secondo profilo (ripresa 22). Nel gonfiore dell'arrivo l'anteprima
+  perde qualche punto ai fianchi invece di lasciare il vetro scoperto. Una riga senza anteprima non cambia: è lei stessa il vetro, e
+  la sua immagine sta dentro la card. La taglia si misura al primo fotogramma, in cui card e goccia sono ancora spente.
 - **La forma** (`previewShape`) è la sagoma del vetro e il ritaglio dell'immagine insieme. Una forma ad angoli (`RoundedCornerShape`,
   `CircleShape`, `ContinuousCornerShape`) dà i suoi raggi; un rettangolo, angoli vivi; una forma libera ritaglia l'immagine com'è, ma il
   vetro resta il rettangolo arrotondato dei pannelli (il campo di Fluid-physics è fatto di lastre). Senza forma: il raggio dei
@@ -629,7 +636,7 @@ menu dal tasto segue `fluidMenuButtonTravel` e quello dal gruppo `fluidMenuJourn
 | facce | via col tempo della nascita (`fluidMenuBirthFaceProgress`, 83 ms): la faccia del tasto a ~29 ms, le icone del gruppo a ~54 ms; al ritorno le icone del gruppo tornano nell'ultimo 36% del progresso (`fluidMenuGroupFaceReturn`), sopra il vetro |
 | voci in entrata | il tasto nei primi 33 ms, il gruppo da 67 a 117 ms (`fluidMenuBirthInk`) |
 | messa a fuoco | il tasto lineare in 270 ms; il gruppo in 334 ms con l'andamento del contestuale |
-| congedo | dal pannello fermo `fluidMenuReturnSlab` in 233 ms; a metà nascita dalla sagoma fermata al congedo con la molla 900; inchiostro di B1 a (`fluidContextExitInkSpec`) |
+| congedo | sempre sul contorno, con la goccia spenta: dal pannello fermo `fluidMenuReturnSlab` in 233 ms; a metà nascita dalla sagoma disegnata al congedo con la molla 900; inchiostro di B1 a (`fluidContextExitInkSpec`) |
 | coppia lastra–contorno | la goccia disegna lastra **e** contorno del passo in cui ha integrato (`useSampledDropFrame`, S4) |
 
 | cosa | valore |
@@ -760,7 +767,7 @@ I numeri del viaggio in tre tempi (raccolta, risalita, espansione, lente, punto 
 | voci in entrata | da 67 a 117 ms (`fluidContextBirthInk`) |
 | voci | messa a fuoco in 334 ms (`FluidContextFocusMillis`) con l'andamento 1 − √(1 − f): la sfocatura cala dritta nel tempo |
 | card sollevata | la sua molla, `dropOpen` all'andata e le molle del viaggio al ritorno (le stesse di prima) |
-| congedo | `FluidMenuJourney.run` senza la sua lente (il ritorno sul contorno da fermo, la molla 900 a metà nascita) dalla sagoma fermata al congedo, quella che si vede, già al primo fotogramma in chiusura (`FluidContextBirth.freeze`; fino a S4b un fotogramma dopo, dal pannello pieno); fuoco in 100 ms come i menu, inchiostro di B1 a (pieno fino a 67 ms, via entro 167 ms, `fluidContextExitInkSpec`) |
+| congedo | `FluidMenuJourney.run` senza la sua lente, **sempre sul contorno** con la goccia spenta (`retarget(0f, onContour = true)`): in 233 ms da fermo, con la molla 900 a metà nascita. Fino a S4c a metà nascita il ritorno era liquido, e la goccia oscillava mentre si stringeva: la sagoma ricresceva di un decimo del pannello (sul Tab S9 la goccia piccola e poi il pannello all'80% con le voci sfocate). Parte dalla sagoma **disegnata** al congedo, letta dall'host prima di cambiare verso (`FluidContextBirth.noteDrawnAtDismiss`), già al primo fotogramma in chiusura (`FluidContextBirth.freeze`; fino a S4b un fotogramma dopo, dal pannello pieno; fino a S4c dalla sagoma calcolata della nascita, più grande della goccia che la seguiva); fuoco in 100 ms come i menu, inchiostro di B1 a (pieno fino a 67 ms, via entro 167 ms, `fluidContextExitInkSpec`) |
 
 ## Cosa è verificato
 
@@ -813,6 +820,11 @@ Nel `sample` (Robolectric, aptica registrata):
 - `FluidTransitionSourceTest`: la capsula del gruppo come sorgente, il gruppo che si consuma e ritorna, la scelta di una voce.
 - `FluidMenuBirthPickTest`: il dito che tiene premuto e rilascia a metà nascita (~200 e ~300 ms) sopra una voce visibile sceglie
   quella voce, nel menu del gruppo e nel contestuale.
+- `FluidContextMenuS4cTest`: i tre menu della pagina «Menù liquidi» montati come nella galleria (chrome, schermata, host che
+  rifrange il fondale eletto). In RTL le voci di «Altro», del gruppo e del contestuale stanno dentro la sagoma che il menu
+  disegna e sullo schermo, e il dito le sceglie. Dopo «Condividi», a menu fermo e durante la nascita (da 304 a 864 ms), il
+  ritorno parte dalla sagoma che si vedeva, non ricresce e non cambia fondale. La sagoma la legge
+  `FluidMenuLayerProbe`, una sonda solo per i test: fuori dai test è nulla e non compone niente.
 - `FluidApiAdditionsTest`: `selected` per TalkBack, `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
   fornitore. `FluidButtonDragTest`: il tocco sul tasto che si trasforma fa i tre colpi di un tasto e non apre.
 

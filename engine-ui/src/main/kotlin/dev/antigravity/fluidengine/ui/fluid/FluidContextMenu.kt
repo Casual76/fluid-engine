@@ -909,6 +909,18 @@ internal class FluidContextBirth {
   /** Vero da quando il congedo in corso ha fermato la sagoma ([freeze]): una volta per congedo. */
   private var closeFrozen = false
 
+  /** La sagoma disegnata nel fotogramma del congedo ([noteDrawnAtDismiss]), o null: la si calcola dalla nascita. */
+  private var drawnAtDismiss: Rect? = null
+
+  /**
+   * La sagoma che la superficie disegnava quando arriva il congedo, letta dall'host prima di cambiare verso. Il congedo torna
+   * sul contorno, con la goccia spenta (S4c): partire dalla sagoma calcolata della nascita, piu' grande della goccia che le
+   * stava dietro, la faceva crescere di colpo al primo fotogramma (+22 px col congedo a 304 ms).
+   */
+  fun noteDrawnAtDismiss(drawn: Rect) {
+    drawnAtDismiss = drawn
+  }
+
   /**
    * Ferma la sagoma della nascita per il congedo, al **primo fotogramma** in cui il viaggio e' in chiusura: il verso cambia
    * nella composizione (`journey.retarget`), e quel fotogramma si disegna prima che parta la coroutine di [close]. Fino a S4b
@@ -921,12 +933,15 @@ internal class FluidContextBirth {
     val seed = journey.seed
     val t = clock.value
     if (seed != null && t < FluidContextBirthProfile.EndMillis) {
-      frozen = fluidContextBirthSlab(seed, journey.to, radius, t, leadForDrop = false)
+      val shape = fluidContextBirthSlab(seed, journey.to, radius, t, leadForDrop = false)
+      val drawn = drawnAtDismiss
+      frozen = if (shape != null && drawn != null && drawn.width > 0f && drawn.height > 0f) shape.copy(frame = drawn) else shape
       frozenProgress = journey.progress.value.coerceAtLeast(0.001f)
     } else {
       frozen = null
       frozenProgress = 1f
     }
+    drawnAtDismiss = null
   }
 
   /** I millisecondi della nascita, in disegno. */
@@ -1016,7 +1031,8 @@ internal class FluidContextBirth {
       if (reducedMotion) {
         card.snapTo(0f)
       } else {
-        val spec: AnimationSpec<Float> = if (journey.controlledReturn) {
+        // Da fermo il ritorno di 233 ms; a meta' nascita la molla del congedo, anche ora che torna sul contorno (S4c).
+        val spec: AnimationSpec<Float> = if (journey.controlledReturn && frozen == null) {
           fluidMenuReturnSpec()
         } else {
           spring(FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness)

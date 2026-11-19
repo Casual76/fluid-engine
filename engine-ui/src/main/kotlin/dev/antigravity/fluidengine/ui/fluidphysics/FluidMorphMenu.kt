@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -604,6 +605,8 @@ fun FluidMorphMenuHost(
           state.hostOrigin = it.localToRoot(Offset.Zero)
           state.hostSize = it.size.toSize()
         },
+      // Le cornici ([frame]) sono in pixel dell'host, come il vetro: in RTL l'allineamento d'inizio le spostava a destra (S4c).
+      contentAlignment = AbsoluteAlignment.TopLeft,
     ) {
       val anchor = state.anchor
       val placed = state.placement

@@ -1333,13 +1333,17 @@ internal class FluidMenuJourney {
   /**
    * Cambia verso. Chiamata nel momento in cui si decide (il gesto, il congedo, o la composizione che
    * se ne accorge), MAI dopo: la velocita' si legge qui, finche' la molla vecchia e' viva.
+   *
+   * [onContour]: il congedo torna sul contorno (la goccia liquida spenta) anche a meta' corsa. Lo chiede il contestuale
+   * (S4c): a meta' nascita il ritorno liquido con la molla 0,72/900 faceva oscillare la goccia mentre si stringeva, e la
+   * sagoma ricresceva di un decimo del pannello (sul Tab S9 la goccia piccola e poi il pannello all'80%, f0516–f0517).
    */
-  fun retarget(t: Float) {
+  fun retarget(t: Float, onContour: Boolean = false) {
     if (target == t) return
     // A pannello posato parte il ritorno rapido scelto per il tasto. A metà corsa
     // si conserva il contorno che si sta già seguendo, anche se cambia il verso.
     if (liquidMenu) {
-      if (t == 0f && !progress.isRunning && progress.value == 1f) returningOnContour = true
+      if (t == 0f && (onContour || (!progress.isRunning && progress.value == 1f))) returningOnContour = true
       if (t == 1f && progress.value <= 0f) returningOnContour = false
     }
     // La sagoma della nascita si ferma ADESSO: dal prossimo fotogramma la chiusura parte da lei, non dal pannello pieno.

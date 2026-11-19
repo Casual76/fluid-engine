@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -29,8 +30,10 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
@@ -153,17 +156,12 @@ internal fun FluidLiftedPreview(
       .fillMaxSize()
       .drawWithContent {
         if (materialPresence() <= 0.004f) return@drawWithContent
-        val painted = fluidLiftMaterialFrame(custom != null, incoming(), outgoing(), bounds, rest, physics.contentBoundsNow())
+        val painted = fluidLiftMaterialFrame(custom != null, physics.contentBoundsNow())
         if (painted == null) {
           drawContent()
         } else {
           if (painted.isEmpty) return@drawWithContent
-          materialClip.reset()
-          when (val outline = clipShape.createOutline(painted.size, layoutDirection, density)) {
-            is Outline.Rectangle -> materialClip.addRect(outline.rect.translate(painted.topLeft))
-            is Outline.Rounded -> materialClip.addRoundRect(outline.roundRect.translate(painted.topLeft))
-            is Outline.Generic -> materialClip.addPath(outline.path, painted.topLeft)
-          }
+          materialClip.setLiftOutline(clipShape, painted, layoutDirection, density)
           clipPath(materialClip) { this@drawWithContent.drawContent() }
         }
       }
@@ -191,41 +189,67 @@ internal fun FluidLiftedPreview(
   // del sollevamento, l'anteprima arriva dalla seconda. Senza anteprima l'elemento resta pieno e nitido.
   val swapBlurPx = with(density) { FluidLiftSwapBlur.toPx() }
 
-  if (preview != null) {
-    Box(
-      modifier = Modifier
-        .absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
-        .size(
-          width = with(density) { bounds.width.toDp() },
-          height = with(density) { bounds.height.toDp() },
-        )
-        .graphicsLayer {
-          // L'immagine, non il vetro: scalarla e' lecito. Sulla sagoma di questo istante, con una scala sola
-          // (dalla larghezza: il gonfiore dell'arrivo e' piu' alto che largo, e un'immagine stirata e' un
-          // testo schiacciato).
-          val map = fluidLiftContentMap(target = bounds, current = physics.contentBoundsNow())
-          translationX = map.translation.x
-          translationY = map.translation.y
-          scaleX = map.scale
-          scaleY = map.scale
-          val a = outgoing().coerceIn(0f, 1f)
-          alpha = a
-          renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
-          clip = true
-          this.shape = clipShape
-        }
-        .drawWithContent {
-          if (outgoing() <= 0.004f) return@drawWithContent
-          // Replaying a released layer is a crash, and the list underneath can dispose a row while
-          // the menu is up. Nothing here is worth a crash: if the recording is gone, the pane simply
-          // comes up empty and the menu keeps its actions.
-          runCatching { drawLayer(preview) }
-        },
-    )
+  // L'immagine dell'elemento registrato. Senza anteprima personalizzata e' la card stessa, ritagliata sulla sua forma e
+  // portata sulla sagoma con la scala che la contiene; nello scambio ([fill]) riempie il corpo, e il ritaglio e' quello
+  // del corpo, lo stesso dell'anteprima (S4c).
+  val recording: @Composable (fill: Boolean) -> Unit = { fill ->
+    if (preview != null) {
+      Box(
+        modifier = Modifier
+          .absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+          .size(
+            width = with(density) { bounds.width.toDp() },
+            height = with(density) { bounds.height.toDp() },
+          )
+          .graphicsLayer {
+            // L'immagine, non il vetro: scalarla e' lecito. Sulla sagoma di questo istante, con una scala sola
+            // (un'immagine stirata e' un testo schiacciato).
+            val map = fluidLiftContentMap(target = bounds, current = physics.contentBoundsNow(), fill = fill)
+            translationX = map.translation.x
+            translationY = map.translation.y
+            scaleX = map.scale
+            scaleY = map.scale
+            val a = outgoing().coerceIn(0f, 1f)
+            alpha = a
+            renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
+            clip = !fill
+            this.shape = clipShape
+          }
+          .drawWithContent {
+            if (outgoing() <= 0.004f) return@drawWithContent
+            // Replaying a released layer is a crash, and the list underneath can dispose a row while
+            // the menu is up. Nothing here is worth a crash: if the recording is gone, the pane simply
+            // comes up empty and the menu keeps its actions.
+            runCatching { drawLayer(preview) }
+          },
+      )
+    }
   }
 
-  if (custom != null) {
-    val max = customMaxSize
+  if (custom == null) {
+    recording(false)
+    return
+  }
+
+  // Con un'anteprima personalizzata le due immagini dello scambio (l'elemento che se ne va e l'anteprima che arriva) hanno
+  // proporzioni diverse: ognuna ritagliata sulla sua cornice, nello scambio si vedevano due contorni, la tessera quadrata
+  // e la foto larga, coi bordi blu della tessera nel tema scuro (S4c sul Tab S9, ripresa 22: A f0271, B f0707, C f1143).
+  // Come la piattaforma di Apple: un ritaglio solo, la sagoma del corpo, e le due immagini la riempiono.
+  val swapClip = remember { Path() }
+  val max = customMaxSize
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .drawWithContent {
+        val current = physics.contentBoundsNow()
+        if (current.isEmpty) return@drawWithContent
+        swapClip.setLiftOutline(clipShape, current, layoutDirection, density)
+        clipPath(swapClip) { this@drawWithContent.drawContent() }
+      },
+    // In coordinate dell'host anche in RTL, come il vetro.
+    contentAlignment = AbsoluteAlignment.TopLeft,
+  ) {
+    recording(true)
     Layout(
       modifier = Modifier.fillMaxSize(),
       content = {
@@ -233,7 +257,7 @@ internal fun FluidLiftedPreview(
           modifier = Modifier.graphicsLayer {
             // L'anteprima e' posata alla sua taglia dove si posera' la card ([rest]): da li' segue la sagoma.
             val natural = Rect(rest.left.roundToInt().toFloat(), rest.top.roundToInt().toFloat(), rest.left.roundToInt() + size.width, rest.top.roundToInt() + size.height)
-            val map = fluidLiftContentMap(target = natural, current = physics.contentBoundsNow())
+            val map = fluidLiftContentMap(target = natural, current = physics.contentBoundsNow(), fill = true)
             translationX = map.translation.x
             translationY = map.translation.y
             scaleX = map.scale
@@ -241,8 +265,6 @@ internal fun FluidLiftedPreview(
             val a = incoming().coerceIn(0f, 1f)
             alpha = a
             renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
-            clip = true
-            this.shape = clipShape
           },
         ) { custom() }
       },
@@ -259,42 +281,49 @@ internal fun FluidLiftedPreview(
   }
 }
 
+/** Il contorno di [shape] posato su [frame], in coordinate dell'host: il ritaglio del vetro e delle immagini della card. */
+private fun Path.setLiftOutline(shape: Shape, frame: Rect, layoutDirection: LayoutDirection, density: Density) {
+  reset()
+  when (val outline = shape.createOutline(frame.size, layoutDirection, density)) {
+    is Outline.Rectangle -> addRect(outline.rect.translate(frame.topLeft))
+    is Outline.Rounded -> addRoundRect(outline.roundRect.translate(frame.topLeft))
+    is Outline.Generic -> addPath(outline.path, frame.topLeft)
+  }
+}
+
 /**
  * Dove sta il contenuto della card (l'immagine dell'elemento, o l'anteprima) sulla sagoma di questo istante: centrato
  * sul centro corrente e scalato del **minore** dei due rapporti dei lati. Non quello dei lati corti dei menu
  * ([fluidMenuContentMap]): una riga e' larga e bassa, e il gonfiore dell'arrivo e' piu' alto che largo, quindi la
  * scala dei lati corti porterebbe il testo fuori dai fianchi del vetro. Identita' se uno dei due e' degenere.
+ *
+ * Con [fill] il **maggiore** dei due: l'immagine copre tutta la sagoma e quello che sporge lo taglia il ritaglio del corpo.
+ * E' lo scambio con un'anteprima personalizzata (S4c): due immagini di proporzioni diverse dentro un contorno solo.
  */
-internal fun fluidLiftContentMap(target: Rect, current: Rect): FluidMenuContentMap {
+internal fun fluidLiftContentMap(target: Rect, current: Rect, fill: Boolean = false): FluidMenuContentMap {
   if (target.minDimension <= 0f || current.minDimension <= 0f) return FluidMenuContentMap.Identity
+  val sx = current.width / target.width
+  val sy = current.height / target.height
   return FluidMenuContentMap(
     translation = current.center - target.center,
-    scale = minOf(current.width / target.width, current.height / target.height),
+    scale = if (fill) maxOf(sx, sy) else minOf(sx, sy),
   )
 }
 
 /**
- * Dove puo' stare il vetro della card: con un'anteprima personalizzata ([custom]) il riquadro dell'immagine davanti, prima
- * dello scambio la tessera e dopo l'anteprima ([fluidLiftPaintedFrame]); null senza, perche' una riga sollevata e' lei stessa
- * il vetro. All'andata come al ritorno: nel gonfiore dell'arrivo la card cresce piu' in alto che in largo, l'immagine la segue
- * con una scala sola, e il vetro restava scoperto su due lati (S4b sul Tab S9, NO 3: il filo chiaro in A f72-75). Fino a S4
- * il ritaglio c'era solo al ritorno.
+ * Dove puo' stare il vetro della card: con un'anteprima personalizzata ([custom]) la sagoma del corpo di adesso ([current]),
+ * la stessa che ritaglia le due immagini dello scambio; null senza, perche' una riga sollevata e' lei stessa il vetro.
+ *
+ * Fino a S4b era il riquadro dell'immagine davanti ([fluidLiftPaintedFrame]): le immagini stavano dentro la sagoma con la
+ * scala che le contiene, e il vetro andava tagliato su di loro per non restare scoperto ai fianchi. Ma le due immagini hanno
+ * proporzioni diverse e ognuna aveva la sua cornice: due contorni nello scambio (S4c, ripresa 22). Ora le immagini riempiono
+ * il corpo ([fluidLiftContentMap] con `fill`) e il contorno e' uno solo.
  */
-internal fun fluidLiftMaterialFrame(
-  custom: Boolean,
-  incoming: Float,
-  outgoing: Float,
-  bounds: Rect,
-  rest: Rect,
-  current: Rect,
-): Rect? {
-  if (!custom) return null
-  return fluidLiftPaintedFrame(if (incoming >= outgoing) rest else bounds, current)
-}
+internal fun fluidLiftMaterialFrame(custom: Boolean, current: Rect): Rect? = if (custom) current else null
 
-/** Riquadro effettivamente coperto dall'immagine, dopo la stessa scala uniforme della registrazione. */
-internal fun fluidLiftPaintedFrame(natural: Rect, current: Rect): Rect {
-  val map = fluidLiftContentMap(natural, current)
+/** Riquadro effettivamente coperto dall'immagine, dopo la stessa scala uniforme della registrazione ([fill] come la mappa). */
+internal fun fluidLiftPaintedFrame(natural: Rect, current: Rect, fill: Boolean = false): Rect {
+  val map = fluidLiftContentMap(natural, current, fill)
   val half = Offset(natural.width, natural.height) * (map.scale / 2f)
   val center = natural.center + map.translation
   return Rect(center - half, center + half)

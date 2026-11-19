@@ -209,6 +209,19 @@ class FluidChromeController internal constructor(
   }
 
   /**
+   * Il fondale nuovo di una schermata gia' registrata, al suo posto: lo stato «davanti» e l'ordine dell'elezione restano
+   * quelli che erano. Una schermata il cui fondale cambia (la striscia in basso che arriva o se ne va) non e' una schermata
+   * nuova: fino a S4c si registrava di nuovo, e la nuova registrazione perdeva il davanti (lo rimette solo l'effetto del
+   * davanti, che non riparte) e passava in fondo all'ordine. Ignorata se [key] non e' registrata.
+   */
+  internal fun updateBackdrop(key: Any, backdrop: GlassBackdropState) {
+    val was = backdrops[key] ?: return
+    if (was === backdrop) return
+    backdrops[key] = backdrop
+    electActiveBackdrop()
+  }
+
+  /**
    * Dice se la schermata sta occupando davvero lo schermo.
    *
    * Separata dalla registrazione perche' i due momenti non coincidono: una schermata entra in
@@ -1039,10 +1052,13 @@ private fun FluidScreenLayout(
       }
   }
 
-  DisposableEffect(chromeController, chromeRegistration, chromeBackdrop) {
+  // La registrazione vive con la schermata; il fondale si aggiorna al suo posto (S4c): registrarla di nuovo a ogni cambio
+  // del fondale le faceva perdere il davanti, e l'elezione passava a un'altra pagina.
+  DisposableEffect(chromeController, chromeRegistration) {
     chromeController?.registerBackdrop(chromeRegistration, chromeBackdrop)
     onDispose { chromeController?.unregisterBackdrop(chromeRegistration) }
   }
+  SideEffect { chromeController?.updateBackdrop(chromeRegistration, chromeBackdrop) }
 
   // Chi e' davanti lo decide la transizione di rotta, non l'ordine di composizione: durante un back
   // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.

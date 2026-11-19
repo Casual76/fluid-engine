@@ -30,10 +30,12 @@ import org.junit.Test
 
 /**
  * S4b sul Tab S9 (NO 6): dopo la scelta di una voce a meta' nascita il contestuale tornava da piccolo a grande (f83 -> f84 in
- * 33 ms), poi riprendeva a stringersi. Qui il congedo a meta' nascita nell'ordine dell'app, a 120 Hz: il verso cambia nella
- * composizione (`journey.retarget(0f)`), il fotogramma si disegna, e solo dopo parte la coroutine di `FluidContextBirth.close`
- * (la sagoma fermata, la molla di ritorno 0,72/900: a meta' apertura il ritorno e' quello liquido, non quello sul contorno). La
- * goccia la muove il conducente del banco ([TodayLiquidDriver]), come `runLiquid`. Si misura la sagoma disegnata (il piano
+ * 33 ms), poi riprendeva a stringersi. Qui il congedo a meta' nascita nell'ordine dell'app, a 120 Hz: l'host legge la sagoma che
+ * si disegnava, il verso cambia nella composizione (`journey.retarget(0f, onContour = true)`), il fotogramma si disegna, e solo
+ * dopo parte la coroutine di `FluidContextBirth.close` (la sagoma fermata, la molla di ritorno 0,72/900). Dalla correzione dopo
+ * S4c il congedo torna sul contorno, con la goccia spenta anche a meta' nascita: liquida, la goccia oscillava mentre si
+ * stringeva e ricresceva di un decimo del pannello (il pannello all'80% di S4c f0517, ripreso al PC da FluidContextMenuS4cTest).
+ * La goccia la muove il conducente del banco ([TodayLiquidDriver]), come `runLiquid`. Si misura la sagoma disegnata (il piano
  * della superficie): nel ritorno non deve mai ricrescere.
  */
 class ContestualeCongedoTest {
@@ -44,7 +46,7 @@ class ContestualeCongedoTest {
     val dismissMs: Float,
     val rows: List<String>,
     val worstRegrowth: Float,
-    /** Il bersaglio della goccia al primo fotogramma del congedo, e la sagoma della nascita che si vedeva in quell'istante. */
+    /** Il bersaglio al primo fotogramma del congedo, e la sagoma disegnata nel fotogramma prima (quella che si vedeva). */
     val firstTarget: Rect?,
     val shownAtDismiss: Rect?,
   )
@@ -121,7 +123,12 @@ class ContestualeCongedoTest {
       val nanos = glassTraceTimeNanos(k, fps)
       val tMs = glassTraceTimeMs(k, fps).toFloat()
       val closing = k >= dismissFrame
-      if (k == dismissFrame) journey.retarget(0f)
+      if (k == dismissFrame) {
+        // L'host legge la sagoma disegnata prima di cambiare verso (FluidMenuLayer), poi il congedo sul contorno.
+        shownAtDismiss = physics.ensurePlan().bounds
+        birth.noteDrawnAtDismiss(shownAtDismiss!!)
+        journey.retarget(0f, onContour = true)
+      }
       if (k == dismissFrame + 1) {
         // La coroutine di `close`: un fotogramma dopo il congedo. Il codice di oggi ferma qui la sagoma della nascita (se non
         // l'ha gia' fermata il primo disegno), e la molla di ritorno parte da qui.
@@ -141,10 +148,7 @@ class ContestualeCongedoTest {
       physics.liquidAllowed = !journey.controlledReturn
       driver.frame(nanos)
       val drawn = physics.ensurePlan().bounds
-      if (k == dismissFrame) {
-        firstTarget = birth.travel(journey)?.frame
-        shownAtDismiss = fluidContextBirthSlab(seed, panel, radius, birth.clock.value, leadForDrop = false)?.frame
-      }
+      if (k == dismissFrame) firstTarget = birth.travel(journey)?.frame
       if (closing) {
         widths += drawn.width
         rows += "%6.1f ms  p %.3f  %s  disegnata %6.1f x %6.1f  bersaglio %s".format(
@@ -187,9 +191,10 @@ class ContestualeCongedoTest {
   }
 
   /**
-   * Il primo fotogramma del congedo, quello che si disegna prima della coroutine di `close`: la goccia torna gia' dalla sagoma
-   * della nascita che si vedeva in quell'istante (senza l'anticipo chiesto alla goccia), non dal pannello pieno. Fino a S4b
-   * la sagoma si fermava solo al fotogramma dopo.
+   * Il primo fotogramma del congedo, quello che si disegna prima della coroutine di `close`: il ritorno parte gia' dalla sagoma
+   * che si disegnava in quell'istante (la goccia, un poco dietro alla nascita), non dal pannello pieno e nemmeno dalla sagoma
+   * calcolata della nascita, che col ritorno sul contorno lo faceva crescere di colpo. Fino a S4b la sagoma si fermava solo al
+   * fotogramma dopo; fino a S4c era quella calcolata della nascita.
    */
   @Test fun `il primo fotogramma del congedo torna dalla sagoma che si vede`() {
     for (dismiss in listOf(200f, 300f, 480f)) {

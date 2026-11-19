@@ -258,7 +258,10 @@ mentre si muovono ([pagine.md](pagine.md), «Una barra per host»).
 - *Qualita' del vetro*: provvede `LocalFluidGlassQuality`; il vetro si assottiglia mentre la pagina corre e torna intero
   quando si ferma (`fluidGlassQualityScrollConnection` sul corpo).
 - *Registro della chrome*: ogni schermata si registra presso `LocalFluidChromeController` col proprio backdrop e dichiara
-  se e' **davanti** (`LocalFluidRouteFront`). Durante un back predittivo restano composte tutte e due: la chrome
+  se e' **davanti** (`LocalFluidRouteFront`). La registrazione vive quanto la schermata: quando cambia solo il fondale (la
+  striscia in basso che arriva o se ne va) si aggiorna al suo posto, e restano il davanti e l'ordine dell'elezione (fino a
+  S4c la schermata si registrava di nuovo, perdeva il davanti e passava in fondo all'ordine: una pagina che entrava in scena
+  in quel momento diventava il fondale della chrome). Durante un back predittivo restano composte tutte e due: la chrome
   rifrange la pagina che sta uscendo finche' il gesto non e' confermato. Senza host di rotte nessuno dice «dietro» e
   vale l'ultima registrata. Quando la lista torna in cima (solo se la schermata e' davanti) e quando una pagina arriva
   davvero davanti, la schermata chiama `revealBottomBar()` del controller: e' il meccanismo *storico* di

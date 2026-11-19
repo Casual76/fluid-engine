@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -169,7 +170,12 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   // Il verso si decide QUI, nella composizione che vede cambiare `visible`: la velocita' della molla
   // va letta prima che l'effetto vecchio venga cancellato (cancellato, l'Animatable la azzera). Un back
   // a meta' apertura torna indietro da dove si trova, con lo slancio che aveva.
-  journey.retarget(if (entry.visible) 1f else 0f)
+  // Il contestuale col vetro liquido torna sempre sul contorno, dalla sagoma che si vedeva (S4c, NO 2): la si legge qui,
+  // prima di cambiare verso, senza osservarla (non e' una dipendenza della composizione).
+  if (bornLiquid && !entry.visible && !journey.closing) {
+    birth.noteDrawnAtDismiss(androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { physics.ensurePlan().bounds })
+  }
+  journey.retarget(if (entry.visible) 1f else 0f, onContour = bornLiquid)
 
   LaunchedEffect(entry.visible, reducedMotion) {
     if (entry.visible) {
@@ -359,7 +365,9 @@ private fun FluidMenuLayerContent(
     val subtitleWidth = rememberFluidMenuSubtitleMeasure()
     val structureMetrics = rememberFluidMenuStructureMetrics(metrics, elementSize)
     val densityValue = LocalDensity.current.density
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    // I figli si posano in coordinate della finestra, come il vetro: l'allineamento d'inizio in RTL li metteva a destra
+    // (x = larghezza dell'host - la loro), e `absoluteOffset` ci aggiungeva il loro `left` (S4c sul Tab S9, ripresa 24).
+    BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = AbsoluteAlignment.TopLeft) {
       val host = Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
       // Un'apertura si prepara una volta (la sequenza la distingue dalla riapertura e dalle
       // ricomposizioni); in uscita non si tocca niente: il viaggio torna dove era partito. Un'apertura nuova riparte
@@ -603,6 +611,34 @@ private fun FluidMenuLayerContent(
           )
         }
       }
+      // Solo nei test (S4c, NO 2): il menu fotogramma per fotogramma, letto come lo disegna il pannello. Null altrove.
+      val probe = FluidMenuLayerProbe.onFrame
+      if (probe != null) {
+        LaunchedEffect(probe, entry) {
+          while (true) {
+            withFrameNanos { now ->
+              probe(
+                FluidMenuProbeFrame(
+                  nanos = now,
+                  layer = System.identityHashCode(journey),
+                  visible = entry.visible,
+                  closing = journey.closing,
+                  controlledReturn = journey.controlledReturn,
+                  progress = journey.progress.value,
+                  birthMillis = birth?.millis(),
+                  frozen = birth?.frozen?.frame,
+                  drawn = physics.ensurePlan().bounds,
+                  liquidQuiet = physics.liquid.quiet,
+                  window = windowAmount(),
+                  contentScale = contentMapNow().scale,
+                  inkAlpha = baseAlpha(),
+                  backdrop = backdrop,
+                ),
+              )
+            }
+          }
+        }
+      }
       // Il dito mira alle voci che vede (sessione contestuale, fase tasto): durante la nascita le voci stanno col corpo,
       // staccato dalla barra o rimpicciolito nella goccia; la scelta cerca la voce a riposo sotto il punto riportato indietro.
       // Durante un cambio di livello il dito resta sui riquadri del livello che arriva, com'era.
@@ -638,7 +674,8 @@ private fun FluidMenuLayerContent(
         contentMap = contentMapNow,
         onPick = pick,
         modifier = Modifier
-          // In coordinate della finestra come il vetro: `offset` in RTL specchiava le voci dall'altra parte (S4b, NO 5).
+          // In coordinate della finestra come il vetro: `offset` in RTL specchiava le voci dall'altra parte (S4b, NO 5), e il
+          // contenitore deve posare in alto a sinistra anche in RTL (S4c).
           .absoluteOffset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
           .menuDrawMarker("items")
           .size(
@@ -1408,3 +1445,30 @@ private const val FluidAlertExitScale = 0.96f
 private const val FluidAlertMaxHeightFraction = 0.86f
 private val FluidAlertWidth = 280.dp
 private val FluidAlertMargin = 24.dp
+
+/**
+ * Solo per i test: chi guarda il menu fotogramma per fotogramma (S4c, NO 2: il salto dopo «Condividi» si riproduce al PC
+ * nell'ordine dell'app). Null fuori dai test, e allora non si compone niente.
+ */
+@androidx.annotation.VisibleForTesting
+internal object FluidMenuLayerProbe {
+  @Volatile var onFrame: ((FluidMenuProbeFrame) -> Unit)? = null
+}
+
+/** Un fotogramma del menu per [FluidMenuLayerProbe]: lo stato del viaggio e la sagoma che il pannello disegna. */
+internal data class FluidMenuProbeFrame(
+  val nanos: Long,
+  val layer: Int,
+  val visible: Boolean,
+  val closing: Boolean,
+  val controlledReturn: Boolean,
+  val progress: Float,
+  val birthMillis: Float?,
+  val frozen: Rect?,
+  val drawn: Rect,
+  val liquidQuiet: Boolean,
+  val window: Float,
+  val contentScale: Float,
+  val inkAlpha: Float,
+  val backdrop: GlassBackdropState?,
+)

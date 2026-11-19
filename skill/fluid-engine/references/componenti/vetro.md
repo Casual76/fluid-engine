@@ -1548,6 +1548,14 @@ le due maschere. Una lastra che cambia se ne separa. All'ultimo rilascio Compose
 conta una cattura e una posa per lastra e un layer per ombra distinta disegnata. La display list nativa della luce e
 il campione temporaneo di viaggio sono risorse aggiuntive rispetto al censimento dei layer Compose di F1A.
 
+**F7.2b. Ricostruzione dei filtri del corpo.** Ogni lastra conserva il Gaussian all’ultimo raggio esatto in
+pixel del campione e con lo stesso trattamento dei bordi. Cambiare saturazione ricollega il nuovo filtro di
+colore al Gaussian. Cambiare la quota nitida ricostruisce la mescola. A raggio zero o con quota nitida piena
+il percorso salta la sfocatura. Ogni lastra conserva anche la fotografia del proprio shader del corpo. Se cambiano
+tinta, forma o altri uniform attivi, riscrive tutti gli ingressi sul programma condiviso prima di fotografarlo.
+Un cambio del solo filtro a monte riusa la fotografia e sostituisce la concatenazione. In viaggio il campione
+riceve il filtro a metà lato e la finitura resta sul layer di uscita.
+
 **6. «Livello più basso».** Due usi della parola, entrambi sul sorgente:
 - il vetro **di livello più basso** è `glassSurface` rispetto ai componenti che lo avvolgono: `FluidCard(sampleOnce, resampleIntervalMillis)` (3.0.4) espone le stesse due manopole «come il vetro di livello più
   basso», di serie `true` e `0`. Se la card sta su uno sfondo che si muove, si abbassa la frequenza lì, non si riscrive la card;

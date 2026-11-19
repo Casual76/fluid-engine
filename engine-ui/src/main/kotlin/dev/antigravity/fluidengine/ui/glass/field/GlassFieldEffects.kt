@@ -9,10 +9,8 @@
  *  - [glassBody] e [drawGlassLight]: gli stessi numeri messi negli uniform, la catena a monte, i due disegni;
  *  - [GlassLiquidSurface]: lo stato di una superficie, che `glassSurface` ricorda e che dà al nodo le sue
  *    lambda. Tutto ciò che si riusa da un fotogramma all'altro (ricette, array, la catena a monte, l'ombra)
- *    sta lì: il disegno di una lastra ferma non alloca. Quando cambia uno stato che il corpo legge (una
- *    pressione, l'intensità, la qualità) la catena si rifà, e un `RenderEffect` è immutabile: si ricostruisce
- *    l'ultimo anello (lo shader del corpo, e la sua unione col pezzo a monte), una volta per cambio. Il pezzo a
- *    monte resta, finché saturazione, raggio e mescola non cambiano ([GlassBodyChain]).
+ *    sta lì: il disegno di una lastra ferma non alloca. Ogni anello immutabile viene sostituito quando cambia il suo ingresso. Il
+ *    Gaussian resta valido al cambio della mescola e la fotografia AGSL appartiene alla lastra ([GlassBodyChain]).
  *
  * L'ordine dei pixel è quello del piano (3.3): l'ombra prima del nodo e fuori dal suo ritaglio; la cattura
  * con `ColorFilter(saturazione) -> Blur(Clamp) -> mescola w -> corpo`, **un layer solo** (cancello C1); poi
@@ -24,6 +22,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
+import android.graphics.RenderEffect as NativeEffect
 import android.graphics.RenderNode
 import android.util.Log
 import androidx.compose.ui.graphics.Canvas
@@ -60,6 +59,8 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -596,70 +597,113 @@ internal fun glassLiquidCaptureScale(
 // ------------------------------------------------------------------------------------------------------------
 
 /**
- * La parte della catena **a monte** del corpo, tenuta finché i suoi tre numeri non cambiano:
- *
- *     ColorFilter(saturazione) -> Blur(Clamp) -> BlendMode(Plus, w * nitido, (1 - w) * sfocato)
- *
- * Una pressione cambia un uniform del corpo a ogni fotogramma, e a ogni fotogramma la catena va ricostruita
- * (un `RenderEffect` è immutabile). Ma saturazione, raggio e mescola durante una pressione non cambiano:
- * tenendo questo pezzo si ricostruisce solo l'ultimo anello, e non si riallocano matrice e filtri.
+ * Ogni lastra conserva un solo risultato per anello. Il Gaussian ha un ingresso implicito: cambiando
+ * la saturazione si collega quel filtro a un altro ingresso, cambiando la mescola si rifanno solo i pesi.
+ * Le chiavi degli effetti composti sono le identità dei filtri immutabili che ricevono.
  */
 internal class GlassBodyChain {
-
   private var saturation = Float.NaN
-  private var blurPx = Float.NaN
-  private var mix = Float.NaN
-  private var upstream: android.graphics.RenderEffect? = null
+  private var sharp: NativeEffect? = null
+  private var radius = Float.NaN
+  private var tile: Shader.TileMode? = null
+  private var gaussian: NativeEffect? = null
+  private var blurred: NativeEffect? = null
+  private var blurredSharp: NativeEffect? = null
+  private var blurredGaussian: NativeEffect? = null
+  private var weight = Float.NaN
+  private var mixed: NativeEffect? = null
+  private var mixedBlur: NativeEffect? = null
   private val matrix = FloatArray(20)
 
-  /** Quante volte il pezzo a monte è stato ricostruito: per i test e la diagnostica. */
-  var builds: Int = 0
+  private val uniforms = GlassBodyUniformKey()
+  private var program: RuntimeShader? = null
+  private var bodySize = Size.Unspecified
+  private var bodyPadding = Float.NaN
+  private var snapshot: RenderEffect? = null
+  private var installedBody: RenderEffect? = null
+  private var installedInput: NativeEffect? = null
+  private var installed: RenderEffect? = null
+
+  var gaussianBuilds = 0
+    private set
+  var mixBuilds = 0
+    private set
+  var bodyBuilds = 0
+    private set
+  var chainBuilds = 0
     private set
 
-  /** Il pezzo a monte, o `null` se non fa niente (saturazione 1 e nessuna sfocatura). */
   @RequiresApi(Build.VERSION_CODES.S)
-  fun upstream(saturation: Float, blurPx: Float, mix: Float): android.graphics.RenderEffect? {
-    if (saturation == this.saturation && blurPx == this.blurPx && mix == this.mix) return upstream
-    this.saturation = saturation
-    this.blurPx = blurPx
-    this.mix = mix
-    builds++
-
-    val sharp = if (saturation != 1f) {
-      android.graphics.RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(saturationMatrix(saturation)))
-    } else {
-      null
+  fun upstream(saturation: Float, blurPx: Float, mix: Float, tileMode: Shader.TileMode = Shader.TileMode.CLAMP): NativeEffect? {
+    if (saturation != this.saturation) {
+      sharp = if (saturation == 1f) null else
+        NativeEffect.createColorFilterEffect(ColorMatrixColorFilter(saturationMatrix(saturation)))
+      this.saturation = saturation
     }
     val w = clampGlassUnit(mix)
-    upstream = if (!(blurPx > 0f) || w >= 1f) {
-      // Tutto nitido: la sfocatura non si costruisce nemmeno. Il margine della cattura non dipende da
-      // questo (lo dà la ricetta, a sfocatura piena), quindi non si muove.
-      sharp
-    } else {
-      val blurred = if (sharp != null) {
-        android.graphics.RenderEffect.createBlurEffect(blurPx, blurPx, sharp, Shader.TileMode.CLAMP)
-      } else {
-        android.graphics.RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
-      }
-      if (w <= 0f) {
-        blurred
-      } else {
-        // Via A (piano 3.6): i due rami pesati e sommati. Il peso sta nell'alfa: un filtro di colore lavora
-        // sul colore non premoltiplicato, quindi scalare la sola alfa scala tutti e quattro i canali
-        // premoltiplicati, ed è ciò che `Plus` somma.
-        val soft = android.graphics.RenderEffect.createColorFilterEffect(
-          ColorMatrixColorFilter(alphaMatrix(1f - w)),
-          blurred,
-        )
-        val crisp = if (sharp != null) {
-          android.graphics.RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(alphaMatrix(w)), sharp)
-        } else {
-          android.graphics.RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(alphaMatrix(w)))
-        }
-        android.graphics.RenderEffect.createBlendModeEffect(soft, crisp, android.graphics.BlendMode.PLUS)
-      }
+    if (!(blurPx > 0f) || w >= 1f) return sharp
+
+    if (blurPx != radius || tileMode != tile) {
+      gaussian = NativeEffect.createBlurEffect(blurPx, blurPx, tileMode)
+      radius = blurPx
+      tile = tileMode
+      gaussianBuilds++
     }
-    return upstream
+    val blur = checkNotNull(gaussian)
+    val input = sharp
+    if (blurredGaussian !== blur || blurredSharp !== input) {
+      blurred = if (input == null) blur else NativeEffect.createChainEffect(blur, input)
+      blurredGaussian = blur
+      blurredSharp = input
+    }
+    val soft = checkNotNull(blurred)
+    if (w <= 0f) return soft
+
+    // L'identità di soft comprende anche la saturazione del ramo nitido.
+    if (mixedBlur !== soft || weight != w) {
+      val softWeight = NativeEffect.createColorFilterEffect(ColorMatrixColorFilter(alphaMatrix(1f - w)), soft)
+      val crispFilter = ColorMatrixColorFilter(alphaMatrix(w))
+      val crisp = if (input == null) NativeEffect.createColorFilterEffect(crispFilter)
+        else NativeEffect.createColorFilterEffect(crispFilter, input)
+      mixed = NativeEffect.createBlendModeEffect(softWeight, crisp, android.graphics.BlendMode.PLUS)
+      mixedBlur = soft
+      weight = w
+      mixBuilds++
+    }
+    return mixed
+  }
+
+  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+  fun body(shader: RuntimeShader, size: Size, inputs: GlassDrawInputs, films: List<GlassTint>?): RenderEffect {
+    uniforms.begin()
+    uniforms.setGlassBodyUniforms(inputs, films)
+    val previous = snapshot
+    if (previous != null && program === shader && size == bodySize && inputs.paddingPx == bodyPadding &&
+      uniforms.matchesSnapshot()) return previous
+
+    // Un'altra lastra può avere scritto lo stesso shader. Una nuova fotografia richiede TUTTI gli uniform.
+    shader.setGlassBodyUniforms(inputs, films)
+    val effect = RuntimeShaderEffect(shader, "content")
+    uniforms.saveSnapshot()
+    snapshot = effect
+    program = shader
+    bodySize = size
+    bodyPadding = inputs.paddingPx
+    bodyBuilds++
+    return effect
+  }
+
+  @RequiresApi(Build.VERSION_CODES.S)
+  fun install(body: RenderEffect?, input: NativeEffect?): RenderEffect? {
+    if (body === installedBody && input === installedInput) return installed
+    installed = when {
+      body == null -> input?.asComposeRenderEffect()
+      input == null -> body
+      else -> NativeEffect.createChainEffect(body.asAndroidRenderEffect(), input).asComposeRenderEffect().also { chainBuilds++ }
+    }
+    installedBody = body
+    installedInput = input
+    return installed
   }
 
   /** La matrice di saturazione di `colorControls` (`backdrop/effects/ColorFilter.kt`): la stessa di oggi. */
@@ -683,6 +727,75 @@ internal class GlassBodyChain {
     matrix[12] = 1f
     matrix[18] = alpha
     return matrix
+  }
+}
+
+/**
+ * Copia per valore il flusso di uniform del programma, nell'ordine di scrittura. I float conservano tutti i bit
+ * e i colori hanno la stessa rappresentazione ARGB del setter Android. Le due aree crescono solo se il programma
+ * richiede più spazio. Si pubblica la chiave dopo la riuscita della fotografia.
+ */
+private class GlassBodyUniformKey : RuntimeShader {
+  private var values = IntArray(64)
+  private var saved = IntArray(64)
+  private var count = 0
+  private var savedCount = 0
+
+  fun begin() { count = 0 }
+
+  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+  fun matchesSnapshot(): Boolean = count == savedCount && java.util.Arrays.equals(values, 0, count, saved, 0, count)
+
+  fun saveSnapshot() {
+    if (saved.size < count) saved = IntArray(values.size)
+    values.copyInto(saved, endIndex = count)
+    savedCount = count
+  }
+
+  private fun add(value: Int) {
+    if (count == values.size) values = values.copyOf(values.size * 2)
+    values[count++] = value
+  }
+
+  private fun add(value: Float) = add(value.toRawBits())
+  override fun setColorUniform(name: String, color: Color) = add(color.toArgb())
+  override fun setFloatUniform(name: String, value: Float) = add(value)
+  override fun setFloatUniform(name: String, value1: Float, value2: Float) {
+    add(value1)
+    add(value2)
+  }
+  override fun setFloatUniform(name: String, value1: Float, value2: Float, value3: Float) {
+    add(value1)
+    add(value2)
+    add(value3)
+  }
+  override fun setFloatUniform(name: String, value1: Float, value2: Float, value3: Float, value4: Float) {
+    add(value1)
+    add(value2)
+    add(value3)
+    add(value4)
+  }
+  override fun setIntUniform(name: String, value: Int) = add(value)
+  override fun setIntUniform(name: String, value1: Int, value2: Int) {
+    add(value1)
+    add(value2)
+  }
+  override fun setIntUniform(name: String, value1: Int, value2: Int, value3: Int) {
+    add(value1)
+    add(value2)
+    add(value3)
+  }
+  override fun setIntUniform(name: String, value1: Int, value2: Int, value3: Int, value4: Int) {
+    add(value1)
+    add(value2)
+    add(value3)
+    add(value4)
+  }
+  override fun setFloatUniform(name: String, values: FloatArray) {
+    for (value in values) add(value)
+  }
+  override fun setIntUniform(name: String, values: IntArray) {
+    for (value in values) add(value)
   }
 }
 
@@ -849,87 +962,84 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
     GlassBodyKernel.Eight -> obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
     GlassBodyKernel.Ring -> obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
   }
-  if (shader == null) {
-    renderEffect = upstream?.asComposeRenderEffect()
-    return
-  }
-  shader.apply {
-    if (inputs.kernel == GlassBodyKernel.Ring) {
-      setGlassRing(inputs.ring, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs)
-    } else {
-      setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs.bodyGel, inputs.gelCenter)
-    }
-    setFloatUniform("thickness", inputs.thickness)
-    setFloatUniform("refraction", inputs.refraction)
-    setFloatUniform("dome", inputs.dome)
-    setFloatUniform("dispersion", inputs.dispersion)
-    // La sagoma in moto: di una lastra ferma, zero.
-    setFloatUniform("magnify", inputs.magnify)
-    setFloatUniform("materialize", inputs.materialize)
-    setColorUniform("veilColor", inputs.veilColor)
-    setFloatUniform("veilAdapt", inputs.veilAdapt)
-    setColorUniform("tintColor", inputs.tintColor)
-    setFloatUniform("tintMode", inputs.tintMode)
-    setFloatUniform("tintFollow", inputs.tintFollow)
-    if (filmShader != null && films != null) {
-      for (i in films.indices) {
-        val mode = glassTintLiquidMode(films[i])
-        inputs.filmModes[i] = when (mode) {
-          GlassTintMode.Fixed -> -1f
-          GlassTintMode.Colored -> 1f
-          GlassTintMode.Neutral -> 0f
-        }
-        val overlay = films[i].overlay
-        setColorUniform("film$i", when (mode) {
-          GlassTintMode.Neutral -> Color.Transparent
-          GlassTintMode.Fixed -> overlay.glassAccessibleFilm(inputs.materialAccessibility)
-          GlassTintMode.Colored -> overlay
-        })
-      }
-      setFloatUniform("filmModes", inputs.filmModes)
-    }
-    setColorUniform("bodyShade", inputs.bodyShade)
-    setFloatUniform("bodyShadeDepth", inputs.bodyShadeDepth)
-    setFloatUniform("bodyShadeLean", inputs.bodyShadeLeanX, inputs.bodyShadeLeanY)
-    setFloatUniform("dim", inputs.dim)
-    setFloatUniform("grain", inputs.grain)
-    setFloatUniform("aa", inputs.aa)
-    setFloatUniform("nodeClip", if (inputs.nodeClip) 1f else 0f, inputs.nodeClipCorner)
-    // A riposo luce e ombra non stanno nel corpo: la luce è due disegni sopra, l'ombra due maschere sotto.
-    // L'istanza dello shader è una per processo, e ogni superficie la riscrive per intero prima di fotografarla
-    // nel suo effetto: chi viaggia accende la luce in corpo per sé, chi è fermo la spegne.
-    if (inputs.lightInBody) {
-      setFloatUniform("lightInBody", 1f)
-      setFloatUniform("rimWidth", inputs.bodyRimWidth)
-      setColorUniform("rimDark", inputs.rimDark)
-      setFloatUniform("rimFeather", inputs.rimFeather)
-      setFloatUniform("rimLift", inputs.rimLift)
-      setFloatUniform("reflexDir", inputs.reflexDirX, inputs.reflexDirY)
-      setFloatUniform("reflexWidths", inputs.reflexHalfWidth, inputs.reflexOppositeHalfWidth)
-      setFloatUniform("reflexStrength", inputs.reflexStrength)
-      setFloatUniform("reflexDepth", inputs.bodyReflexDepth)
-      setFloatUniform("reflexFloor", inputs.reflexFloor)
-      setFloatUniform("reflexHalo", inputs.reflexHalo)
-      setFloatUniform("glowCenter", inputs.bodyGlowCenterX, inputs.bodyGlowCenterY)
-      setFloatUniform("glowRadius", inputs.bodyGlowRadius)
-      setFloatUniform("glow", inputs.glow)
-      setFloatUniform("glowFill", inputs.glowFill)
-      setColorUniform("lightColor", inputs.lightColor)
-      // L'ombra in corpo (F1B.2): sempre scritta per intero, anche a zero, perché uno uniform tiene il valore
-      // dell'ultimo che l'ha scritto e l'istanza dello shader è condivisa.
-      setFloatUniform("shadowOffset", inputs.shadowOffsetX, inputs.shadowOffsetY)
-      setFloatUniform("shadowRadii", inputs.shadowContactRadius, inputs.shadowAmbientRadius)
-      setFloatUniform("shadowAlphas", inputs.shadowContactAlpha, inputs.shadowAmbientAlpha)
-      setColorUniform("shadowColor", inputs.shadowColor)
-    } else {
-      setFloatUniform("lightInBody", 0f)
-    }
-  }
-  val body = RuntimeShaderEffect(shader, "content")
-  renderEffect = if (upstream == null) {
-    body
+  val body = shader?.let { chain.body(it, size, inputs, if (filmShader == null) null else films) }
+  renderEffect = chain.install(body, upstream)
+}
+
+private val FilmUniformNames = Array(GlassFieldMaxPieces) { "film$it" }
+
+/** Lo stesso elenco alimenta la chiave e il programma Android, inclusi gli array mutabili. */
+private fun RuntimeShader.setGlassBodyUniforms(inputs: GlassDrawInputs, films: List<GlassTint>?) {
+  if (inputs.kernel == GlassBodyKernel.Ring) {
+    setGlassRing(inputs.ring, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs)
   } else {
-    android.graphics.RenderEffect.createChainEffect(body.asAndroidRenderEffect(), upstream).asComposeRenderEffect()
+    setGlassField(inputs.body, inputs.bodyOffsetX, inputs.bodyOffsetY, inputs.bodyGel, inputs.gelCenter)
+  }
+  setFloatUniform("thickness", inputs.thickness)
+  setFloatUniform("refraction", inputs.refraction)
+  setFloatUniform("dome", inputs.dome)
+  setFloatUniform("dispersion", inputs.dispersion)
+  // La sagoma in moto: di una lastra ferma, zero.
+  setFloatUniform("magnify", inputs.magnify)
+  setFloatUniform("materialize", inputs.materialize)
+  setColorUniform("veilColor", inputs.veilColor)
+  setFloatUniform("veilAdapt", inputs.veilAdapt)
+  setColorUniform("tintColor", inputs.tintColor)
+  setFloatUniform("tintMode", inputs.tintMode)
+  setFloatUniform("tintFollow", inputs.tintFollow)
+  if (films != null) {
+    for (i in FilmUniformNames.indices) {
+      val film = films.getOrNull(i)
+      val mode = if (film == null) GlassTintMode.Neutral else glassTintLiquidMode(film)
+      inputs.filmModes[i] = when (mode) {
+        GlassTintMode.Fixed -> -1f
+        GlassTintMode.Colored -> 1f
+        GlassTintMode.Neutral -> 0f
+      }
+      val overlay = film?.overlay ?: Color.Transparent
+      setColorUniform(FilmUniformNames[i], when (mode) {
+        GlassTintMode.Neutral -> Color.Transparent
+        GlassTintMode.Fixed -> overlay.glassAccessibleFilm(inputs.materialAccessibility)
+        GlassTintMode.Colored -> overlay
+      })
+    }
+    setFloatUniform("filmModes", inputs.filmModes)
+  }
+  setColorUniform("bodyShade", inputs.bodyShade)
+  setFloatUniform("bodyShadeDepth", inputs.bodyShadeDepth)
+  setFloatUniform("bodyShadeLean", inputs.bodyShadeLeanX, inputs.bodyShadeLeanY)
+  setFloatUniform("dim", inputs.dim)
+  setFloatUniform("grain", inputs.grain)
+  setFloatUniform("aa", inputs.aa)
+  setFloatUniform("nodeClip", if (inputs.nodeClip) 1f else 0f, inputs.nodeClipCorner)
+  // A riposo luce e ombra non stanno nel corpo: la luce è due disegni sopra, l'ombra due maschere sotto.
+  // L'istanza dello shader è una per processo, e ogni superficie la riscrive per intero prima di fotografarla
+  // nel suo effetto: chi viaggia accende la luce in corpo per sé, chi è fermo la spegne.
+  if (inputs.lightInBody) {
+    setFloatUniform("lightInBody", 1f)
+    setFloatUniform("rimWidth", inputs.bodyRimWidth)
+    setColorUniform("rimDark", inputs.rimDark)
+    setFloatUniform("rimFeather", inputs.rimFeather)
+    setFloatUniform("rimLift", inputs.rimLift)
+    setFloatUniform("reflexDir", inputs.reflexDirX, inputs.reflexDirY)
+    setFloatUniform("reflexWidths", inputs.reflexHalfWidth, inputs.reflexOppositeHalfWidth)
+    setFloatUniform("reflexStrength", inputs.reflexStrength)
+    setFloatUniform("reflexDepth", inputs.bodyReflexDepth)
+    setFloatUniform("reflexFloor", inputs.reflexFloor)
+    setFloatUniform("reflexHalo", inputs.reflexHalo)
+    setFloatUniform("glowCenter", inputs.bodyGlowCenterX, inputs.bodyGlowCenterY)
+    setFloatUniform("glowRadius", inputs.bodyGlowRadius)
+    setFloatUniform("glow", inputs.glow)
+    setFloatUniform("glowFill", inputs.glowFill)
+    setColorUniform("lightColor", inputs.lightColor)
+    // L'ombra in corpo (F1B.2): sempre scritta per intero, anche a zero, perché uno uniform tiene il valore
+    // dell'ultimo che l'ha scritto e l'istanza dello shader è condivisa.
+    setFloatUniform("shadowOffset", inputs.shadowOffsetX, inputs.shadowOffsetY)
+    setFloatUniform("shadowRadii", inputs.shadowContactRadius, inputs.shadowAmbientRadius)
+    setFloatUniform("shadowAlphas", inputs.shadowContactAlpha, inputs.shadowAmbientAlpha)
+    setColorUniform("shadowColor", inputs.shadowColor)
+  } else {
+    setFloatUniform("lightInBody", 0f)
   }
 }
 

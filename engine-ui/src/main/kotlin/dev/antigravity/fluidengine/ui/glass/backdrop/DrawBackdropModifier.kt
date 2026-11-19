@@ -1329,7 +1329,10 @@ private class DrawBackdropNode(
         if (!isRenderEffectSupported()) return
 
         effectScope.apply(effects)
-        graphicsLayer?.renderEffect = effectScope.renderEffect
+        graphicsLayer?.let { layer ->
+            val effect = effectScope.renderEffect
+            if (layer.renderEffect !== effect) layer.renderEffect = effect
+        }
         GlassFrameDiagnostics.event("installed", this) { "effect=${System.identityHashCode(effectScope.renderEffect)}" }
         val newPadding = effectScope.padding
         // Only the *padding* invalidates a capture. The `RenderEffect` itself is applied to the layer

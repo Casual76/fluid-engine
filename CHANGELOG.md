@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Liquid riusa il filtro di sfocatura al cambio della mescola o della tinta e aggiorna la fotografia del corpo quando cambiano i suoi uniform.
+
 - Pannello laterale. La molla riparte al rilascio anche se il trascinamento si conclude fra due ricomposizioni. Se Compose interrompe il riconoscitore, il pannello riprende il viaggio verso la destinazione corrente.
 
 - Durante lo scorrimento e il movimento delle lastre Liquid la risoluzione della cattura segue area e frequenza con isteresi. A riposo torna alla scala del materiale.

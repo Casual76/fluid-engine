@@ -36,6 +36,8 @@ class F4aMinimizeTraceTest {
   private val travel = 105f
   private val searchHeight = 52f
   private val width = 360f
+  private val lens = FluidMetrics.GlassButtonLens.value
+  private val icon = FluidMetrics.BarIconSize.value
   private val fps = 60
   private val paper = mapOf("background" to mapOf("kind" to "color", "color" to "#FAFAFC"))
 
@@ -91,7 +93,7 @@ class F4aMinimizeTraceTest {
       val selected = FluidToolbarSelectionEasing.transform((t / GlassContentDefaults.DurationMs).toFloat().coerceAtMost(1f))
       GlassTraceFrame(t, listOf(
         selectedSlot("grassetto", "fluid:format_bold|bold", 25f, selected, base, accent),
-        selectedSlot("corsivo", "fluid:format_italic|italic", 69f, 1f - selected, base, accent),
+        selectedSlot("corsivo", "fluid:format_italic|italic", 25f + FluidMetrics.GroupItemPitch.value, 1f - selected, base, accent),
       ))
     }
     write(GlassTrace("tinta-sincronizzata", "f4a-4", 3f, "light", 140f, 72f, frames, fps, head = paper))
@@ -121,12 +123,12 @@ class F4aMinimizeTraceTest {
     val cropWidth = 76f
     val frames = (0..36).map { index ->
       val phase = index / 36f
-      val center = transfer.center(from, to, to - 2f * phase * (1f - phase), 44f, phase)
+      val center = transfer.center(from, to, to - 2f * phase * (1f - phase), lens, phase)
       assertEquals(to, center, 0f)
       GlassTraceFrame(glassTraceTimeMs(index, fps), listOf(mapOf(
-        "name" to "puntini", "kind" to "shape", "x" to center / density - (widthDp - cropWidth) - 22f, "y" to 12,
-        "w" to 44, "h" to 44, "radius" to "capsule", "color" to "#EFEEF4",
-        "content" to listOf(mapOf("name" to "glifo", "icon" to "fluid:more_horiz|more", "iconSizeDp" to 26)),
+        "name" to "puntini", "kind" to "shape", "x" to center / density - (widthDp - cropWidth) - lens / 2, "y" to 12,
+        "w" to lens, "h" to lens, "radius" to "capsule", "color" to "#EFEEF4",
+        "content" to listOf(mapOf("name" to "glifo", "icon" to "fluid:more_horiz|more", "iconSizeDp" to icon)),
       )))
     }
     write(GlassTrace("puntini-fermi", "f4a-4", density, "light", cropWidth, 66f, frames, fps,
@@ -140,9 +142,9 @@ class F4aMinimizeTraceTest {
     val frames = (0..18).map { index ->
       val opacity = fade.getValueFromNanos(glassTraceTimeNanos(index, fps)).coerceIn(0f, 1f)
       GlassTraceFrame(glassTraceTimeMs(index, fps), listOf(
-        reducedGlass("prima", 37, 132, 1f - opacity, group + star),
-        reducedGlass("dopo-gruppo", 25, 88, opacity, group),
-        reducedGlass("dopo-principale", 125, 44, opacity, star, blue = true),
+        reducedGlass("prima", 37f, 3 * lens, 1f - opacity, group + star),
+        reducedGlass("dopo-gruppo", 25f, 2 * lens, opacity, group),
+        reducedGlass("dopo-principale", 25f + 2 * lens + FluidMetrics.GroupSpacing.value, lens, opacity, star, blue = true),
       ))
     }
     write(GlassTrace("principale-ridotta", "f4a-4", 3f, "light", 194f, 72f, frames, fps, head = paper))
@@ -155,15 +157,15 @@ class F4aMinimizeTraceTest {
   }
 
   private fun selectedSlot(name: String, icon: String, x: Float, selection: Float, base: Color, accent: Color) =
-    mapOf("name" to name, "kind" to "shape", "x" to x, "y" to 14, "w" to 44, "h" to 44,
+    mapOf("name" to name, "kind" to "shape", "x" to x, "y" to 14, "w" to lens, "h" to lens,
       "radius" to "capsule", "color" to glassColor(lerp(Color(0xFFF1F1F5), Color(0xFFC8DFFF), selection)),
       "content" to listOf(mapOf("name" to "glifo", "icon" to icon,
-        "iconSizeDp" to 26, "color" to glassColor(lerp(base, accent, selection)))))
+        "iconSizeDp" to this.icon, "color" to glassColor(lerp(base, accent, selection)))))
 
-  private fun reducedGlass(name: String, x: Int, width: Int, alpha: Float, icons: List<String>, blue: Boolean = false) =
-    mapOf("name" to name, "kind" to "shape", "x" to x, "y" to 14, "w" to width, "h" to 44,
+  private fun reducedGlass(name: String, x: Float, width: Float, alpha: Float, icons: List<String>, blue: Boolean = false) =
+    mapOf("name" to name, "kind" to "shape", "x" to x, "y" to 14, "w" to width, "h" to lens,
       "radius" to "capsule", "color" to glassColor((if (blue) Color(0xFF1675EC) else Color(0xFFE4E4EA)).copy(alpha = alpha)),
-      "content" to listOf(mapOf("name" to "icone", "icons" to icons, "iconSizeDp" to 26,
+      "content" to listOf(mapOf("name" to "icone", "icons" to icons, "iconSizeDp" to icon,
         "alpha" to alpha, "color" to if (blue) "#FFFFFF" else "#26262A")))
 
   private fun probe(name: String, path: String) = mapOf("name" to name, "kind" to "value", "path" to path)
@@ -188,10 +190,10 @@ class F4aMinimizeTraceTest {
             "label" to "Note", "labelSizeDp" to 34, "labelWeight" to 700,
             "alpha" to titleLook.alpha, "blurDp" to blurDp, "marginDp" to 20))),
       mapOf("name" to "tasti", "kind" to "shape", "x" to 300, "y" to status,
-        "w" to 44, "h" to 44, "color" to "#00000000", "content" to listOf(
-          mapOf("name" to "puntini", "y" to if (reduced) 0f else -progress * FluidMetrics.GlassButtonLens.value,
+        "w" to lens, "h" to lens, "color" to "#00000000", "content" to listOf(
+          mapOf("name" to "puntini", "y" to if (reduced) 0f else -progress * lens,
             "icon" to "fluid:more_horiz|more",
-            "iconSizeDp" to 26, "alpha" to look.alpha, "blurDp" to blurDp, "marginDp" to 20))),
+            "iconSizeDp" to icon, "alpha" to look.alpha, "blurDp" to blurDp, "marginDp" to 20))),
       mapOf("name" to "campo", "kind" to "shape",
         "x" to 16, "y" to fieldY, "w" to 328, "h" to searchHeight, "radius" to "capsule",
         "color" to glassColor(Color(0xFFE8E7EE).copy(alpha = 1f - glass))),

@@ -470,9 +470,9 @@ class FluidToolbarBarTest {
       val bounds = compose.onNodeWithContentDescription(label).getBoundsInRoot()
       return ((bounds.left + bounds.right) / 2f).value
     }
-    // Il centro del tasto non dipende da quale nodo porta il nome (riquadro da 48, lente da 44 o icona).
-    assertEquals("indietro: vetro da 44 a 16 dp", 16f + 22f, centerX("Indietro"), 0.5f)
-    assertEquals("azione: vetro da 44 a 16 dp da destra", width - 16f - 22f, centerX("Condividi"), 0.5f)
+    // Il centro del tasto non dipende da quale nodo porta il nome (riquadro da 48, lente da 46 o icona).
+    assertEquals("indietro: vetro da 46 a 16 dp", 16f + 23f, centerX("Indietro"), 0.5f)
+    assertEquals("azione: vetro da 46 a 16 dp da destra", width - 16f - 23f, centerX("Condividi"), 0.5f)
     val legacyBack = centerX("Indietro")
     val legacyAction = centerX("Condividi")
 

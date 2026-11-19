@@ -68,12 +68,15 @@ class FluidMenuStructureTest {
   // --- L'ordine -----------------------------------------------------------------------------------
 
   @Test
-  fun onlyPriorityFlipsAndOnlyUpward() {
-    assertTrue(fluidMenuReverses(FluidMenuOrder.Priority, opensUpward = true))
-    assertFalse(fluidMenuReverses(FluidMenuOrder.Priority, opensUpward = false))
-    // Di serie l'ordine e' fisso: un menu gia' scritto non cambia ordine aggiornando l'engine.
-    assertFalse(fluidMenuReverses(FluidMenuOrder.Automatic, opensUpward = true))
-    assertFalse(fluidMenuReverses(FluidMenuOrder.Fixed, opensUpward = true))
+  fun automaticFlipsOnlyUpwardAndOnlyFromAButton() {
+    assertTrue(fluidMenuReverses(FluidMenuOrder.Automatic, opensUpward = true, fromButton = true))
+    assertFalse(fluidMenuReverses(FluidMenuOrder.Automatic, opensUpward = false, fromButton = true))
+    assertFalse(fluidMenuReverses(FluidMenuOrder.Automatic, opensUpward = true, fromButton = false))
+    for (fromButton in listOf(false, true)) {
+      assertTrue(fluidMenuReverses(FluidMenuOrder.Priority, opensUpward = true, fromButton = fromButton))
+      assertFalse(fluidMenuReverses(FluidMenuOrder.Priority, opensUpward = false, fromButton = fromButton))
+      assertFalse(fluidMenuReverses(FluidMenuOrder.Fixed, opensUpward = true, fromButton = fromButton))
+    }
   }
 
   @Test

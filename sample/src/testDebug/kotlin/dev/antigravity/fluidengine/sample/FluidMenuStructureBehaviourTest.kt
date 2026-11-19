@@ -109,13 +109,13 @@ class FluidMenuStructureBehaviourTest {
   }
 
   /** Una card che apre [actions] tenendo premuto, e il menu aperto e lasciato (il dito si solleva fermo). */
-  private fun openCard(actions: () -> List<FluidContextAction>) {
+  private fun openCard(alignment: Alignment = Alignment.TopCenter, actions: () -> List<FluidContextAction>) {
     showInModalHost {
       Box(Modifier.fillMaxSize()) {
         Box(
           Modifier
-            .align(Alignment.TopCenter)
-            .padding(top = 40.dp)
+            .align(alignment)
+            .padding(vertical = 40.dp)
             .size(120.dp)
             .fluidContextMenu(actions = actions)
             .testTag("card"),
@@ -143,7 +143,7 @@ class FluidMenuStructureBehaviourTest {
 
   @Test
   fun `una voce coi figli apre il sottomenu dentro il menu, e il figlio sceglie e chiude`() {
-    openCard(::sortMenu)
+    openCard(actions = ::sortMenu)
     compose.onNodeWithText("Per data").assertExists() // il sottotitolo della voce madre
     compose.onNodeWithText("Per nome").assertDoesNotExist()
 
@@ -166,7 +166,7 @@ class FluidMenuStructureBehaviourTest {
 
   @Test
   fun `l'intestazione del sottomenu torna al menu di prima`() {
-    openCard(::sortMenu)
+    openCard(actions = ::sortMenu)
     compose.onNodeWithText("Ordina").performClick()
     compose.waitForIdle()
     compose.onNodeWithText("Ordina").performClick()
@@ -179,7 +179,7 @@ class FluidMenuStructureBehaviourTest {
 
   @Test
   fun `il back dentro un sottomenu torna indietro, il secondo chiude`() {
-    openCard(::sortMenu)
+    openCard(actions = ::sortMenu)
     compose.onNodeWithText("Ordina").performClick()
     compose.waitForIdle()
 
@@ -222,7 +222,7 @@ class FluidMenuStructureBehaviourTest {
 
   private fun rowTop(text: String): Float = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
-  private fun openBottomBar(order: FluidMenuOrder) {
+  private fun openBar(order: FluidMenuOrder, alignment: Alignment) {
     showInModalHost {
       Box(Modifier.fillMaxSize()) {
         FluidBarAction(
@@ -237,7 +237,7 @@ class FluidMenuStructureBehaviourTest {
           },
           opensOn = FluidMenuOpensOn.Tap,
           modifier = Modifier
-            .align(Alignment.BottomCenter)
+            .align(alignment)
             .padding(16.dp)
             .testTag("bar"),
         )
@@ -248,8 +248,8 @@ class FluidMenuStructureBehaviourTest {
   }
 
   @Test
-  fun `Priority capovolge un menu che si apre verso l'alto, cosi' la prima voce sta vicino al dito`() {
-    openBottomBar(FluidMenuOrder.Priority)
+  fun `Automatic capovolge un menu che si apre da un tasto in basso`() {
+    openBar(FluidMenuOrder.Automatic, Alignment.BottomCenter)
     assertTrue("Uno in fondo", rowTop("Uno") > rowTop("Due"))
     assertTrue(rowTop("Due") > rowTop("Tre"))
     // E sceglie la voce che si vede, non quella che stava li' nell'ordine scritto.
@@ -259,8 +259,24 @@ class FluidMenuStructureBehaviourTest {
   }
 
   @Test
-  fun `di serie l'ordine resta quello scritto anche verso l'alto`() {
-    openBottomBar(FluidMenuOrder.Automatic)
+  fun `Automatic mantiene l'ordine scritto da un tasto in alto`() {
+    openBar(FluidMenuOrder.Automatic, Alignment.TopCenter)
+    assertTrue(rowTop("Uno") < rowTop("Due"))
+    assertTrue(rowTop("Due") < rowTop("Tre"))
+  }
+
+  @Test
+  fun `Fixed mantiene l'ordine scritto da un tasto in basso`() {
+    openBar(FluidMenuOrder.Fixed, Alignment.BottomCenter)
+    assertTrue(rowTop("Uno") < rowTop("Due"))
+    assertTrue(rowTop("Due") < rowTop("Tre"))
+  }
+
+  @Test
+  fun `il contestuale in basso conserva l'ordine scritto di serie`() {
+    openCard(Alignment.BottomCenter) {
+      listOf("Uno", "Due", "Tre").map { label -> FluidContextAction(label) {} }
+    }
     assertTrue(rowTop("Uno") < rowTop("Due"))
     assertTrue(rowTop("Due") < rowTop("Tre"))
   }
@@ -290,7 +306,7 @@ class FluidMenuStructureBehaviourTest {
   }
 
   @Test
-  fun `il tasto morph legge la fila e la priorita e il back torna al primo livello`() {
+  fun `il tasto morph legge la fila e ordina per priorita di serie, il back torna al primo livello`() {
     compose.setContent {
       Themed {
         val backdrop = currentGlassBackdrop()
@@ -301,7 +317,7 @@ class FluidMenuStructureBehaviourTest {
             state = state,
             backdrop = backdrop,
             actions = {
-              FluidMenuActions(order = FluidMenuOrder.Priority, elementSize = FluidMenuElementSize.Small) {
+              FluidMenuActions(elementSize = FluidMenuElementSize.Small) {
                 listOf(
                   FluidContextAction(if (starred) "Aggiunto" else "Preferiti", Icons.Rounded.Star, keepsMenuOpen = true) {
                     starred = true

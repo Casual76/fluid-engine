@@ -104,7 +104,8 @@ class F4aToolbarExportTest {
         tintOf = { fluidToolbarTint(it, Color(0xFF007AFF), Color(0xFFFF3B30)) })
       val resolved = resolveFluidToolbar(model, width, metrics = metrics, bar = bar)
       assertTrue("${input.name}: capienza", resolved.fits)
-      memory.update(resolved, FluidToolbarMotion.Full)
+      // In basso il tasto che resta al suo posto va col bordo del suo vetro (scelte-b): lo stesso interruttore della barra.
+      memory.update(resolved, FluidToolbarMotion.Full, ridesEdge = bar == FluidToolbarBar.Bottom)
       val pieces = resolved.groups.map { group ->
         val id = memory.glassIds.getValue(group.id)
         val bounds = Rect(group.leftDp * density, top * density,
@@ -268,8 +269,9 @@ class F4aToolbarExportTest {
           val item = current.resolved.element(id)!!.item
           val face = face(item, dark)
           val flying = driver.frame?.pieces?.find { it.piece.id == trip.glass }
+          val shift = flying?.let { trip.ride?.shiftPx(it.bounds.left, it.bounds.right, width, density, rtl = false) } ?: 0f
           val center = trip.center(trip.startDp * density, trip.endDp * density, flying?.bounds?.center?.x,
-            flying?.bounds?.width?.div(density), flying?.phase ?: 1f) / density
+            flying?.bounds?.width?.div(density), flying?.phase ?: 1f, shift) / density
           val blur = if (trip.softened && kept == FluidToolbarKeptContent.Soft && driver.journey != null)
             GlassContentCurves.softBlur((driver.elapsedMs / GlassContentDefaults.DurationMs).toFloat()) *
               GlassContentDefaults.PeakBlur * GlassContentDefaults.KeptSoftness else 0f
@@ -317,11 +319,11 @@ class F4aToolbarExportTest {
       // Queste scene usano vetro neutro; la freccia del contesto ha la sola tinta del contenuto.
       // Il titolo è contenuto senza vetro, guidato dallo stesso FluidBarTitleSwap dell'host.
       if (pages) elements += linkedMapOf<String, Any?>("kind" to "shape", "name" to "titolo", "x" to 0,
-        "y" to top, "w" to width, "h" to 44, "radius" to 0, "color" to "#00000000", "contentClip" to "none",
+        "y" to top, "w" to width, "h" to metrics.buttonWidthDp, "radius" to 0, "color" to "#00000000", "contentClip" to "none",
         "content" to prepared.map { it.input.name }.distinct().mapNotNull { page ->
           val alpha = title.alpha(page)
           if (alpha <= 0.001f) null else mapOf("name" to page, "x" to 120f + title.step(page) * FluidPageMotion.BarTitleStepDp,
-            "y" to 0, "w" to 160, "h" to 44, "label" to if (page == "elenco") "Viaggi" else "Viaggio",
+            "y" to 0, "w" to 160, "h" to metrics.buttonWidthDp, "label" to if (page == "elenco") "Viaggi" else "Viaggio",
             "labelSizeDp" to 17, "labelWeight" to 600, "alpha" to alpha,
             "blurDp" to glassContentBlurRadiusPx(title.blur(page) * 17f), "marginDp" to 12,
             "color" to if (dark) "#F2F2F7" else "#17171A")
@@ -519,6 +521,26 @@ class F4aToolbarExportTest {
       assertEquals(2, poses.first().ids.size)
       assertEquals(if (name == "separa-riunisci") 3 else 2, poses[1].ids.size)
       assertTrue(result.frames.all { it.elements.isNotEmpty() })
+      // Il «+»: in Foto va col bordo destro del suo vetro e torna (scelte-b, Apple 219 f8551: +0,16 H a 300 ms, di nuovo
+      // al posto a ~490); quando si stacca in un vetro suo resta fermo (il bordo non è più lo stesso vetro).
+      val rest = poses.first().resolved.element("aggiungi")!!.centerDp
+      val h = poses.first().resolved.metrics.buttonWidthDp
+      fun plus(ms: Double): Float {
+        val frame = result.frames.minBy { kotlin.math.abs(it.tMs - ms) }
+        val glyph = frame.elements.filter { it["name"] == "icone" }.flatMap { (it["content"] as List<*>).filterIsInstance<Map<*, *>>() }
+          .singleOrNull { it["name"] == "aggiungi-stabile" } ?: return 0f // a riposo il più è nel suo posto
+        return (glyph["x"] as Number).toFloat() + (glyph["w"] as Number).toFloat() / 2f - rest
+      }
+      if (name == "capsula-cambia") {
+        assertEquals("fermo finché il vetro non parte", 0f, plus(50.0), 0.02f * h)
+        assertEquals("a 300 ms a destra come Apple", 0.161f * h, plus(300.0), 0.03f * h)
+        assertEquals("di nuovo al posto verso 490 ms", 0f, plus(490.0), 0.03f * h)
+        assertEquals("fermo al posto alla fine", 0f, plus(850.0), 0.02f)
+        assertEquals("nel ritorno va a sinistra", -0.155f * h, plus(1200.0), 0.03f * h)
+        assertEquals("e torna", 0f, plus(1800.0), 0.02f)
+      } else {
+        for (ms in listOf(0.0, 150.0, 300.0, 450.0, 850.0)) assertEquals("staccato a $ms ms", 0f, plus(ms), 0.001f)
+      }
       output?.let { result.write(File(it, "$name/trace.json")) }
     }
   }

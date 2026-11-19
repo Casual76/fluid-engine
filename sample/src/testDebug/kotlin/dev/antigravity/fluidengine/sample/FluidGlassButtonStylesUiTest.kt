@@ -162,8 +162,8 @@ class FluidGlassButtonStylesUiTest {
     compose.onRoot().performTouchInput { click(center - Offset(22.dp.toPx(), 0f)) }
     compose.runOnIdle { assertEquals(1, compact) }
     val backCenter = backButton.fetchSemanticsNode().boundsInRoot.center
-    // La barra di FluidScreen è alta 44 dp. Il margine tra il disco e il bersaglio è orizzontale.
-    compose.onRoot().performTouchInput { click(backCenter + Offset(23.dp.toPx(), 0f)) }
+    // Il punto è nel riquadro della barra e oltre il bordo del disco da 46 dp.
+    compose.onRoot().performTouchInput { click(backCenter + Offset(22.dp.toPx(), 15.dp.toPx())) }
     compose.runOnIdle { assertEquals(1, back) }
   }
 
@@ -195,8 +195,8 @@ class FluidGlassButtonStylesUiTest {
     compose.onNodeWithTag("ambiente-icona", useUnmergedTree = true).assertWidthIsEqualTo(24.dp).assertHeightIsEqualTo(24.dp)
     compose.onNodeWithTag("scritta-vetro", useUnmergedTree = true).assertWidthIsEqualTo(54.dp)
     compose.onNodeWithTag("scritta-icona", useUnmergedTree = true).assertWidthIsEqualTo(32.dp)
-    compose.onNodeWithTag("serie-vetro", useUnmergedTree = true).assertWidthIsEqualTo(44.dp)
-    compose.onNodeWithTag("serie-icona", useUnmergedTree = true).assertWidthIsEqualTo(26.dp)
+    compose.onNodeWithTag("serie-vetro", useUnmergedTree = true).assertWidthIsEqualTo(46.dp)
+    compose.onNodeWithTag("serie-icona", useUnmergedTree = true).assertWidthIsEqualTo(28.dp)
   }
 
   @Test
@@ -235,8 +235,8 @@ class FluidGlassButtonStylesUiTest {
     val defaults = Triple(FluidGlassSize.Regular, FluidGlassButtonStyle.Glass, FluidButtonSizing.Fitted)
     assertEquals(defaults, inSheet)
     assertEquals(defaults, inPopover)
-    compose.onNodeWithTag("foglio-vetro", useUnmergedTree = true).assertWidthIsEqualTo(44.dp)
-    compose.onNodeWithTag("nel-foglio-icona", useUnmergedTree = true).assertWidthIsEqualTo(26.dp)
+    compose.onNodeWithTag("foglio-vetro", useUnmergedTree = true).assertWidthIsEqualTo(46.dp)
+    compose.onNodeWithTag("nel-foglio-icona", useUnmergedTree = true).assertWidthIsEqualTo(28.dp)
   }
 
   @Test

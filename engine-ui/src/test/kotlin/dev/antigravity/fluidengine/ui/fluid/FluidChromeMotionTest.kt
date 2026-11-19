@@ -98,8 +98,8 @@ class FluidChromeMotionTest {
   fun topBarInsets_putTheGlassSixteenDpFromTheScreenEdge() {
     // Il layout posa il riquadro da 48; il vetro da 44 sta al suo centro, con 2 dp per lato.
     val air = (FluidMetrics.TouchTarget - FluidMetrics.GlassButtonLens) / 2
-    assertEquals(2.dp, air)
-    assertEquals(14.dp, FluidBarEdgeInset)
+    assertEquals(1.dp, air)
+    assertEquals(15.dp, FluidBarEdgeInset)
     assertEquals(16.dp, FluidBarEdgeInset + air)
     assertEquals(FluidMetrics.ScreenEdgeMargin, FluidBarEdgeInset + air)
   }
@@ -107,15 +107,15 @@ class FluidChromeMotionTest {
   @Test
   fun topBarInsets_keepEightDpBetweenTwoActionGlasses() {
     val air = (FluidMetrics.TouchTarget - FluidMetrics.GlassButtonLens) / 2
-    assertEquals(4.dp, FluidBarActionGap)
+    assertEquals(6.dp, FluidBarActionGap)
     assertEquals(8.dp, air + FluidBarActionGap + air)
     assertEquals(FluidMetrics.GlassSpacing, air + FluidBarActionGap + air)
   }
 
   @Test
   fun topBarInsets_theDockedTitleFollowsTheButtons() {
-    // 84 dp dalla 4.0 (era 76): il vetro finisce a 16 + 44 = 60 dp dal bordo, piu' i 24 d'aria di sempre.
-    assertEquals(84.dp, FluidScreenDefaults.CompactTitleInset)
+    // 86 dp: il vetro finisce a 16 + 46 = 62 dp dal bordo, più 24 dp di respiro.
+    assertEquals(86.dp, FluidScreenDefaults.CompactTitleInset)
     assertEquals(
       FluidMetrics.ScreenEdgeMargin + FluidMetrics.GlassButtonLens + 24.dp,
       FluidScreenDefaults.CompactTitleInset,

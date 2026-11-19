@@ -188,7 +188,7 @@ FluidBarAction(
 
 | cosa | come |
 |---|---|
-| **ordine** | `Priority`: se il menu si apre verso l'alto (il pannello sta sopra l'ancora: un tasto in basso, una riga vicina al fondo) le sezioni vanno in ordine inverso e le voci di ogni sezione pure, così la prima voce scritta sta in fondo, vicino al dito; le bande seguono le sezioni. `Fixed`: sempre come scritto. **`Automatic` vale `Fixed`**: Apple sceglie priority fuori dai contenuti che scorrono, qui un menu già scritto non cambia ordine aggiornando l'engine (la scelta per Alessio è aperta) |
+| **ordine** | `Priority`: se il menu si apre verso l'alto (il pannello sta sopra l'ancora: un tasto in basso, una riga vicina al fondo) le sezioni vanno in ordine inverso e le voci di ogni sezione pure, così la prima voce scritta sta in fondo, vicino al dito; le bande seguono le sezioni. `Fixed`: sempre come scritto. **`Automatic`** usa `Priority` dal tasto (anche `FluidMorphMenuHost`) e `Fixed` dal contestuale. Per un tasto in un contenuto scorrevole che deve conservare l'ordine dichiarato si può scegliere `Fixed` |
 | **fila di simboli** | `Small` e `Medium` mettono le prime voci della **prima sezione** su una fila in cima: `Small` fino a quattro simboli senza etichetta (che resta per TalkBack), alta quanto una riga; `Medium` fino a tre con l'etichetta corta sotto (`bodySmall`), alta 68 dp. Le tessere si dividono la larghezza del pannello e non la allargano; fra due tessere un filo verticale, sotto la fila una banda. Le voci della prima sezione che non ci stanno continuano nella lista. Capovolto, la fila va in fondo, con le tessere nell'ordine scritto |
 | **sottomenu** | la voce coi `children` ha il gallone; scelta (col dito, anche quello che ha aperto, o con TalkBack) fa `Tap` e il menu **diventa** il sottomenu: in cima la voce madre in grassetto col gallone girato in giù, sotto i figli con le loro sezioni. Il vetro cambia forma restando dov'era (stesso centro orizzontale, stesso bordo da cui il menu era cresciuto) con la molla d'andata del menu (0,72 / 500); le voci di prima se ne vanno sfocandosi e quelle nuove arrivano sfocate e si mettono a fuoco nel tempo di un cambio di contenuto (T = 300 ms: due strati che si incrociano a ≈0,47 T con l'opacità complessiva ≈0,7, chi esce sparito a 0,66 T, chi entra nitido a T e pieno a 1,15 T): il vetro non resta mai vuoto. Sotto API 31, senza sfocatura, i due strati si passano il posto senza sovrapporsi. L'intestazione, o il **back**, torna indietro allo stesso modo; il secondo back congeda. Uno scrim toccato congeda tutto, e un congedo dentro il sottomenu riporta a casa la sagoma del sottomenu |
 | **chiusura** | `keepsMenuOpen`: `Tap`, `onClick`, il menu resta; la goccia si posa e se ne va come dopo ogni rilascio |
@@ -304,7 +304,7 @@ CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
 
 **Comportamento.**
 
-- **L'ancora** è una capsula di vetro con i gesti dei tasti (`FluidPressFeedback.Expand`: cresce e si illumina sotto il dito, 44 dp
+- **L'ancora** è una capsula di vetro con i gesti dei tasti (`FluidPressFeedback.Expand`: cresce e si illumina sotto il dito, 46 dp
   di altezza, 20 dp di margine laterale). Tocco = `onClick` (un `PressClick` come ogni tasto), tenuto premuto = menu (un solo `Open`,
   e il dito passa al menu), `opensOnTap` = il tocco apre (con un `Open`, non un `Tap`).
 - **Mentre il menu è in scena l'ancora non disegna niente**, e al suo posto, allo stesso pixel, sta la superficie dell'host: un
@@ -340,7 +340,7 @@ montare l'host.
 
 ## L'azione della barra: `FluidBarAction(actions, opensOn)` e `action(menu = …)`
 
-**Cos'è.** L'azione in una barra (una lente di vetro da 44 dp sul fondale condiviso della barra) con un menu facoltativo. Con
+**Cos'è.** L'azione in una barra (una lente di vetro da 46 dp sul fondale condiviso della barra) con un menu facoltativo. Con
 `actions` non nullo l'azione diventa l'**ancora di un menu** dell'host dei modali, con lo stesso viaggio in tre tempi del tasto che
 si trasforma. Nella barra dichiarata (`toolbar { … }`) la stessa cosa è `action(id, icon, label, menu = { … })`, e dentro un gruppo
 con lo sfondo condiviso il vetro che diventa il menu è quello del gruppo intero.
@@ -504,7 +504,7 @@ Box(
   posto (lo spazio resta riservato) e torna alla pagina **solo a uscita finita**.
 - **Lo sfondo** (scelta di Alessio: «scurito con una sfocatura leggera») ha un livello suo, più scuro di quello dei menu dal tasto. Tre
   candidati: **A** 18% / 30% di nero (chiaro / scuro), sfocatura 3,75 dp; **B** 24% / 38%, 5 dp; **C** 32% / 48%, 6,5 dp. Di serie
-  **B**, in attesa della scelta sulle catture del tablet. Nessuno passa i 7 dp di sfocatura: oltre ~8 dp uno scrim a tutto schermo
+  **C**, scelto sulle catture S10a. Nessuno passa i 7 dp di sfocatura: oltre ~8 dp uno scrim a tutto schermo
   trasmette la media della pagina. La pellicola della finestra del menu porta lo stesso nero, perché campiona la pagina cruda: un
   livello cambiato in un posto solo farebbe un menu più chiaro o più scuro della pagina attorno. iOS 26 scurisce soltanto: la
   sfocatura è la deroga voluta. Nelle build di debug e di misura il livello si cambia senza ricompilare, con la manopola
@@ -683,7 +683,7 @@ Puri, in `engine-ui` (JVM):
 - `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, l'inversione a
   100 ms, riaprire mentre si chiude; i tre tempi (raccolta, risalita verso il centro, espansione), la messa a fuoco delle voci.
 - `FluidMenuMotionTest`: le finestre di opacità e il loro verso, la mappa del contenuto, il gonfiore, i token.
-- `FluidMenuStructureTest`: un menu di sempre ha le stesse celle al bit; `Priority` capovolge solo verso l'alto e `Automatic` mai; la
+- `FluidMenuStructureTest`: un menu di sempre ha le stesse celle al bit; `Priority` capovolge solo verso l'alto, e `Automatic` lo fa per i menu dei tasti; la
   fila `Small`/`Medium`; la goccia che cambia misura fra tessera e riga; la riga col sottotitolo; il sottomenu e il suo pannello dallo
   stesso bordo; le curve del cambio di livello; `FluidMenuActions` come lista e il contenuto vivo.
 - `GlassCompatSignaturesTest`: la `FluidContextAction` a sette argomenti per posizione e per nome, le forme nuove con la lambda in coda,

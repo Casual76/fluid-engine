@@ -341,15 +341,19 @@ class FluidPageHostState internal constructor() {
   internal fun zoomBelowBar(): Boolean = zoomShape()?.let { it.bounds.top > barBottomPx + 0.5f } ?: false
 
   /**
-   * La variante di Apple (F5B.3, di serie spenta come vuole il piano: la decide Alessio sul video): la pagina si dissolve
-   * nella sorgente dentro la sagoma, da circa un terzo della strada ([FluidZoom.crossfade]). Accesa, la sorgente consumata
-   * si registra in un layer ([FluidTransitionSource.snapshot]) e l'host la disegna dentro la sagoma.
+   * La dissolvenza di Apple, **di serie** (scelta di Alessio del 19 novembre 2026, sui video a tempo vero di corr-zoom):
+   * dentro la sagoma la pagina si dissolve nella sorgente e la sorgente nella pagina, da circa un terzo della strada
+   * ([FluidZoom.crossfade]). Si legge dalla strada, quindi vale nei due versi: all'apertura la card sbiadisce mentre la
+   * pagina compare, al ritorno (col tasto o col dito) la card compare sopra la pagina che sbiadisce. La sorgente consumata
+   * si registra in un layer ([FluidTransitionSource.snapshot]) e l'host la disegna dentro la sagoma. Con le animazioni
+   * ridotte non c'è zoom e quindi nemmeno dissolvenza: resta l'`Expand` di sempre. Spenta (le tracce di confronto), la
+   * card rinasce solo quando la sagoma è arrivata, com'era fino a F5B.3.
    */
-  internal var zoomCrossfade: Boolean = false
+  internal var zoomCrossfade: Boolean = true
 
-  /** Quanto della sorgente si vede adesso dentro la sagoma della pagina sopra: 0 senza la variante o senza zoom. */
+  /** Quanto della sorgente si vede adesso dentro la sagoma della pagina sopra: 0 senza dissolvenza o senza zoom. */
   internal fun zoomCrossfadeAlpha(): Float {
-    if (!zoomCrossfade) return 0f
+    if (!zoomCrossfade || reducedMotion) return 0f
     val journey = zoom ?: return 0f
     val shape = zoomShape() ?: return 0f
     return FluidZoom.crossfade(shape, fullZoomShape(), journey.source)
@@ -946,7 +950,8 @@ class FluidPageHostState internal constructor() {
   private fun consumeSource(page: Any) {
     if (page in consumed) return
     val source = sourceOf(page) ?: return
-    source.consume(snapshot = zoomCrossfade)
+    // La fotografia serve solo alla dissolvenza: senza, nessun layer in più.
+    source.consume(snapshot = zoomCrossfade && !reducedMotion)
     consumed[page] = source
   }
 

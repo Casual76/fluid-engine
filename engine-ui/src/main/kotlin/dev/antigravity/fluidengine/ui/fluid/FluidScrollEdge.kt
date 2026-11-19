@@ -75,7 +75,7 @@ enum class FluidScrollEdgeStyle {
 object FluidScrollEdgeDefaults {
 
   /**
-   * L'altezza dei tasti della barra, `H`: l'unità del profilo (R4 misura il bordo in altezze dei tasti). 44 dp, il
+   * L'altezza dei tasti della barra, `H`: l'unità del profilo (R4 misura il bordo in altezze dei tasti). 46 dp, il
    * tasto tondo dell'engine (R6, [FluidMetrics.GlassButtonLens]). Una tab bar passa la sua altezza.
    */
   val ControlHeight: Dp = FluidMetrics.GlassButtonLens
@@ -175,7 +175,7 @@ internal val FluidScrollEdgeBottomAutomatic: GlassScrollEdgeProfile? = GlassScro
  *
  * @param backdrop il contenuto che scorre, registrato con `glassBackdropSource`.
  * @param edge in alto o in basso.
- * @param height dal bordo dello schermo al bordo dei controlli verso il contenuto (es. barra di stato + 44 dp).
+ * @param height dal bordo dello schermo al bordo dei controlli verso il contenuto (es. barra di stato + 46 dp).
  * @param style vedi [FluidScrollEdgeStyle]; `Hidden` non disegna.
  * @param exports dove pubblicare il contenuto già dissolto, perché i tasti che ci stanno sopra rifrangano quello e non
  *   la pagina cruda (come faceva la fascia con `exports`); combinarlo con la pagina resta di chi posa i tasti

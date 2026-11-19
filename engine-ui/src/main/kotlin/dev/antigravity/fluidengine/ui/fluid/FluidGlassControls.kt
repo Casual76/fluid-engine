@@ -109,14 +109,14 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  *
  * @property lens il lato del vetro di un tasto tondo solo icona.
  * @property buttonHeight l'altezza del vetro di un tasto con un testo. A [Regular] sono 48 dp e non
- *   44: e' l'altezza che [FluidGlassButton] ha sempre avuto, e una riga con un'etichetta da 17 sp
+ *   46: e' l'altezza che [FluidGlassButton] ha sempre avuto, e una riga con un'etichetta da 17 sp
  *   ha bisogno di piu' aria di un'icona.
  */
 enum class FluidGlassSize(val lens: Dp, val buttonHeight: Dp) {
-  /** 40 dp: accanto a un campo, dentro un composer, dove 44 sono gia' troppo. */
+  /** 40 dp: accanto a un campo, dentro un composer, dove la misura di serie è già troppo. */
   Compact(40.dp, 40.dp),
 
-  /** 44 dp (48 per un tasto con testo): la misura di sempre. */
+  /** 46 dp per la lente (48 per un tasto con testo): la misura di serie. */
   Regular(FluidGlassIconLensSize, FluidGlassButtonHeight),
 
   /** 54 dp: la barra flottante di una schermata, dove il tasto sta accanto a una pillola alta quanto lui. */
@@ -127,7 +127,7 @@ enum class FluidGlassSize(val lens: Dp, val buttonHeight: Dp) {
   val touchTarget: Dp get() = lens.coerceAtLeast(FluidGlassIconTouchTargetSize)
 
   /**
-   * Quanto sta bene un'icona dentro il vetro: 0,6 del lato (24, 26, 32 dp), la taglia che il tasto fornisce a una
+   * Quanto sta bene un'icona dentro il vetro: 0,6 del lato (24, 28, 32 dp), la taglia che il tasto fornisce a una
    * [FluidIcon] senza `size` ([LocalFluidIconSize]). Fino alla 3.x era la meta' (20, 22, 27): R6 ha misurato che
    * cosi' l'icona riempiva 0,37 del vetro contro 0,44-0,48 di Apple, e sembrava sottile ([FluidMetrics.IconLensRatio]).
    */
@@ -766,14 +766,13 @@ internal fun Modifier.fluidStaticGlassSurfaceClassic(
 /**
  * A glass lens for icon actions that live in chrome or another overlay.
  *
- * 44 dp of material inside a 48 dp hit target: the lens is allowed to be the size Apple draws it
- * while the tappable area stays the size accessibility requires.
+ * The regular lens occupies 46 dp inside a 48 dp hit target, with the visible glass centered in the target.
  *
  * Dalla 4.0 il tasto dice al contenuto quanto e' grande: una [FluidIcon] senza `size` dentro di lui e' a 0,6 del
  * vetro ([FluidGlassSize.iconSize], 26 dp a `Regular`), la proporzione delle icone di Apple (R6). Il colore resta
  * quello del contenuto: il tasto non lo cambia, quindi un'icona tinta dall'app resta tinta.
  *
- * @param size la taglia ([FluidGlassSize]): 40, 44 (di serie) o 54 dp di vetro. Il riquadro che il
+ * @param size la taglia ([FluidGlassSize]): 40, 46 (di serie) o 54 dp di vetro. Il riquadro che il
  *   tasto occupa e che il dito colpisce e' sempre almeno 48 dp ([FluidGlassSize.touchTarget]), e la
  *   pressione e' la stessa di sempre in proporzione: vedi [FluidGlassSize]. Per una misura che non e'
  *   fra queste c'e' l'overload con `size: Dp`. Dalla 3.0.

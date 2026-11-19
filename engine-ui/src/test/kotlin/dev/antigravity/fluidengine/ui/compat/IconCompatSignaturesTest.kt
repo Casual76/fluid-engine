@@ -121,6 +121,6 @@ class IconCompatSignaturesTest {
   @Test
   fun `le misure si leggono come costanti`() {
     assertEquals(18, metricsAsAppsReadThem().size)
-    assertEquals(26.dp, FluidGlassSize.Regular.iconSize)
+    assertEquals(28.dp, FluidGlassSize.Regular.iconSize)
   }
 }

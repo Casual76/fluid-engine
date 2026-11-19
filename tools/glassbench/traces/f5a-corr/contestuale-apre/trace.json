@@ -7,7 +7,7 @@
   "density": 3,
   "theme": "light",
   "size": [411, 520],
-  "_": "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (B) e l'inchiostro nella lente, (F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni.",
+  "_": "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (C) e l'inchiostro nella lente, (F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni.",
   "palette": "engine",
   "corner": "engine",
   "background": {
@@ -724,12 +724,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 0.65
         },
@@ -868,7 +868,7 @@
               "materialize": 0.190541,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -1021,12 +1021,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 0.88
         },
@@ -1165,7 +1165,7 @@
               "materialize": 0.87976,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -1318,12 +1318,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 0.96
         },
@@ -1476,7 +1476,7 @@
               "materialize": 0.95983,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -1637,12 +1637,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 0.989
         },
@@ -1795,7 +1795,7 @@
               "materialize": 0.988622,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -1956,12 +1956,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 0.998
         },
@@ -2114,7 +2114,7 @@
               "materialize": 0.997905,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -2275,12 +2275,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -2433,7 +2433,7 @@
               "materialize": 0.99991,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -2594,12 +2594,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -2752,7 +2752,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -2913,12 +2913,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -3071,7 +3071,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -3232,12 +3232,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -3390,7 +3390,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -3551,12 +3551,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -3709,7 +3709,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -3870,12 +3870,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -4028,7 +4028,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -4189,12 +4189,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -4347,7 +4347,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -4508,12 +4508,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -4666,7 +4666,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -4827,12 +4827,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -4985,7 +4985,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -5120,12 +5120,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -5278,7 +5278,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -5413,12 +5413,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -5571,7 +5571,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -5706,12 +5706,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -5864,7 +5864,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -5998,12 +5998,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -6156,7 +6156,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -6290,12 +6290,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -6448,7 +6448,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -6582,12 +6582,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -6740,7 +6740,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -6874,12 +6874,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -7032,7 +7032,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -7166,12 +7166,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -7324,7 +7324,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -7458,12 +7458,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -7609,7 +7609,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -7743,12 +7743,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -7894,7 +7894,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -8028,12 +8028,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -8179,7 +8179,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -8313,12 +8313,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -8464,7 +8464,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -8598,12 +8598,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -8749,7 +8749,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -8883,12 +8883,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -9034,7 +9034,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -9168,12 +9168,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -9319,7 +9319,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -9453,12 +9453,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -9604,7 +9604,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -9738,12 +9738,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -9889,7 +9889,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -10023,12 +10023,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -10167,7 +10167,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -10294,12 +10294,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -10438,7 +10438,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -10565,12 +10565,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -10709,7 +10709,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -10836,12 +10836,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -10980,7 +10980,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -11107,12 +11107,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -11251,7 +11251,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -11378,12 +11378,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -11522,7 +11522,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -11649,12 +11649,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -11793,7 +11793,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -11920,12 +11920,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -12064,7 +12064,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -12191,12 +12191,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -12335,7 +12335,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -12462,12 +12462,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -12606,7 +12606,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -12733,12 +12733,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -12877,7 +12877,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -13004,12 +13004,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -13148,7 +13148,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -13275,12 +13275,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -13419,7 +13419,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -13546,12 +13546,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -13690,7 +13690,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -13817,12 +13817,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -13961,7 +13961,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -14088,12 +14088,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -14232,7 +14232,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -14359,12 +14359,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -14503,7 +14503,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -14630,12 +14630,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -14774,7 +14774,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -14901,12 +14901,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -15045,7 +15045,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -15172,12 +15172,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -15316,7 +15316,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -15443,12 +15443,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -15587,7 +15587,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",
@@ -15714,12 +15714,12 @@
           "inputs": {
             "content": {
               "saturation": 1,
-              "blurDp": 5,
+              "blurDp": 6.5,
               "edge": "clamp"
             }
           },
           "uniforms": {
-            "dim": 0.24
+            "dim": 0.32
           },
           "alpha": 1
         },
@@ -15858,7 +15858,7 @@
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
-              "tintColor": "#D1D1D1A6",
+              "tintColor": "#C5C5C5B0",
               "tintMode": 0,
               "tintFollow": 0.42,
               "bodyShade": "#00000012",

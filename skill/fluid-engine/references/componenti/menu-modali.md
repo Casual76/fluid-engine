@@ -278,8 +278,8 @@ volta, mai un salto. Fuori dall'host l'avviso e la conferma usano il `Dialog` di
 Il foglio (`FluidGlassSheet(source = …)`) e la pagina (`FluidPageTransition.Expand` con `zoomSource`) non fanno la goccia:
 **crescono dal riquadro della sorgente**, i lati verso i bordi e la cima verso l'alto, col contenuto dentro dal principio e
 sfocato. Il foglio è sotto, in «Il foglio che nasce dal tasto»; la pagina in [pagine.md](pagine.md), «Lo zoom dalla
-sorgente» (la molla di Apple da 0,355 s a tempo vero nei due versi, il dito che la riporta nella card, la dissolvenza all'arrivo come
-variante spenta).
+sorgente» (la molla di Apple da 0,355 s a tempo vero nei due versi, il dito che la riporta nella card, la dissolvenza
+fra pagina e card nei due versi, di serie).
 
 ### Cosa non c'è
 
@@ -403,10 +403,13 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   sfoca.
 - **Il menu contestuale ha uno scrim suo**, più scuro: lì la pagina deve andare *dietro* l'elemento sollevato (scelta di
   Alessio: «scurito con una sfocatura leggera»). Tre livelli (`FluidContextScrimLevel`, il nero e il moltiplicatore della
-  sfocatura in un `FluidScrimLook`), di serie **B**: 24% / 38% di nero e 5 dp di sfocatura, mai oltre 7 dp
+  sfocatura in un `FluidScrimLook`), di serie **C**: 32% / 48% di nero e 6,5 dp di sfocatura, mai oltre 7 dp
   (`FluidScrimBlurCeilingDp`). La pellicola della finestra del menu porta lo stesso nero. Nelle build di debug il livello si
   cambia con la manopola `ctxscrim=a|b|c` (`FluidContextScrimTuning`), per le catture del tablet. Gli altri modali, il menu
   dal tasto compreso, tengono lo scrim di sempre ([menu-liquidi.md](menu-liquidi.md), «Il menu contestuale»).
+- **Ordine delle voci.** `FluidMenuOrder.Automatic` tiene la prima voce vicino al tasto d'apertura. Se il pannello si
+  apre verso l'alto, l'ordine si capovolge. Il menu contestuale mantiene l'ordine dichiarato. `Fixed` e `Priority`
+  permettono di scegliere esplicitamente per entrambi.
 - **Il pannello rifrange la pagina «come l'ha lasciata lo scrim»** (un fondale combinato), non la pagina cruda: altrimenti
   fa un buco nitido nello scrim. Il vetro che sta *dentro* il pannello (una `FluidCard`, un tasto, un campo) rifrange
   il pannello, non la pagina dietro (`LocalFluidCanvasBackdrop` + `glassContainer`: vetro su vetro, dalla 2.13).

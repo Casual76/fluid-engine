@@ -60,6 +60,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuOutgoingLevel
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuStructure
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuStructureMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
+import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuSelection
 import dev.antigravity.fluidengine.ui.fluid.FluidOutsideTapCatcher
@@ -276,7 +277,7 @@ class FluidMorphMenuState internal constructor() {
       source, host, width(written), written.height, m.gapPx, m.marginPx, FluidMenuPlacement.AboveOrBelow,
     )
     val up = fluidMenuOpensUpward(source, rootFrame)
-    val reverse = fluidMenuReverses(fluidMenuOrderOf(items), up)
+    val reverse = fluidMenuReverses(fluidMenuOrderOf(items), up, fromButton = true)
     val root = if (reverse) fluidMenuStructure(fluidMenuEntries(list, elementSize, reversed = true), sm) else written
     fun level(index: Int): MorphMenuLevel {
       val action = list.getOrNull(index)?.takeIf { it.children.isNotEmpty() } ?: return MorphMenuLevel(root, rootFrame)
@@ -475,9 +476,8 @@ fun FluidMorphMenuButton(
         haptic = if (opensOnTap) FluidHapticEvent.Open else FluidHapticEvent.Tap,
         longClickHaptic = null,
       )
-      // Stessa altezza e stesso passo orizzontale di FluidGlassButton: l'ancora È quel tasto,
-      // con un mestiere in più.
-      .height(44.dp)
+      // La capsula d'origine ha l'altezza dei tasti della barra.
+      .height(FluidMetrics.GlassButtonLens)
       .padding(horizontal = 20.dp),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,

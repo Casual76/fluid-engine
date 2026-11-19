@@ -29,7 +29,7 @@ internal class FluidToolbarSearchTest {
 
   @Test fun automaticCountsNeighboursInTheSameBarAndKeepsTheirCommands() {
     assertTrue(pose(false).compact)
-    assertEquals(44f, pose(false).width, 0f)
+    assertEquals(46f, pose(false).width, 0f)
     assertFalse(pose(false, FluidToolbarModel(tools.items.take(2))).compact)
     val open = pose(true)
     assertFalse(open.compact)
@@ -86,10 +86,10 @@ internal class FluidToolbarSearchTest {
     val trip = GlassPlaneJourney(a, state(pose(true)), GlassPlaneMotion(spec = ToolbarSearchTiming))
     for (at in listOf(65.0, 150.0)) {
       val before = trip.frame(at).pieces.first { it.piece.key == "campo" }.bounds
-      assertTrue(before.width > 44f && before.width < pose(true).width)
+      assertTrue(before.width > pose(false).width && before.width < pose(true).width)
       val back = trip.retarget(at, a)
       assertEquals(before, back.frame(0.0).pieces.first { it.piece.key == "campo" }.bounds)
-      assertEquals(44f, back.frame(1000.0).pieces.first { it.piece.key == "campo" }.bounds.width, .01f)
+      assertEquals(pose(false).width, back.frame(1000.0).pieces.first { it.piece.key == "campo" }.bounds.width, .01f)
     }
   }
 

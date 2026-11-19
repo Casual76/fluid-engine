@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.glass.field.trace
 
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -435,6 +436,18 @@ internal object GlassScenes {
     ),
   )
 
+  /** Il profilo di serie sulla geometria delle barre di oggi, per i due campioni golden. */
+  val BarSampleShapes: List<Map<String, Any?>> = SampleShapes.map { shape ->
+    when (shape["name"]) {
+      "tasto" -> {
+        val lens = FluidMetrics.GlassButtonLens.value.toInt()
+        shape + mapOf("w" to lens, "h" to lens, "iconSizeDp" to FluidMetrics.BarIconSize.value.toInt())
+      }
+      "capsula" -> shape + ("iconSizeDp" to FluidMetrics.CapsuleIconSize.value.toInt())
+      else -> shape
+    }
+  }
+
   private fun sampleMeasures(dark: Boolean): List<Map<String, Any?>> {
     val out = ArrayList<Map<String, Any?>>()
     for (shape in SampleShapes) {
@@ -470,16 +483,22 @@ internal object GlassScenes {
   )
 
   /** Il campione col materiale nuovo: [key] è il nome della variante, [ask] ciò che chiede alla ricetta. */
-  fun sample(key: String, dark: Boolean, ask: SceneAsk): GlassScene {
+  fun sample(
+    key: String,
+    dark: Boolean,
+    ask: SceneAsk,
+    shapes: List<Map<String, Any?>> = SampleShapes,
+  ): GlassScene {
     val theme = if (dark) "dark" else "light"
+    val lens = shapes.first().getValue("w")
     val scene = sampleHead(
       "Scritta dalla ricetta (GlassSceneExportTest, F1A.5): il campione delle tavole di gusto, variante `$key`, " +
-        "lato ${if (dark) "scuro" else "chiaro"}: ${ask.label}. Tasto 44 dp, capsula, tab bar 62 dp, menu, pannello " +
+        "lato ${if (dark) "scuro" else "chiaro"}: ${ask.label}. Tasto $lens dp, capsula, tab bar 62 dp, menu, pannello " +
         "grande. Le tavole le compone `glassbench.py tavola`, che cambia fondale e inquadratura e mai un numero " +
         "del materiale. Non si modifica a mano: si rigenera.",
       dark,
     )
-    scene["elements"] = SampleShapes.map { liquidFromGlass(it, theme, ask) }
+    scene["elements"] = shapes.map { liquidFromGlass(it, theme, ask) }
     scene["measure"] = sampleMeasures(dark)
     return GlassScene("gusto/$key-${if (dark) "scuro" else "chiaro"}.json", scene)
   }
@@ -605,6 +624,9 @@ internal object GlassScenes {
     }
     out += sampleToday(dark = false)
     out += sampleToday(dark = true)
+    val regular = Tastes.first { it.key == "serie" }.ask
+    out += sample("barre-serie", dark = false, regular, BarSampleShapes)
+    out += sample("barre-serie", dark = true, regular, BarSampleShapes)
     return out
   }
 

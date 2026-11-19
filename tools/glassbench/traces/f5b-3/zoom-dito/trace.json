@@ -3145,7 +3145,7 @@
           "w": 288.763,
           "h": 187.306,
           "radius": 11.519,
-          "color": "#E9A23BFF"
+          "color": "#E9A23BFA"
         },
         {
           "kind": "shape",
@@ -3155,7 +3155,7 @@
           "w": 288.763,
           "h": 149.845,
           "radius": 11.519,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F7FA"
         },
         {
           "kind": "shape",
@@ -3180,7 +3180,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#121214FA",
                   "weight": 700
                 },
                 {
@@ -3189,7 +3189,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686EFA"
                 },
                 {
                   "kind": "text",
@@ -3197,7 +3197,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214FA"
                 },
                 {
                   "kind": "text",
@@ -3205,7 +3205,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214FA"
                 },
                 {
                   "kind": "text",
@@ -3213,7 +3213,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214FA"
                 }
               ],
               "scale": 0.78,
@@ -3227,6 +3227,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 135.074,
+          "y": 131.735,
+          "w": 313.737,
+          "h": 341.781,
+          "radius": 25.87,
+          "color": "#FFFFFF05",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 21.033,
+                  "y": 296.561,
+                  "sizeDp": 26.290838,
+                  "color": "#12121405",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 135.074,
+          "y": 131.735,
+          "w": 313.737,
+          "h": 250.99,
+          "radius": [25.87, 25.87, 0, 0],
+          "color": "#E9A23B05"
         }
       ]
     },
@@ -5719,7 +5755,7 @@
           "w": 237.095,
           "h": 153.792,
           "radius": 9.458,
-          "color": "#E9A23BFF"
+          "color": "#E9A23BF5"
         },
         {
           "kind": "shape",
@@ -5729,7 +5765,7 @@
           "w": 237.095,
           "h": 123.033,
           "radius": 9.458,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F7F5"
         },
         {
           "kind": "shape",
@@ -5754,7 +5790,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#121214F5",
                   "weight": 700
                 },
                 {
@@ -5763,7 +5799,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686EF5"
                 },
                 {
                   "kind": "text",
@@ -5771,7 +5807,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214F5"
                 },
                 {
                   "kind": "text",
@@ -5779,7 +5815,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214F5"
                 },
                 {
                   "kind": "text",
@@ -5787,7 +5823,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214F5"
                 }
               ],
               "scale": 0.641,
@@ -5801,6 +5837,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 188.18,
+          "y": 224.946,
+          "w": 257.601,
+          "h": 280.627,
+          "radius": 21.241,
+          "color": "#FFFFFF0A",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 17.269,
+                  "y": 243.498,
+                  "sizeDp": 21.586666,
+                  "color": "#1212140A",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 188.18,
+          "y": 224.946,
+          "w": 257.601,
+          "h": 206.081,
+          "radius": [21.241, 21.241, 0, 0],
+          "color": "#E9A23B0A"
         }
       ]
     },
@@ -6005,7 +6077,7 @@
           "w": 227.26,
           "h": 147.412,
           "radius": 9.066,
-          "color": "#E9A23BFF"
+          "color": "#E9A23BCE"
         },
         {
           "kind": "shape",
@@ -6015,7 +6087,7 @@
           "w": 227.26,
           "h": 117.93,
           "radius": 9.066,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F7CE"
         },
         {
           "kind": "shape",
@@ -6040,7 +6112,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#121214CE",
                   "weight": 700
                 },
                 {
@@ -6049,7 +6121,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686ECE"
                 },
                 {
                   "kind": "text",
@@ -6057,7 +6129,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214CE"
                 },
                 {
                   "kind": "text",
@@ -6065,7 +6137,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214CE"
                 },
                 {
                   "kind": "text",
@@ -6073,7 +6145,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214CE"
                 }
               ],
               "scale": 0.614,
@@ -6087,6 +6159,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 164.772,
+          "y": 246.977,
+          "w": 246.915,
+          "h": 268.986,
+          "radius": 20.36,
+          "color": "#FFFFFF31",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 16.553,
+                  "y": 233.397,
+                  "sizeDp": 20.691198,
+                  "color": "#12121431",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 164.772,
+          "y": 246.977,
+          "w": 246.915,
+          "h": 197.532,
+          "radius": [20.36, 20.36, 0, 0],
+          "color": "#E9A23B31"
         }
       ]
     },
@@ -6291,7 +6399,7 @@
           "w": 218.199,
           "h": 141.534,
           "radius": 8.704,
-          "color": "#E9A23BFF"
+          "color": "#E9A23BA9"
         },
         {
           "kind": "shape",
@@ -6301,7 +6409,7 @@
           "w": 218.199,
           "h": 113.228,
           "radius": 8.704,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F7A9"
         },
         {
           "kind": "shape",
@@ -6326,7 +6434,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#121214A9",
                   "weight": 700
                 },
                 {
@@ -6335,7 +6443,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686EA9"
                 },
                 {
                   "kind": "text",
@@ -6343,7 +6451,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214A9"
                 },
                 {
                   "kind": "text",
@@ -6351,7 +6459,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214A9"
                 },
                 {
                   "kind": "text",
@@ -6359,7 +6467,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#121214A9"
                 }
               ],
               "scale": 0.59,
@@ -6373,6 +6481,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 143.207,
+          "y": 267.275,
+          "w": 237.07,
+          "h": 258.261,
+          "radius": 19.548,
+          "color": "#FFFFFF56",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 15.893,
+                  "y": 224.091,
+                  "sizeDp": 19.866224,
+                  "color": "#12121456",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 143.207,
+          "y": 267.275,
+          "w": 237.07,
+          "h": 189.656,
+          "radius": [19.548, 19.548, 0, 0],
+          "color": "#E9A23B56"
         }
       ]
     },
@@ -6577,7 +6721,7 @@
           "w": 209.309,
           "h": 135.768,
           "radius": 8.35,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B86"
         },
         {
           "kind": "shape",
@@ -6587,7 +6731,7 @@
           "w": 209.309,
           "h": 108.614,
           "radius": 8.35,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F786"
         },
         {
           "kind": "shape",
@@ -6612,7 +6756,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121486",
                   "weight": 700
                 },
                 {
@@ -6621,7 +6765,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E86"
                 },
                 {
                   "kind": "text",
@@ -6629,7 +6773,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121486"
                 },
                 {
                   "kind": "text",
@@ -6637,7 +6781,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121486"
                 },
                 {
                   "kind": "text",
@@ -6645,7 +6789,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121486"
                 }
               ],
               "scale": 0.566,
@@ -6659,6 +6803,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 122.048,
+          "y": 287.189,
+          "w": 227.411,
+          "h": 247.739,
+          "radius": 18.752,
+          "color": "#FFFFFF79",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 15.245,
+                  "y": 214.961,
+                  "sizeDp": 19.056814,
+                  "color": "#12121479",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 122.048,
+          "y": 287.189,
+          "w": 227.411,
+          "h": 181.929,
+          "radius": [18.752, 18.752, 0, 0],
+          "color": "#E9A23B79"
         }
       ]
     },
@@ -6863,7 +7043,7 @@
           "w": 201.43,
           "h": 130.657,
           "radius": 8.035,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B66"
         },
         {
           "kind": "shape",
@@ -6873,7 +7053,7 @@
           "w": 201.43,
           "h": 104.526,
           "radius": 8.035,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F766"
         },
         {
           "kind": "shape",
@@ -6898,7 +7078,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121466",
                   "weight": 700
                 },
                 {
@@ -6907,7 +7087,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E66"
                 },
                 {
                   "kind": "text",
@@ -6915,7 +7095,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121466"
                 },
                 {
                   "kind": "text",
@@ -6923,7 +7103,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121466"
                 },
                 {
                   "kind": "text",
@@ -6931,7 +7111,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121466"
                 }
               ],
               "scale": 0.544,
@@ -6945,6 +7125,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 103.297,
+          "y": 304.837,
+          "w": 218.851,
+          "h": 238.413,
+          "radius": 18.046,
+          "color": "#FFFFFF99",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 14.672,
+                  "y": 206.869,
+                  "sizeDp": 18.339489,
+                  "color": "#12121499",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 103.297,
+          "y": 304.837,
+          "w": 218.851,
+          "h": 175.081,
+          "radius": [18.046, 18.046, 0, 0],
+          "color": "#E9A23B99"
         }
       ]
     },
@@ -7149,7 +7365,7 @@
           "w": 195.007,
           "h": 126.491,
           "radius": 7.779,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B4D"
         },
         {
           "kind": "shape",
@@ -7159,7 +7375,7 @@
           "w": 195.007,
           "h": 101.193,
           "radius": 7.779,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F74D"
         },
         {
           "kind": "shape",
@@ -7184,7 +7400,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#1212144D",
                   "weight": 700
                 },
                 {
@@ -7193,7 +7409,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E4D"
                 },
                 {
                   "kind": "text",
@@ -7201,7 +7417,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#1212144D"
                 },
                 {
                   "kind": "text",
@@ -7209,7 +7425,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#1212144D"
                 },
                 {
                   "kind": "text",
@@ -7217,7 +7433,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#1212144D"
                 }
               ],
               "scale": 0.527,
@@ -7231,6 +7447,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 88.01,
+          "y": 319.225,
+          "w": 211.873,
+          "h": 230.811,
+          "radius": 17.471,
+          "color": "#FFFFFFB2",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 14.204,
+                  "y": 200.273,
+                  "sizeDp": 17.754707,
+                  "color": "#121214B2",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 88.01,
+          "y": 319.225,
+          "w": 211.873,
+          "h": 169.498,
+          "radius": [17.471, 17.471, 0, 0],
+          "color": "#E9A23BB2"
         }
       ]
     },
@@ -7435,7 +7687,7 @@
           "w": 189.208,
           "h": 122.73,
           "radius": 7.548,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B35"
         },
         {
           "kind": "shape",
@@ -7445,7 +7697,7 @@
           "w": 189.208,
           "h": 92.215,
           "radius": 7.548,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F735"
         },
         {
           "kind": "shape",
@@ -7470,7 +7722,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121435",
                   "weight": 700
                 },
                 {
@@ -7479,7 +7731,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E35"
                 },
                 {
                   "kind": "text",
@@ -7487,7 +7739,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121435"
                 },
                 {
                   "kind": "text",
@@ -7495,7 +7747,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121435"
                 },
                 {
                   "kind": "text",
@@ -7503,7 +7755,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121435"
                 }
               ],
               "scale": 0.511,
@@ -7517,6 +7769,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 74.208,
+          "y": 332.215,
+          "w": 205.572,
+          "h": 223.948,
+          "radius": 16.951,
+          "color": "#FFFFFFCA",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 13.781,
+                  "y": 194.318,
+                  "sizeDp": 17.22673,
+                  "color": "#121214CA",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 74.208,
+          "y": 332.215,
+          "w": 205.572,
+          "h": 164.458,
+          "radius": [16.951, 16.951, 0, 0],
+          "color": "#E9A23BCA"
         }
       ]
     },
@@ -7721,7 +8009,7 @@
           "w": 184.38,
           "h": 119.598,
           "radius": 7.355,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B22"
         },
         {
           "kind": "shape",
@@ -7731,7 +8019,7 @@
           "w": 184.38,
           "h": 75.587,
           "radius": 7.355,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F722"
         },
         {
           "kind": "shape",
@@ -7756,7 +8044,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121422",
                   "weight": 700
                 },
                 {
@@ -7765,7 +8053,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E22"
                 },
                 {
                   "kind": "text",
@@ -7773,7 +8061,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121422"
                 },
                 {
                   "kind": "text",
@@ -7781,7 +8069,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121422"
                 },
                 {
                   "kind": "text",
@@ -7789,7 +8077,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121422"
                 }
               ],
               "scale": 0.498,
@@ -7803,6 +8091,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 62.717,
+          "y": 343.03,
+          "w": 200.327,
+          "h": 218.233,
+          "radius": 16.519,
+          "color": "#FFFFFFDD",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 13.43,
+                  "y": 189.359,
+                  "sizeDp": 16.787149,
+                  "color": "#121214DD",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 62.717,
+          "y": 343.03,
+          "w": 200.327,
+          "h": 160.261,
+          "radius": [16.519, 16.519, 0, 0],
+          "color": "#E9A23BDD"
         }
       ]
     },
@@ -8007,7 +8331,7 @@
           "w": 180.622,
           "h": 117.16,
           "radius": 7.205,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B13"
         },
         {
           "kind": "shape",
@@ -8017,7 +8341,7 @@
           "w": 180.622,
           "h": 62.643,
           "radius": 7.205,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F713"
         },
         {
           "kind": "shape",
@@ -8042,7 +8366,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121413",
                   "weight": 700
                 },
                 {
@@ -8051,7 +8375,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E13"
                 },
                 {
                   "kind": "text",
@@ -8059,7 +8383,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121413"
                 },
                 {
                   "kind": "text",
@@ -8067,7 +8391,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121413"
                 },
                 {
                   "kind": "text",
@@ -8075,7 +8399,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121413"
                 }
               ],
               "scale": 0.488,
@@ -8089,6 +8413,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 53.772,
+          "y": 351.449,
+          "w": 196.243,
+          "h": 213.784,
+          "radius": 16.182,
+          "color": "#FFFFFFEC",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 13.156,
+                  "y": 185.499,
+                  "sizeDp": 16.444962,
+                  "color": "#121214EC",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 53.772,
+          "y": 351.449,
+          "w": 196.243,
+          "h": 156.995,
+          "radius": [16.182, 16.182, 0, 0],
+          "color": "#E9A23BEC"
         }
       ]
     },
@@ -8293,7 +8653,7 @@
           "w": 177.349,
           "h": 115.037,
           "radius": 7.075,
-          "color": "#E9A23BFF"
+          "color": "#E9A23B06"
         },
         {
           "kind": "shape",
@@ -8303,7 +8663,7 @@
           "w": 177.349,
           "h": 51.373,
           "radius": 7.075,
-          "color": "#F2F2F7FF"
+          "color": "#F2F2F706"
         },
         {
           "kind": "shape",
@@ -8328,7 +8688,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121406",
                   "weight": 700
                 },
                 {
@@ -8337,7 +8697,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E06"
                 },
                 {
                   "kind": "text",
@@ -8345,7 +8705,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121406"
                 },
                 {
                   "kind": "text",
@@ -8353,7 +8713,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121406"
                 },
                 {
                   "kind": "text",
@@ -8361,7 +8721,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121406"
                 }
               ],
               "scale": 0.479,
@@ -8375,6 +8735,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 45.984,
+          "y": 358.78,
+          "w": 192.688,
+          "h": 209.911,
+          "radius": 15.889,
+          "color": "#FFFFFFF9",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.918,
+                  "y": 182.138,
+                  "sizeDp": 16.14702,
+                  "color": "#121214F9",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 45.984,
+          "y": 358.78,
+          "w": 192.688,
+          "h": 154.15,
+          "radius": [15.889, 15.889, 0, 0],
+          "color": "#E9A23BF9"
         }
       ]
     },
@@ -8573,26 +8969,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 47.248,
-          "y": 440.249,
-          "w": 174.706,
-          "h": 113.323,
-          "radius": 6.969,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 47.248,
-          "y": 563.016,
-          "w": 174.706,
-          "h": 42.269,
-          "radius": 6.969,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 39.693,
           "y": 364.701,
@@ -8614,7 +8990,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -8623,7 +8999,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -8631,7 +9007,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -8639,7 +9015,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -8647,7 +9023,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.472,
@@ -8661,6 +9037,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 39.693,
+          "y": 364.701,
+          "w": 189.816,
+          "h": 206.783,
+          "radius": 15.652,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.725,
+                  "y": 179.424,
+                  "sizeDp": 15.906352,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 39.693,
+          "y": 364.701,
+          "w": 189.816,
+          "h": 151.853,
+          "radius": [15.652, 15.652, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -8859,26 +9271,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 42.381,
-          "y": 443.879,
-          "w": 172.698,
-          "h": 112.02,
-          "radius": 6.889,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 42.381,
-          "y": 565.235,
-          "w": 172.698,
-          "h": 35.353,
-          "radius": 6.889,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 34.913,
           "y": 369.199,
@@ -8900,7 +9292,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -8909,7 +9301,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -8917,7 +9309,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -8925,7 +9317,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -8933,7 +9325,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.467,
@@ -8947,6 +9339,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 34.913,
+          "y": 369.199,
+          "w": 187.634,
+          "h": 204.406,
+          "radius": 15.472,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.579,
+                  "y": 177.361,
+                  "sizeDp": 15.723506,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 34.913,
+          "y": 369.199,
+          "w": 187.634,
+          "h": 150.107,
+          "radius": [15.472, 15.472, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -9145,26 +9573,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 38.229,
-          "y": 446.977,
-          "w": 170.984,
-          "h": 110.909,
-          "radius": 6.821,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 38.229,
-          "y": 567.128,
-          "w": 170.984,
-          "h": 29.452,
-          "radius": 6.821,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 30.835,
           "y": 373.038,
@@ -9186,7 +9594,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -9195,7 +9603,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -9203,7 +9611,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9211,7 +9619,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9219,7 +9627,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.462,
@@ -9233,6 +9641,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 30.835,
+          "y": 373.038,
+          "w": 185.772,
+          "h": 202.378,
+          "radius": 15.318,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.454,
+                  "y": 175.601,
+                  "sizeDp": 15.567504,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 30.835,
+          "y": 373.038,
+          "w": 185.772,
+          "h": 148.618,
+          "radius": [15.318, 15.318, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -9431,26 +9875,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 35.108,
-          "y": 449.305,
-          "w": 169.696,
-          "h": 110.073,
-          "radius": 6.77,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 35.108,
-          "y": 568.551,
-          "w": 169.696,
-          "h": 25.016,
-          "radius": 6.77,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 27.769,
           "y": 375.923,
@@ -9472,7 +9896,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -9481,7 +9905,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -9489,7 +9913,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9497,7 +9921,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9505,7 +9929,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.459,
@@ -9519,6 +9943,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 27.769,
+          "y": 375.923,
+          "w": 184.373,
+          "h": 200.853,
+          "radius": 15.203,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.36,
+                  "y": 174.279,
+                  "sizeDp": 15.450231,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 27.769,
+          "y": 375.923,
+          "w": 184.373,
+          "h": 147.498,
+          "radius": [15.203, 15.203, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -9717,26 +10177,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 32.469,
-          "y": 451.273,
-          "w": 168.607,
-          "h": 109.367,
-          "radius": 6.726,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 32.469,
-          "y": 569.754,
-          "w": 168.607,
-          "h": 21.265,
-          "radius": 6.726,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 25.178,
           "y": 378.362,
@@ -9758,7 +10198,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -9767,7 +10207,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -9775,7 +10215,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9783,7 +10223,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -9791,7 +10231,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.456,
@@ -9805,6 +10245,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 25.178,
+          "y": 378.362,
+          "w": 183.19,
+          "h": 199.564,
+          "radius": 15.105,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.281,
+                  "y": 173.16,
+                  "sizeDp": 15.351085,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 25.178,
+          "y": 378.362,
+          "w": 183.19,
+          "h": 146.552,
+          "radius": [15.105, 15.105, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -10003,26 +10479,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 30.392,
-          "y": 452.822,
-          "w": 167.75,
-          "h": 108.811,
-          "radius": 6.692,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 30.392,
-          "y": 570.701,
-          "w": 167.75,
-          "h": 18.314,
-          "radius": 6.692,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 23.138,
           "y": 380.282,
@@ -10044,7 +10500,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -10053,7 +10509,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -10061,7 +10517,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10069,7 +10525,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10077,7 +10533,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.453,
@@ -10091,6 +10547,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 23.138,
+          "y": 380.282,
+          "w": 182.259,
+          "h": 198.55,
+          "radius": 15.029,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.218,
+                  "y": 172.28,
+                  "sizeDp": 15.273064,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 23.138,
+          "y": 380.282,
+          "w": 182.259,
+          "h": 145.807,
+          "radius": [15.029, 15.029, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -10289,26 +10781,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 28.764,
-          "y": 454.037,
-          "w": 167.078,
-          "h": 108.375,
-          "radius": 6.665,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 28.764,
-          "y": 571.444,
-          "w": 167.078,
-          "h": 16,
-          "radius": 6.665,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 21.539,
           "y": 381.787,
@@ -10330,7 +10802,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -10339,7 +10811,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -10347,7 +10819,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10355,7 +10827,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10363,7 +10835,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.452,
@@ -10377,6 +10849,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 21.539,
+          "y": 381.787,
+          "w": 181.528,
+          "h": 197.754,
+          "radius": 14.968,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.17,
+                  "y": 171.59,
+                  "sizeDp": 15.211884,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 21.539,
+          "y": 381.787,
+          "w": 181.528,
+          "h": 145.223,
+          "radius": [14.968, 14.968, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -10575,26 +11083,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 27.557,
-          "y": 454.937,
-          "w": 166.581,
-          "h": 108.052,
-          "radius": 6.645,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 27.557,
-          "y": 571.994,
-          "w": 166.581,
-          "h": 14.285,
-          "radius": 6.645,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 20.354,
           "y": 382.902,
@@ -10616,7 +11104,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -10625,7 +11113,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -10633,7 +11121,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10641,7 +11129,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10649,7 +11137,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.45,
@@ -10663,6 +11151,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 20.354,
+          "y": 382.902,
+          "w": 180.988,
+          "h": 197.165,
+          "radius": 14.924,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.133,
+                  "y": 171.079,
+                  "sizeDp": 15.166558,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 20.354,
+          "y": 382.902,
+          "w": 180.988,
+          "h": 144.79,
+          "radius": [14.924, 14.924, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -10861,26 +11385,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 26.551,
-          "y": 455.688,
-          "w": 166.165,
-          "h": 107.783,
-          "radius": 6.629,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 26.551,
-          "y": 572.453,
-          "w": 166.165,
-          "h": 12.855,
-          "radius": 6.629,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 19.365,
           "y": 383.833,
@@ -10902,7 +11406,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -10911,7 +11415,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -10919,7 +11423,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10927,7 +11431,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -10935,7 +11439,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.449,
@@ -10949,6 +11453,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 19.365,
+          "y": 383.833,
+          "w": 180.536,
+          "h": 196.674,
+          "radius": 14.887,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.103,
+                  "y": 170.652,
+                  "sizeDp": 15.128732,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 19.365,
+          "y": 383.833,
+          "w": 180.536,
+          "h": 144.429,
+          "radius": [14.887, 14.887, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -11147,26 +11687,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 25.768,
-          "y": 456.272,
-          "w": 165.842,
-          "h": 107.573,
-          "radius": 6.616,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 25.768,
-          "y": 572.81,
-          "w": 165.842,
-          "h": 11.742,
-          "radius": 6.616,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 18.596,
           "y": 384.557,
@@ -11188,7 +11708,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -11197,7 +11717,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -11205,7 +11725,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11213,7 +11733,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11221,7 +11741,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.448,
@@ -11235,6 +11755,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 18.596,
+          "y": 384.557,
+          "w": 180.185,
+          "h": 196.291,
+          "radius": 14.858,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.079,
+                  "y": 170.32,
+                  "sizeDp": 15.099315,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 18.596,
+          "y": 384.557,
+          "w": 180.185,
+          "h": 144.148,
+          "radius": [14.858, 14.858, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -11433,26 +11989,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 25.192,
-          "y": 456.702,
-          "w": 165.604,
-          "h": 107.419,
-          "radius": 6.606,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 25.192,
-          "y": 573.072,
-          "w": 165.604,
-          "h": 10.924,
-          "radius": 6.606,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 18.031,
           "y": 385.089,
@@ -11474,7 +12010,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -11483,7 +12019,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -11491,7 +12027,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11499,7 +12035,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11507,7 +12043,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.448,
@@ -11521,6 +12057,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 18.031,
+          "y": 385.089,
+          "w": 179.927,
+          "h": 196.01,
+          "radius": 14.836,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.062,
+                  "y": 170.076,
+                  "sizeDp": 15.077682,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 18.031,
+          "y": 385.089,
+          "w": 179.927,
+          "h": 143.942,
+          "radius": [14.836, 14.836, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -11719,26 +12291,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 24.715,
-          "y": 457.058,
-          "w": 165.407,
-          "h": 107.291,
-          "radius": 6.598,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 24.715,
-          "y": 573.29,
-          "w": 165.407,
-          "h": 10.245,
-          "radius": 6.598,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 17.562,
           "y": 385.53,
@@ -11760,7 +12312,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -11769,7 +12321,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -11777,7 +12329,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11785,7 +12337,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -11793,7 +12345,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.447,
@@ -11807,6 +12359,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 17.562,
+          "y": 385.53,
+          "w": 179.713,
+          "h": 195.777,
+          "radius": 14.819,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.048,
+                  "y": 169.874,
+                  "sizeDp": 15.059746,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 17.562,
+          "y": 385.53,
+          "w": 179.713,
+          "h": 143.77,
+          "radius": [14.819, 14.819, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -12005,26 +12593,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 24.346,
-          "y": 457.333,
-          "w": 165.255,
-          "h": 107.193,
-          "radius": 6.592,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 24.346,
-          "y": 573.458,
-          "w": 165.255,
-          "h": 9.721,
-          "radius": 6.592,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 17.2,
           "y": 385.871,
@@ -12046,7 +12614,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -12055,7 +12623,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -12063,7 +12631,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12071,7 +12639,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12079,7 +12647,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.447,
@@ -12093,6 +12661,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 17.2,
+          "y": 385.871,
+          "w": 179.548,
+          "h": 195.596,
+          "radius": 14.805,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.037,
+                  "y": 169.718,
+                  "sizeDp": 15.045887,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 17.2,
+          "y": 385.871,
+          "w": 179.548,
+          "h": 143.638,
+          "radius": [14.805, 14.805, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -12291,26 +12895,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 24.076,
-          "y": 457.534,
-          "w": 165.144,
-          "h": 107.12,
-          "radius": 6.588,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 24.076,
-          "y": 573.581,
-          "w": 165.144,
-          "h": 9.337,
-          "radius": 6.588,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 16.935,
           "y": 386.12,
@@ -12332,7 +12916,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -12341,7 +12925,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -12349,7 +12933,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12357,7 +12941,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12365,7 +12949,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.446,
@@ -12379,6 +12963,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 16.935,
+          "y": 386.12,
+          "w": 179.427,
+          "h": 195.465,
+          "radius": 14.795,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.029,
+                  "y": 169.603,
+                  "sizeDp": 15.035752,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 16.935,
+          "y": 386.12,
+          "w": 179.427,
+          "h": 143.541,
+          "radius": [14.795, 14.795, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },
@@ -12577,26 +13197,6 @@
         },
         {
           "kind": "shape",
-          "name": "foto",
-          "x": 23.853,
-          "y": 457.7,
-          "w": 165.052,
-          "h": 107.061,
-          "radius": 6.584,
-          "color": "#E9A23BFF"
-        },
-        {
-          "kind": "shape",
-          "name": "righe",
-          "x": 23.853,
-          "y": 573.682,
-          "w": 165.052,
-          "h": 9.021,
-          "radius": 6.584,
-          "color": "#F2F2F7FF"
-        },
-        {
-          "kind": "shape",
           "name": "testo-pagina",
           "x": 16.716,
           "y": 386.326,
@@ -12618,7 +13218,7 @@
                   "x": 20,
                   "y": 104,
                   "sizeDp": 34,
-                  "color": "#121214FF",
+                  "color": "#12121400",
                   "weight": 700
                 },
                 {
@@ -12627,7 +13227,7 @@
                   "x": 20,
                   "y": 134,
                   "sizeDp": 15,
-                  "color": "#68686EFF"
+                  "color": "#68686E00"
                 },
                 {
                   "kind": "text",
@@ -12635,7 +13235,7 @@
                   "x": 32,
                   "y": 448,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12643,7 +13243,7 @@
                   "x": 32,
                   "y": 512,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 },
                 {
                   "kind": "text",
@@ -12651,7 +13251,7 @@
                   "x": 32,
                   "y": 576,
                   "sizeDp": 17,
-                  "color": "#121214FF"
+                  "color": "#12121400"
                 }
               ],
               "scale": 0.446,
@@ -12665,6 +13265,42 @@
             }
           ],
           "contentClip": "none"
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma",
+          "x": 16.716,
+          "y": 386.326,
+          "w": 179.327,
+          "h": 195.356,
+          "radius": 14.787,
+          "color": "#FFFFFFFF",
+          "content": [
+            {
+              "name": "scritte",
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Luogo",
+                  "x": 12.022,
+                  "y": 169.509,
+                  "sizeDp": 15.027389,
+                  "color": "#121214FF",
+                  "weight": 600
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "sorgente-in-sagoma-foto",
+          "x": 16.716,
+          "y": 386.326,
+          "w": 179.327,
+          "h": 143.461,
+          "radius": [14.787, 14.787, 0, 0],
+          "color": "#E9A23BFF"
         }
       ]
     },

@@ -24,16 +24,16 @@ class FluidScreenScrollEdgeTest {
     // La striscia è alta `height + reach` e deve starci tutta: il riquadro le lascia esattamente il suo spazio.
     assertEquals(statusBar + FluidScreenDefaults.ControlRowHeight + FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top), height)
     // 1,4 altezze di tasto sotto la riga dei tasti (il velo dolce arriva a zero a 1,35 H, la dissolvenza a 1,4), cioè
-    // 61,6 dp.
-    assertEquals(61.6f, (height - statusBar - FluidScreenDefaults.ControlRowHeight).value, 0.001f)
+    // 64,4 dp.
+    assertEquals(64.4f, (height - statusBar - FluidScreenDefaults.ControlRowHeight).value, 0.001f)
   }
 
   @Test
   @Suppress("DEPRECATION")
   fun barBox_withTheFallback_isTheBandOfAlways() {
     val statusBar = 24.dp
-    // Sotto Android 13 e con `Classic` niente cambia: la coda della fascia resta di 34 dp.
-    assertEquals(statusBar + 44.dp + 34.dp, fluidTopBarChromeHeight(statusBar, scrollEdge = false))
+    // La coda della fascia Classic resta di 34 dp sotto la nuova riga.
+    assertEquals(statusBar + 46.dp + 34.dp, fluidTopBarChromeHeight(statusBar, scrollEdge = false))
     assertEquals(FluidScreenDefaults.GlassFadeTail, FluidTopBarClassicFadeTail)
   }
 
@@ -44,8 +44,8 @@ class FluidScreenScrollEdgeTest {
     val withEdge = fluidTopBarChromeHeight(statusBar, scrollEdge = true)
     val withBand = fluidTopBarChromeHeight(statusBar, scrollEdge = false)
     assertTrue(withEdge > withBand)
-    assertEquals(44.dp, FluidScreenDefaults.ControlRowHeight)
-    assertEquals(27.6f, (withEdge - withBand).value, 0.001f)
+    assertEquals(46.dp, FluidScreenDefaults.ControlRowHeight)
+    assertEquals(30.4f, (withEdge - withBand).value, 0.001f)
   }
 
   @Test

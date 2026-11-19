@@ -8,9 +8,9 @@ import org.junit.Test
 class FluidGlassControlsTest {
 
   @Test
-  fun iconButton_keepsA48DpHitTargetAroundThe44DpLens() {
+  fun iconButton_keepsA48DpHitTargetAroundThe46DpLens() {
     assertTrue(FluidGlassIconTouchTargetSize >= 48.dp)
-    assertEquals(44.dp, FluidGlassIconLensSize)
+    assertEquals(46.dp, FluidGlassIconLensSize)
     assertTrue(FluidGlassIconTouchTargetSize > FluidGlassIconLensSize)
   }
 

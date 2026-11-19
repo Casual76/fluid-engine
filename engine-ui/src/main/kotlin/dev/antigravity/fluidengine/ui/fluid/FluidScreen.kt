@@ -507,8 +507,8 @@ internal val FluidTopBarClassicFadeTail: Dp = 34.dp
 val LocalFluidItemSpacing = compositionLocalOf { FluidScreenDefaults.ItemSpacing }
 
 object FluidScreenDefaults {
-  /** Height of the control row of the bar, matching the 44pt UIKit navigation bar. */
-  val ControlRowHeight: Dp = 44.dp
+  /** La riga dei controlli segue il diametro del vetro per tenere allineati tasti e titolo. */
+  val ControlRowHeight: Dp = FluidMetrics.GlassButtonLens
 
   /**
    * Lo scorrimento che resta limpido prima che il bordo dello scorrimento compaia, perché un tocco appena accennato
@@ -537,7 +537,7 @@ object FluidScreenDefaults {
   val ShieldRampDistance: Dp = ScrollEdgeRampDistance
 
   /**
-   * Soft tail below the 44 dp control row; it removes the hard edge of a rectangular top bar.
+   * Soft tail below the control row, removing the hard edge of a rectangular top bar.
    *
    * Dalla 4.0 vale solo dove resta la fascia di vetro (sotto Android 13, `FluidGlassModel.Classic`, un compilatore che
    * rifiuta la striscia). Sotto il materiale `Liquid` il bordo dello scorrimento arriva più in basso, fin dove lo porta
@@ -2294,7 +2294,7 @@ internal fun BoxScope.FluidTopBarGlass(
 }
 
 /**
- * La riga dei controlli: sotto la barra di stato, alta 44 dp, toccata riporta in cima. Tap-the-bar-
+ * La riga dei controlli: sotto la barra di stato, alta 46 dp, toccata riporta in cima. Tap-the-bar-
  * to-scroll-up covers the control row only and is exposed as a named action, never as the anonymous
  * unchecked selection control that `selectable` would create.
  */
@@ -2742,8 +2742,7 @@ fun FluidBarAction(
 object FluidBarActionDefaults {
   /**
    * Il lato di un avatar (o di un'immagine tonda) dentro la lente di una [FluidBarAction]: 32 dp in una lente da
-   * 44. Il vetro che avanza (6 dp per lato) e' l'orlo che fa leggere il tasto come vetro: un avatar a
-   * 44 dp coprirebbe la lente e il tasto sembrerebbe una foto incollata sulla barra.
+   * 46. I 7 dp di vetro per lato conservano un orlo visibile attorno alla foto.
    */
   val ContentSize: Dp = 32.dp
 }
@@ -2760,7 +2759,7 @@ object FluidBarActionDefaults {
  * [FluidAvatar], un mosaico, un'immagine gia' decodificata, e nessun effetto collaterale (niente
  * `LaunchedEffect` che carica, niente stato catturato che cambi mentre il menu e' aperto).
  *
- * Misure: la lente e' quella di un tasto della barra, 44 dp, e il contenuto sta dentro con un orlo
+ * Misure: la lente e' quella di un tasto della barra, 46 dp, e il contenuto sta dentro con un orlo
  * di vetro attorno; [FluidBarActionDefaults.ContentSize] e' il lato giusto per un avatar. Il bersaglio
  * resta 48 dp.
  *

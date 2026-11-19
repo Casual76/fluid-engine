@@ -378,14 +378,24 @@ Chrome → Navigazione).
 - **La sorgente nascosta.** Si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma (non prima: nel
   fotogramma del cambio di pila la pagina non è ancora composta) e rinasce quando la pagina esce dalla pila, a riposo.
   Il ritorno finisce quando la sagoma è **arrivata** sulla sorgente (entro 1 dp, `FluidZoom.ArrivalDp`), non alla coda
-  della molla: nessun salto di forma alla fine. Apple invece, da circa un terzo del ritorno, dissolve la pagina nella cella
-  dentro la sagoma (le due si vedono insieme; a tempo vero ≈125 ms, da poco prima del rilascio del dito a ≈100 ms dopo;
-  all'apertura nei primi ≈115 ms); qui di serie no, la card rinasce quando la sagoma è arrivata. La
-  dissolvenza c'è come **variante interna, spenta** (`FluidPageHostState.zoomCrossfade`, F5B.3: la decide Alessio sul
-  video): accesa, la sorgente consumata si registra in un layer e l'host la disegna dentro la sagoma, larga quanto lei e
-  in alto, sopra la pagina che sbiadisce; quanto si vede si legge dalla strada della sagoma (`FluidZoom.crossfade`, da
-  0,33 a 0,9), quindi vale uguale col tasto, col dito e all'apertura. Il
-  modificatore nasconde ciò che gli sta **dopo** nella catena: va messo prima di forma, fondo e contenuto.
+  della molla: nessun salto di forma alla fine. Il modificatore nasconde ciò che gli sta **dopo** nella catena: va messo
+  prima di forma, fondo e contenuto.
+- **La dissolvenza, di serie** (scelta di Alessio del 19 novembre 2026, sui video a tempo vero). Come Apple, dentro la
+  sagoma la pagina e la card si dissolvono l'una nell'altra: la sorgente consumata si registra in un layer e l'host la
+  disegna dentro la sagoma, larga quanto lei e in alto, sopra la pagina che sbiadisce (il fondo della pagina resta
+  pieno). Quanto si vede si legge dalla **strada** della sagoma e non dal tempo (`FluidZoom.crossfade`, da 0,33 a 0,9),
+  quindi vale uguale col tasto, col dito e all'apertura, e un push che si inverte in pop non salta:
+  - **all'apertura** la card nasce piena nella sagoma e sbiadisce mentre la pagina compare, fra ≈30 e ≈130 ms (Apple,
+    WWDC24 10145 a tempo vero: da ≈23 a ≈115 ms);
+  - **al ritorno col tasto** la card compare sulla pagina a ≈85 ms, le due si vedono insieme fino a ≈180 ms, e la sagoma
+    è la sola card verso 200 ms (Apple: la cella da 67 ms, sola verso 190); la card «rinasce» quando la sagoma è
+    arrivata, ma è la stessa immagine e non si vede;
+  - **col dito** la dissolvenza parte quando la sagoma ha fatto un terzo della strada, di solito dopo il rilascio.
+
+  Con le animazioni ridotte non c'è zoom, quindi nemmeno dissolvenza: vale il ripiego qui sotto. Resta diverso da Apple:
+  sotto la fotografia della card, che ha la proporzione della card, per qualche fotogramma si vedono le righe della pagina
+  che sbiadiscono (la sagoma a metà strada è più alta della card). `FluidPageHostState.zoomCrossfade` (interno) la spegne
+  per le tracce di confronto (`zoom-torna-senza-dissolvenza`).
 - **Il ripiego.** Senza `zoomSource`, con le animazioni ridotte, o se la sorgente al momento non si trova (uscita dallo
   scorrimento, pagina cambiata), vale l'`Expand` di sempre: dal punto toccato in andata, «rimpicciolisce e scivola» al
   ritorno. Una sorgente sparita **a metà** di un ritorno già partito: la sagoma atterra dove l'aveva trovata.

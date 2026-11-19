@@ -55,7 +55,10 @@ import kotlin.math.min
  * - **`zoom-apre`**, **`zoom-torna`**, **`zoom-dito`**, **`zoom-dito-interrotto`**: una card della griglia che diventa
  *   pagina e torna, **dalla macchina vera** ([FluidPageHostState] con un orologio finto): la sagoma è
  *   [FluidPageHostState.zoomShape], la pagina dentro è in scala come la disegna l'host. La card sorgente non si disegna
- *   finché la macchina la tiene consumata.
+ *   finché la macchina la tiene consumata. Dal 19 novembre 2026 (scelte-b, scelta di Alessio) la dissolvenza è di serie:
+ *   dentro la sagoma la card e la pagina si dissolvono l'una nell'altra, all'apertura e al ritorno.
+ * - **`zoom-torna-senza-dissolvenza`**: il ritorno col tasto con la dissolvenza spenta ([FluidPageHostState.zoomCrossfade]
+ *   falso), com'era di serie fino a corr-zoom: la miniatura della pagina resta intera fino alla card. Solo per confronto.
  *
  * **Fuori dalla traccia**: l'ombra della carta, la barra in alto (ferma, si trasforma sul suo tempo: F4A), le icone della
  * barra in basso (la capsula sì).
@@ -84,10 +87,10 @@ class F5b3ZoomTraceTest {
     val sheetClose = foglioDalTasto(closing = true)
     val open = zoomPagine("zoom-apre")
     val back = zoomPagine("zoom-torna")
-    val backFading = zoomPagine("zoom-torna-dissolvenza")
+    val backPlain = zoomPagine("zoom-torna-senza-dissolvenza")
     val finger = zoomPagine("zoom-dito")
     val interrupted = zoomPagine("zoom-dito-interrotto")
-    val traces = listOf(sheetOpen, sheetClose, open, back, backFading, finger, interrupted)
+    val traces = listOf(sheetOpen, sheetClose, open, back, backPlain, finger, interrupted)
     GlassTraceOutput.requestedDir(System.getenv("GLASS_F5B3_DIR"))?.let { dir ->
       for (t in traces) t.write(File(dir, "${t.name}/trace.json"))
       foglioDalTasto(closing = true, returnInk = false).write(File(dir, "foglio-dal-tasto-chiude-prima/trace.json"))
@@ -106,7 +109,7 @@ class F5b3ZoomTraceTest {
     val page = born.single { it["name"] == "pagina" }
     assertEquals(SourceCard.left, (page["x"] as Number).toFloat(), 0.5f)
     assertEquals(SourceCard.top, (page["y"] as Number).toFloat(), 0.5f)
-    for (t in listOf(back, backFading, finger, interrupted)) {
+    for (t in listOf(back, backPlain, finger, interrupted)) {
       val end = t.frames.last().elements
       assertTrue("${t.name}: a riposo la card rinasce", end.any { it["name"] == "card-sorgente" })
       assertTrue("${t.name}: e la pagina non c'è più", end.none { it["name"] == "pagina" })
@@ -114,13 +117,20 @@ class F5b3ZoomTraceTest {
       assertEquals("${t.name}: l'ultima sagoma è sulla card", SourceCard.left, (lastPage["x"] as Number).toFloat(), 2f)
       assertEquals(SourceCard.top, (lastPage["y"] as Number).toFloat(), 2f)
     }
-    // Senza la variante nessuna fotografia della card dentro la sagoma; con la variante c'è, e all'arrivo copre la sagoma.
-    assertTrue(back.frames.none { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } })
-    val fading = backFading.frames.filter { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } }
-    assertTrue("la dissolvenza c'è", fading.isNotEmpty())
-    val home = fading.last().elements.single { it["name"] == "sorgente-in-sagoma" }
-    assertEquals(SourceCard.width, (home["w"] as Number).toFloat(), 2f)
-    assertTrue("all'arrivo la card è piena: ${home["color"]}", (home["color"] as String).endsWith("FF"))
+    // Di serie la fotografia della card c'è dentro la sagoma, e all'arrivo la copre; spenta, nessuna fotografia.
+    assertTrue(backPlain.frames.none { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } })
+    for (t in listOf(back, finger, interrupted)) {
+      val fading = t.frames.filter { f -> f.elements.any { it["name"] == "sorgente-in-sagoma" } }
+      assertTrue("${t.name}: la dissolvenza c'è", fading.isNotEmpty())
+      val home = fading.last().elements.single { it["name"] == "sorgente-in-sagoma" }
+      assertEquals(SourceCard.width, (home["w"] as Number).toFloat(), 2f)
+      assertTrue("${t.name}: all'arrivo la card è piena: ${home["color"]}", (home["color"] as String).endsWith("FF"))
+    }
+    // All'apertura la card nasce piena dentro la sagoma e sbiadisce mentre la pagina compare; a riposo non c'è più.
+    val opening = open.frames.filter { f -> f.elements.any { it["name"] == "pagina" } }
+    val firstCard = opening.first().elements.single { it["name"] == "sorgente-in-sagoma" }
+    assertTrue("la card è piena al primo fotogramma: ${firstCard["color"]}", (firstCard["color"] as String).endsWith("FF"))
+    assertTrue("e a riposo è sparita", opening.last().elements.none { it["name"] == "sorgente-in-sagoma" })
   }
 
   @Test
@@ -334,7 +344,7 @@ class F5b3ZoomTraceTest {
         FluidTransitionSourceGeometry(SourceCard.scaled(d), ContinuousCornerShape(FluidRadius.Card))
       }
       it.onBack = { it.onStack(listOf("G")) }
-      it.zoomCrossfade = scenario == "zoom-torna-dissolvenza"
+      it.zoomCrossfade = scenario != "zoom-torna-senza-dissolvenza"
       it.onStack(listOf("G"))
     }
     var nanos = 0L
@@ -356,7 +366,7 @@ class F5b3ZoomTraceTest {
     // col tasto arriva al dp verso 470 ms; dopo, qualche fotogramma a riposo.
     val lastFrame = when (scenario) {
       "zoom-apre" -> 48
-      "zoom-torna", "zoom-torna-dissolvenza" -> 48
+      "zoom-torna", "zoom-torna-senza-dissolvenza" -> 48
       "zoom-dito" -> 66
       "zoom-dito-interrotto" -> 90
       else -> 48
@@ -368,7 +378,7 @@ class F5b3ZoomTraceTest {
           state.onStack(listOf("G", "D"))
           state.pagePlaced("D")
         }
-        "zoom-torna", "zoom-torna-dissolvenza" -> if (k == 0) state.onStack(listOf("G"))
+        "zoom-torna", "zoom-torna-senza-dissolvenza" -> if (k == 0) state.onStack(listOf("G"))
         "zoom-dito" -> {
           // Il dito dal bordo: 220 dp in 250 ms (15 fotogrammi), poi lascia con la sua velocità.
           if (k == 0) {
@@ -432,8 +442,8 @@ class F5b3ZoomTraceTest {
     fun mapRect(r: Rect): Rect = Rect(map(r.topLeft), map(r.bottomRight))
     val g = shape.bounds
     val k = shape.corners
-    // La variante con la dissolvenza (FluidPageHost.zoomCrossfade): il fondo resta pieno, il contenuto della pagina
-    // sbiadisce e sopra compare la fotografia della card, larga quanto la sagoma e in alto.
+    // La dissolvenza (FluidPageHost.zoomCrossfade, di serie): il fondo resta pieno, il contenuto della pagina sbiadisce e
+    // sopra compare la fotografia della card, larga quanto la sagoma e in alto.
     val fade = state.zoomCrossfadeAlpha()
     val pageAlpha = 1f - fade
     fun faded(color: Color) = color.copy(alpha = color.alpha * pageAlpha)
@@ -488,7 +498,7 @@ class F5b3ZoomTraceTest {
     return out
   }
 
-  /** Una card della griglia; [scale] e [alpha] per la sua fotografia dentro la sagoma (la variante con la dissolvenza). */
+  /** Una card della griglia; [scale] e [alpha] per la sua fotografia dentro la sagoma (la dissolvenza). */
   private fun cardElements(
     name: String,
     card: Rect,
@@ -548,7 +558,7 @@ class F5b3ZoomTraceTest {
       "zoom-dito" -> 3179 to "classe B, a tempo vero: la pagina presa dal bordo, trascinata e lasciata, rientra nella sua " +
         "cella; dopo il rilascio la stessa molla, partita con la velocità del dito. Il dito di Apple (≈120 ms) non è " +
         "quello della traccia (250 ms)."
-      "zoom-torna", "zoom-torna-dissolvenza" -> 3180 to "classe B, a tempo vero: il ritorno col tasto non c'è nella " +
+      "zoom-torna", "zoom-torna-senza-dissolvenza" -> 3180 to "classe B, a tempo vero: il ritorno col tasto non c'è nella " +
         "sessione; accanto, il ritorno col dito (1:46), allineato sulla strada dopo il rilascio (f3186-f3190: Apple 0,49 " +
         "-> 0,79, la nostra molla da f3180 entro 0,04). Prima del rilascio il dito di Apple porta la pagina a destra."
       else -> return null

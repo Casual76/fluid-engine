@@ -65,11 +65,11 @@ class FluidScrollEdgeTest {
       GlassScrollEdgeProfile.Soft.atResolution(GlassScrollEdgeCaptureScale).reach,
       0f,
     )
-    assertEquals(61.6f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top).value, 1e-3f)
-    assertEquals(44.dp, FluidScrollEdgeDefaults.ControlHeight)
+    assertEquals(64.4f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top).value, 1e-3f)
+    assertEquals(46.dp, FluidScrollEdgeDefaults.ControlHeight)
     // Una tab bar da 62 dp si porta dietro un bordo proporzionato.
     assertEquals(86.8f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Bottom, controlHeight = 62.dp).value, 1e-3f)
-    assertEquals(6.6f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hard).value, 1e-3f)
+    assertEquals(6.9f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hard).value, 1e-3f)
     assertEquals(0f, FluidScrollEdgeDefaults.reach(FluidScrollEdgeSide.Top, FluidScrollEdgeStyle.Hidden).value, 0f)
   }
 

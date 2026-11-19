@@ -1,6 +1,10 @@
 package dev.antigravity.fluidengine.ui.glass.field.trace
 
 import dev.antigravity.fluidengine.ui.fluid.FluidContextScrimLevel
+import dev.antigravity.fluidengine.ui.fluid.FluidContextScrimTuning
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuOrder
+import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReverses
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,10 +46,10 @@ internal object F5a5MenuTraces {
   /** Il ritaglio del render di B1 (c): il gruppo di quattro tasti e il menu, con lo stesso aspetto della tela. */
   private val RenderCrop = listOf(340, 160, 1000, 844)
 
-  /** Il tasto di `OggiMenuApertura` nella tela (dp): lente fra 24 e 68, fra 177 e 221; il gruppo da 24 a 156. */
-  private const val ButtonCenterX = 46.0
-  private const val GroupCenterX = 90.0
-  private const val ButtonCenterY = 199.0
+  /** Centri del tasto e del gruppo nella tela ritagliata di OggiMenuApertura. */
+  private val ButtonCenterX = 24.0 + FluidMetrics.GlassButtonLens.value / 2
+  private val GroupCenterX = ButtonCenterX + FluidMetrics.GroupItemPitch.value
+  private val ButtonCenterY = 221.0 - FluidMetrics.GlassButtonLens.value / 2
 
   /** Il pannello di quattro righe (6 + 4 x 48 + 6 dp): la misura su cui si fa la percentuale. */
   private const val PanelHeightDp = 204.0
@@ -138,10 +142,18 @@ internal object F5a5MenuTraces {
     return GlassTrace(name, Phase, built.density, built.theme, built.widthDp, built.heightDp, built.frames, built.fps, head)
   }
 
-  private fun menu(variant: MenuTraceVariant, name: String) = buildMenuTrace(
-    OggiMenuApertura.scene(density = 1.5f), dress = TraceDress.Liquid, name = name,
-    phase = Phase, unified = true, variant = variant.copy(corrected = true),
-  )
+  private fun menu(variant: MenuTraceVariant, name: String): MenuBuilt {
+    val automatic = fluidMenuReverses(FluidMenuOrder.Automatic, opensUpward = true, fromButton = true)
+    return buildMenuTrace(
+      OggiMenuApertura.scene(
+        density = 1.5f,
+        lensDp = FluidMetrics.GlassButtonLens.value,
+        iconDp = FluidMetrics.BarIconSize.value,
+        reversed = automatic,
+      ),
+      dress = TraceDress.Liquid, name = name, phase = Phase, unified = true, variant = variant.copy(corrected = true),
+    )
+  }
 
   /** Le sei tracce, con i fatti che il test controlla. */
   fun build(): List<Pair<GlassTrace, MenuBuilt?>> {
@@ -156,7 +168,7 @@ internal object F5a5MenuTraces {
     val contextScenes = FluidContextScrimLevel.entries.associateWith {
       F5a4ContextTraces.build(it, dark = false, corrected = true)
     }
-    val context = contextScenes.getValue(FluidContextScrimLevel.B).opens
+    val context = contextScenes.getValue(FluidContextScrimTuning.Default).opens
 
     @Suppress("UNCHECKED_CAST")
     val openEvents = opening.trace.head["events"] as List<Map<String, Any?>>
@@ -201,7 +213,7 @@ internal object F5a5MenuTraces {
       ) to interrupted,
       retitled(
         context, "contestuale-apre",
-        "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (B) e l'inchiostro nella lente, " +
+        "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (C) e l'inchiostro nella lente, " +
           "(F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni.",
         listOf(
           linkedMapOf(

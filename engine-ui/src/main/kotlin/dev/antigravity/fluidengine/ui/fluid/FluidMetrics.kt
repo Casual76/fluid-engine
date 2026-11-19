@@ -29,17 +29,14 @@ object FluidMetrics {
   // --- Tasti --------------------------------------------------------------------------------------------------
 
   /**
-   * Il vetro di un tasto tondo solo icona: 44 dp, come i 44,0 pt misurati sul tasto della barra di iOS 27 (R6,
-   * fiducia alta). Invariato: il tasto non era piccolo, lo sembrava.
-   *
-   * **Scelta aperta** (R6, F6.4): se con le icone a 0,6 del vetro il tasto sembra ancora piccolo, 46 dp (icona 28),
-   * che pero' alza la riga dei controlli. Di serie resta 44 finche' Alessio non sceglie sulla tavola 44 contro 46.
+   * Il vetro di un tasto tondo solo icona: 46 dp (scelta B di F6.4). La stessa misura guida la riga dei
+   * controlli e il passo dentro una capsula, così i tasti conservano le proporzioni in ogni barra.
    */
-  val GlassButtonLens: Dp = 44.dp
+  val GlassButtonLens: Dp = 46.dp
 
   /**
-   * Il bersaglio del tocco: mai sotto 48 dp, il minimo di Android (Apple ne documenta 44). Il vetro da 44 sta al
-   * centro di questo riquadro, con 2 dp d'aria per lato che contano nei margini qui sotto.
+   * Il bersaglio del tocco: mai sotto 48 dp, il minimo di Android (Apple ne documenta 44). Il vetro da 46 sta al
+   * centro di questo riquadro, con 1 dp d'aria per lato che conta nei margini qui sotto.
    */
   val TouchTarget: Dp = 48.dp
 
@@ -63,14 +60,14 @@ object FluidMetrics {
   val GroupSpacing: Dp = 12.dp
 
   /**
-   * Il passo delle icone dentro un gruppo (una capsula di azioni): 44 dp da centro a centro, cioe' un gruppo di n
-   * azioni e' largo n x 44 piu' i suoi margini. E' il passo di iOS 26, 1,0 volte l'altezza della capsula (R6, fiducia
+   * Il passo delle icone dentro un gruppo (una capsula di azioni): 46 dp da centro a centro, quindi tre azioni
+   * occupano 138 dp più i margini. E' il passo di iOS 26, 1,0 volte l'altezza della capsula (R6, fiducia
    * media, render), e sta su ogni larghezza di telefono. iOS 27 in una barra ne misura 62 pt (R6, alta sul frame ma
    * su una barra sola con simboli larghi): resta un **bersaglio da rivedere** su altri frame, non una regola. Lo usa
    * la barra dichiarata a gruppi (F4A.2): ogni icona tiene comunque il suo bersaglio da [TouchTarget], che sborda
-   * di 2 dp per lato nel vicino senza cambiare il passo.
+   * di 1 dp per lato nel vicino senza cambiare il passo.
    */
-  val GroupItemPitch: Dp = 44.dp
+  val GroupItemPitch: Dp = GlassButtonLens
 
   // --- Capsula flottante e tab bar ------------------------------------------------------------------------------
 
@@ -104,18 +101,17 @@ object FluidMetrics {
    */
   val IconSize: Dp = 24.dp
 
-  /** L'icona di un'azione della barra in alto ([FluidBarAction]): 26 dp, cioe' 0,6 del vetro da 44 (prima 22). */
-  val BarIconSize: Dp = 26.dp
+  /** L'icona di un'azione della barra in alto ([FluidBarAction]): 28 dp, cioe' 0,6 del vetro da 46 arrotondato. */
+  val BarIconSize: Dp = iconSizeIn(GlassButtonLens)
 
   /**
-   * La freccia del tasto indietro: 24 dp (prima 20). Un po' sotto le altre icone perche' la freccia e' una sagoma
-   * stretta e alta: a 24 dp e' alta 18,8 dp con un tratto di 2,6, contro i 18,7 pt e 2,5 pt del chevron di iOS 27
-   * (R6, alta).
+   * La freccia del tasto indietro: 25 dp. Mantiene la proporzione della freccia da 24 dp nel vetro da 44 di R6,
+   * un po' sotto le altre icone perché ha una sagoma stretta e alta.
    */
-  val BackIconSize: Dp = 24.dp
+  val BackIconSize: Dp = (GlassButtonLens.value * (24f / 44f)).roundToInt().dp
 
-  /** L'icona di un'azione della capsula flottante ([FluidCapsuleAction]): 26 dp (prima 24), come in barra. */
-  val CapsuleIconSize: Dp = 26.dp
+  /** L'icona di un'azione della capsula flottante ([FluidCapsuleAction]): 28 dp, come in barra. */
+  val CapsuleIconSize: Dp = BarIconSize
 
   /**
    * L'icona di una scheda della tab bar: 28 dp (prima 24, quella che l'app scriveva). Le icone della tab bar di
@@ -126,13 +122,13 @@ object FluidMetrics {
 
   /**
    * L'icona di una voce di menu: 22 dp (prima 20); riga e testo invariati. In Apple le icone del menu sono quelle
-   * della barra divise per 1,3 (R6): 26 / 1,3 = 20, e 22 tiene il peso un passo sopra senza toccare la riga da 48.
+   * della barra divise per 1,3 (R6): 28 / 1,3 è circa 22, misura che tiene il peso senza toccare la riga da 48.
    */
   val MenuIconSize: Dp = 22.dp
 
   /**
    * Il riquadro dell'icona che sta bene in un vetro di lato [lens]: [IconLensRatio] del lato, al dp intero.
-   * 24, 26 e 32 dp per i vetri da 40, 44 e 54 dp ([FluidGlassSize]); un disco da 76 dp ne prende 46.
+   * 24, 28 e 32 dp per i vetri da 40, 46 e 54 dp ([FluidGlassSize]); un disco da 76 dp ne prende 46.
    */
   fun iconSizeIn(lens: Dp): Dp = (lens.value * IconLensRatio).roundToInt().dp
 
@@ -163,15 +159,15 @@ object FluidMetrics {
   private val CompactTitleBreath: Dp = 24.dp
 
   /**
-   * Il margine del titolo agganciato da ogni lato: 84 dp (prima 76). Segue i tasti: il vetro ora sta a 16 dp dal
-   * bordo e finisce a 16 + 44 = 60, piu' il respiro di sempre. Un titolo lungo si tronca 8 dp prima per lato.
+   * Il margine del titolo agganciato da ogni lato: 86 dp. Sono 16 dp fino al vetro, 46 di vetro e i 24 di
+   * respiro. Un titolo lungo si tronca 8 dp prima per lato.
    */
   val CompactTitleInset: Dp = ScreenEdgeMargin + GlassButtonLens + CompactTitleBreath
 }
 
 /**
  * Il margine fra il bordo dello schermo e il **riquadro da 48 dp** del primo tasto di una barra, perche' il suo vetro
- * stia a [FluidMetrics.ScreenEdgeMargin]: 16 - 2 = 14 dp. Il riquadro e' quello che il layout posa, il vetro sta al
+ * stia a [FluidMetrics.ScreenEdgeMargin]: 16 - 1 = 15 dp. Il riquadro e' quello che il layout posa, il vetro sta al
  * suo centro.
  */
 internal val FluidBarEdgeInset: Dp =
@@ -179,7 +175,7 @@ internal val FluidBarEdgeInset: Dp =
 
 /**
  * Lo spazio fra i riquadri da 48 dp di due tasti vicini, perche' fra i due vetri ci siano
- * [FluidMetrics.GlassSpacing]: 8 - 4 = 4 dp (prima 2, cioe' 6 fra i vetri).
+ * [FluidMetrics.GlassSpacing]: 8 - 2 = 6 dp.
  */
 internal val FluidBarActionGap: Dp =
   FluidMetrics.GlassSpacing - (FluidMetrics.TouchTarget - FluidMetrics.GlassButtonLens)

@@ -317,7 +317,7 @@ private fun RowsSection(pick: (String) -> Unit) {
 // --- Lo sfondo del contestuale, solo debug (correzione dopo S9) ---------------------------------------
 
 /**
- * La scelta dello sfondo del contestuale fra i tre candidati di F5A.4 (A, B di serie, C), per le catture a schermo intero
+ * I tre livelli dello sfondo del contestuale (A, B, C di serie), per le catture a schermo intero
  * del tablet da cui Alessio sceglie: la stessa manopola di `--es gallery.tune ctxscrim=a`. Solo dove la galleria ha i
  * suoi interruttori (debug e bench, mai nella galleria dello store); vale dal contestuale successivo, senza far
  * rinascere la pagina, quindi le tre catture si fanno una dopo l'altra sulla stessa riga.
@@ -338,11 +338,11 @@ private fun ContextScrimPicker() {
     FluidPickerRow(
       title = "Livello",
       subtitle = "gallery.tune ctxscrim · vale dal prossimo menu",
-      selectedKey = switches.tuning[ContextScrimKnob] ?: "b",
+      selectedKey = switches.tuning[ContextScrimKnob] ?: "c",
       options = listOf(
         FluidPickerOption("a", "A, il minimo", subtitle = "Nero 18% sul chiaro e 30% sullo scuro, sfocatura 3,75 dp"),
-        FluidPickerOption("b", "B, la proposta (di serie)", subtitle = "Nero 24% e 38%, sfocatura 5 dp"),
-        FluidPickerOption("c", "C, il massimo", subtitle = "Nero 32% e 48%, sfocatura 6,5 dp"),
+        FluidPickerOption("b", "B, l'intermedio", subtitle = "Nero 24% e 38%, sfocatura 5 dp"),
+        FluidPickerOption("c", "C, il massimo (di serie)", subtitle = "Nero 32% e 48%, sfocatura 6,5 dp"),
       ),
       onSelected = { switches.tuneLive(context, ContextScrimKnob, it) },
       modifier = Modifier.testTag("menus-context-scrim"),

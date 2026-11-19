@@ -334,17 +334,19 @@ class FluidPageZoomTest {
     }
   }
 
-  @Test fun `la dissolvenza e una variante spenta di serie che segue la strada della sagoma`() {
-    // Di serie: niente dissolvenza, niente fotografia chiesta alla sorgente.
-    val plain = host()
+  @Test fun `la dissolvenza e di serie e segue la strada della sagoma al ritorno`() {
+    // Spenta (solo le tracce di confronto): niente dissolvenza.
+    val plain = host().also { it.zoomCrossfade = false }
     plain.open()
     plain.onStack(listOf("G"))
     while (plain.isMoving) {
       assertEquals(0f, plain.zoomCrossfadeAlpha(), 0f)
       frame()
     }
-    // Accesa: zero finché la sagoma non ha fatto un terzo della strada, poi cresce fino a 1, senza salti.
-    val state = host().also { it.zoomCrossfade = true }
+    // Di serie (scelte-b, 19 novembre 2026): zero finché la sagoma non ha fatto un terzo della strada, poi cresce fino a
+    // 1, senza salti.
+    val state = host()
+    assertTrue("accesa di serie", state.zoomCrossfade)
     state.open()
     state.onStack(listOf("G"))
     val full = state.fullZoomShape()
@@ -364,5 +366,52 @@ class FluidPageZoomTest {
     assertTrue("prima del terzo della strada la pagina e' intera", sawZero)
     assertTrue("e poi si dissolve", sawPartial)
     assertTrue("all'arrivo e' la sorgente: $last", last > 0.99f)
+  }
+
+  @Test fun `all'apertura la card sbiadisce dentro la sagoma come Apple`() {
+    // Apple (10145 a tempo vero, corr-zoom): la cella sbiadisce da ≈23 a ≈115 ms, fra 0,07 e 0,60 della strada.
+    val state = host()
+    state.onStack(listOf("G", "D"))
+    state.pagePlaced("D")
+    val full = state.fullZoomShape()
+    val cardShape = FluidZoomShape(card, FluidPageCorners(40f, 40f, 40f, 40f))
+    var last = 1f
+    var ms = 0f
+    val seen = ArrayList<Pair<Float, Float>>()
+    while (state.isMoving) {
+      val alpha = state.zoomCrossfadeAlpha()
+      assertEquals(FluidZoom.crossfade(requireNotNull(state.zoomShape()), full, cardShape), alpha, 0.02f)
+      assertTrue("cala: $alpha dopo $last", alpha <= last + 1e-4f)
+      seen += ms to alpha
+      last = alpha
+      frame()
+      ms += 1000f / 60f
+    }
+    assertEquals("al primo fotogramma la sagoma e' la card", 1f, seen.first().second, 0f)
+    assertEquals("a riposo la pagina e' intera", 0f, state.zoomCrossfadeAlpha(), 0f)
+    val start = seen.last { it.second >= 0.999f }.first
+    val end = seen.first { it.second <= 0.001f }.first
+    assertTrue("comincia entro 70 ms come Apple (≈23; l'orologio del test parte un fotogramma dopo): $start", start <= 70f)
+    assertTrue("finisce fra 100 e 170 ms (Apple ≈115): $end", end in 100f..170f)
+  }
+
+  @Test fun `con le animazioni ridotte non c'e' zoom e quindi nemmeno dissolvenza`() {
+    val state = host().also { it.reducedMotion = true }
+    assertTrue("di serie accesa anche qui: la spegne il movimento ridotto", state.zoomCrossfade)
+    state.onStack(listOf("G", "D"))
+    state.pagePlaced("D")
+    repeat(60) {
+      assertNull(state.zoomShape())
+      assertEquals(0f, state.zoomCrossfadeAlpha(), 0f)
+      frame()
+    }
+    state.toRest()
+    state.onStack(listOf("G"))
+    repeat(60) {
+      assertNull(state.zoomShape())
+      assertEquals(0f, state.zoomCrossfadeAlpha(), 0f)
+      assertFalse("nessuna sorgente consumata", source.isHidden)
+      frame()
+    }
   }
 }

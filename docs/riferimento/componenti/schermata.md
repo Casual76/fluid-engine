@@ -27,7 +27,7 @@ Ogni errore di layout di questa famiglia e' un'attribuzione sbagliata fra app, s
 
 | spazio | lo mette | come arriva ai contenuti |
 |---|---|---|
-| sopra: barra di stato + riga dei controlli (44 dp) | `FluidScreen` | `contentPadding(top = topBarHeight)`; `FluidScreenDefaults.topBarHeight()` se serve saperlo |
+| sopra: barra di stato + riga dei controlli (46 dp) | `FluidScreen` | `contentPadding(top = topBarHeight)`; `FluidScreenDefaults.topBarHeight()` se serve saperlo |
 | sotto: barra di sistema | `FluidScreen` | `WindowInsets.navigationBars` dentro `bottomContentPadding` |
 | sotto: la tab bar flottante | la **shell**, una volta | `ProvideFluidChrome(bottomInset = FluidFloatingTabBarDefaults.ContentInset)` → `LocalFluidBottomInset`, letto da ogni `FluidScreen` |
 | sotto: una banda sopra la barra, o una capsula | la shell | `FluidFloatingTabBarDefaults.contentInsetWithAccessory(h)` / `FluidFloatingCapsuleDefaults.contentInset(placement, h)` come `bottomInset` (sono insiemi **comprensivi della barra**, non da sommare a `ContentInset`) |
@@ -232,10 +232,10 @@ mentre si muovono ([pagine.md](pagine.md), «Una barra per host»).
 - *`titleFacets`*: a titolo agganciato la barra mostra a rotazione, ogni 2,4 s, il nome della pagina e poi le
   faccette (un conteggio, uno stato); il nome e' sempre il primo e quello a cui si torna, e tornando in cima si
   azzera. A faccetta attiva il titolo esce verso l'alto e la faccetta entra dal basso (una ruota sola).
-- *Tocco sulla riga dei controlli* (44 dp, sotto la barra di stato): torna in cima (`animateScrollToItem(0)`), con
+- *Tocco sulla riga dei controlli* (46 dp, sotto la barra di stato): torna in cima (`animateScrollToItem(0)`), con
   nome accessibile `FluidLabels.scrollToTop`. `FluidScrollToTopBus.request()` fa lo stesso su ogni schermata
   **davanti**: e' il «riseleziona la scheda» della tab bar.
-- *Titoli e controlli*: a titolo agganciato il margine laterale e' `CompactTitleInset` (84 dp dalla 4.0, 76 prima: i tasti ora stanno a 16 dp dal bordo) o, se i controlli di
+- *Titoli e controlli*: a titolo agganciato il margine laterale e' `CompactTitleInset` (86 dp: 16 fino al vetro, 46 di vetro e 24 di respiro) o, se i controlli di
   un lato sono piu' larghi, la loro misura + 8 dp, **uguale sui due lati** perche' il titolo resta al centro (3.0.1:
   prima con tre azioni un titolo lungo correva sotto i tasti).
 - *`contentMaxWidth`*: oltre quella larghezza il margine cresce e la colonna resta centrata, **titolo grande
@@ -335,8 +335,8 @@ dallo scorrimento che resta verso la fine. In cima alla lista, o a fine lista in
 **non disegna e non cattura**: una pagina ferma non paga niente.
 
 **Com'e' fatto.** `FluidScrollEdge(backdrop, edge, height, …)` e' alto `height` (dal bordo dello schermo al bordo dei
-controlli verso il contenuto: barra di stato piu' 44 dp in alto) piu' `FluidScrollEdgeDefaults.reach`, la coda in cui sfocatura
-e velo finiscono: 61,6 dp sotto i tasti in alto (1,4 altezze di tasto, `H` = 44 dp) e 86,8 dp sopra la tab bar (1,4 volte i
+controlli verso il contenuto: barra di stato più 46 dp in alto) piu' `FluidScrollEdgeDefaults.reach`, la coda in cui sfocatura
+e velo finiscono: 64,4 dp sotto i tasti in alto (1,4 altezze di tasto, `H` = 46 dp) e 86,8 dp sopra la tab bar (1,4 volte i
 suoi 62 dp). Chi lo posa gli lascia quello spazio: il riquadro della barra non sposta niente (titolo e tasti stanno nella
 riga in cima, la lista ha il suo margine, e il riquadro non prende tocchi), ma impilato in una colonna spingerebbe giu' il
 resto. Il profilo e' misurato su Apple in altezze di tasto dal bordo basso dei controlli: la sfocatura cresce verso il

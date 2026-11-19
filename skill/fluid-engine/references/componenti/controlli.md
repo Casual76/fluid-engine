@@ -33,7 +33,7 @@ Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 | Un pulsante **ripetuto su ogni riga** di una lista che scorre, o dentro un pager | `grip = FluidPressGrip.YieldsToScroll` (su `FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`). **Non** lasciare il default: il dito resterebbe del pulsante e la lista non scorrerebbe mai partendo da lì |
 | Un'azione con testo sopra una foto, una mappa, un hero, una barra | `FluidGlassButton` |
 | Un'azione solo icona sopra qualcosa (chrome, overlay, composer) | `FluidGlassIconButton` (taglie `FluidGlassSize.Compact`/`Regular`/`Large`) |
-| Un tasto tondo di una misura che non è 40/44/54 dp (disco di un player, hero) | `FluidGlassIconButton(onClick, size = 76.dp)` (l'overload con `Dp`) |
+| Un tasto tondo di una misura che non è 40/46/54 dp (disco di un player, hero) | `FluidGlassIconButton(onClick, size = 76.dp)` (l'overload con `Dp`) |
 | L'azione principale sopra una foto, una mappa, una barra (Fatto, Invia) | `FluidGlassButton(…, style = FluidGlassButtonStyle.Prominent)`: l'accento pieno quanto serve all'etichetta. Uno per schermata |
 | Un tasto di vetro sopra una foto o un video, con contenuto chiaro e marcato | `style = FluidGlassButtonStyle.Clear` |
 | Una riga di tasti tutti `Compact` (o `Large`), o tutti limpidi | la taglia o lo stile **d'ambiente**: `CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) { … }`, `LocalFluidGlassButtonStyle` |
@@ -72,7 +72,7 @@ scegliere:
 
 - **La pressione parte al contatto.** La capsula con testo cresce fino al 10%, con un tetto di 16 dp sul lato lungo.
   Il tondo Liquid cresce fino al **35%**. Il tondo Classic e il feedback ordinario `FluidPressFeedback.ExpandRound`
-  arrivano al 50%. Il tetto per il tondo è di 24 dp sul diametro. Un tondo Liquid da 44 dp arriva a 59,4 dp.
+  arrivano al 50%. Il tetto per il tondo è di 24 dp sul diametro. Un tondo Liquid da 46 dp arriva a 62,1 dp.
 - **La lastra Liquid segue il dito.** Il campo applica crescita, deriva e flessione al contorno. La flessione
   direzionale si attenua sulle capsule larghe. L'icona del tondo cresce con la lastra e si sfoca fino a una sigma
   di 2,2 dp sullo schermo. Al rilascio la molla riparte dalla posa e dalla velocità raggiunte e la taglia compie
@@ -128,7 +128,7 @@ propria ottica: da solo, senza chiederlo.
 
 | componente | misura disegnata | bersaglio |
 |---|---|---|
-| `FluidGlassIconButton` (e `FluidBarAction`, l'indietro di `FluidScreen`) | vetro 40 / 44 / 54 dp, o `size: Dp` | `max(vetro, 48 dp)` in layout; il dito lo colpisce tutto |
+| `FluidGlassIconButton` (e `FluidBarAction`, l'indietro di `FluidScreen`) | vetro 40 / 46 / 54 dp, o `size: Dp` | `max(vetro, 48 dp)` in layout; il dito lo colpisce tutto |
 | `FluidGlassButton` | altezza 40 / 48 / 54 dp | sotto i 48 dp il layout occupa comunque 48 dp d'altezza (`fluidTouchTarget`); il dito lo colpisce tutto |
 | `FluidChip` | alto almeno 48 dp (`defaultMinSize`) | 48 dp |
 | `FluidColorDot` | cerchio 30 dp | `max(48 dp, size + 10 dp)` |
@@ -328,8 +328,8 @@ fun BarraConferma(onShare: () -> Unit, onCancel: () -> Unit, onConfirm: () -> Un
 
 **Comportamento.**
 
-- **Taglie** (`FluidGlassSize`, `lens` / `buttonHeight`): `Compact` 40/40 dp, `Regular` 44/48 dp, `Large` 54/54 dp.
-  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 26, 32 dp).
+- **Taglie** (`FluidGlassSize`, `lens` / `buttonHeight`): `Compact` 40/40 dp, `Regular` 46/48 dp, `Large` 54/54 dp.
+  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 28, 32 dp).
   La ricetta della pressione vale **in proporzione** (crescita = frazione, deriva sul lato corto
   del vetro, bagliore Classic sul lato lungo): nessun numero in dp da riscalare, tranne il tetto di crescita dei tondi (24 dp
   in tutto).
@@ -440,12 +440,12 @@ La tab Controlli della galleria permette di mettere alla prova le prime tre impo
 
 ## FluidBarAction
 
-**Cos'è.** L'azione della barra superiore: un `FluidGlassIconButton` Regular con l'icona nell'inchiostro del testo (26 dp, `FluidMetrics.BarIconSize`; fino alla 3.x
+**Cos'è.** L'azione della barra superiore: un `FluidGlassIconButton` Regular con l'icona nell'inchiostro del testo (28 dp, `FluidMetrics.BarIconSize`; fino alla 3.x
 in tinta d'accento a 22) sul vetro condiviso della barra, quindi con un bordo fisico senza pagare un altro passaggio di sfocatura. In una barra
 non si usa `FluidGlassIconButton` a mano. L'icona la mette l'app e **la taglia arriva dal posto**: `icon = FluidIcons.Share` (il set dell'engine, al tratto)
 o un'icona Material, che continua a funzionare; l'accento resta a chi passa `tint` (l'azione principale, `error` per quella distruttiva). Il vetro
-sta a 16 dp dal bordo (`FluidMetrics.ScreenEdgeMargin`) e a 8 dal vetro vicino (`GlassSpacing`); la freccia indietro e' a 24 dp
-(`BackIconSize`) e il titolo agganciato a 84 dp dai bordi.
+sta a 16 dp dal bordo (`FluidMetrics.ScreenEdgeMargin`) e a 8 dal vetro vicino (`GlassSpacing`); la freccia Indietro misura 25 dp
+(`BackIconSize`) e il titolo agganciato parte a 86 dp dai bordi.
 
 **Firma essenziale.**
 
@@ -498,8 +498,7 @@ contenuto**: l'avatar dell'utente, un mosaico di account, una foto. È la stessa
 Il caso per cui esiste: l'avatar in alto a destra che apre il menu degli account.
 - **Il `content` è disegnato due volte**: nel tasto, e come faccia del tasto mentre il menu si apre e si chiude (l'host lo porta lungo il primo tratto del viaggio). Quindi dev'essere **solo disegno**: un `FluidAvatar`, un
   mosaico, un'immagine già decodificata; nessun effetto collaterale (niente `LaunchedEffect` che carica, niente stato catturato che cambi mentre il menu è aperto).
-- **Misure.** La lente è quella di un tasto della barra, 44 dp, e il contenuto sta dentro con un orlo di vetro (6 dp per lato): `FluidBarActionDefaults.ContentSize` (32 dp) è il lato giusto per un avatar. Un avatar a 44 dp
-  coprirebbe la lente e il tasto sembrerebbe una foto incollata sulla barra. Il bersaglio resta 48 dp.
+- **Misure.** La lente è quella di un tasto della barra, 46 dp. Un avatar da `FluidBarActionDefaults.ContentSize` (32 dp) lascia 7 dp di vetro per lato. Il bersaglio misura 48 dp.
 - **TalkBack: il nome è `contentDescription`.** Il contenuto va **muto** (un `FluidAvatar` senza `contentDescription`): un avatar che dicesse il suo nome accanto produrrebbe «Alessio Pampaloni, Account, pulsante». Senza
   `contentDescription` il tasto non ha nome, e va bene solo se è il contenuto a darlo. Nel menu la faccia non porta nomi: il tasto non c'è più e due nodi con lo stesso nome sono rumore.
 - Questo overload e quello con `icon` condividono il corpo (interno): stesso comportamento, stesso albero per chi non cambia chiamata.
@@ -533,8 +532,8 @@ fun Modifier.glassControlSurface(
 ): Modifier
 ```
 
-**Comportamento.** Al contatto il vetro Liquid cresce nella geometria del campo. Il tondo da 44 dp
-raggiunge 59,4 dp (×1,35). Il tasto con testo conserva il tetto di 16 dp sul lato lungo. Trascinando, la lastra
+**Comportamento.** Al contatto il vetro Liquid cresce nella geometria del campo. Il tondo da 46 dp
+raggiunge 62,1 dp (×1,35). Il tasto con testo conserva il tetto di 16 dp sul lato lungo. Trascinando, la lastra
 si allunga lungo la velocità e si comprime di traverso. Sul lato del dito si forma un piccolo
 rigonfiamento. Il margine di cattura ospita la sporgenza e il filo segue la distanza dal nuovo contorno.
 Nel `layerBlock` resta la traslazione che permette di campionare il fondale mentre il tasto si sposta.
@@ -986,7 +985,7 @@ una `LazyColumn` va in un `item`, non come figlio con altezza fissa.
 | | `lens` | `buttonHeight` | `touchTarget` | `iconSize` |
 |---|---|---|---|---|
 | `Compact` | 40 dp | 40 dp | 48 dp | 24 dp |
-| `Regular` | 44 dp | 48 dp | 48 dp | 26 dp |
+| `Regular` | 46 dp | 48 dp | 48 dp | 28 dp |
 | `Large` | 54 dp | 54 dp | 54 dp | 32 dp |
 
 **Dal tema**: `FluidRadius.Control` = 12 dp (il pozzo del campo), `FluidCapsuleShape`. **Parole**: `FluidLabels.clear`, `showSecret`, `hideSecret`.
@@ -1007,7 +1006,7 @@ I numeri di slider, interruttore e scrubber sono in [controlli-gesto.md](control
 ## Cosa è verificato dai test
 
 - **`FluidPressTest`, `FluidPressTransformTest`** (`engine-ui`): feedback ordinario e Classic, crescita 0,10 / ×1,5, tetto a 16 dp e a 24 dp, molle di LibrePods, deriva `tanh`, rilascio immediato; vedi [movimento.md](movimento.md).
-- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/44/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona a 0,6 del lato (24/26/32), il tondo Classic conserva la scala di LibrePods fino al bersaglio. In Liquid `F61GelTest` verifica ×1,35 e la curva dell’icona; il tasto tondo da 44 dp ha un bersaglio da 48.
+- **`FluidGlassSizeTest`, `FluidGlassControlsTest`** (`engine-ui`): lente 40/46/54, bersaglio mai sotto 48 dp, padding e icona crescono con la taglia, l'icona a 0,6 del lato (24/28/32), il tondo Classic conserva la scala di LibrePods fino al bersaglio. In Liquid `F61GelTest` verifica ×1,35 e la curva dell’icona; il tasto tondo da 46 dp ha un bersaglio da 48.
 - **`FluidSegmentedRtlTest`** (`engine-ui`): i due versi della goccia sono specchi esatti in ogni punto della corsa. **`FluidTextEditTest`**: `insert`, `wrap`, `toggleLinePrefix` (cursore, selezione, riga).
 - **`FluidButtonDragTest`, `FluidButtonGripTest`** (`sample`, Robolectric): un pulsante in `LazyColumn`/`verticalScroll`/pager non li fa scorrere e segue il dito; un tap fa tre colpi in ordine; il click vale fino a 16 dp oltre il bordo; `haptic = null` clicca in silenzio; `HoldsFinger`/`YieldsToScroll` sui quattro pulsanti (`FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidCapsuleAction`); un chip in `LazyRow` si scioglie e non clicca, un tocco clicca una volta sola.
 - **`AllGlassTest`, `FluidMatrixTest`** (`sample`): un chip su canvas è un tasto di vetro che clicca ed è scelto, su pagina piatta è la pastiglia opaca, spento non clicca; segmentato: il tocco sceglie una volta (su vetro e su pagina piatta), il trascinamento suona un tick per segmento e si posa sul più vicino, un dito che atterra su un altro segmento e scivola prende la goccia, in verticale non sceglie nulla, da destra a sinistra.

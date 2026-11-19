@@ -35,6 +35,7 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
+import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensStrength
@@ -184,7 +185,9 @@ internal fun buildMenuTrace(
   val fps = scene.fps
   val palette = TodayPalette(dark)
   val host = Size(scene.hostDp.width * d, scene.hostDp.height * d)
-  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true) it.translate(88f * d, 0f) else it }
+  val pitch = if (variant?.corrected == true) FluidMetrics.GroupItemPitch.value else 44f
+  val groupShift = pitch * 2 * d
+  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true) it.translate(groupShift, 0f) else it }
   val origin = Offset(scene.canvasOriginDp.x * d, scene.canvasOriginDp.y * d)
 
   // Le misure come le costruisce `rememberFluidMenuPanelMetrics`, con la riga di `bodyLarge` (17/23 sp).
@@ -241,7 +244,7 @@ internal fun buildMenuTrace(
   val anchor = FluidMenuAnchor().apply {
     restBounds = rest
     pressedBounds = if (variant?.grouped == true) rest else fluidPressedBounds(rest, transformAt(0.0))
-    if (variant?.grouped == true) groupBounds = Rect(rest.left - 88f * d, rest.top, rest.right, rest.bottom)
+    if (variant?.grouped == true) groupBounds = Rect(rest.left - groupShift, rest.top, rest.right, rest.bottom)
   }
   val physics = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)).apply {
     density = d
@@ -363,7 +366,8 @@ internal fun buildMenuTrace(
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {
         listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
-          val face = todayIconLayer("tasto-${i + 1}", rest.translate((i - 2) * 44f * d, 0f), symbol, 26f,
+          val iconSize = if (variant.corrected) FluidMetrics.BarIconSize.value else 26f
+          val face = todayIconLayer("tasto-${i + 1}", rest.translate((i - 2) * pitch * d, 0f), symbol, iconSize,
             palette.primary, origin, d, alpha = alpha)
           content += face + ("blurDp" to GlassContentCurves.blur(GlassContentRole.Exit, u) * 3f)
         }
@@ -523,12 +527,17 @@ private const val OggiMenuGlyphDp = 20f
 internal object OggiMenuApertura {
   const val Name = "oggi-menu-apertura"
 
-  fun scene(density: Float = 3f): MenuScene = MenuScene(
+  fun scene(
+    density: Float = 3f,
+    lensDp: Float = 44f,
+    iconDp: Float = 20f,
+    reversed: Boolean = false,
+  ): MenuScene = MenuScene(
     name = Name,
     fps = 60,
     density = density,
     hostDp = Size(411f, 891f),
-    anchorDp = Rect(16f, 820f, 60f, 864f),
+    anchorDp = Rect(16f, 864f - lensDp, 16f + lensDp, 864f),
     // Il ritaglio di Apple a 1,9 px/pt.
     canvasOriginDp = Offset(-8f, 643f),
     canvasWidthDp = 300f,
@@ -540,9 +549,9 @@ internal object OggiMenuApertura {
       MenuItemSpec("Orders", "fluid:person|circle"),
       MenuItemSpec("Wishlist", "fluid:favorite|circle"),
       MenuItemSpec("Tracking", "fluid:archive|circle"),
-    ),
+    ).let { if (reversed) it.asReversed() else it },
     faceIcon = "fluid:more_horiz|dots",
-    faceIconSizeDp = 20f,
+    faceIconSizeDp = iconDp,
     labelDpPerChar = 9f,
     maxMs = 2000.0,
     tailFrames = 3,

@@ -163,8 +163,7 @@ class FluidGlassButtonStyleTest {
 
   @Test
   fun `le icone discendono dalla taglia, 0,6 del vetro`() {
-    assertEquals(listOf(24f, 26f, 32f), FluidGlassSize.entries.map { it.iconSize.value })
-    // La tavola per Alessio: con il vetro a 46 l'icona sarebbe 28.
-    assertEquals(28f, FluidMetrics.iconSizeIn(androidx.compose.ui.unit.Dp(46f)).value)
+    assertEquals(listOf(24f, 28f, 32f), FluidGlassSize.entries.map { it.iconSize.value })
+    assertEquals(46f, FluidGlassSize.Regular.lens.value)
   }
 }

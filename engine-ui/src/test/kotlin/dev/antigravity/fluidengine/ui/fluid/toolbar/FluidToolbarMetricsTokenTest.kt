@@ -11,7 +11,7 @@ class FluidToolbarMetricsTokenTest {
       FluidMetrics.ScreenEdgeMargin.value, FluidMetrics.GlassButtonLens.value)
     val state = resolveFluidToolbar(FluidToolbarModel(listOf(FluidToolbarItem("a"), FluidToolbarItem("b"))),
       widthDp = 360f, metrics = metrics)
-    assertEquals(44f, state.element("b")!!.leftDp - state.element("a")!!.leftDp, 0f)
+    assertEquals(46f, state.element("b")!!.leftDp - state.element("a")!!.leftDp, 0f)
     assertEquals(16f, 360f - state.groups.single().leftDp - state.groups.single().widthDp, 0f)
   }
 }

@@ -52,6 +52,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
+import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBackIos
@@ -361,7 +362,7 @@ private fun FullColumnPage(
 }
 
 /** L'altezza della riga dei tasti di una barra, sotto la barra di stato: quella dei controlli di `FluidScreen`. */
-internal val PageBarHeight = 44.dp
+internal val PageBarHeight = FluidScreenDefaults.ControlRowHeight
 
 /** Il posto dei tasti di una barra: sotto la barra di stato, alto quanto la riga dei controlli di `FluidScreen`. */
 @Composable

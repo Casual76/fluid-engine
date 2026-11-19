@@ -353,7 +353,7 @@ vuoto con la smerigliatura di serie e una toppa grigia con una più larga (sotto
 pannello pieno non pubblica niente. I numeri stanno nel profilo (`GlassLiquidNestings`), e la manopola `nested=off`
 rimette il vetro annidato di prima per confrontarlo sul tablet.
 
-**Il costo.** Una lastra `Liquid` ferma tiene 4 nodi e 3 layer (cattura, posa, ombra), e 3 e 2 senza ombra; una di
+**Il costo misurato in F1A.** Una lastra `Liquid` ferma tiene 4 nodi e 3 layer (cattura, posa, ombra), e 3 e 2 senza ombra; una di
 prima ha 5 nodi e, dei layer, i 2 che la diagnostica legge (cattura e posa). I tre nodi del vetro di prima che stanno
 nei file di Kyant (ombra interna, ombra, anello) non si contano ancora, e i loro tre layer si deducono dal codice: il
 «5 e 5» del test in Robolectric è quella somma, non una lettura del dispositivo (sul tablet: 4 nodi e 3 layer, 5 e 2,
@@ -799,9 +799,8 @@ aprire la schermata da guardare.
   lunghi (16% contro 18%), tempo mediano del fotogramma 15 ms contro 12, GPU al 90° percentile 9–10 ms contro 4; i menu
   che si espandono appena di più. Molto di più le trasformazioni contestuali: il gruppo di tasti che diventa menu (32%
   di fotogrammi lunghi contro 4%), il menu contestuale (26% di fotogrammi in ritardo per `gfxinfo`, contro 4,7%), la
-  card che diventa foglio (26,7% contro 13,1%). La causa: la superficie che viaggia cattura la pagina a piena
-  risoluzione, perché luce e contorno stanno nel corpo; a metà risoluzione il gruppo che diventa menu torna al 3,4%, ma
-  il filo scatterebbe al passaggio di consegne. È il debito della fase di ottimizzazione. Il costo di una pagina piena
+  card che diventa foglio (26,7% contro 13,1%). In F1B la superficie che viaggiava catturava la pagina a piena
+  risoluzione insieme a luce e contorno. Dimezzando tutta la catena il gruppo tornava al 3,4%. F7.3 riduce il solo campione filtrato e conserva la finitura alla risoluzione del nodo. La verifica dei tempi richiede lo stesso lotto sul tablet. Il costo di una pagina piena
   di vetro e su un'altra GPU non è misurato.
 - **Difetti aperti visti sul tablet** (sessione di chiusura della terza fase, e le fasi dopo): il collo breve (16–33 ms)
   quando due pezzi si riuniscono (quello fra due pezzi che si separano dura ora 91–121 ms, e la **banda d'ombra** sopra e
@@ -1537,6 +1536,20 @@ Per una registrazione grezza con `Modifier.layerBackdrop` e un `GraphicsLayer` l
 Nel pinch e nello scorrimento della griglia di MyCloud Gallery sull'S25 (13 ottobre 2026) il RenderThread impiegava 7–10 ms per fotogramma. Le 47 passate GPU comprendevano i fondali
 a tutta pagina e le sfocature. Nei picchi da 20–36 ms comparivano `vkAllocateMemory` da 3–5 ms dopo decine di `vkFreeMemory`. In quell'app limitare il fondale di radice alla vita
 dei pop-up aveva ridotto i picchi. Il confronto degli APK F7.5 sul Tab S9 è preparato in `sessioni/f7-5/riprese.md`.
+
+**F7.3. Campione e finitura durante un viaggio fisico.** Il campo legge le sorgenti una volta. Mentre la
+forma cambia, un layer a metà lato registra il campione e applica saturazione, sfocatura e mescola. Il nodo che lo
+ridisegna alla scala di uscita applica rifrazione, copertura, ombra, luce e filo. Le geometrie e il materiale esportato
+usano lo stesso sistema di coordinate. Il limite massimo di texture vale anche per la finitura. Al termine il layer di
+viaggio viene restituito. Il foglio con detent usa il vetro ordinario e continua a campionare la scena pagina–scrim.
+Il guadagno in millisecondi dei due scenari si misura sul dispositivo.
+
+Una lastra ferma in disegno hardware riusa la display list della luce finché geometria, colore, forze e direzione
+coincidono. I due disegni conservano l'ordine additivo e poi SrcOver. Una pressione con flessione disegna direttamente.
+Nella stessa finestra le lastre con identiche geometria, densità, tinta e ricetta dell'ombra condividono un layer per
+le due maschere. Una lastra che cambia se ne separa. All'ultimo rilascio Compose recupera il layer. Il censimento
+conta una cattura e una posa per lastra e un layer per ombra distinta disegnata. La display list nativa della luce e
+il campione temporaneo di viaggio sono risorse aggiuntive rispetto al censimento dei layer Compose di F1A.
 
 **6. «Livello più basso».** Due usi della parola, entrambi sul sorgente:
 - il vetro **di livello più basso** è `glassSurface` rispetto ai componenti che lo avvolgono: `FluidCard(sampleOnce, resampleIntervalMillis)` (3.0.4) espone le stesse due manopole «come il vetro di livello più

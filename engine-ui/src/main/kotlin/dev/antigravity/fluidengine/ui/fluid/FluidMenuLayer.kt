@@ -299,8 +299,7 @@ private fun FluidMenuLayerContent(
   val dark = GlassDefaults.isDarkSurface()
   val panelTint = GlassDefaults.panelTint()
   // F5A.4: il contestuale ha uno scrim suo, piu' scuro di quello dei menu dal tasto (scelta di Alessio: la
-  // pagina dietro scurita con una sfocatura leggera, quanto lo dicono le tavole). Il livello in vigore, che la
-  // manopola `ctxscrim` cambia nelle build di debug per le catture del tablet (correzione dopo S9).
+  // pagina dietro scurita con una sfocatura leggera). C è di serie; la manopola `ctxscrim` serve alle catture.
   val scrimLook = if (anchor == null) FluidContextScrimTuning.look else FluidScrimLook.Modal
   // La pellicola del pannello con dentro la quota di scrim: la finestra campiona la pagina CRUDA (gli
   // exports dello scrim lo registrano a forza piena, la terza trappola), quindi lo scurimento se lo
@@ -377,10 +376,10 @@ private fun FluidMenuLayerContent(
         marginPx = metrics.marginPx,
         placement = if (anchor != null) FluidMenuPlacement.OverAnchor else FluidMenuPlacement.BesideAnchor,
       )
-      // F5A.3: l'ordine. Con `Priority` un menu che si apre verso l'alto si capovolge, e le prime voci restano vicino
-      // al dito; di serie (e con `Fixed`) resta com'e' scritto.
+      // L'ancora distingue il menu dal tasto dal contestuale. Se si apre verso l'alto, la priorità mette
+      // le prime voci vicino al tasto che ha aperto il menu.
       val upward = fluidMenuOpensUpward(anchorRect, rootPanel)
-      val reversed = fluidMenuReverses(order, upward)
+      val reversed = fluidMenuReverses(order, upward, fromButton = anchor != null)
       val root = if (!reversed) {
         written
       } else {

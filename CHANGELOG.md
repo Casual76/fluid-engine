@@ -8,7 +8,15 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Pannello laterale. La molla riparte al rilascio anche se il trascinamento si conclude fra due ricomposizioni. Se Compose interrompe il riconoscitore, il pannello riprende il viaggio verso la destinazione corrente.
+
 - Durante lo scorrimento e il movimento delle lastre Liquid la risoluzione della cattura segue area e frequenza con isteresi. A riposo torna alla scala del materiale.
+
+- Barre e menu. Tondi di serie da 46 dp, icone da 28 dp (Indietro 25), passo dei gruppi e riga superiore da 46 dp. Il contestuale usa il livello C (nero al 32% o 48%, sfocatura 6,5 dp). Con `Automatic` un menu dal tasto che si apre verso l’alto tiene la prima voce vicino al tasto. Il contestuale mantiene l’ordine scritto.
+
+- Liquid Glass (F7.3). In viaggio Fluid-physics dimezza il lato del fondale filtrato e disegna il filo alla risoluzione del nodo. Le lastre ferme riusano la luce registrata e condividono le maschere di ombre uguali.
+
+- Scelte di Alessio, secondo gruppo. Lo zoom dalla sorgente ha di serie la dissolvenza di Apple, nei due versi: all'apertura la card sbiadisce dentro la sagoma mentre la pagina compare, al ritorno compare sopra la pagina che sbiadisce ed è sola verso 200 ms; con le animazioni ridotte resta l'`Expand` di sempre. Nella barra in basso il comando che resta al suo posto mentre il gruppo si richiude o si riapre va col bordo del suo vetro e torna, come il più di Foto in Apple (0,16 dell'altezza a 300 ms); la barra in alto non cambia. Nessuna firma pubblica cambia.
 
 - Zoom dalla sorgente, correzione dell'orologio. Il video di Apple da cui F5B.3 aveva misurato la molla (WWDC24 10145) è proiettato a metà velocità, come dice Apple nella sua trascrizione: a tempo vero la molla dello zoom è critica con risposta 0,355 s, non 0,71 (`FluidPageMotion.ResponseZoomSeconds`). Apertura e ritorno con la sorgente vanno al doppio della velocità di prima; `Slide`, `ShrinkSlide`, l'`Expand` senza sorgente e il foglio dal tasto, misurato su un altro video, non cambiano. Le tracce `tools/glassbench/traces/f5b-3/zoom-*` sono rifatte e confrontano Apple a tempo vero.
 

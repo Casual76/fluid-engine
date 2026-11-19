@@ -745,7 +745,12 @@ internal class FluidToolbarMemory {
   private var previousSearchActive: Boolean? = null
   private var ghostSerial = 0
 
-  fun update(next: FluidToolbarResolved, motion: FluidToolbarMotion, searchActive: Boolean? = null) {
+  /**
+   * [ridesEdge]: il tasto che resta al suo posto in un vetro che cambia larghezza va col bordo del vetro a cui è ancorato
+   * ([FluidToolbarEdgeRide]). Lo chiede solo la barra in basso (scelta di Alessio del 19 novembre 2026, il «+» di Foto);
+   * la barra in alto lo tiene fermo come ha scelto F4A.
+   */
+  fun update(next: FluidToolbarResolved, motion: FluidToolbarMotion, searchActive: Boolean? = null, ridesEdge: Boolean = false) {
     val before = resolved
     val searchChanged = searchActive != null && previousSearchActive != null && searchActive != previousSearchActive
     previousSearchActive = searchActive
@@ -784,9 +789,10 @@ internal class FluidToolbarMemory {
         if (!glassChanges && !cross && !resized && start.centerDp == end.centerDp && !inkChange) {
           return@mapNotNull active?.let { end.item.id to it }
         }
+        val ride = if (ridesEdge && !cross && resized) fluidToolbarEdgeRide(sourceGroup, targetGroup) else null
         val trip = FluidToolbarTransfer(if (cross && leavesSingle) from else to,
           cross && leavesSingle, cross && entersSingle, start.centerDp, end.centerDp, transfers[end.item.id]?.lastCenter,
-          !cross && resized, targetGroup.widthDp, start.item)
+          !cross && resized, targetGroup.widthDp, start.item, ride)
         end.item.id to trip
       }.toMap()
       transfers = moving
@@ -834,11 +840,58 @@ internal class FluidToolbarMemory {
   }
 }
 
+/**
+ * Il bordo del vetro a cui è ancorato un tasto che resta al suo posto mentre il suo vetro cambia larghezza: il gruppo
+ * d'arrivo ([leftDp], [widthDp], come lo posa la barra) e il lato ([end]: il bordo di fine, altrimenti quello d'inizio).
+ *
+ * Perché: nelle clip a tempo vero di Apple (WWDC25 219, Foto, f8551; la trascrizione non dice di rallentamenti) il «+»
+ * che resta mentre la capsula di tre si chiude su di lui **va col suo vetro**: il vetro è trascinato dal bordo che si
+ * muove ([dev.antigravity.fluidengine.ui.fluid.FluidMotion.PlaneResizeDrag]) e il «+» sta al centro del lobo di destra,
+ * +0,16 H a 300 ms, di nuovo al posto a ~490, −0,016 H a ~560 (`sessioni/scelte-b/rapporto.md`). È la regola del
+ * contenuto che resta nel gruppo ([dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor]): «il rimbalzo del
+ * bordo resta nel contenuto».
+ */
+internal data class FluidToolbarEdgeRide(val leftDp: Float, val widthDp: Float, val end: Boolean) {
+  /**
+   * Quanto il bordo d'ancoraggio del vetro in volo ([flightLeft]..[flightRight], px nella barra) è lontano dal suo posto
+   * di riposo, con gli stessi arrotondamenti con cui la barra posa il gruppo (`offset` e `size` in px interi). È lo
+   * spostamento che [dev.antigravity.fluidengine.ui.fluid.fluidGlassContentFlightOf] dà al contenuto ancorato allo stesso bordo. Pura.
+   */
+  fun shiftPx(flightLeft: Float, flightRight: Float, barWidthDp: Float, density: Float, rtl: Boolean): Float {
+    fun px(dp: Float) = (dp * density).roundToInt()
+    val left = if (rtl) px(barWidthDp) - px(leftDp) - px(widthDp) else px(leftDp)
+    val right = left + px(widthDp)
+    // Il bordo di fine è a destra in LTR e a sinistra in RTL.
+    return if (end != rtl) flightRight - right else flightLeft - left
+  }
+}
+
+/**
+ * Il bordo d'ancoraggio comune a [source] e [target] (lo stesso vetro prima e dopo il cambio), o null se il gruppo sta al
+ * centro, cambia lato, o il bordo non coincide nei due stati: lì il tasto non ha un bordo che resti suo. Pura.
+ */
+internal fun fluidToolbarEdgeRide(source: FluidToolbarGroup, target: FluidToolbarGroup): FluidToolbarEdgeRide? {
+  if (source.side != target.side) return null
+  val end = when (target.side) {
+    FluidToolbarSide.Leading -> false
+    FluidToolbarSide.Trailing -> true
+    FluidToolbarSide.Center -> return null
+  }
+  fun edge(group: FluidToolbarGroup) = if (end) group.leftDp + group.widthDp else group.leftDp
+  if (kotlin.math.abs(edge(source) - edge(target)) > FluidToolbarEdgeToleranceDp) return null
+  return FluidToolbarEdgeRide(target.leftDp, target.widthDp, end)
+}
+
+/** Due bordi più vicini di così (dp) sono lo stesso bordo: le somme del modello possono differire di un ulp. */
+private const val FluidToolbarEdgeToleranceDp = 0.01f
+
 /** Un solo simbolo per tutta la traversata. Le coordinate fisiche includono l'oltrepasso del vetro. */
 internal class FluidToolbarTransfer(
   val glass: FluidToolbarGlassId, val leavesSingle: Boolean, val entersSingle: Boolean,
   val startDp: Float, val endDp: Float, val interruptedCenter: Float?,
   val softened: Boolean, private val targetWidthDp: Float, val startItem: FluidToolbarItem,
+  /** Il bordo a cui il tasto fermo è ancorato, se la barra lo chiede: vedi [FluidToolbarEdgeRide]. */
+  val ride: FluidToolbarEdgeRide? = null,
 ) {
   var lastCenter: Float? = null
     private set
@@ -862,10 +915,15 @@ internal class FluidToolbarTransfer(
     return if (end.isPrimary) film else 1f - film
   }
 
-  fun center(start: Float, end: Float, lobe: Float?, widthDp: Float?, phase: Float): Float {
-    // Quando il posto coincide in entrambe le barre, il rinculo resta al vetro.
+  /**
+   * Il centro del glifo in questo fotogramma. [edgeShift] è quanto il bordo d'ancoraggio del vetro è lontano dal suo posto
+   * ([FluidToolbarEdgeRide.shiftPx]); vale solo per un posto che coincide nelle due barre e con un bordo da seguire.
+   */
+  fun center(start: Float, end: Float, lobe: Float?, widthDp: Float?, phase: Float, edgeShift: Float = 0f): Float {
+    // Quando il posto coincide in entrambe le barre il glifo resta al suo posto: in alto il rinculo resta al vetro (F4A),
+    // in basso il glifo va col bordo del suo vetro, come il «+» di Apple ([ride]).
     if (start == end && (interruptedCenter == null || interruptedCenter == end)) {
-      return end.also { lastCenter = it }
+      return (if (ride != null) end + edgeShift else end).also { lastCenter = it }
     }
     val u = phase.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
     val from = interruptedCenter ?: start
@@ -981,10 +1039,10 @@ internal fun FluidToolbarBar(
         val saved = remember(shown) { arrayOf(declaration) }
         val interactive = shown == resolved
         if (interactive) saved[0] = declaration
-        FluidToolbarGroups(saved[0], shown, reducedMotion = true, interactive = interactive)
+        FluidToolbarGroups(saved[0], shown, reducedMotion = true, interactive = interactive, bar = bar)
       }
     } else {
-      FluidToolbarGroups(declaration, resolved, reducedMotion = false, interactive = true)
+      FluidToolbarGroups(declaration, resolved, reducedMotion = false, interactive = true, bar = bar)
     }
   }
 }
@@ -996,10 +1054,13 @@ internal fun FluidToolbarGroups(
   reducedMotion: Boolean,
   interactive: Boolean,
   searchActive: Boolean? = null,
+  /** La sede: in basso il tasto che resta al suo posto va col bordo del suo vetro ([FluidToolbarEdgeRide]). */
+  bar: FluidToolbarBar = FluidToolbarBar.Top,
   searchField: (@Composable (FluidGlassNamespace) -> Unit)? = null,
 ) {
     val memory = remember { FluidToolbarMemory() }
-    memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full, searchActive)
+    memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full, searchActive,
+      ridesEdge = bar == FluidToolbarBar.Bottom)
     val searchInk = if (searchActive != null && !reducedMotion) rememberToolbarSearchInk(searchActive) else null
     val selection = HashMap<Any, State<Float>>()
     val duration = (GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale).toInt()
@@ -1135,7 +1196,9 @@ private fun FluidToolbarTravellingButton(
     val flight = plane?.flightOf(qualified)
     val u = flight?.phase ?: if (plane?.measurePending == true) 0f else 1f
     val x = if (stationary) {
-      trip.center(restX, restX, null, null, u)
+      val shift = if (flight == null) 0f else
+        trip.ride?.shiftPx(flight.bounds.left, flight.bounds.right, resolved.widthDp, this.density, rtl) ?: 0f
+      trip.center(restX, restX, null, null, u, shift)
     } else {
       trip.center(center(trip.startDp), center(trip.endDp), flight?.bounds?.center?.x,
         flight?.bounds?.width?.div(this.density), u)

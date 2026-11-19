@@ -18,6 +18,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -38,6 +39,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigation.NavHostController
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
@@ -98,6 +100,7 @@ class FluidDrawerTest {
   private lateinit var morph: FluidMorphMenuState
   private lateinit var selection: FluidSelectionState<String>
   private var drawerComposed by mutableStateOf(true)
+  private var drawerDirection by mutableStateOf(LayoutDirection.Ltr)
   private var picks = 0
   private var chosen = ""
 
@@ -107,7 +110,10 @@ class FluidDrawerTest {
   private fun show(policy: FluidMotionPolicy = FluidMotionPolicy.Default) {
     compose.setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
-        CompositionLocalProvider(LocalFluidMotionPolicy provides policy) {
+        CompositionLocalProvider(
+          LocalFluidMotionPolicy provides policy,
+          LocalLayoutDirection provides drawerDirection,
+        ) {
           Screen()
         }
       }
@@ -273,6 +279,7 @@ class FluidDrawerTest {
     show()
     openWithButton()
     val start = Offset(400f, 500f)
+    // Inietta tutto il gesto insieme: la molla deve ripartire anche se Compose non ha visto held=true.
     compose.onRoot().performTouchInput {
       down(start)
       repeat(8) { moveBy(Offset(-10f, 0f), delayMillis = 100) }
@@ -281,6 +288,48 @@ class FluidDrawerTest {
     }
     compose.waitForIdle()
     assertTrue("80 px lenti non bastano", drawer.isOpen)
+    assertEquals(1f, drawer.progress, 0.001f)
+  }
+
+  @Test
+  fun `se Compose cancella il gesto la molla riporta il pannello aperto`() {
+    show()
+    openWithButton()
+    val row = compose.onNodeWithText("Cartella 2")
+    row.performTouchInput {
+      down(center)
+      moveBy(Offset(-80f, 0f))
+    }
+    compose.waitForIdle()
+    assertEquals(1f - 80f / travelPx, drawer.progress, 0.001f)
+
+    // Cambiare verso riavvia pointerInput mentre lo stesso drawer e' ancora aperto e il dito e' giu'.
+    compose.runOnIdle { drawerDirection = LayoutDirection.Rtl }
+    compose.waitForIdle()
+    val settledBeforeCancel = drawer.progress
+    compose.onRoot().performTouchInput { cancel() }
+    compose.waitForIdle()
+    assertTrue(drawer.isOpen)
+    assertEquals(1f, settledBeforeCancel, 0.001f)
+    assertEquals(1f, drawer.progress, 0.001f)
+  }
+
+  @Test
+  fun `il gesto che parte su Altro passa al suo menu e lascia fermo il pannello`() {
+    show()
+    openWithButton()
+    compose.onNodeWithTag("menu").performTouchInput { down(center) }
+    compose.mainClock.advanceTimeBy(900)
+    compose.waitForIdle()
+    assertTrue("Altro apre il menu con il dito ancora giu'", morph.isOpen)
+
+    compose.onRoot().performTouchInput { moveBy(Offset(-80f, 0f)) }
+    compose.waitForIdle()
+    assertEquals("il menu tiene il dito mentre si sposta", 1f, drawer.progress, 0.001f)
+
+    compose.onRoot().performTouchInput { up() }
+    compose.waitForIdle()
+    assertTrue(drawer.isOpen)
     assertEquals(1f, drawer.progress, 0.001f)
   }
 

@@ -214,10 +214,11 @@ class PlanePageTest {
   @Test
   fun `i raggi concentrici seguono i margini, e il cambio di margine viaggia`() {
     open(PlaneScene.Concentric)
-    // xhdpi: il pannello ha raggio 38 dp. «a» sta a 8 dp (38 − 8 = 30, oltre mezzo lato: 22 dp = 44 px), «c» a 24 dp
-    // dal basso e dai lati (14 dp = 28 px), e gli angoli lontani dai bordi stanno al minimo (4 dp = 8 px).
+    // xhdpi: il pannello ha raggio 38 dp. «a», alto quanto un tasto (46 dp), sta a 8 dp (38 − 8 = 30, oltre mezzo
+    // lato: 23 dp = 46 px), «c» a 24 dp dal basso e dai lati (14 dp = 28 px), e gli angoli lontani dai bordi stanno al
+    // minimo (4 dp = 8 px).
     fun radiiOf(id: String) = rest.single { it.id == id }.cornerRadii
-    assertEquals(rest.toString(), 44f, radiiOf("a").topLeft, 1f)
+    assertEquals(rest.toString(), 46f, radiiOf("a").topLeft, 1f)
     assertEquals(rest.toString(), 8f, radiiOf("a").bottomRight, 1f)
     assertEquals(rest.toString(), 28f, radiiOf("c").bottomLeft, 1f)
     command()

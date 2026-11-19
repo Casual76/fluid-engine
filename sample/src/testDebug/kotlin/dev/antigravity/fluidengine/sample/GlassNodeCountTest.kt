@@ -46,11 +46,8 @@ import org.robolectric.annotation.GraphicsMode
  *  - **dalla catena dei modificatori** del nodo di layout (`LayoutInfo.getModifierInfo()`): un elemento per nodo, e
  *    il layer di posa dove c'è. Si confronta una scatola con il vetro e la stessa scatola senza;
  *  - **dalla diagnostica dell'engine** (`FluidGlassDiagnostics.liveNodes` e `liveLayers`), che conta dove i layer
- *    nascono e si rilasciano. Sotto Robolectric conta ciò che si alloca all'aggancio dei nodi (cattura, ombra) e
- *    alla prima posa; il gemello sul dispositivo è `GlassNodeCountInstrumentedTest`.
- *
- * Con i verdetti forzati (il modello non dipende da ciò che Robolectric fa di un `RuntimeShader`) e senza disegnare:
- * i nodi e i layer esistono dall'aggancio.
+ *    nascono e si rilasciano. Sotto Robolectric contiamo dopo aggancio, posa e primo disegno, quando la sagoma
+ *    determina quale maschera d'ombra usare. Il gemello sul dispositivo è `GlassNodeCountInstrumentedTest`.
  *
  * I numeri, e perché sono questi:
  *  - **`Liquid`: 4 nodi, 3 layer** (cattura, posa, ombra). I nodi sono la presenza (salta il disegno a intensità
@@ -142,6 +139,14 @@ class GlassNodeCountTest {
     val before = Census()
     compose.setContent { Scene(role) }
     compose.waitForIdle()
+    // La maschera condivisa si chiede al primo disegno, quando forma e ricetta sono note.
+    compose.runOnIdle {
+      val view = compose.activity.window.decorView
+      val node = android.graphics.RenderNode("F7.3 censimento")
+      node.setPosition(0, 0, view.width, view.height)
+      val canvas = node.beginRecording()
+      try { view.draw(canvas) } finally { node.endRecording(); node.discardDisplayList() }
+    }
     val bare = chain(Bare)
     val slab = chain(Slab)
     val glass = Chain(

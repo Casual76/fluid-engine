@@ -141,8 +141,15 @@ class FluidDrawerState(initiallyOpen: Boolean = false) {
   /** La velocita' con cui parte la prossima molla, in corsa al secondo; il pannello la consuma. */
   internal var releaseVelocity: Float = 0f
 
-  /** Cambia a ogni [snapTo], perche' il pannello abbandoni la molla in corso. */
-  internal var snaps: Int by mutableIntStateOf(0)
+  /** Cambia al rilascio e a ogni [snapTo], anche se Compose non ha visto il pannello trattenuto. */
+  internal var motionRevision: Int by mutableIntStateOf(0)
+    private set
+
+  internal fun releaseDrag(velocity: Float) {
+    releaseVelocity = velocity
+    held = false
+    motionRevision++
+  }
 
   /** Apre il pannello. Lo apre l'app, da un tasto (☰): non c'e' un gesto dal bordo (vedi [FluidDrawer]). */
   fun open() {
@@ -160,7 +167,7 @@ class FluidDrawerState(initiallyOpen: Boolean = false) {
     held = false
     releaseVelocity = 0f
     progressState.floatValue = if (open) 1f else 0f
-    snaps++
+    motionRevision++
   }
 
   companion object {
@@ -301,8 +308,9 @@ fun FluidDrawer(
 
   // La molla: dall'obiettivo che cambia, dal dito che lascia, da uno scatto. Rilanciata a ogni cambio, parte
   // dal punto in cui si trova (una chiusura a meta' apertura torna indietro da li', con la sua velocita').
-  LaunchedEffect(state, state.isOpen, state.held, state.snaps, reducedMotion) {
-    if (state.held) return@LaunchedEffect
+  val motionRevision = state.motionRevision
+  LaunchedEffect(state, state.isOpen, state.held, motionRevision, reducedMotion) {
+    if (state.held || state.motionRevision != motionRevision) return@LaunchedEffect
     val target = if (state.isOpen) 1f else 0f
     val velocity = state.releaseVelocity
     state.releaseVelocity = 0f
@@ -317,9 +325,8 @@ fun FluidDrawer(
       initialVelocity = velocity,
       animationSpec = FluidMotion.DrawerTravel,
     ) { value, _ ->
-      // Un dito che prende il pannello a meta' molla lo tiene da subito: la molla, che il cambio di
-      // `held` cancella al fotogramma dopo, non scrive piu' sopra di lui.
-      if (!state.held) state.progressState.floatValue = value
+      // Ferma subito la vecchia molla, anche se il gesto e' gia' finito prima della ricomposizione.
+      if (!state.held && state.motionRevision == motionRevision) state.progressState.floatValue = value
     }
   }
 
@@ -521,26 +528,31 @@ private fun Modifier.fluidDrawerDrag(
     val travel = geometry.travelPx
     if (travel <= 0f) return@awaitEachGesture
 
-    state.held = true
     val from = state.progress
     fun follow(x: Float) {
       val closed = (x - down.position.x) * closing
       state.progressState.floatValue = (from - closed / travel).coerceIn(0f, 1f)
     }
-    tracker.addPointerInputChange(grabbed)
-    follow(grabbed.position.x)
-    val finished = horizontalDrag(grabbed.id) { change ->
-      tracker.addPointerInputChange(change)
-      follow(change.position.x)
-      change.consume()
+    state.held = true
+    var releaseVelocity = 0f
+    try {
+      tracker.addPointerInputChange(grabbed)
+      follow(grabbed.position.x)
+      val finished = horizontalDrag(grabbed.id) { change ->
+        tracker.addPointerInputChange(change)
+        follow(change.position.x)
+        change.consume()
+      }
+      // Se un figlio prende il dito, decide ancora la distanza, senza la spinta del rilascio.
+      val velocity = if (finished) tracker.calculateVelocity().x * closing else 0f
+      val closedPx = (1f - state.progress) * travel
+      if (fluidDrawerReleaseCloses(closedPx, velocity, travel, density)) state.close()
+      // La molla parte in corse al secondo (il progresso scende in chiusura).
+      releaseVelocity = -velocity / travel
+    } finally {
+      // Compose puo' cancellare il riconoscitore senza passare da horizontalDrag: riparti verso
+      // l'obiettivo corrente, a velocita' zero.
+      state.releaseDrag(releaseVelocity)
     }
-    // Rilasciato (o perso: un dito che sparisce decide con la distanza, senza spinta).
-    val velocity = if (finished) tracker.calculateVelocity().x * closing else 0f
-    val closedPx = (1f - state.progress) * travel
-    val closes = fluidDrawerReleaseCloses(closedPx, velocity, travel, density)
-    // La molla parte dalla velocita' del dito, in corsa al secondo (la corsa scende chiudendo).
-    state.releaseVelocity = -velocity / travel
-    state.held = false
-    if (closes) state.close()
   }
 }

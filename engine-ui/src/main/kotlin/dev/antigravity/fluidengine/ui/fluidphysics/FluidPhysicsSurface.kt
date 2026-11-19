@@ -3,6 +3,10 @@ package dev.antigravity.fluidengine.ui.fluidphysics
 import dev.antigravity.fluidengine.ui.fluid.rememberGelGeometry
 import dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.field.GlassCostLevers
+import dev.antigravity.fluidengine.ui.glass.field.GlassTravelCapture
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -370,26 +374,39 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         reducedMotion = reducedMotion,
       )
     }
+    val travelling by remember(state, planeJourney) {
+      derivedStateOf {
+        planeJourney || state.isMorphing || state.progress.let { it != 0f && it != 1f }
+      }
+    }
+    val capture = if (travelling && !reducedMotion && GlassCostLevers.travel) {
+      val layer = rememberGraphicsLayer()
+      remember(layer, surface) { GlassTravelCapture(layer, screenDensity, surface.effects) }
+    } else null
+    // La sorgente conserva i suoi lettori e la sua scomposizione. L'identità del modo forza una
+    // prima registrazione anche se sampleOnce è acceso e i due rettangoli hanno la stessa taglia.
+    val original = backdrop.backdrop
+    val sampled = remember(original, capture) {
+      if (capture == null) original else object : Backdrop by original {}
+    }
     return this
       .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
       .glassProbe(backdrop.backdrop, probe, enabled = probes, region = probedArea)
       .drawBackdrop(
-        backdrop = backdrop.backdrop,
+        backdrop = sampled,
         shape = clip,
-        effects = surface.effects,
+        effects = capture?.effects ?: surface.effects,
         highlight = null,
         shadow = null,
         innerShadow = null,
         exportedBackdrop = published,
         // La cattura apre sempre con un'operazione, perche' il corpo esista anche su un fondo che non ha niente
         // da dare: vedi `GlassLiquidOnDrawBackdrop`.
-        onDrawBackdrop = GlassLiquidOnDrawBackdrop,
-        // A risoluzione piena: filo e riflesso li compone il corpo, nella cattura, e devono essere quelli che
-        // la luce di una `glassSurface` disegna sul nodo. A risoluzione ridotta un filo di un pixel e mezzo
-        // uscirebbe piu' molle della lastra a cui la superficie passa il posto, e tornerebbe netto li': uno scatto.
+        onDrawBackdrop = capture?.capture ?: GlassLiquidOnDrawBackdrop,
+        // Il nodo di finitura conserva la griglia del display. In viaggio solo il campione si riduce.
         backdropScale = PhysicsLiquidCaptureScale,
         sampleOnce = sampleOnce,
-        backdropScaleFactor = qualityFactor,
+        backdropScaleFactor = if (capture == null) qualityFactor else FullPhysicsScale,
         onDrawLight = surface.onDrawLight,
       )
       .then(if (gel == null) Modifier else Modifier.graphicsLayer {
@@ -616,19 +633,9 @@ private fun blendedTint(tint: GlassTint, tintFrom: GlassTint?, blend: Float): Co
 /** Il peso del bagliore con le animazioni ridotte: quello di `glassControlSurface`. */
 private const val ReducedMotionGlow = 0.4f
 
-/**
- * La frazione di risoluzione a cui cattura una superficie fisica disegnata dal materiale nuovo (4.0): piena.
- *
- * Una lastra ferma di `glassSurface` cattura a risoluzione ridotta (0,73 con la smerigliatura di serie) perché la
- * sua luce si disegna sul nodo, a risoluzione piena, e il suo contorno lo taglia il ritaglio hardware. Una
- * superficie fisica, ferma o in viaggio, ha la luce **nel corpo** e il contorno ritagliato **dal corpo** (che
- * emula anche l'antialias del ritaglio del nodo: `nodeClip`, in pixel della cattura): a risoluzione ridotta il
- * filo e l'antialias del contorno sarebbero quelli della cattura ingrandita, cioè diversi da quelli della
- * `glassSurface` a cui la superficie passa il posto, e il passaggio si vedrebbe. A risoluzione piena l'interno
- * coincide entro due livelli su 255 (banco, scene `f1b/riposo-contro-viaggio-*`). I tasti di vetro, che hanno
- * un `layerBlock`, catturano già così. Costo: 1,9 volte i pixel della catena rispetto a 0,73, da misurare in S2
- * (voce del rapporto di F1B.1).
- */
+private val FullPhysicsScale: () -> Float = { 1f }
+
+/** Risoluzione della finitura ottica (filo, riflessi e contorno). Il campione di viaggio ha scala propria. */
 internal const val PhysicsLiquidCaptureScale: Float = 1f
 
 /**

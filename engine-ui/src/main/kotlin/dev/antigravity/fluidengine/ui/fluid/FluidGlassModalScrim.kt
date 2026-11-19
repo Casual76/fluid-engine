@@ -56,8 +56,7 @@ internal data class FluidScrimLook(
 }
 
 /**
- * I tre livelli dello sfondo del menu contestuale fra cui Alessio sceglie sulle tavole (F5A.4, piano: «lo scrim
- * del contestuale prende un livello suo, piu' scuro di quello dei menu, da scegliere fra tre tavole»).
+ * I tre livelli dello sfondo del menu contestuale. C è quello scelto da Alessio sulle catture S10a.
  *
  * La decisione di fondo e' sua (2026-11-10): la pagina dietro il contestuale si **scurisce con una sfocatura
  * leggera**, «anche se non e' esattamente pari ad Apple» (iOS 26 scurisce soltanto, R1 X2). Quanto, e' di gusto:
@@ -66,8 +65,8 @@ internal data class FluidScrimLook(
  * sfocatura ([FluidScrimBlurCeilingDp]):
  *
  *  - [A], il minimo che si distingue dai menu: la pagina resta quasi com'e', un passo piu' scura;
- *  - [B], la proposta: la pagina passa chiaramente *dietro*, il testo si riconosce ma non si legge di corsa;
- *  - [C], il massimo prima che la pagina diventi una media: lo sfondo e' una macchia scura con le sue forme.
+ *  - [B], l'intermedio: la pagina passa chiaramente *dietro*, il testo si riconosce ma non si legge di corsa;
+ *  - [C], il massimo e il livello di serie: lo sfondo e' una macchia scura con le sue forme.
  */
 internal enum class FluidContextScrimLevel(val look: FluidScrimLook) {
   A(FluidScrimLook(lightAlpha = 0.18f, darkAlpha = 0.30f, blurScale = 1.5f)),
@@ -75,18 +74,15 @@ internal enum class FluidContextScrimLevel(val look: FluidScrimLook) {
   C(FluidScrimLook(lightAlpha = 0.32f, darkAlpha = 0.48f, blurScale = 2.6f)),
 }
 
-/**
- * Il livello di serie dello sfondo del contestuale. La proposta in attesa della scelta di Alessio sulle tavole di
- * F5A.4 (`sessioni/f5a-4/`): [FluidContextScrimLevel.B]. Il menu legge quello in vigore, [FluidContextScrimTuning.look].
- */
-internal val FluidContextScrimLook: FluidScrimLook = FluidContextScrimLevel.B.look
+/** Lo sfondo di serie del contestuale. Il menu legge il livello in vigore, [FluidContextScrimTuning.look]. */
+internal val FluidContextScrimLook: FluidScrimLook get() = FluidContextScrimTuning.Default.look
 
 /**
  * La manopola dello sfondo del contestuale (`ctxscrim=a|b|c`, correzione dopo S9): Alessio sceglie il livello sulle
  * catture del tablet **a schermo intero**, non sulle tavole ritagliate, e il tablet deve poter mostrare i tre livelli
  * senza ricompilare. Passa dalla porta delle manopole della diagnostica (`FluidGlassDiagnostics.tuneLiquidProfile`,
  * `gallery.tune` nella galleria), quindi solo nelle build di debug e di misura; fuori, il livello e' sempre quello di
- * serie. Il giorno della scelta il livello scelto diventa quello di serie e la manopola puo' sparire.
+ * serie. La manopola rimane disponibile per ripetere le catture di confronto.
  */
 internal object FluidContextScrimTuning {
 
@@ -97,7 +93,7 @@ internal object FluidContextScrimTuning {
   val Values: List<String> = FluidContextScrimLevel.entries.map { it.name.lowercase() }
 
   /** Il livello di serie, senza manopola. */
-  val Default: FluidContextScrimLevel = FluidContextScrimLevel.B
+  val Default: FluidContextScrimLevel = FluidContextScrimLevel.C
 
   /**
    * Il livello in vigore. E' uno stato di Compose: il menu lo legge mentre si compone, quindi un cambio vale dal

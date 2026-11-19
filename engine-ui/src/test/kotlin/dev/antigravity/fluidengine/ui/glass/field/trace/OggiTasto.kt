@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.ui.glass.field.trace
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.FluidPressSprings
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
@@ -196,7 +195,8 @@ internal object OggiTasto {
   private const val ReleaseFrame = 34
 
   fun scene(): TapScene {
-    val lens = FluidGlassSize.Regular.lens.value
+    // La traccia F0 riprende il tasto da 44 dp della 3.1.2.
+    val lens = 44f
     val left = (CanvasWidthDp - lens) / 2f
     val top = (CanvasHeightDp - lens) / 2f
     return TapScene(

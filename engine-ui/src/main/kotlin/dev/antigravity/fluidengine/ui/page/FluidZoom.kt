@@ -95,13 +95,14 @@ object FluidZoom {
   const val ArrivalDp: Float = 1f
 
   /**
-   * La variante di Apple, di serie spenta (F5B.3: la decide Alessio sul video): la pagina si dissolve nella sorgente
-   * dentro la sagoma, da circa un terzo della strada fra pagina intera e sorgente ([CrossfadeFrom]) fino a quasi
-   * l'arrivo ([CrossfadeTo]). Misurata a occhio su WWDC24 10145 (1:46, il ritorno col dito nella cella; il video è a
-   * metà velocità, vedi [FluidPageMotion.ResponseZoomSeconds]): il contenuto della cella compare nel riquadro quando la
-   * sagoma ha fatto ~0,3 della strada, poco prima del rilascio, e quello della pagina non si vede più verso 0,85–0,9; a
-   * tempo vero la dissolvenza dura ≈125 ms. Si legge dalla strada e non dal tempo, quindi l'orologio del video non la
-   * sposta.
+   * La dissolvenza di Apple (F5B.3; di serie dal 19 novembre 2026, scelta di Alessio sui video a tempo vero): la pagina si
+   * dissolve nella sorgente dentro la sagoma, da circa un terzo della strada fra pagina intera e sorgente ([CrossfadeFrom])
+   * fino a quasi l'arrivo ([CrossfadeTo]). Misurata a occhio su WWDC24 10145 (1:46, il ritorno col dito nella cella; il
+   * video è a metà velocità, vedi [FluidPageMotion.ResponseZoomSeconds]): il contenuto della cella compare nel riquadro
+   * quando la sagoma ha fatto ~0,3 della strada, poco prima del rilascio, e quello della pagina non si vede più verso
+   * 0,85–0,9; a tempo vero la dissolvenza dura ≈125 ms. Si legge dalla strada e non dal tempo, quindi l'orologio del video
+   * non la sposta, e vale anche all'apertura: lì Apple sbiadisce la cella fra 0,07 e 0,60 della strada (≈90 ms), qui fra
+   * 0,1 e 0,67 (≈100 ms). Due soglie per verso farebbero saltare l'opacità quando un push si inverte in pop: una sola.
    */
   internal const val CrossfadeFrom: Float = 0.33f
   internal const val CrossfadeTo: Float = 0.9f

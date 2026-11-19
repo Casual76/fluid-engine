@@ -241,8 +241,8 @@ class FluidToolbarDslTest {
   fun `il titolo agganciato si ferma ai bordi interni dei gruppi d'arrivo`() {
     val resolved = resolve(model(onBack = {}, select), width = 400f)
     val extent = fluidToolbarExtent(resolved, density = 2f)
-    // L'indietro: 16 dp dal bordo, 44 di vetro.
-    assertEquals(((16f + 44f) * 2f).toInt(), extent.startPx)
+    // L'indietro: 16 dp dal bordo, 46 di vetro.
+    assertEquals(((16f + 46f) * 2f).toInt(), extent.startPx)
     val trailing = resolved.groups.filter { it.side == FluidToolbarSide.Trailing }.minOf { it.leftDp }
     assertEquals(((400f - trailing) * 2f).toInt(), extent.endPx)
   }

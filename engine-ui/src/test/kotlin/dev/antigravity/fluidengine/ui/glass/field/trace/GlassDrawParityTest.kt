@@ -369,16 +369,18 @@ class GlassDrawParityTest {
     var compared = 0
     for (dark in listOf(false, true)) {
       val ask = SceneAsk()
-      val scene = GlassScenes.sample("serie", dark, ask)
-      for (shape in GlassScenes.SampleShapes) {
-        for (density in SceneDensities) {
-          compareSample(scene, shape, dark, density, ask)
-          compared++
+      for ((key, shapes) in listOf("serie" to GlassScenes.SampleShapes, "barre-serie" to GlassScenes.BarSampleShapes)) {
+        val scene = GlassScenes.sample(key, dark, ask, shapes)
+        for (shape in shapes) {
+          for (density in SceneDensities) {
+            compareSample(scene, shape, dark, density, ask)
+            compared++
+          }
         }
       }
     }
-    // Tasto, capsula, tab bar, menu, pannello; chiaro e scuro; telefono e tablet.
-    assertEquals(20, compared)
+    // Cinque lastre, due geometrie, chiaro e scuro, telefono e tablet.
+    assertEquals(40, compared)
     assertEquals(listOf("tasto", "capsula", "barra", "menu", "pannello"), GlassScenes.SampleShapes.map { it["name"] })
   }
 

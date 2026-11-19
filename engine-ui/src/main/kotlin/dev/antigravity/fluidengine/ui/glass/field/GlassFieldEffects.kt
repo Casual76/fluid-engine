@@ -24,6 +24,11 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
+import android.graphics.RenderNode
+import android.util.Log
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Shader
 import android.os.Build
@@ -44,6 +49,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.layer.CompositingStrategy
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScopeImpl
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -69,6 +81,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffec
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
 import java.util.WeakHashMap
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -673,6 +686,90 @@ internal class GlassBodyChain {
   }
 }
 
+/** Controlli per il lotto A/B: letti una volta per processo, fuori dal percorso per fotogramma. */
+internal object GlassCostLevers {
+  private fun enabled(tag: String) = !runCatching { Log.isLoggable(tag, Log.VERBOSE) }.getOrDefault(false)
+
+  // Osservatori JVM installati solo dalle prove del renderer.
+  var onCapture: ((IntSize, Size) -> Unit)? = null
+  var onLight: ((recorded: Boolean) -> Unit)? = null
+  val travel = enabled("FluidF73NoSample")
+  val light = enabled("FluidF73NoLight")
+  val shadows = enabled("FluidF73NoShare")
+}
+
+/**
+ * In viaggio il campione e il filtro a monte lavorano a metà lato. Il nodo padre usa il campione già
+ * filtrato per rifrangere e comporre luce, filo, antialias e ombra in pixel reali. Una sola lettura
+ * delle sorgenti, anche con un materiale esportato. A riposo torna la catena originale a un layer.
+ */
+internal class GlassTravelCapture(
+  private val sample: GraphicsLayer,
+  private val screenDensity: Float,
+  private val material: BackdropEffectScope.() -> Unit,
+) : BackdropEffectScopeImpl(), GlassNestingScope {
+  init { sample.compositingStrategy = CompositingStrategy.Offscreen }
+
+  private lateinit var parent: BackdropEffectScope
+  private var lastFilter: android.graphics.RenderEffect? = null
+
+  override val shape: Shape get() = parent.shape
+  override val standsOnGlass: Boolean get() = (parent as? GlassNestingScope)?.standsOnGlass == true
+
+  val effects: BackdropEffectScope.() -> Unit = {
+    parent = this
+    val travel = this@GlassTravelCapture
+    travel.size = size
+    travel.density = density
+    travel.fontScale = fontScale
+    travel.layoutDirection = layoutDirection
+    travel.apply(material)
+    padding = travel.padding
+    renderEffect = travel.renderEffect
+  }
+
+  @RequiresApi(Build.VERSION_CODES.S)
+  fun filter(chain: GlassBodyChain, inputs: GlassDrawInputs) {
+    val filter = chain.upstream(inputs.saturation, inputs.blurPx * SampleScale, inputs.mix)
+    if (filter !== lastFilter) {
+      sample.renderEffect = filter?.asComposeRenderEffect()
+      lastFilter = filter
+    }
+  }
+
+  val capture: DrawScope.(DrawScope.() -> Unit) -> Unit = { source ->
+    // Lo scope è il rettangolo intero della registrazione (margine compreso). La sua matrice
+    // corrente ha già traslato il margine e scalato per il limite delle texture del dispositivo.
+    val extent = size
+    val inset = this@GlassTravelCapture.padding
+    val outputScale = this@GlassTravelCapture.density / screenDensity
+    val resolution = SampleScale * outputScale
+    val small = IntSize(
+      ceil(extent.width * SampleScale).toInt().coerceAtLeast(1),
+      ceil(extent.height * SampleScale).toInt().coerceAtLeast(1),
+    )
+    GlassCostLevers.onCapture?.invoke(small, extent)
+    sample.record(small) {
+      // Anche un fondale vuoto deve produrre il materiale.
+      drawRect(Color.Transparent, blendMode = BlendMode.Clear)
+      translate(inset * SampleScale, inset * SampleScale) {
+        scale(resolution, Offset.Zero) {
+          val previous = drawContext.size
+          drawContext.size = extent
+          try { source() } finally { drawContext.size = previous }
+        }
+      }
+    }
+    scale(1f / outputScale, Offset.Zero) {
+      translate(-inset, -inset) {
+        scale(1f / SampleScale, Offset.Zero) { drawLayer(sample) }
+      }
+    }
+  }
+
+  private companion object { const val SampleScale = 0.5f }
+}
+
 /** Gli uniform della geometria ad anello ([GlassFieldKernelRing]). */
 private fun RuntimeShader.setGlassRing(ring: GlassRingField, offsetX: Float, offsetY: Float, inputs: GlassDrawInputs) {
   setFloatUniform("offset", offsetX, offsetY)
@@ -741,7 +838,10 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   glassBodyProbe?.invoke(this, inputs)
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
-  val upstream = chain.upstream(inputs.saturation, inputs.blurPx, inputs.mix)
+  val upstream = if (this is GlassTravelCapture) {
+    filter(chain, inputs)
+    null
+  } else chain.upstream(inputs.saturation, inputs.blurPx, inputs.mix)
   val films = inputs.slabFilms?.takeIf { inputs.kernel == GlassBodyKernel.Eight }
   val filmShader = if (films == null) null else obtainEngineShader("GlassBodyFilms8", GlassShaderSources.BodyFilms8)
   val shader = filmShader ?: when (inputs.kernel) {
@@ -964,6 +1064,69 @@ internal fun DrawScope.drawGlassLight(
   if (inputs.drawsRim) {
     shader.setFloatUniform("lightPart", 1f)
     drawRect(brush = brush, topLeft = topLeft, size = area)
+  }
+}
+
+/** Una display list senza compositing fuori schermo: Plus continua a sommare sul corpo del vetro.
+ * Il nodo contiene soltanto due rettangoli e nessun riferimento al fondale o al contenuto Compose. */
+@RequiresApi(Build.VERSION_CODES.Q)
+private class GlassStillLight {
+  private val node = RenderNode("FluidGlass.luce").apply { setClipToBounds(false) }
+  private val recorder = CanvasDrawScope()
+  private val values = FloatArray(32)
+  private val last = FloatArray(values.size)
+  private var rim = Color.Unspecified
+  private var tone = Color.Unspecified
+
+  fun draw(scope: DrawScope, inputs: GlassDrawInputs, shader: RuntimeShader, brush: Brush, angle: Float) {
+    // La lastra a riposo ha un solo pezzo. Con la flessione il chiamante disegna direttamente.
+    inputs.light.rects.copyInto(values, 0, 0, 4)
+    inputs.light.radii.copyInto(values, 4, 0, 4)
+    with(inputs) {
+      values[8] = light.smooth[0]
+      values[9] = rimWidth
+      values[10] = rimFeather
+      values[11] = rimLift
+      values[12] = reflexDirX
+      values[13] = reflexDirY
+      values[14] = reflexHalfWidth
+      values[15] = reflexOppositeHalfWidth
+      values[16] = reflexStrength
+      values[17] = reflexDepth
+      values[18] = reflexFloor
+      values[19] = reflexHalo
+      values[20] = glowCenterX
+      values[21] = glowCenterY
+      values[22] = glowRadius
+      values[23] = glow
+      values[24] = glowFill
+      values[25] = lightMaterialize
+      values[26] = lightAa
+      values[27] = angle
+      values[28] = scope.size.width
+      values[29] = scope.size.height
+      values[30] = if (drawsGlowing) 1f else 0f
+      values[31] = if (drawsRim) 1f else 0f
+    }
+    val stale = !node.hasDisplayList() || !values.contentEquals(last) || rim != inputs.rimDark || tone != inputs.lightColor
+    GlassCostLevers.onLight?.invoke(stale)
+    if (stale) {
+      val width = ceil(scope.size.width).toInt()
+      val height = ceil(scope.size.height).toInt()
+      node.setPosition(0, 0, width, height)
+      val recording = node.beginRecording()
+      try {
+        recorder.draw(scope, scope.layoutDirection, Canvas(recording), scope.size) {
+          drawGlassLight(inputs, shader, brush, reflexRotation = angle)
+        }
+      } finally {
+        node.endRecording()
+      }
+      values.copyInto(last)
+      rim = inputs.rimDark
+      tone = inputs.lightColor
+    }
+    scope.drawContext.canvas.nativeCanvas.drawRenderNode(node)
   }
 }
 
@@ -1262,12 +1425,19 @@ internal class GlassLiquidSurface(
     return true
   }
 
+  private var stillLight: GlassStillLight? = null
+
   /** `onDrawLight` di `drawBackdrop`. */
   val onDrawLight = GlassLightDraw light@{ angle ->
     if (!fillLight(size, this, layoutDirection)) return@light
     if (!inputs.drawsGlowing && !inputs.drawsRim) return@light
     val shader = lightShader ?: return@light
     val brush = lightBrush ?: return@light
+    if (inputs.lightGel == null && Build.VERSION.SDK_INT >= 29 && drawContext.canvas.nativeCanvas.isHardwareAccelerated && GlassCostLevers.light) {
+      val cache = stillLight ?: GlassStillLight().also { stillLight = it }
+      cache.draw(this, inputs, shader, brush, angle)
+      return@light
+    }
     val margin = if (inputs.lightGel == null) 0f else gel!!.margin(size.width, size.height, density)
     drawGlassLight(inputs, shader, brush, Offset(-margin, -margin),
       Size(size.width + 2f * margin, size.height + 2f * margin), reflexRotation = angle)

@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassLayerKind
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassNodeKind
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNodeCensus
@@ -1459,11 +1461,69 @@ internal class GlassShadowElement(
   override fun hashCode(): Int = 31 * outline.hashCode() + shadow.hashCode()
 }
 
-/**
- * Il nodo dell'ombra a riposo: **un** layer, quello di [GlassShadowLayer]. È il terzo e ultimo layer vivo di
- * una lastra ferma (cattura, posa, ombra); con `shadow` che restituisce `null` il layer resta vuoto e non
- * si disegna.
- */
+/** I layer appartengono alla finestra. Una maschera in prestito a due nodi è immutabile fino
+ * all'uscita di uno dei due: anche alfa e filtro sono proprietà del layer nella display list. */
+private class SharedGlassShadow(val context: GraphicsContext) {
+  val layer = context.createGraphicsLayer()
+  val painter = GlassShadowLayer(layer)
+  val outline = GlassShadowPieces()
+  var density = 0f
+  var spec: GlassShadowSpec? = null
+  var users = 0
+  val counted = FluidGlassDiagnostics.enabled
+
+  init {
+    if (counted) FluidGlassDiagnostics.countLayer(FluidGlassLayerKind.Shadow, 1)
+  }
+
+  fun matches(pieces: GlassShadowPieces, paint: GlassShadowSpec, scale: Float) =
+    scale == density && paint == spec && outline.sameAs(pieces)
+}
+
+private object GlassShadowPool {
+  // Solo layer in uso sul filo UI. L'ultimo detach libera anche l'ultimo riferimento alla finestra.
+  private val active = mutableListOf<SharedGlassShadow>()
+
+  fun acquire(
+    old: SharedGlassShadow?,
+    context: GraphicsContext,
+    pieces: GlassShadowPieces,
+    spec: GlassShadowSpec,
+    density: Float,
+  ): SharedGlassShadow {
+    if (old != null && old.matches(pieces, spec, density)) return old
+    val same = if (GlassCostLevers.shadows) {
+      active.firstOrNull { it.context === context && it.matches(pieces, spec, density) }
+    } else null
+    if (same != null) {
+      same.users++
+      release(old)
+      return same
+    }
+    val entry = if (old?.users == 1) old else {
+      release(old)
+      SharedGlassShadow(context).also {
+        it.users = 1
+        active.add(it)
+      }
+    }
+    entry.outline.copyFrom(pieces)
+    entry.spec = spec
+    entry.density = density
+    return entry
+  }
+
+  fun release(entry: SharedGlassShadow?) {
+    if (entry == null) return
+    entry.users--
+    if (entry.users > 0) return
+    active.remove(entry)
+    entry.context.releaseGraphicsLayer(entry.layer)
+    if (entry.counted) FluidGlassDiagnostics.countLayer(FluidGlassLayerKind.Shadow, -1)
+  }
+}
+
+/** Il nodo conserva la sua iscrizione anche quando un'altra lastra disegna la stessa maschera. */
 internal class GlassShadowNode(
   var outline: GlassShadowOutline,
   var shadow: () -> GlassShadowSpec?,
@@ -1471,41 +1531,30 @@ internal class GlassShadowNode(
 
   override val shouldAutoInvalidate: Boolean = false
 
-  private var graphicsLayer: GraphicsLayer? = null
-  private var painter: GlassShadowLayer? = null
-
-  /** I pezzi della sagoma di questo fotogramma: del nodo, riempiti a ogni disegno. */
+  private var shared: SharedGlassShadow? = null
   private val pieces = GlassShadowPieces()
+  private val census = GlassNodeCensus(FluidGlassNodeKind.Shadow)
 
   override fun ContentDrawScope.draw() {
-    val painter = painter
-    if (painter != null) {
-      // Prima la sagoma, poi i numeri (ritocco di F1A.6): l'ombra di una lastra cresce con la sua taglia, e
-      // chi dà i numeri la taglia la legge qui, mentre risolve la sagoma (`shadow` non ha un `DrawScope`).
-      pieces.clear()
-      with(outline) { resolve(pieces) }
-      val spec = shadow()
-      if (spec != null) painter.draw(this, pieces, spec)
+    pieces.clear()
+    with(outline) { resolve(pieces) }
+    val paint = shadow()
+    if (paint == null || pieces.isEmpty()) {
+      GlassShadowPool.release(shared)
+      shared = null
+    } else {
+      val entry = GlassShadowPool.acquire(shared, requireGraphicsContext(), pieces, paint, density)
+      shared = entry
+      entry.painter.draw(this, pieces, paint)
     }
     drawContent()
   }
 
-  /** Ciò che questo nodo ha contato in `FluidGlassDiagnostics` (F1A.7), per restituirlo quando si stacca. */
-  private val census = GlassNodeCensus(FluidGlassNodeKind.Shadow)
-
-  override fun onAttach() {
-    val layer = requireGraphicsContext().createGraphicsLayer()
-    graphicsLayer = layer
-    // Un layer nuovo non contiene niente, e con lui nasce un `GlassShadowLayer` che non ha registrato niente.
-    painter = GlassShadowLayer(layer)
-    census.attached()
-    census.layer(FluidGlassLayerKind.Shadow)
-  }
+  override fun onAttach() = census.attached()
 
   override fun onDetach() {
-    graphicsLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
-    graphicsLayer = null
-    painter = null
+    GlassShadowPool.release(shared)
+    shared = null
     census.detached()
   }
 }

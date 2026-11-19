@@ -225,10 +225,10 @@ class FluidConcentricShapeTest {
   // --- Misure dei gruppi ---------------------------------------------------------------------------------------
 
   @Test
-  fun `le misure dei gruppi sono quelle di R6`() {
+  fun `tre tasti hanno un passo di 138 dp`() {
     assertEquals(12.dp, FluidMetrics.GroupSpacing)
-    assertEquals(44.dp, FluidMetrics.GroupItemPitch)
-    // Il passo è il vetro di un tasto: un gruppo di n azioni è largo n x 44.
+    assertEquals(46.dp, FluidMetrics.GroupItemPitch)
+    assertEquals(138.dp, FluidMetrics.GroupItemPitch * 3)
     assertEquals(FluidMetrics.GlassButtonLens, FluidMetrics.GroupItemPitch)
     assertEquals(48.dp, FluidMetrics.TouchTarget)
     assertTrue(FluidMetrics.TouchTarget >= FluidMetrics.GroupItemPitch)

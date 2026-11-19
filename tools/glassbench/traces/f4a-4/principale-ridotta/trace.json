@@ -20,15 +20,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -39,15 +39,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -56,17 +56,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675EC00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#FFFFFF"
             }
@@ -82,15 +82,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFB",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.982731,
               "color": "#26262A"
             }
@@ -101,15 +101,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA04",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.017269,
               "color": "#26262A"
             }
@@ -118,17 +118,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675EC04",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.017269,
               "color": "#FFFFFF"
             }
@@ -144,15 +144,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAE9",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.914895,
               "color": "#26262A"
             }
@@ -163,15 +163,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA16",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.085105,
               "color": "#26262A"
             }
@@ -180,17 +180,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675EC16",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.085105,
               "color": "#FFFFFF"
             }
@@ -206,15 +206,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAC3",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.763413,
               "color": "#26262A"
             }
@@ -225,15 +225,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA3C",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.236587,
               "color": "#26262A"
             }
@@ -242,17 +242,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675EC3C",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.236587,
               "color": "#FFFFFF"
             }
@@ -268,15 +268,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA8A",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.542748,
               "color": "#26262A"
             }
@@ -287,15 +287,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA75",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.457252,
               "color": "#26262A"
             }
@@ -304,17 +304,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675EC75",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.457252,
               "color": "#FFFFFF"
             }
@@ -330,15 +330,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA5A",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.353754,
               "color": "#26262A"
             }
@@ -349,15 +349,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAA5",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.646246,
               "color": "#26262A"
             }
@@ -366,17 +366,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECA5",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.646246,
               "color": "#FFFFFF"
             }
@@ -392,15 +392,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA39",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.224438,
               "color": "#26262A"
             }
@@ -411,15 +411,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAC6",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.775562,
               "color": "#26262A"
             }
@@ -428,17 +428,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECC6",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.775562,
               "color": "#FFFFFF"
             }
@@ -454,15 +454,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA23",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.137649,
               "color": "#26262A"
             }
@@ -473,15 +473,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EADC",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.862351,
               "color": "#26262A"
             }
@@ -490,17 +490,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECDC",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.862351,
               "color": "#FFFFFF"
             }
@@ -516,15 +516,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA14",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.079224,
               "color": "#26262A"
             }
@@ -535,15 +535,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAEB",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.920776,
               "color": "#26262A"
             }
@@ -552,17 +552,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECEB",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.920776,
               "color": "#FFFFFF"
             }
@@ -578,15 +578,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA0A",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.040632,
               "color": "#26262A"
             }
@@ -597,15 +597,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAF5",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.959368,
               "color": "#26262A"
             }
@@ -614,17 +614,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECF5",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.959368,
               "color": "#FFFFFF"
             }
@@ -640,15 +640,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA04",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.016641,
               "color": "#26262A"
             }
@@ -659,15 +659,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFB",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.983359,
               "color": "#26262A"
             }
@@ -676,17 +676,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFB",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.983359,
               "color": "#FFFFFF"
             }
@@ -702,15 +702,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA01",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.003866,
               "color": "#26262A"
             }
@@ -721,15 +721,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFE",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.996134,
               "color": "#26262A"
             }
@@ -738,17 +738,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFE",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0.996134,
               "color": "#FFFFFF"
             }
@@ -764,15 +764,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -783,15 +783,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -800,17 +800,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -826,15 +826,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -845,15 +845,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -862,17 +862,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -888,15 +888,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -907,15 +907,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -924,17 +924,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -950,15 +950,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -969,15 +969,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -986,17 +986,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -1012,15 +1012,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -1031,15 +1031,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -1048,17 +1048,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -1074,15 +1074,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -1093,15 +1093,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -1110,17 +1110,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }
@@ -1136,15 +1136,15 @@
           "kind": "shape",
           "x": 37,
           "y": 14,
-          "w": 132,
-          "h": 44,
+          "w": 138,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EA00",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share", "fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 0,
               "color": "#26262A"
             }
@@ -1155,15 +1155,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 88,
-          "h": 44,
+          "w": 92,
+          "h": 46,
           "radius": "capsule",
           "color": "#E4E4EAFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:edit|pencil", "fluid:ios_share|share"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#26262A"
             }
@@ -1172,17 +1172,17 @@
         {
           "name": "dopo-principale",
           "kind": "shape",
-          "x": 125,
+          "x": 129,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#1675ECFF",
           "content": [
             {
               "name": "icone",
               "icons": ["fluid:star|star"],
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "alpha": 1,
               "color": "#FFFFFF"
             }

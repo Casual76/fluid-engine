@@ -625,9 +625,8 @@ private class FluidMenuRelayNode(
  */
 enum class FluidMenuOrder {
   /**
-   * Di serie. Apple sceglie [Fixed] dentro un contenuto che scorre e [Priority] altrove; qui vale **[Fixed]**
-   * dappertutto, perche' un menu gia' scritto non cambi ordine aggiornando l'engine (il menu di un tasto in basso
-   * si capovolgerebbe da solo). Chi vuole il comportamento di Apple per un tasto lo chiede con [Priority].
+   * Di serie: [Priority] per un menu dal tasto, [Fixed] per un menu contestuale. Per conservare l'ordine
+   * scritto in un menu dal tasto, per esempio in un contenuto scorrevole, si può chiedere [Fixed].
    */
   Automatic,
 
@@ -680,9 +679,8 @@ enum class FluidMenuElementSize {
  * ```
  *
  * L'uguaglianza e' quella di una lista (le voci), come chiede il contratto di `List`: due menu con le stesse voci e
- * un ordine diverso sono uguali come liste. Il menu di [dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost]
- * lo legge come una lista e basta: fila, ordine e sottomenu sono dell'host dei modali (i menu dalla barra, dal tasto
- * della barra e il contestuale).
+ * un ordine diverso sono uguali come liste. Fila, ordine e sottomenu valgono nell'host dei modali e in
+ * [dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost].
  */
 @Stable
 class FluidMenuActions(
@@ -734,9 +732,13 @@ internal fun fluidMenuSnapshot(actions: List<FluidContextAction>): List<FluidCon
  */
 internal fun fluidMenuOpensUpward(anchor: Rect, panel: Rect): Boolean = panel.center.y < anchor.center.y
 
-/** Se l'ordine va capovolto: solo [FluidMenuOrder.Priority], solo verso l'alto ([FluidMenuOrder.Automatic] e' fisso). */
-internal fun fluidMenuReverses(order: FluidMenuOrder, opensUpward: Boolean): Boolean =
-  order == FluidMenuOrder.Priority && opensUpward
+/** Il capovolgimento serve solo verso l'alto, quando la priorità segue il punto d'interazione. */
+internal fun fluidMenuReverses(order: FluidMenuOrder, opensUpward: Boolean, fromButton: Boolean): Boolean =
+  opensUpward && when (order) {
+    FluidMenuOrder.Automatic -> fromButton
+    FluidMenuOrder.Priority -> true
+    FluidMenuOrder.Fixed -> false
+  }
 
 /** Quante voci stanno nella fila in cima per [size]: 4, 3, nessuna. */
 internal fun fluidMenuRowCapacity(size: FluidMenuElementSize): Int = when (size) {

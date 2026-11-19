@@ -302,7 +302,7 @@ fun FluidFloatingCapsule(
           ) {
             FluidGlassNested {
               CompositionLocalProvider(
-                // La taglia delle icone della capsula (4.0, R6): 26 dp, quella delle azioni della barra in alto. La prende
+                // La taglia delle icone della capsula: 28 dp, quella delle azioni della barra in alto. La prende
                 // [FluidCapsuleAction] e ogni [FluidIcon] del contenuto senza una taglia sua.
                 LocalFluidIconSize provides FluidMetrics.CapsuleIconSize,
               ) {
@@ -341,7 +341,7 @@ private fun Modifier.fluidCapsuleFootprint(plane: FluidGlassContainerState, id: 
  *
  * **Dalla 4.0** (R6, piano «iOS in Android» F1A.11) l'icona e' nell'inchiostro del testo (nella capsula `onSurface`)
  * invece che nell'accento, come le icone delle barre di Apple, e prende la taglia dal posto in cui sta
- * ([LocalFluidIconSize]): 26 dp nella [FluidFloatingCapsule] (era 24), 24 fuori. L'accento resta a un'azione accesa
+ * ([LocalFluidIconSize]): 28 dp nella [FluidFloatingCapsule], 24 fuori. L'accento resta a un'azione accesa
  * (`selected = true`) e a chi lo chiede con [tint].
  *
  * @param size il lato. Sotto i 48 dp il layout e' piu' stretto ma Compose estende comunque l'area
@@ -426,7 +426,7 @@ fun FluidCapsuleAction(
       ),
     contentAlignment = Alignment.Center,
   ) {
-    // La taglia dal posto: 26 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
+    // La taglia dal posto: 28 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
     val iconSize = LocalFluidIconSize.current
     FluidGlassContentTransition(icon, blurReference = iconSize,
       modifier = Modifier.size(iconSize).semantics { this.contentDescription = contentDescription }) { shown ->

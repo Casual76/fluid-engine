@@ -8,9 +8,9 @@ import org.junit.Test
 class FluidGlassSizeTest {
 
   @Test
-  fun lensIs40And44And54Dp() {
+  fun lensIs40And46And54Dp() {
     assertEquals(40.dp, FluidGlassSize.Compact.lens)
-    assertEquals(44.dp, FluidGlassSize.Regular.lens)
+    assertEquals(46.dp, FluidGlassSize.Regular.lens)
     assertEquals(54.dp, FluidGlassSize.Large.lens)
   }
 
@@ -56,7 +56,7 @@ class FluidGlassSizeTest {
     // ha misurato che cosi' la sagoma riempiva 0,37 del tasto contro 0,44-0,48 di Apple. A 0,6 del vetro la sagoma
     // (0,75 del riquadro) sta a 0,44 (piano «iOS in Android», sezione 2 e F1A.11).
     assertEquals(24.dp, FluidGlassSize.Compact.iconSize)
-    assertEquals(26.dp, FluidGlassSize.Regular.iconSize)
+    assertEquals(28.dp, FluidGlassSize.Regular.iconSize)
     assertEquals(32.dp, FluidGlassSize.Large.iconSize)
     // La stessa regola che il tasto da' alle icone dentro di lui, e quella delle azioni della barra.
     FluidGlassSize.entries.forEach { assertEquals("$it", FluidMetrics.iconSizeIn(it.lens), it.iconSize) }

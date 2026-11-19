@@ -49,7 +49,7 @@ proprio margine.
 
 | cosa | regola |
 |---|---|
-| **icone** | l'app mette l'icona, la taglia arriva dal posto: 28 dp in una scheda (`FluidMetrics.TabBarIconSize`), 26 nella capsula e nella barra in basso, 0,6 del vetro in un tasto di vetro. L'inchiostro è quello del testo; l'accento dice la scelta. `FluidIcons` è il set dell'engine, `FluidIcons.Filled.*` le gemelle piene; un `Icon(…)` con una taglia scritta resta com'è |
+| **icone** | l'app mette l'icona, la taglia arriva dal posto: 28 dp in una scheda (`FluidMetrics.TabBarIconSize`), nella capsula e nella barra in basso, 0,6 del vetro in un tasto di vetro. L'inchiostro è quello del testo; l'accento dice la scelta. `FluidIcons` è il set dell'engine, `FluidIcons.Filled.*` le gemelle piene; un `Icon(…)` con una taglia scritta resta com'è |
 | **posa della tab bar** | la barra non porta margine laterale, margine basso né barra di sistema: `Box(Modifier.align(BottomCenter).navigationBarsPadding().padding(horizontal = HorizontalMargin, vertical = BottomMargin))`, 14 e 16 dp in `FluidFloatingTabBarDefaults` |
 | **spazio della pagina** | `FluidFloatingTabBarDefaults.ContentInset` = 62 + 16 = **78 dp**, senza barra di sistema; con una banda `contentInsetWithAccessory(h)` = 78 + h + 8. Si dà una volta, alla shell: `ProvideFluidChrome(bottomInset = …)`. La barra in basso dichiarata e la ricerca in basso si posano sopra questo spazio da sole |
 | **il fondale** | `backdrop = chromeController.activeBackdrop.value ?: fallback`. Senza `backdrop` la tab bar è una capsula piatta, senza lente |
@@ -57,14 +57,31 @@ proprio margine.
 | **movimento ridotto** | tutte le barre leggono `LocalFluidMotionPolicy`: la piega, la bolla, la conversione in barra laterale e il campo vanno alla posa d'arrivo in un fotogramma; la capsula entra ed esce in sola dissolvenza (160/120 ms) |
 | **sopra la tastiera** | `Modifier.fluidCapsuleInsets(placement, avoidKeyboard)` per un vetro posato a mano; la ricerca dichiarata segue da sé l'inset animato dell'IME |
 
+## Le misure della barra superiore
+
+La riga dei controlli misura 46 dp, come il vetro di un tasto. Le icone misurano 28 dp e la freccia Indietro 25 dp.
+Una capsula di tre azioni occupa 138 dp prima di eventuali margini, con un passo di 46 dp. Il titolo agganciato
+parte a 86 dp per lato e si sposta se le azioni chiedono più spazio. Il tocco dei tasti copre anche il riquadro
+attorno al disco.
+
 ## La barra in basso dichiarata
 
 Una pagina mette i suoi comandi in basso dichiarandoli con `FluidToolbarPlacement.BottomBar`: è la stessa DSL della barra
 in alto, con lo stesso modello, la stessa memoria delle identità e lo stesso scambio dei glifi
 ([toolbar.md](toolbar.md), «La barra in basso»). La sede è una sola per tutto l'host: in un `FluidPageHost` fra
-«Raccolta» e «Foto» il più che c'è in tutte e due resta fermo, i comandi che mancano all'arrivo escono stringendo il
+«Raccolta» e «Foto» il più che c'è in tutte e due resta al suo posto, i comandi che mancano all'arrivo escono stringendo il
 gruppo, quelli nuovi entrano per lente. Uno `spacer()` fisso stacca un comando dal gruppo, e il vetro si divide col collo;
 toglierlo lo riunisce.
+
+**Il più va col suo vetro** (scelta di Alessio del 19 novembre 2026). Mentre il gruppo si richiude su di lui il vetro è
+trascinato verso il bordo che si muove (`FluidMotion.PlaneResizeDrag`, 0,155 dell'altezza al colmo, a ~300 ms) e il più,
+ancorato al bordo di fine del suo vetro, si sposta con lui e torna: a destra quando il gruppo si richiude, a sinistra
+quando si riapre, al suo posto alla fine. È ciò che fa Apple in Foto (WWDC25 219, a tempo vero: +0,16 H a 300 ms, di
+nuovo al posto a ~490, −0,015 H a ~560) ed è la stessa regola del contenuto che resta in un gruppo
+(`FluidGlassContentAnchor`: «il rimbalzo del bordo resta nel contenuto»). Vale solo se il più resta nello stesso vetro e
+il bordo di fine è lo stesso nei due stati: staccato in un vetro suo (lo `spacer()`) resta fermo. La barra in alto non lo
+fa: lì il tasto che resta al suo posto resta fermo, come ha scelto F4A (nessuna clip di Apple della barra in alto mostra un
+tasto uguale che resta). La sfocatura «morbida, come Apple» del più che resta non cambia.
 
 ```kotlin
 FluidScreen(title = if (detail) "Foto" else "Raccolta", onBack = back, toolbar = {
@@ -82,7 +99,7 @@ FluidScreen(title = if (detail) "Foto" else "Raccolta", onBack = back, toolbar =
 }) { /* righe */ }
 ```
 
-Ogni posto misura 48 dp con l'icona da 26 (in Apple 47,8 pt). La sede sta sopra la navigazione di sistema e, se l'app
+Ogni posto misura 48 dp con l'icona da 28 dp (il posto in Apple misura 47,8 pt). La sede sta sopra la navigazione di sistema e, se l'app
 ha dato l'inset della tab bar, sopra la tab bar; la lista riserva lo spazio per l'ultima riga. Col ritiro della barra
 (`barMinimize`) i comandi in basso scendono fuori dallo schermo con la stessa corsa di quelli in alto.
 
@@ -91,7 +108,7 @@ ha dato l'inset della tab bar, sopra la tab bar; la lista riserva lo spazio per 
 `FluidFloatingCapsule` è la capsula che la pagina posa da sé: la barra di una selezione multipla, un mini lettore, i
 comandi di una foto, un avviso con un tasto. È **una lastra sola** sul piano: quando cambiano i figli il pannello anima
 la larghezza (conservando il centro, se il genitore la centra) e il contenuto segue il layout d'arrivo; le azioni non
-sono vetri, sono icone piatte (`FluidCapsuleAction`, 26 dp) che crescono sotto il dito. Il cambio di glifo di
+sono vetri, sono icone piatte (`FluidCapsuleAction`, 28 dp) che crescono sotto il dito. Il cambio di glifo di
 un'azione passa con lo scambio sfocato.
 
 ```kotlin
@@ -128,7 +145,7 @@ tab bar: non va sommato a `ContentInset`.
 
 La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la
 toolbar ha la precedenza. `query` e `onQueryChange` restano dell'app. Il campo è un vetro del piano con un'identità
-stabile: la lente da 44 dp si allunga nella capsula del campo, alta 40 dp (la zona di tocco resta 44), mentre i vicini
+stabile: la lente da 46 dp si allunga nella capsula del campo, alta 40 dp (la riga del tocco è alta 48 dp), mentre i vicini
 le fanno posto raccogliendosi in «Altro»; il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
 sfocati e scalati, nitidi verso la fine del moto. Un solo editor attraversa tutte le pose, anche quando cambia quota.
 
@@ -174,7 +191,7 @@ FluidSearchField(query = q, onQueryChange = { q = it; current = 0 }, backdrop = 
     onNext = { if (total > 0) current = (current + 1) % total }))
 ```
 
-- Con `onExpandedChange` è richiudibile: la lente da 44 dp si apre in un campo alto 40, sul piano, con la cattura tenuta;
+- Con `onExpandedChange` è richiudibile: la lente da 46 dp si apre in un campo alto 40, sul piano, con la cattura tenuta;
   segnaposto e chiusura entrano sfocati. Il campo sempre aperto è alto 52 dp. Il modificatore del chiamante decide il
   lato da cui cresce.
 - `autoFocus` prende il fuoco all'apertura; il fuoco si toglie solo quando il campo si chiude. «Cerca» sulla tastiera
@@ -390,7 +407,7 @@ Codice nuovo usa `FluidFloatingTabBar` con la sua connessione.
 | bolla | premuta ×78/56 della cella, icona ×1,12; inchiostro ≥ 3:1; rientro 0,076 H |
 | scheda prominente | tondo 1,00 H, varco 0,115 H; gruppo di tre 5,23 H su una tela larga |
 | `FluidFloatingCapsuleDefaults` | `Height` 62, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6 e 7, `MaxWidth` 560 |
-| ricerca dichiarata | lente 44, campo 40 (tocco 44), velo 40% nero o 16% bianco secondo l'inchiostro |
+| ricerca dichiarata | lente 46, campo 40 (riga del tocco 48), velo 40% nero o 16% bianco secondo l'inchiostro |
 | `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `ActionSize` 40, `ExpandedFallbackWidth` 320 |
 | navigazione adattiva | soglie 600 e 1000; tratte 400 + 500 ms all'apertura, 430 + 400 al ritorno; margine della colonna 12; riflesso 12; velo della colonna 12% |
 | `FluidTabBarDefaults` (rail e barra storica) | `Height` 64, `RailWidth` 84, `RailIconSize` 28, `RailHeaderSpacing` 8, `ContentInset` 80 |
@@ -407,7 +424,7 @@ Le tracce `tools/glassbench/traces/f4b-5/` portano la geometria dell'engine acca
 | `ricerca-apre` | Salute, WWDC25 256 f7320 | la lente arriva a sinistra ~33 ms prima, il testo è leggibile a ~233 ms come in Apple; i vicini vanno in «Altro» e non nel tondo della scheda |
 | `bolla-pressione`, `bolla-cambio` | Musica iOS 26, registrazione a 60 Hz (R1 T2) | lente formata a 133–167 ms e rientro in ~80 ms come in Apple; nel cambio la bolla arriva un fotogramma prima |
 | `tabbar-in-barra-laterale`, `barra-laterale-in-tabbar` | Musica per iPad, WWDC25 208 | le due tratte nei due versi entro un fotogramma |
-| `capsula-cambia` | Foto, WWDC25 219 f8551 | il gruppo si stringe e il più resta fermo; in Apple il più scivola di 0,16 H |
+| `capsula-cambia` | Foto, WWDC25 219 f8551 | il gruppo si stringe e il più va col suo vetro: +0,154 H a 300 ms contro +0,162 di Apple, di nuovo al posto a ~480 ms (Apple ~490), fase per fase entro 0,015 H |
 
 ## Cosa è verificato dai test
 
@@ -419,8 +436,13 @@ Le tracce `tools/glassbench/traces/f4b-5/` portano la geometria dell'engine acca
 - `FluidFloatingTabBarFieldTest`: la piega e la ricerca come viaggi del piano (larghezze a sei istanti, inchiostro che
   si spegne, il titolo scelto fino a 67 ms e sotto il glifo), la bolla premuta e lo scambio; esporta le tracce.
 - `FluidFloatingCapsuleTest`: margini e inset delle tre sedi, azioni in gruppi annidati, ingombro. `FluidBottomBarTest`
-  (sample): una sede in alto e una in basso, la capsula centrata che cambia larghezza, il più fermo fra «Raccolta» e
-  «Foto», push e pop identici con e senza barra in basso.
+  (sample): una sede in alto e una in basso, la capsula centrata che cambia larghezza, il più al suo posto fra
+  «Raccolta» e «Foto» a riposo, push e pop identici con e senza barra in basso.
+- `FluidToolbarEdgeRideTest` (engine-ui): il più che resta va col bordo del suo vetro col conducente del piano di
+  produzione, fase per fase entro 0,03 H dalla clip di Apple (fermo fino a 100 ms, colmo a 250–350 ms, al posto alla
+  fine), dall'altra parte quando il gruppo si riapre, in RTL, con lo stesso spostamento del contenuto ancorato al bordo;
+  fermo in alto, staccato in un vetro suo e con le animazioni ridotte. `F4aToolbarExportTest` lo riprova sulla traccia
+  `capsula-cambia`.
 - `FluidSearchFieldTest`, `FluidToolbarSearchTest`: contatore e larghezze del campo; sede automatica, vicini, stato
   attivo, ritorno interrotto, finestra traslata dalla tastiera. `FluidToolbarSearchHostTest` (sample): schermata senza
   DSL, host dichiarato, tondo della tab bar, digitazione e sostituzione.

@@ -20,15 +20,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -36,17 +36,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -61,15 +61,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -77,17 +77,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -102,15 +102,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -118,17 +118,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -143,15 +143,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -159,17 +159,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -184,15 +184,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -200,17 +200,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -225,15 +225,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F0F1F6FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26282FFF"
             }
           ]
@@ -241,17 +241,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C9E0FFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0E63C5FF"
             }
           ]
@@ -266,15 +266,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#E6EDF8FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#273751FF"
             }
           ]
@@ -282,17 +282,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#D3E4FDFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#1E559EFF"
             }
           ]
@@ -307,15 +307,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#D9E7FBFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#234B84FF"
             }
           ]
@@ -323,17 +323,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#E0EAFAFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#264169FF"
             }
           ]
@@ -348,15 +348,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#CDE1FEFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#175DB5FF"
             }
           ]
@@ -364,17 +364,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#ECEFF6FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#272E3DFF"
             }
           ]
@@ -389,15 +389,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -405,17 +405,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -430,15 +430,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -446,17 +446,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -471,15 +471,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -487,17 +487,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -512,15 +512,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -528,17 +528,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -553,15 +553,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -569,17 +569,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -594,15 +594,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -610,17 +610,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -635,15 +635,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -651,17 +651,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -676,15 +676,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -692,17 +692,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -717,15 +717,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -733,17 +733,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -758,15 +758,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -774,17 +774,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -799,15 +799,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -815,17 +815,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -840,15 +840,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -856,17 +856,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -881,15 +881,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -897,17 +897,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -922,15 +922,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -938,17 +938,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -963,15 +963,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -979,17 +979,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]
@@ -1004,15 +1004,15 @@
           "kind": "shape",
           "x": 25,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#C8DFFFFF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_bold|bold",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#0A65CBFF"
             }
           ]
@@ -1020,17 +1020,17 @@
         {
           "name": "corsivo",
           "kind": "shape",
-          "x": 69,
+          "x": 71,
           "y": 14,
-          "w": 44,
-          "h": 44,
+          "w": 46,
+          "h": 46,
           "radius": "capsule",
           "color": "#F1F1F5FF",
           "content": [
             {
               "name": "glifo",
               "icon": "fluid:format_italic|italic",
-              "iconSizeDp": 26,
+              "iconSizeDp": 28,
               "color": "#26262AFF"
             }
           ]

@@ -304,26 +304,29 @@ class FluidContextLiftTest {
   }
 
   @Test
-  fun theProposalIsLevelB() {
-    assertEquals(FluidContextScrimLevel.B.look, FluidContextScrimLook)
-    assertEquals(FluidContextScrimLevel.B, FluidContextScrimTuning.Default)
+  fun theDefaultIsLevelC() {
+    assertEquals(FluidContextScrimLevel.C.look, FluidContextScrimLook)
+    assertEquals(FluidContextScrimLevel.C, FluidContextScrimTuning.Default)
+    assertEquals(0.32f, FluidContextScrimLook.lightAlpha, 0f)
+    assertEquals(0.48f, FluidContextScrimLook.darkAlpha, 0f)
+    assertEquals(6.5f, FluidContextScrimLook.blurDp, 0.001f)
   }
 
   @Test
-  fun theScrimKnobPicksALevelAndFallsBackToTheProposal() {
+  fun theScrimKnobPicksALevelAndFallsBackToLevelC() {
     // Correzione dopo S9: il tablet deve poter mostrare i tre livelli a schermo intero senza ricompilare
     // (`gallery.tune ctxscrim=a|b|c`). Un valore che non si riconosce, o nessuna manopola, torna di serie.
     try {
-      assertEquals(FluidContextScrimLevel.B, FluidContextScrimTuning.level)
+      assertEquals(FluidContextScrimLevel.C, FluidContextScrimTuning.level)
       assertEquals(listOf("a", "b", "c"), FluidContextScrimTuning.Values)
       assertEquals(FluidContextScrimLevel.A, FluidContextScrimTuning.parse(mapOf(" CtxScrim " to " A ")))
       assertEquals(null, FluidContextScrimTuning.parse(mapOf("ctxscrim" to "d")))
       assertEquals(null, FluidContextScrimTuning.parse(mapOf("barkeep" to "soft")))
-      assertEquals(mapOf("ctxscrim" to "c"), FluidContextScrimTuning.apply(mapOf("ctxscrim" to "C", "blur" to "24")))
-      assertEquals(FluidContextScrimLevel.C, FluidContextScrimTuning.level)
-      assertEquals(FluidContextScrimLevel.C.look, FluidContextScrimTuning.look)
+      assertEquals(mapOf("ctxscrim" to "b"), FluidContextScrimTuning.apply(mapOf("ctxscrim" to "B", "blur" to "24")))
+      assertEquals(FluidContextScrimLevel.B, FluidContextScrimTuning.level)
+      assertEquals(FluidContextScrimLevel.B.look, FluidContextScrimTuning.look)
       assertEquals(emptyMap<String, String>(), FluidContextScrimTuning.apply(mapOf("ctxscrim" to "boh")))
-      assertEquals("un valore sconosciuto torna di serie", FluidContextScrimLevel.B, FluidContextScrimTuning.level)
+      assertEquals("un valore sconosciuto torna di serie", FluidContextScrimLevel.C, FluidContextScrimTuning.level)
       FluidContextScrimTuning.apply(mapOf("ctxscrim" to "a"))
       FluidContextScrimTuning.apply(emptyMap())
       assertEquals(FluidContextScrimLook, FluidContextScrimTuning.look)

@@ -58,17 +58,15 @@ class F64ButtonSceneTest {
     return liquidElement(shape, recipe, null, "glassRecipe: ruolo $role, $w x $h dp, lato $side$note")
   }
 
-  private fun dp(value: Float): Float = (value * 100f).roundToInt() / 100f
-
   /**
    * La barra in alto di R6 (iOS 27, 269 f11400: indietro, un tondo, un gruppo di tre, «altro») e i gruppi in basso di
    * iOS 26 (219 f28855), col vetro del tasto a [lens] dp e le icone a 0,6 del vetro. Il passo nel gruppo e' il vetro
    * (`GroupItemPitch` vale 1,0 volte l'altezza), i margini quelli di `FluidMetrics`.
    */
-  private fun barScenes(): List<GlassScene> = listOf(44f, 46f).flatMap { lens ->
+  private fun barScenes(): List<GlassScene> = listOf(44f, FluidMetrics.GlassButtonLens.value).flatMap { lens ->
     listOf(false, true).map { dark ->
       val icon = FluidMetrics.iconSizeIn(androidx.compose.ui.unit.Dp(lens)).value
-      val back = dp(FluidMetrics.BackIconSize.value * lens / 44f)
+      val back = if (lens == 44f) 24f else FluidMetrics.BackIconSize.value
       val ink = if (dark) inkDark else inkLight
       val width = 412f
       val edge = FluidMetrics.ScreenEdgeMargin.value

@@ -115,9 +115,9 @@
     },
     {
       "name": "campione-chiaro",
-      "scene": "scenes/f1a/gusto/serie-chiaro.json",
+      "scene": "scenes/f1a/gusto/barre-serie-chiaro.json",
       "png": "campione-chiaro.png",
-      "sha256": "b380398aa2ed1f5120dfeeb81a9acae7d5f8ef4944ef2d1b18146f7672e233e4",
+      "sha256": "978b9a7836c05d8c8ec57fda86b6ebafcb96f45fa41b928345a60d15995669e8",
       "size": [
         1800,
         880
@@ -125,9 +125,9 @@
     },
     {
       "name": "campione-scuro",
-      "scene": "scenes/f1a/gusto/serie-scuro.json",
+      "scene": "scenes/f1a/gusto/barre-serie-scuro.json",
       "png": "campione-scuro.png",
-      "sha256": "fd5544e311cd30cc18ccfbe6369fd999e761cae389c72a0ff3499101eae0e5a5",
+      "sha256": "9cbb19b19672f198da35d891affae0fb29541bd29623d15630faa27462c85402",
       "size": [
         1800,
         880

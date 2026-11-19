@@ -219,7 +219,7 @@ class IconSizesInComponentsTest {
     }
     compose.waitForIdle()
     assertDp("fuori da tutto", 24.dp, widthOf("fuori"))
-    assertDp("nel tasto da 44", 26.dp, widthOf("tasto"))
+    assertDp("nel tasto da 46", 28.dp, widthOf("tasto"))
     assertDp("nel tasto da 40", 24.dp, widthOf("compatto"))
     assertDp("nel tasto da 54", 32.dp, widthOf("grande"))
     assertDp("con il modificatore", 20.dp, widthOf("scritta"))
@@ -228,7 +228,7 @@ class IconSizesInComponentsTest {
   }
 
   @Test
-  fun `la barra - freccia a 24, azioni a 26, vetri a 16 dp dal bordo e a 8 fra loro`() {
+  fun `la barra - freccia a 25, azioni a 28, vetri a 16 dp dal bordo e a 8 fra loro`() {
     compose.setContent {
       Themed {
         Box(Modifier.fillMaxSize().testTag("schermo")) {
@@ -252,7 +252,7 @@ class IconSizesInComponentsTest {
   }
 
   @Test
-  fun `la capsula da' 26 dp alle sue azioni, la tab bar 28 alle schede`() {
+  fun `capsula e tab bar danno 28 dp alle loro icone`() {
     compose.setContent {
       Themed {
         Column {

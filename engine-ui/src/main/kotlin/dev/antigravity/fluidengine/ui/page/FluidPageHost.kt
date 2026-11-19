@@ -496,18 +496,30 @@ private class PageScopeImpl(
 }
 
 /**
- * La variante con la dissolvenza (F5B.3, di serie spenta: [FluidPageHostState.zoomCrossfade]). Dentro il layer della
- * pagina sopra, quindi già in scala e ritagliato dalla sagoma: il fondo della pagina resta pieno, il contenuto sbiadisce, e
- * sopra compare la fotografia della sorgente, larga quanto la sagoma e in alto ([FluidZoom.snapshotRect]). All'arrivo la
- * sagoma è la sorgente e la fotografia la copre tutta: la sorgente che rinasce è la stessa immagine. Spenta, o fuori dallo
- * zoom, disegna la pagina e basta.
+ * La dissolvenza dello zoom (F5B.3; di serie dal 19 novembre 2026, scelta di Alessio: [FluidPageHostState.zoomCrossfade]).
+ * Dentro il layer della pagina sopra, quindi già in scala e ritagliato dalla sagoma: il fondo della pagina resta pieno, il
+ * contenuto sbiadisce, e sopra compare la fotografia della sorgente, larga quanto la sagoma e in alto
+ * ([FluidZoom.snapshotRect]). All'arrivo la sagoma è la sorgente e la fotografia la copre tutta: la sorgente che rinasce è
+ * la stessa immagine. All'apertura è lo stesso al contrario: la card sbiadisce mentre la pagina compare.
+ *
+ * Nel fotogramma in cui la sorgente si nasconde la sua fotografia può non essere ancora registrata (la registra il disegno
+ * della sorgente, che può arrivare al fotogramma dopo): lì la pagina, fondo compreso, si disegna con l'opacità che le
+ * spetta, così all'apertura non compare per un fotogramma la miniatura piena della pagina prima della card. Fuori dallo
+ * zoom, o senza dissolvenza, disegna la pagina e basta.
  */
 private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier = drawWithContent {
   val alpha = if (state.roleOf(page) == PageRole.Upper) state.zoomCrossfadeAlpha() else 0f
-  val snapshot = if (alpha > 0f) state.zoomSnapshot() else null
+  if (alpha <= 0f) {
+    drawContent()
+    return@drawWithContent
+  }
+  val snapshot = state.zoomSnapshot()
   val zoomed = if (snapshot != null) state.zoomShape() else null
   if (snapshot == null || zoomed == null || snapshot.size.width <= 0f) {
+    val target = Rect(0f, 0f, size.width, size.height)
+    drawContext.canvas.saveLayer(target, Paint().apply { this.alpha = 1f - alpha })
     drawContent()
+    drawContext.canvas.restore()
     return@drawWithContent
   }
   val target = Rect(0f, 0f, size.width, size.height)

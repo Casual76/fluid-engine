@@ -50,7 +50,7 @@ elimina nascono **in un vetro solo** (sono icone vicine), la conferma nasce tint
 | `close(onClick, label?, id = FluidToolbarIds.Close, placement = Navigation)` | la X in un tondo di vetro, di serie dove sta l'indietro | a sé |
 | `confirm(onClick, label?, id = FluidToolbarIds.Confirm, enabled, tint)` | la **spunta tinta** (di serie l'accento, icona chiara), a destra: l'azione principale | a sé |
 | `primary(id, icon, label, onClick, enabled, tint)` | l'azione principale con un'icona sua, vetro tinto | a sé |
-| `button(id, icon, label, onClick, placement, priority, role, tint, selected, enabled, badge, badgeDot, sharedBackground)` | un tasto con un'icona (26 dp) | con le icone vicine dello stesso lato |
+| `button(id, icon, label, onClick, placement, priority, role, tint, selected, enabled, badge, badgeDot, sharedBackground)` | un tasto con un'icona (28 dp) | con le icone vicine dello stesso lato |
 | `text(id, text, onClick, placement, priority, role, tint, enabled)` | un tasto con una scritta («Seleziona»), largo quanto la scritta misurata più 16 dp per lato | a sé (testo e icone mai insieme) |
 | `item(id, label?, width = 44.dp, placement, priority, onClick?) { … }` | un elemento **libero col suo vetro** per ciò che la DSL non copre (un avatar, un indicatore) | a sé |
 | `spacer(width?)` | uno spazio fisso: spezza un gruppo in due vetri (di serie 12 dp, la distanza fra due gruppi) | — |
@@ -71,8 +71,8 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
 - **I gruppi** (R1 B1–B10): le icone vicine sullo stesso lato condividono un vetro; una scritta, l'azione principale, la
   conferma, indietro e Chiudi hanno il loro; uno `spacer` spezza un gruppo, un `flexibleSpacer` separa e spinge. Un gruppo
   si **divide** quando un suo tasto diventa principale, e torna unito quando smette.
-- **Le misure** (R6, `FluidMetrics`): icone a 26 dp, vetro alto 44, passo 44 dp dentro un gruppo, 12 dp fra due gruppi,
-  16 dp dai bordi. L'indietro sta esattamente dove stava quello della barra di sempre.
+- **Le misure** (`FluidMetrics`): icone da 28 dp, freccia Indietro da 25 dp, vetro alto 46 dp e passo da 46 dp
+  dentro un gruppo. Tra due gruppi ci sono 12 dp, dai bordi 16 dp.
 - **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso**, oltre ai vetri d'uscita (indietro e Chiudi): su
   iPhone si vedono indietro più tre vetri. Le uscite occupano comunque larghezza; quando il posto non basta escono prima
   i tasti `Low`, poi `Automatic`, poi `High`, a parità i più interni.
@@ -151,12 +151,13 @@ toolbar = {
 }
 ```
 
-Ogni posto misura 48 dp e porta l’icona della barra da 26 dp. Con lo spaziatore fisso il più si stacca
+Ogni posto misura 48 dp e porta l’icona della barra da 28 dp. Con lo spaziatore fisso il più si stacca
 dal gruppo col collo del piano e il suo bersaglio lo segue; togliendolo i vetri si riuniscono. Un gruppo annidato
 eredita la posizione del genitore, un tasto con posizione esplicita usa la propria. Se esiste solo la barra in alto,
 i comandi `BottomBar` che non trovano posto finiscono in «Altro». In un `FluidPageHost` la barra inferiore appartiene
 all’host: al push e al pop legge la dichiarazione della destinazione, il comando che c’è in tutte e due le pagine resta
-fermo e gli altri entrano ed escono stringendo il gruppo. Durante il gesto annullabile conserva i comandi della pagina
+al suo posto (mentre il gruppo cambia larghezza va col bordo del suo vetro e torna, come il più di Apple: vedi
+[barre.md](barre.md)) e gli altri entrano ed escono stringendo il gruppo. Durante il gesto annullabile conserva i comandi della pagina
 in primo piano. La politica `barMinimize` della pagina guida anche il ritiro verso il basso. La capsula che la pagina
 posa da sé (`FluidFloatingCapsule`) è in [barre.md](barre.md).
 La galleria: Chrome → «Barra in basso» (`--es gallery.page BottomBar`), primo capitolo.
@@ -190,7 +191,7 @@ La pagina passa `FluidScreen(search = FluidSearchSpec(…))` oppure `search(spec
 | `TopBar` | Sul lato finale della testata | Resta in alto. Con `expansion = AboveKeyboard` lo stesso editor scende sopra l’IME |
 | `Principal` | Sotto il titolo | Segue il ritiro della testata |
 
-Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale: `CollapseToButton` è la ricerca **minimizzata**, sempre un tasto a riposo. Il campo è un vetro del piano: la lente da 44 dp si allunga nella capsula alta 40 dp (la zona di tocco resta 44) mentre i vicini le fanno posto, senza ricatture durante il viaggio; il contenuto sta al layout d’arrivo. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`. Sopra un fondo carico il campo aperto si vela secondo l’inchiostro del piano (nero al 40% o bianco al 16%), in proporzione all’apertura.
+Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale: `CollapseToButton` è la ricerca **minimizzata**, sempre un tasto a riposo. Il campo è un vetro del piano: la lente da 46 dp si allunga nella capsula alta 40 dp (la riga del tocco è alta 48 dp) mentre i vicini le fanno posto, senza ricatture durante il viaggio; il contenuto sta al layout d’arrivo. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`. Sopra un fondo carico il campo aperto si vela secondo l’inchiostro del piano (nero al 40% o bianco al 16%), in proporzione all’apertura.
 
 La galleria prova tutte le sedi su una pagina sola: Chrome → «Barra in basso», capitolo «Ricerca» (in basso con gli ambiti, automatica, minimizzata, in alto, in alto fino alla tastiera, il campo di inserimento); il campo fissato `Principal` è nella pagina «Ricerca» di «Barre fra pagine». Il confronto con Apple (Salute, WWDC25 256) è la traccia `tools/glassbench/traces/f4b-5/ricerca-apre`.
 

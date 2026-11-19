@@ -1,0 +1,5972 @@
+{
+  "schema": 1,
+  "name": "tasto-interrotto",
+  "phase": "f6-8",
+  "fps": 60,
+  "durationMs": 866.666667,
+  "density": 3,
+  "theme": "light",
+  "size": [
+    108,
+    90
+  ],
+  "background": {
+    "kind": "gradient4",
+    "tl": "#C9C4C5",
+    "tr": "#787D82",
+    "bl": "#CECACD",
+    "br": "#606870"
+  },
+  "events": [
+    {
+      "t": 66.666667,
+      "kind": "mark",
+      "label": "rilascio"
+    }
+  ],
+  "probes": [
+    {
+      "name": "larghezza",
+      "kind": "value",
+      "path": "vetro.w",
+      "label": "Larghezza geometrica",
+      "unit": "dp"
+    },
+    {
+      "name": "luce-superficie",
+      "kind": "luma",
+      "rect": [
+        64.0,
+        32,
+        2,
+        2
+      ],
+      "label": "Superficie, verso alto-destra"
+    },
+    {
+      "name": "luce",
+      "kind": "luma",
+      "rect": [
+        50,
+        38,
+        8,
+        4
+      ],
+      "label": "Centro, inclusa icona"
+    }
+  ],
+  "base": {
+    "vetro": {
+      "kind": "material",
+      "name": "vetro",
+      "_ricetta": "F6.1",
+      "x": 32,
+      "y": 23,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 1
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            "22dp",
+            "22dp"
+          ],
+          "gelTip": [
+            "0dp",
+            "0dp"
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.3,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F775",
+          "veilAdapt": 0.7,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0,
+          "rimWidth": "0.6dp",
+          "rimDark": "#00000052",
+          "rimFeather": 0.4,
+          "rimLift": 0.3,
+          "reflexDir": [
+            0,
+            -1
+          ],
+          "reflexWidths": [
+            1.396,
+            1.396
+          ],
+          "reflexStrength": 0.12,
+          "reflexDepth": "7dp",
+          "reflexFloor": 0,
+          "reflexHalo": 0.45,
+          "glowCenter": [
+            "0dp",
+            "0dp"
+          ],
+          "glowRadius": "44dp",
+          "glow": 0,
+          "glowFill": 0.4,
+          "lightColor": "#FFFFFFFF",
+          "shadowOffset": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowRadii": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowAlphas": [
+            0,
+            0
+          ],
+          "shadowColor": "#00000000",
+          "nodeClip": [
+            0,
+            0
+          ]
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "marginDp": 12,
+      "content": [
+        {
+          "name": "icone",
+          "icons": [
+            "share"
+          ],
+          "iconSizeDp": 26,
+          "scale": [
+            1,
+            1
+          ],
+          "blurSigmaDp": 0,
+          "color": "#202228"
+        }
+      ]
+    },
+    "luce-dito": {
+      "kind": "shader",
+      "name": "luce-dito",
+      "x": 32,
+      "y": 23,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "source": "kotlin:GlassLight1ShaderString",
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          "22dp",
+          "22dp"
+        ],
+        "gelTip": [
+          "0dp",
+          "0dp"
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "$center",
+            "$halfSize"
+          ]
+        ],
+        "pieceRadii": [
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0
+        ],
+        "lightPart": 2,
+        "rimWidth": "1.60000dp",
+        "rimDark": "#00000052",
+        "rimFeather": 0.4,
+        "rimLift": 0.3,
+        "reflexDir": [
+          "0.00000dp",
+          "0.00000dp"
+        ],
+        "reflexWidths": [
+          "44.00000dp",
+          "44.00000dp"
+        ],
+        "reflexStrength": 0.0,
+        "reflexDepth": "7dp",
+        "reflexFloor": 0,
+        "reflexHalo": 0.45,
+        "glowCenter": [
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "glowRadius": "108.00000dp",
+        "glow": 0,
+        "glowFill": 0,
+        "lightColor": "#FFFFFFFF",
+        "materialize": 0.76,
+        "aa": 1.25
+      },
+      "marginDp": 12
+    }
+  },
+  "frames": [
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito"
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito"
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.1
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 31.232771,
+          "y": 22.232771,
+          "w": 45.534458,
+          "h": 45.534458,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "22.767dp",
+                "22.767dp"
+              ],
+              "refraction": "-10.18dp",
+              "glowCenter": [
+                "22.767dp",
+                "22.767dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.767dp",
+                  "22.767dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.767dp",
+                  "22.767dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 26.906727,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.23662,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 31.232771,
+          "y": 22.232771,
+          "w": 45.534458,
+          "h": 45.534458,
+          "uniforms": {
+            "flexCenter": [
+              "22.767dp",
+              "22.767dp"
+            ],
+            "pieceRadii": [
+              "22.76723dp",
+              "22.76723dp",
+              "22.76723dp",
+              "22.76723dp"
+            ],
+            "reflexDir": [
+              "0.76723dp",
+              "0.76723dp"
+            ],
+            "reflexWidths": [
+              "44.76723dp",
+              "44.76723dp"
+            ],
+            "reflexStrength": 0.003567,
+            "glowCenter": [
+              "22.76723dp",
+              "22.76723dp"
+            ],
+            "glow": 0.261972,
+            "glowFill": 0.007395
+          }
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 29.698074,
+          "y": 20.698074,
+          "w": 48.603851,
+          "h": 48.603851,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "24.302dp",
+                "24.302dp"
+              ],
+              "refraction": "-11.533dp",
+              "glowCenter": [
+                "24.302dp",
+                "24.302dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "24.302dp",
+                  "24.302dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "24.302dp",
+                  "24.302dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 28.720457,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.448516,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 29.698074,
+          "y": 20.698074,
+          "w": 48.603851,
+          "h": 48.603851,
+          "uniforms": {
+            "flexCenter": [
+              "24.302dp",
+              "24.302dp"
+            ],
+            "pieceRadii": [
+              "24.30193dp",
+              "24.30193dp",
+              "24.30193dp",
+              "24.30193dp"
+            ],
+            "reflexDir": [
+              "2.30193dp",
+              "2.30193dp"
+            ],
+            "reflexWidths": [
+              "46.30193dp",
+              "46.30193dp"
+            ],
+            "reflexStrength": 0.013717,
+            "glowCenter": [
+              "24.30193dp",
+              "24.30193dp"
+            ],
+            "glow": 0.394794,
+            "glowFill": 0.028548
+          }
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 28.19853,
+          "y": 19.19853,
+          "w": 51.60294,
+          "h": 51.60294,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "25.801dp",
+                "25.801dp"
+              ],
+              "refraction": "-12.856dp",
+              "glowCenter": [
+                "25.801dp",
+                "25.801dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "25.801dp",
+                  "25.801dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "25.801dp",
+                  "25.801dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 30.492647,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.639475,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 28.19853,
+          "y": 19.19853,
+          "w": 51.60294,
+          "h": 51.60294,
+          "uniforms": {
+            "flexCenter": [
+              "25.801dp",
+              "25.801dp"
+            ],
+            "pieceRadii": [
+              "25.80147dp",
+              "25.80147dp",
+              "25.80147dp",
+              "25.80147dp"
+            ],
+            "reflexDir": [
+              "3.80147dp",
+              "3.80147dp"
+            ],
+            "reflexWidths": [
+              "47.80147dp",
+              "47.80147dp"
+            ],
+            "reflexStrength": 0.02963,
+            "glowCenter": [
+              "25.80147dp",
+              "25.80147dp"
+            ],
+            "glow": 0.503712,
+            "glowFill": 0.061914
+          }
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 27.296875,
+          "y": 18.296875,
+          "w": 53.40625,
+          "h": 53.40625,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "26.703dp",
+                "26.703dp"
+              ],
+              "refraction": "-13.65dp",
+              "glowCenter": [
+                "26.703dp",
+                "26.703dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.703dp",
+                  "26.703dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.703dp",
+                  "26.703dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 31.558237,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.639475,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 27.296875,
+          "y": 18.296875,
+          "w": 53.40625,
+          "h": 53.40625,
+          "uniforms": {
+            "flexCenter": [
+              "26.703dp",
+              "26.703dp"
+            ],
+            "pieceRadii": [
+              "26.70312dp",
+              "26.70312dp",
+              "26.70312dp",
+              "26.70312dp"
+            ],
+            "reflexDir": [
+              "4.70312dp",
+              "4.70312dp"
+            ],
+            "reflexWidths": [
+              "48.70312dp",
+              "48.70312dp"
+            ],
+            "reflexStrength": 0.05048,
+            "glowCenter": [
+              "26.70312dp",
+              "26.70312dp"
+            ],
+            "glow": 0.593028,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 27.055452,
+          "y": 18.055452,
+          "w": 53.889095,
+          "h": 53.889095,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "26.945dp",
+                "26.945dp"
+              ],
+              "refraction": "-13.863dp",
+              "glowCenter": [
+                "26.945dp",
+                "26.945dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.945dp",
+                  "26.945dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.945dp",
+                  "26.945dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 31.843557,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.575344,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 27.055452,
+          "y": 18.055452,
+          "w": 53.889095,
+          "h": 53.889095,
+          "uniforms": {
+            "flexCenter": [
+              "26.945dp",
+              "26.945dp"
+            ],
+            "pieceRadii": [
+              "26.94455dp",
+              "26.94455dp",
+              "26.94455dp",
+              "26.94455dp"
+            ],
+            "reflexDir": [
+              "4.94455dp",
+              "4.94455dp"
+            ],
+            "reflexWidths": [
+              "48.94455dp",
+              "48.94455dp"
+            ],
+            "reflexStrength": 0.05003,
+            "glowCenter": [
+              "26.94455dp",
+              "26.94455dp"
+            ],
+            "glow": 0.528328,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 27.343819,
+          "y": 18.343819,
+          "w": 53.312363,
+          "h": 53.312363,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "26.656dp",
+                "26.656dp"
+              ],
+              "refraction": "-13.609dp",
+              "glowCenter": [
+                "26.656dp",
+                "26.656dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.656dp",
+                  "26.656dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.656dp",
+                  "26.656dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 31.502762,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.516075,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 27.343819,
+          "y": 18.343819,
+          "w": 53.312363,
+          "h": 53.312363,
+          "uniforms": {
+            "flexCenter": [
+              "26.656dp",
+              "26.656dp"
+            ],
+            "pieceRadii": [
+              "26.65618dp",
+              "26.65618dp",
+              "26.65618dp",
+              "26.65618dp"
+            ],
+            "reflexDir": [
+              "4.65618dp",
+              "4.65618dp"
+            ],
+            "reflexWidths": [
+              "48.65618dp",
+              "48.65618dp"
+            ],
+            "reflexStrength": 0.048749,
+            "glowCenter": [
+              "26.65618dp",
+              "26.65618dp"
+            ],
+            "glow": 0.470687,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 27.925032,
+          "y": 18.925032,
+          "w": 52.149937,
+          "h": 52.149937,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "26.075dp",
+                "26.075dp"
+              ],
+              "refraction": "-13.097dp",
+              "glowCenter": [
+                "26.075dp",
+                "26.075dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.075dp",
+                  "26.075dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "26.075dp",
+                  "26.075dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 30.815872,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.461175,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 27.925032,
+          "y": 18.925032,
+          "w": 52.149937,
+          "h": 52.149937,
+          "uniforms": {
+            "flexCenter": [
+              "26.075dp",
+              "26.075dp"
+            ],
+            "pieceRadii": [
+              "26.07497dp",
+              "26.07497dp",
+              "26.07497dp",
+              "26.07497dp"
+            ],
+            "reflexDir": [
+              "4.07497dp",
+              "4.07497dp"
+            ],
+            "reflexWidths": [
+              "48.07497dp",
+              "48.07497dp"
+            ],
+            "reflexStrength": 0.046741,
+            "glowCenter": [
+              "26.07497dp",
+              "26.07497dp"
+            ],
+            "glow": 0.419334,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 28.71524,
+          "y": 19.71524,
+          "w": 50.569519,
+          "h": 50.569519,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "25.285dp",
+                "25.285dp"
+              ],
+              "refraction": "-12.4dp",
+              "glowCenter": [
+                "25.285dp",
+                "25.285dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "25.285dp",
+                  "25.285dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "25.285dp",
+                  "25.285dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 29.881989,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.410244,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 28.71524,
+          "y": 19.71524,
+          "w": 50.569519,
+          "h": 50.569519,
+          "uniforms": {
+            "flexCenter": [
+              "25.285dp",
+              "25.285dp"
+            ],
+            "pieceRadii": [
+              "25.28476dp",
+              "25.28476dp",
+              "25.28476dp",
+              "25.28476dp"
+            ],
+            "reflexDir": [
+              "3.28476dp",
+              "3.28476dp"
+            ],
+            "reflexWidths": [
+              "47.28476dp",
+              "47.28476dp"
+            ],
+            "reflexStrength": 0.04411,
+            "glowCenter": [
+              "25.28476dp",
+              "25.28476dp"
+            ],
+            "glow": 0.373584,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 29.556711,
+          "y": 20.556711,
+          "w": 48.886578,
+          "h": 48.886578,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "24.443dp",
+                "24.443dp"
+              ],
+              "refraction": "-11.658dp",
+              "glowCenter": [
+                "24.443dp",
+                "24.443dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "24.443dp",
+                  "24.443dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "24.443dp",
+                  "24.443dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 28.887524,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.362956,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 29.556711,
+          "y": 20.556711,
+          "w": 48.886578,
+          "h": 48.886578,
+          "uniforms": {
+            "flexCenter": [
+              "24.443dp",
+              "24.443dp"
+            ],
+            "pieceRadii": [
+              "24.44329dp",
+              "24.44329dp",
+              "24.44329dp",
+              "24.44329dp"
+            ],
+            "reflexDir": [
+              "2.44329dp",
+              "2.44329dp"
+            ],
+            "reflexWidths": [
+              "46.44329dp",
+              "46.44329dp"
+            ],
+            "reflexStrength": 0.040959,
+            "glowCenter": [
+              "24.44329dp",
+              "24.44329dp"
+            ],
+            "glow": 0.332826,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 30.311426,
+          "y": 21.311426,
+          "w": 47.377148,
+          "h": 47.377148,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "23.689dp",
+                "23.689dp"
+              ],
+              "refraction": "-10.993dp",
+              "glowCenter": [
+                "23.689dp",
+                "23.689dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "23.689dp",
+                  "23.689dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "23.689dp",
+                  "23.689dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 27.995588,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.319042,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 30.311426,
+          "y": 21.311426,
+          "w": 47.377148,
+          "h": 47.377148,
+          "uniforms": {
+            "flexCenter": [
+              "23.689dp",
+              "23.689dp"
+            ],
+            "pieceRadii": [
+              "23.68857dp",
+              "23.68857dp",
+              "23.68857dp",
+              "23.68857dp"
+            ],
+            "reflexDir": [
+              "1.68857dp",
+              "1.68857dp"
+            ],
+            "reflexWidths": [
+              "45.68857dp",
+              "45.68857dp"
+            ],
+            "reflexStrength": 0.037393,
+            "glowCenter": [
+              "23.68857dp",
+              "23.68857dp"
+            ],
+            "glow": 0.296514,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 31.01581,
+          "y": 22.01581,
+          "w": 45.96838,
+          "h": 45.96838,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "22.984dp",
+                "22.984dp"
+              ],
+              "refraction": "-10.372dp",
+              "glowCenter": [
+                "22.984dp",
+                "22.984dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.984dp",
+                  "22.984dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.984dp",
+                  "22.984dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 27.163134,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.278281,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 31.01581,
+          "y": 22.01581,
+          "w": 45.96838,
+          "h": 45.96838,
+          "uniforms": {
+            "flexCenter": [
+              "22.984dp",
+              "22.984dp"
+            ],
+            "pieceRadii": [
+              "22.98419dp",
+              "22.98419dp",
+              "22.98419dp",
+              "22.98419dp"
+            ],
+            "reflexDir": [
+              "0.98419dp",
+              "0.98419dp"
+            ],
+            "reflexWidths": [
+              "44.98419dp",
+              "44.98419dp"
+            ],
+            "reflexStrength": 0.033515,
+            "glowCenter": [
+              "22.98419dp",
+              "22.98419dp"
+            ],
+            "glow": 0.264164,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 31.587637,
+          "y": 22.587637,
+          "w": 44.824726,
+          "h": 44.824726,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "22.412dp",
+                "22.412dp"
+              ],
+              "refraction": "-9.868dp",
+              "glowCenter": [
+                "22.412dp",
+                "22.412dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.412dp",
+                  "22.412dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.412dp",
+                  "22.412dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 26.487337,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.240494,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 31.587637,
+          "y": 22.587637,
+          "w": 44.824726,
+          "h": 44.824726,
+          "uniforms": {
+            "flexCenter": [
+              "22.412dp",
+              "22.412dp"
+            ],
+            "pieceRadii": [
+              "22.41236dp",
+              "22.41236dp",
+              "22.41236dp",
+              "22.41236dp"
+            ],
+            "reflexDir": [
+              "0.41236dp",
+              "0.41236dp"
+            ],
+            "reflexWidths": [
+              "44.41236dp",
+              "44.41236dp"
+            ],
+            "reflexStrength": 0.029429,
+            "glowCenter": [
+              "22.41236dp",
+              "22.41236dp"
+            ],
+            "glow": 0.235343,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 31.995092,
+          "y": 22.995092,
+          "w": 44.009815,
+          "h": 44.009815,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "22.005dp",
+                "22.005dp"
+              ],
+              "refraction": "-9.508dp",
+              "glowCenter": [
+                "22.005dp",
+                "22.005dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.005dp",
+                  "22.005dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "22.005dp",
+                  "22.005dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 26.005798,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.205533,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 31.995092,
+          "y": 22.995092,
+          "w": 44.009815,
+          "h": 44.009815,
+          "uniforms": {
+            "flexCenter": [
+              "22.005dp",
+              "22.005dp"
+            ],
+            "pieceRadii": [
+              "22.00491dp",
+              "22.00491dp",
+              "22.00491dp",
+              "22.00491dp"
+            ],
+            "reflexDir": [
+              "0.00491dp",
+              "0.00491dp"
+            ],
+            "reflexWidths": [
+              "44.00491dp",
+              "44.00491dp"
+            ],
+            "reflexStrength": 0.02524,
+            "glowCenter": [
+              "22.00491dp",
+              "22.00491dp"
+            ],
+            "glow": 0.209667,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.272461,
+          "y": 23.272459,
+          "w": 43.455082,
+          "h": 43.455082,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.728dp",
+                "21.728dp"
+              ],
+              "glowCenter": [
+                "21.728dp",
+                "21.728dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.728dp",
+                  "21.728dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.728dp",
+                  "21.728dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.678003,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.173284,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.272461,
+          "y": 23.272459,
+          "w": 43.455082,
+          "h": 43.455082,
+          "uniforms": {
+            "flexCenter": [
+              "21.728dp",
+              "21.728dp"
+            ],
+            "pieceRadii": [
+              "21.72754dp",
+              "21.72754dp",
+              "21.72754dp",
+              "21.72754dp"
+            ],
+            "reflexDir": [
+              "-0.27246dp",
+              "-0.27246dp"
+            ],
+            "reflexWidths": [
+              "43.72754dp",
+              "43.72754dp"
+            ],
+            "reflexStrength": 0.021051,
+            "glowCenter": [
+              "21.72754dp",
+              "21.72754dp"
+            ],
+            "glow": 0.186792,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.39267,
+          "y": 23.392672,
+          "w": 43.214657,
+          "h": 43.214657,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.607dp",
+                "21.607dp"
+              ],
+              "glowCenter": [
+                "21.607dp",
+                "21.607dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.607dp",
+                  "21.607dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.607dp",
+                  "21.607dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.535933,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.14366,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.39267,
+          "y": 23.392672,
+          "w": 43.214657,
+          "h": 43.214657,
+          "uniforms": {
+            "flexCenter": [
+              "21.607dp",
+              "21.607dp"
+            ],
+            "pieceRadii": [
+              "21.60733dp",
+              "21.60733dp",
+              "21.60733dp",
+              "21.60733dp"
+            ],
+            "reflexDir": [
+              "-0.39267dp",
+              "-0.39267dp"
+            ],
+            "reflexWidths": [
+              "43.60733dp",
+              "43.60733dp"
+            ],
+            "reflexStrength": 0.016965,
+            "glowCenter": [
+              "21.60733dp",
+              "21.60733dp"
+            ],
+            "glow": 0.166413,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.43187,
+          "y": 23.43187,
+          "w": 43.136261,
+          "h": 43.136261,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.568dp",
+                "21.568dp"
+              ],
+              "glowCenter": [
+                "21.568dp",
+                "21.568dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.568dp",
+                  "21.568dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.568dp",
+                  "21.568dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.489609,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.116605,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.43187,
+          "y": 23.43187,
+          "w": 43.136261,
+          "h": 43.136261,
+          "uniforms": {
+            "flexCenter": [
+              "21.568dp",
+              "21.568dp"
+            ],
+            "pieceRadii": [
+              "21.56813dp",
+              "21.56813dp",
+              "21.56813dp",
+              "21.56813dp"
+            ],
+            "reflexDir": [
+              "-0.43187dp",
+              "-0.43187dp"
+            ],
+            "reflexWidths": [
+              "43.56813dp",
+              "43.56813dp"
+            ],
+            "reflexStrength": 0.013087,
+            "glowCenter": [
+              "21.56813dp",
+              "21.56813dp"
+            ],
+            "glow": 0.148257,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.43502,
+          "y": 23.435019,
+          "w": 43.129963,
+          "h": 43.129963,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.565dp",
+                "21.565dp"
+              ],
+              "glowCenter": [
+                "21.565dp",
+                "21.565dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.565dp",
+                  "21.565dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.565dp",
+                  "21.565dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.485886,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.092091,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.43502,
+          "y": 23.435019,
+          "w": 43.129963,
+          "h": 43.129963,
+          "uniforms": {
+            "flexCenter": [
+              "21.565dp",
+              "21.565dp"
+            ],
+            "pieceRadii": [
+              "21.56498dp",
+              "21.56498dp",
+              "21.56498dp",
+              "21.56498dp"
+            ],
+            "reflexDir": [
+              "-0.43502dp",
+              "-0.43502dp"
+            ],
+            "reflexWidths": [
+              "43.56498dp",
+              "43.56498dp"
+            ],
+            "reflexStrength": 0.009521,
+            "glowCenter": [
+              "21.56498dp",
+              "21.56498dp"
+            ],
+            "glow": 0.132082,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.412323,
+          "y": 23.412321,
+          "w": 43.175358,
+          "h": 43.175358,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.588dp",
+                "21.588dp"
+              ],
+              "glowCenter": [
+                "21.588dp",
+                "21.588dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.588dp",
+                  "21.588dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.588dp",
+                  "21.588dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.512711,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.070125,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.412323,
+          "y": 23.412321,
+          "w": 43.175358,
+          "h": 43.175358,
+          "uniforms": {
+            "flexCenter": [
+              "21.588dp",
+              "21.588dp"
+            ],
+            "pieceRadii": [
+              "21.58768dp",
+              "21.58768dp",
+              "21.58768dp",
+              "21.58768dp"
+            ],
+            "reflexDir": [
+              "-0.41232dp",
+              "-0.41232dp"
+            ],
+            "reflexWidths": [
+              "43.58768dp",
+              "43.58768dp"
+            ],
+            "reflexStrength": 0.006371,
+            "glowCenter": [
+              "21.58768dp",
+              "21.58768dp"
+            ],
+            "glow": 0.117672,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.37114,
+          "y": 23.37114,
+          "w": 43.257721,
+          "h": 43.257721,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.629dp",
+                "21.629dp"
+              ],
+              "glowCenter": [
+                "21.629dp",
+                "21.629dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.629dp",
+                  "21.629dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.629dp",
+                  "21.629dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.56138,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.050753,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.37114,
+          "y": 23.37114,
+          "w": 43.257721,
+          "h": 43.257721,
+          "uniforms": {
+            "flexCenter": [
+              "21.629dp",
+              "21.629dp"
+            ],
+            "pieceRadii": [
+              "21.62886dp",
+              "21.62886dp",
+              "21.62886dp",
+              "21.62886dp"
+            ],
+            "reflexDir": [
+              "-0.37114dp",
+              "-0.37114dp"
+            ],
+            "reflexWidths": [
+              "43.62886dp",
+              "43.62886dp"
+            ],
+            "reflexStrength": 0.003739,
+            "glowCenter": [
+              "21.62886dp",
+              "21.62886dp"
+            ],
+            "glow": 0.104834,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.309235,
+          "y": 23.309237,
+          "w": 43.381527,
+          "h": 43.381527,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.691dp",
+                "21.691dp"
+              ],
+              "glowCenter": [
+                "21.691dp",
+                "21.691dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.691dp",
+                  "21.691dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.691dp",
+                  "21.691dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.634539,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.034075,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.309235,
+          "y": 23.309237,
+          "w": 43.381527,
+          "h": 43.381527,
+          "uniforms": {
+            "flexCenter": [
+              "21.691dp",
+              "21.691dp"
+            ],
+            "pieceRadii": [
+              "21.69076dp",
+              "21.69076dp",
+              "21.69076dp",
+              "21.69076dp"
+            ],
+            "reflexDir": [
+              "-0.30924dp",
+              "-0.30924dp"
+            ],
+            "reflexWidths": [
+              "43.69076dp",
+              "43.69076dp"
+            ],
+            "reflexStrength": 0.001731,
+            "glowCenter": [
+              "21.69076dp",
+              "21.69076dp"
+            ],
+            "glow": 0.093396,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.234669,
+          "y": 23.234669,
+          "w": 43.530663,
+          "h": 43.530663,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.765dp",
+                "21.765dp"
+              ],
+              "glowCenter": [
+                "21.765dp",
+                "21.765dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.765dp",
+                  "21.765dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.765dp",
+                  "21.765dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.722664,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.020263,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.234669,
+          "y": 23.234669,
+          "w": 43.530663,
+          "h": 43.530663,
+          "uniforms": {
+            "flexCenter": [
+              "21.765dp",
+              "21.765dp"
+            ],
+            "pieceRadii": [
+              "21.76533dp",
+              "21.76533dp",
+              "21.76533dp",
+              "21.76533dp"
+            ],
+            "reflexDir": [
+              "-0.23467dp",
+              "-0.23467dp"
+            ],
+            "reflexWidths": [
+              "43.76533dp",
+              "43.76533dp"
+            ],
+            "reflexStrength": 0.00045,
+            "glowCenter": [
+              "21.76533dp",
+              "21.76533dp"
+            ],
+            "glow": 0.083206,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.161362,
+          "y": 23.16136,
+          "w": 43.67728,
+          "h": 43.67728,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.839dp",
+                "21.839dp"
+              ],
+              "glowCenter": [
+                "21.839dp",
+                "21.839dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.839dp",
+                  "21.839dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.839dp",
+                  "21.839dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.809301,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.009601,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.161362,
+          "y": 23.16136,
+          "w": 43.67728,
+          "h": 43.67728,
+          "uniforms": {
+            "flexCenter": [
+              "21.839dp",
+              "21.839dp"
+            ],
+            "pieceRadii": [
+              "21.83864dp",
+              "21.83864dp",
+              "21.83864dp",
+              "21.83864dp"
+            ],
+            "reflexDir": [
+              "-0.16136dp",
+              "-0.16136dp"
+            ],
+            "reflexWidths": [
+              "43.83864dp",
+              "43.83864dp"
+            ],
+            "glowCenter": [
+              "21.83864dp",
+              "21.83864dp"
+            ],
+            "glow": 0.074129,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.089424,
+          "y": 23.089422,
+          "w": 43.821156,
+          "h": 43.821156,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.911dp",
+                "21.911dp"
+              ],
+              "glowCenter": [
+                "21.911dp",
+                "21.911dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.911dp",
+                  "21.911dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.911dp",
+                  "21.911dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.89432,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0.002566,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.089424,
+          "y": 23.089422,
+          "w": 43.821156,
+          "h": 43.821156,
+          "uniforms": {
+            "flexCenter": [
+              "21.911dp",
+              "21.911dp"
+            ],
+            "pieceRadii": [
+              "21.91058dp",
+              "21.91058dp",
+              "21.91058dp",
+              "21.91058dp"
+            ],
+            "reflexDir": [
+              "-0.08942dp",
+              "-0.08942dp"
+            ],
+            "reflexWidths": [
+              "43.91058dp",
+              "43.91058dp"
+            ],
+            "glowCenter": [
+              "21.91058dp",
+              "21.91058dp"
+            ],
+            "glow": 0.066041,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "vetro",
+          "x": 32.030266,
+          "y": 23.030264,
+          "w": 43.939472,
+          "h": 43.939472,
+          "body": {
+            "uniforms": {
+              "flexCenter": [
+                "21.97dp",
+                "21.97dp"
+              ],
+              "glowCenter": [
+                "21.97dp",
+                "21.97dp"
+              ]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.97dp",
+                  "21.97dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                "flexCenter": [
+                  "21.97dp",
+                  "21.97dp"
+                ],
+                "gelTip": [
+                  "0dp",
+                  "0dp"
+                ],
+                "pieceCount": 1,
+                "pieceRect": [
+                  [
+                    "$center",
+                    "$halfSize"
+                  ]
+                ],
+                "pieceRadii": [
+                  "$radii"
+                ],
+                "pieceBlend": [
+                  0
+                ],
+                "pieceSmooth": [
+                  0
+                ],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#00000052",
+                "rimFeather": 0.4,
+                "rimLift": 0.3,
+                "reflexDir": [
+                  0,
+                  -1
+                ],
+                "reflexWidths": [
+                  1.396,
+                  1.396
+                ],
+                "reflexStrength": 0.12,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.45,
+                "glowCenter": [
+                  "0dp",
+                  "0dp"
+                ],
+                "glowRadius": "44dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ],
+          "content": [
+            {
+              "name": "icone",
+              "icons": [
+                "share"
+              ],
+              "iconSizeDp": 25.964233,
+              "scale": [
+                1,
+                1
+              ],
+              "blurSigmaDp": 0,
+              "color": "#202228"
+            }
+          ]
+        },
+        {
+          "name": "luce-dito",
+          "x": 32.030266,
+          "y": 23.030264,
+          "w": 43.939472,
+          "h": 43.939472,
+          "uniforms": {
+            "flexCenter": [
+              "21.97dp",
+              "21.97dp"
+            ],
+            "pieceRadii": [
+              "21.96974dp",
+              "21.96974dp",
+              "21.96974dp",
+              "21.96974dp"
+            ],
+            "reflexDir": [
+              "-0.03027dp",
+              "-0.03026dp"
+            ],
+            "reflexWidths": [
+              "43.96973dp",
+              "43.96974dp"
+            ],
+            "glowCenter": [
+              "21.96973dp",
+              "21.96974dp"
+            ],
+            "glow": 0.058836,
+            "glowFill": 0.105947
+          }
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.052417,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.046698,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.041603,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.037064,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.033021,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.029418,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.026208,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.015566,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glow": 0.006934,
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "uniforms": {
+            "glowFill": 0.105947
+          },
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 716.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 733.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 750,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 766.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 783.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 800,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 816.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 833.333333,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 850,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    },
+    {
+      "t": 866.666667,
+      "elements": [
+        {
+          "name": "vetro",
+          "clip": true,
+          "body": {
+            "uniforms": {
+              "glowCenter": [
+                "22dp",
+                "22dp"
+              ]
+            }
+          },
+          "marginDp": 0
+        },
+        {
+          "name": "luce-dito",
+          "marginDp": 0
+        }
+      ]
+    }
+  ]
+}

@@ -8,19 +8,11 @@ azioni di barra), le **scelte** (`FluidSegmentedControl`, `FluidChip`, `FluidCol
 ([movimento.md](movimento.md)), il vetro (`glassSurface`, `GlassBackdropState`) e il tema (l'accento è sempre
 `MaterialTheme.colorScheme.primary`: nessun controllo ha un colore suo).
 
-Il modello mentale, in due frasi. **Un tasto cresce sotto il dito e tiene il dito** (finché è giù la pagina sotto non
-scorre), e il suo vetro risponde alla stessa pressione. **Un controllo che si afferra e scorre** (interruttore,
-slider, scrubber, segmentato) ha un pomello a «goccia»: bianco e opaco a riposo, lente di vetro sotto il dito; il
-gesto è dell'intera riga, il rilascio decide, e un dito che va in verticale resta della pagina. Dalla 4.0, col materiale
-nuovo (da Android 13), la goccia è lo stesso vetro dei tasti: a riposo è la faccia piena con l'ombra di un tasto di
-vetro, senza filo né riflesso (arrivano con la lente, in proporzione alla pressione, e a pressione piena sono quelli
-dei tasti), e sotto il dito resta una **lente limpida** (niente velo né smerigliatura, un tono scuro
-leggero) che piega forte al bordo e cresce con la pressione. Una funzione sola, `glassDrop`, per tutti i controlli e
-per la goccia delle voci dei menu (profilo `GlassDropProfile`, derivato da quello di serie). Dalla 4.0 (F6.3) i pomelli
-di interruttore e cursore **salgono nel vetro coi tempi di Apple**: la lente cresce senza rimbalzo, si stira con
-l'accelerazione, ha attorno un alone del colore della pista, e un tocco sull'interruttore la forma prima di farla correre
-(tabella in [controlli-gesto.md](controlli-gesto.md), regola 2); le altre gocce hanno geometria e tempi di prima. Sotto
-Android 13 e con `Classic` resta la lente di Kyant, con gli stessi tempi nuovi.
+Il tasto reagisce al contatto e trattiene il gesto fino al rilascio. Sul vetro Liquid la lastra cresce, cede lungo
+il movimento e si schiarisce dal punto toccato. I controlli a gesto hanno invece una maniglia da afferrare. Il
+pomello pieno di interruttore e cursore diventa una lente che mostra la pista e torna piena quando lo si lascia.
+La maniglia prende subito il dito. Un trascinamento verticale partito dalla pista vuota scorre la pagina.
+I tempi, la presa e le differenze fra i controlli sono nella [scheda dei gesti](controlli-gesto.md).
 
 **La scheda è in due file**: questo (tasti, scelte, testo, regole comuni) e [controlli-gesto.md](controlli-gesto.md)
 (`FluidSwitch`, `FluidSlider`, `FluidScrubber`, e le licenze dei port di Kyant0 e LibrePods).
@@ -69,21 +61,23 @@ Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 | Vetro dentro un foglio o un dialog di piattaforma (finestra a sé) | `Modifier.fluidStaticGlassSurface`, non `glassControlSurface`: l'altra finestra non può campionare il fondale |
 | Un tasto che si trasforma nel menu che apre | `FluidBarAction(actions = …)` in barra; altrove la scheda dei menu |
 
-## Regole che valgono per tutta la famiglia
+## Regole comuni
 
-### 1. Il tasto: cresce, tiene il dito, vibra tre volte
+### Pressione, presa e aptica
 
 Vale per `FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidBarAction`, `FluidChip` e `FluidColorDot`
 (questi ultimi due con una differenza, sotto). È la ricetta dei pulsanti di LibrePods portata come codice (GPL-3.0,
 vedi «Licenze» in [controlli-gesto.md](controlli-gesto.md)); tutti i numeri e i perché stanno in [movimento.md](movimento.md), qui solo quello che serve a
 scegliere:
 
-- **Pressione al contatto**, senza ritardo e senza soglia. Il tasto cresce di `1 + maxScale`: **10% per un tasto con
-  testo**, **35% sul tondo Liquid** e 50% sul tondo Classic o nel feedback ordinario (`FluidPressFeedback.ExpandRound`). La crescita ha un tetto sul lato
-  lungo: 16 dp per un tasto con testo (un `fillWidth` cresce quindi di circa il 5%), 24 dp in tutto per un tondo
-  (in Liquid ×1,35 fino a circa 68,6 dp, poi il limite di 24 dp porta un disco da 76 a 100 dp).
-- **Segue il dito**: deriva elastica verso il dito, allungamento nel verso in cui scorre, bagliore. Con le animazioni
-  ridotte la crescita si dimezza, non c'è né deriva né allungamento, ma la pressione arriva comunque in fondo.
+- **La pressione parte al contatto.** La capsula con testo cresce fino al 10%, con un tetto di 16 dp sul lato lungo.
+  Il tondo Liquid cresce fino al **35%**. Il tondo Classic e il feedback ordinario `FluidPressFeedback.ExpandRound`
+  arrivano al 50%. Il tetto per il tondo è di 24 dp sul diametro. Un tondo Liquid da 44 dp arriva a 59,4 dp.
+- **La lastra Liquid segue il dito.** Il campo applica crescita, deriva e flessione al contorno. La flessione
+  direzionale si attenua sulle capsule larghe. L'icona del tondo cresce con la lastra e si sfoca fino a una sigma
+  di 2,2 dp sullo schermo. Al rilascio la molla riparte dalla posa e dalla velocità raggiunte e la taglia compie
+  un solo piccolo sottopasso, anche quando il dito si solleva prima della crescita completa. Con il movimento
+  ridotto la crescita si dimezza, la flessione e la deriva si azzerano e la taglia rientra senza sottopasso.
 - **Il tasto tiene il dito** (`FluidPressGrip.HoldsFinger`, di serie): finché il dito è giù la pagina sotto —
   `LazyColumn`, `verticalScroll`, pager, back a scorrimento — non parte. Per scorrere si parte *fuori* dai pulsanti.
   Un dito che ha trascinato clicca ancora se si solleva sul tasto più 16 dp di margine.
@@ -96,7 +90,8 @@ scegliere:
   il suo colpo (un microfono, un menu). È l'unica eccezione, voluta, a «una vibrazione per momento».
 - Un dito che trascina veloce sul tasto fa sentire la grana (`SegmentFrequentTick` per evento del puntatore); lento
   non suona niente.
-### 4. Disattivato sfuma, non diventa grigio
+
+### Stato disattivato
 
 Un controllo spento resta del suo colore e perde opacità; per TalkBack la semantica dice «disattivato». Il grigio
 Material cancellerebbe il rapporto di colore su cui è costruita la schermata.
@@ -107,7 +102,7 @@ Material cancellerebbe il rapporto di colore su cui è costruita la schermata.
 | `FluidGlassButton`, `FluidGlassIconButton` | 0,38 (e `interactive = false`: tiene il materiale, perde ogni gesto) |
 | `FluidSwitch`, `FluidSlider`, `FluidScrubber`, `FluidSegmentedControl` | 0,5 |
 
-### 5. Senza vetro, senza RenderEffect
+### Ripieghi del materiale
 
 | situazione | cosa disegna il controllo |
 |---|---|
@@ -115,7 +110,7 @@ Material cancellerebbe il rapporto di colore su cui è costruita la schermata.
 | pagina senza canvas né chrome in scope | `FluidChip` e `FluidSegmentedControl`: pastiglia / pozzetto opachi. Interruttore, slider, scrubber: la pista da piegare c'è comunque, ed è la parte che conta |
 | dentro un foglio/dialog di piattaforma | niente campionamento possibile: `fluidStaticGlassSurface` |
 
-### 6. Che fondale rifrangono (`backdrop`)
+### Fondale campionato
 
 I parametri `backdrop` hanno default diversi, ed è una trappola:
 
@@ -129,7 +124,7 @@ Dentro una barra il canvas non c'è (la barra lo toglie) e resta il vetro della 
 (un tasto su un pop-up, il pomello su una card di vetro) campiona il *materiale* del pannello e ci aggiunge la
 propria ottica: da solo, senza chiederlo.
 
-### 7. Bersagli da 48 dp
+### Bersagli da 48 dp
 
 | componente | misura disegnata | bersaglio |
 |---|---|---|
@@ -150,7 +145,7 @@ riquadro clicca, e TalkBack vede 48 dp (`touchBoundsInRoot`). Vale per ogni tagl
 dp), per l'etichetta `Compact` e per i tasti della barra di sempre: «almeno 44 dp», i 44 pt di Apple, lo prova
 `FluidGlassButtonStylesUiTest` (F6.4). Un'app che abbassa `minimumTouchTargetSize` abbassa anche questo.
 
-### 8. TalkBack in breve
+### TalkBack
 
 | componente | nodo |
 |---|---|
@@ -251,7 +246,7 @@ un test.
 
 ---
 
-## FluidGlassIconButton e FluidGlassButton (tasti di vetro) e FluidGlassSize
+## FluidGlassIconButton, FluidGlassButton e FluidGlassSize
 
 **Cos'è.** I tasti per tutto ciò che *galleggia sul contenuto*: la lente di vetro (`glassControlSurface`) più la stessa
 pressione di `FluidButton`. `FluidGlassIconButton` è il tondo solo icona (chrome, overlay, composer);
@@ -300,29 +295,36 @@ FluidGlassButton(
 In SwiftUI: `style` è `buttonStyle(.glass / .glass(.clear) / .glassProminent / .glass(_:))`, la taglia d'ambiente è
 `controlSize`, `sizing` è `buttonSizing`, la forma di serie (`FluidCapsuleShape`) è `buttonBorderShape(.capsule)`.
 
-**Uso** (dal `sample`, `GapsDemo` e `GlassGrowthContrastDemo`).
+**Uso in una barra compatta.** Il contenitore raccoglie i tasti nello stesso campo. Passa la taglia, lo stile
+e la larghezza che valgono per il gruppo. Il tasto principale sceglie `Prominent` per sé.
 
 ```kotlin
-// Le tre taglie: l'icona prende da sola 0,6 del lato (24, 26, 32 dp), senza scriverlo
-FluidGlassSize.entries.forEach { size ->
-  FluidGlassIconButton(onClick = {}, size = size) {
-    FluidIcon(FluidIcons.Add, contentDescription = "Aggiungi")
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import dev.antigravity.fluidengine.ui.fluid.*
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
+
+@Composable
+fun BarraConferma(onShare: () -> Unit, onCancel: () -> Unit, onConfirm: () -> Unit) {
+  CompositionLocalProvider(
+    LocalFluidGlassSize provides FluidGlassSize.Compact,
+    LocalFluidGlassButtonStyle provides FluidGlassButtonStyle.Glass,
+    LocalFluidButtonSizing provides FluidButtonSizing.Flexible,
+  ) {
+    FluidGlassContainer {
+      Row(horizontalArrangement = Arrangement.spacedBy(FluidMetrics.GlassSpacing)) {
+        FluidGlassIconButton(onClick = onShare) {
+          FluidIcon(FluidIcons.Share, contentDescription = "Condividi")
+        }
+        FluidGlassButton("Annulla", onCancel, Modifier.weight(1f))
+        FluidGlassButton("Conferma", onConfirm, Modifier.weight(1f), style = FluidGlassButtonStyle.Prominent)
+      }
+    }
   }
-}
-FluidGlassButton(text = "Attiva", onClick = {}, selected = true)
-
-// Una misura libera: il disco del trasporto di un player
-FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = "Riproduci") }   // 46 dp, da solo
-
-// L'azione principale, e due tasti che si dividono la riga (dal `sample`, «Stili dei tasti»)
-Row(horizontalArrangement = Arrangement.spacedBy(FluidMetrics.GlassSpacing)) {
-  FluidGlassButton("Annulla", onCancel, Modifier.weight(1f), sizing = FluidButtonSizing.Flexible)
-  FluidGlassButton("Conferma", onConfirm, Modifier.weight(1f), style = FluidGlassButtonStyle.Prominent, sizing = FluidButtonSizing.Flexible)
-}
-
-// Una barra di tasti compatti: la taglia una volta, per tutti (anche per quelli aggiunti dopo)
-CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) {
-  FluidGlassContainer { Row { FluidGlassIconButton(onClick = onShare) { FluidIcon(FluidIcons.Share, "Condividi") } /* … */ } }
 }
 ```
 
@@ -343,12 +345,13 @@ CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) {
   riempimento: sopra una foto il vetro continua a far vedere la foto. Il contrasto segue il contrasto di sistema.
 - **`onLongClick`** (solo icona): il click lungo suona `longClickHaptic` (default `GestureStart`; `null` se il click
   lungo ha il suo colpo, come un menu che suona `Open` solo se si apre); dopo un click lungo non c'è `PressRelease`.
-- **Una sola pressione** per il click e per il vetro: la lente cresce, segue il dito e si accende sulla stessa linea del
-  tempo su cui il click è confermato. La lente 12/24 dp e il bagliore Classic vengono da LibrePods.
-- **Bagliore Liquid.** Il punto di contatto schiarisce vetro e inchiostro. Sul tema chiaro la luce bianca
-  raggiunge al centro un’opacità massima di 0,76, sfumata verso il filo. La luce si allarga lungo la capsula
-  in circa 330 ms. In un `FluidGlassContainer` lo stesso punto illumina le lastre vicine entro 108 dp.
-  Anche i ponti fra pezzi uniti ricevono la luce. Il tasto autonomo usa la stessa passata sul proprio vetro.
+- **Bagliore Liquid.** Parte al contatto e si estende dal dito fino a riempire la capsula in circa 330 ms. Il
+  contributo superficiale bianco ha un massimo di 0,76 sul chiaro e 0,88 sullo scuro, con attenuazione al filo.
+  Al rilascio conserva l'estensione raggiunta e si spegne entro 500 ms. Nel `FluidGlassContainer` la stessa
+  sorgente raggiunge i ponti e le lastre vicine fino a 108 dp, con salita e discesa da 300 ms. Sulle lastre
+  ferme questa variazione riguarda la passata di luce. Lo spostamento e la deformazione del tasto premuto
+  possono aggiornare anche il corpo. In movimento ridotto la luce resta ancorata al contatto, con raggio
+  pieno e intensità attenuata.
 - Lo stato disabilitato sfuma a 0,38 e smette di rispondere tenendo il materiale.
 - **Stili** (`FluidGlassButtonStyle`, F6.4). `Glass` è il vetro di sempre (stessi ingressi, stessi nodi). `Clear` è il
   vetro limpido (`FluidGlass.Clear`: niente smerigliatura, scurimento del 35% sotto): sopra foto e video, con contenuto
@@ -388,10 +391,52 @@ CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) {
 **Non usarli quando.** Serve il pulsante pieno di una form su fondo piatto (`FluidButton`); il tasto sta in una barra di
 schermata (`FluidBarAction`, che li usa); serve una pillola con più azioni (`FluidFloatingCapsule`).
 
-**Versione.** Tasti di vetro dalle 1.x (1.4.0: `backdrop` obbligatorio nel vetro dei controlli); pressione che cresce 2.11.0; ricetta di LibrePods, `haptic` e `grip` 3.0;
-`FluidGlassSize` e `FluidGlassIconButton(size: Dp)` 3.0; backdrop del canvas per `FluidGlassButton` 3.0.1;
-`FluidGlassButton(maxLines)` 3.0.4; stili (`FluidGlassButtonStyle`, `LocalFluidGlassButtonStyle`), `sizing`
-(`FluidButtonSizing`, `LocalFluidButtonSizing`) e taglia d'ambiente (`LocalFluidGlassSize`) 4.0 (F6.4).
+### Riflesso in movimento e accessibilità
+
+Da Android 13 il riflesso delle lastre Liquid che disegnano la luce in una passata separata può seguire
+l'inclinazione. `LocalFluidGlassMotionLight` è **false di serie**. Forniscila sopra `FluidTheme` perché la finestra
+condivida un ambiente. L'accelerometro si attiva alla presenza della prima lastra compatibile. Il filtro smette
+di pubblicare variazioni a posa stabile. L'ascoltatore si stacca all'uscita dell'ultima lastra, in secondo piano,
+in risparmio energetico, con movimento ridotto o quando l'utente spegne l'opzione.
+
+Conserva la scelta nello stato dell'app. `fluidAppearanceSection` mostra la riga quando riceve valore e callback.
+
+```kotlin
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.ui.fluid.FluidScreen
+import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
+import dev.antigravity.fluidengine.ui.glass.field.LocalFluidGlassMotionLight
+import dev.antigravity.fluidengine.ui.theme.FluidTheme
+
+@Composable
+fun Aspetto(
+  settings: EngineSettings,
+  onSettingsChange: (EngineSettings) -> Unit,
+  motionLight: Boolean,
+  onMotionLightChange: (Boolean) -> Unit,
+) {
+  CompositionLocalProvider(LocalFluidGlassMotionLight provides motionLight) {
+    FluidTheme(settings = settings) {
+      FluidScreen(title = "Impostazioni") {
+        fluidAppearanceSection(
+          settings = settings,
+          onSettingsChange = onSettingsChange,
+          glassMotionLight = motionLight,
+          onGlassMotionLightChange = onMotionLightChange,
+        )
+      }
+    }
+  }
+}
+```
+
+`FluidTheme` fornisce il contrasto e il movimento di sistema. Per le anteprime si possono usare
+`LocalFluidSystemContrast`, `LocalFluidReduceTransparency` e `LocalFluidMotionPolicy`. La trasparenza ridotta
+aumenta l'opacità della pellicola Liquid. Il contrasto aumentato rinforza anche il contorno. Una Activity in
+multi-finestra che perde il fuoco attenua i riflessi e rende il velo più pieno, con inchiostro ancora leggibile.
+La tab Controlli della galleria permette di mettere alla prova le prime tre impostazioni sullo stesso tasto.
 
 ---
 
@@ -822,27 +867,38 @@ capsula da 40 dp e riempimento di Apple (`FluidTextFieldDefaults`): 4.0.0 (F6.6)
 
 ## FluidStepper
 
-**Cos'è.** Meno e più in una capsula, per un numero piccolo che si aggiusta a passi: copie, persone, minuti prima. Dalla 4.0 (F6.6); prima le app ne
-scrivevano uno con due `FluidButton`. File: `FluidStepper.kt`.
+Usa `FluidStepper` per modificare un numero intero a piccoli passi. L'app mantiene il valore e lo mostra accanto
+alla capsula. `range` chiude i due estremi, `step` regola l'incremento e `repeatOnHold` consente la ripetizione.
 
 ```kotlin
-FluidStepper(
-  value: Int, onValueChange: (Int) -> Unit, modifier = Modifier,
-  range: IntRange = Int.MIN_VALUE..Int.MAX_VALUE, step: Int = 1, enabled = true,
-  label: String? = null,                    // il nome per TalkBack («Copie»)
-  valueText: (Int) -> String = { it.toString() },
-  repeatOnHold: Boolean = true,
-)
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidRowValue
+import dev.antigravity.fluidengine.ui.fluid.FluidStepper
+import dev.antigravity.fluidengine.ui.theme.FluidListRow
 
-FluidListRow(
-  title = "Copie", subtitle = "Da 1 a 10", disclosure = false,
-  badge = {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      FluidRowValue("$copie")
-      FluidStepper(value = copie, onValueChange = { copie = it }, range = 1..10, label = "Copie")
-    }
-  },
-)
+@Composable
+fun RigaCopie() {
+  var copies by remember { mutableIntStateOf(1) }
+  FluidListRow(
+    title = "Copie",
+    subtitle = "Da 1 a 10",
+    disclosure = false,
+    badge = {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FluidRowValue(copies.toString())
+        FluidStepper(value = copies, onValueChange = { copies = it }, range = 1..10, label = "Copie")
+      }
+    },
+  )
+}
 ```
 
 **Comportamento.**
@@ -854,9 +910,8 @@ FluidListRow(
   piatta (o sotto API 31) è la pastiglia opaca nel grigio di riempimento dei campi, che cresce sotto il dito allo stesso modo.
 - **Tenuto premuto ripete** (`UIStepper.autorepeat`, di serie in Apple): dal click lungo un passo ogni 150 ms, poi 100 e, dopo venti passi, 50 (a
   occhio: Apple non dà i tempi). Ogni passo ripetuto è un `Tick`. Se la lista prende il dito per scorrere, la ripetizione smette. Tenuto fermo
-  su «+» il valore sale finché il dito è giù (`FluidStepperHoldTest` della galleria lo prova col dito vero, nel vetro e fuori): prima della
-  correzione dopo S9 il tracciatore del dito prendeva il down, già consumato dal `clickable`, per una lista che ha preso il dito, e la
-  ripetizione non faceva nemmeno il primo passo; il tocco breve non se ne accorgeva.
+  su «+» il valore sale finché il dito è giù. `FluidStepperHoldTest` verifica la ripetizione nel vetro e nella pastiglia
+  opaca con eventi Compose e orologio virtuale.
 - **Ai capi** la metà che non può andare oltre si spegne (il segno al 30%) e non fa niente. Il conto è in `Long`: un passo da `Int.MAX_VALUE` non gira;
   un valore fuori da `range` ci torna al primo passo.
 - **Per TalkBack** è un nodo solo: il nome (`label`), il valore come stato (`valueText`) e le azioni «aumenta» e «diminuisci» (le parole di
@@ -868,10 +923,6 @@ ha già la sua altezza. Il valore è dell'app: se non lo aggiorna, lo stepper ch
 
 **Non usarlo quando.** Il valore va da un capo all'altro di un intervallo grande (`FluidSlider`); si scrive (`FluidTextField` con
 `KeyboardType.Number`).
-
-**Versione.** 4.0.0 (F6.6).
-
----
 
 ---
 

@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Tocco e controlli (F6.8). La galleria riunisce il tasto premuto, la capsula trascinata, il bagliore ai vicini, i controlli a gesto, gli stili, le taglie e le prove di luce e accessibilità. Le schede e le tracce del banco descrivono il comportamento della 4.0.
+
 - Stili dei tasti (F6.4). `FluidGlassButton` e `FluidGlassIconButton` prendono `style: FluidGlassButtonStyle` (`Glass`, `Clear`, `Prominent`, `Glass(glass)`, come `buttonStyle(.glass / .glassProminent / .glass(_:))`) e `FluidGlassButton` anche `sizing: FluidButtonSizing` (`Fitted`, `Flexible`), in coda e con i valori di serie. Taglia, stile e larghezza si possono fornire per un gruppo (`LocalFluidGlassSize`, `LocalFluidGlassButtonStyle`, `LocalFluidButtonSizing`); fogli, popover, avvisi e menu dell'host li riportano ai valori di serie, come iOS 27. `Prominent` copre con la tinta quanto serve perché l'etichetta stia ad almeno 4,5:1 su qualunque fondo. La messa a fuoco del contenuto e dell'icona premuta arriva a nitida senza lo scalino di mezzo pixel. Senza fornitori nessun tasto cambia.
 
 - Accessibilità Liquid (F6.7). Il vetro segue la trasparenza ridotta e il contrasto di sistema, rinforza il contorno anche in viaggio e recede quando la finestra perde il fuoco in multi-finestra. Il tema segue la durata animazioni a zero e TalkBack trova le azioni della pagina attiva durante i passaggi.

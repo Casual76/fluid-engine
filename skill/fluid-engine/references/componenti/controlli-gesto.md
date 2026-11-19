@@ -1,15 +1,12 @@
 # Controlli a gesto: interruttore, cursore, scrubber
 
-Seconda metà della scheda [controlli.md](controlli.md): i controlli che si **afferrano e scorrono** (`FluidSwitch`,
-`FluidSlider`, `FluidScrubber`), più le licenze dei port (Kyant0 e LibrePods) che stanno dietro a questi tre e ai tasti.
-Tasti, scelte, campo di testo e le regole comuni (disattivato, bersagli da 48 dp, `backdrop`, TalkBack, ripiego senza vetro)
-sono nel file principale. Le righe di impostazioni che *contengono* un interruttore o un cursore (`FluidToggleRow`,
-`FluidSliderRow`) sono nella scheda [contenuto.md](contenuto.md): qui si dice come i due controlli si comportano dentro la
-riga. Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
+Usa `FluidSwitch` per un valore acceso o spento, `FluidSlider` per un valore che l'app può cambiare mentre lo
+trascini e `FluidScrubber` per raggiungere un punto in qualcosa che avanza da sé. Il pomello è pieno a riposo
+e si fa lente sotto il dito. La mano può continuare il gesto in diagonale senza far scorrere la pagina.
 
-Il modello mentale: un pomello a goccia (bianco e opaco a riposo, lente di vetro sotto il dito), un gesto che è della riga
-intera, il rilascio che decide, e la pagina che non scorre mentre il dito li trascina. Lo scrubber ne è il parente per ciò
-che **non** è tuo: la posizione la possiede un lettore.
+Le regole comuni di fondale, bersaglio e disattivazione sono nella [scheda dei controlli](controlli.md).
+Le righe con titolo e valore sono in [contenuto.md](contenuto.md). Le firme complete sono nel
+[catalogo API](../api/controlli.md).
 
 ## Scegliere in fretta
 
@@ -27,30 +24,25 @@ che **non** è tuo: la posizione la possiede un lettore.
 
 ---
 
-### 2. La goccia: pomelli che si afferrano
+## Dal pomello alla lente
 
-`FluidSwitch`, `FluidSlider`, `FluidScrubber` e la pillola di `FluidSegmentedControl` condividono la stessa
-costruzione (il `glassDrop` di Kyant, `glass/interaction/GlassDrop.kt`): a riposo una pillola piena (bianca; nel
-segmentato su scuro il grigio di iOS), sotto il dito la faccia sfuma e resta una **lente** che rifrange la pagina e
-una *copia della pista che si dispiega*. L'accento sotto il pomello si apre davvero: è questo che fa «vetro», e
-nessuna disposizione di una superficie generica lo produce. Con le animazioni ridotte il pomello non viaggia, si posa.
+`glassDrop` disegna la faccia piena e la lente che rifrange il canvas e una copia della pista. La copia si apre
+sotto il dito, così il riempimento della pista rimane visibile nel vetro. Con Liquid il profilo della lente è
+limpido, ha un leggero tono scuro e la rifrazione è più forte al bordo. Con Classic o su API 31–32 si usa la
+lente di Kyant. Sotto API 31 resta una pillola opaca con ombra su pista piena.
 
-**Interruttore e cursore salgono nel vetro come in iOS 26 (4.0, F6.3).** Misurati su `UISwitch` e `UISlider`
-ripresi a schermo a tempo vero (WWDC25, sessione 284) e sul tocco della sessione 219:
+| Fase | Interruttore e cursore |
+|---|---|
+| Presa | Il bianco sfuma mentre la lente cresce a ×1,5. La molla critica `FluidMotion.DropPress` compie il 92% della corsa a 133 ms, senza superamento. |
+| Trascinamento | La lente si allunga quando accelera nel verso del valore e si stringe quando frena o parte all'indietro. Lo stiramento si esaurisce a velocità costante. Il cursore ammette una variazione più ampia dell'interruttore. |
+| Tenuta | L'alone riprende il colore della pista sotto la lente. |
+| Rilascio | La stessa molla richiude la lente nel pomello senza sottopasso. |
 
-| momento | Apple | l'engine |
-|---|---|---|
-| pressione | il bianco sfuma e la lente cresce insieme, a ×1,48–1,56, in 130–170 ms, **senza superamento** | la crescita segue la pressione (molla critica `FluidMotion.DropPress`): ×1,5, al 92% a 133 ms, mai oltre. Prima era la molla della scala di Kyant, che arrivava a ×1,55 e tornava indietro (un rimbalzo del 9,5%) |
-| tenuta, trascinata | la lente si deforma con l'**accelerazione**, con il segno e ad area quasi costante: partendo nel verso del valore si allunga e si abbassa (fino a +16% / −19%), frenando o partendo all'indietro si stringe e si alza; a velocità costante torna la sua in ~250 ms. Quella dell'interruttore, che corre 20 dp, solo dell'8–12% | lo stesso (`GlassDropStretch`: passa-alto della velocità, tarato sul cursore di Apple, scarto medio 0,05 sulla larghezza; tetto 0,18 per il cursore, 0,1 per l'interruttore). Prima era il modulo della velocità (cursore) o il suo segno (interruttore), che a velocità costante restava. **Senza il dito** (la corsa di un tocco, un valore da fuori) la lente si allunga solo in avanti, come nella 219 |
-| attorno alla lente | un **alone del colore della pista** (verde, azzurro), più forte in basso: non un'ombra scura | `glassDropGlow`: un'ellisse dell'accento (o del colore della pista dell'interruttore) al 10%, sotto la lente, solo mentre è premuta |
-| rilascio | torna pomello in 70–150 ms, il bianco rientra entro ~200 ms, nessun sottopasso | la stessa molla della pressione, all'indietro: al 92% a 133 ms, mai sotto la taglia di riposo |
-| tocco sull'interruttore | la lente si forma sul posto (~100 ms), corre (~200 ms), si richiude (~130 ms) | la lente si forma per 100 ms (`GlassDropRise.TapTravelDelayMillis`), poi corre con la molla del valore, resta formata 60 ms all'arrivo (`TapDwellMillis`) e si richiude |
-| colore della pista dell'interruttore | comincia a cambiare appena il pomello parte e finisce 170–330 ms dopo, 70–130 ms dietro la posizione | segue il pomello che si vede con una molla critica sua (rigidezza 400, ~100 ms di ritardo); prima era la posizione stessa |
+Con movimento ridotto il cambio di valore posa il pomello direttamente. La lente conserva una crescita fino a
+×1,25 e la deformazione direzionale viene soppressa. Scrubber, segmentato, rail e tab bar usano la loro goccia
+con scala a molla e deformazione guidata dalla velocità.
 
-Con le animazioni ridotte la lente cresce la metà (×1,25, come i tasti), non si deforma e non viaggia. La pillola del
-segmentato, del rail e della tab bar restano la goccia di prima (crescita a molla, squash dalla velocità).
-
-### 3. Un dito sul controllo è del controllo
+## Presa e scorrimento della pagina
 
 Una pagina che scorre e un controllo che si trascina vogliono lo stesso dito, e vince chi legge per primo (il passo
 principale va dal figlio al padre). Le regole, uguali in slider, interruttore e scrubber:
@@ -68,10 +60,9 @@ Conseguenza pratica: uno slider a tutta larghezza non diventa una fascia da cui 
 
 ## FluidSwitch
 
-**Cos'è.** L'interruttore: il **LiquidToggle di Kyant0** portato, non reinventato. Il pomello è l'unica lastra e ciò che
-rifrange è una copia della pista schiacciata, che si apre sotto il dito. L'interruttore che c'era prima (pista piena con una
-lente per pomello, costruita con `glassSurface`) aveva la costruzione sbagliata; il primo tentativo di una versione di vetro
-faceva trasmettere la *pista*, sbagliato anche quello.
+L'app passa `checked` e registra la commutazione in `onCheckedChange`. Nel controllo autonomo il pomello
+possiede il gesto e il nodo semantico. In `FluidToggleRow` il gesto sul pomello resta identico e la riga
+fornisce nome, stato e bersaglio per tastiera e TalkBack.
 
 **Firma essenziale.**
 
@@ -85,12 +76,20 @@ FluidSwitch(
 )
 ```
 
-**Uso** (dal `sample`, `SwitchRow` in `ControlsTab`).
+**Uso in una riga con nome.**
 
 ```kotlin
-Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-  Text("Notifiche", modifier = Modifier.weight(1f))
-  FluidSwitch(checked = checked, onCheckedChange = { checked = it })
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
+
+@Composable
+fun ImpostazioneNotifiche() {
+  var enabled by remember { mutableStateOf(true) }
+  FluidToggleRow(title = "Notifiche", checked = enabled, onCheckedChange = { enabled = it })
 }
 ```
 
@@ -103,26 +102,23 @@ Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arra
   tingerebbe di accento la metà vuota, e «spento» è proprio lo stato che non è l'accento.
 - **Un solo gesto su tutto il controllo** (2.13.1), letto nel passo `Initial` (dal padre al figlio):
   - un **tocco** (sollevamento entro uno slop) commuta, ovunque cada: sul pomello, sulla metà vuota della pista, nell'alone;
-  - un dito sul **pomello** lo prende subito (margine 4 dp attorno): il pomello sale nel vetro (lente ×1,5, regola 2) e segue il
-    dito senza zona morta dal primo pixel, e il gesto è suo, su due assi, fino al rilascio;
+  - un dito sul **pomello** lo prende subito (margine 4 dp attorno): il pomello sale nel vetro e segue il
+    dito dal primo pixel, con presa su due assi fino al rilascio;
   - un dito sulla **pista vuota** che va di lato per mezzo slop (prima che in verticale) prende il pomello da dove sta; se va
     prima in verticale è la pagina che scorre.
 - **Il rilascio decide**: il pomello va dalla parte più vicina (oltre metà), o da quella verso cui correva se la spinta era
   veloce (oltre 250 dp/s, `fluidSwitchLanding`).
 - **Ottimista**: il gesto è l'affermazione, lo stato del chiamante è come la si registra. `onCheckedChange` arriva subito;
   se il chiamante **rifiuta** (lo stato non cambia) un effetto lo riporta dov'era: non resta a mentire.
-- **Un tocco è una piccola coreografia** (4.0, F6.3, come in Apple): la lente si forma sul posto, 100 ms dopo la pressione corre
-  dall'altra parte e si richiude 60 ms dopo l'arrivo (a riposo in ~490 ms; Apple 430–530). Il chiamante lo sa al tocco, non all'arrivo.
-  Un dito nuovo mentre la lente si sta formando la fa correre subito.
-- **Il colore della pista segue il pomello con un attimo di ritardo** (4.0, F6.3): una molla critica (~100 ms) dietro la
-  posizione, come in Apple, dove il verde comincia a spegnersi appena il pomello parte.
+- **Tocco breve.** Il valore si aggiorna al tocco. La lente si forma sul posto, parte dopo 100 ms e inizia a
+  richiudersi 60 ms dopo l'arrivo. Un nuovo dito mentre si forma anticipa la partenza. Il colore della pista segue
+  il pomello con una molla critica e circa 100 ms di ritardo.
 - **Si sente**: `ToggleOn` / `ToggleOff` a ogni tocco che commuta; durante un trascinamento nel momento in cui il pomello passa la
   metà più un margine dell'8% (`fluidSwitchSide`), perché un dito fermo lì non ronzi; al rilascio non ripete, a meno che il
   pomello finisca dall'altra parte rispetto all'ultima vibrazione.
 - **Pagina ferma durante il trascinamento**: ogni cambio del puntatore preso è consumato, quindi `LazyColumn`/`verticalScroll`/
   il back dal bordo non vedono un movimento da cui partire.
-- Con `reducedMotion` il pomello si posa (`snapToValue`), la lente cresce la metà e non si deforma, la pista cambia colore col
-  pomello, senza ritardo. Fino alla 3.x lo squash (con segno, `/50`) non guardava le animazioni ridotte: dalla 4.0 non c'è più.
+- Con movimento ridotto la pista cambia colore insieme al posizionamento del pomello.
 - Semantica: `toggleable(role = Role.Switch)` solo se `enabled && onCheckedChange != null`; è lì per tastiera, fuoco e TalkBack,
   non per il puntatore (che è del gesto). Nessuna ripple: il pomello è il feedback.
 - **Dentro `FluidToggleRow`** ([contenuto.md](contenuto.md)): il pomello **si trascina** anche lì (3.0.4). La riga lo disegna con
@@ -138,27 +134,19 @@ Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arra
   suo discendente e non si fonde. Per un interruttore con un'etichetta, in una pagina di impostazioni, `FluidToggleRow`; fuori
   da lì dai tu un nome al contenitore (`Modifier.semantics(mergeDescendants = true)` sulla riga con `clickable` che commuta, o
   un `contentDescription`).
-- `onCheckedChange = null` è un disegno: nessun gesto, **nessun nodo semantico**. Fino alla 3.0.3 era così che la riga lo
-  pilotava (e nessun interruttore in riga si poteva trascinare). Oggi serve a chi vuole un interruttore a sola vista.
+- Passa `onCheckedChange = null` per disegnarlo come indicatore passivo. Il controllo perde gesto e nodo semantico.
 - La riga che contiene l'interruttore **non deve avere un tocco suo** se non commuta: il contatto è già consumato.
 - Una disabilitazione sfuma a 0,5, non al quarto: dentro una riga disattivata l'interruttore non sfuma da solo (a sfumare è la
   riga).
 
 **Non usarlo quando.** Una scelta fra più di due stati (`FluidSegmentedControl`, `FluidChoiceRow`).
 
-**Versione.** Il LiquidToggle di Kyant0 *nel sorgente*: 2.2.0 (BREAKING: il CHANGELOG della 2.0.0 lo dichiarava già, ma era rimasto il
-56×31 col pomello tondo); 56 → 64 dp con lei (`FluidSwitchWidth`); la pagina non scorre mentre si trascina il pomello: 2.12.0;
-trascinamento da qualunque punto e vibrazione: 2.13.1; si trascina dentro `FluidToggleRow`: 3.0.4. `FluidGlassSwitch` (nato in 2.1.0,
-deprecato in 2.2.0) era il nome di questo controllo quando stava accanto al vecchio.
-
 ---
 
 ## FluidSlider
 
-**Cos'è.** Il cursore: il **LiquidSlider di Kyant0** portato, arrivato in engine passando dal port che Pampa notes aveva già
-fatto. Una pista sottile (6 dp) riempita con l'accento e una pillola che a riposo è bianca e opaca e si fa lente mentre il dito
-la tiene. Quello di prima era una pista da 30 dp con una lente da 26 sempre accesa: la stessa costruzione già scartata per
-l'interruttore.
+Il cursore mostra `value` su una pista sottile riempita con l'accento. Aggiorna lo stato subito in
+`onValueChange` e salva in `onValueChangeFinished` quando serve scrivere su disco o avviare un lavoro.
 
 **Firma essenziale.**
 
@@ -178,19 +166,29 @@ FluidSlider(
 )
 ```
 
-**Uso** (dal `sample`, `CapsulesAndPartsDemo` e `PagesDemo`).
+**Uso con tacche e valore parlato.**
 
 ```kotlin
-var minutes by remember { mutableFloatStateOf(30f) }
-FluidSlider(
-  value = minutes,
-  onValueChange = { minutes = it },
-  valueRange = 5f..120f,
-  snapValues = listOf(5f, 15f, 30f, 60f, 120f),
-  onValueChangeFinished = { save(minutes) },
-  contentDescription = "Timer",
-  stateDescription = "${minutes.toInt()} minuti",
-)
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.antigravity.fluidengine.ui.fluid.FluidSlider
+
+@Composable
+fun CursoreTimer(saveMinutes: (Int) -> Unit) {
+  var minutes by remember { mutableFloatStateOf(30f) }
+  FluidSlider(
+    value = minutes,
+    onValueChange = { minutes = it },
+    valueRange = 5f..120f,
+    snapValues = listOf(5f, 15f, 30f, 60f, 120f),
+    onValueChangeFinished = { saveMinutes(minutes.toInt()) },
+    contentDescription = "Timer",
+    stateDescription = "${minutes.toInt()} minuti",
+  )
+}
 ```
 
 **Comportamento.**
@@ -198,8 +196,7 @@ FluidSlider(
 - **Costruzione**: la pista è una *registrazione* (si dipinge in un layer suo, quello che la maniglia legge), la maniglia è
   l'unica lastra: pillola bianca con ombra a riposo, tenuta svanisce il bianco e resta una lente (10/14 dp) che rifrange la
   pagina *più una copia della pista che si dispiega* (schiacciata a due terzi in orizzontale e a niente in verticale a riposo,
-  aperta del tutto sotto il dito). La maniglia sale nel vetro (regola 2): lente ×1,5 senza rimbalzo, alone dell'accento, e si
-  stira con l'accelerazione (dalla 4.0; prima con il modulo della velocità).
+  aperta del tutto sotto il dito).
 - **Geometria** (privata, ma utile a chi dimensiona): riga alta 48 dp; pista 6 dp; maniglia 40 × 24 dp; margine laterale di
   un quarto di maniglia (10 dp) a ogni lato, dove la sorgente la lasciava sporgere: qui sta *dentro* i bordi, perché nulla
   nell'engine disegna fuori dai propri limiti e una maniglia che sporge viene mozzata dal primo contenitore che ritaglia. Il
@@ -207,7 +204,7 @@ FluidSlider(
 - **La riga è tutta del dito**: un tocco sulla pista porta lì la maniglia (con la molla); un trascinamento partito da lei la
   prende **senza spostarla** (relativo: afferrarla non cambia il valore, e un dito che sborda oltre l'estremità e torna non la
   muove finché non ripassa dal punto da cui è uscito). La maniglia si afferra anche a 10 dp dal bordo.
-- **Il dito è dello slider** (2.11.0): vedi la regola 3. Sollevato senza essersi mosso, sulla pista, è un tocco.
+- Un dito sollevato sulla pista senza averla trascinata porta la maniglia al punto toccato.
 - **Tacche** (`snapValues`): entro `snapThreshold` (frazione dell'intervallo) dalla tacca più vicina il valore *è* esattamente
   quella e la maniglia ci resta; fuori è libero. A pari distanza vince la prima della lista; tacche fuori intervallo si
   appoggiano al bordo. Sotto la pista, un puntino da 2 dp per tacca (a 7 dp sotto il bordo): accento se la maniglia l'ha
@@ -245,10 +242,6 @@ FluidSlider(
 
 **Non usarlo quando.** La posizione è di un lettore che avanza da solo e risponde ai salti in ritardo (`FluidScrubber`: lo
 slider combatterebbe col dito); non è un valore modificabile ma un avanzamento (`FluidProgressBar`).
-
-**Versione.** Dalla 2.12.0 è il LiquidSlider di Kyant0 (file `FluidSlider.kt`) con `snapValues`, `snapThreshold`,
-`contentDescription`, `stateDescription`, `backdrop`; un trascinamento non fa scorrere la pagina dalla 2.11.0; l'aspetto è di
-Kyant, il gesto è nostro.
 
 ---
 
@@ -419,9 +412,7 @@ toccabili e `onStartLabelClick` / `onEndLabelClick`: 3.0.1.
 
 ---
 
-## Licenze dei port: cosa viene da dove e cosa è cambiato
-
-Due licenze, non una, e la differenza conta a chi distribuisce l'app.
+## Licenze dei port
 
 | pezzo | origine | licenza |
 |---|---|---|
@@ -430,32 +421,18 @@ Due licenze, non una, e la differenza conta a chi distribuisce l'app.
 | `FluidScrubber`, la goccia di `FluidSegmentedControl` | `glassDrop` (`glass/interaction/GlassDrop.kt`, la ricetta estratta dai due controlli) e la copia della pista dello slider | Apache-2.0, Kyant |
 | tasti: `FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidBarAction`, `FluidChip`, `FluidColorDot` (pressione, gesto, aptica, bagliore) | **LibrePods** (`StyledButton`, `StyledIconButton`, `DragUtils`; ramo `android/rewrite`, `3d4d270`) | **GPL-3.0** |
 
-**Conseguenza da dire ad alta voce**: dalla 3.0 `engine-ui` contiene codice di LibrePods, e **un'app che include l'engine è un'opera
-derivata, da distribuire sotto GPL-3.0** (sorgenti a chi riceve l'APK). È una scelta di Alessio (31 ottobre 2026): i tasti si comportano
-*esattamente* come quelli di LibrePods perché portano lo stesso codice. Fino alla 2.13 era un comportamento guardato e riscritto, senza copiare
-codice. Il nome e il logo di LibrePods non si usano fuori da questa attribuzione.
+Il materiale di base di Kyant include le lenti, la pista registrata e le misure dei pomelli. Fluid Engine
+fornisce l'accento di tema, la presa del gesto, aptica, semantica, accessibilità e tacche del cursore. La scala
+di interruttore e cursore segue la pressione. La deformazione segue l'accelerazione e l'interruttore ha un
+tempo di formazione e chiusura della lente. Le modifiche al port sono elencate in testa a `FluidSwitch.kt`
+e `FluidSlider.kt` e in `LICENSES/AndroidLiquidGlass.md`.
 
-**Cosa è cambiato rispetto all'originale di Kyant0** (dichiarato in testa a `FluidSwitch.kt` e `FluidSlider.kt`, in `LICENSES/AndroidLiquidGlass.md`,
-punto 11 e seguenti):
-
-- il colore è l'**accento dell'app** al posto del verde iOS fisso (interruttore) e, per lo slider, il velo della pista preso da `onSurface` con alpha
-  ricalcolati perché cada dove cade il grigio della sorgente (12% chiaro / 17% scuro);
-- aggiunti `enabled`, il tocco aptico, la semantica per TalkBack, il movimento ridotto e un ripiego senza `RenderEffect`: li hanno tutti gli altri controlli;
-- **interruttore**: un tocco *ovunque* lo commuta (la sorgente rispondeva solo al pomello); dalla 2.13.1 un gesto suo su tutto il controllo al posto del
-  `DragGestureInspector` di Kyant (una spinta veloce conta; vibra alla metà); consuma il puntatore del pomello trascinato; si trascina anche dentro una riga;
-- **slider**: lo stiramento con la velocità usava il *modulo* e non il segno (nella sorgente un verso allunga e l'altro accorcia); dalla 4.0 (F6.3) né l'uno
-  né l'altro: la lente si stira con l'*accelerazione*, con il segno, come quella di `UISlider` (che partendo verso sinistra si stringe davvero, e a
-  velocità costante torna la sua); pista e maniglia stanno *dentro* i bordi (un quarto di maniglia di margine invece di sporgere); il gesto sta su tutta la riga; **le tacche di
-  scatto sono un'aggiunta nostra**; consuma il puntatore della maniglia;
-- le molle (`GlassDragAnimation`) e i numeri della ricetta (lente 10/14 e 5/10 dp, sfocatura 8 dp, `Ambient` ÷ 1,5, ombra interna 4 dp, ombra fissa 4 dp al 5%)
-  restano quelli della sorgente: è «il metro». Dalla 4.0 (F6.3) interruttore e slider non usano più le molle della **scala** (la crescita segue la
-  pressione) né lo squash della sorgente, e hanno un alone e un tocco a tempi propri: codice del Fluid Engine, dichiarato in testa ai due file.
+Dalla 3.0 `engine-ui` include codice LibrePods. La distribuzione di app derivate avviene sotto GPL-3.0,
+con i sorgenti disponibili a chi riceve l'APK. Nome e logo di LibrePods restano riservati all'attribuzione.
 
 L'app deve riportare *AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant* e *LibrePods — GPL-3.0* fra le licenze di terze parti: l'engine ha già
 `fluidLicensesSection` (una sezione di `LazyListScope` che elenca da sola le voci di `FluidEngineLicenses`). Testi: `LICENSES/AndroidLiquidGlass.md`,
 `LICENSES/LibrePods.md`.
-
----
 
 ---
 

@@ -1,0 +1,1163 @@
+{
+  "schema": 1,
+  "name": "movimento-ridotto",
+  "phase": "f6-2",
+  "fps": 60,
+  "durationMs": 1183.333333,
+  "density": 2,
+  "theme": "light",
+  "size": [
+    188,
+    76
+  ],
+  "background": {
+    "kind": "gradient4",
+    "tl": "#C9C4C5",
+    "tr": "#787D82",
+    "bl": "#CECACD",
+    "br": "#606870"
+  },
+  "events": [
+    {
+      "t": 600,
+      "kind": "mark",
+      "label": "rilascio"
+    }
+  ],
+  "probes": [
+    {
+      "name": "vicino",
+      "kind": "luma",
+      "rect": [
+        79,
+        30,
+        3,
+        3
+      ]
+    },
+    {
+      "name": "lontano",
+      "kind": "luma",
+      "rect": [
+        144,
+        31,
+        3,
+        3
+      ]
+    }
+  ],
+  "base": {
+    "lastra-1": {
+      "kind": "material",
+      "name": "lastra-1",
+      "_ricetta": "F6.1",
+      "x": 14,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 1
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            "22dp",
+            "22dp"
+          ],
+          "gelTip": [
+            "0dp",
+            "0dp"
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.3,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F775",
+          "veilAdapt": 0.7,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0,
+          "rimWidth": "0.6dp",
+          "rimDark": "#00000052",
+          "rimFeather": 0.4,
+          "rimLift": 0.3,
+          "reflexDir": [
+            0,
+            -1
+          ],
+          "reflexWidths": [
+            1.396,
+            1.396
+          ],
+          "reflexStrength": 0.12,
+          "reflexDepth": "7dp",
+          "reflexFloor": 0,
+          "reflexHalo": 0.45,
+          "glowCenter": [
+            "0dp",
+            "0dp"
+          ],
+          "glowRadius": "44dp",
+          "glow": 0,
+          "glowFill": 0.4,
+          "lightColor": "#FFFFFFFF",
+          "shadowOffset": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowRadii": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowAlphas": [
+            0,
+            0
+          ],
+          "shadowColor": "#00000000",
+          "nodeClip": [
+            0,
+            0
+          ]
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "marginDp": 0,
+      "content": [
+        {
+          "name": "icone",
+          "icons": [
+            "back"
+          ],
+          "iconSizeDp": 23,
+          "scale": [
+            1,
+            1
+          ],
+          "blurSigmaDp": 0,
+          "color": "#202228"
+        }
+      ]
+    },
+    "lastra-2": {
+      "kind": "material",
+      "name": "lastra-2",
+      "_ricetta": "F6.1",
+      "x": 72,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 1
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            "22dp",
+            "22dp"
+          ],
+          "gelTip": [
+            "0dp",
+            "0dp"
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.3,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F775",
+          "veilAdapt": 0.7,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0,
+          "rimWidth": "0.6dp",
+          "rimDark": "#00000052",
+          "rimFeather": 0.4,
+          "rimLift": 0.3,
+          "reflexDir": [
+            0,
+            -1
+          ],
+          "reflexWidths": [
+            1.396,
+            1.396
+          ],
+          "reflexStrength": 0.12,
+          "reflexDepth": "7dp",
+          "reflexFloor": 0,
+          "reflexHalo": 0.45,
+          "glowCenter": [
+            "0dp",
+            "0dp"
+          ],
+          "glowRadius": "44dp",
+          "glow": 0,
+          "glowFill": 0.4,
+          "lightColor": "#FFFFFFFF",
+          "shadowOffset": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowRadii": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowAlphas": [
+            0,
+            0
+          ],
+          "shadowColor": "#00000000",
+          "nodeClip": [
+            0,
+            0
+          ]
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "marginDp": 0,
+      "content": [
+        {
+          "name": "icone",
+          "icons": [
+            "share"
+          ],
+          "iconSizeDp": 23,
+          "scale": [
+            1,
+            1
+          ],
+          "blurSigmaDp": 0,
+          "color": "#202228"
+        }
+      ]
+    },
+    "lastra-3": {
+      "kind": "material",
+      "name": "lastra-3",
+      "_ricetta": "F6.1",
+      "x": 130,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "clip": false,
+      "shadow": [
+        {
+          "radiusDp": 34,
+          "offsetDp": [
+            0,
+            6.7
+          ],
+          "alpha": 0.09,
+          "color": "#000000"
+        }
+      ],
+      "capture": {
+        "saturation": 1.5,
+        "blurDp": 4.5,
+        "w": 0,
+        "paddingDp": 0,
+        "scale": 1
+      },
+      "body": {
+        "source": "kotlin:GlassBody1ShaderString",
+        "uniforms": {
+          "offset": "$offset",
+          "flex": [
+            1,
+            0,
+            0,
+            1
+          ],
+          "flexCenter": [
+            "22dp",
+            "22dp"
+          ],
+          "gelTip": [
+            "0dp",
+            "0dp"
+          ],
+          "pieceCount": 1,
+          "pieceRect": [
+            [
+              "$center",
+              "$halfSize"
+            ]
+          ],
+          "pieceRadii": [
+            "$radii"
+          ],
+          "pieceBlend": [
+            0
+          ],
+          "pieceSmooth": [
+            0
+          ],
+          "thickness": "10.56dp",
+          "refraction": "-9.504dp",
+          "dome": 0.5,
+          "dispersion": 0.3,
+          "magnify": 0,
+          "materialize": 1,
+          "veilColor": "#F5F5F775",
+          "veilAdapt": 0.7,
+          "tintColor": "#00000000",
+          "tintMode": 0,
+          "tintFollow": 0.42,
+          "bodyShade": "#00000012",
+          "bodyShadeDepth": "22dp",
+          "bodyShadeLean": [
+            0,
+            -0.6
+          ],
+          "dim": 0,
+          "grain": 0,
+          "aa": 1.25,
+          "lightInBody": 0,
+          "rimWidth": "0.6dp",
+          "rimDark": "#00000052",
+          "rimFeather": 0.4,
+          "rimLift": 0.3,
+          "reflexDir": [
+            0,
+            -1
+          ],
+          "reflexWidths": [
+            1.396,
+            1.396
+          ],
+          "reflexStrength": 0.12,
+          "reflexDepth": "7dp",
+          "reflexFloor": 0,
+          "reflexHalo": 0.45,
+          "glowCenter": [
+            "0dp",
+            "0dp"
+          ],
+          "glowRadius": "44dp",
+          "glow": 0,
+          "glowFill": 0.4,
+          "lightColor": "#FFFFFFFF",
+          "shadowOffset": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowRadii": [
+            "0dp",
+            "0dp"
+          ],
+          "shadowAlphas": [
+            0,
+            0
+          ],
+          "shadowColor": "#00000000",
+          "nodeClip": [
+            0,
+            0
+          ]
+        }
+      },
+      "light": [
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "blend": "Plus",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 0,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        },
+        {
+          "source": "kotlin:GlassLight1ShaderString",
+          "uniforms": {
+            "offset": "$offset",
+            "flex": [
+              1,
+              0,
+              0,
+              1
+            ],
+            "flexCenter": [
+              "22dp",
+              "22dp"
+            ],
+            "gelTip": [
+              "0dp",
+              "0dp"
+            ],
+            "pieceCount": 1,
+            "pieceRect": [
+              [
+                "$center",
+                "$halfSize"
+              ]
+            ],
+            "pieceRadii": [
+              "$radii"
+            ],
+            "pieceBlend": [
+              0
+            ],
+            "pieceSmooth": [
+              0
+            ],
+            "lightPart": 1,
+            "rimWidth": "0.6dp",
+            "rimDark": "#00000052",
+            "rimFeather": 0.4,
+            "rimLift": 0.3,
+            "reflexDir": [
+              0,
+              -1
+            ],
+            "reflexWidths": [
+              1.396,
+              1.396
+            ],
+            "reflexStrength": 0.12,
+            "reflexDepth": "7dp",
+            "reflexFloor": 0,
+            "reflexHalo": 0.45,
+            "glowCenter": [
+              "0dp",
+              "0dp"
+            ],
+            "glowRadius": "44dp",
+            "glow": 0,
+            "glowFill": 0.4,
+            "lightColor": "#FFFFFFFF",
+            "materialize": 1,
+            "aa": 1.25
+          }
+        }
+      ],
+      "marginDp": 0,
+      "content": [
+        {
+          "name": "icone",
+          "icons": [
+            "plus"
+          ],
+          "iconSizeDp": 23,
+          "scale": [
+            1,
+            1
+          ],
+          "blurSigmaDp": 0,
+          "color": "#202228"
+        }
+      ]
+    },
+    "luce-lastra-1": {
+      "kind": "shader",
+      "name": "luce-lastra-1",
+      "x": 14,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "source": "kotlin:GlassLight1ShaderString",
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          "22dp",
+          "22dp"
+        ],
+        "gelTip": [
+          "0dp",
+          "0dp"
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "$center",
+            "$halfSize"
+          ]
+        ],
+        "pieceRadii": [
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0
+        ],
+        "lightPart": 2,
+        "rimWidth": "1.60000dp",
+        "rimDark": "#00000052",
+        "rimFeather": 0.4,
+        "rimLift": 0.3,
+        "reflexDir": [
+          "0.00000dp",
+          "0.00000dp"
+        ],
+        "reflexWidths": [
+          "44.00000dp",
+          "44.00000dp"
+        ],
+        "reflexStrength": 0.0,
+        "reflexDepth": "7dp",
+        "reflexFloor": 0,
+        "reflexHalo": 0.45,
+        "glowCenter": [
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "glowRadius": "108.00000dp",
+        "glow": 0,
+        "glowFill": 0,
+        "lightColor": "#FFFFFFFF",
+        "materialize": 0.30400000000000005,
+        "aa": 1.25
+      },
+      "marginDp": 0
+    },
+    "luce-lastra-2": {
+      "kind": "shader",
+      "name": "luce-lastra-2",
+      "x": 72,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "source": "kotlin:GlassLight1ShaderString",
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          "22dp",
+          "22dp"
+        ],
+        "gelTip": [
+          "0dp",
+          "0dp"
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "$center",
+            "$halfSize"
+          ]
+        ],
+        "pieceRadii": [
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0
+        ],
+        "lightPart": 2,
+        "rimWidth": "1.60000dp",
+        "rimDark": "#00000052",
+        "rimFeather": 0.4,
+        "rimLift": 0.3,
+        "reflexDir": [
+          "-58.00000dp",
+          "0.00000dp"
+        ],
+        "reflexWidths": [
+          "-14.00000dp",
+          "44.00000dp"
+        ],
+        "reflexStrength": 0.0,
+        "reflexDepth": "7dp",
+        "reflexFloor": 0,
+        "reflexHalo": 0.45,
+        "glowCenter": [
+          "-36.00000dp",
+          "22.00000dp"
+        ],
+        "glowRadius": "108.00000dp",
+        "glow": 0,
+        "glowFill": 0,
+        "lightColor": "#FFFFFFFF",
+        "materialize": 0.30400000000000005,
+        "aa": 1.25
+      },
+      "marginDp": 0
+    },
+    "luce-lastra-3": {
+      "kind": "shader",
+      "name": "luce-lastra-3",
+      "x": 130,
+      "y": 16,
+      "w": 44,
+      "h": 44,
+      "radius": "capsule",
+      "source": "kotlin:GlassLight1ShaderString",
+      "uniforms": {
+        "offset": "$offset",
+        "flex": [
+          1,
+          0,
+          0,
+          1
+        ],
+        "flexCenter": [
+          "22dp",
+          "22dp"
+        ],
+        "gelTip": [
+          "0dp",
+          "0dp"
+        ],
+        "pieceCount": 1,
+        "pieceRect": [
+          [
+            "$center",
+            "$halfSize"
+          ]
+        ],
+        "pieceRadii": [
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp",
+          "22.00000dp"
+        ],
+        "pieceBlend": [
+          0
+        ],
+        "pieceSmooth": [
+          0
+        ],
+        "lightPart": 2,
+        "rimWidth": "1.60000dp",
+        "rimDark": "#00000052",
+        "rimFeather": 0.4,
+        "rimLift": 0.3,
+        "reflexDir": [
+          "-116.00000dp",
+          "0.00000dp"
+        ],
+        "reflexWidths": [
+          "-72.00000dp",
+          "44.00000dp"
+        ],
+        "reflexStrength": 0.0,
+        "reflexDepth": "7dp",
+        "reflexFloor": 0,
+        "reflexHalo": 0.45,
+        "glowCenter": [
+          "-94.00000dp",
+          "22.00000dp"
+        ],
+        "glowRadius": "108.00000dp",
+        "glow": 0,
+        "glowFill": 0,
+        "lightColor": "#FFFFFFFF",
+        "materialize": 0.30400000000000005,
+        "aa": 1.25
+      },
+      "marginDp": 0
+    }
+  },
+  "frames": [
+    {"t":-33.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]},
+    {"t":-16.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]},
+    {"t":0.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.1,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.1,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.1,"glowFill":1}}]},
+    {"t":16.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.003567,"glow":0.261972,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.003567,"glow":0.261972,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.003567,"glow":0.261972,"glowFill":1}}]},
+    {"t":33.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.013717,"glow":0.394794,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.013717,"glow":0.394794,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.013717,"glow":0.394794,"glowFill":1}}]},
+    {"t":50.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.02963,"glow":0.503712,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.02963,"glow":0.503712,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.02963,"glow":0.503712,"glowFill":1}}]},
+    {"t":66.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.05048,"glow":0.593028,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.05048,"glow":0.593028,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.05048,"glow":0.593028,"glowFill":1}}]},
+    {"t":83.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.075446,"glow":0.66627,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.075446,"glow":0.66627,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.075446,"glow":0.66627,"glowFill":1}}]},
+    {"t":100.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.103704,"glow":0.726331,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.103704,"glow":0.726331,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.103704,"glow":0.726331,"glowFill":1}}]},
+    {"t":116.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.134431,"glow":0.775583,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.134431,"glow":0.775583,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.134431,"glow":0.775583,"glowFill":1}}]},
+    {"t":133.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.166804,"glow":0.815971,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.166804,"glow":0.815971,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.166804,"glow":0.815971,"glowFill":1}}]},
+    {"t":150.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.2,"glow":0.84909,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.2,"glow":0.84909,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.2,"glow":0.84909,"glowFill":1}}]},
+    {"t":166.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.233196,"glow":0.876249,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.233196,"glow":0.876249,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.233196,"glow":0.876249,"glowFill":1}}]},
+    {"t":183.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.265569,"glow":0.898521,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.265569,"glow":0.898521,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.265569,"glow":0.898521,"glowFill":1}}]},
+    {"t":200.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.296296,"glow":0.916784,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.296296,"glow":0.916784,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.296296,"glow":0.916784,"glowFill":1}}]},
+    {"t":216.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.324554,"glow":0.93176,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.324554,"glow":0.93176,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.324554,"glow":0.93176,"glowFill":1}}]},
+    {"t":233.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.34952,"glow":0.944041,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.34952,"glow":0.944041,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.34952,"glow":0.944041,"glowFill":1}}]},
+    {"t":250.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.37037,"glow":0.954112,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.37037,"glow":0.954112,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.37037,"glow":0.954112,"glowFill":1}}]},
+    {"t":266.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.386283,"glow":0.96237,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.386283,"glow":0.96237,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.386283,"glow":0.96237,"glowFill":1}}]},
+    {"t":283.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.396433,"glow":0.969143,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.396433,"glow":0.969143,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.396433,"glow":0.969143,"glowFill":1}}]},
+    {"t":300.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.974696,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.974696,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.974696,"glowFill":1}}]},
+    {"t":316.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.97925,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.97925,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.97925,"glowFill":1}}]},
+    {"t":333.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.982984,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.982984,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.982984,"glowFill":1}}]},
+    {"t":350.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.986047,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.986047,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.986047,"glowFill":1}}]},
+    {"t":366.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.988558,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.988558,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.988558,"glowFill":1}}]},
+    {"t":383.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.990617,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.990617,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.990617,"glowFill":1}}]},
+    {"t":400.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.992306,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.992306,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.992306,"glowFill":1}}]},
+    {"t":416.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.99369,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.99369,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.99369,"glowFill":1}}]},
+    {"t":433.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.994826,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.994826,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.994826,"glowFill":1}}]},
+    {"t":450.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.995757,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.995757,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.995757,"glowFill":1}}]},
+    {"t":466.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.996521,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.996521,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.996521,"glowFill":1}}]},
+    {"t":483.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.997147,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.997147,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.997147,"glowFill":1}}]},
+    {"t":500.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.99766,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.99766,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.99766,"glowFill":1}}]},
+    {"t":516.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.998081,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.998081,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.998081,"glowFill":1}}]},
+    {"t":533.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.998427,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.998427,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.998427,"glowFill":1}}]},
+    {"t":550.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.99871,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.99871,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.99871,"glowFill":1}}]},
+    {"t":566.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.998942,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.998942,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.998942,"glowFill":1}}]},
+    {"t":583.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.999132,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.999132,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.999132,"glowFill":1}}]},
+    {"t":600.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.4,"glow":0.999289,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.4,"glow":0.999289,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.4,"glow":0.999289,"glowFill":1}}]},
+    {"t":616.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.396433,"glow":0.890265,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.396433,"glow":0.890265,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.396433,"glow":0.890265,"glowFill":1}}]},
+    {"t":633.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.386283,"glow":0.793136,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.386283,"glow":0.793136,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.386283,"glow":0.793136,"glowFill":1}}]},
+    {"t":650.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.37037,"glow":0.706604,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.37037,"glow":0.706604,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.37037,"glow":0.706604,"glowFill":1}}]},
+    {"t":666.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.34952,"glow":0.629512,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.34952,"glow":0.629512,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.34952,"glow":0.629512,"glowFill":1}}]},
+    {"t":683.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.324554,"glow":0.560832,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.324554,"glow":0.560832,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.324554,"glow":0.560832,"glowFill":1}}]},
+    {"t":700.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.296296,"glow":0.499644,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.296296,"glow":0.499644,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.296296,"glow":0.499644,"glowFill":1}}]},
+    {"t":716.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.265569,"glow":0.445132,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.265569,"glow":0.445132,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.265569,"glow":0.445132,"glowFill":1}}]},
+    {"t":733.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.233196,"glow":0.396568,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.233196,"glow":0.396568,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.233196,"glow":0.396568,"glowFill":1}}]},
+    {"t":750.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.2,"glow":0.353302,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.2,"glow":0.353302,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.2,"glow":0.353302,"glowFill":1}}]},
+    {"t":766.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.166804,"glow":0.314756,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.166804,"glow":0.314756,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.166804,"glow":0.314756,"glowFill":1}}]},
+    {"t":783.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.134431,"glow":0.280416,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.134431,"glow":0.280416,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.134431,"glow":0.280416,"glowFill":1}}]},
+    {"t":800.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.103704,"glow":0.249822,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.103704,"glow":0.249822,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.103704,"glow":0.249822,"glowFill":1}}]},
+    {"t":816.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.075446,"glow":0.222566,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.075446,"glow":0.222566,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.075446,"glow":0.222566,"glowFill":1}}]},
+    {"t":833.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.05048,"glow":0.198284,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.05048,"glow":0.198284,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.05048,"glow":0.198284,"glowFill":1}}]},
+    {"t":850.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.02963,"glow":0.176651,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.02963,"glow":0.176651,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.02963,"glow":0.176651,"glowFill":1}}]},
+    {"t":866.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.013717,"glow":0.157378,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.013717,"glow":0.157378,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.013717,"glow":0.157378,"glowFill":1}}]},
+    {"t":883.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"reflexStrength":0.003567,"glow":0.140208,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"reflexStrength":0.003567,"glow":0.140208,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"reflexStrength":0.003567,"glow":0.140208,"glowFill":1}}]},
+    {"t":900.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.124911,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.124911,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.124911,"glowFill":1}}]},
+    {"t":916.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.111283,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.111283,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.111283,"glowFill":1}}]},
+    {"t":933.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.099142,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.099142,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.099142,"glowFill":1}}]},
+    {"t":950.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.088325,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.088325,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.088325,"glowFill":1}}]},
+    {"t":966.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.078689,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.078689,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.078689,"glowFill":1}}]},
+    {"t":983.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.070104,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.070104,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.070104,"glowFill":1}}]},
+    {"t":1000.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.062456,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.062456,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.062456,"glowFill":1}}]},
+    {"t":1016.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.055642,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.055642,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.055642,"glowFill":1}}]},
+    {"t":1033.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.049571,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.049571,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.049571,"glowFill":1}}]},
+    {"t":1050.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.044163,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.044163,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.044163,"glowFill":1}}]},
+    {"t":1066.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.02623,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.02623,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.02623,"glowFill":1}}]},
+    {"t":1083.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1","uniforms":{"glow":0.011684,"glowFill":1}},{"name":"luce-lastra-2","uniforms":{"glow":0.011684,"glowFill":1}},{"name":"luce-lastra-3","uniforms":{"glow":0.011684,"glowFill":1}}]},
+    {"t":1100.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]},
+    {"t":1116.666667,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]},
+    {"t":1133.333333,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]},
+    {"t":1150.0,"elements":[{"name":"lastra-1"},{"name":"lastra-2"},{"name":"lastra-3"},{"name":"luce-lastra-1"},{"name":"luce-lastra-2"},{"name":"luce-lastra-3"}]}
+  ]
+}

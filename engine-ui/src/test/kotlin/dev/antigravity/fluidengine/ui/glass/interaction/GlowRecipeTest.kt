@@ -16,6 +16,37 @@ import org.junit.Test
  */
 class GlowRecipeTest {
 
+  @Test fun liquidContactStartsInTheFirstFrameAndKeepsRising() {
+    val off = FingerGlowLevels.Off
+    assertTrue(off.held(0, false).local > 0f)
+    assertEquals(0f, off.held(0, false).fill, 0f)
+    val at233 = off.held(233, false)
+    assertTrue(at233.local in 0.93f..0.97f)
+    assertTrue(off.held(600, false).local > at233.local)
+    assertEquals(1f, off.held(330, false).fill, 0f)
+    assertEquals(1f, off.held(300, false).neighbours, 0f)
+  }
+
+  @Test fun liquidReleaseStartsAtTheInterruptedValueAndHasTwoTails() {
+    for (at in listOf(0L, 67L, 233L, 1100L)) {
+      val peak = FingerGlowLevels.Off.held(at, false)
+      assertEquals(peak, peak.released(0))
+      assertEquals(peak.local / 2f, peak.released(100).local, 0.00001f)
+      assertEquals(peak.local / 4f, peak.released(200).local, 0.00001f)
+      assertEquals(peak.fill, peak.released(300).fill, 0f)
+      assertEquals(0f, peak.released(300).neighbours, 0f)
+      assertEquals(FingerGlowLevels.Off, peak.released(500))
+      val tail = peak.released(100)
+      assertTrue(tail.held(0, false).local >= tail.local)
+    }
+  }
+
+  @Test fun reducedMotionLightsAFixedFootprint() {
+    val off = FingerGlowLevels.Off
+    for (at in listOf(0L, 67L, 233L, 1000L)) assertEquals(1f, off.held(at, true).fill, 0f)
+    assertTrue(off.held(0, true).local < off.held(233, true).local)
+  }
+
   /** Il verde del pulsante di vetro a riposo, su un tema chiaro: #DBEAE7. */
   private val lightFace = 219f / 255f
 

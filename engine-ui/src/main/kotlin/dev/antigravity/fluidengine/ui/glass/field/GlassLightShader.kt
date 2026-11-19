@@ -346,14 +346,44 @@ void glassLightParts(float2 p, float d, float2 normal, bool lit, out half4 glowi
 }
 """
 
+@Language("AGSL")
+private const val GlassFingerLightBlock = """
+// La terza passata usa lo stesso campo del filo. Il dito e' in pixel di schermo,
+// mentre la sola distanza dal bordo e' valutata nella geometria deformata.
+// Il vettore e le ampiezze dei lobi, liberi in questa passata, portano i due
+// angoli del tasto sorgente. Sono comuni anche alle superfici di altri campi.
+half4 glassFingerLight(float2 screen, float2 slabCenter, float d, float coverage, bool joined) {
+    float2 delta = screen - glowCenter;
+    float r = length(delta);
+    float2 halfSize = 0.5 * (reflexWidths - reflexDir);
+    float shortSide = 2.0 * min(halfSize.x, halfSize.y);
+    float farthest = length(max(abs(glowCenter - reflexDir), abs(reflexWidths - glowCenter)));
+    float radius = mix(max(1.0, 0.24 * shortSide), max(1.0, 1.55 * farthest), glowFill);
+    // Il centro identifica la lastra singola anche quando il gel supera i limiti di riposo.
+    // Nel ponte il punto sullo schermo varia con continuita' fra le due lastre.
+    float2 anchor = joined ? screen : slabCenter;
+    float feather = (joined ? 0.75 : 0.17) * shortSide;
+    float2 outside = abs(anchor - 0.5 * (reflexDir + reflexWidths)) - halfSize;
+    float localMask = 1.0 - smoothstep(0.0, max(1.0, feather), max(outside.x, outside.y));
+    float local = glow * localMask * (1.0 - smoothstep(0.12 * radius, radius, r));
+    float neighbour = reflexStrength * (1.0 - smoothstep(0.0, max(1.0, glowRadius), r));
+    float edge = smoothstep(0.0, max(1.0, rimWidth), -d);
+    half alpha = half(max(local, neighbour) * edge * coverage * materialize);
+    return half4(alpha);
+}
+"""
+
 /**
  * La luce a riposo di **una lastra**: nessun ingresso, sopra il corpo e sotto il contenuto. È il programma di
  * quasi tutti i vetri di una schermata.
  *
- * ### Due disegni, in quest'ordine
+ * Il bagliore interattivo F6.2 usa lo stesso programma dopo l’inchiostro (`lightPart = 2`, SrcOver).
+ * La direzione e le ampiezze del riflesso, libere in questa passata, portano gli estremi della lastra sorgente.
+ *
+ * ### Le due passate del bordo, in quest'ordine
  * Lo stesso programma, lo stesso rettangolo, gli stessi uniform salvo uno:
  *
- *     1.  lightPart = 0   BlendMode.Plus      la luce che somma: riga chiara, alone, bagliore del dito
+ *     1.  lightPart = 0   BlendMode.Plus      la luce che somma: riga chiara e alone
  *     2.  lightPart = 1   BlendMode.SrcOver   il filo
  *
  * Tutti e due escono come colori premoltiplicati validi. L'ordine è quello del corpo in viaggio, ed è ciò
@@ -386,6 +416,7 @@ $GlassLightBlock
 uniform float lightPart;
 uniform float materialize;
 uniform float aa;
+$GlassFingerLightBlock
 
 half4 main(float2 coord) {
     float2 p = glassFieldPoint(coord);
@@ -394,6 +425,7 @@ half4 main(float2 coord) {
     float d = glassField(p, normal, center);
     float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
     if (coverage <= 0.0) return half4(0.0);
+    if (lightPart > 1.5) return glassFingerLight(coord + offset, center, d, coverage, false);
     bool wire = lightPart > 0.5;
     half4 glowing;
     half4 rim;
@@ -418,6 +450,7 @@ $GlassLightBlock
 uniform float lightPart;
 uniform float materialize;
 uniform float aa;
+$GlassFingerLightBlock
 
 half4 main(float2 coord) {
     float2 p = glassFieldPoint(coord);
@@ -426,6 +459,7 @@ half4 main(float2 coord) {
     float d = glassField(p, normal, center);
     float coverage = clamp(0.5 - d / max(aa, 0.0001), 0.0, 1.0);
     if (coverage <= 0.0) return half4(0.0);
+    if (lightPart > 1.5) return glassFingerLight(coord + offset, center, d, coverage, pieceCount > 1.5);
     bool wire = lightPart > 0.5;
     half4 glowing;
     half4 rim;

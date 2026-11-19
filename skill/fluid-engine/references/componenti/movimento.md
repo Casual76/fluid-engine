@@ -85,7 +85,10 @@ Tutti dal sorgente (`FluidPress.kt`); sono i numeri di LibrePods tranne dove è 
 La **deriva è la somma degli spostamenti del dito sullo schermo, non la sua posizione sul tasto**: se la pagina scorre
 sotto un dito fermo su un tasto, il tasto lo segue lo stesso (il dito si è mosso, anche se non sul tasto). È voluto,
 come in LibrePods, e per questo anche il click lungo misura lo slop sulla strada del dito. Al sollevamento la somma
-torna a zero con la molla critica e si porta dietro il bagliore del vetro.
+torna a zero con la molla di posizione. Nel modello Liquid la luce sfuma dall’ultimo punto di contatto.
+La sua intensità locale si dimezza ogni 100 ms e si azzera a 500 ms. I vetri vicini raggiungono il massimo
+a 300 ms e tornano a riposo in altri 300 ms dal distacco. Con movimento ridotto il punto resta al contatto
+iniziale, l’area illuminata ha subito la sua estensione finale e l’intensità scende al 40% di quella ordinaria.
 
 ## `fluidPressable`
 

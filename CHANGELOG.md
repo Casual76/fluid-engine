@@ -10,6 +10,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - Accessibilità Liquid (F6.7). Il vetro segue la trasparenza ridotta e il contrasto di sistema, rinforza il contorno anche in viaggio e recede quando la finestra perde il fuoco in multi-finestra. Il tema segue la durata animazioni a zero e TalkBack trova le azioni della pagina attiva durante i passaggi.
 
+- Il bagliore Liquid nasce sotto il dito, sfuma l’inchiostro e raggiunge i vetri vicini dello stesso contenitore.
+
 - Foglio di vetro con detent. Il velo copre anche i gruppi di vetro interni a tutta altezza. Durante la salita i gruppi leggono un'unica texture del foglio e un nuovo contatto ferma la molla.
 
 - Correzioni dopo S9, liste (F6.6). `FluidStepper` tenuto premuto ripete davvero: il tracciatore del dito prendeva il down, già consumato dal `clickable`, per una lista che ha preso il dito e fermava la ripetizione prima del primo passo (il tocco breve funzionava). Il glifo della capsula delle azioni a scorrimento è bianco dove il bianco fa almeno 3:1 col colore dell'azione (sul rosso di sistema era il quasi-nero); l'aspetto `Fill` è com'era.

@@ -44,6 +44,8 @@ import androidx.compose.ui.FrameRateCategory
 import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -107,6 +109,11 @@ import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsFieldPlan
+import dev.antigravity.fluidengine.ui.glass.interaction.BindFingerGlow
+import dev.antigravity.fluidengine.ui.glass.interaction.FingerGlow
+import dev.antigravity.fluidengine.ui.glass.interaction.FingerGlowPainter
+import dev.antigravity.fluidengine.ui.glass.interaction.rememberFingerGlow
 import dev.antigravity.fluidengine.ui.glass.field.GlassJourneyFingerMin
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourney
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidJourneys
@@ -390,6 +397,7 @@ fun FluidGlassContainer(
   val renders = isRenderEffectSupported() &&
     rememberFluidGlassModel(FluidCapsuleShape, GlassFalloff.Uniform, probeOptics) == FluidGlassModel.Liquid
   state.renders = renders
+  state.fingerLight = if (renders) rememberFingerGlow() else null
   if (renders) {
     // I programmi dei campi a più pezzi si scaldano quando il contenitore entra in scena, non al primo viaggio (F3.8a):
     // un contenitore annuncia che i suoi vetri viaggeranno.
@@ -433,16 +441,21 @@ fun FluidGlassContainer(
           if (renders) FluidGlassFields(state)
         }
         GlassInkContent(ink, LocalContentColor.current, content)
+        if (renders) {
+          val painter = remember { FingerGlowPainter() }
+          // Un nodo di disegno indipendente sopra anche all'inchiostro in partenza.
+          Box(Modifier.layoutId(FingerLightSlot).graphicsLayer().drawBehind {
+            with(state) {
+              drawDeparted()
+              drawFingerLight(painter, darkSide)
+            }
+          })
+        }
       },
       modifier = modifier
         .onPlaced {
           state.coordinates = it
           state.invalidate()
-        }
-        // Il contenuto di chi se n'è andato, sopra tutto il resto, finché il suo vetro non l'ha coperto.
-        .drawWithContent {
-          drawContent()
-          with(state) { drawDeparted() }
         }
         // La sonda legge ciò che rifrangono i pezzi del grappolo più grande; finché non c'è, la sorgente di questo punto.
         .glassProbe((state.probeBackdrop ?: backdrop).backdrop, probe, enabled = probes, region = state::probeRegion),
@@ -452,7 +465,9 @@ fun FluidGlassContainer(
       val loose = fluidGlassContentConstraints(constraints, propagateMinConstraints)
       val fields = ArrayList<Pair<FluidGlassFieldSlot, androidx.compose.ui.layout.Placeable>>()
       val contents = ArrayList<androidx.compose.ui.layout.Placeable>()
+      val overlay = measurables.firstOrNull { it.layoutId === FingerLightSlot }
       for (measurable in measurables) {
+        if (measurable === overlay) continue
         val slot = measurable.layoutId as? FluidGlassFieldSlot
         if (slot != null) {
           val w = max(1, kotlin.math.round(slot.bounds.width).toInt())
@@ -470,11 +485,13 @@ fun FluidGlassContainer(
         state.restFields.singleOrNull()?.shape != null && fields.size == 1
       ) fields.single().first.bounds.bottom.roundToInt() else 0
       val height = constraints.constrainHeight(max(contentHeight, visibleBottom))
+      val light = overlay?.measure(Constraints.fixed(width, height))
       layout(width, height) {
         for ((slot, placeable) in fields) {
           placeable.place(kotlin.math.round(slot.bounds.left).toInt(), kotlin.math.round(slot.bounds.top).toInt())
         }
         for (placeable in contents) placeable.place(0, 0)
+        light?.place(0, 0)
       }
     }
   }
@@ -2114,6 +2131,7 @@ internal class FluidGlassPieceContent {
 /** Un posto per una superficie del contenitore: il suo riquadro nel contenitore, in pixel. */
 @Immutable
 internal data class FluidGlassFieldSlot(val bounds: Rect)
+private object FingerLightSlot
 
 /** Un grappolo a riposo e come si disegna. */
 @Immutable
@@ -2136,7 +2154,10 @@ internal class FluidGlassRestField(
    */
   val tints: FluidGlassTintSplit? = null,
   val presses: List<FluidGlassPressGeometry?> = emptyList(),
-)
+) {
+  // La luce rilegge la geometria già risolta dal corpo, compresi i ponti delle unioni.
+  var physics: FluidPhysicsState? = null
+}
 
 /**
  * Le tinte di un grappolo, o di un campo del palco, i cui pezzi **non hanno tutti la stessa pellicola** (F4A.2, review
@@ -2301,6 +2322,29 @@ internal class FluidGlassStage(
 @Stable
 internal class FluidGlassContainerState {
   private val pieces = LinkedHashSet<FluidGlassPiece>()
+  var fingerLight: FingerGlow? = null
+
+  fun DrawScope.drawFingerLight(painter: FingerGlowPainter, dark: Boolean) {
+    val glow = fingerLight ?: return
+    if (glow.levels.local <= 0f) return
+    val live = stage
+    with(painter) {
+      for (rest in restFields) {
+        if (live != null && rest.key !in live.resting) continue
+        if (rest.shape != null) {
+          slab(glow, dark, rest.node, rest.shape, rest.look.pressGeometry)
+        } else {
+          val plan = rest.physics?.ensurePlan() ?: continue
+          field(glow, dark, rest.node, physicsFieldPlan(plan, 1f, group))
+        }
+      }
+      if (live != null) for (flight in live.fields) {
+        val physics = stagePhysics[flight.index] ?: continue
+        val shape = physics.planeShapeNow() ?: continue
+        field(glow, dark, flight.node, physicsFieldPlan(physics.ensurePlan(), 1f, group), presence = shape.materialize)
+      }
+    }
+  }
 
   /**
    * Il registro del piano (F3.1): ogni pezzo posato ci sta con la sua chiave, riquadro, raggi, variante, identità,
@@ -3044,9 +3088,6 @@ internal class FluidGlassContainerState {
     val light = driver.journeyLight
     // L'alone ha la sua curva (F3.12c): sale con la luce e si spegne prima.
     val halo = driver.journeyGlow
-    val finger = driver.finger
-    val glow = driver.fingerGlow
-    val fill = driver.fingerFill
     val tints = tintJourney.frame(frame)
     for (field in stage.fields) {
       val fieldSwell = if (field.lens) FluidGlassSwell.None else swell
@@ -3064,7 +3105,8 @@ internal class FluidGlassContainerState {
         density = density.density,
         movingMs = movingMs,
         journeyLight = if (field.lens) 0f else light,
-        touch = if (field.lens) null else fluidGlassFingerTouch(frame, field.flights, field.node.topLeft, finger, glow, fill),
+        // Il dito resta nella passata sopra il contenuto anche durante la staffetta.
+        touch = null,
         journeyGlow = if (field.lens) 0f else halo,
         // Il tasto premuto che ha fatto partire il viaggio resta premuto e si rilascia con la sua molla (R2 di C).
         films = films,
@@ -3213,7 +3255,7 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
         frozen = NeverHeld,
         heldWhileMoving = NeverHeld,
         nestInContainer = true,
-        touch = look.touch,
+        touch = null,
         gel = look.pressGeometry,
         ink = null,
         variant = look.variant,
@@ -3232,14 +3274,13 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
             if (carrying) geometry.recordRest()
             fluidGlassPressedSlab(slab, geometry.at(slab.frame.width, slab.frame.height, density))
           }
-          val touch = plane.slabs.indices.firstNotNullOfOrNull { i -> field.presses.getOrNull(i)?.touch(plane.slabs[i].frame) }
-          PhysicsPlaneShape(slabs, plane.nominalBlend, plane.neck, plane.unions, resting = true, touch = touch,
+          PhysicsPlaneShape(slabs, plane.nominalBlend, plane.neck, plane.unions, resting = true,
             slabFilms = plane.slabFilms)
         }
       }
     }
     val pressed = remember(current, plane) { derivedStateOf { current.value !== plane } }
-    FluidGlassRestPlane(gate, current, look, field.exports, remember(pressed) { { pressed.value } })
+    FluidGlassRestPlane(gate, current, field, remember(pressed) { { pressed.value } })
   }
 }
 
@@ -3248,11 +3289,12 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
 private fun FluidGlassRestPlane(
   modifier: Modifier,
   current: androidx.compose.runtime.State<PhysicsPlaneShape>,
-  look: FluidGlassLook,
-  exports: GlassBackdropState?,
+  field: FluidGlassRestField,
   fieldPressed: () -> Boolean,
 ) {
   val physics = rememberFluidPhysicsState(remember { current.value.form() })
+  field.physics = physics
+  val look = field.look
   val latest by rememberUpdatedState(current)
   remember(physics) {
     physics.driveByFrame({ latest.value }, AtRest)
@@ -3266,7 +3308,7 @@ private fun FluidGlassRestPlane(
       tint = look.tint,
       role = look.role,
       optics = look.optics,
-      exports = exports,
+      exports = field.exports,
       ink = ink,
       variant = look.variant,
       fieldPressed = fieldPressed,
@@ -3336,6 +3378,15 @@ internal fun Modifier.fluidGlassPiece(
   val piece = remember(container) { FluidGlassPiece(container) }
   piece.look = look
   piece.attributes = attributes
+  val glow = container.fingerLight
+  if (glow != null && look.touch != null && look.press != null) {
+    BindFingerGlow(glow, look.press, LocalFluidMotionPolicy.current.reducedMotion) {
+      val host = container.coordinates
+      val child = piece.coordinates
+      if (host?.isAttached == true && child?.isAttached == true) host.localBoundingBoxOf(child, clipBounds = false)
+      else piece.content.place
+    }
+  }
   DisposableEffect(container, piece) {
     container.attach(piece)
     onDispose { container.detach(piece) }

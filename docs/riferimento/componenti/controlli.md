@@ -306,7 +306,7 @@ FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons
 - **Taglie** (`FluidGlassSize`, `lens` / `buttonHeight`): `Compact` 40/40 dp, `Regular` 44/48 dp, `Large` 54/54 dp.
   `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 26, 32 dp; erano 20, 22, 27: la meta'). A `Regular` l'albero è quello di prima
   della 3.0, nodo per nodo. La ricetta della pressione vale **in proporzione** (crescita = frazione, deriva sul lato corto
-  del vetro, bagliore sul lato lungo): nessun numero in dp da riscalare, tranne il tetto di crescita dei tondi (24 dp
+  del vetro, bagliore Classic sul lato lungo): nessun numero in dp da riscalare, tranne il tetto di crescita dei tondi (24 dp
   in tutto).
 - **Misura libera** (`size: Dp`): `size` è il lato del *vetro*; il riquadro è `max(size, 48 dp)`. Tra le due strade si
   sceglie dal tipo: `size = FluidGlassSize.Large` o `size = 76.dp`. Senza `size` vale l'overload con la taglia, `Regular`.
@@ -319,7 +319,11 @@ FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons
 - **`onLongClick`** (solo icona): il click lungo suona `longClickHaptic` (default `GestureStart`; `null` se il click
   lungo ha il suo colpo, come un menu che suona `Open` solo se si apre); dopo un click lungo non c'è `PressRelease`.
 - **Una sola pressione** per il click e per il vetro: la lente cresce, segue il dito e si accende sulla stessa linea del
-  tempo su cui il click è confermato. Il bagliore e l'ottica sotto il dito (lente 12/24 dp) sono di LibrePods.
+  tempo su cui il click è confermato. La lente 12/24 dp e il bagliore Classic vengono da LibrePods.
+- **Bagliore Liquid.** Il punto di contatto schiarisce vetro e inchiostro. Sul tema chiaro la luce bianca
+  raggiunge al centro un’opacità massima di 0,76, sfumata verso il filo. La luce si allarga lungo la capsula
+  in circa 330 ms. In un `FluidGlassContainer` lo stesso punto illumina le lastre vicine entro 108 dp.
+  Anche i ponti fra pezzi uniti ricevono la luce. Il tasto autonomo usa la stessa passata sul proprio vetro.
 - Lo stato disabilitato sfuma a 0,38 e smette di rispondere tenendo il materiale.
 
 **Trappole.**

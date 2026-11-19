@@ -54,7 +54,7 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
-import dev.antigravity.fluidengine.ui.glass.field.GlassTouchLight
+import dev.antigravity.fluidengine.ui.glass.interaction.fingerGlowAlone
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
 import dev.antigravity.fluidengine.ui.glass.field.glassPainted
 import dev.antigravity.fluidengine.ui.glass.field.glassPaintedControlSeen
@@ -360,14 +360,6 @@ internal fun Modifier.glassControlSurfaceInked(
   // vetro di prima qui sotto, perche' i due rispondano uguale.
   val fit = rememberGlassFieldFit(shape)
   val liquid = rememberFluidGlassModel(shape, GlassFalloff.Uniform, resolvedOptics, fit) == FluidGlassModel.Liquid
-  val touchLight = remember(press, reducedMotion) {
-    GlassTouchLight(
-      // Gli stessi due numeri che riceve il bagliore di prima: la pressione, e il peso che le animazioni
-      // ridotte le lasciano.
-      amount = { press.progress.fastCoerceIn(0f, 1f) * (if (reducedMotion) 0.4f else 1f) },
-      position = { press.glow },
-    )
-  }
   val gel = rememberGelGeometry(press, reducedMotion, interactive && liquid)
   val pressLayer = when {
     !interactive -> null
@@ -377,6 +369,7 @@ internal fun Modifier.glassControlSurfaceInked(
 
   return this
     .then(fit.modifier)
+    .then(if (gel != null && !materialSuppressed) Modifier.fingerGlowAlone(press, reducedMotion, onDark, shape, gel) else Modifier)
     .then(
       if (pieceSink != null && barPiece != null) {
         Modifier.onGloballyPositioned { coordinates ->
@@ -411,7 +404,7 @@ internal fun Modifier.glassControlSurfaceInked(
           frozen = frozen,
           heldWhileMoving = heldWhileMoving,
           nestInContainer = true,
-          touch = if (interactive) touchLight else null,
+          touch = null,
           ink = ink,
         )
       } else {

@@ -51,12 +51,27 @@ import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
@@ -72,6 +87,13 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
+import dev.antigravity.fluidengine.ui.fluid.FluidGelPose
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassPressGeometry
+import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldPlan
+import dev.antigravity.fluidengine.ui.glass.field.GlassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
+import dev.antigravity.fluidengine.ui.glass.field.growSlab
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidPressMotion
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShaderCacheImpl
@@ -79,6 +101,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlin.math.exp
+import kotlin.math.pow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -563,4 +588,197 @@ class GlassTouchHighlight(
     pressMotion.release()
     animationScope.launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
   }
+}
+
+/** Le tre grandezze hanno orologi distinti. La coda conserva il raggio raggiunto al distacco. */
+internal data class FingerGlowLevels(val local: Float, val fill: Float, val neighbours: Float) {
+  companion object {
+    val Off = FingerGlowLevels(0f, 0f, 0f)
+    const val LightPeak = 0.76f
+    const val DarkPeak = 0.88f
+    const val ReachDp = 108f
+  }
+
+  fun held(ms: Long, reduced: Boolean): FingerGlowLevels {
+    val t = ms.coerceAtLeast(0).toFloat()
+    val rise = if (ms >= 1000) 1f else 1f - exp(-t / 84f)
+    val first = maxOf(local, 0.10f)
+    fun ease(duration: Float): Float {
+      val x = (t / duration).coerceIn(0f, 1f)
+      return x * x * (3f - 2f * x)
+    }
+    return FingerGlowLevels(first + (1f - first) * rise,
+      if (reduced) 1f else fill + (1f - fill) * ease(330f),
+      neighbours + (1f - neighbours) * ease(300f))
+  }
+
+  fun released(ms: Long): FingerGlowLevels {
+    if (ms >= 500) return Off
+    val t = ms.coerceAtLeast(0).toFloat()
+    val tail = ((500f - t) / 50f).coerceIn(0f, 1f)
+    val x = (1f - t / 300f).coerceIn(0f, 1f)
+    return FingerGlowLevels(local * 0.5f.pow(t / 100f) * tail, fill, neighbours * x * x * (3f - 2f * x))
+  }
+}
+
+/** Una sola sorgente per contenitore. Il rilascio sopravvive alla rimozione del tasto che ha avviato il gesto. */
+internal class FingerGlow(private val scope: CoroutineScope) {
+  var levels by mutableStateOf(FingerGlowLevels.Off)
+    private set
+  var center by mutableStateOf(Offset.Zero)
+    private set
+  var source by mutableStateOf(Rect.Zero)
+    private set
+  var reduced by mutableStateOf(false)
+    private set
+  internal var onFieldDrawForTesting: ((Rect) -> Unit)? = null
+  private var owner: Any? = null
+  private var clock: Job? = null
+
+  fun down(key: Any, bounds: Rect, point: Offset, reduce: Boolean) {
+    if (bounds.isEmpty || !bounds.isFinite) return
+    if (owner === key && reduced == reduce) {
+      if (!reduce) {
+        source = bounds
+        center = point
+      }
+      return
+    }
+    clock?.cancel()
+    // Un altro tasto riparte dal contatto anche se il primo sta ancora sfumando.
+    val start = if (source == bounds) levels else FingerGlowLevels.Off
+    owner = key
+    center = point
+    source = bounds
+    reduced = reduce
+    animate(1000) { start.held(it, reduce) }
+  }
+
+  fun up(key: Any) {
+    if (owner !== key) return
+    owner = null
+    val start = levels
+    animate(500) { start.released(it) }
+  }
+
+  private fun animate(duration: Long, sample: (Long) -> FingerGlowLevels) {
+    clock?.cancel()
+    levels = sample(0L)
+    clock = scope.launch {
+      var first: Long? = null
+      var elapsed = 0L
+      while (elapsed < duration) withFrameMillis { frame ->
+        val start = first ?: frame.also { first = it }
+        elapsed = (frame - start).coerceAtLeast(0L)
+        levels = sample(elapsed)
+      }
+    }
+  }
+}
+
+@Composable
+internal fun rememberFingerGlow(): FingerGlow {
+  val scope = rememberCoroutineScope()
+  return remember(scope) { FingerGlow(scope) }
+}
+
+/** Osserva la pressione già arbitrata dal controllo (anche da tastiera o annullata dallo scroll). */
+@Composable
+internal fun BindFingerGlow(glow: FingerGlow, press: FluidPressState, reduced: Boolean, bounds: () -> Rect) {
+  val region by rememberUpdatedState(bounds)
+  LaunchedEffect(glow, press, reduced) {
+    try {
+      snapshotFlow {
+        if (!press.motion.held) null else {
+          val box = region()
+          val local = if (reduced) press.origin else press.glow
+          box to (box.topLeft + local)
+        }
+      }.collect { point ->
+        if (point == null) glow.up(press) else glow.down(press, point.first, point.second, reduced)
+      }
+    } finally {
+      glow.up(press)
+    }
+  }
+}
+
+/** La stessa passata Light1/8 per una lastra, per il ponte di un gruppo e per i campi separati. */
+internal class FingerGlowPainter {
+  private val one = GlassFieldPlan(1)
+  private val geometry = GlassSlabGeometry()
+  val group = GlassFieldPlan()
+  private class Paint(group: Boolean) {
+    private val source = if (group) GlassShaderSources.Light8 else GlassShaderSources.Light1
+    val shader = RuntimeShaderCacheImpl().obtainEngineShader(source.name, source)
+    val brush = shader?.let { ShaderBrush(it.asComposeShader()) }
+  }
+  private val singlePaint by lazy { Paint(false) }
+  private val groupPaint by lazy { Paint(true) }
+
+  fun DrawScope.slab(glow: FingerGlow, dark: Boolean, bounds: Rect, shape: Shape, gel: FluidGlassPressGeometry?) {
+    val size = bounds.size
+    val pose = gel?.takeIf { it.active }?.pose(size.width, size.height, density)
+    glassSlabGeometry(shape, size, this, layoutDirection, size.maxDimension, geometry)
+    one.setSlab(size.width, size.height, geometry)
+    if (pose != null) growSlab(one.rects, one.radii, pose.growth)
+    val margin = if (pose == null) 0f else gel.margin(size.width, size.height, density)
+    field(glow, dark, bounds.translate(pose?.drift ?: Offset.Zero), one, pose, margin)
+  }
+
+  fun DrawScope.field(glow: FingerGlow, dark: Boolean, bounds: Rect, plan: GlassFieldPlan,
+    pose: FluidGelPose? = null, margin: Float = 0f, presence: Float = 1f) {
+    val levels = glow.levels
+    if (levels.local <= 0f || plan.count == 0 || presence <= 0f) return
+    val origin = bounds.topLeft
+    val point = glow.center - origin
+    val source = glow.source.translate(-origin)
+    val reach = FingerGlowLevels.ReachDp * density
+    if (!bounds.inflate(margin).overlaps(glow.source) &&
+      !bounds.inflate(margin).overlaps(Rect(glow.center - Offset(reach, reach), Size(2f * reach, 2f * reach)))) return
+    val paint = if (plan.pieces == 1) singlePaint else groupPaint
+    val shader = paint.shader ?: return
+    val brush = paint.brush ?: return
+    // Le coordinate sono locali al drawRect, la distanza luminosa è in pixel fisici anche sul gel deformato.
+    shader.setFloatUniform("offset", -margin, -margin)
+    shader.setFloatUniform("flex", pose?.invXX ?: 1f, pose?.invXY ?: 0f, pose?.invXY ?: 0f, pose?.invYY ?: 1f)
+    shader.setFloatUniform("flexCenter", plan.rects[0], plan.rects[1])
+    if (plan.pieces == 1) shader.setFloatUniform("gelTip", pose?.tip?.x ?: 0f, pose?.tip?.y ?: 0f)
+    else shader.setFloatUniform("pieceSoft", plan.soft)
+    shader.setFloatUniform("pieceCount", plan.count.toFloat())
+    shader.setFloatUniform("pieceRect", plan.rects)
+    shader.setFloatUniform("pieceRadii", plan.radii)
+    shader.setFloatUniform("pieceBlend", plan.blend)
+    shader.setFloatUniform("pieceSmooth", plan.smooth)
+    shader.setFloatUniform("lightPart", 2f)
+    shader.setFloatUniform("aa", 1.25f)
+    shader.setFloatUniform("rimWidth", 1.6f * density)
+    shader.setFloatUniform("glowCenter", point.x, point.y)
+    shader.setFloatUniform("glowRadius", reach)
+    shader.setFloatUniform("glowFill", levels.fill)
+    shader.setFloatUniform("glow", levels.local)
+    shader.setFloatUniform("reflexDir", source.left, source.top)
+    shader.setFloatUniform("reflexWidths", source.right, source.bottom)
+    shader.setFloatUniform("reflexStrength", 0.40f * levels.neighbours)
+    val peak = if (dark) FingerGlowLevels.DarkPeak else FingerGlowLevels.LightPeak
+    shader.setFloatUniform("materialize", peak * presence * if (glow.reduced) 0.4f else 1f)
+    translate(bounds.left - margin, bounds.top - margin) {
+      drawRect(brush, size = Size(bounds.width + 2f * margin, bounds.height + 2f * margin))
+      glow.onFieldDrawForTesting?.invoke(bounds)
+    }
+  }
+}
+
+/** Il tasto autonomo isola il disegno sottostante: un tick della luce ridisegna soltanto la passata finale. */
+@Composable
+internal fun Modifier.fingerGlowAlone(press: FluidPressState, reduced: Boolean, dark: Boolean,
+  shape: Shape, gel: FluidGlassPressGeometry): Modifier {
+  val glow = rememberFingerGlow()
+  val painter = remember { FingerGlowPainter() }
+  var size by remember { mutableStateOf(IntSize.Zero) }
+  BindFingerGlow(glow, press, reduced) { Rect(0f, 0f, size.width.toFloat(), size.height.toFloat()) }
+  return onSizeChanged { size = it }.drawWithContent {
+    drawContent()
+    if (glow.levels.local > 0f) with(painter) { slab(glow, dark, Rect(Offset.Zero, this@drawWithContent.size), shape, gel) }
+  }.graphicsLayer()
 }

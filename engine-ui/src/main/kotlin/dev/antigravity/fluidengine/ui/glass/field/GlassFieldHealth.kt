@@ -347,3 +347,67 @@ internal object GlassFieldHealth {
     },
   )
 }
+
+/**
+ * Gli interruttori delle tre leve di F7.4 (piano «iOS in Android», F7, leve 6, 7 e 9), per il lotto A/B sul dispositivo.
+ *
+ * Esistono perché la regola delle leve di F7 è «ognuna misurata da sola, prima e dopo, sugli stessi scenari»: con un APK
+ * solo, la sessione sul tablet spegne una leva alla volta con una proprietà di sistema e riavvia l'app, invece di chiedere
+ * un APK per leva. Sono letti **una volta per processo**, alla prima domanda, fuori da ogni percorso per fotogramma: costano
+ * una lettura di campo. Come quelli di F7.3 (`GlassCostLevers`), una leva si spegne con
+ * `adb shell setprop log.tag.<nome> VERBOSE` prima del lancio (i nomi stanno nei commenti qui sotto e in
+ * `artifacts/liquid-glass/sessioni/f7-4/riprese.md`); la metà risoluzione del bordo, che cambia la resa ed è una scelta di
+ * Alessio, al contrario **si accende** così.
+ *
+ * I test JVM li scrivono direttamente, e li rimettono con [resetForTesting].
+ */
+internal object GlassFieldLevers {
+
+  private fun flag(tag: String): Boolean = runCatching { Log.isLoggable(tag, Log.VERBOSE) }.getOrDefault(false)
+
+  /**
+   * Leva 6: il riscaldamento della lastra parte **prima** del primo disegno della finestra, fuori schermo, quando nel primo
+   * fotogramma c'è una lastra `Liquid` (`GlassWarmUp`). Spento: il riscaldamento di F1A.7 e basta (dopo il primo
+   * fotogramma, a finestra ferma). `log.tag.FluidF74NoEarlyWarm`.
+   */
+  @Volatile
+  var earlyWarmUp: Boolean = !flag("FluidF74NoEarlyWarm")
+
+  /**
+   * Leva 7: la sonda rallenta da sola quando le sue letture tornano uguali mentre la pagina si ridisegna altrove
+   * ([GlassProbeRest]). Spento: al più una lettura ogni 120 ms a ogni revisione, come prima. `log.tag.FluidF74NoProbeRest`.
+   */
+  @Volatile
+  var probeRest: Boolean = !flag("FluidF74NoProbeRest")
+
+  /**
+   * Leva 9, tenuta: la cattura della striscia tiene la sua taglia mentre l'altezza del bordo si anima (la tab bar che si
+   * piega) e i soli uniform seguono il bordo dei tasti. `log.tag.FluidF74NoEdgeHold`.
+   */
+  @Volatile
+  var edgeHold: Boolean = !flag("FluidF74NoEdgeHold")
+
+  /**
+   * Leva 9, la striscia solo dove lavora: a intensità zero (nessun contenuto sotto) un effetto che dà trasparente senza le
+   * due passate, e una passata sola dove il profilo non sfoca (il bordo in basso). `log.tag.FluidF74NoEdgeLean`.
+   */
+  @Volatile
+  var edgeLean: Boolean = !flag("FluidF74NoEdgeLean")
+
+  /**
+   * Leva 9, metà risoluzione della cattura della striscia: **cambia la resa** (la coda si dissolve prima, il testo vicino al
+   * bordo dei tasti è più morbido), quindi è spenta di serie finché Alessio non la sceglie; la tavola «piena / metà» è in
+   * `artifacts/liquid-glass/sessioni/f7-4/`. Si accende con `log.tag.FluidF74EdgeHalf`.
+   */
+  @Volatile
+  var edgeHalf: Boolean = flag("FluidF74EdgeHalf")
+
+  /** Solo per i test: le leve come le dà un dispositivo senza proprietà (le quattro senza resa accese, la metà spenta). */
+  fun resetForTesting() {
+    earlyWarmUp = true
+    probeRest = true
+    edgeHold = true
+    edgeLean = true
+    edgeHalf = false
+  }
+}

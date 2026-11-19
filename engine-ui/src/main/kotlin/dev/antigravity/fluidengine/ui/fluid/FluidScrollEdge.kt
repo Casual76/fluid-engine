@@ -14,8 +14,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
@@ -28,12 +34,14 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.obtainEngineShader
 import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
 import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurSource
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
+import dev.antigravity.fluidengine.ui.glass.field.GlassFieldLevers
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeCaptureScale
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeUniforms
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
+import kotlin.math.max
 
 /**
  * Il lato dello schermo su cui sta un bordo dello scorrimento: in alto sotto la barra, in basso sopra la tab bar, la
@@ -253,39 +261,53 @@ internal fun FluidScrollEdgeStrip(
   // striscia entra in composizione, come fanno lastre e gruppi (`GlassWarmUp`), non al primo scorrimento.
   val view = LocalView.current
   remember(view) { GlassWarmUp.request(GlassWarmFamily.ScrollEdge, view) }
-  val scale = GlassScrollEdgeCaptureScale
+  // F7.4, leva 9: la metà risoluzione cambia la resa ed è spenta di serie (`GlassFieldLevers.edgeHalf`, scelta di
+  // Alessio). L'altezza del componente resta quella della risoluzione piena: chi lo posa non vede differenze.
+  val scale = if (GlassFieldLevers.edgeHalf) GlassScrollEdgeHalfScale else GlassScrollEdgeCaptureScale
   val profile = remember(base, scale) { base.atResolution(scale) }
+  val laidOut = remember(base) { base.atResolution(GlassScrollEdgeCaptureScale) }
   val baseVeil = if (color.isSpecified) color else MaterialTheme.colorScheme.background
   val currentVeil by rememberUpdatedState(veil)
   val currentIntensity by rememberUpdatedState(intensity)
   val currentDark by rememberUpdatedState(darkContent)
   val currentSplit by rememberUpdatedState(split)
+  val currentHeight by rememberUpdatedState(height)
+  val currentUnit by rememberUpdatedState(controlHeight)
   val state = remember { GlassScrollEdgeState() }
   val top = edge == FluidScrollEdgeSide.Top
-  val effects: BackdropEffectScope.() -> Unit = remember(state, profile, top, height, controlHeight, baseVeil) {
+  val hold = GlassFieldLevers.edgeHold
+  // Con la tenuta (F7.4) le due altezze si leggono dentro gli effetti, osservate: la tab bar che si piega cambia gli
+  // uniform e basta, senza un elemento nuovo a ogni fotogramma (che segnerebbe da registrare anche il materiale
+  // esportato, e sveglierebbe la sonda di chi lo legge). Senza, le chiavi di prima.
+  val heightKey = if (hold) null else height
+  val unitKey = if (hold) null else controlHeight
+  val effects: BackdropEffectScope.() -> Unit = remember(state, profile, top, heightKey, unitKey, baseVeil) {
     {
       glassScrollEdge(
         state = state,
         profile = profile,
         top = top,
-        controls = height,
-        unit = controlHeight,
+        controls = currentHeight,
+        unit = currentUnit,
         veil = currentVeil?.invoke() ?: baseVeil,
         darkContent = currentDark(),
         amount = currentIntensity(),
         split = currentSplit(),
+        lean = GlassFieldLevers.edgeLean,
       )
     }
   }
   Box(
     modifier = modifier
       .fillMaxWidth()
-      .height(height + controlHeight * profile.reach)
+      .height(height + controlHeight * laidOut.reach)
       // Il cancello (F2.5): a intensità zero il nodo della striscia non si disegna, e quindi non cattura e non fa
       // girare le due passate. Prima di un nodo che posa con un layer: saltarne il disegno salta anche il layer.
       .drawWithContent { if (glassScrollEdgeDraws(currentIntensity())) drawContent() }
       // Nella diagnostica la striscia si conta a parte, non come vetro di prima (dal seguito di F2.5).
       .then(ScrollEdgeCensusElement)
+      // F7.4, tenuta: la cattura tiene la sua taglia mentre l'altezza si anima.
+      .then(if (hold) ScrollEdgeHoldElement(top) else Modifier)
       .drawPlainBackdrop(
         backdrop = backdrop.backdrop,
         shape = { RectangleShape },
@@ -294,6 +316,124 @@ internal fun FluidScrollEdgeStrip(
         backdropScale = scale,
       ),
   )
+}
+
+/** La risoluzione della cattura della striscia con la leva `GlassFieldLevers.edgeHalf` (F7.4): metà. */
+internal const val GlassScrollEdgeHalfScale: Float = 0.5f
+
+/**
+ * Quanto la cattura della striscia tiene la taglia più grande dopo che l'altezza ha smesso di cambiare (F7.4): la piega
+ * della tab bar ([FluidMotion.GooeyMillis]) cambia l'altezza a ogni fotogramma; dopo questa pausa la cattura torna alla
+ * taglia esatta, con una registrazione sola.
+ */
+internal const val GlassScrollEdgeHoldSettleMillis: Long = 250L
+
+/**
+ * Di quanto la cattura cresce in più quando l'altezza sale (F7.4): una piega all'indietro della tab bar (52 → 62 dp, più la
+ * portata del profilo in `H`, circa 24 dp in tutto) sta dentro una crescita sola invece di una per fotogramma.
+ */
+internal val GlassScrollEdgeHoldSlack: Dp = 24.dp
+
+/**
+ * La **tenuta** della cattura della striscia (F7.4, leva 9 del piano), pura: quanto è alto il nodo che cattura, dato quanto
+ * è alto il bordo adesso. Gli istanti li dà chi chiama.
+ *
+ * Il caso. Il bordo in basso segue la tab bar che si piega mentre si scorre (62 → 52 dp e ritorno, `fluidTabBarEdgeInset`):
+ * a ogni fotogramma della piega cambiano l'altezza del bordo e la sua unità `H`, quindi la taglia della cattura. Una taglia
+ * nuova è una cattura da registrare di nuovo e, sul RenderThread, un layer offscreen da riallocare (con le texture di
+ * appoggio delle passate), proprio mentre la pagina scorre. Qui il nodo che cattura tiene la taglia più grande finché
+ * l'altezza cambia, e torna a quella esatta [GlassScrollEdgeHoldSettleMillis] dopo l'ultimo cambio; gli uniform (bordo dei
+ * tasti, `H`) seguono il bordo vero a ogni fotogramma.
+ *
+ * Perché non si vede: la parte in più sta oltre la portata del profilo, dove la striscia esce trasparente (la dissolvenza
+ * dell'alfa finisce a `fadeTo`, che è la portata); e il nodo è allineato al bordo dello schermo, dove sono contati gli
+ * uniform. Il componente pubblico resta alto quanto prima: cresce solo il nodo dentro, verso il contenuto.
+ *
+ * @param slackPx di quanto cresce in più quando l'altezza sale ([GlassScrollEdgeHoldSlack] in px).
+ */
+internal class GlassScrollEdgeHold(
+  private val slackPx: Int,
+  private val settleMillis: Long = GlassScrollEdgeHoldSettleMillis,
+) {
+  /** L'altezza del nodo che cattura adesso, in px; -1 prima della prima misura. */
+  var heldPx: Int = -1
+    private set
+
+  private var lastActualPx = -1
+  private var changedAt = Long.MIN_VALUE
+
+  /** L'altezza del nodo che cattura per un bordo alto [actualPx] a [nowMillis]. */
+  fun extent(nowMillis: Long, actualPx: Int): Int {
+    if (heldPx < 0) {
+      heldPx = actualPx
+      lastActualPx = actualPx
+      return heldPx
+    }
+    if (actualPx != lastActualPx) {
+      lastActualPx = actualPx
+      changedAt = nowMillis
+    }
+    if (actualPx > heldPx) {
+      heldPx = actualPx + slackPx
+    } else if (heldPx != actualPx && changedAt != Long.MIN_VALUE && nowMillis - changedAt >= settleMillis) {
+      heldPx = actualPx
+    }
+    return heldPx
+  }
+
+  /** Quando la tenuta si scioglie se l'altezza non cambia più, o null se il nodo ha già la taglia esatta. */
+  fun settleAtMillis(): Long? =
+    if (heldPx >= 0 && heldPx != lastActualPx && changedAt != Long.MIN_VALUE) changedAt + settleMillis else null
+}
+
+private class ScrollEdgeHoldElement(val top: Boolean) : ModifierNodeElement<ScrollEdgeHoldNode>() {
+  override fun create(): ScrollEdgeHoldNode = ScrollEdgeHoldNode(top)
+
+  override fun update(node: ScrollEdgeHoldNode) {
+    node.top = top
+  }
+
+  override fun hashCode(): Int = if (top) 0x5ced01 else 0x5ced02
+
+  override fun equals(other: Any?): Boolean = other is ScrollEdgeHoldElement && other.top == top
+}
+
+/**
+ * Il nodo della tenuta: misura chi gli sta dentro (il nodo che cattura) all'altezza di [GlassScrollEdgeHold] e lo posa
+ * allineato al bordo dello schermo, in cima in alto e in fondo in basso; lui resta alto quanto il componente.
+ */
+private class ScrollEdgeHoldNode(var top: Boolean) : Modifier.Node(), LayoutModifierNode {
+  private var hold: GlassScrollEdgeHold? = null
+  private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+  private val settle = Runnable { if (isAttached) invalidateMeasurement() }
+
+  override fun onDetach() {
+    handler.removeCallbacks(settle)
+    hold = null
+  }
+
+  override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+    val actual = constraints.maxHeight
+    if (!constraints.hasBoundedHeight || actual <= 0) {
+      val placeable = measurable.measure(constraints)
+      return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+    val current = hold ?: GlassScrollEdgeHold(GlassScrollEdgeHoldSlack.roundToPx()).also { hold = it }
+    val now = android.os.SystemClock.uptimeMillis()
+    val held = current.extent(now, actual)
+    // La taglia esatta torna da sola, a piega finita: un messaggio solo, rifatto a ogni misura che cambia l'altezza.
+    handler.removeCallbacks(settle)
+    current.settleAtMillis()?.let { at -> handler.postAtTime(settle, at) }
+    val placeable = measurable.measure(
+      if (constraints.hasBoundedWidth) {
+        Constraints.fixed(constraints.maxWidth, held)
+      } else {
+        Constraints(minWidth = constraints.minWidth, minHeight = held, maxHeight = held)
+      },
+    )
+    val width = placeable.width
+    return layout(width, actual) { placeable.place(0, if (top) 0 else actual - held) }
+  }
 }
 
 /**
@@ -383,9 +523,19 @@ internal fun BackdropEffectScope.glassScrollEdge(
   darkContent: Float,
   amount: Float,
   split: GlassScrollEdgeSplit? = null,
+  lean: Boolean = false,
 ) {
   if (!isRuntimeShaderSupported()) return
   padding = 0f
+  // F7.4: senza niente da mostrare (intensità zero, da una parte e dall'altra del taglio) la striscia esce trasparente
+  // comunque; qui lo fa un filtro di colore invece di due passate da 41 letture. Conta per il materiale esportato, che i
+  // tasti della barra continuano a campionare anche quando il cancello non disegna il nodo.
+  if (lean && glassScrollEdgePasses(amount, split, profile.blurShare) == 0) {
+    renderEffect = scrollEdgeSilentEffect ?: android.graphics.RenderEffect.createColorFilterEffect(
+      android.graphics.PorterDuffColorFilter(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.SRC),
+    ).asComposeRenderEffect().also { scrollEdgeSilentEffect = it }
+    return
+  }
   val unitPx = unit.toPx()
   val kernel = state.kernel(GlassScrollEdgeUniforms.sigmaFor(profile, unitPx))
   state.uniforms.fill(
@@ -402,6 +552,14 @@ internal fun BackdropEffectScope.glassScrollEdge(
     split = split,
   )
   val shader = obtainEngineShader("GlassEdgeBlur", GlassEdgeBlurSource) ?: return
+  if (lean && glassScrollEdgePasses(amount, split, state.uniforms.blurShare) == 1) {
+    // F7.4: un profilo che non sfoca (il bordo in basso, `FadeOnly`) fa la sola seconda passata. La prima, con
+    // `blurShare` zero, rende ogni pixel com'era (legge il centro e basta): toglierla non cambia un bit, e risparmia una
+    // superficie offscreen larga quanto lo schermo a ogni fotogramma.
+    state.uniforms.applyTo(shader, pass = 1)
+    renderEffect = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect().asComposeRenderEffect()
+    return
+  }
   state.uniforms.applyTo(shader, pass = 0)
   val horizontal = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect()
   state.uniforms.applyTo(shader, pass = 1)
@@ -409,3 +567,28 @@ internal fun BackdropEffectScope.glassScrollEdge(
   // `createChainEffect(esterno, interno)`: la verticale legge l'uscita dell'orizzontale.
   renderEffect = android.graphics.RenderEffect.createChainEffect(vertical, horizontal).asComposeRenderEffect()
 }
+
+/**
+ * Quante passate fa la striscia (F7.4, leva 9 del piano: «la striscia solo quando il contenuto è sotto»), pura:
+ *
+ * - **0**: nessuna intensità, da tutte e due le parti del taglio fra pagine se c'è (la stessa regola con cui gli uniform
+ *   scelgono fra `amount` e il taglio): lo shader darebbe trasparente ovunque (moltiplica l'uscita per `4·a` limitato a
+ *   uno), e lo dà un filtro di colore che non legge niente intorno;
+ * - **1**: il profilo non sfoca ([blurShare] zero): la sola passata del velo, che con `blurShare` zero legge il centro;
+ * - **2**: sfocatura orizzontale, poi verticale con velo e dissolvenza, come sempre.
+ *
+ * Zero è «esattamente zero»: sotto la soglia del cancello ([GlassScrollEdgeOffBelow]) e sopra lo zero la striscia esportata
+ * porta ancora un velo dello 0,4% al più, e un cambio al bit non si fa per un risparmio che lì non c'è.
+ */
+internal fun glassScrollEdgePasses(amount: Float, split: GlassScrollEdgeSplit?, blurShare: Float): Int {
+  val strongest = if (split != null && split.to >= split.from) max(split.outside, split.inside) else amount
+  if (!(strongest.coerceIn(0f, 1f) > 0f)) return 0
+  return if (blurShare > 0f) 2 else 1
+}
+
+/**
+ * Il bordo senza niente da mostrare (F7.4): ogni pixel trasparente, come la catena a intensità zero, ma con un filtro di
+ * colore al posto delle due passate. Uno per processo (un `RenderEffect` è immutabile), fatto al primo uso dal filo che
+ * disegna, dentro [glassScrollEdge] che ha già chiesto il livello di API.
+ */
+private var scrollEdgeSilentEffect: androidx.compose.ui.graphics.RenderEffect? = null

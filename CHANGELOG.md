@@ -10,6 +10,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - Liquid riusa il filtro di sfocatura al cambio della mescola o della tinta e aggiorna la fotografia del corpo quando cambiano i suoi uniform.
 
+- Liquid Glass (F7.4). Con una lastra Liquid nella prima schermata i suoi programmi si compilano fuori schermo prima del primo disegno, su un filo a parte. La sonda dello sfondo rallenta fino a una lettura ogni 480 ms quando le letture tornano uguali mentre la pagina si ridisegna altrove. Il bordo dello scorrimento tiene la taglia della cattura durante la piega della tab bar, non fa passate a intensità zero e in basso ne fa una sola. Nessun cambio a vista né di firma; la metà risoluzione del bordo resta spenta, da scegliere.
+
 - Pannello laterale. La molla riparte al rilascio anche se il trascinamento si conclude fra due ricomposizioni. Se Compose interrompe il riconoscitore, il pannello riprende il viaggio verso la destinazione corrente.
 
 - Durante lo scorrimento e il movimento delle lastre Liquid la risoluzione della cattura segue area e frequenza con isteresi. A riposo torna alla scala del materiale.

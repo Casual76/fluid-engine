@@ -616,6 +616,15 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
   forma, la caduta o il velo: la barra in alto di ogni `FluidScreen` è la fascia (o, dove c'è, il bordo dello scorrimento,
   che chiede da sé il riscaldamento del suo programma), spesso l'unico vetro della prima schermata, e aspettare la prima
   lastra nuova vorrebbe dire scaldare troppo tardi. Le app non chiamano niente.
+- **All'avvio (F7.4).** Se una lastra `Liquid` entra in composizione nel primo passaggio della finestra (prima che sia
+  mai stata disposta), i due programmi della lastra non aspettano il primo fotogramma: il filo principale li registra
+  subito in un fotogramma fuori schermo (gli shader sono quelli condivisi del nodo) e un filo a parte lo manda al
+  RenderThread, che compila mentre il principale misura, dispone e registra la prima schermata. Il principale non aspetta
+  mai il RenderThread, quindi il primo fotogramma non parte più tardi. Solo la lastra, e solo quando c'è una lastra
+  `Liquid`: un programma che il primo fotogramma non disegna occuperebbe il RenderThread quando la finestra gli chiede il
+  primo fotogramma. Gruppi, striscia e menu restano al giro qui sotto. Il ramo si spegne per le misure con
+  `adb shell setprop log.tag.FluidF74NoEarlyWarm VERBOSE`; logcat (tag `FluidGlass`) scrive per ogni ramo quando è
+  partito rispetto all'avvio del processo e quanto è durato.
 - **Come aspetta.** La finestra deve aver disegnato almeno una volta, non ridisegnare da 120 ms, essere visibile, e la
   coda del filo principale dev'essere vuota. Poi si disegna **un programma per volta**, fuori schermo (un
   `HardwareRenderer` suo su un `ImageReader` grande quanto un tasto, che non tocca niente di ciò che è a schermo), e si
@@ -1555,6 +1564,25 @@ il percorso salta la sfocatura. Ogni lastra conserva anche la fotografia del pro
 tinta, forma o altri uniform attivi, riscrive tutti gli ingressi sul programma condiviso prima di fotografarlo.
 Un cambio del solo filtro a monte riusa la fotografia e sostituisce la concatenazione. In viaggio il campione
 riceve il filtro a metà lato e la finitura resta sul layer di uscita.
+
+**F7.4. Riscaldamento, sonda e bordo dello scorrimento.** Tre leve senza cambi a vista, ognuna con un interruttore per il
+lotto A/B (`adb shell setprop log.tag.<nome> VERBOSE`, letto all'avvio del processo):
+- *riscaldamento all'avvio* (`FluidF74NoEarlyWarm` lo spegne): vedi «Il riscaldamento»;
+- *la sonda che riposa* (`FluidF74NoProbeRest`): quando la pagina si ridisegna per qualcosa che sta altrove (un
+  indicatore che gira, una card animata), ogni vetro radice riceveva una revisione a ogni fotogramma e rileggeva ogni
+  120 ms. Ora, dopo due letture uguali di fila, lo spazio fra due letture raddoppia fino a 480 ms (in 10 s: 23 letture
+  invece di 84). Ogni sonda, cioè ogni contenitore, rallenta per conto suo. Non rallenta mai se il vetro si sposta, se il
+  contenuto scorre sotto di lui, né alla prima revisione dopo 240 ms di silenzio; la cadenza fissa delle sorgenti che non
+  avvisano resta com'era. Il solo caso che cambia: un fondo che cambia sotto un vetro fermo **mentre** la pagina si anima
+  altrove si legge entro 480 ms invece che entro 120;
+- *il bordo dello scorrimento*: la cattura della striscia tiene la sua taglia mentre il bordo si piega con la tab bar e
+  torna esatta 250 ms dopo (`FluidF74NoEdgeHold`: tre registrazioni per piega e ritorno invece di una per fotogramma); a
+  intensità zero (nessun contenuto sotto) un filtro di colore dà lo stesso trasparente delle due passate, e il bordo in
+  basso, che non sfoca, fa la sola passata del velo (`FluidF74NoEdgeLean`). Sul banco: uguali al bit la passata sola (4
+  scene) e la striscia muta (8 scene); la cattura tenuta è uguale al bit in alto, in basso sposta la grana del velo di
+  1–2 livelli solo durante la piega. La metà risoluzione della striscia cambia la resa (testo appena sotto i tasti più
+  morbido, fino a 54 livelli sul banco) ed è **spenta** finché Alessio non la sceglie (`FluidF74EdgeHalf` la accende).
+Il guadagno in millisecondi si misura sul Tab S9 (`sessioni/f7-4/riprese.md`).
 
 **6. «Livello più basso».** Due usi della parola, entrambi sul sorgente:
 - il vetro **di livello più basso** è `glassSurface` rispetto ai componenti che lo avvolgono: `FluidCard(sampleOnce, resampleIntervalMillis)` (3.0.4) espone le stesse due manopole «come il vetro di livello più

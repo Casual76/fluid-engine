@@ -25,6 +25,18 @@
  * «Materiale» 13 e 12–13), e la causa non è isolata: la prima schermata della galleria ha già del vetro, che può aver
  * compilato gli stessi programmi. Il caso per cui esiste (una prima schermata senza lastre nuove, la prima che entra
  * dopo) sul dispositivo non è ancora misurato.
+ *
+ * **All'avvio (F7.4, leva 6 del piano).** Per quella prima schermata c'è un ramo in più, `GlassFieldLevers.earlyWarmUp`:
+ * quando una lastra `Liquid` entra in composizione **prima** che la finestra sia mai stata disposta (cioè nel primo
+ * passaggio della finestra, fra la composizione e la misura), i due programmi della lastra si registrano subito sul filo
+ * principale (sono gli stessi shader condivisi che il nodo userà, e lì si scrivono i loro uniform) e il fotogramma fuori
+ * schermo lo manda un filo a parte. Il RenderThread, che nel primo passaggio aspetta la sincronizzazione della finestra
+ * senza fare niente, compila intanto che il principale misura, dispone e registra; il primo fotogramma trova i
+ * programmi pronti. Il principale non aspetta mai il RenderThread (renderer e `syncAndDraw` stanno sull'altro filo), quindi
+ * il primo fotogramma non parte più tardi; può partire più presto. Solo la lastra e solo quando una lastra `Liquid` c'è:
+ * scaldare lì un programma che il primo fotogramma non disegna (i gruppi, la striscia a intensità zero, i menu)
+ * occuperebbe il RenderThread proprio quando la finestra gli chiede il suo primo fotogramma. Il resto resta al giro di
+ * F1A.7. Ogni ramo scrive in logcat quando è partito rispetto all'avvio del processo e quanto è durato.
  */
 package dev.antigravity.fluidengine.ui.glass.field
 
@@ -36,6 +48,7 @@ import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.os.MessageQueue
 import android.os.SystemClock
@@ -140,9 +153,12 @@ internal enum class GlassWarmStep {
  * famiglia sua (F2.4): `GlassShaderSources.liquid` e `ShaderSourceLintTest` non lasciano registrare un programma
  * nuovo del materiale senza una famiglia.
  */
-internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>) {
-  /** La lastra ferma: tasti, capsule, menu, pannelli. La chiede ogni albero che vuole `Liquid` (vedi sopra). */
-  Slab(listOf(GlassWarmStep.SlabBody, GlassWarmStep.SlabLight)),
+internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>, val earlyEligible: Boolean = false) {
+  /**
+   * La lastra ferma: tasti, capsule, menu, pannelli. La chiede ogni albero che vuole `Liquid` (vedi sopra). È la sola
+   * famiglia che può partire all'avvio (F7.4): è quella che una prima schermata `Liquid` disegna di sicuro.
+   */
+  Slab(listOf(GlassWarmStep.SlabBody, GlassWarmStep.SlabLight), earlyEligible = true),
 
   /**
    * I gruppi, i viaggi fra lastre e la goccia (`Body8`, `Light8`, `BodyRing`). La chiede una superficie di
@@ -214,7 +230,9 @@ internal class GlassModelChoice(
       counted = true
       FluidGlassDiagnostics.countChoice(reason, +1)
     }
-    if (warms) GlassWarmUp.request(GlassWarmFamily.Slab, view)
+    // All'avvio (F7.4) solo se questa superficie disegnerà davvero la lastra nuova: una barra che resta `Classic` in un
+    // albero `Liquid` chiede il riscaldamento come prima, al giro dei momenti fermi.
+    if (warms) GlassWarmUp.request(GlassWarmFamily.Slab, view, early = model == FluidGlassModel.Liquid)
   }
 
   override fun onForgotten() {
@@ -274,6 +292,12 @@ internal class GlassWarmUpCore(
     val warmed = ArrayList<GlassWarmStep>()
     var detail: String? = null
     var mainNanos = 0L
+
+    /**
+     * I passi che restavano sono stati presi da un disegno solo, fuori dal giro dei momenti fermi ([claim], l'avvio di
+     * F7.4): finché non torna ([complete]) [next] non li dà a nessuno, così nessun programma si disegna due volte.
+     */
+    var claimed = false
   }
 
   private val entries = EnumMap<GlassWarmFamily, Entry>(GlassWarmFamily::class.java).apply {
@@ -310,7 +334,7 @@ internal class GlassWarmUpCore(
   @Synchronized
   fun next(): GlassWarmStep? {
     for ((family, entry) in entries) {
-      if (!entry.isPending()) continue
+      if (!entry.isPending() || entry.claimed) continue
       if (!agsl()) {
         skip(entry, NoAgsl)
         continue
@@ -353,18 +377,75 @@ internal class GlassWarmUpCore(
         return false
       }
       if (step !in entry.warmed) entry.warmed += step
-      if (entry.warmed.size == step.family.steps.size) entry.state = FluidGlassWarmUpState.Done
+      if (entry.warmed.size == step.family.steps.size) {
+        entry.state = FluidGlassWarmUpState.Done
+        // Il motivo di un tentativo all'avvio non riuscito (F7.4) non vale più: la famiglia è fatta.
+        entry.detail = null
+      }
       return true
     }
   }
 
   /**
+   * Prende **tutti** i passi che restano di [family] per un disegno solo, fatto altrove (l'avvio di F7.4): la lastra
+   * intera in un fotogramma fuori schermo, prima del primo disegno della finestra. Come [next], prima chiede i verdetti
+   * delle sue sorgenti, e una rifiutata salta la famiglia. Null se non c'è niente da prendere: la famiglia non aspetta, è
+   * già presa, o è saltata adesso. Finché il disegno non torna con [complete], [next] non dà quei passi a nessuno.
+   */
+  @Synchronized
+  fun claim(family: GlassWarmFamily): List<GlassWarmStep>? {
+    val entry = entries.getValue(family)
+    if (!entry.isPending() || entry.claimed) return null
+    if (!agsl()) {
+      skip(entry, NoAgsl)
+      return null
+    }
+    if (entry.state == FluidGlassWarmUpState.Waiting) {
+      val refused = family.sources.filterNot(usable)
+      if (refused.isNotEmpty()) {
+        skip(entry, "rifiutate dal compilatore: " + refused.joinToString { it.name })
+        return null
+      }
+      entry.state = FluidGlassWarmUpState.Running
+    }
+    val steps = family.steps.filter { it !in entry.warmed }
+    if (steps.isEmpty()) return null
+    entry.claimed = true
+    return steps
+  }
+
+  /**
+   * Il disegno preso con [claim] è tornato. Riuscito ([error] null): i passi sono scaldati, e la famiglia è fatta se non
+   * ne manca nessuno. Fallito: **non** ferma la famiglia (diversamente da [run]), perché all'avvio può mancare ciò che un
+   * momento dopo c'è (il contesto della GPU, una superficie); i passi tornano al giro dei momenti fermi, che ci prova una
+   * volta sua, e il motivo resta scritto. [mainNanos]: il tempo speso sul filo principale per registrarlo.
+   */
+  @Synchronized
+  fun complete(family: GlassWarmFamily, steps: List<GlassWarmStep>, error: Throwable?, mainNanos: Long) {
+    val entry = entries.getValue(family)
+    // Un azzeramento nel frattempo (i test): il disegno appartiene a uno stato che non c'è più.
+    if (!entry.claimed) return
+    entry.claimed = false
+    entry.mainNanos += mainNanos
+    if (error != null) {
+      entry.detail = "all'avvio: $error"
+      return
+    }
+    for (step in steps) if (step !in entry.warmed) entry.warmed += step
+    if (entry.warmed.size == family.steps.size) {
+      entry.state = FluidGlassWarmUpState.Done
+      entry.detail = null
+    }
+  }
+
+  /**
    * La finestra che si aspettava se n'è andata, o il riscaldamento è stato spento: chi aspettava torna fermo. Ciò
-   * che è già scaldato resta scaldato, e alla prossima richiesta si riparte dal passo che mancava.
+   * che è già scaldato resta scaldato, e alla prossima richiesta si riparte dal passo che mancava. Un disegno preso con
+   * [claim] e ancora in volo resta suo: lo chiude [complete].
    */
   @Synchronized
   fun cancel() {
-    for (entry in entries.values) if (entry.isPending()) entry.state = FluidGlassWarmUpState.Idle
+    for (entry in entries.values) if (entry.isPending() && !entry.claimed) entry.state = FluidGlassWarmUpState.Idle
   }
 
   @Synchronized
@@ -386,6 +467,7 @@ internal class GlassWarmUpCore(
       entry.warmed.clear()
       entry.detail = null
       entry.mainNanos = 0L
+      entry.claimed = false
     }
   }
 
@@ -500,19 +582,129 @@ internal object GlassWarmUp {
   /**
    * Chiede di scaldare [family] per la finestra di [view]. Idempotente: una famiglia già chiesta, a metà o fatta non
    * riparte, e la finestra legata resta quella finché è attaccata.
+   *
+   * [early] (F7.4): chi chiede disegnerà questa famiglia nel suo primo fotogramma (una lastra `Liquid`, non una barra
+   * rimasta `Classic`). Se la finestra non è ancora stata disposta, cioè siamo nel suo primo passaggio, la famiglia parte
+   * subito fuori schermo invece di aspettare il primo fotogramma ([startEarly]); altrimenti non cambia niente.
    */
-  fun request(family: GlassWarmFamily, view: View?) {
+  fun request(family: GlassWarmFamily, view: View?, early: Boolean = false) {
     if (!enabled) return
     if (Looper.myLooper() !== Looper.getMainLooper()) {
-      mainHandler.post { request(family, view) }
+      mainHandler.post { request(family, view, early) }
       return
     }
     if (view != null && view.isHardwareAccelerated) {
-      core.request(family, gpuWindow = true)
+      if (core.request(family, gpuWindow = true)) noteRequested(family)
+      if (early && family.earlyEligible && earlyAllowed(view)) startEarly(family, view)
       if (core.pending) bind(view)
     } else {
       core.request(family, gpuWindow = false)
     }
+  }
+
+  // ---- All'avvio (F7.4, leva 6) --------------------------------------------------------------------------------
+
+  /**
+   * Il ramo all'avvio vale qui: la leva accesa, una piattaforma vera (Robolectric fa girare i fili in tempo reale mentre
+   * il suo orologio è finto, e i test che seguono il riscaldamento ne leggerebbero uno a metà), e una finestra mai disposta.
+   * `isLaidOut` della vista radice è falso esattamente fino alla fine del primo passaggio: composizione e misura (anche
+   * quella degli elementi di una lista) ci stanno dentro.
+   */
+  private fun earlyAllowed(view: View): Boolean =
+    GlassFieldLevers.earlyWarmUp && !onRobolectric && !view.rootView.isLaidOut
+
+  private val onRobolectric: Boolean by lazy { Build.FINGERPRINT == "robolectric" }
+
+  /**
+   * Il primo passaggio della finestra: registra qui i passi che restano di [family] in un fotogramma solo (gli shader sono
+   * condivisi col nodo e i loro uniform si scrivono su questo filo: vedi `RuntimeShaderCacheImpl`), e lo manda da un filo
+   * a parte. Il principale non tocca il RenderThread: creare un `HardwareRenderer` aspetta il RenderThread, e
+   * `syncAndDraw` anche; tutti e due stanno sull'altro filo. Il ritorno torna sul principale ([finishEarly]).
+   */
+  private fun startEarly(family: GlassWarmFamily, view: View) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val steps = core.claim(family) ?: return
+    val askedAt = SystemClock.uptimeMillis()
+    noteStarted(family, askedAt)
+    val density = view.resources.displayMetrics.density
+    val target = java.lang.ref.WeakReference(view)
+    val recordStart = System.nanoTime()
+    val frame = try {
+      GlassOffscreenWarmer.record(steps, density)
+    } catch (t: Throwable) {
+      finishEarly(family, steps, t, System.nanoTime() - recordStart, askedAt, 0L, target)
+      return
+    }
+    val mainNanos = System.nanoTime() - recordStart
+    val worker = HandlerThread("FluidGlass.riscaldamento").also { it.start() }
+    val handler = Handler(worker.looper)
+    handler.post {
+      val submittedAt = SystemClock.uptimeMillis()
+      val done: (Throwable?) -> Unit = { error ->
+        val drawMillis = SystemClock.uptimeMillis() - submittedAt
+        worker.quitSafely()
+        mainHandler.post { finishEarly(family, steps, error, mainNanos, askedAt, drawMillis, target) }
+      }
+      try {
+        frame.submit(blocking = false, handler = handler, onReleased = { done(null) })
+      } catch (t: Throwable) {
+        done(t)
+      }
+    }
+  }
+
+  private fun finishEarly(
+    family: GlassWarmFamily,
+    steps: List<GlassWarmStep>,
+    error: Throwable?,
+    mainNanos: Long,
+    askedAt: Long,
+    drawMillis: Long,
+    target: java.lang.ref.WeakReference<View>,
+  ) {
+    core.complete(family, steps, error, mainNanos)
+    val since = processStart()
+    val line = "Riscaldamento del vetro all'avvio: ${family.name} ${steps.joinToString { it.source.name }}, " +
+      "chiesto a +${askedAt - since} ms dall'avvio del processo, principale " +
+      "%.1f".format(java.util.Locale.ROOT, mainNanos / 1_000_000f) +
+      " ms, fuori schermo fino all'immagine $drawMillis ms, finito a +${SystemClock.uptimeMillis() - since} ms"
+    if (error == null) {
+      Log.i(LogTag, line)
+      noteFinished(family)
+    } else {
+      Log.w(LogTag, "$line, non riuscito ($error): ci riprova il giro dei momenti fermi")
+    }
+    // Ciò che resta (un ritorno fallito, un'altra famiglia chiesta nel frattempo) lo prende il giro di F1A.7.
+    val view = target.get()
+    if (core.pending && view != null && view.isAttachedToWindow) bind(view)
+  }
+
+  // ---- Quando, rispetto all'avvio del processo: per le righe di logcat che la sessione sul tablet legge ----------
+
+  private val requestedAt = EnumMap<GlassWarmFamily, Long>(GlassWarmFamily::class.java)
+  private val startedAt = EnumMap<GlassWarmFamily, Long>(GlassWarmFamily::class.java)
+
+  private fun processStart(): Long = android.os.Process.getStartUptimeMillis()
+
+  private fun noteRequested(family: GlassWarmFamily) {
+    requestedAt[family] = SystemClock.uptimeMillis()
+  }
+
+  private fun noteStarted(family: GlassWarmFamily, at: Long) {
+    if (family !in startedAt) startedAt[family] = at
+  }
+
+  private fun noteFinished(family: GlassWarmFamily) {
+    requestedAt.remove(family)
+    startedAt.remove(family)
+  }
+
+  /** Il tratto «chiesta, partita, finita» di una famiglia, in ms dall'avvio del processo. */
+  private fun timeline(family: GlassWarmFamily): String {
+    val since = processStart()
+    val asked = requestedAt[family]?.let { "+${it - since}" } ?: "?"
+    val started = startedAt[family]?.let { "+${it - since}" } ?: "?"
+    return "chiesta a $asked ms, partita a $started ms, finita a +${SystemClock.uptimeMillis() - since} ms dall'avvio del processo"
   }
 
   fun status(): List<FluidGlassWarmUpStatus> = core.status()
@@ -525,6 +717,7 @@ internal object GlassWarmUp {
     for (family in GlassWarmFamily.entries) core.request(family, gpuWindow = true)
     while (true) {
       val next = core.next() ?: break
+      noteStarted(next.family, SystemClock.uptimeMillis())
       core.run(next) { step -> drawOffscreen(step, screen, blocking = true, onReleased = {}) }
       log(next.family)
     }
@@ -535,11 +728,18 @@ internal object GlassWarmUp {
   private fun log(family: GlassWarmFamily) {
     val status = core.status().firstOrNull { it.family == family.name } ?: return
     when (status.state) {
-      FluidGlassWarmUpState.Done -> Log.i(LogTag, "Riscaldamento del vetro: $status")
-      FluidGlassWarmUpState.Failed -> Log.e(
-        LogTag,
-        "Riscaldamento del vetro fallito, il primo vetro della famiglia pagherà la compilazione: $status",
-      )
+      FluidGlassWarmUpState.Done -> {
+        Log.i(LogTag, "Riscaldamento del vetro: $status; ${timeline(family)}")
+        noteFinished(family)
+      }
+      FluidGlassWarmUpState.Failed -> {
+        Log.e(
+          LogTag,
+          "Riscaldamento del vetro fallito, il primo vetro della famiglia pagherà la compilazione: $status; " +
+            timeline(family),
+        )
+        noteFinished(family)
+      }
       else -> Unit
     }
   }
@@ -552,6 +752,8 @@ internal object GlassWarmUp {
       stop()
       core.reset()
       inFlight = false
+      requestedAt.clear()
+      startedAt.clear()
     }
     if (Looper.myLooper() === Looper.getMainLooper()) reset.run() else mainHandler.post(reset)
     enabled = true
@@ -627,6 +829,7 @@ internal object GlassWarmUp {
       return
     }
     inFlight = true
+    noteStarted(next.family, now)
     val started = core.run(next) { s -> drawOffscreen(s, density, blocking = false, onReleased = released) }
     log(next.family)
     if (!started) {
@@ -700,6 +903,22 @@ internal object GlassOffscreenWarmer {
   private const val BackdropArgb = android.graphics.Color.GRAY
 
   fun draw(step: GlassWarmStep, density: Float, blocking: Boolean, handler: Handler, onReleased: () -> Unit) {
+    val frame = record(listOf(step), density)
+    try {
+      frame.submit(blocking, handler, onReleased)
+    } catch (t: Throwable) {
+      frame.release()
+      throw t
+    }
+  }
+
+  /**
+   * Registra [steps] in un fotogramma solo, uno dopo l'altro sulla stessa superficie, sul filo che chiama: deve essere
+   * il principale, perché gli shader sono le istanze condivise del processo e i loro uniform si scrivono e si
+   * fotografano sul filo che disegna (vedi `RuntimeShaderCacheImpl`). Non tocca il RenderThread: renderer e lettore
+   * nascono in [Frame.submit], che si può chiamare da un altro filo (l'avvio di F7.4).
+   */
+  fun record(steps: List<GlassWarmStep>, density: Float): Frame {
     val d = if (density > 0f && density.isFinite()) density else 1f
     val side = max(1, (GlassWarmSlabSideDp * d).roundToInt())
     val surface = glassWarmSlabSurface(d)
@@ -707,61 +926,74 @@ internal object GlassOffscreenWarmer {
     val scale = surface.effectiveCaptureScale(nodeSize)
     val frame = Frame(side, side)
     try {
-      when (step) {
-        GlassWarmStep.SlabBody -> {
-          val scope = WarmEffectScope(d * scale, Size(side * scale, side * scale))
-          scope.apply(surface.effects)
-          val effect = scope.renderEffect ?: error("la catena del corpo è vuota")
-          frame.recordBody(effect.asAndroidRenderEffect(), scope.padding, scale)
-        }
-        GlassWarmStep.SlabLight -> frame.recordLight(d) { surface.onDrawLight(this) }
-        GlassWarmStep.GroupBody, GlassWarmStep.GroupFilms -> {
-          val inputs = surface.drawInputs(nodeSize, scale = scale)
-          val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
-          val body = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
-            ?: error("${step.source.name} non è disponibile")
-          val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
-          val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
-          frame.recordBody(chain, inputs.paddingPx, scale)
-        }
-        GlassWarmStep.RingBody -> {
-          val inputs = surface.drawInputs(nodeSize, scale = scale)
-          val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
-          val body = RuntimeShaderCacheImpl().obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
-            ?: error("${GlassShaderSources.BodyRing.name} non è disponibile")
-          val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
-          val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
-          frame.recordBody(chain, inputs.paddingPx, scale)
-        }
-        GlassWarmStep.GroupLight -> {
-          val light = RuntimeShaderCacheImpl().obtainEngineShader("GlassLight8", GlassShaderSources.Light8)
-            ?: error("${GlassShaderSources.Light8.name} non è disponibile")
-          val brush = ShaderBrush(light.asComposeShader())
-          frame.recordLight(d) {
-            // I due modi di comporre della luce a riposo: prima la parte che somma, poi il filo.
-            drawRect(brush = brush, blendMode = BlendMode.Plus)
-            drawRect(brush = brush)
-          }
-        }
-        GlassWarmStep.EdgeBlur -> frame.recordBody(
-          glassScrollEdgeWarmEffect(d, side) ?: error("${GlassShaderSources.EdgeBlur.name} non è disponibile"),
-          0f,
-          1f,
-        )
-        GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing -> {
-          val shader = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
-            ?: error("${step.source.name} non è disponibile")
-          shader.setFloatUniform("menuScale", 1f)
-          shader.setFloatUniform("lensDepth", d)
-          val lens = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect()
-          val blur = android.graphics.RenderEffect.createBlurEffect(2f * d, 2f * d, android.graphics.Shader.TileMode.DECAL)
-          frame.recordBody(android.graphics.RenderEffect.createChainEffect(lens, blur), 0f, 1f)
-        }
-      }
-      frame.submit(blocking, handler, onReleased)
+      for (step in steps) recordStep(frame, step, surface, nodeSize, scale, d, side)
+      frame.finishRecording()
     } catch (t: Throwable) {
       frame.release()
       throw t
+    }
+    return frame
+  }
+
+  private fun recordStep(
+    frame: Frame,
+    step: GlassWarmStep,
+    surface: GlassLiquidSurface,
+    nodeSize: Size,
+    scale: Float,
+    d: Float,
+    side: Int,
+  ) {
+    when (step) {
+      GlassWarmStep.SlabBody -> {
+        val scope = WarmEffectScope(d * scale, Size(side * scale, side * scale))
+        scope.apply(surface.effects)
+        val effect = scope.renderEffect ?: error("la catena del corpo è vuota")
+        frame.recordBody(effect.asAndroidRenderEffect(), scope.padding, scale)
+      }
+      GlassWarmStep.SlabLight -> frame.recordLight(d) { surface.onDrawLight(this) }
+      GlassWarmStep.GroupBody, GlassWarmStep.GroupFilms -> {
+        val inputs = surface.drawInputs(nodeSize, scale = scale)
+        val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
+        val body = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
+          ?: error("${step.source.name} non è disponibile")
+        val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
+        val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
+        frame.recordBody(chain, inputs.paddingPx, scale)
+      }
+      GlassWarmStep.RingBody -> {
+        val inputs = surface.drawInputs(nodeSize, scale = scale)
+        val upstream = GlassBodyChain().upstream(inputs.saturation, inputs.blurPx, inputs.mix)
+        val body = RuntimeShaderCacheImpl().obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
+          ?: error("${GlassShaderSources.BodyRing.name} non è disponibile")
+        val effect = RuntimeShaderEffect(body, "content").asAndroidRenderEffect()
+        val chain = if (upstream == null) effect else android.graphics.RenderEffect.createChainEffect(effect, upstream)
+        frame.recordBody(chain, inputs.paddingPx, scale)
+      }
+      GlassWarmStep.GroupLight -> {
+        val light = RuntimeShaderCacheImpl().obtainEngineShader("GlassLight8", GlassShaderSources.Light8)
+          ?: error("${GlassShaderSources.Light8.name} non è disponibile")
+        val brush = ShaderBrush(light.asComposeShader())
+        frame.recordLight(d) {
+          // I due modi di comporre della luce a riposo: prima la parte che somma, poi il filo.
+          drawRect(brush = brush, blendMode = BlendMode.Plus)
+          drawRect(brush = brush)
+        }
+      }
+      GlassWarmStep.EdgeBlur -> frame.recordBody(
+        glassScrollEdgeWarmEffect(d, side) ?: error("${GlassShaderSources.EdgeBlur.name} non è disponibile"),
+        0f,
+        1f,
+      )
+      GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing -> {
+        val shader = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
+          ?: error("${step.source.name} non è disponibile")
+        shader.setFloatUniform("menuScale", 1f)
+        shader.setFloatUniform("lensDepth", d)
+        val lens = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect()
+        val blur = android.graphics.RenderEffect.createBlurEffect(2f * d, 2f * d, android.graphics.Shader.TileMode.DECAL)
+        frame.recordBody(android.graphics.RenderEffect.createChainEffect(lens, blur), 0f, 1f)
+      }
     }
   }
 
@@ -775,27 +1007,27 @@ internal object GlassOffscreenWarmer {
     }
   }
 
-  /** Un fotogramma fuori schermo: radice, cattura finta, renderer e lettore, rilasciati insieme. */
-  private class Frame(private val width: Int, private val height: Int) {
-    private val reader = ImageReader.newInstance(
-      width,
-      height,
-      PixelFormat.RGBA_8888,
-      1,
-      HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT,
-    )
+  /**
+   * Un fotogramma fuori schermo: radice, un nodo per passo (con la sua cattura finta per un corpo), e al momento
+   * dell'invio renderer e lettore, rilasciati insieme. La registrazione e l'invio possono stare su fili diversi (F7.4):
+   * i nodi si registrano prima e non si toccano più, e renderer e lettore nascono in [submit], sul filo che lo chiama.
+   */
+  internal class Frame(private val width: Int, private val height: Int) {
     // Non `apply`: lì dentro `width` e `height` sarebbero quelli del nodo, cioè zero (lo stesso tranello di
     // `ProbeReader` nella pagina «Misure»).
     private val root = RenderNode("FluidGlassWarmUp").also { it.setPosition(0, 0, width, height) }
-    private val capture = RenderNode("FluidGlassWarmUp.cattura")
-    private val renderer = HardwareRenderer().apply {
-      setName("FluidGlassWarmUp")
-      setContentRoot(root)
-      setSurface(reader.surface)
-      isOpaque = false
-      start()
-    }
+    private val steps = ArrayList<RenderNode>()
+    private val captures = ArrayList<RenderNode>()
+    private var reader: ImageReader? = null
+    private var renderer: HardwareRenderer? = null
     private var released = false
+
+    /** Un nodo nuovo per un passo, grande quanto il fotogramma: la radice li disegna uno dopo l'altro. */
+    private fun stepNode(): RenderNode =
+      RenderNode("FluidGlassWarmUp.passo").also {
+        it.setPosition(0, 0, width, height)
+        steps += it
+      }
 
     /**
      * Il corpo come lo disegna il nodo del vetro: la cattura (qui un fondale pieno) con la catena come
@@ -803,6 +1035,7 @@ internal object GlassOffscreenWarmer {
      */
     fun recordBody(effect: android.graphics.RenderEffect, padding: Float, scale: Float) {
       val capturePx = max(1, ceil(width * scale + 2f * padding).toInt())
+      val capture = RenderNode("FluidGlassWarmUp.cattura").also { captures += it }
       capture.setPosition(0, 0, capturePx, capturePx)
       val inside = capture.beginRecording()
       try {
@@ -811,7 +1044,8 @@ internal object GlassOffscreenWarmer {
         capture.endRecording()
       }
       capture.setRenderEffect(effect)
-      val canvas = root.beginRecording()
+      val step = stepNode()
+      val canvas = step.beginRecording()
       try {
         canvas.save()
         canvas.scale(1f / scale, 1f / scale)
@@ -819,13 +1053,14 @@ internal object GlassOffscreenWarmer {
         canvas.drawRenderNode(capture)
         canvas.restore()
       } finally {
-        root.endRecording()
+        step.endRecording()
       }
     }
 
     /** La luce come la disegna il nodo: sul rettangolo della lastra, a risoluzione piena. */
     fun recordLight(density: Float, block: DrawScope.() -> Unit) {
-      val canvas = root.beginRecording()
+      val step = stepNode()
+      val canvas = step.beginRecording()
       try {
         CanvasDrawScope().draw(
           Density(density),
@@ -834,13 +1069,43 @@ internal object GlassOffscreenWarmer {
           Size(width.toFloat(), height.toFloat()),
         ) { block() }
       } finally {
+        step.endRecording()
+      }
+    }
+
+    /** La radice: i passi registrati, nell'ordine. */
+    fun finishRecording() {
+      val canvas = root.beginRecording()
+      try {
+        for (step in steps) canvas.drawRenderNode(step)
+      } finally {
         root.endRecording()
       }
     }
 
+    /**
+     * Manda il fotogramma: crea lettore e renderer sul filo che chiama (creare un `HardwareRenderer` aspetta il
+     * RenderThread, come `syncAndDraw`), e con [blocking] falso rilascia tutto quando l'immagine arriva su [handler] (o
+     * dopo [GlassWarmUpReleaseTimeoutMillis]) e chiama [onReleased].
+     */
     fun submit(blocking: Boolean, handler: Handler, onReleased: () -> Unit) {
+      val image = ImageReader.newInstance(
+        width,
+        height,
+        PixelFormat.RGBA_8888,
+        1,
+        HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT,
+      )
+      reader = image
+      val target = HardwareRenderer()
+      renderer = target
+      target.setName("FluidGlassWarmUp")
+      target.setContentRoot(root)
+      target.setSurface(image.surface)
+      target.isOpaque = false
+      target.start()
       if (!blocking) {
-        reader.setOnImageAvailableListener({ source ->
+        image.setOnImageAvailableListener({ source ->
           try {
             source.acquireLatestImage()?.close()
           } catch (_: IllegalStateException) {
@@ -850,7 +1115,7 @@ internal object GlassOffscreenWarmer {
         }, handler)
         handler.postDelayed({ if (release()) onReleased() }, GlassWarmUpReleaseTimeoutMillis)
       }
-      val result = renderer.createRenderRequest()
+      val result = target.createRenderRequest()
         .setVsyncTime(System.nanoTime())
         .setWaitForPresent(blocking)
         .syncAndDraw()
@@ -865,12 +1130,13 @@ internal object GlassOffscreenWarmer {
     fun release(): Boolean {
       if (released) return false
       released = true
-      reader.setOnImageAvailableListener(null, null)
-      renderer.stop()
-      renderer.destroy()
-      reader.close()
+      reader?.setOnImageAvailableListener(null, null)
+      renderer?.stop()
+      renderer?.destroy()
+      reader?.close()
       root.discardDisplayList()
-      capture.discardDisplayList()
+      for (step in steps) step.discardDisplayList()
+      for (capture in captures) capture.discardDisplayList()
       return true
     }
   }

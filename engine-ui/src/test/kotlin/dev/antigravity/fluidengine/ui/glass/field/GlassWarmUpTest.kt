@@ -200,6 +200,104 @@ class GlassWarmUpTest {
     assertEquals(listOf(GlassWarmStep.SlabBody), bench.drawn)
   }
 
+  // ---- All'avvio (F7.4): fatto una volta, anche con il giro dei momenti fermi in mezzo ---------------------------
+
+  @Test
+  fun anEarlyClaimTakesTheWholeSlabAndTheQuietRoundNeverDrawsItAgain() {
+    val bench = Bench()
+    assertTrue(bench.core.request(GlassWarmFamily.Slab, gpuWindow = true))
+    val claimed = bench.core.claim(GlassWarmFamily.Slab)
+    assertEquals(listOf(GlassWarmStep.SlabBody, GlassWarmStep.SlabLight), claimed)
+    assertEquals(FluidGlassWarmUpState.Running, bench.status(GlassWarmFamily.Slab).state)
+    // Mentre il disegno all'avvio è in volo, il giro dei momenti fermi non ha niente della lastra, e una seconda presa
+    // (un'altra lastra che entra nel primo passaggio) nemmeno.
+    assertNull(bench.core.next())
+    assertNull(bench.core.claim(GlassWarmFamily.Slab))
+    assertTrue("in volo conta come chiesto", bench.core.pending)
+    bench.core.complete(GlassWarmFamily.Slab, claimed!!, error = null, mainNanos = 3_000_000L)
+    val done = bench.status(GlassWarmFamily.Slab)
+    assertEquals(FluidGlassWarmUpState.Done, done.state)
+    assertEquals(done.programs, done.warmed)
+    assertEquals("il principale ha speso solo la registrazione", 3f, done.mainThreadMillis, 0f)
+    // E il giro dei momenti fermi, dopo, non disegna niente; una nuova richiesta non riparte.
+    assertTrue(bench.runAll().isEmpty())
+    assertFalse(bench.core.request(GlassWarmFamily.Slab, gpuWindow = true))
+    assertNull(bench.core.claim(GlassWarmFamily.Slab))
+    // I verdetti si sono chiesti una volta per sorgente.
+    assertEquals(listOf("GlassBody1ShaderString", "GlassLight1ShaderString"), bench.asked)
+  }
+
+  @Test
+  fun aFailedEarlyDrawLeavesTheStepsToTheQuietRoundWhichDrawsThemOnce() {
+    val bench = Bench()
+    bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    val claimed = bench.core.claim(GlassWarmFamily.Slab)!!
+    bench.core.complete(GlassWarmFamily.Slab, claimed, IllegalStateException("superficie non pronta"), mainNanos = 0L)
+    val failed = bench.status(GlassWarmFamily.Slab)
+    // Non ferma la famiglia: all'avvio può mancare ciò che un momento dopo c'è.
+    assertEquals(FluidGlassWarmUpState.Running, failed.state)
+    assertTrue(failed.detail!!, "all'avvio" in failed.detail!!)
+    assertTrue(failed.warmed.isEmpty())
+    assertEquals(listOf(GlassWarmStep.SlabBody, GlassWarmStep.SlabLight), bench.runAll())
+    assertEquals(FluidGlassWarmUpState.Done, bench.status(GlassWarmFamily.Slab).state)
+    // Un altro giro non disegna niente: `runAll` dà tutti i disegni fatti finora, e restano due.
+    bench.runAll()
+    assertEquals(2, bench.drawn.size)
+  }
+
+  @Test
+  fun anEarlyClaimAfterAPartialRoundTakesOnlyWhatIsLeft() {
+    val bench = Bench()
+    bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    bench.core.run(bench.core.next()!!, bench::draw)
+    assertEquals(listOf(GlassWarmStep.SlabLight), bench.core.claim(GlassWarmFamily.Slab))
+  }
+
+  @Test
+  fun aRefusedSlabIsNeverClaimed() {
+    val bench = Bench()
+    bench.refused += GlassShaderSources.Body1
+    bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    assertNull(bench.core.claim(GlassWarmFamily.Slab))
+    assertEquals(FluidGlassWarmUpState.Skipped, bench.status(GlassWarmFamily.Slab).state)
+    // Senza AGSL nemmeno, e senza chiedere ai verdetti.
+    val below = Bench().apply { agsl = false }
+    below.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    assertNull(below.core.claim(GlassWarmFamily.Slab))
+    assertTrue(below.asked.isEmpty())
+  }
+
+  @Test
+  fun aWindowThatLeavesDoesNotCancelADrawInFlight() {
+    val bench = Bench()
+    bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    val claimed = bench.core.claim(GlassWarmFamily.Slab)!!
+    bench.core.cancel()
+    assertEquals(FluidGlassWarmUpState.Running, bench.status(GlassWarmFamily.Slab).state)
+    bench.core.complete(GlassWarmFamily.Slab, claimed, error = null, mainNanos = 0L)
+    assertEquals(FluidGlassWarmUpState.Done, bench.status(GlassWarmFamily.Slab).state)
+  }
+
+  @Test
+  fun aResetForgetsAClaimAndIgnoresItsReturn() {
+    val bench = Bench()
+    bench.core.request(GlassWarmFamily.Slab, gpuWindow = true)
+    val claimed = bench.core.claim(GlassWarmFamily.Slab)!!
+    bench.core.reset()
+    bench.core.complete(GlassWarmFamily.Slab, claimed, error = null, mainNanos = 5_000_000L)
+    val slab = bench.status(GlassWarmFamily.Slab)
+    assertEquals(FluidGlassWarmUpState.Idle, slab.state)
+    assertTrue(slab.warmed.isEmpty())
+    assertEquals(0f, slab.mainThreadMillis, 0f)
+  }
+
+  @Test
+  fun onlyTheSlabMayStartBeforeTheFirstFrame() {
+    assertEquals(listOf(GlassWarmFamily.Slab), GlassWarmFamily.entries.filter { it.earlyEligible })
+    GlassFieldLevers.resetForTesting()
+    assertTrue("di serie la leva è accesa", GlassFieldLevers.earlyWarmUp)
+  }
+
   @Test
   fun everyFamilyStepCompilesADifferentProgramOfItsOwnFamily() {
     for (family in GlassWarmFamily.entries) {

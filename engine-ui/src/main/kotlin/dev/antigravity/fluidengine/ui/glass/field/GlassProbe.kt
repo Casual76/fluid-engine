@@ -204,6 +204,131 @@ internal const val GlassProbeTextureBusy: Float = 0.06f
 /** Mentre la sonda tace per la qualità bassa, ogni quanto ricontrolla (il ritorno della qualità a volte non avvisa). */
 private const val GlassProbeSuspendedRecheckMillis: Long = 250L
 
+/**
+ * Quante letture uguali di fila (F7.4, [GlassProbeRest]) prima che la sonda rallenti: due, cioè la terza lettura che
+ * torna come le due prima. Una sola uguale può essere un caso (il contenuto che si ferma proprio lì).
+ */
+internal const val GlassProbeRestAfter: Int = 2
+
+/**
+ * Il tetto dello spazio fra due letture di una sonda che rallenta (F7.4): quattro volte la cadenza massima. È anche il
+ * ritardo più lungo con cui una sonda a riposo si accorge di un cambio **sotto** il suo vetro mentre la pagina si
+ * ridisegna di continuo **altrove** (il solo caso in cui la leva cambia un comportamento): sotto il mezzo secondo, la
+ * stessa scala dell'inchiostro che gira (500–700 ms).
+ */
+internal const val GlassProbeRestMaxMillis: Long = 4 * GlassProbeMinIntervalMillis
+
+/**
+ * Una revisione che arriva dopo tanto silenzio è un cambio vero, non il fotogramma di un'animazione (F7.4): la sonda
+ * smette di riposare e legge con la cadenza di sempre. Due volte la cadenza massima: un'animazione ridisegna ogni 8–16 ms,
+ * un cursore che lampeggia ogni 500.
+ */
+internal const val GlassProbeRestFreshMillis: Long = 2 * GlassProbeMinIntervalMillis
+
+/**
+ * Due letture uguali, entro mezzo livello su 255 per le medie e un millesimo relativo per varianze ed energie: lo stesso
+ * contenuto riletto dà gli stessi byte, quindi gli stessi numeri; la tolleranza assorbe solo un arrotondamento della GPU.
+ * Un dettaglio che cambia sotto il vetro (un'icona che gira, una riga che entra) li sposta molto di più.
+ */
+internal fun GlassBackdropStats.sameAs(other: GlassBackdropStats): Boolean {
+  val level = 0.5f / 255f
+  fun near(a: Float, b: Float) = a == b || abs(a - b) <= level
+  fun nearRelative(a: Float, b: Float) = a == b || abs(a - b) <= 1e-3f * max(abs(a), abs(b)) + 1e-7f
+  fun nearShare(a: Float, b: Float) = (a.isNaN() && b.isNaN()) || near(a, b)
+  return near(luminance, other.luminance) && near(red, other.red) && near(green, other.green) &&
+    near(blue, other.blue) && near(coverage, other.coverage) && nearShare(darkShare, other.darkShare) &&
+    nearRelative(variance, other.variance) && nearRelative(gradientEnergy, other.gradientEnergy) &&
+    nearRelative(textEnergy, other.textEnergy)
+}
+
+/**
+ * Il riposo di una sonda (F7.4, leva 7 del piano: «sonda sospesa quando la cattura non cambia; frequenza per
+ * contenitore»). Puro: gli istanti glieli dà chi chiama.
+ *
+ * Il caso. Una sorgente si ridisegna a ogni fotogramma per qualcosa che sta **altrove** sulla pagina (un indicatore che
+ * gira, la card vivida della scheda «Materiale», un orologio), e ogni vetro radice di quella pagina riceve una revisione a
+ * ogni fotogramma: oggi rilegge ogni 120 ms, 8 letture al secondo per ciascuno, e ogni lettura tiene il principale 2–2,7
+ * ms (S1-bis) per scoprire che sotto di lui non è cambiato niente. Qui la sonda guarda le sue letture: dopo
+ * [GlassProbeRestAfter] letture uguali di fila lo spazio fra due letture raddoppia, fino a [GlassProbeRestMaxMillis].
+ *
+ * La frequenza è così **per contenitore** (una sonda per contenitore o per vetro radice, F3.2): ognuna rallenta per conto
+ * suo, secondo ciò che ha sotto. La barra sopra la lista che scorre resta alla cadenza di sempre, il tasto sopra un fondo
+ * fermo rallenta.
+ *
+ * Non rallenta mai quando il vetro o le sue sorgenti si spostano ([onMoved]: una geometria nuova, il contenuto che scorre
+ * sotto la barra, anche su un tratto uniforme, dove due letture uguali non dicono niente di ciò che sta per entrare), né
+ * alla prima revisione dopo un silenzio ([GlassProbeRestFreshMillis], [onRevision]: il fondo che passa da chiaro a scuro su
+ * una pagina ferma si legge come prima). Non tocca la cadenza fissa delle sorgenti che non avvisano: lì è la sola difesa.
+ */
+internal class GlassProbeRest(
+  private val minIntervalMillis: Long = GlassProbeMinIntervalMillis,
+  private val restAfter: Int = GlassProbeRestAfter,
+  private val maxIntervalMillis: Long = GlassProbeRestMaxMillis,
+  private val freshMillis: Long = GlassProbeRestFreshMillis,
+) {
+  /** Le letture uguali di fila (la prima di una serie non conta: è il termine di paragone). */
+  var steady: Int = 0
+    private set
+
+  private var previous: GlassBackdropStats? = null
+  private var lastRevisionAt = Long.MIN_VALUE
+  private var lastReadAt = Long.MIN_VALUE
+
+  /** Una sorgente si è registrata di nuovo. Dopo un silenzio più lungo di [freshMillis] è un cambio: niente riposo. */
+  fun onRevision(nowMillis: Long) {
+    if (lastRevisionAt == Long.MIN_VALUE || nowMillis - lastRevisionAt > freshMillis) wake()
+    lastRevisionAt = nowMillis
+  }
+
+  /** Il vetro si è spostato rispetto alle sorgenti, o il contenuto sotto di lui scorre: niente riposo. */
+  fun onMoved() = wake()
+
+  /** Una lettura è partita a [nowMillis]. */
+  fun onReadSent(nowMillis: Long) {
+    lastReadAt = nowMillis
+  }
+
+  /** I numeri di una lettura consegnata: uguali ai precedenti allungano la serie, diversi la chiudono. */
+  fun onReading(stats: GlassBackdropStats) {
+    val before = previous
+    steady = if (before != null && before.sameAs(stats)) steady + 1 else 0
+    previous = stats
+  }
+
+  /** Lo spazio fra due letture adesso: la cadenza di sempre, o di più se le ultime letture tornano uguali. */
+  fun interval(): Long {
+    if (steady < restAfter) return minIntervalMillis
+    val shift = min(steady - restAfter + 1, 16)
+    val grown = minIntervalMillis shl shift
+    return if (grown <= 0L) maxIntervalMillis else min(grown, maxIntervalMillis)
+  }
+
+  /**
+   * Prima di quando la sonda non legge, se riposa; `Long.MIN_VALUE` se può leggere quando lo schedulatore lo dice. Vale
+   * solo per le letture chieste da una revisione: chi chiama non lo chiede per una geometria nuova, né per la cadenza
+   * fissa delle sorgenti che non avvisano.
+   */
+  fun notBefore(): Long =
+    if (steady < restAfter || lastReadAt == Long.MIN_VALUE) Long.MIN_VALUE else lastReadAt + interval()
+
+  private fun wake() {
+    steady = 0
+  }
+}
+
+/**
+ * Il cancello del riposo (F7.4), puro: prima di quando può partire la lettura [decision] che lo schedulatore ha deciso
+ * adesso, o `Long.MIN_VALUE` se parte subito. Solo le letture chieste da una revisione aspettano: una geometria nuova
+ * (la miniatura da rifare, la prima lettura) e la cadenza fissa delle sorgenti che non avvisano ([unannounced]) no.
+ * [enabled] è la leva (`GlassFieldLevers.probeRest`).
+ */
+internal fun glassProbeRestGate(
+  decision: GlassProbeDecision.Read,
+  rest: GlassProbeRest?,
+  unannounced: Boolean,
+  enabled: Boolean,
+): Long = if (enabled && rest != null && !decision.rerecord && !unannounced) rest.notBefore() else Long.MIN_VALUE
+
 private const val GlassProbeLogTag = "FluidGlass"
 
 // ------------------------------------------------------------------------------------------------------------
@@ -583,6 +708,9 @@ internal class GlassProbeNode(
 
   private val handler = Handler(Looper.getMainLooper())
   private var scheduler: GlassProbeScheduler? = null
+
+  /** Il riposo di questa sonda (F7.4, [GlassProbeRest]): rallenta quando le sue letture tornano uguali. */
+  private var rest: GlassProbeRest? = null
   private var view: View? = null
   private var quality: FluidGlassQuality? = null
   private var coordinates: LayoutCoordinates? = null
@@ -660,6 +788,7 @@ internal class GlassProbeNode(
     quality = currentValueOf(LocalFluidGlassQuality)
     val density = requireDensity().density
     scheduler = GlassProbeScheduler(fastPxPerSecond = GlassProbeFastMotionDpPerSecond * density)
+    rest = GlassProbeRest()
     thumbnailLayer = requireGraphicsContext().createGraphicsLayer()
     thumbnailDirty = true
     recordedGeometry = null
@@ -682,6 +811,7 @@ internal class GlassProbeNode(
     thumbnailLayer = null
     coordinates = null
     scheduler = null
+    rest = null
     view = null
     quality = null
   }
@@ -741,10 +871,17 @@ internal class GlassProbeNode(
     if (revisionSeen) {
       revisionSeen = false
       scheduler.onRevision(now)
+      rest?.onRevision(now)
     }
     val moved = geometryMovement()
-    if (moved != null) scheduler.onGeometry(now, moved)
-    scheduler.setUnannounced(sourcesUnannounced || sources.any { !it.announcesRevisions })
+    if (moved != null) {
+      scheduler.onGeometry(now, moved)
+      rest?.onMoved()
+    }
+    val unannounced = sourcesUnannounced || sources.any { !it.announcesRevisions }
+    scheduler.setUnannounced(unannounced)
+    // F7.4: il contenuto che scorre sotto il vetro non lascia riposare la sonda, anche dove due letture tornano uguali.
+    if (contentScrolling(now)) rest?.onMoved()
     val suspended = (quality?.level ?: 1f) < GlassProbeQualityFloor
     scheduler.setSuspended(suspended)
     // G1: le varianti «cosa fa il vetro mentre scorri» (`flipscroll`). Di serie (`live`) non si legge niente qui.
@@ -755,7 +892,17 @@ internal class GlassProbeNode(
     }
     var wakeAt = min(state.nextDeadlineMillis(), scrollWake)
     when (val decision = scheduler.next(now)) {
-      is GlassProbeDecision.Read -> startRead(now, decision.rerecord)
+      is GlassProbeDecision.Read -> {
+        // F7.4: una lettura chiesta da una revisione aspetta, se le ultime sono tornate uguali. Non una geometria nuova
+        // (la miniatura da rifare), non la cadenza fissa delle sorgenti che non avvisano.
+        val notBefore = glassProbeRestGate(decision, rest, unannounced, GlassFieldLevers.probeRest)
+        if (now < notBefore) {
+          FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Rested)
+          wakeAt = min(wakeAt, notBefore)
+        } else {
+          startRead(now, decision.rerecord)
+        }
+      }
       is GlassProbeDecision.WaitUntil -> wakeAt = min(wakeAt, decision.atMillis)
       GlassProbeDecision.Idle ->
         if (suspended && scheduler.hasPending) wakeAt = min(wakeAt, now + GlassProbeSuspendedRecheckMillis)
@@ -832,6 +979,7 @@ internal class GlassProbeNode(
     val fake = FluidGlassProbeDiagnostics.readerForTesting
     if (fake != null) {
       scheduler.onReadSent(now, rerecord)
+      rest?.onReadSent(now)
       FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
       FluidGlassProbeDiagnostics.onRequest()
       handler.post { if (isAttached) onProbeResult(GlassProbeOutcome.Read, glassProbeUniformStats(fake())) }
@@ -851,6 +999,7 @@ internal class GlassProbeNode(
       return
     }
     scheduler.onReadSent(now, rerecord)
+    rest?.onReadSent(now)
     FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
     if (rerecord) thumbnailDirty = true
     // Una richiesta che il lettore non accetta chiude subito la lettura: una sonda «in volo» per sempre non legge più.
@@ -965,6 +1114,18 @@ internal class GlassProbeNode(
     return if (moved > 0f) moved else null
   }
 
+  /**
+   * Il contenuto di una sorgente è scorso da poco ([GlassProbeRestFreshMillis]): lo dicono gli scorrimenti annunciati
+   * ([LayerBackdrop.scrollMotion], gli stessi che legge `flipscroll`). F7.4: mentre scorre, la sonda non riposa.
+   */
+  private fun contentScrolling(now: Long): Boolean {
+    for (layer in sources) {
+      val at = layer.scrollMotion.lastAtMillis
+      if (at != Long.MIN_VALUE && now - at <= GlassProbeRestFreshMillis) return true
+    }
+    return false
+  }
+
   override fun prepareThumbnail(): Boolean {
     if (!isAttached) return false
     val self = coordinates ?: return false
@@ -1004,6 +1165,7 @@ internal class GlassProbeNode(
     scheduler.onReadDone(now, if (outcome == GlassProbeOutcome.Read && !delivered) GlassProbeOutcome.Empty else outcome)
     if (delivered && stats != null) {
       state.publish(now, stats)
+      rest?.onReading(stats)
       FluidGlassProbeDiagnostics.onReading()
       onReading?.invoke(stats, state.target, true)
     } else if (outcome == GlassProbeOutcome.Failed) {
@@ -1464,7 +1626,12 @@ internal class GlassProbeWindowReader private constructor(private val root: View
 // ------------------------------------------------------------------------------------------------------------
 
 /** Perché una sonda si è svegliata (vedi [FluidGlassProbeDiagnostics.wakes]). */
-internal enum class GlassProbeWake { Revision, Positioned, ObservedReads, Timer, Read, ReadRerecord }
+/**
+ * `Rested` (F7.4): un giro in cui lo schedulatore avrebbe letto e la sonda ha aspettato perché le sue ultime letture
+ * erano uguali ([GlassProbeRest]). Uno per giro, non per lettura risparmiata: con una pagina che si ridisegna a ogni
+ * fotogramma cresce di uno a fotogramma.
+ */
+internal enum class GlassProbeWake { Revision, Positioned, ObservedReads, Timer, Read, ReadRerecord, Rested }
 
 /**
  * Una lettura della sonda, come la vede una prova sul dispositivo. Non è un'API per le app.

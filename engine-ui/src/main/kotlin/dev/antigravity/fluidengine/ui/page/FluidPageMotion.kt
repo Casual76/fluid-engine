@@ -175,19 +175,22 @@ object FluidPageMotion {
     spring(FluidMotion.DampingChrome, FluidMotion.ResponseSnappy, VisibilityThresholdPx)
 
   /**
-   * La risposta della molla dello zoom di UIKit, in secondi, misurata a tempo vero (4.0, F5B.3): WWDC24 10145, l'iPad
-   * della dimostrazione (iOS 18, 29,97 fps). L'apertura da una cella toccata, da ferma, e' una molla critica di risposta
-   * 0,71 s (scarto quadratico 0,002 su 24 fotogrammi, i lati della sagoma); il ritorno nella cella dopo il dito, partito
-   * con la velocita' del rilascio, sta fra 0,61 e 0,74 s. Misura e fit: `sessioni/f5b-3/strumenti/misura_10145.py`.
+   * La risposta della molla dello zoom di UIKit, in secondi (4.0): WWDC24 10145, l'iPad della dimostrazione (iOS 18).
+   * Quel video e' **a meta' velocita'** (Apple lo dice nella trascrizione: «all the animations in this video are slowed
+   * down to half speed»), quindi un suo fotogramma a 29,97 fps vale 16,7 ms di tempo vero. A tempo vero l'apertura da
+   * una cella toccata, da ferma, e' una molla critica di risposta 0,355 s (scarto quadratico 0,002 su 24 fotogrammi, i
+   * lati della sagoma); il ritorno nella cella dopo il dito, partito con la velocita' del rilascio, sta fra 0,305 e
+   * 0,37 s. F5B.3 l'aveva letta a 0,71 s, senza la nota sulla velocita': lo zoom andava lento il doppio. Misura e fit:
+   * `sessioni/corr-zoom/strumenti/misura_10145_tempo_vero.py`. E' appena piu' morbida di [ResponsePageSeconds].
    */
-  const val ResponseZoomSeconds: Double = 0.71
+  const val ResponseZoomSeconds: Double = 0.355
   val ResponseZoom: Float = FluidMotion.stiffnessForResponse(ResponseZoomSeconds)
 
   /**
    * Lo zoom dalla sorgente, nei due versi (push, pop, conferma del dito, le inversioni), solo quando una sagoma viaggia
    * fra la sorgente e la pagina: la molla misurata su Apple ([ResponseZoomSeconds]), critica, come in UIKit, dove
-   * apertura e ritorno sono la stessa transizione. Piu' morbida di [page]: la sagoma rallenta per tutta la strada. Push,
-   * pop e conferma di `Slide`, `ShrinkSlide` e dell'`Expand` senza sorgente restano su [page].
+   * apertura e ritorno sono la stessa transizione. Push, pop e conferma di `Slide`, `ShrinkSlide` e dell'`Expand` senza
+   * sorgente restano su [page], al bit.
    */
   fun zoom(): SpringSpec<Float> =
     spring(FluidMotion.DampingChrome, ResponseZoom, VisibilityThresholdPx)

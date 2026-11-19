@@ -87,6 +87,7 @@ internal fun MeasureStage(
   clock: MeasureClock,
   sources: MeasureSources,
   modifier: Modifier = Modifier,
+  readsRawLayer: Boolean = false,
   /**
    * Disegnato sopra il fondale e **dentro** la sua registrazione: ciò che legge qui uno stato fa
    * ri-registrare la sorgente quando lo stato cambia, come una pagina che cambia sotto un vetro fermo.
@@ -102,7 +103,7 @@ internal fun MeasureStage(
         .fillMaxSize()
         // Come `glassBackdropSource`: la registrazione, e sotto di lei il fondale rasterizzato una
         // volta sola fuori schermo, così ogni vetro campiona un quadrilatero e non rigira la pagina.
-        .layerBackdrop(sources.layer)
+        .then(if (readsRawLayer) Modifier.layerBackdrop(sources.layer) else Modifier)
         .glassBackdropSource(sources.glass)
         .then(
           if (backdropOverlay != null) {

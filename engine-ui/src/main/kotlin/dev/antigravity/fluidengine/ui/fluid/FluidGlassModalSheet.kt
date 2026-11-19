@@ -966,13 +966,13 @@ private fun FluidSheetPane(
   }
 }
 
-private class FluidSheetScene(val backdrop: GlassBackdropState, val source: Modifier)
+internal class FluidSheetScene(val backdrop: GlassBackdropState, val source: Modifier)
 
 /** Pagina e scrim si rasterizzano alla misura della finestra, anche quando il foglio cambia altezza.
  * La lastra legge così la porzione corrente di una texture stabile, mantenendo posizione e ottica del vetro.
  */
 @Composable
-private fun rememberSheetScene(input: GlassBackdropState): FluidSheetScene {
+internal fun rememberSheetScene(input: GlassBackdropState): FluidSheetScene {
   var origin by remember { mutableStateOf<LayoutCoordinates?>(null) }
   val texture = rememberGraphicsLayer()
   val scene = rememberLayerBackdrop(texture) {
@@ -980,11 +980,15 @@ private fun rememberSheetScene(input: GlassBackdropState): FluidSheetScene {
     with(input.backdrop) { drawBackdrop(density, origin, null) }
   }
   return remember(input, scene) {
+    scene.onDemand = true
     texture.compositingStrategy = CompositingStrategy.Offscreen
     val image = object : Backdrop by scene {
       // Le sonde e il prestito della pagina devono continuare a vedere le sorgenti originali.
       override val layerSources get() = input.backdrop.layerSources
-      override fun forEachPart(block: (Backdrop) -> Unit) = input.backdrop.forEachPart(block)
+      override fun forEachPart(block: (Backdrop) -> Unit) {
+        block(scene)
+        input.backdrop.forEachPart(block)
+      }
       override fun isReadyToSample() = scene.isReadyToSample() && input.backdrop.isReadyToSample()
     }
     FluidSheetScene(

@@ -88,7 +88,8 @@ class LayerBackdrop internal constructor(
         set(value) { ownCoordinates = value }
 
     /** Senza le coordinate del layer, `drawBackdrop` esce senza disegnare: non c'e' niente da tenere. */
-    override fun isReadyToSample(): Boolean = !graphicsLayer.isReleased && layerCoordinates?.isAttached == true
+    override fun isReadyToSample(): Boolean = !graphicsLayer.isReleased &&
+        layerCoordinates?.isAttached == true && hasPageRecording()
 
     /**
      * Fluid Engine addition (2.13.0): il nodo che registra questo layer, quando e' uno dei nostri.
@@ -106,7 +107,7 @@ class LayerBackdrop internal constructor(
      */
     internal fun sourceFor(reader: LayoutCoordinates): LayerBackdrop? {
         if (graphicsLayer.isReleased || !reader.isAttached) return null
-        if (ownCoordinates?.isAttached == true) return this
+        if (ownCoordinates?.isAttached == true) return pageSourceOrSelf()
         val shell = chromeFallback ?: return null
         val pages = shell.ownCoordinates ?: return null
         if (ownerNode != null || !pages.isAttached || shell.graphicsLayer.isReleased) return null
@@ -124,8 +125,8 @@ class LayerBackdrop internal constructor(
      * Vale per il materiale che un pannello pubblica (`exports`, e quello che pubblica da solo per
      * il vetro che ci sta dentro): un pannello che nessuno rifrange non deve pagarne la
      * registrazione. Chi lo campiona si fa contare con [addReader]; il pannello registra solo
-     * finche' [readerCount] e' sopra zero. Non tocca chi registra una *pagina*
-     * (`layerBackdrop`): quella resta registrata sempre, come prima.
+     * finche' [readerCount] e' sopra zero. Vale anche per le sorgenti dell'engine e la scena del foglio.
+     * Un layer grezzo dell'app può essere letto direttamente tramite [graphicsLayer].
      */
     internal var onDemand: Boolean = false
 
@@ -138,11 +139,14 @@ class LayerBackdrop internal constructor(
     internal var onFirstReader: (() -> Unit)? = null
 
     internal fun addReader() {
-        if (readers.add()) onFirstReader?.invoke()
+        if (readers.add()) {
+            updatePageDemand()
+            onFirstReader?.invoke()
+        }
     }
 
     internal fun removeReader() {
-        readers.remove()
+        if (readers.remove()) updatePageDemand()
     }
 
     /** Se chi esporta in questo layer deve registrarlo a questo fotogramma. */
@@ -297,8 +301,10 @@ internal class ReaderCount {
         return count == 1
     }
 
-    fun remove() {
-        if (count > 0) count--
+    fun remove(): Boolean {
+        if (count == 0) return false
+        count--
+        return count == 0
     }
 }
 

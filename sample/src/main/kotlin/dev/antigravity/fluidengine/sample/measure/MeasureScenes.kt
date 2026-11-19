@@ -154,7 +154,7 @@ private fun GlassScene(session: MeasureSession) {
   val shaders = session.shaders
   val protoAvailable = shaders != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
-  MeasureStage(config, session.clock, session.sources) {
+  MeasureStage(config, session.clock, session.sources, readsRawLayer = showProto && protoAvailable) {
     Column(
       modifier = Modifier
         .align(Alignment.Center)
@@ -425,7 +425,7 @@ private fun EdgeScene(session: MeasureSession) {
   val shaders = session.shaders
   val twoPass = config.strip == MeasureStrip.TwoPass
   val available = shaders != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-  MeasureStage(config, session.clock, session.sources) {
+  MeasureStage(config, session.clock, session.sources, readsRawLayer = twoPass && available) {
     when (config.strip) {
       MeasureStrip.TwoPass -> {
         if (shaders != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -625,7 +625,7 @@ private fun ProbeScene(session: MeasureSession) {
     }
   }
 
-  MeasureStage(config, session.clock, session.sources, backdropOverlay = overlay) {
+  MeasureStage(config, session.clock, session.sources, readsRawLayer = config.probes > 0, backdropOverlay = overlay) {
     Row(
       modifier = Modifier
         .align(Alignment.Center)
@@ -997,7 +997,9 @@ private fun CompileScene(session: MeasureSession, shaders: ProtoSources) {
   var shown by remember { mutableIntStateOf(0) }
   val drive = remember { ProtoDrive() }
 
-  MeasureStage(config, session.clock, session.sources) {
+  val readsRawLayer = plan.elements.any { it.bodyStep in 0 until shown } ||
+    plan.topStrip in 0 until shown || plan.bottomStrip in 0 until shown
+  MeasureStage(config, session.clock, session.sources, readsRawLayer = readsRawLayer) {
     // Con la sequenza di S1 gli elementi stanno in colonna, come allora; di più, tre per riga.
     val perRow = if (plan.elements.size <= 5) 1 else 3
     Column(

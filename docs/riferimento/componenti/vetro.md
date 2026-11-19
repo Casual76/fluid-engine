@@ -1518,13 +1518,14 @@ il contenuto nuovo. Solo il **padding** della catena invalida (non i numeri degl
   a 2,5 dp di base: `Bar` 0,40, `Floating` 0,73, `Modal` 0,48, `Content` 0,88 × 0,5 di `backdropResolution`. Un pannello quasi chiaro resta a piena risoluzione perché la sua lente *è* tutto bordo e un bordo
   morbido è l'unica cosa che non può avere. Il pavimento è prudente: più giù il raggio si schiaccia sotto il pixel e l'upscale non ha più niente che lo nasconda (pixelatura, non brina).
 
-**5. Le sorgenti a schermo intero sempre registrate sono il costo che oggi non ha manopola.** `glassBackdropSource` registra sempre, anche se **niente** la sta campionando; la 2.13.0 ha reso pigri
-solo i materiali che i pannelli *pubblicano* (`exports`, vetro su vetro). Misure Perfetto sull'S25 fatte dall'app MyCloud Gallery (13 ottobre 2026, fuori da questo repo): nel pinch e nello scorrimento
-della griglia il collo di bottiglia è il **RenderThread**, 7–10 ms per fotogramma e 47 passate GPU fra i fondali di vetro a schermo intero (lista → pagina → radice) e le sfocature di barra, segmenti e pillola;
-i picchi da 20–36 ms sono `vkAllocateMemory` (3–5 ms) dopo decine di `vkFreeMemory`, cioè la cache delle risorse di Skia sotto pressione. Togliere un `glassBackdropSource` a schermo intero
-sempre acceso alla radice (registrarlo solo mentre un pop-up è a schermo) ha ridotto i picchi. **Regola pratica**: prima di aggiungere un livello di vetro a schermo intero, chiediti **chi lo legge**.
-Registrare una sorgente solo mentre ha lettori, come gli export, **non esiste ancora** (candidato per una 2.14, mai arrivato nella 3.0.4: il codice di `LayerBackdropNode` registra sempre); si misura su un
-dispositivo vero con Perfetto, non su un emulatore.
+**5. Il costo della sorgente segue i lettori (F7.5).** Una pagina con `glassBackdropSource` disegna il corpo anche da sola. Quando si attacca la prima superficie o sonda, il produttore
+registra una cattura nuova, anche con `frozen = { true }`. Le superfici successive condividono la registrazione. All'uscita dell'ultimo lettore il produttore restituisce il layer a Compose
+e il corpo lascia la composizione fuori schermo. Un fotogramma in uscita può trattenere il vecchio RenderNode finché lo sta mostrando. La chrome di riserva registra nel suo layer privato.
+Per una registrazione grezza con `Modifier.layerBackdrop` e un `GraphicsLayer` leggibile direttamente dall'app, il chiamante monta il modificatore per la durata delle proprie letture.
+
+Nel pinch e nello scorrimento della griglia di MyCloud Gallery sull'S25 (13 ottobre 2026) il RenderThread impiegava 7–10 ms per fotogramma. Le 47 passate GPU comprendevano i fondali
+a tutta pagina e le sfocature. Nei picchi da 20–36 ms comparivano `vkAllocateMemory` da 3–5 ms dopo decine di `vkFreeMemory`. In quell'app limitare il fondale di radice alla vita
+dei pop-up aveva ridotto i picchi. Il confronto degli APK F7.5 sul Tab S9 è preparato in `sessioni/f7-5/riprese.md`.
 
 **6. «Livello più basso».** Due usi della parola, entrambi sul sorgente:
 - il vetro **di livello più basso** è `glassSurface` rispetto ai componenti che lo avvolgono: `FluidCard(sampleOnce, resampleIntervalMillis)` (3.0.4) espone le stesse due manopole «come il vetro di livello più

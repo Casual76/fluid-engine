@@ -251,7 +251,7 @@ class FluidPageZoomTest {
     while (state.isMoving) {
       last = state.zoomShape() ?: last
       // Il primo fotogramma fa partire la molla: dopo n fotogrammi ne sono passati n - 1.
-      if (frames == 10 || frames == 25) {
+      if (frames == 6 || frames == 15) {
         val shape = requireNotNull(state.zoomShape()).bounds
         val fraction = (full.width - shape.width) / (full.width - card.width)
         val expected = critical((frames - 1) * frameSeconds, FluidPageMotion.ResponseZoomSeconds)
@@ -260,9 +260,9 @@ class FluidPageZoomTest {
       frame()
       frames++
     }
-    // La molla critica di 0,71 s su questa distanza arriva al dp verso 1,1 s: piu' lunga della molla delle pagine, ma la
-    // sagoma si muove fino all'ultimo fotogramma.
-    assertTrue("il ritorno dura come la molla di Apple ($frames fotogrammi)", frames in 50..80)
+    // La molla critica di 0,355 s (Apple a tempo vero) su questa distanza (1000 px) arriva al dp verso 520 ms, ~32
+    // fotogrammi; la sagoma si muove fino all'ultimo. Con la molla letta sul video a meta' velocita' (0,71 s) erano ~64.
+    assertTrue("il ritorno dura come la molla di Apple ($frames fotogrammi)", frames in 26..40)
     assertTrue("e quando finisce la sagoma e' sulla card", near(requireNotNull(last).bounds, card, 3f))
     assertFalse(source.isHidden)
 

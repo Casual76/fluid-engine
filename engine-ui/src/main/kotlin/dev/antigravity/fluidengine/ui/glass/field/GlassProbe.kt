@@ -648,7 +648,7 @@ internal class GlassProbeNode(
       this.backdrop = backdrop
       recordedGeometry = null
       lastGeometry = null
-      if (isAttached) {
+      if (isAttached && !unavailable) {
         subscribe()
         signal()
       }
@@ -710,9 +710,19 @@ internal class GlassProbeNode(
     sources = layers
     sourcesUnannounced = layers.isEmpty() || layers.size != backdrop.layerSources.size
     for (layer in layers) layer.addRevisionListener(revisionListener)
+    // Una sonda autonoma legge anche senza un DrawBackdropNode. La scena del foglio e le
+    // trasformazioni possono disegnare layer diversi da quelli che annunciano le revisioni.
+    val reads = mutableSetOf<LayerBackdrop>()
+    backdrop.forEachPart { if (it is LayerBackdrop && it.onDemand) reads.add(it) }
+    sampledLayers = reads
+    for (layer in reads) layer.addReader()
   }
 
+  private var sampledLayers: Set<LayerBackdrop> = emptySet()
+
   private fun unsubscribe() {
+    for (layer in sampledLayers) layer.removeReader()
+    sampledLayers = emptySet()
     for (layer in sources) layer.removeRevisionListener(revisionListener)
     sources = emptyList()
   }
@@ -829,6 +839,7 @@ internal class GlassProbeNode(
     }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
       unavailable = true
+      unsubscribe()
       return
     }
     val reader = obtainReader()
@@ -836,6 +847,7 @@ internal class GlassProbeNode(
       // Nessun lettore per questa finestra (non accelerata, caselle finite, piattaforma che rifiuta): la sonda resta
       // sul lato del tema per tutta la vita del nodo. Non si riprova a ogni evento.
       unavailable = true
+      unsubscribe()
       return
     }
     scheduler.onReadSent(now, rerecord)
@@ -891,6 +903,7 @@ internal class GlassProbeNode(
     reader = null
     slot = -1
     unavailable = true
+    unsubscribe()
     FluidGlassProbeDiagnostics.onSlotRefused()
     Log.w(GlassProbeLogTag, "Sonda dello sfondo: casella ceduta a un vetro più grande o più centrale, questo tiene l'ultimo lato")
   }

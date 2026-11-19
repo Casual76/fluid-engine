@@ -140,7 +140,7 @@ internal fun AdaptiveStage(
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .layerBackdrop(probeSource)
+        .then(if (FluidGlassProbeDiagnostics.isAvailable) Modifier.layerBackdrop(probeSource) else Modifier)
         .drawBehind(draw),
     )
     Box(

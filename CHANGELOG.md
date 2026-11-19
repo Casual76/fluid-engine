@@ -8,9 +8,13 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Zoom dalla sorgente, correzione dell'orologio. Il video di Apple da cui F5B.3 aveva misurato la molla (WWDC24 10145) è proiettato a metà velocità, come dice Apple nella sua trascrizione: a tempo vero la molla dello zoom è critica con risposta 0,355 s, non 0,71 (`FluidPageMotion.ResponseZoomSeconds`). Apertura e ritorno con la sorgente vanno al doppio della velocità di prima; `Slide`, `ShrinkSlide`, l'`Expand` senza sorgente e il foglio dal tasto, misurato su un altro video, non cambiano. Le tracce `tools/glassbench/traces/f5b-3/zoom-*` sono rifatte e confrontano Apple a tempo vero.
+
 - Fogli, giro di correzione di F5B. Sopra la soglia di `undimmedUpTo` la pagina si scurisce man mano che il foglio sale verso il detent sopra, come UIKit, e non più di colpo; il tocco e il fuoco passano ancora alla soglia. Sotto un foglio di vetro la pagina si scurisce quanto in Apple: nero al 23% sul chiaro (era 12%) e al 31% sullo scuro (era 20%, una scelta: Apple non mostra un foglio sullo scuro). Cambia l'aspetto di ogni `FluidGlassSheet`; avvisi, conferme e i portali di sempre restano com'erano. Le prove stanno in `tools/glassbench/traces/f5b-corr/`, e le tracce dei fogli di F5B.2 e F5B.3 disegnano il velo di oggi al posto dello scrim sfocato.
 
 - Barre in basso, ricerca e schede, chiusura di F4B (F4B.5). La pagina «Barra in basso» della galleria si legge in quattro capitoli (`sample/…/bottom/`): la barra in basso e la capsula; la ricerca nelle sue sedi (in basso con gli ambiti, automatica, minimizzata, in alto, in alto fino alla tastiera, il campo di inserimento); la tab bar con la piega anche allo scorrimento, il tondo della ricerca, il lettore e la prominente; il passaggio alla navigazione adattiva. Otto tracce in `tools/glassbench/traces/f4b-5/` accoppiate ai video di Apple. `barre.md` riscritta in un solo racconto; in `toolbar.md` la barra in basso e la ricerca. Il codice dell'engine non cambia.
+
+- Vetro (F7.5). Il corpo della pagina, lo scrim dei modali e la scena del foglio con detent registrano il fondale quando arriva un lettore e rilasciano la cattura quando esce l'ultimo.
 
 - Pagine (F4A.7b). Il push ordinario compone il dettaglio al cambio di pila. Con `precomposePage` la pagina chiamante può anticiparne anche la misura delle righe visibili prima del tocco.
 
@@ -42,7 +46,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - La ricerca di `FluidScreen` trasforma la lente da 44 dp in un campo da 40 dp sul piano della barra, riunisce i comandi vicini e segue la tastiera con gli ambiti in linea.
 
-- Zoom dalla sorgente (F5B.3). `FluidPageTransition.Expand` con una sorgente dichiarata (`zoomSource` di `FluidPageHost` e di `composable`) nasce dalla card e ci torna, anche col dito che la rimpicciolisce sotto di sé, sulla corsa di sempre; apertura e ritorno con la sorgente hanno la molla dello zoom di UIKit misurata a tempo vero (`FluidPageMotion.zoom()`, critica, 0,71 s), le altre transizioni restano sulla molla delle pagine; `FluidGlassSheet(source = …)` fa crescere il vetro dal tasto (anche della barra) con il contenuto sfocato fino a ≈300 ms. La sorgente è consumata finché la presentazione è in scena. La geometria è pura e riusabile (`FluidZoom`, `FluidZoomShape`); senza sorgente tutto resta com'era.
+- Zoom dalla sorgente (F5B.3). `FluidPageTransition.Expand` con una sorgente dichiarata (`zoomSource` di `FluidPageHost` e di `composable`) nasce dalla card e ci torna, anche col dito che la rimpicciolisce sotto di sé, sulla corsa di sempre; apertura e ritorno con la sorgente hanno la molla dello zoom di UIKit (`FluidPageMotion.zoom()`, critica, 0,355 s a tempo vero), le altre transizioni restano sulla molla delle pagine; `FluidGlassSheet(source = …)` fa crescere il vetro dal tasto (anche della barra) con il contenuto sfocato fino a ≈300 ms. La sorgente è consumata finché la presentazione è in scena. La geometria è pura e riusabile (`FluidZoom`, `FluidZoomShape`); senza sorgente tutto resta com'era.
 
 - `toolbar { }` posa le azioni `BottomBar` sul piano flottante anche fra pagine. La capsula libera anima la propria larghezza e lo scambio dei simboli.
 

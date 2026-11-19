@@ -26,14 +26,20 @@
  */
 package dev.antigravity.fluidengine.ui.glass.backdrop.backdrops
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 
 fun Modifier.layerBackdrop(
@@ -53,27 +59,28 @@ fun Modifier.layerBackdrop(
     frozen: () -> Boolean = { false },
 ): Modifier = this then LayerBackdropElement(backdrop, frozen)
 
+/** Il velo pubblicato è anche quello visibile. Registrarlo e riprodurlo disegna il velo una volta sola. */
+internal fun Modifier.scrimBackdrop(backdrop: LayerBackdrop): Modifier =
+    this then LayerBackdropElement(backdrop, { false }, replay = true)
+
 private class LayerBackdropElement(
     val backdrop: LayerBackdrop,
     val frozen: () -> Boolean,
+    val replay: Boolean = false,
 ) : ModifierNodeElement<LayerBackdropNode>() {
 
     override fun create(): LayerBackdropNode {
-        return LayerBackdropNode(backdrop, frozen)
+        return LayerBackdropNode(backdrop, frozen, replay)
     }
 
     override fun update(node: LayerBackdropNode) {
         if (node.backdrop != backdrop) {
-            if (node.backdrop.ownerNode === node) {
-                node.backdrop.layerCoordinates = null
-                node.backdrop.ownerNode = null
-            }
+            if (node.isAttached) node.unbind()
             node.backdrop = backdrop
-            if (node.isAttached) {
-                backdrop.ownerNode = node
-            }
+            if (node.isAttached) node.bind()
         }
         node.frozen = frozen
+        node.replay = replay
         node.invalidateDraw()
     }
 
@@ -87,35 +94,77 @@ private class LayerBackdropElement(
         if (other !is LayerBackdropElement) return false
 
         if (backdrop != other.backdrop) return false
-        if (frozen != other.frozen) return false
+        if (frozen != other.frozen || replay != other.replay) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return 31 * backdrop.hashCode() + frozen.hashCode()
+        return 31 * (31 * backdrop.hashCode() + frozen.hashCode()) + replay.hashCode()
     }
 }
 
 private class LayerBackdropNode(
     var backdrop: LayerBackdrop,
     var frozen: () -> Boolean,
+    var replay: Boolean,
 ) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
 
-    /** Whether there is a capture to keep. The first frame always records. */
-    private var recorded = false
+    // Un'identità diversa a ogni riapertura. Un vecchio RenderNode può ancora trattenere
+    // la cattura precedente durante il pop: Compose la libera all'ultimo riferimento.
+    var page: LayerBackdrop? by mutableStateOf(null)
+        private set
+    private var coordinates: LayoutCoordinates? = null
+    var recorded by mutableStateOf(false)
+        private set
+
+    fun updateDemand() {
+        if (!backdrop.onDemand) return
+        if (backdrop.readerCount > 0) {
+            if (page != null) return
+            val layer = requireGraphicsContext().createGraphicsLayer()
+            layer.compositingStrategy = backdrop.graphicsLayer.compositingStrategy
+            page = LayerBackdrop(layer, backdrop.onDraw).also { it.layerCoordinates = coordinates }
+            recorded = false
+        } else {
+            if (page == null) return
+            retirePage()
+        }
+        invalidateDraw()
+    }
+
+    private fun retirePage() {
+        page?.let {
+            page = null
+            it.layerCoordinates = null
+            requireGraphicsContext().releaseGraphicsLayer(it.graphicsLayer)
+        }
+        recorded = false
+    }
 
     override fun ContentDrawScope.draw() {
         // Fluid Engine addition (4.0.0, F2.3c): chi si disegna qui dentro sta nella registrazione di questo layer, e
         // quando poi si registra di nuovo da solo lo avvisa (vedi `LayerRecordingStack`).
         LayerRecordingStack.enter(backdrop)
         try {
-            drawContent()
+            // Due pagine possono sovrapporsi durante il push. Se la più recente è uscita,
+            // quella che torna a disegnarsi riprende la sorgente con le proprie coordinate.
+            if (backdrop.onDemand && backdrop.ownerNode == null) bind()
+            val target = if (backdrop.onDemand) page else backdrop
+            if (target == null) {
+                drawContent()
+                return
+            }
+            if (!replay) drawContent()
             // Held still: the tree is drawn the ordinary way, which reuses every child that did not
             // change, and the glass goes on sampling the capture from before the movement started.
             if (recorded && frozen()) return
-            recordLayer(this@LayerBackdropNode, backdrop.graphicsLayer) { backdrop.onDraw(this@draw) }
+            recordLayer(this@LayerBackdropNode, target.graphicsLayer) { backdrop.onDraw(this@draw) }
             recorded = true
+            if (replay) {
+                FluidGlassDiagnostics.onExport()
+                drawLayer(target.graphicsLayer)
+            }
         } finally {
             LayerRecordingStack.exit(backdrop)
         }
@@ -124,14 +173,28 @@ private class LayerBackdropNode(
         backdrop.bumpRevision()
     }
 
-    override fun onAttach() {
-        // Fluid Engine addition (2.13.0): chi registra questo layer, per il vetro su vetro.
+    fun bind() {
+        if (backdrop.onDemand) (backdrop.ownerNode as? LayerBackdropNode)?.retirePage()
         backdrop.ownerNode = this
+        backdrop.layerCoordinates = coordinates
+        updateDemand()
     }
 
+    fun unbind() {
+        if (backdrop.ownerNode === this) {
+            backdrop.layerCoordinates = null
+            backdrop.ownerNode = null
+        }
+        retirePage()
+    }
+
+    override fun onAttach() = bind()
+
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        this.coordinates = coordinates
         if (coordinates.isAttached && backdrop.ownerNode === this) {
             backdrop.layerCoordinates = coordinates
+            page?.layerCoordinates = coordinates
         }
     }
 
@@ -144,10 +207,8 @@ private class LayerBackdropNode(
     }
 
     override fun onDetach() {
-        if (backdrop.ownerNode === this) {
-            backdrop.layerCoordinates = null
-            backdrop.ownerNode = null
-        }
+        unbind()
+        coordinates = null
     }
 }
 
@@ -157,3 +218,17 @@ private class LayerBackdropNode(
  * e' privato a questo file.
  */
 internal fun LayerBackdrop.isRecordedByLayerBackdropNode(): Boolean = ownerNode is LayerBackdropNode
+
+internal fun LayerBackdrop.updatePageDemand() {
+    (ownerNode as? LayerBackdropNode)?.updateDemand()
+}
+
+/** Un export o un layer passato dall'app mantiene la sua identità. Solo la pagina gestita dal
+ * nodo presta una registrazione privata, con la durata dei suoi lettori. */
+internal fun LayerBackdrop.pageSourceOrSelf(): LayerBackdrop? {
+    val writer = ownerNode as? LayerBackdropNode ?: return this
+    return if (onDemand) writer.page else this
+}
+
+internal fun LayerBackdrop.hasPageRecording(): Boolean =
+    !onDemand || (ownerNode as? LayerBackdropNode)?.recorded != false

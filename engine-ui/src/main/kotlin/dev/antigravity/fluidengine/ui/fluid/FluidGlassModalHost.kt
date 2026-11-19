@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.scrimBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -689,7 +690,7 @@ internal fun FluidPresentationScrim(
       .then(if (entry.visible && entry.blocksPage) Modifier.pointerInput(entry) {
         detectTapGestures { entry.onDismissRequest() }
       } else Modifier)
-      .glassMaterialSource(exports)
+      .then(exports.layerBackdrop?.let { Modifier.scrimBackdrop(it) } ?: Modifier)
       .drawBehind {
         if (entry.blocksPage) {
           val dim = if (sheet) entry.sheetBackground.dim.coerceIn(0f, 1f) else 1f

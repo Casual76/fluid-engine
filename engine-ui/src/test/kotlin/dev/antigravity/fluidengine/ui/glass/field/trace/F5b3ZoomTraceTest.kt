@@ -316,12 +316,13 @@ class F5b3ZoomTraceTest {
     var fingerPx = 0f
     val downDp = Offset(14f, 600f)
     val frames = ArrayList<GlassTraceFrame>()
-    // I ritorni hanno la molla dello zoom misurata su Apple (critica, 0,71 s): arrivano al dp verso 1 s dopo il via.
+    // La molla dello zoom misurata su Apple a tempo vero (critica, 0,355 s): l'apertura si ferma verso 600 ms, il ritorno
+    // col tasto arriva al dp verso 470 ms; dopo, qualche fotogramma a riposo.
     val lastFrame = when (scenario) {
-      "zoom-apre" -> 84
-      "zoom-torna", "zoom-torna-dissolvenza" -> 72
-      "zoom-dito" -> 96
-      "zoom-dito-interrotto" -> 114
+      "zoom-apre" -> 48
+      "zoom-torna", "zoom-torna-dissolvenza" -> 48
+      "zoom-dito" -> 66
+      "zoom-dito-interrotto" -> 90
       else -> 48
     }
     for (k in -3..lastFrame) {
@@ -499,18 +500,21 @@ class F5b3ZoomTraceTest {
   ).also { head -> appleZoom(scenario)?.let { head["apple"] = listOf(it) } }
 
   /**
-   * Lo zoom di Apple a tempo vero (WWDC24 10145, l'iPad della dimostrazione, iOS 18): l'apertura da una cella toccata
-   * (0:31,7) e il ritorno col dito nella cella (1:45,9). Il ritorno col tasto non c'è: ha la stessa molla dell'apertura.
+   * Lo zoom di Apple (WWDC24 10145, l'iPad della dimostrazione, iOS 18): l'apertura da una cella toccata (0:31,7) e il
+   * ritorno col dito nella cella (1:45,9). Il ritorno col tasto non c'è: ha la stessa molla dell'apertura. **Il video è a
+   * metà velocità** (lo dice Apple nella trascrizione): `speed` = 2 lo riporta a tempo vero, un fotogramma ogni 16,7 ms.
    */
   private fun appleZoom(scenario: String): Map<String, Any?>? {
     val (t0, note) = when (scenario) {
-      "zoom-apre" -> 959 to "classe B (interfaccia vera, UIKit, iOS 18): la cella toccata diventa pagina; da ferma, molla " +
-        "critica di risposta 0,71 s (sessioni/f5b-3/strumenti/misura_10145.py)."
-      "zoom-dito" -> 3179 to "classe B: la pagina presa dal bordo, trascinata e lasciata, rientra nella sua cella; dopo il " +
-        "rilascio la stessa molla, partita con la velocità del dito. Il dito di Apple non è quello della traccia."
-      "zoom-torna", "zoom-torna-dissolvenza" -> 3182 to "classe B: il ritorno col tasto non c'è nella sessione; accanto, il " +
-        "ritorno col dito (1:46), allineato sulla strada: al rilascio (f3186) Apple ha fatto ~0,39 della strada, il nostro " +
-        "ritorno col tasto ci arriva a ~150 ms. Prima del rilascio il dito di Apple porta la pagina a destra."
+      "zoom-apre" -> 958 to "classe B (interfaccia vera, UIKit, iOS 18), video a metà velocità riportato a tempo vero: " +
+        "la cella toccata diventa pagina; da ferma, molla critica di risposta 0,355 s partita a f957,6 " +
+        "(sessioni/corr-zoom/strumenti/misura_10145_tempo_vero.py)."
+      "zoom-dito" -> 3179 to "classe B, a tempo vero: la pagina presa dal bordo, trascinata e lasciata, rientra nella sua " +
+        "cella; dopo il rilascio la stessa molla, partita con la velocità del dito. Il dito di Apple (≈120 ms) non è " +
+        "quello della traccia (250 ms)."
+      "zoom-torna", "zoom-torna-dissolvenza" -> 3180 to "classe B, a tempo vero: il ritorno col tasto non c'è nella " +
+        "sessione; accanto, il ritorno col dito (1:46), allineato sulla strada dopo il rilascio (f3186-f3190: Apple 0,49 " +
+        "-> 0,79, la nostra molla da f3180 entro 0,04). Prima del rilascio il dito di Apple porta la pagina a destra."
       else -> return null
     }
     return linkedMapOf(
@@ -518,6 +522,7 @@ class F5b3ZoomTraceTest {
       "video" to "artifacts/liquid-glass/sessioni/f5b-3/rif/wwdc2024-10145/wwdc2024-10145_hd_0-8min.mp4",
       "t0Frame" to t0,
       "crop" to if (scenario == "zoom-apre") listOf(363, 123, 1193, 822) else listOf(493, 214, 934, 642),
+      "speed" to 2,
       "note" to note,
     )
   }

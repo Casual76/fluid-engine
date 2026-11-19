@@ -40,6 +40,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.pageSourceOrSelf
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassContainerScope
@@ -233,10 +234,7 @@ val DefaultGlassBlurRadius: Dp = 2.5.dp
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
   val layerBackdrop = rememberLayerBackdrop()
   return remember(layerBackdrop, blurRadius) {
-    // Su richiesta (2.13.0): quando questo stato e' il materiale che un pannello esporta
-    // (`exports`), il pannello lo registra solo mentre del vetro lo sta campionando. Usato come
-    // registrazione di una pagina (`glassBackdropSource`) non cambia niente: quella si registra
-    // sempre, come prima.
+    // La pagina e il materiale esportato conoscono tutti i lettori di questo stato.
     layerBackdrop.onDemand = true
     GlassBackdropState(layerBackdrop, layerBackdrop, blurRadius)
   }
@@ -272,6 +270,9 @@ fun rememberCombinedGlassBackdrop(
  * up sampling themselves. The body must also paint its own opaque background *inside* the recorded
  * region: a recording of text on transparency refracts into a smear that the sharp original still
  * shows through.
+ *
+ * Il primo lettore attiva la cattura della pagina anche durante uno scorrimento congelato. Quando
+ * esce l'ultimo lettore il corpo restituisce il layer di cattura e continua a disegnarsi.
  *
  * Il vetro adattivo sopra rilegge lo sfondo quando questa sorgente si registra di nuovo, quando ciò che disegna si
  * ridisegna (dalla 4.0, F3.10: anche se cambia solo un colore nel disegno, sotto un antenato col suo layer) o quando un
@@ -309,7 +310,12 @@ fun Modifier.glassBackdropSource(
     // hundred milliseconds of render thread that no single surface could be blamed for.
     // Compositing the source offscreen puts one texture between the op stream and its consumers:
     // the body rasterises once per change, and every pane after that samples a quad.
-    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+    .graphicsLayer {
+      // Anche a riposo il corpo conserva il ritaglio ai limiti che aveva fuori schermo.
+      val samples = layer.pageSourceOrSelf() != null
+      clip = !samples
+      compositingStrategy = if (samples) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+    }
     // 4.0 (F3.10): dentro quel layer, il nodo che dice alle sonde che il contenuto si è ridisegnato. Il nodo che registra
     // la sorgente sta fuori dal layer, e quando cambia solo ciò che il layer disegna (un fondo che passa da chiaro a scuro,
     // un colore animato) sotto un antenato col suo layer non ridisegna: nessuna sonda rileggeva (S3, F3-g). Questo
@@ -364,9 +370,9 @@ fun Modifier.glassContainer(material: GlassBackdropState): Modifier {
  *       Column(Modifier.glassContainer(pane)) { controls() }
  *     }
  *
- * Diverso da [glassBackdropSource], che registra una *pagina*: questo registra solo finche' del
- * vetro lo campiona, e non passa da un layer offscreen. Un pannello fatto con [glassSurface] non ne
- * ha bisogno: pubblica il proprio materiale da solo.
+ * Il materiale si registra mentre qualcuno lo campiona. La rasterizzazione fuori schermo di
+ * [glassBackdropSource] serve alla pagina. Un pannello fatto con [glassSurface] pubblica già il
+ * proprio materiale.
  */
 fun Modifier.glassMaterialSource(state: GlassBackdropState): Modifier {
   val layer = state.layerBackdrop ?: return this

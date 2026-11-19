@@ -281,7 +281,7 @@ volta, mai un salto. Fuori dall'host l'avviso e la conferma usano il `Dialog` di
 Il foglio (`FluidGlassSheet(source = …)`) e la pagina (`FluidPageTransition.Expand` con `zoomSource`) non fanno la goccia:
 **crescono dal riquadro della sorgente**, i lati verso i bordi e la cima verso l'alto, col contenuto dentro dal principio e
 sfocato. Il foglio è sotto, in «Il foglio che nasce dal tasto»; la pagina in [pagine.md](pagine.md), «Lo zoom dalla
-sorgente» (la molla di Apple da 0,71 s nei due versi, il dito che la riporta nella card, la dissolvenza all'arrivo come
+sorgente» (la molla di Apple da 0,355 s a tempo vero nei due versi, il dito che la riporta nella card, la dissolvenza all'arrivo come
 variante spenta).
 
 ### Cosa non c'è

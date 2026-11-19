@@ -110,7 +110,22 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    * il dito. Vedi `toolbar/ToolbarPagesPage.kt`. Si apre con `--es gallery.page toolbarpages`.
    */
   ToolbarPages("Barre fra pagine"),
-  BottomBar("Barra in basso"),
+
+  /**
+   * Tutto F4B in una pagina (piano «iOS in Android», F4B.5), in quattro capitoli: la barra in basso e la capsula; la
+   * ricerca nelle sue sedi (in basso con gli ambiti, automatica, minimizzata, in alto, fino alla tastiera, il campo di
+   * inserimento); la tab bar con la piega, il tondo della ricerca, il lettore e la prominente; il passaggio alla
+   * navigazione adattiva. Vedi `bottom/`. Si apre con `--es gallery.page BottomBar`. Uno strumento per le sessioni sul
+   * dispositivo, come «Barre fra pagine».
+   */
+  BottomBar("Barre in basso, ricerca e schede"),
+
+  /**
+   * La stessa dichiarazione di schede su tre larghezze (F4B.4): sotto 600 dp la tab bar, fino a 999 dp il rail, da
+   * 1000 dp la tab bar in alto che si apre in barra laterale e torna. Sta da sola perché vuole la finestra intera (la
+   * galleria qui non disegna la sua tab bar); ci si arriva dal quarto capitolo di [BottomBar] o con
+   * `--es gallery.page TabletNavigation`.
+   */
   TabletNavigation("Navigazione adattiva"),
 
   /**

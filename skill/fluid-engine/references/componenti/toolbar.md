@@ -149,11 +149,14 @@ toolbar = {
 ```
 
 Ogni posto misura 48 dp e porta l’icona della barra da 26 dp. Con lo spaziatore fisso il più si stacca
-dal gruppo e il suo bersaglio lo segue. Un gruppo annidato eredita la posizione del genitore, un tasto con
-posizione esplicita usa la propria. In un `FluidPageHost` la barra inferiore appartiene all’host. Al push e al
-pop legge la dichiarazione della destinazione. Durante il gesto annullabile conserva i comandi della pagina
-in primo piano. La politica `barMinimize` della pagina guida anche il ritiro verso il basso.
-La scena «Barra in basso» in Chrome si apre con `gallery.page=bottombar`.
+dal gruppo col collo del piano e il suo bersaglio lo segue; togliendolo i vetri si riuniscono. Un gruppo annidato
+eredita la posizione del genitore, un tasto con posizione esplicita usa la propria. Se esiste solo la barra in alto,
+i comandi `BottomBar` che non trovano posto finiscono in «Altro». In un `FluidPageHost` la barra inferiore appartiene
+all’host: al push e al pop legge la dichiarazione della destinazione, il comando che c’è in tutte e due le pagine resta
+fermo e gli altri entrano ed escono stringendo il gruppo. Durante il gesto annullabile conserva i comandi della pagina
+in primo piano. La politica `barMinimize` della pagina guida anche il ritiro verso il basso. La capsula che la pagina
+posa da sé (`FluidFloatingCapsule`) è in [barre.md](barre.md).
+La galleria: Chrome → «Barra in basso» (`--es gallery.page BottomBar`), primo capitolo.
 
 ## Le sorgenti delle transizioni (F5A.1)
 
@@ -184,7 +187,9 @@ La pagina passa `FluidScreen(search = FluidSearchSpec(…))` oppure `search(spec
 | `TopBar` | Sul lato finale della testata | Resta in alto. Con `expansion = AboveKeyboard` lo stesso editor scende sopra l’IME |
 | `Principal` | Sotto il titolo | Segue il ritiro della testata |
 
-Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`.
+Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale: `CollapseToButton` è la ricerca **minimizzata**, sempre un tasto a riposo. Il campo è un vetro del piano: la lente da 44 dp si allunga nella capsula alta 40 dp (la zona di tocco resta 44) mentre i vicini le fanno posto, senza ricatture durante il viaggio; il contenuto sta al layout d’arrivo. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`. Sopra un fondo carico il campo aperto si vela secondo l’inchiostro del piano (nero al 40% o bianco al 16%), in proporzione all’apertura.
+
+La galleria prova tutte le sedi su una pagina sola: Chrome → «Barra in basso», capitolo «Ricerca» (in basso con gli ambiti, automatica, minimizzata, in alto, in alto fino alla tastiera, il campo di inserimento); il campo fissato `Principal` è nella pagina «Ricerca» di «Barre fra pagine». Il confronto con Apple (Salute, WWDC25 256) è la traccia `tools/glassbench/traces/f4b-5/ricerca-apre`.
 
 Con `FluidSearchPlacement.Principal`, `FluidScreen` ritira la barra andando verso il fondo della lista. Titolo e tasti
 si sfocano e svaniscono seguendo il dito. Il campo conserva il fuoco, risale sul suo riempimento piatto e passa al

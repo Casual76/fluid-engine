@@ -27,6 +27,12 @@ private val destinations = listOf(
   FluidTabItem("preferiti", "Preferiti", FluidIcons.Star),
 )
 
+/**
+ * Il quarto capitolo della galleria di F4B, a finestra intera: tre destinazioni dichiarate una volta sola che diventano
+ * tab bar, rail o tab bar in alto secondo la larghezza, e in alto il tasto che apre la barra laterale e la richiude. I
+ * fondali cambiano colore con la scheda perché si vedano la luce che il pannello prende dalla pagina e l'estensione
+ * dello sfondo sotto la colonna. Le riprese la riconoscono dal titolo «Atlante cromatico».
+ */
 @Composable
 internal fun TabletNavigationPage() {
   var route by rememberSaveable { mutableStateOf(destinations.first().route) }

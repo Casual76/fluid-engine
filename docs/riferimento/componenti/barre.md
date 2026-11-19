@@ -3,573 +3,452 @@
 
 # Barre di navigazione e di azione
 
-## La stessa navigazione su telefono e tablet
+Questa famiglia è tutto ciò che galleggia di vetro in fondo allo schermo, o al fianco di una pagina larga, e porta
+altrove o fa qualcosa:
 
-`FluidAdaptiveNavigation` dispone le stesse `FluidTabItem` secondo la larghezza disponibile. Sotto 600 dp usa
-`FluidFloatingTabBar`. Da 600 a meno di 1000 dp usa `FluidTabRail`. Da 1000 dp parte con una capsula centrata in alto.
-Il suo tasto porta la capsula al fianco iniziale della finestra e la apre in una colonna flottante e monocroma.
-Il tasto della colonna ripercorre il viaggio al contrario. La posizione di ciascuna voce e il margine della pagina
-seguono il vetro del piano flottante. Una seconda pressione può cambiare direzione durante la corsa.
+- la **barra in basso dichiarata**: i comandi della pagina con `FluidToolbarPlacement.BottomBar`, sul piano flottante;
+- la **capsula di azioni** (`FluidFloatingCapsule`), che la pagina posa da sé;
+- la **ricerca**: dichiarata (`FluidSearchSpec`, che va dal tasto al campo) o come componente (`FluidSearchField`);
+- la **tab bar** (`FluidFloatingTabBar`), con la piega, la bolla di selezione, il lettore, il tondo della ricerca e la
+  scheda prominente;
+- la **navigazione adattiva** (`FluidAdaptiveNavigation`): la stessa lista di schede che diventa tab bar, rail
+  (`FluidTabRail`) o tab bar in alto che si apre in barra laterale; `fluidBackgroundExtension` continua la pagina sotto
+  la colonna;
+- due barre storiche deprecate, oggi involucri della tab bar (`FluidTabBar`, `FluidFoldingTabBar`).
 
-L'app possiede `selectedRoute` e reagisce a `onSelect` o `onReselect`. La scelta del pannello si salva con l'Activity e
-ritorna quando la finestra riacquista spazio. Il contenuto riceve un `PaddingValues` per tenere i controlli fuori
-dalla navigazione superiore o inferiore. Il contenitore riserva da sé lo spazio laterale e registra il fondale per il vetro.
-Applicare gli inset di sistema al contenitore secondo la finestra dell'app.
+La barra *superiore* (titolo, indietro, azioni) è di `FluidScreen`, in [schermata.md](schermata.md); i suoi tasti, e quelli
+in basso, si **dichiarano** con `toolbar { … }`, in [toolbar.md](toolbar.md); la barra di un host di pagine è in
+[pagine.md](pagine.md). Catalogo delle firme: [../api/barre.md](../api/barre.md).
 
-```kotlin
-FluidAdaptiveNavigation(tabs, route, { route = it.route }) { insets ->
-  Box(Modifier.fillMaxSize()) {
-    Image(painter, null, Modifier.fillMaxSize().fluidBackgroundExtension(), contentScale = ContentScale.Crop)
-    Column(Modifier.padding(insets)) { Dettaglio(route) }
-  }
-}
-```
-
-`fluidBackgroundExtension` si applica all'immagine o alla decorazione a tutta larghezza, prima del suo disegno.
-Il margine iniziale viene dal contenitore. Si possono passare `start` ed `end` espliciti per un ispettore disposto
-dall'app. La copia riflessa si sfoca su Android 12 e successivi. Sui sistemi precedenti rimane il riflesso.
-Sul bordo della pagina il riflesso parte nitido e acquista sfocatura solo nell'estensione, così i colori si
-raccordano durante apertura e ritorno. Il testo della pagina resta nitido e il pannello Liquid usa il colore
-medio della sonda per il velo e l'ombra.
-
-Questa famiglia e' tutto cio' che galleggia di vetro in fondo allo schermo (o al fianco di una pagina larga) e ti porta
-altrove o fa qualcosa: la **tab bar flottante** (`FluidFloatingTabBar`), la sua forma da schermo largo (`FluidTabRail`),
-la **capsula di azioni** (`FluidFloatingCapsule`), il **campo di ricerca** di vetro (`FluidSearchField`) e le due barre
-storiche, oggi deprecate e ridotte a un involucro della prima (`FluidTabBar`, `FluidFoldingTabBar`). La barra
-*superiore* (titolo, indietro, azioni) e' di `FluidScreen`, in [schermata.md](schermata.md); dalla 4.0 i suoi tasti si
-**dichiarano** (`toolbar { … }`: gruppi, principale tinta, conferma, trabocco, sul piano flottante), in
-[toolbar.md](toolbar.md); la barra di pagina ancorata
-all'host delle pagine (`FluidPageChrome` e relative) e' in [pagine.md](pagine.md) e [pagine-back-e-barra.md](pagine-back-e-barra.md).
-
-**Modello mentale.** Chi *usa* la barra decide dove sta e quanto spazio le lascia la pagina; la barra decide come si
-ripiega, e lo fa guardando **la pagina che scorre sotto**, attraverso una `NestedScrollConnection` che l'app attacca a
-un antenato delle pagine. Tutte queste barre hanno la stessa pellicola di vetro (ruolo `Floating`, `GlassDefaults.floatingTint()`):
-due pillole nella stessa fila non sono due grigi. La barra non porta mai dentro di se' il proprio margine.
-
-Catalogo completo delle firme: [../api/barre.md](../api/barre.md).
-
-## Regole trasversali: dove sta, quanto spazio prende, chi la guida
-
-| cosa | regola |
-|---|---|
-| **le icone** | un'app mette l'icona e **la taglia arriva dal posto**: `FluidIcon(FluidIcons.Home, contentDescription = null)` dentro una scheda prende 28 dp (`FluidMetrics.TabBarIconSize`), dentro la capsula 26, in un tasto di vetro 0,6 del vetro, in un menu 22, fuori 24; l'inchiostro e' quello del testo (nero sul chiaro, bianco sullo scuro), non piu' l'accento. `FluidIcons` e' il set dell'engine (al tratto, peso 500; `FluidIcons.Filled.*` le gemelle piene); le icone Material (`Icons.Rounded.*`) **continuano a funzionare** alla taglia nuova e un `Icon(…)` con una taglia scritta resta com'e'. Schede: `FluidTabItem(…, icon = FluidIcons.Home, filledIcon = FluidIcons.Filled.Home)` per la gemella piena, che la tab bar e il rail disegnano **su ogni scheda**, scelta o no, come in Apple (la scelta la dicono pillola e colore) |
-| **posa** | la barra **non porta** margine laterale, margine basso ne' barra di sistema: li mette chi la posa. Per la tab bar: `Box(Modifier.align(BottomCenter).navigationBarsPadding().padding(horizontal = HorizontalMargin, vertical = BottomMargin))`. Margini di serie in `FluidFloatingTabBarDefaults`: laterale 14 dp, basso 16 dp «sopra la maniglia dei gesti, non contro di essa» |
-| **spazio da lasciare alla pagina** | `FluidFloatingTabBarDefaults.ContentInset` = `OpenHeight` 62 + `BottomMargin` 16 = **78 dp** (dalla 4.0; erano 60 e 76: chi aveva scritto 76 a mano resta corto di 2), *senza* barra di sistema (la aggiunge `FluidScreen`). Con una banda sopra le schede `contentInsetWithAccessory(accessoryHeight)` = `ContentInset` + banda + `Spacing` 8. Lo si da' **una volta**, alla shell: `ProvideFluidChrome(bottomInset = …)`, vedi [schermata.md](schermata.md) |
-| **la connessione di scorrimento** | `rememberFluidFloatingTabBarScrollConnection()` va su un **antenato delle pagine** con `Modifier.nestedScroll(connection)`; la barra le e' *sorella*, non genitrice, quindi la riceve per argomento. Senza, la barra resta aperta |
-| **il fondale** | `backdrop = chromeController.activeBackdrop.value ?: fallback`: la pagina davanti (vedi `FluidChromeController` in [schermata.md](schermata.md)). Senza `backdrop` la barra e' una capsula piatta, senza vetro e senza lente |
-| **una vibrazione per momento** | tocco su una scheda, sul cerchio o sulla scheda ripiegata: un `Tap` (vocabolario, la rete dei 70 ms fonde quello della barra con quello che l'app suona a sua volta); trascinando la pillola un `Tick` per scheda attraversata, nessun colpo al rilascio. Il campo di ricerca chiuso suona `Open` quando si apre; i tasti della capsula suonano i loro (`fluidPressable`) |
-| **animazioni ridotte** | `FluidFloatingTabBar` **non legge** `LocalFluidMotionPolicy`: piega, pillola e sfocatura gommosa si muovono comunque (letto dal codice; nessun test). La capsula (`enter`/`exit`) e il campo (`FluidMotion.standard()`) la rispettano: restano la dissolvenza e un'apertura di colpo |
-| **margini della capsula/campo al posto della barra** | `Modifier.fluidCapsuleInsets(placement, avoidKeyboard)`: barra di sistema + margini laterali della barra + il suo margine basso (piu' lo spazio della barra se `AboveTabBar`) |
-
-I numeri che la pagina deve conoscere, in dp: `OpenHeight` 62 (`FluidMetrics.TabBarHeight`; un **pavimento**: con testo al 130% cresce invece di tagliare l'etichetta; 60 fino alla 3.x),
-`FoldedHeight` 52, `FoldedSoloHeight` 64 (ripiegata e *sola*: niente banda e niente cerchio accanto), `TabWidth` 88 (un **tetto**), `Spacing` 8.
+**Il modello.** Chi usa una barra decide dove sta e quanto spazio le lascia la pagina; la barra decide come si muove.
+Ogni barra è vetro del ruolo `Floating` con la pellicola `GlassDefaults.floatingTint()`: due capsule nella stessa fila
+non sono due grigi. Col materiale Liquid ogni pezzo è un vetro **del piano flottante** (`FluidGlassContainer`, F3): quando
+una barra cambia forma il piano interpola la sagoma, tiene la cattura del fondale per tutto il viaggio e non ricattura a
+ogni fotogramma. Il contenuto che cambia identità (un glifo che diventa un altro, il segnaposto che entra) passa con la
+sfocatura uniforme del piano, la stessa regola dello scambio di icone in alto. La barra non porta mai dentro di sé il
+proprio margine.
 
 ## Scegliere in fretta
 
 | ho bisogno di… | uso |
 |---|---|
-| la navigazione principale a 3–5 destinazioni con icona e parola | `FluidFloatingTabBar(items, selectedRoute, onSelect, scrollConnection, backdrop)` (forma a elenco, `FluidTabItem`) |
-| schede che sono composable qualunque, un cerchio di ricerca, una banda sopra la fila (mini player), una ricerca che cresce nella barra | `FluidFloatingTabBar(selectedTabKey, scrollConnection, …) { tab(…); standaloneTab(…) }` (forma a DSL) |
-| che la barra si ripieghi mentre la pagina scorre | `rememberFluidFloatingTabBarScrollConnection()` + `Modifier.nestedScroll(...)` sull'antenato delle pagine |
-| che **non** si ripieghi mai | `inlineBehavior = FluidFloatingTabBarInlineBehavior.Never` (o non attaccare la connessione) |
-| tenere ferma la barra (ricerca in corso, finestra che nasce dalla banda) | `scrollConnection.locked = true` |
-| la navigazione su uno schermo largo | `FluidTabRail` (dentro `FluidPaneScaffold`, [schermata.md](schermata.md)) |
-| un pallino o un numero su una zona («Chat, novità») | `FluidTabItem(badge = FluidTabBadge(count))` o `tab(badge = …)`: lo disegna la barra, **solo a barra aperta** (sezione «Segni, pulsante e movimento ridotto») |
-| un'azione primaria («Scrivi») che resta visibile a barra ripiegata, o in testa al rail | `standaloneTab(…)` (il cerchio accanto alla pillola: è un **pulsante**, non una zona); su schermo largo `FluidTabRail(header = { … })` |
-| un'azione della capsula che si accende e si spegne (grassetto, filtro) | `FluidCapsuleAction(selected = …)`: ruolo `Switch`, disco dell'accento |
-| un pannello laterale modale su una finestra stretta (cartelle, account) | `FluidDrawer` — [menu-modali.md](menu-modali.md) |
-| la pillola «3 nuove ↑» sopra una lista | `FluidJumpPill` — [contenuto-righe-liste.md](contenuto-righe-liste.md) |
-| una barra di selezione multipla, un mini player, comandi di una foto | `FluidFloatingCapsule` con `FluidCapsuleAction` |
-| un campo di ricerca di vetro, anche richiudibile in un cerchio, anche con «3/12» | `FluidSearchField` |
-| un campo di ricerca *dentro* la barra (`searchMode`) | `searchBarContent` con `FluidSearchField` sul modificatore ricevuto |
-| la barra superiore col titolo e le azioni | `FluidScreen` / `FluidBarAction` — [schermata.md](schermata.md) |
-| i tasti della barra superiore che cambiano con lo stato (sfoglia → seleziona, una conferma tinta, il menu «Altro») | `FluidScreen(toolbar = { … })` — [toolbar.md](toolbar.md) |
-| il sottotitolo sotto il titolo agganciato, anche nella barra unica dell'host | `toolbar { title(Inline, subtitle = …) }` oppure `subtitle(…)`; indietro e Chiudi conservano il vetro fra pagine e compaiono per lente anche con un vicino — [toolbar.md](toolbar.md) |
-| la barra di una pagina che non e' una `FluidScreen`, dentro un host di pagine | `FluidPageChrome` — [pagine.md](pagine.md) |
-| «Non cosi'»: `FluidTabBar` | deprecata: e' `FluidFloatingTabBar` a elenco senza ripiegamento. Usa `FluidFloatingTabBar` direttamente |
-| «Non cosi'»: `FluidFoldingTabBar` + `FluidBarFold` | deprecata: e' `FluidFloatingTabBar` con la piega guidata da te. Usa `FluidFloatingTabBar` e la sua connessione |
-| «Non cosi'»: la barra dentro uno `Scaffold(bottomBar = …)` | lo `Scaffold` toglie spazio alla pagina, ma la barra deve galleggiare **sopra** perche' il contenuto le scorra sotto e si veda sfocato |
+| i comandi della pagina in basso, che cambiano con la pagina | `toolbar { group("…", placement = FluidToolbarPlacement.BottomBar) { … } }` |
+| una capsula di azioni posata a mano (selezione multipla, comandi di una foto) | `FluidFloatingCapsule` con `FluidCapsuleAction` |
+| la ricerca della pagina, in basso o in alto, che si apre dal tasto | `toolbar { search(FluidSearchSpec(…)) }` o `FluidScreen(search = …)` |
+| un campo di ricerca nella pagina, anche con «3/12» | `FluidSearchField` |
+| la navigazione principale a 3–5 destinazioni | `FluidFloatingTabBar(items, selectedRoute, onSelect, scrollConnection, backdrop)` |
+| schede composable, un lettore sopra la fila, il tondo della ricerca, una prominente | `FluidFloatingTabBar(selectedTabKey, scrollConnection, …) { tab(…); standaloneTab(…) }` |
+| che la tab bar si ripieghi mentre la pagina scorre | `rememberFluidFloatingTabBarScrollConnection()` + `Modifier.nestedScroll(…)` su un antenato delle pagine |
+| che non si ripieghi mai | `inlineBehavior = FluidFloatingTabBarInlineBehavior.Never` |
+| tenerla ferma (ricerca in corso, una finestra che nasce dalla banda) | `scrollConnection.locked = true` |
+| un pallino o un numero su una zona | `FluidTabItem(badge = FluidTabBadge(count))` o `tab(…, badge = …)` |
+| un'azione primaria («Scrivi») sempre visibile, o in testa al rail | `standaloneTab(…)` senza ruolo; sul rail `FluidTabRail(header = { … })` |
+| la stessa navigazione su telefono e tablet | `FluidAdaptiveNavigation(items, route, onSelect) { insets -> … }` |
+| una barra laterale chiamata a mano (anche su telefono) | `FluidSidebar` |
+| «Non così»: la barra dentro `Scaffold(bottomBar = …)` | lo `Scaffold` toglie spazio alla pagina; la barra deve galleggiare **sopra**, perché il contenuto le scorra sotto sfocato |
+| «Non così»: `FluidTabBar`, `FluidFoldingTabBar` + `FluidBarFold` | deprecate: sono `FluidFloatingTabBar` sotto un altro nome |
 
-## FluidFloatingTabBar
+## Regole comuni
 
-**Cos'e'.** La barra di navigazione dell'app Fluidify portata nell'engine (sorgente di Elyes Mansour *FloatingTabBar* v1.0.1, con la pillola liquida di
-Kyant0 innestata: rifrazione sotto la pillola, riga nascosta tinta che la pillola campiona attraverso se stessa, stiramento che segue il dito). Esiste perche' un
-engine i cui componenti sono peggiori di quelli dell'app non lo usa nessuno. Una capsula di schede che **si ripiega in una pillola** quando la pagina scorre e si riapre
-quando serve, con una pillola trascinabile che indica la scheda scelta. Formattata a quattro spazi (come l'originale, perche' un confronto con l'upstream sia un diff e non
-un'archeologia) e con le modifiche locali segnate dove succedono (`LOCAL CHANGE`).
+| cosa | regola |
+|---|---|
+| **icone** | l'app mette l'icona, la taglia arriva dal posto: 28 dp in una scheda (`FluidMetrics.TabBarIconSize`), 26 nella capsula e nella barra in basso, 0,6 del vetro in un tasto di vetro. L'inchiostro è quello del testo; l'accento dice la scelta. `FluidIcons` è il set dell'engine, `FluidIcons.Filled.*` le gemelle piene; un `Icon(…)` con una taglia scritta resta com'è |
+| **posa della tab bar** | la barra non porta margine laterale, margine basso né barra di sistema: `Box(Modifier.align(BottomCenter).navigationBarsPadding().padding(horizontal = HorizontalMargin, vertical = BottomMargin))`, 14 e 16 dp in `FluidFloatingTabBarDefaults` |
+| **spazio della pagina** | `FluidFloatingTabBarDefaults.ContentInset` = 62 + 16 = **78 dp**, senza barra di sistema; con una banda `contentInsetWithAccessory(h)` = 78 + h + 8. Si dà una volta, alla shell: `ProvideFluidChrome(bottomInset = …)`. La barra in basso dichiarata e la ricerca in basso si posano sopra questo spazio da sole |
+| **il fondale** | `backdrop = chromeController.activeBackdrop.value ?: fallback`. Senza `backdrop` la tab bar è una capsula piatta, senza lente |
+| **una vibrazione per momento** | un `Tap` al tocco di una scheda o del tondo; un `Tick` per scheda attraversata trascinando la bolla, niente al rilascio; `Open` quando un campo richiudibile si apre |
+| **movimento ridotto** | tutte le barre leggono `LocalFluidMotionPolicy`: la piega, la bolla, la conversione in barra laterale e il campo vanno alla posa d'arrivo in un fotogramma; la capsula entra ed esce in sola dissolvenza (160/120 ms) |
+| **sopra la tastiera** | `Modifier.fluidCapsuleInsets(placement, avoidKeyboard)` per un vetro posato a mano; la ricerca dichiarata segue da sé l'inset animato dell'IME |
 
-Nel materiale Liquid l'etichetta della scheda scelta rimane leggibile nei primi 67 ms della piega e lascia il
-posto al glifo intorno ai 100 ms. Quando la banda accessoria scende, il suo contorno passa davanti ai due
-vetri della barra e il glifo in viaggio resta visibile.
+## La barra in basso dichiarata
 
-**Firma essenziale** (le due forme).
+Una pagina mette i suoi comandi in basso dichiarandoli con `FluidToolbarPlacement.BottomBar`: è la stessa DSL della barra
+in alto, con lo stesso modello, la stessa memoria delle identità e lo stesso scambio dei glifi
+([toolbar.md](toolbar.md), «La barra in basso»). La sede è una sola per tutto l'host: in un `FluidPageHost` fra
+«Raccolta» e «Foto» il più che c'è in tutte e due resta fermo, i comandi che mancano all'arrivo escono stringendo il
+gruppo, quelli nuovi entrano per lente. Uno `spacer()` fisso stacca un comando dal gruppo, e il vetro si divide col collo;
+toglierlo lo riunisce.
 
 ```kotlin
-// A elenco: tre destinazioni con un'icona e una parola.
-FluidFloatingTabBar(
-  items: List<FluidTabItem>,                 // FluidTabItem(route, label, icon)
-  selectedRoute: String?,
-  onSelect: (FluidTabItem) -> Unit,
-  scrollConnection: FluidFloatingTabBarScrollConnection,
-  backdrop: GlassBackdropState? = null,
-  modifier: Modifier = Modifier,
-  onReselect: (FluidTabItem) -> Unit = {},   // la scheda gia' scelta: «torna in cima»
-  glass: FluidFloatingTabBarGlass = FluidFloatingTabBarGlass(),
-  accentColor: Color? = null,
-  foldAlignment: Alignment.Horizontal = Alignment.Start,
-)
-
-// A DSL: ogni scheda e' una coppia di composable.
-FluidFloatingTabBar(
-  selectedTabKey: Any?,
-  scrollConnection: FluidFloatingTabBarScrollConnection,
-  modifier: Modifier = Modifier,
-  tabBarContentModifier: Modifier = Modifier,      // il pannello, se lo dipinge l'app
-  inlineAccessory / expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
-  backdrop: GlassBackdropState? = null,
-  glass: FluidFloatingTabBarGlass = FluidFloatingTabBarGlass(),
-  foldAlignment: Alignment.Horizontal = Alignment.Start,
-  searchMode: Boolean = false, searchBarContent: (@Composable (Modifier) -> Unit)? = null,
-  expandedContentWidthPx: Int? = null, onExpandedWidthChanged: ((Int) -> Unit)? = null,
-  content: FluidFloatingTabBarScope.() -> Unit,    // tab(key, title, icon, onClick); standaloneTab(key, icon, onClick)
-)
+FluidScreen(title = if (detail) "Foto" else "Raccolta", onBack = back, toolbar = {
+  group("comandi", placement = FluidToolbarPlacement.BottomBar) {
+    button("elenco", if (detail) FluidIcons.Search else FluidIcons.FormatListBulleted,
+      if (detail) "Torna alla raccolta" else "Mostra foto", onClick = { photo = !detail })
+    flexibleSpacer()
+    if (!detail) {
+      button("cuore", FluidIcons.Favorite, "Preferito", onClick = { favourite = !favourite }, selected = favourite)
+      button("condividi", FluidIcons.IosShare, "Condividi", onClick = { shared = !shared }, selected = shared)
+      if (separate) spacer()
+    }
+    button("aggiungi", FluidIcons.Add, "Cambia gruppo", onClick = { separate = !separate })
+  }
+}) { /* righe */ }
 ```
 
-Tutti i parametri (colori, forme, taglie, ombre): [../api/barre.md](../api/barre.md).
+Ogni posto misura 48 dp con l'icona da 26 (in Apple 47,8 pt). La sede sta sopra la navigazione di sistema e, se l'app
+ha dato l'inset della tab bar, sopra la tab bar; la lista riserva lo spazio per l'ultima riga. Col ritiro della barra
+(`barMinimize`) i comandi in basso scendono fuori dallo schermo con la stessa corsa di quelli in alto.
 
-**Uso** (dal `sample`, `GalleryActivity.kt` e `AllGlassDemo.kt`).
+## La capsula di azioni
+
+`FluidFloatingCapsule` è la capsula che la pagina posa da sé: la barra di una selezione multipla, un mini lettore, i
+comandi di una foto, un avviso con un tasto. È **una lastra sola** sul piano: quando cambiano i figli il pannello anima
+la larghezza (conservando il centro, se il genitore la centra) e il contenuto segue il layout d'arrivo; le azioni non
+sono vetri, sono icone piatte (`FluidCapsuleAction`, 26 dp) che crescono sotto il dito. Il cambio di glifo di
+un'azione passa con lo scambio sfocato.
 
 ```kotlin
-val tabScroll = rememberFluidFloatingTabBarScrollConnection()       // sul chiamante, vedi sotto dove attaccarla
-
-FluidFloatingTabBar(
-  items = tabs, selectedRoute = route,
-  onSelect = { navigateTo(it.route) },
-  onReselect = { scrollToTop.request() },
-  scrollConnection = tabScroll, backdrop = backdrop,
-)
-
-// A DSL, con una banda sopra le schede e un cerchio di ricerca:
-FluidFloatingTabBar(
-  selectedTabKey = selected, scrollConnection = tabScroll, backdrop = backdrop,
-  inlineAccessory = { band, _ -> MiniPlayer(band) },     // `band` e' il Modifier da mettere sulla radice della banda
-  expandedAccessory = { band, _ -> MiniPlayer(band) },
-) {
-  tab(key = "home", title = { Text("Home") }, icon = { Icon(Icons.Rounded.Home, null) }, onClick = { selected = "home" })
-  tab(key = "star", title = { Text("Preferiti") }, icon = { Icon(Icons.Rounded.Star, null) }, onClick = { selected = "star" })
-  standaloneTab(key = "search", icon = { Icon(Icons.Rounded.Search, "Cerca") }, onClick = { searching = true })
+FluidFloatingCapsule {
+  FluidCapsuleAction(if (expanded) FluidIcons.Check else FluidIcons.Edit, "Modifica la capsula",
+    onClick = { expanded = !expanded })
+  if (expanded) FluidCapsuleAction(FluidIcons.Favorite, "Contrassegna", onClick = { favourite = !favourite },
+    selected = favourite)
 }
 ```
 
-### Come si ripiega (e quando no)
-
-La barra ha tre pose: aperta, ripiegata e ricerca attiva. Da Android 13, con il materiale Liquid e il pannello di serie,
-il piano flottante misura solo la posa di arrivo. Capsula, tondo e banda mantengono ciascuno la propria identità. Il piano F3
-muove i tre vetri separatamente. Il mini lettore scende accanto al gruppo. Il glifo scelto converge dalla sua cella
-al centro del tondo e resta nitido mentre le altre icone e le etichette si sfocano. I tempi della piega (234 ms)
-e della ricerca (133 ms) seguono le rispettive sequenze Apple. La pagina e la tastiera sono gestite dall’app. Per la dissolvenza della pagina è disponibile
-`FluidMotion.FloatingTabSearchPage`. Il movimento ridotto applica
-la posa di arrivo direttamente. Con un pannello disegnato dall’app o col materiale Classic resta la piega a elementi
-condivisi e impulso di 12 dp. Per confrontare le due pieghe sulla stessa build c’è il tag diagnostico Android
-`log.tag.FluidTabBarGooey=DEBUG`; viene letto alla composizione della barra.
-
-**La decisione sta in `FluidFloatingTabBarScrollConnection`** (la connessione che l'app attacca alla pagina):
-
-| | |
+| parametro | cosa fa |
 |---|---|
-| `inlineBehavior` | `OnScrollDown` (di serie): si ripiega scorrendo in giu', si riapre appena si risale. `OnScrollUp`: il contrario, con soglia unica. `Never`: mai |
-| soglia di piega | `scrollThreshold` **50 dp** di scorrimento netto in un verso (la direzione che cambia azzera il conto) |
-| soglia di riapertura | `expandThreshold` **8 dp** verso l'alto: asimmetrica di proposito. Ripiegarsi vuole isteresi (una scorsa nervosa non deve farla sfarfallare, e la distanza e' gratis: ti stai gia' allontanando); tornare e' l'opposto, la barra e' cio' che stai cercando, e farti trascinare altri cinquanta pixel la fa sembrare lenta. Un tempo questo lato valeva zero (tornava solo in cima): il parametro era documentato e non veniva letto |
-| cosa conta | `onPostScroll` col **`consumed`**, cioe' cio' che il contenuto ha *davvero* scorso (piu' l'elastico di una `FluidScreen`). Prima era il dito di `onPreScroll`: una pagina che non scorre ripiegava la barra a ogni trascinamento |
-| a pagina in cima | un trascinamento verso il basso con niente piu' da scorrere (`available.y > 0` dopo il contenuto) **la riapre**: e' l'unico momento in cui la barra e' chiesta e non d'intralcio |
-| cambio di pagina o scheda | `routeChanged()` (3.0.1): chiude lo scorrimento in corso e riapre la barra (se non `locked`). Lo chiamano da se' l'host delle pagine (`FluidNavHost`, `FluidPageHost`, via `FluidRouteSignal`, per finestra: un host in un `Dialog` non tocca la barra dell'app) e la barra stessa a ogni cambio di `selectedTabKey`. **`settle()` + `expand()` a mano non servono piu'**: chi non li faceva si ritrovava la barra ripiegata su una pagina corta che non poteva piu' riaprirla |
-| `locked` | mentre e' vero lo scorrimento non tocca la barra: serve per la ricerca (la barra porta il campo; ripiegarla mentre si scrive lo distrugge, risalire lo ricrea, il campo chiede il fuoco e sale la tastiera: a ogni scorsa). Con `locked` un cambio di pagina chiude solo lo scorrimento, **non** apre |
-| `isInline` | stato osservabile (lettura; si scrive con `expand()`/`inline()`) |
-| `scrolling` | vero mentre la pagina sotto si muove: **il vetro tiene l'ultima cattura** invece di rifare sfocatura e lente 60 volte al secondo (misurato: 57 ms a fotogramma col vetro vivo, 25 senza). Si abbassa in `onPreFling`; se una lista viene distrutta a meta' gesto il fling non arriva e il flag resta alzato (il bug «il contenuto non c'e' quando torno») — per questo `routeChanged()`/`settle()` |
-| `morphing` | vero per i fotogrammi in cui la barra cambia forma. **Per il pannello che l'app costruisce da se'**: la barra non puo' leggerlo da dentro (il pannello e' applicato fuori dalla sua composizione), e lo legge qui per congelarsi |
+| `placement` | `Free` (nessun margine, la posi tu), `ReplacingTabBar` (margini e altezza della tab bar), `AboveTabBar` (8 dp sopra la tab bar). `bottomOffset` senza barra di sistema: 0, **16**, **86**; `contentInset(placement, h)`, comprensivo della barra: 0, **78**, **148** con l'altezza di serie |
+| `visible` | entra dal basso con la molla della chrome, senza rimbalzo, ed esce più svelta; falso non lascia niente in composizione |
+| `fillWidth`, `onPhoto`, `avoidKeyboard` | fino a 560 dp col contenuto a `weight`; pellicola per una foto a tutta pagina; sale sopra la tastiera |
+| `label` | il titolo del pannello per TalkBack («3 selezionate») |
+| `FluidCapsuleAction(selected = …)` | un interruttore: ruolo `Switch` e disco dell'accento al 16% dietro l'icona; `null` di serie è l'azione semplice |
+| `grip` | `FluidPressGrip.YieldsToScroll` sopra una lista o un pager che deve partire anche da lì |
 
-`rememberFluidFloatingTabBarScrollConnection(initialIsInline = false, scrollThreshold = 50.dp, expandThreshold = 8.dp, inlineBehavior = OnScrollDown)` ricorda l'istanza
-con chiave sulle soglie in pixel, su `inlineBehavior` e su `initialIsInline`: **cambiare `initialIsInline` ricrea la connessione e azzera lo stato**.
+Altezza minima 62 dp (un'azione da 48 più 7 sopra e sotto), 4 dp fra i pezzi, 6 ai lati. Un'azione spenta resta al suo
+posto velata a 0,38: una capsula che cambia larghezza quando un'azione si spegne fa saltare la vicina. La capsula
+**tiene i tocchi** che non sono di un'azione (toccare fra due icone non apre la foto dietro) e lascia passare i
+trascinamenti. Per un'azione che deve staccarsi (il «Fatto» di una selezione) si mette nelle fessure un tasto di vetro
+vero, `FluidGlassIconButton`: campiona il materiale della capsula.
 
-**Ripiegata, cosa si vede.** Solo la scheda **scelta** (la sua icona, in una capsula `FoldedHeight` 52) e, se ci sono, la banda e il cerchio. Da sola (nessuna banda ne' cerchio) sale a
-`FoldedSoloHeight` **64** e si squadra: «e' la navigazione intera, va trovata e colpita senza guardare; a 52 sembrava un avanzo». Con qualcosa accanto torna alla misura della fila (una fra le altre).
-Se la scheda scelta non e' una scheda normale (sei sul cerchio), la barra mostra **l'ultima scheda normale davvero scelta**, mai «la prima» (non direbbe una cosa falsa); prima di aver scelto
-qualcosa, nessuna scheda in linea.
-**Un tocco sulla scheda ripiegata riapre la barra e chiama anche `onClick` della scheda**: nella forma a elenco, essendo la scelta, e' `onReselect` — «torna in cima»/«chiudi la pagina» parte insieme all'apertura.
+**Trappole.** La capsula non si allinea da sola: `Modifier.align(…)` nel `Box` genitore. Va sopra la pagina, nello slot
+`overlay` di `FluidScreen`, non nel contenuto (campionerebbe se stessa). `contentInset(AboveTabBar)` comprende già la
+tab bar: non va sommato a `ContentInset`.
 
-**`foldAlignment`** (default `Alignment.Start`, **BREAKING dalla 2.3.0**: prima, ignorato, si raccoglieva al centro): da che parte si raccoglie la pillola. Non e' estetica ma una domanda su
-quale mano tiene il telefono: ripiegata e' l'unico bersaglio rimasto, e dove si posa decide se il pollice ci arriva. Ignorato se c'e' una banda (la riga occupa tutta la larghezza e non ha dove
-raccogliersi). Aperta, il gruppo schede+cerchio e' sempre **centrato** (stile iOS 26).
+## La ricerca
 
-### L'aperta: schede, pillola, larghezza
+### Dichiarata, dal tasto al campo
 
-- Le schede hanno larghezza uguale: `TabWidth` 88 dp e' un **tetto, non una promessa**. Su un telefono stretto (o a dimensione di schermo grande) `fittedTabWidth` divide quello che resta dopo
-  cerchio, spazio e padding fra le schede. Misurata **un fotogramma dopo** la prima composizione (il peso del figlio tiene insieme il primo). Senza cerchio non si lascia lo spazio per uno:
-  prima richiedeva `circleWidthPx > 0` e una barra senza cerchio non si adattava mai (cinque schede a 88 = 448 dp contro i ~383 del telefono: l'ultima fuori dalla pillola, le etichette a capo,
-  la barra «alta con cinque voci»).
-- L'etichetta e' una riga sola: stile imposto `labelMedium` a 11 sp (`FluidMetrics.TabBarLabelSize`, 13 fino alla 3.x) centrato — `Text(item.label)` senza stile prenderebbe `bodyLarge` e «Bacheca» andrebbe a capo, raddoppiando la barra di trenta dp — e
-  `OneLine` la misura senza limite e la **scala** fino a `MinLabelScale` 0,75 per farla stare; oltre, la parola e' troppo lunga per essere un'etichetta e viene tagliata. L'altezza e' sempre quella di una riga. Il colore del tuo `Text` vince.
-- **La pillola** e' trascinabile. Rilasciata, si assesta sulla scheda piu' vicina e **naviga solo se c'e' stato un vero trascinamento** (un tocco che passa attraverso la pillola non deve rinavigare). Un `Tick` per scheda
-  attraversata, letto dal valore arrotondato (lo stesso istante in cui si assesterebbe). Tutta la pillola si sposta di un massimo di 4 dp nel verso del trascinamento (`EaseOut`), poi rientra
-  (`FluidMotion.TabTugReturn`). Una molla sottosmorzata **di proposito** (lo smorzamento di libreria, 0,5): lo stiramento oltrepassa e oscilla dopo ogni cambio di velocita', ed e' la gelatina giusta per la mano — la stessa di slider e interruttore.
-  Squash con segno e diviso 10, non cancellato dalle animazioni ridotte (eccezione nota: la pillola e' uno dei tre metri della ricetta).
-- **Un tocco su una scheda** muove la pillola *subito* (`animateToValue`: preme, viaggia, rilascia, come se l'avesse trascinata il dito) e **la pagina aspetta** `FluidMotion.TabPuckLeadMillis` (160 ms)
-  prima di costruirsi: comporre una pagina nuova occupa il thread principale e il fotogramma successivo puo' arrivare con 80 ms di ritardo; l'animazione e' corretta ma avanza di 80 ms in un colpo, e si vede la
-  pillola sulla scheda che hai lasciato e poi a tre quarti, senza niente in mezzo. Le due cose sono messe in fila invece che in gara. **Non basta, se la pagina d'arrivo si compone da
-  zero**: a 160 ms la pillola è ancora in viaggio, e sul Tab S9 si ferma 100–190 ms a metà strada a ogni cambio di scheda (misurato prima della 4.0). Le pagine delle schede vanno tenute vive o
-  precomposte: è una regola per le app, in [../regole.md](../regole.md), «Le app: le pagine delle schede restano vive». Un tocco sulla scheda gia' scelta chiama `onClick` **subito** (non c'e' niente da attendere).
-  Se l'app rifiuta il cambio, l'effetto di sincronizzazione riporta la pillola.
-- **Selezione fatta altrove** (back, deep link, un'altra schermata): la pillola arriva con `animateToValue` (preme e si assesta come dopo un rilascio), perche' nient'altro la annuncia. La prima volta si posa senza animare.
-- **Rilasciare la pillola sulla scheda gia' scelta** chiama `onClick` di quella scheda: nella forma a elenco e' `onReselect`.
-- **Sulla scheda niente increspatura** (`indication = null` di serie dalla 3.0, fase 9): la pillola *e'* l'indicazione. La scheda **in linea** e il cerchio rispondono col bagliore del dito sul loro vetro e un `Tap`.
-- **Premuta, la pillola Liquid diventa lente.** La riga registra icone, segni ed etichette sul posto. La pillola
-  rilegge i glifi dove li attraversa e aumenta la rifrazione con la pressione, fino alla dispersione cromatica.
-  A riposo e premuta campiona lo stesso fondale e mantiene la stessa ricetta del velo, del filo e dell’ombra.
-  Il colore di selezione usa anche per l’icona il contrasto richiesto al testo (4,5:1 calcolato sulla pellicola).
-  Il rientro di serie vale 0,076 dell’altezza; l’altezza della pillola è quindi circa 0,85 H.
-  La misura di R5 M4 sul telefono è 219 livelli sulla pagina a 238. La bolla Classic conserva la riga nascosta tinta
-  e il ridisegno della scheda scelta. Senza fondale resta il disco piatto.
-- **Il colore di icone ed etichette: quello dell'app, e `onSurface` solo se nessuno l'ha deciso** (`floatingBarContentColor`). Le schede leggono `LocalContentColor`, che fuori da una `Surface` vale il suo valore di serie, `Color.Black`: su vetro scuro, nero su grigio scuro. Se il valore e' quello di serie la barra imposta `onSurface` del tema; qualunque altro valore (il colore di una `Surface`, un `LocalContentColor provides Ink` in radice) resta, cosi' un'app che aggiorna a parametri invariati non cambia aspetto. **Caso limite:** un'app che fornisce davvero il nero puro e' indistinguibile da una che non ha detto niente (un CompositionLocal non dice se e' stato impostato), quindi quel nero diventa `onSurface`; sul tema chiaro la differenza e' minima, e per tenerlo basta un colore non esattamente `Color.Black`. Mai un colore a mano.
-- La luce del dito sul vetro e' **additiva** (`GlassTouchHighlight(onGlass = true)`, bianca e stretta); sulla fila opaca di prima era nero all'8%, e su tema chiaro tenere premuta la pillola ingrigiva la fascia chiara in alto. Sul tema scuro non cambia niente.
+La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la
+toolbar ha la precedenza. `query` e `onQueryChange` restano dell'app. Il campo è un vetro del piano con un'identità
+stabile: la lente da 44 dp si allunga nella capsula del campo, alta 40 dp (la zona di tocco resta 44), mentre i vicini
+le fanno posto raccogliendosi in «Altro»; il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
+sfocati e scalati, nitidi verso la fine del moto. Un solo editor attraversa tutte le pose, anche quando cambia quota.
 
-### La banda (accessory)
+| `placement` | a riposo | attiva |
+|---|---|---|
+| `Automatic` | in basso sotto 600 dp di finestra, in alto a destra da 600 dp | segue la sede risolta |
+| `BottomBar` | sopra la navigazione e l'eventuale tab bar | sale sopra l'IME seguendone l'inset animato |
+| `TopBar` | sul lato finale della testata | resta in alto inglobando i vicini; con `expansion = AboveKeyboard` scende sopra l'IME |
+| `Principal` | sotto il titolo | segue il ritiro della testata |
 
-`inlineAccessory` e `expandedAccessory` ricevono `(Modifier, AnimatedVisibilityScope)` in uno `SharedTransitionScope`. Il `Modifier` **va sulla radice della banda**: porta ombra di vetro, ritaglio
-e — dove c'e' un pannello — il vetro stesso, e quello che ci metti sopra resta opaco al 100%. La banda e' **il vetro della barra** (3.0, fase 9; senza pannello e' la capsula piena di prima).
-In linea la riga e' `[scheda][banda ‑ weight][cerchio]` a tutta larghezza e l'altezza la decide la banda; aperta la banda sta **sopra** la pillola, larga quanto lei (misurata: un fotogramma di `fillMaxWidth`).
-Con **tutte e due** le bande l'elemento condiviso `accessory` viaggia fra gli stati; con una sola, o dissolve (`animateEnterExitAccessory`). **Costo vero**: per far viaggiare un elemento condiviso vanno
-composte entrambe le copie per tutta la piega; l'alternativa dichiarata e' non avere due barre (e' dove va `FluidFoldingTabBar`...). Contenuto pesante (copertina, due righe, progresso) nella banda = lavoro doppio per 300 ms.
-
-### Destinazioni prominente e di ricerca
-
-Usa `standaloneTab(key, icon, role = FluidTabRole.Prominent, onClick = …)` per una destinazione che resta accessibile
-anche a barra ripiegata. Il tondo ha lo stesso diametro della barra aperta e contiene solo il glifo. Quando è scelto
-prende il colore d’accento e TalkBack lo annuncia come scheda selezionata. Con le misure di serie, il varco vale
-0,115 altezze della barra (circa 7 dp). Sono le proporzioni del telefono in R5 T6. Su un canvas ampio la capsula con tre
-destinazioni raggiunge 5,23 altezze; il gruppo resta centrato.
-
-Una barra può dichiarare una `Prominent` e una `Search`. La prominente occupa il tondo; la ricerca prende posto fra
-le destinazioni nell’ordine dichiarato, con il proprio `title`. Senza prominente il tondo spetta alla ricerca.
-La firma di `standaloneTab` senza ruolo continua a dichiarare un’azione, ad esempio «Scrivi». A barra piegata,
-una pressione lunga sul glifo corrente permette di scorrere fra le destinazioni raggruppate e scegliere al rilascio.
-
-Con `searchActivation = FluidTabSearchActivation.SearchTabSelection`, selezionare la chiave della ricerca apre
-`searchBarContent`. Il modificatore ricevuto va applicato al campo o a un suo antenato perché possa prendere il fuoco.
-Indietro torna all’ultima destinazione visitata, anche quando era la prominente. Con `Automatic` l’app guida il campo con `searchMode`.
-
-### La ricerca nella barra
-
-`searchMode = true` **e** `searchBarContent != null`: lo stato aperto diventa `SEARCH_EXPANDED` — il gruppo schede si riduce all'icona della scheda corrente (la stessa della forma in linea) e `searchBarContent(modifier)`
-prende il resto della riga (alta 48 dp). Il `Modifier` ricevuto va sulla **radice** del campo: porta peso, elemento condiviso `standaloneTab` (e' cosi' che il cerchio *cresce* in un campo invece di sparire e comparire),
-ombra, riempimento, ritaglio e pannello. La larghezza resta quella della barra aperta: la riga la ricorda da `onExpandedWidthChanged` e la ripassa in `expandedContentWidthPx` (altrimenti riempirebbe tutto lo
-spazio). Lo stato ripiegato per scorrimento **non cambia** con `searchMode`. Mentre si cerca tieni `scrollConnection.locked = true` (sopra).
-
-### Il materiale: tre casi e la regola del raggio
-
-| caso | cosa succede |
-|---|---|
-| `backdrop` e nessun `tabBarContentModifier` | la barra **si fa il vetro da sola** (`glassSurface`, `Floating`, `floatingTint`) e il suo riempimento (`colors.backgroundColor`) diventa trasparente: un riempimento opaco dietro il vetro e' un muro nella registrazione che la pillola guarda, e premendo la pillola il vetro rifratto diventava una lastra d'accento piatta |
-| `tabBarContentModifier` passato | il pannello e' **dell'app** (un suo `liquidGlass`): resta com'e', e `FluidFloatingTabBarGlass.blurRadius` e' il suo **raggio finale** in dp |
-| nessun `backdrop` | capsula piena di `colors.backgroundColor` (`surfaceContainerHigh`), ombra di piattaforma, pillola piatta |
-
-`FluidFloatingTabBarGlass(blurRadius, puckColor, puckOpacity = 0,26)` sono i tre numeri che l'app puo' muovere. **`blurRadius` ha due significati** perche' la riga nascosta e la pillola a riposo devono sfocare
-*esattamente* quanto il pannello che coprono, e quanto sfoca lo sa solo chi lo dipinge: se lo fa la barra e' il raggio di **base** (`DefaultGlassBlurRadius` 2,5 dp; la barra moltiplica per il ruolo `Floating` ×1,8 e
-applica la regola della taglia e la qualita' di scorrimento: con il valore di serie 4,5 dp, come il pannello); se lo passi tu e' il raggio **finale**, preso tal quale: passa lo stesso numero che dai al tuo pannello.
-La 2.12.0 li aveva confusi (la pillola sfocava 1,8 volte la barra intorno), la 2.12.1 li ha rimessi. Il puck premuto non aggiunge sfocatura (la riga ha gia' quella del pannello: una in piu' sfocherebbe anche le icone).
-Col vetro di prima `puckColor` non specificato = l'accento (`primary`): una lavata d'accento al `puckOpacity` che scende a un quarto mentre e' premuta; un tempo erano due grigi rigidi, e su un tema chiaro la scheda scelta sedeva sotto un disco grigio-nero che non
-apparteneva all'app. **Col materiale nuovo** `puckColor` non specificato = nessuna lavata (la pillola è il vetro più scuro, e la scelta la dice l'accento su icona ed etichetta); un `puckColor` scritto dall'app diventa una **pellicola** di quel colore sulla pillola (al `puckOpacity`), dipinta com'è al posto del velo, non un riempimento pieno ([../regole.md](../regole.md), «La scheda scelta la dicono la pillola e l'accento»). `accentColor` (default `primary`) tinge la riga nascosta. `LocalFluidTabBarBackdropFrozen` e' vero esattamente nei fotogrammi di una transizione: le superfici di vetro riusano l'ultima cattura invece di
-rifare lo schermo a ogni fotogramma mentre i loro limiti si animano; un pannello dell'app lo raggiunge leggendo `scrollConnection.morphing`.
-
-**Comportamento (riassunto).** Tre stati, una sola connessione; la pillola e' una lente; l'altezza e' un pavimento (`FluidFloatingTabBarSizes.barHeight`, `inlineHeight`, `inlineSoloHeight`); il gruppo e' centrato; la scheda in linea e' sempre quella scelta; la
-pagina aspetta la pillola 160 ms; con cinque schede su 360 dp le etichette si restringono fino al 75% prima di tagliarsi.
-
-**Trappole.**
-
-- **La connessione deve stare su un antenato delle pagine**, non sulla barra: se la attacchi alla barra non sente scorrere niente e la barra non si ripiega mai.
-- **Chiamare `settle()` + `expand()` a ogni cambio di rotta** era la toppa pre-3.0.1: si toglie. Ma `routeChanged` e' `internal`: se la pagina cambia **senza** passare dall'host (un tuo `AnimatedContent` come host di pagine) cambia comunque `selectedTabKey`, e quello basta; se neanche quello cambia, il flag `scrolling` puo' restare alzato e il vetro tenere la cattura per sempre: chiama `settle()`.
-- **`ContentInset` non e' `FluidTabBarDefaults.ContentInset`**: quest'ultimo (64+16) ne riserva 4 dp in piu' (vecchia altezza). `OpenHeight` era 64 e dichiarata ma non rispettata (la barra ne stava ~90 con etichette a capo): chi ha scritto a mano un inset da quei numeri lo rilegga (2.1.0, **BREAKING**).
-- **`FluidFloatingTabBarGlass.blurRadius` e' un'altra cosa a seconda di chi dipinge il pannello** (sopra): una barra con pannello dell'app e il default 2,5 sfoca meno del pannello.
-- **`standaloneTab` chiamato due volte sovrascrive la prima**; il suo `title` non si mostra mai (e' sempre un cerchio senza testo, alto almeno 48 dp, quadrato a partire dall'altezza).
-- **Una scheda ha bisogno di una `key` unica e stabile**: `selectedTabKey` che non corrisponde a nessuna scheda lascia la pillola dov'era (alla prima composizione, sulla prima).
-- **`FluidFloatingTabBar` calcola le schede a ogni composizione** (non le ricorda: le lambda chiudono su stato e colori, e una chiave dimenticata dava un'icona vecchia su un solo percorso di navigazione). Costo trascurabile con poche schede.
-- Nel suo slot di ricerca la tab bar fornisce il vetro del tondo. Passare il modificatore ricevuto alla radice del campo, per esempio `searchBarContent = { field -> FluidSearchField(query, onQueryChange, field) }`. La barra gestisce selezione e ritorno con `SearchTabSelection`.
-- **Accessibilita'**: la forma a elenco dice `selected` alla scheda scelta; le schede **non** hanno `Role.Tab` ne' il tag di test `top_level_<rotta>` (proprieta' del nodo scheda, che la barra costruisce da sola e sul quale una proprieta' messa su un discendente non sale):
-  un test cerca la scheda dall'etichetta. Le copie nascoste della riga e l'icona ridisegnata sopra la pillola sono `clearAndSetSemantics {}`: non si raddoppia.
-- Il focus da tastiera: Tab entra nella barra e una scheda col fuoco ha un velo d'accento.
-
-**Non usarla quando.** Hai un solo livello di navigazione (lista → dettaglio): bastano `onBack` e `FluidScreen`. Su uno schermo largo con la barra laterale o il rail: `FluidTabRail` / `FluidSidebar`.
-
-**Versione.** `FluidFloatingTabBar` dalla 2.0.0 (porting da Fluidify); altezze 60/52 e pavimento 2.1.0; `foldAlignment` e raccolta a sinistra 2.3.0; `FoldedSoloHeight` 2.3.0; forma a elenco 2.12.0; pannello proprio e `blurRadius`
-2.12.x; ripiegamento sul consumato e `routeChanged` 3.0.1; banda come vetro, niente increspatura, luce del dito 3.0.0.
-
-## FluidTabRail, FluidTabItem, FluidTabBarDefaults, fluidTabBarPadding
-
-**Cos'e'.** La forma della navigazione per gli schermi larghi: lo stesso materiale e la stessa goccia della pillola, **in piedi su un lato**. `FluidTabItem(route, label, icon, badge, filledIcon)` e' la voce comune a rail e barra a elenco (`filledIcon`, dalla 4.0: la gemella piena che ogni scheda disegna, scelta o no; null = la stessa icona).
+`behavior = Automatic` parte dal campo con al più due vicini e dal tasto con più di due; `CollapseToButton` è la ricerca
+**minimizzata** (sempre un tasto a riposo), `AlwaysVisible` il campo fisso. `scopes` sta sulla riga dell'editor (in
+linea, come in iOS 27), `suggestions` accanto alla barra. La X o il ritorno chiudono conservando la query. Con
+`purpose = Input` è un campo di inserimento generico: la matita al posto della lente, «Fine» sulla tastiera, `onSearch`
+come conferma. `active` e `onActiveChange`, passati insieme, danno all'app l'apertura.
 
 ```kotlin
-FluidTabRail(items = tabs, selectedRoute = route, onSelect = { go(it.route) }, backdrop = backdrop, onReselect = { top() })
-```
-
-**Comportamento.** Largo `FluidTabBarDefaults.RailWidth` 84 dp, una scheda per `FluidTabBarDefaults.Height` 64 dp con l'icona a `RailIconSize` 28 dp (= `FluidMetrics.TabBarIconSize`; 24 fino alla 3.x) e **tutte a inchiostro pieno**, come la tab bar (le non scelte non sono piu' in grigio: la scelta la dicono la goccia e la gemella piena), pannello di vetro (`Floating`, angoli 28 dp) col **proprio** `backdrop`. L'indicatore e' una **goccia** (`glassDrop`: piena e bianca sul
-chiaro, grigia sullo scuro, lente mentre viaggia) che si muove come la pillola della barra quando si tocca una scheda: preme, corre, rilascia; la scheda scelta e' ridisegnata sopra la goccia a riposo e sfuma tre volte piu' in fretta della pressione.
-La prima volta la goccia nasce al suo posto (altrimenti lampeggerebbe da lente appena compare); con animazioni ridotte salta. **Senza una scheda che corrisponda alla rotta la lente non si mostra** (il rail resta in scena anche su una nota, e una lente
-parcheggiata sulla prima scheda direbbe una cosa falsa). Ogni scheda ha `Role.Tab`, `selected` e il tag di test `top_level_<rotta>` (a differenza della barra a elenco). **Non si ripiega** e non ha equivalente nella barra; il rail
-si usa dentro `FluidPaneScaffold` (`rail = { FluidTabRail(...) }`, larghezza di layout `FluidPaneSizes.rail` = `RailWidth` + 2×`HorizontalMargin` = 112 dp, [schermata.md](schermata.md)).
-`FluidTabBarDefaults`: `Height` 64, `RailWidth` 84, `RailIconSize` 28, `HorizontalMargin` 14, `BottomMargin` 16, `ContentInset` 80 (64+16, **obsoleta come numero per la barra in basso**: usa `FluidFloatingTabBarDefaults.ContentInset`).
-`fluidTabBarPadding()` = `PaddingValues(horizontal = 14, vertical = 16)`: i margini di serie attorno a una barra flottante.
-
-**Trappole.** Con un'unica scheda l'intervallo della goccia sarebbe vuoto (la molla dividerebbe per zero): la barra usa `coerceAtLeast(1)`. Il rail non vede il fondale da solo: passagli `backdrop`.
-
-**Versione.** Rail dalle 1.x; goccia 3.0.0 (fase 9); lente nascosta senza selezione 1.33.0.
-
-## Segni, pulsante e movimento ridotto (Fase 1 di Pampa Mail, 3.1.0)
-
-Quattro aggiunte alla barra e al rail, tutte **opt-in**: chi non le usa ha lo stesso albero e le stesse misure di prima. Dove l'ultimo parametro di una firma era una lambda
-(`tab(…)`: `indication`; `FluidTabRail`: `onReselect`) la novità è un **overload** e non un parametro in coda: la firma della 3.0 resta identica, e la lambda finale va dove andava
-(provato da `Compat307SourceTest` in `engine-ui` e `Compat307BehaviourTest` nella galleria). File: `FluidFloatingTabBar.kt`, `FluidTabBar.kt`.
-
-### Segni sulle zone: `FluidTabBadge`
-
-**Cos'è.** Il pallino o il numero su una zona che ha qualcosa di nuovo mentre si è altrove (la chat con un messaggio, gli aggiornamenti di un negozio). `FluidTabItem(route, label, icon, badge = null)` nella forma a elenco e nel rail,
-`tab(key, title, icon, badge, onClick, indication = null)` nella forma a DSL: un overload con `badge` **obbligatorio** (nullable: `badge = if (nuove) FluidTabBadge.Dot else null`) al **quarto**
-posto, dove la firma della 3.0 ha `onClick` (così nessuna sua chiamata, nemmeno con un `null` al quinto posto, lo raggiunge); `indication` resta l'ultima e si passa per nome; `tab(key, title, icon, onClick, indication = null)` è quella di sempre. Un'implementazione dell'interfaccia scritta per la 3.0 compila com'era: il
-membro nuovo ha un corpo di serie che inoltra al `tab` di sempre, senza segno. `FluidTabBadge(count: Int? = null, contentDescription: String? = null, color = Color.Unspecified)`: `count = null` è il **pallino**
-(`FluidTabBadge.Dot`), `> 0` il numero («99+» oltre 99), `≤ 0` niente (né segno né frase), come `FluidBadge`.
-
-**Perché lo disegna la barra e non l'app.** L'icona è un composable dell'app, ma la scheda la costruisce la barra: la riga nascosta che la pillola guarda e l'icona ridisegnata sopra di lei sono copie che l'app non vede, e un
-segno disegnato dall'app dentro l'icona **spariva sotto la pillola**; TalkBack non lo leggeva (una proprietà su un discendente non sale al nodo della scheda). Qui il segno è un `FluidBadge` messo in tutte le copie, appoggiato
-all'angolo alto dell'icona **senza cambiarne la misura** (sporge e si disegna fuori: scheda, riga nascosta e icona restano allineate al pixel con o senza segno, e un numero che col testo al 200% si allarga non sposta niente; a
-sinistra in RTL).
-
-**Solo a barra aperta (scelta voluta).** Ripiegata, la pillola mostra la sola zona in cui si è, e su quella il segno non compare: un segno discreto deve potersi ignorare per sempre, e una pillola ripiegata che si accende per una
-zona che non si vede direbbe una cosa che non si può leggere. Si riapre la barra (scorrendo verso l'alto, o toccandola) e il segno è lì. **Anche TalkBack lo dice solo a barra aperta.** Il **rail** non si ripiega: il segno si vede sempre.
-
-**Accessibilità.** Il segno è muto e **non è un bersaglio**: il tocco è della zona, e la zona si annuncia col suo nome e lo stato del segno («Chat, novità»), una volta sola, sul nodo della scheda (`stateDescription`). Parole di
-serie: `FluidLabels.tabBadgeNew`, `FluidLabels.tabBadgeCount`; `contentDescription` le sostituisce. Per un numero la frase dice la **quantità vera** anche quando il disegno dice «99+». Il segno non si attenua con la scheda non
-scelta: al 60% non reggerebbe più il suo contrasto, e su una zona che non è quella in cui si è (il caso per cui esiste) sarebbe il segno meno leggibile.
-
-### `standaloneTab` come pulsante, azione in testa al rail
-
-`standaloneTab` non è una zona: è un **tasto accanto alla pillola**, la ricerca che cresce nel campo o un'azione primaria come «Scrivi» che resta visibile anche a barra ripiegata. Per TalkBack si annuncia come
-**pulsante** (`Role.Button`), mai come scheda scelta o da scegliere. Tre regole: la sua `key` **non** va passata come `selectedTabKey` (non cambia la zona in cui si è); il nome per TalkBack sta nella `contentDescription`
-dell'icona (il `title` non si mostra); non si usa con `searchMode` (il cerchio crescerebbe nel campo di ricerca). Un'azione primaria deve avere un posto fisso anche su schermo largo: da 600 dp la barra diventa il rail, e
-**`FluidTabRail(…, backdrop = b, header = { … })`** (un overload: `header` è obbligatorio, nullable, al **quinto** posto dove la firma della 3.0 ha il `Modifier`, e la lambda finale resta `onReselect`) mette l'azione **in testa** al rail, sopra la capsula, **fuori dal vetro del rail** con `FluidTabBarDefaults.RailHeaderSpacing` (8 dp) sotto, come lo spazio fra la pillola e il cerchio nella
-barra in basso. È un tasto, non una zona (niente goccia, niente selezione): l'app ci mette il suo `FluidGlassIconButton` con la sua `contentDescription`, centrato nella larghezza del rail. Con `header` il `modifier` va al
-contenitore di tutti e due e la capsula prende l'altezza che resta; senza (`null`, di serie) il rail è quello di prima.
-
-### La pillola e il movimento ridotto
-
-La barra legge `LocalFluidMotionPolicy`. Con `reducedMotion` la piega fra barra in linea e aperta è **un cambio in un fotogramma** (niente dissolvenza, niente elementi condivisi in viaggio, niente impulso gommoso), la pillola
-nasce **intera** e al tocco, a una selezione fatta altrove o al rilascio di un trascinamento **arriva al suo posto senza viaggiare**; la pagina non aspetta il viaggio e parte subito. Restano il dito che trascina la pillola (1:1)
-e il suo squash con segno. A scala normale tutto è come prima (la chiave della transizione è fissa). **Trappola:** spegnere solo le dissolvenze non basta, perché i limiti di un elemento condiviso sono un'animazione della
-transizione e la terrebbero in moto: per questo ogni stato ha la sua transizione, nuova, che nasce già arrivata. La politica vale scala 1 di serie: cambia solo in un'app che installa `FluidMotionPolicyProvider`
-(`movimento.md`) e ha le animazioni di sistema a zero.
-
-## FluidFoldingTabBar e FluidBarFold (deprecati)
-
-**Cos'e'.** La barra «a piega continua» che l'engine aveva, tenuta col suo nome e oggi **`FluidFloatingTabBar` sotto un altro nome**: nulla qui decide come appare la barra. Deprecata e non cancellata perche'
-cancellarla avrebbe fatto pagare a ogni app un miglioramento che non aveva chiesto, con una scadenza che non aveva scelto; chi la chiamava ha preso il vetro vero senza toccare una riga. Si sceglie *di
-andare* verso la barra nuova quando serve cio' che questa firma non sa chiedere: una banda dentro la barra, un campo di ricerca che cresce, schede come composable.
-
-**Cosa delega e cosa ignora.** Costruisce una `FluidFloatingTabBar` a DSL (una `tab` per voce, titolo `Text(item.label)`, icona `tabIcon` o `item.icon`) con una connessione sua e **chiusa a chiave** (`locked = true`: la piega e' di chi la guida; due cose
-sulla stessa piega litigano). `fold: () -> Float` (0..1) viene riletto in un effetto — non in composizione: ricomporrebbe tutta la barra a ogni fotogramma di una animazione — e **a `>= 0,5` chiama `inline()`, sotto `expand()`**: il numero e' ridiventato una decisione, allo stesso punto di mezzo di prima.
-`accessory` va a **tutte e due** le bande; `searchMode`/`searchContent` ai due omologhi; `foldAlignment` (`FluidFoldAlignment`: `Start`, `Center`, `End`) alla `Alignment.Horizontal`, **default `Start`** (era `Center` e veniva ignorato, 2.3.0).
-**Ignorati** (e il KDoc lo dice): `tint` (il materiale e' della barra, non un colore che passa il chiamante), `trailing` (nella barra nuova il cerchio e' una *scheda* con chiave e selezione: trasformare un composable qualsiasi in una scheda sarebbe una sorpresa peggiore che ometterlo) e `accessoryHeight`.
-**Un tocco sulla scheda ripiegata** chiama `onExpandRequest` se c'e' (aprire, non selezionare: chi ha appena toccato una barra chiusa non vuole «torna in cima»), altrimenti `onReselect`/`onSelect`.
-
-```kotlin
-val fold = rememberFluidBarFold()
-Box(Modifier.nestedScroll(fold.connection)) { /* pagine */ }
-FluidFoldingTabBar(items = tabs, selectedRoute = route, onSelect = go, backdrop = backdrop, fold = { fold.progress.value }, onExpandRequest = fold::unfold)
-```
-
-**`FluidBarFold`** (`rememberFluidBarFold()`): la piega e la connessione che la muove. `progress` e' un `State<Float>` 0..1 animato con `FluidMotion.TabBarFold` (molla 0,9, mai oltre), a salti con animazioni ridotte; `folded` e' `target > 0,5`; `unfold()`/`foldNow()`
-a mano; `connection` da attaccare alla pagina. **Giu' piega, su apre, ovunque nella pagina** (la prima versione riapriva solo quando la lista finiva di contenuto sopra, e arrivare alla navigazione da meta' di una lista lunga voleva dire
-tornare in cima). Cio' che impedisce lo sfarfallio e' una **soglia di commit asimmetrica**: **36 dp** per nascondere, **10 dp** per rivelare, azzerata a ogni cambio di direzione; solo il dito (`UserInput`: un fling riporta delta propri,
-l'ultimo dei quali punta all'altro verso e riaprirebbe la barra a fine lancio). `locked` ferma la risposta e **scarta** lo scorrimento (non lo accumula: rilasciare il blocco non deve riprodurre una piega che nessuno chiede piu'): serve quando
-qualcos'altro *misura* la barra (una superficie che cresce dal rettangolo di una banda, un elemento condiviso in volo) e una barra che si piega sotto sposterebbe cio' da cui parte il viaggio.
-`FluidFoldingTabBarDefaults` e' un alias dei numeri della barra nuova: `OpenHeight`, `FoldedHeight`, `SoloFoldedHeight`, `Spacing`, `HorizontalMargin`, `BottomMargin`, `ContentInset`, `contentInsetWithAccessory(h = AccessoryHeight 50)`, `Inset` 4.
-
-**Non usarli quando.** Scrivi codice nuovo: `FluidFloatingTabBar` con la sua connessione. `FluidBarFold` non ha un altro consumatore nel repo: serve soltanto a pilotare questo involucro (o controlli tuoi che seguano la piega).
-
-**Versione.** `FluidFoldingTabBar` dalla 1.5.0; deprecata e delegata alla barra flottante dalla 2.0.0.
-
-## FluidTabBar (deprecata)
-
-**Cos'e'.** «La barra di prima, sotto il nome che le app gia' chiamano» (`FluidTabBar(items, selectedRoute, onSelect, backdrop, onReselect)`): oggi e' **`FluidFloatingTabBar` nella forma a elenco con una scroll connection `Never`**
-(`rememberFluidFloatingTabBarScrollConnection(inlineBehavior = Never)`). Deprecata dalla 2.12.0 con `ReplaceWith` che compila; il KDoc diceva «rimozione prevista per la 3.0» ma **nella 3.0.4 c'e' ancora**.
-
-**Cosa si vede cambiare** (il perche' di ogni riga e' nel KDoc di `FluidTabBar.kt`): **larghezza** — una capsula grande quanto le schede (fino a 88 dp ciascuna), centrata nella larghezza offerta, non una barra da lato a lato (con tre
-schede su un telefono e' piu' stretta); **altezza** — 62 dp (60 fino alla 3.x) invece di 64, e un pavimento; **margini** — restano di chi la posa (ne' la vecchia ne' la nuova portano margine laterale, basso o barra di sistema); **non si ripiega** — nessuna pagina la guida,
-resta aperta come prima; **accessibilita'** — dice `selected` ma ha perso `Role.Tab` e il tag `top_level_<rotta>` (un test cerca l'etichetta, `hasText`; il rail li tiene).
-Il rail ([sopra](#fluidtabrail-fluidtabitem-fluidtabbardefaults-fluidtabbarpadding)) non ha equivalente e resta.
-
-**Non usarla quando.** Sempre: `FluidFloatingTabBar(items = …, scrollConnection = rememberFluidFloatingTabBarScrollConnection(), …)`. Se la barra deve **restare** aperta, passa `inlineBehavior = Never`.
-
-## FluidFloatingCapsule e FluidCapsuleAction
-
-**Cos'e'.** Una capsula di vetro con delle azioni dentro, che galleggia sopra la pagina: la barra di una selezione multipla, un mini player, i comandi di una foto, un avviso con un tasto. Quattro app se l'erano scritta
-da sole e ognuna sbagliava una cosa diversa (un bersaglio da 40 dp, un margine che ignorava la barra di sistema, la capsula che lasciava passare i tocchi al contenuto sotto): qui e' una cosa sola.
-
-**Firma essenziale.**
-
-```kotlin
-FluidFloatingCapsule(
-  modifier: Modifier = Modifier,                 // la allinea il chiamante: Modifier.align(BottomCenter) dentro un Box
-  backdrop: GlassBackdropState = currentGlassBackdrop(),
-  visible: Boolean = true,                       // entra/esce con FluidFloatingCapsuleDefaults.enter/exit; falso non lascia niente in composizione
-  placement: FluidFloatingCapsulePlacement = FluidFloatingCapsulePlacement.Free,
-  fillWidth: Boolean = false,                    // fino a MaxWidth 560 dp, centrata: il content usa Modifier.weight(1f)
-  onPhoto: Boolean = false,                      // pellicola `floatingTintOnPhoto` sopra una foto a tutta pagina
-  avoidKeyboard: Boolean = false,
-  minHeight: Dp = FluidFloatingCapsuleDefaults.Height, contentPadding: PaddingValues = ContentPadding,
-  label: String? = null,                         // titolo del pannello per TalkBack («3 selezionate»)
-  leading: (@Composable RowScope.() -> Unit)? = null, trailing: (@Composable RowScope.() -> Unit)? = null,
-  content: @Composable RowScope.() -> Unit,
-)
-
-FluidCapsuleAction(icon, contentDescription, onClick, enabled = true, destructive = false, tint = Color.Unspecified,
-  onLongClick = null, size = 48.dp, grip = FluidPressGrip.HoldsFinger, selected: Boolean? = null)
-```
-
-**Uso** (da `CapsulesAndPartsDemo.kt`).
-
-```kotlin
-FluidFloatingCapsule(
-  modifier = Modifier.align(Alignment.BottomCenter),
-  backdrop = backdrop,                           // FluidScreen.overlay lo passa
-  placement = FluidFloatingCapsulePlacement.AboveTabBar,
-  visible = selecting, label = "3 selezionate",
-  leading = { FluidCapsuleAction(Icons.Rounded.Close, "Annulla la selezione", onClick = { selecting = false }, tint = MaterialTheme.colorScheme.onSurface) },
-) {
-  Text("3 selezionate", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp))
-  FluidCapsuleAction(Icons.Rounded.Share, "Condividi", onClick = {})
-  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick = {}, destructive = true)
+toolbar = {
+  search(FluidSearchSpec(query, { query = it }, placement = FluidSearchPlacement.BottomBar, prompt = "Cerca nelle foto",
+    scopes = { Text(if (favouritesOnly) "Preferite" else "Tutte", Modifier.clickable { favouritesOnly = !favouritesOnly }) },
+    suggestions = { if (query.isNotBlank()) Text("Cerca «$query» nella raccolta") }))
+  group("comandi", placement = FluidToolbarPlacement.BottomBar) { /* … */ }
 }
 ```
 
-**Comportamento.**
+Sopra un fondo carico il campo aperto si vela secondo l'inchiostro che il piano gli dà (nero al 40% sotto un inchiostro
+chiaro, bianco al 16% sotto uno scuro), in proporzione all'apertura: sul ritaglio carico di prova del banco il testo
+tiene almeno 7,9:1 in chiaro e 5,3:1 in scuro. Sopra la tastiera il campo non la rifrange (è un'altra finestra). Il dettaglio delle
+sedi, del ritiro con `Principal` e dell'host è in [toolbar.md](toolbar.md), «La ricerca».
 
-- **Una lastra sola**: il piano disegna un solo pannello con la pellicola `Floating` e ne anima la larghezza quando cambiano i figli, **mai sulle azioni**: `FluidCapsuleAction` e' un'icona piatta (26 dp presi dal posto, `FluidMetrics.CapsuleIconSize`; dalla 4.0 nell'inchiostro del testo, e nell'accento solo se `selected` o con un `tint`; `error` se `destructive`) che cresce sotto il dito
-  (`FluidPressFeedback.Expand`); ogni lente in piu' e' un layer. Per un'azione che deve staccarsi dal resto (il «Fatto» di una selezione, il play) si mette nelle fessure un tasto di vetro vero (`FluidGlassIconButton`, `FluidGlassButton`): dentro la capsula
-  campiona il suo materiale (vetro su vetro, dalla 2.13.0) e riceve il backdrop come `LocalGlassBackdrop`.
-- Il cambio di simbolo di un’azione usa lo scambio sfocato del piano. Per separare o fondere più gruppi al cambio di pagina si dichiarano i comandi con `BottomBar` nella [toolbar](toolbar.md).
-- **`placement`** — la capsula conosce lo schermo solo se glielo dici: `Free` (nessun margine, la posi tu), `ReplacingTabBar` (stessi margini e stessa altezza della barra: la pagina non cambia lo spazio che si e' lasciata), `AboveTabBar` (a `Spacing` 8 dp sopra la barra).
-  Numeri (`bottomOffset` senza barra di sistema): `Free` 0, `ReplacingTabBar` **16**, `AboveTabBar` **86** (`ContentInset` 78 + 8). Spazio per la pagina (`contentInset(placement, capsuleHeight)`, **comprensivo della barra**): `Free` 0; `ReplacingTabBar` 16 + max(h, 62) = 78 con la capsula standard; `AboveTabBar` `contentInsetWithAccessory(h)` = 78 + h + 8 = **148** alla altezza standard 62.
-  La barra di sistema la aggiunge `fluidCapsuleInsets`, e la `FluidScreen` per la pagina.
-- **Tiene i tocchi**: un tocco in un punto della capsula che non e' un'azione non arriva alla card sotto (senza, toccare fra due icone apriva la foto dietro); i trascinamenti passano (una pagina che parte a scorrere da qui scorre lo stesso).
-- Altezza minima `Height` = `OpenHeight` 62: un'azione da 48 + 7 + 7. `Spacing` 4 fra i pezzi, `ContentPadding` 6 ai lati e 7 sopra e sotto (`(Height - ActionSize) / 2`), `ActionSize` 48; `size` sotto 48 stringe il layout ma Compose estende comunque l'area toccabile a 48 (serve a quattro azioni su un telefono stretto).
-  Un'azione spenta resta al suo posto ma velata a 0,38: una capsula che cambia larghezza quando un'azione non c'e' fa saltare il vicino.
-- Entrata: sale da sotto con la molla del chrome (critica, niente rimbalzo: «una barra che rimbalza e' il segno piu' rumoroso di "non e' premium"»), uscita piu' svelta; i margini stanno **dentro** l'animazione, quindi sale da sotto il bordo dello schermo, non da dieci dp piu' in basso.
-  Animazioni ridotte: solo la dissolvenza (160/120 ms).
-- `grip`: `FluidPressGrip.YieldsToScroll` se la capsula sta sopra una lista o un pager che deve partire anche da li' (dalla 3.0).
-- `fluidCapsuleInsets(placement, avoidKeyboard)` e' pubblico: non e' solo della capsula, vale per **qualunque** pezzo di vetro che galleggia in quel posto (un campo di ricerca al posto della barra). `avoidKeyboard` usa `imePadding` *dopo* la barra di sistema
-  (l'inset della tastiera la comprende gia'); per `AboveTabBar` non ha senso (la barra sotto la tastiera non si vede).
+### `FluidSearchField`, il campo nella pagina
 
-**Trappole.** La capsula **non si allinea da sola**: serve `Modifier.align(...)` nel `Box` genitore. Va sopra la pagina, non dentro `content` (campionerebbe se stessa): nello slot `overlay` di `FluidScreen`, con il backdrop che riceve. Con `Free` la pagina non sa quanto spazio riservare:
-niente `contentInset`. `contentInset(AboveTabBar)` **include gia' la barra**: non sommarlo a `ContentInset`.
-
-**`FluidCapsuleAction(selected)`: l'azione che si accende e si spegne** (3.1.0). Il grassetto di una barra di formattazione sopra la tastiera, un filtro. `selected = null` (di serie) è l'azione semplice di sempre;
-con un valore è un **interruttore**: ruolo `Switch` e lo stato che TalkBack dice (acceso/spento, nella lingua di sistema), e da accesa ha un **disco dell'accento** dietro l'icona (16% dell'accento). Il segno **non è solo di
-colore**: un disco pieno e un'icona sola si distinguono anche in scala di grigi e a chi non vede i colori. Il disco sta dentro il bersaglio da 48 dp (3 dp d'aria) e cresce con l'icona sotto il dito; compare e sparisce con
-`FluidMotion.flick()` (secco col movimento ridotto). `selected` è l'ultimo parametro e di serie nullo: nessuna chiamata esistente cambia. Trappola: lo stato lo tiene l'app; l'azione non si accende da sola.
-
-**Versione.** Dalla 3.0.0.
-
-## Ricerca dichiarata nella barra
-
-`FluidScreen(search = FluidSearchSpec(...))` colloca il campo nella chrome. La lente misura 44 dp e il vetro dell’editor aperto 40 dp. Il campo condivide il piano F3 con i comandi della riga. La larghezza disponibile, il numero di vicini e la politica di apertura determinano la posa a riposo. La pagina può mostrare filtri in linea e suggerimenti durante l’inserimento. La galleria offre «Mostra la ricerca in basso» in «Barra in basso» e le due varianti in alto nella pagina «Ricerca» di «Barre fra pagine». [Posizioni e comportamento](toolbar.md#la-ricerca).
-
-## FluidSearchField
-
-**Cos'e'.** Un campo di ricerca di vetro: la capsula con la lente a sinistra, il testo, la crocetta che svuota e — se serve — «3/12» con i due tasti per scorrere i risultati dentro la pagina. Tre app se l'erano scritto (una senza il fuoco automatico, una con il
-`FluidTextField` dentro un vetro, cioe' un pozzetto opaco su una lastra, una con due X). Qui il campo e' **la lastra stessa**: lo stesso materiale della capsula e della barra (`fluidFloatingGlass`), quindi due pillole nella stessa fila non sono due grigi.
-
-**Firma essenziale.**
+Un campo di ricerca di vetro: la capsula con la lente, il testo, la X che svuota e, se serve, «3/12» con le frecce. Il
+campo **è** la lastra (`fluidFloatingGlass`), non un pozzetto dentro un vetro.
 
 ```kotlin
-FluidSearchField(
-  query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier,
-  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
-  placeholder: String? = null, labels: FluidSearchLabels = FluidSearchLabels(),
-  onSearch: (() -> Unit)? = null,                  // il tasto «cerca» della tastiera; null: nasconde la tastiera
-  expanded: Boolean = true, onExpandedChange: ((Boolean) -> Unit)? = null,   // chi lo passa rende il campo richiudibile (cerchio ↔ campo)
-  navigation: FluidSearchNavigation? = null,       // FluidSearchNavigation(current da zero, total, onPrevious, onNext)
-  autoFocus: Boolean = true, onPhoto: Boolean = false, keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-)
-```
+FluidSearchField(query = query, onQueryChange = { query = it }, backdrop = stage, placeholder = "Cerca nelle foto",
+  expanded = expanded, onExpandedChange = { expanded = it }, autoFocus = false)
 
-**Uso** (da `CapsulesAndPartsDemo.kt`).
-
-```kotlin
-// Un cerchio che si apre in campo:
-FluidSearchField(query = query, onQueryChange = { query = it }, backdrop = stage,
-  placeholder = "Cerca", expanded = expanded, onExpandedChange = { expanded = it }, autoFocus = false)
-
-// Una ricerca dentro la pagina, con «3/12»:
 FluidSearchField(query = q, onQueryChange = { q = it; current = 0 }, backdrop = stage, autoFocus = false,
   navigation = FluidSearchNavigation(current = current, total = total,
     onPrevious = { if (total > 0) current = (current - 1 + total) % total },
     onNext = { if (total > 0) current = (current + 1) % total }))
 ```
 
-**Comportamento.**
+- Con `onExpandedChange` è richiudibile: la lente da 44 dp si apre in un campo alto 40, sul piano, con la cattura tenuta;
+  segnaposto e chiusura entrano sfocati. Il campo sempre aperto è alto 52 dp. Il modificatore del chiamante decide il
+  lato da cui cresce.
+- `autoFocus` prende il fuoco all'apertura; il fuoco si toglie solo quando il campo si chiude. «Cerca» sulla tastiera
+  chiama `onSearch`; senza, nasconde la tastiera e lascia il testo.
+- Il contatore: niente a query vuota, «3/12» entro i limiti, «Nessun risultato» con le frecce spente; TalkBack «3 di
+  12». Comandi interni da 40 dp.
+- Di serie il fondale è il canvas della pagina, se c'è; altrimenti la chrome.
+- Nello slot `searchBarContent` della tab bar prende misura, identità e materiale del tondo:
+  `searchBarContent = { field -> FluidSearchField(query, { query = it }, field) }`.
 
-- Con `onExpandedChange` la lente da 44 dp si apre in un campo alto 40 dp. Il piano interpola la sagoma e tiene la cattura. Segnaposto e chiusura entrano con la sfocatura R7. Il modificatore del chiamante decide il lato dal quale il campo cresce. Con movimento ridotto il campo assume subito la posa finale. Il campo sempre aperto conserva l’altezza di 52 dp. Nello slot di una tab bar valgono misura, identità e materiale del tondo di quella barra.
-- *Il fuoco e la tastiera.* Con `autoFocus` il campo prende il fuoco quando si apre o compare (`runCatching`: il nodo del fuoco puo' non essere ancora collegato al primo istante); chiudendosi fuoco e tastiera vanno via. Il fuoco si toglie **solo quando il campo si chiude**, non quando compare gia' chiuso: un
-  cerchio che entra in una pagina con un altro campo in primo piano non gli strappa il cursore. «Cerca» sulla tastiera chiama `onSearch`; senza, nasconde la tastiera e lascia il testo (la ricerca era gia' live). Con `navigation` `onSearch` non nasconde la tastiera (Invio di solito e' «avanti»).
-- *Il testo e' del motore* (`bodyLarge`, cursore d'accento): non e' `FluidTextField`, che porta un pozzetto — un incavo dentro un vetro e' un rettangolo appiccicato sopra la lastra.
-- *Il contatore* `fluidSearchCounter`: nulla a query vuota; «3/12» (indice da zero + 1 su totale, tenuto entro i limiti: mai «13/12»); «Nessun risultato» se c'e' una parola e `total == 0` (frecce spente). Area viva `Polite` per TalkBack («3 di 12»). Cifre tabulari.
-  Bersagli dei comandi interni 40 dp (`ActionSize`: quattro in 332 dp non ci stanno a 48).
-- *Il fondale* (3.0.1): di serie il canvas della pagina se c'e' (come chip, segmentato, slider), altrimenti la chrome in scope. Prima era sempre la chrome, e su una pagina ambientale il campo rifrangeva il corpo invece della lavata sotto di lui. In una barra il canvas non c'e'.
-- `FluidSearchLabels(search, clear, close, previous, next, noResults, counterSpoken)`: le parole, tutte insieme (italiano di serie; un'app tradotta ne passa **una**). `ExpandedFallbackWidth` 320 dp se il genitore non da' larghezza (dentro uno scorrimento orizzontale).
-- Tiene i tocchi che non ha preso (un tocco sul margine del vetro non arriva alla card sotto).
+**Trappole.** `onExpandedChange` non svuota la ricerca. Un campo sempre in pagina vuole `autoFocus = false`, o la
+tastiera copre i risultati. Al posto della tab bar si posa con `fluidCapsuleInsets(placement, avoidKeyboard = true)`.
 
-**Trappole.** `onExpandedChange` **non svuota** la ricerca: lo decide l'app. Si posa con `fluidCapsuleInsets` se prende il posto della barra, e sale con la tastiera con `avoidKeyboard` (che e' della capsula, non del campo: metti `fluidCapsuleInsets(placement, avoidKeyboard = true)` sul `Modifier`).
-Un campo sempre in pagina vuole `autoFocus = false`, o una tastiera che sale da sola copre i risultati. Nello slot `searchBarContent` della tab bar **non** e' un campo nudo (porta il suo pannello).
+## La tab bar
 
-**Versione.** Dalla 3.0.0; sfondo di serie sul canvas 3.0.1.
+`FluidFloatingTabBar` è la barra di navigazione dell'app Fluidify portata nell'engine (da *FloatingTabBar* di Elyes
+Mansour, con la pillola liquida di Kyant0), a quattro spazi come l'originale e con le modifiche locali segnate
+(`LOCAL CHANGE`). Ha due forme.
 
-## Token, costanti, Defaults
+```kotlin
+// A elenco: le destinazioni come dati.
+FluidFloatingTabBar(items = tabs, selectedRoute = route, onSelect = { route = it.route },
+  scrollConnection = rememberFluidFloatingTabBarScrollConnection(), backdrop = backdrop,
+  onReselect = { scrollToTop.request() })
+
+// A DSL: tre schede, il tondo della ricerca, la prominente e il lettore.
+FluidFloatingTabBar(
+  selectedTabKey = selected, scrollConnection = scroll, backdrop = backdrop,
+  modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 432.dp).padding(horizontal = 14.dp, vertical = 16.dp),
+  inlineAccessory = { band, _ -> Box(band, contentAlignment = Alignment.Center) { Text("In ascolto") } },
+  expandedAccessory = { band, _ -> Box(band.fillMaxWidth().height(46.dp), contentAlignment = Alignment.Center) { Text("In ascolto") } },
+  searchActivation = FluidTabSearchActivation.SearchTabSelection,
+  searchBarContent = { field -> BasicTextField(value = query, onValueChange = { query = it }, modifier = field.padding(12.dp)) },
+) {
+  tab("Oggi", { Text("Oggi") }, { FluidIcon(FluidIcons.CalendarMonth, null) }, { selected = "Oggi" })
+  tab("Raccolta", { Text("Raccolta") }, { FluidIcon(FluidIcons.Filled.PhotoLibrary, null) }, { selected = "Raccolta" })
+  standaloneTab("Cerca", { FluidIcon(FluidIcons.Search, "Cerca") }, FluidTabRole.Search,
+    onClick = { selected = "Cerca" }, title = { Text("Cerca") })
+  standaloneTab("Preferiti", { FluidIcon(FluidIcons.Filled.Star, "Preferiti") }, FluidTabRole.Prominent,
+    onClick = { selected = "Preferiti" })
+}
+```
+
+### Tre pose e un campo
+
+La barra ha tre pose: aperta, ripiegata e ricerca attiva. Col materiale Liquid e il pannello di serie (da Android 13)
+**gruppo, tondo e lettore sono tre vetri dello stesso piano**, con lo stesso riferimento al fondale: il piano misura solo
+la posa d'arrivo e li porta ciascuno con la sua sagoma, la sua luce e la sua ombra, senza ricatture durante il cambio.
+
+- **La piega** (234 ms, `FluidMotion.FloatingTabFold`, dalla piega di Musica): il gruppo si stringe nel tondo a sinistra;
+  l'etichetta della scheda scelta resta leggibile nei primi 67 ms e si spegne fra 67 e 100, sempre sotto il glifo; il
+  glifo scelto va dalla sua cella al centro del tondo e resta nitido, mentre le altre icone e i titoli si sfocano fino a
+  6 dp. Il lettore scende fra i due tondi (`FluidMotion.TabBarPlayer`) e il suo contorno passa davanti ai due vetri.
+- **La ricerca** (133 ms, `FluidMotion.TabBarSearch`, dalla ricerca di Foto): il gruppo si raccoglie nel tondo della
+  scheda corrente mentre il tondo della ricerca si allunga nel campo. La pagina e la tastiera sono dell'app; per la
+  pagina che sbianca c'è `FluidMotion.FloatingTabSearchPage`.
+- Con un pannello disegnato dall'app (`tabBarContentModifier`) o col materiale Classic resta la piega di prima, a elementi
+  condivisi con l'impulso gommoso da 12 dp. Per confrontare le due pieghe sulla stessa build c'è il tag diagnostico
+  `log.tag.FluidTabBarGooey=DEBUG`, letto alla composizione della barra.
+
+### Quando si ripiega
+
+La decisione è di `FluidFloatingTabBarScrollConnection`, che l'app attacca a un **antenato delle pagine** con
+`Modifier.nestedScroll(connection)` e passa alla barra per argomento (la barra è sorella delle pagine, non genitrice:
+attaccata alla barra non sente scorrere niente).
+
+| | |
+|---|---|
+| `inlineBehavior` | `OnScrollDown` (di serie): si ripiega scorrendo in giù, si riapre risalendo; `OnScrollUp`; `Never` |
+| soglie | ripiega dopo **50 dp** di scorrimento netto in un verso (`scrollThreshold`), si riapre dopo **8 dp** in su (`expandThreshold`): asimmetriche di proposito, perché la barra che torna è quella che si cerca |
+| cosa conta | ciò che il contenuto ha davvero scorso (`consumed` in `onPostScroll`): una pagina che non scorre non ripiega la barra; tirata giù in cima la riapre |
+| cambio di pagina o di scheda | l'host delle pagine (`FluidNavHost`, `FluidPageHost`) e la barra stessa chiamano `routeChanged()`: fine dello scorrimento e barra aperta. `settle()` + `expand()` a mano non servono più |
+| `locked` | lo scorrimento non tocca la barra: per la ricerca in corso (ripiegare toglierebbe il campo) e per chi misura la barra |
+| `isInline`, `expand()`, `inline()` | lo stato, e i due comandi per la piega comandata |
+| `scrolling` | vero mentre la pagina sotto si muove: il vetro tiene l'ultima cattura invece di rifare sfocatura e lente a ogni fotogramma |
+| `morphing` | vero nei fotogrammi in cui la barra cambia forma, per il pannello che l'app costruisce da sé |
+
+`rememberFluidFloatingTabBarScrollConnection(initialIsInline, scrollThreshold, expandThreshold, inlineBehavior)` ha chiave
+su questi valori: cambiare `initialIsInline` ricrea la connessione e ne azzera lo stato.
+
+**Ripiegata** si vede solo la scheda scelta (52 dp), più la banda e il tondo se ci sono; da sola sale a 64 dp. Se la
+scelta è il tondo, la barra mostra l'ultima scheda normale davvero scelta. Un tocco sulla scheda ripiegata riapre la barra
+e chiama anche il suo `onClick` (nella forma a elenco `onReselect`). Tenendo premuto il glifo e trascinando si scorre fra
+le destinazioni e si sceglie al rilascio. `foldAlignment` (di serie `Start`) dice da che parte si raccoglie: ripiegata è
+l'unico bersaglio, e dove si posa decide se il pollice ci arriva; aperta il gruppo è sempre centrato.
+
+### La fila aperta e la bolla
+
+- Le schede sono larghe uguali; `TabWidth` 88 dp è un **tetto**: su un telefono stretto `fittedTabWidth` divide lo spazio
+  che resta dopo il tondo. L'etichetta è una riga (11 sp, `labelMedium`) che si scala fino a 0,75 prima di tagliarsi.
+- **La bolla** è trascinabile: si assesta sulla scheda più vicina e naviga solo dopo un vero trascinamento; tira fino a
+  4 dp nel verso del dito e rientra con una molla sottosmorzata (0,5), la gelatina di slider e interruttore. Al tocco di
+  una scheda parte subito e la pagina aspetta `TabPuckLeadMillis` (160 ms) per costruirsi; le pagine delle schede vanno
+  tenute vive o precomposte ([../regole.md](../regole.md)).
+- **Premuta, la bolla Liquid diventa lente**: la sua scala segue la pressione ottica (×78/56 della cella, circa +39%
+  della larghezza, formata a 133–167 ms), rilegge i glifi dove li attraversa e aumenta la rifrazione fino alla
+  dispersione; al rilascio torna in circa 80 ms. A riposo e premuta campiona lo stesso fondale con la stessa ricetta.
+  Rientro di 0,076 H, altezza circa 0,85 H; sul telefono di R5 M4 la pillola è 219 livelli su una pagina a 238. Il
+  colore della scelta usa per l'icona il contrasto del testo (4,5:1 sulla pellicola). Senza fondale resta il disco
+  piatto; la bolla Classic tiene la riga nascosta tinta.
+- Icone ed etichette prendono il colore dell'app; se nessuno l'ha deciso (`LocalContentColor` di serie), `onSurface`.
+  Un'app che fornisce davvero il nero puro è letta come «non deciso».
+
+### La banda, il tondo e la prominente
+
+- **La banda** (`inlineAccessory`, `expandedAccessory`) riceve un `Modifier` da mettere sulla sua radice: porta il vetro,
+  l'ombra e il ritaglio. In linea sta fra la scheda e il tondo, aperta sopra la fila, larga quanto lei. Col materiale
+  Liquid è il terzo vetro del piano; altrimenti, con tutte e due le bande, viaggia come elemento condiviso (e le due copie
+  restano composte per tutta la piega).
+- **`standaloneTab` senza ruolo** è un tasto accanto alla bolla, non una zona («Scrivi»): TalkBack lo dice pulsante, la sua
+  `key` non va passata come `selectedTabKey`, il nome sta nella `contentDescription` dell'icona.
+- **`FluidTabRole.Prominent`** è una destinazione nel tondo a destra: diametro della barra aperta, solo il glifo, varco di
+  0,115 H (circa 7 dp), le proporzioni del telefono in R5 T6; resta a barra ripiegata. Scelta, prende l'accento e TalkBack
+  la dice scheda selezionata. Su una tela larga il gruppo di tre schede arriva a 5,23 H e resta centrato.
+- **`FluidTabRole.Search`** è la ricerca: con una prominente prende posto fra le destinazioni col suo `title`, senza
+  prende il tondo. Con `searchActivation = FluidTabSearchActivation.SearchTabSelection` sceglierla apre `searchBarContent`
+  (il modificatore ricevuto va sul campo o su un antenato, perché possa prendere il fuoco) e Indietro torna all'ultima
+  destinazione visitata, anche alla prominente. Con `Automatic` il campo lo guida l'app con `searchMode`.
+
+### Il materiale
+
+| caso | cosa succede |
+|---|---|
+| `backdrop` e nessun `tabBarContentModifier` | la barra si fa il vetro da sola (`Floating`, `floatingTint`) e il riempimento diventa trasparente |
+| `tabBarContentModifier` | il pannello è dell'app; `FluidFloatingTabBarGlass.blurRadius` è il suo raggio **finale** |
+| nessun `backdrop` | capsula piena di `colors.backgroundColor`, ombra di piattaforma, pillola piatta |
+
+`FluidFloatingTabBarGlass(blurRadius, puckColor, puckOpacity = 0,26)`: con il pannello della barra `blurRadius` è il
+raggio di **base** (2,5 dp, ×1,8 del ruolo: 4,5 come il pannello); col pannello dell'app è quello finale. Col materiale
+nuovo `puckColor` non specificato non lava la bolla; scritto dall'app diventa una pellicola di quel colore.
+
+### Segni, ripiego e movimento ridotto
+
+- **`FluidTabBadge`**: `count = null` è il pallino (`FluidTabBadge.Dot`), un numero diventa «99+» oltre 99, zero o meno
+  niente. Lo disegna la barra in tutte le copie (riga nascosta, icona sopra la bolla), all'angolo dell'icona senza
+  cambiarne la misura; **solo a barra aperta**, e TalkBack lo dice una volta sul nodo della scheda («Chat, novità»). Nella
+  DSL è l'overload `tab(key, title, icon, badge, onClick)`: la firma della 3.0 resta identica.
+- **Movimento ridotto**: la piega è un cambio in un fotogramma, la bolla arriva al suo posto senza viaggiare e la pagina
+  non aspetta; restano il dito che trascina la bolla e il suo schiacciamento.
+
+**Trappole.** La connessione va sull'antenato delle pagine. Una pagina che cambia senza passare dall'host e senza cambiare
+`selectedTabKey` può lasciare `scrolling` alzato: `settle()`. `FluidTabBarDefaults.ContentInset` (80) non è quello della
+tab bar flottante (78). `standaloneTab` senza ruolo chiamato due volte sovrascrive il primo. Ogni scheda vuole una `key`
+unica e stabile. Le schede a elenco dicono `selected` ma non hanno `Role.Tab` né il tag `top_level_<rotta>` (il rail sì):
+un test le cerca dall'etichetta.
+
+**Non usarla quando** c'è un solo livello di navigazione (lista → dettaglio): bastano `onBack` e `FluidScreen`.
+
+## Telefono e tablet: la navigazione adattiva
+
+`FluidAdaptiveNavigation` dispone le stesse `FluidTabItem` secondo la larghezza che riceve (le soglie di
+`FluidPaneDefaults`): **sotto 600 dp** la tab bar flottante, **da 600 a 999 dp** il rail, **da 1000 dp** la tab bar
+**in alto**, flottante e centrata, col tasto che la **apre in una barra laterale**. La rotta e le azioni sono dell'app;
+la scelta del pannello si salva con l'Activity e ritorna quando la finestra si riallarga.
+
+```kotlin
+Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).safeDrawingPadding()) {
+  FluidAdaptiveNavigation(destinations, route, { route = it.route }) { insets ->
+    Box(Modifier.fillMaxSize()) {
+      Canvas(Modifier.fillMaxSize().fluidBackgroundExtension()) { drawRect(Brush.linearGradient(colors)) }
+      Column(Modifier.align(Alignment.BottomStart).padding(insets).padding(36.dp)) { Text(title) }
+    }
+  }
+}
+```
+
+**La conversione è un viaggio del piano, in due tratte.** La capsula e la colonna sono lo stesso pannello: all'apertura
+la capsula va prima al margine iniziale mentre la pagina le fa posto (400 ms), poi la lastra scende fino in fondo (500
+ms) e le voci passano da riga a colonna, sfocate nel cambio; alla chiusura la colonna si raccoglie (430 ms) e la capsula
+torna al centro (400 ms). Le curve sono misurate su Musica per iPad (WWDC25 208). Un secondo tocco a metà inverte dal
+punto raggiunto, anche dentro la prima tratta. Le voci, il tasto, il velo della selezione e lo spazio della pagina
+seguono il rettangolo corrente del vetro; il tasto resta azionabile durante la sfocatura. Il contenuto riceve in
+`insets` lo spazio sopra la capsula o sotto la tab bar; lo spazio laterale lo riserva il contenitore.
+
+La barra laterale resta **flottante e monocroma**, con 12 dp di margine: divergenza scelta da iPadOS 27, dove arriva ai
+bordi con le icone d'accento. Il pannello prende la luce della pagina: col materiale Liquid la sonda del fondale tinge
+l'ombra e un velo del colore medio che arriva al 12% sulla colonna. `FluidSidebar` è la stessa barra laterale chiamata a
+mano (anche su telefono, se l'app la sceglie).
+
+**`fluidBackgroundExtension(start = null, end = 0.dp)`** va sull'immagine o sulla decorazione a tutta larghezza, prima
+del suo disegno: registra il disegno una volta, mostra l'originale al centro e ne ripete il bordo ribaltato e sfocato
+(12 dp) sotto la colonna. Sul bordo della pagina il riflesso parte nitido e si sfoca solo nell'estensione, così i colori
+si raccordano durante il viaggio. Il margine viene dal contenitore; `start` ed `end` espliciti servono a un ispettore
+posato dall'app. Rispetta il verso di lettura. Sotto Android 12 resta il riflesso senza sfocatura. Il testo va su un altro
+nodo, e resta nitido.
+
+**`FluidTabRail`** è la forma delle larghezze di mezzo: 84 dp di larghezza, una scheda ogni 64 dp con l'icona da 28 a
+inchiostro pieno, una goccia di vetro come indicatore che preme, corre e rilascia; senza una scheda corrispondente alla
+rotta la goccia non si mostra. Ogni scheda ha `Role.Tab`, `selected` e il tag `top_level_<rotta>`. Non si ripiega. Con
+`header = { … }` un'azione sta in testa, fuori dal vetro, 8 dp sopra la capsula. Fuori da `FluidAdaptiveNavigation` si usa
+dentro `FluidPaneScaffold` (`rail = { FluidTabRail(…) }`, larghezza di layout 112 dp, [schermata.md](schermata.md)).
+
+## Le barre deprecate
+
+- **`FluidTabBar(items, selectedRoute, onSelect, backdrop, onReselect)`**, deprecata dalla 2.12.0 con `ReplaceWith`: è la
+  tab bar a elenco con la connessione `Never`. Rispetto alla barra storica è una capsula grande quanto le schede,
+  alta 62 dp, senza margini propri, che non si ripiega e senza `Role.Tab`.
+- **`FluidFoldingTabBar` e `FluidBarFold`**, deprecate dalla 2.0.0: la tab bar a DSL con una connessione **chiusa a
+  chiave**, la cui piega viene da `fold: () -> Float` (da 0,5 in su `inline()`, sotto `expand()`). `FluidBarFold`
+  (`rememberFluidBarFold()`) è la piega con la sua connessione: 36 dp per nascondere, 10 per rivelare, solo il dito.
+  `tint`, `trailing` e `accessoryHeight` sono ignorati.
+
+Codice nuovo usa `FluidFloatingTabBar` con la sua connessione.
+
+## Misure e costanti
 
 | oggetto | valori (dp se non detto) |
 |---|---|
-| `FluidFloatingTabBarDefaults` | `TabWidth` 88 (tetto), `OpenHeight` 62 (pavimento, `FluidMetrics.TabBarHeight`), `FoldedHeight` 52, `FoldedSoloHeight` 64, `Spacing` 8, `BottomMargin` 16, `HorizontalMargin` 14, `ContentInset` 78, `contentInsetWithAccessory(h)` = 78 + h + 8; `colors()` (`surfaceContainerHigh`), `shapes()` (`FluidCapsuleShape`), `sizes()` (padding barra 4, scheda in linea 10, scheda aperta 6, `componentSpacing` 8, `tabSpacing` 0), `elevations()` 6 / 12, `labelStyle()` = `labelMedium` centrato |
-| `FluidFloatingTabBarGlass` | `blurRadius` = `DefaultGlassBlurRadius` 2,5 (significato doppio), `puckColor` non specificato = `primary` col vetro di prima, nessuna pellicola col materiale nuovo, `puckOpacity` 0,26 |
-| `rememberFluidFloatingTabBarScrollConnection` | `scrollThreshold` 50, `expandThreshold` 8, `inlineBehavior` `OnScrollDown` (`Never`, `OnScrollUp`), `initialIsInline` falso |
-| token di movimento della barra (`FluidMotion`) | `GooeyMillis` 300, `GooeyPulse` (picco 12 dp a meta'), `PuckEnter` 300 ms, `FoldCrossFade`, `TabTugReturn`, `TabPuckLeadMillis` 160, `TabBarFold` (0,9, rigidezza media-bassa) |
-| costanti interne che fanno il comportamento | etichetta ≥ 0,75; inchiostro ≥ 3:1 (`PuckInkMinContrast`); pillola premuta × 78/56, icona × 1,12; scheda in linea 10 dp di padding; cerchio minimo 48 |
-| `FluidFloatingCapsuleDefaults` | `Height` 62, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6 ai lati e 7 sopra e sotto, `MaxWidth` 560; `bottomOffset(placement)`, `contentInset(placement, h)`, `enter(reduced)`, `exit(reduced)` |
-| `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `IconInset` 15, `ActionSize` 40, `ExpandedFallbackWidth` 320 |
-| `FluidTabBarDefaults` (rail e barra storica) | `Height` 64, `RailWidth` 84, `HorizontalMargin` 14, `BottomMargin` 16, `ContentInset` 80 |
-| `FluidFoldingTabBarDefaults` | alias dei numeri della barra flottante; `AccessoryHeight` 50, `Inset` 4 |
-| `FluidBarFold` | commit 36 dp per nascondere, 10 dp per rivelare; piegata oltre 0,5 |
+| `FluidFloatingTabBarDefaults` | `TabWidth` 88 (tetto), `OpenHeight` 62 (pavimento: col testo al 130% cresce), `FoldedHeight` 52, `FoldedSoloHeight` 64, `Spacing` 8, `BottomMargin` 16, `HorizontalMargin` 14, `ContentInset` 78, `contentInsetWithAccessory(h)` = 78 + h + 8 |
+| `FluidFloatingTabBarGlass` | `blurRadius` 2,5 (base o finale, vedi sopra), `puckOpacity` 0,26 |
+| connessione | `scrollThreshold` 50, `expandThreshold` 8, `inlineBehavior` `OnScrollDown` |
+| tempi (`FluidMotion`) | `FloatingTabFold` 234 ms, `TabBarSearch` 133 ms, `TabBarPlayer`, `FloatingTabSearchPage`, `TabPuckLeadMillis` 160, `TabTugReturn`; la piega di prima: `GooeyMillis` 300, `GooeyPulse` 12 |
+| bolla | premuta ×78/56 della cella, icona ×1,12; inchiostro ≥ 3:1; rientro 0,076 H |
+| scheda prominente | tondo 1,00 H, varco 0,115 H; gruppo di tre 5,23 H su una tela larga |
+| `FluidFloatingCapsuleDefaults` | `Height` 62, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6 e 7, `MaxWidth` 560 |
+| ricerca dichiarata | lente 44, campo 40 (tocco 44), velo 40% nero o 16% bianco secondo l'inchiostro |
+| `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `ActionSize` 40, `ExpandedFallbackWidth` 320 |
+| navigazione adattiva | soglie 600 e 1000; tratte 400 + 500 ms all'apertura, 430 + 400 al ritorno; margine della colonna 12; riflesso 12; velo della colonna 12% |
+| `FluidTabBarDefaults` (rail e barra storica) | `Height` 64, `RailWidth` 84, `RailIconSize` 28, `RailHeaderSpacing` 8, `ContentInset` 80 |
 
-## Cosa e' verificato dai test
+## Quanto siamo vicini ad Apple
 
-- `FluidFloatingTabBarScrollTest` (engine-ui, 7): su una pagina che non scorre il dito non ripiega; una che scorre davvero ripiega oltre la soglia; **conta solo la parte che scorre**; tirata giu' in cima si riapre anche se l'elastico del bordo consuma il resto; `locked` non si muove e
-  un cambio di pagina chiude lo scorrimento senza toccare la piega; un cambio di pagina la riapre e chiude lo scorrimento. `FluidTabBarRouteTest` (sample, Robolectric, 3): un cambio di rotta dell'host riapre la barra, un cambio di scheda pure, e **non si riapre da sola** senza un cambio.
-- `FluidFloatingTabBarLayoutTest` (10): cinque schede su un telefono si adattano senza cerchio; con spazio resta il tetto; il cerchio e il suo spazio escono dalla quota delle schede; niente misura = tetto; mai una scheda negativa; etichetta che sta/poco larga (ridotta esattamente quanto serve)/disperata (smette di ridursi); **l'`ContentInset` dichiarato copre l'altezza che la barra mantiene davvero**.
-  `FluidFloatingTabBarBlurTest` (8): pannello dell'app = esattamente il raggio dato (regressione 2.12), nessun moltiplicatore di ruolo, indipendente dalla qualita'; pannello della barra = esattamente `glassSurface` a ogni taglia e qualita'; la risoluzione della riga nascosta segue il raggio usato.
-  `FluidPuckInkTest` (5): inchiostro leggibile su tutti gli accenti, su entrambi i lati, tinta conservata.
-  `FluidFloatingTabBarInkTest` (6): il ramo di ripiego (nessun colore deciso) legge sulla pellicola del vetro in chiaro, scuro e nero (>= 4,5:1 l'etichetta, >= 3:1 l'icona, sulle pagine del tema e su un grigio di mezzo); un colore deciso dall'app resta; il nero puro e' letto come «non deciso».
-- `AllGlassTest` (sample): la barra con la banda si mostra e un tocco su una scheda suona `Tap` e naviga; il cerchio risponde con `Tap` una volta; la scheda ripiegata risponde con `Tap` e riapre; il rail risponde al tocco e il secondo tocco e' ancora un reselect.
-- `FluidFloatingCapsuleTest` (puri): margini e inset di `Free`, `ReplacingTabBar`, `AboveTabBar` (la capsula sta a `Spacing` sopra la barra; l'inset della pagina e' esattamente il suo bordo alto e coincide con la regola della banda), l'altezza di serie tiene un'azione piena col suo padding, il bersaglio non scende sotto 48.
-  `FluidCapsulesAndPartsTest` (Robolectric): azione che scatta e suona il click, azione spenta, capsula nascosta che non lascia niente in composizione, tocchi tenuti, cerchio che si apre con l'aptica di apertura, campo che scrive/svuota/chiude, fuoco all'arrivo, ricerca nella pagina con contatore, «nessun risultato» che spegne le frecce.
-- `FluidSearchFieldTest` (10, puri): contatore (vuoto, posizione da uno su totale, niente risultati, mai oltre il totale), larghezza dal cerchio allo spazio pieno e sempre entro i due estremi, contenuto che entra tardi ed esce per primo, la lente al centro del cerchio, parole di serie in italiano.
-- `FluidTabBarExtensionsTest` (sample, Robolectric, 15; 3.1.0): il pallino si legge sulla zona a barra aperta una volta sola; a barra ripiegata il segno non c'è, né disegnato né detto; il numero dice la quantità vera oltre il «99+»,
-  anche in inglese; una frase dell'app vince e un numero a zero non dice niente; il segno non è un bersaglio e non cambia le zone, anche nella forma a DSL; il cerchio accanto alla pillola è un pulsante, non una zona, e non cambia la zona
-  scelta (anche a barra ripiegata); col movimento ridotto la piega è già chiusa dopo quattro fotogrammi e un tocco sceglie subito, a scala normale no; il rail porta l'azione in testa e il segno, e senza intestazione è quello di prima.
-- **Non coperti**: `searchMode`/`searchBarContent`, le due bande insieme come elemento condiviso, la pillola trascinata (gesto e tick), la piega continua di `FluidFoldingTabBar`/`FluidBarFold`, `FluidTabRail` in un layout largo, tutti i fotogrammi (da guardare in mano).
+Le tracce `tools/glassbench/traces/f4b-5/` portano la geometria dell'engine accanto ai video di Apple, con `pair`,
+`first`, `last` e `curve` (`glassmotion.py`, vedi `tools/glassbench/TRACE.md`):
+
+| traccia | Apple | lettura |
+|---|---|---|
+| `tabbar-piega` | Musica, WWDC25 284 f5414 | stesse fasi alle stesse ore: gruppo nel tondo a 67–100 ms, lettore in linea a 200–234 |
+| `tabbar-ricerca` | Foto, 284 f30302 | il gruppo si raccoglie e il campo si allunga in 133 ms come in Apple; la salita con la tastiera è dell'app |
+| `ricerca-apre` | Salute, WWDC25 256 f7320 | la lente arriva a sinistra ~33 ms prima, il testo è leggibile a ~233 ms come in Apple; i vicini vanno in «Altro» e non nel tondo della scheda |
+| `bolla-pressione`, `bolla-cambio` | Musica iOS 26, registrazione a 60 Hz (R1 T2) | lente formata a 133–167 ms e rientro in ~80 ms come in Apple; nel cambio la bolla arriva un fotogramma prima |
+| `tabbar-in-barra-laterale`, `barra-laterale-in-tabbar` | Musica per iPad, WWDC25 208 | le due tratte nei due versi entro un fotogramma |
+| `capsula-cambia` | Foto, WWDC25 219 f8551 | il gruppo si stringe e il più resta fermo; in Apple il più scivola di 0,16 H |
+
+## Cosa è verificato dai test
+
+- `FluidFloatingTabBarScrollTest` (engine-ui): piega sul solo scorrimento consumato, riapertura in cima, `locked`, cambio
+  di pagina. `FluidTabBarRouteTest` (sample): l'host e il cambio di scheda riaprono la barra, e solo loro.
+- `FluidFloatingTabBarLayoutTest`: larghezze delle schede, etichette che si riducono, `ContentInset` che copre l'altezza
+  vera. `FluidFloatingTabBarBlurTest`: i due significati di `blurRadius`. `FluidPuckInkTest`, `FluidFloatingTabBarInkTest`:
+  inchiostro leggibile su ogni accento e sul vetro.
+- `FluidFloatingTabBarFieldTest`: la piega e la ricerca come viaggi del piano (larghezze a sei istanti, inchiostro che
+  si spegne, il titolo scelto fino a 67 ms e sotto il glifo), la bolla premuta e lo scambio; esporta le tracce.
+- `FluidFloatingCapsuleTest`: margini e inset delle tre sedi, azioni in gruppi annidati, ingombro. `FluidBottomBarTest`
+  (sample): una sede in alto e una in basso, la capsula centrata che cambia larghezza, il più fermo fra «Raccolta» e
+  «Foto», push e pop identici con e senza barra in basso.
+- `FluidSearchFieldTest`, `FluidToolbarSearchTest`: contatore e larghezze del campo; sede automatica, vicini, stato
+  attivo, ritorno interrotto, finestra traslata dalla tastiera. `FluidToolbarSearchHostTest` (sample): schermata senza
+  DSL, host dichiarato, tondo della tab bar, digitazione e sostituzione.
+- `FluidAdaptiveNavigationTest`: quale forma a quale larghezza, le pose e la traiettoria delle due tratte; esporta le
+  tracce. `FluidTabBarExtensionsTest` (sample): segni, pulsante, movimento ridotto, rail con l'azione in testa, riga e
+  colonna alle ordinate giuste, la rotta ripristinata attraverso il rail e la ricreazione, i pixel dell'estensione nei due versi di lettura e
+  il raccordo nitido-sfocato.
+- `FluidBottomGalleryTest` (sample): le sedi della ricerca della galleria e i suoi quattro capitoli.
+- Da guardare in mano (S4): la ricerca con la tastiera vera, la bolla trascinata, la piega durante uno scorrimento, la
+  conversione in barra laterale con le inversioni.
 
 ## Dove guardare
 
-Percorsi sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
+Sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 
-- `FluidFloatingTabBar.kt` (3181 righe) — in ordine: la funzione pubblica a DSL (righe ~190–490: i tre stati e il materiale), `FluidFloatingTabBarGlass` e `FluidFloatingTabBarScrollConnection` (~510–760: soglie, `locked`, `morphing`,
-  `scrolling`, `routeChanged`), la forma a elenco (~830), `InlineBar`/`InlineTab` (~970–1280), `ExpandedBar` e `SearchExpandedBar` (~1320–1590), `ExpandedTabs` con la pillola, la riga nascosta e le molle (~1690–2570), i conti del raggio e `labelScale`/`legibleInk`/`fittedTabWidth` (~2575–2840),
-  la scope e i `Defaults` (~2905–3181). Vendored a quattro spazi.
-- `FluidTabBar.kt` — `FluidTabItem`, `FluidTabBarDefaults`, `FluidTabBar` (deprecata), `FluidTabRail`, `fluidTabBarPadding`. `FluidFoldingTabBar.kt` — l'involucro deprecato, `FluidBarFold`, `FluidFoldAlignment`.
-- `FluidFloatingCapsule.kt` — capsula, azione, `fluidCapsuleInsets`, `Defaults`, il pannello sul piano e la pellicola del campo di ricerca. `FluidSearchField.kt` — campo, etichette, navigazione, conti puri.
-- `FluidMotion.kt` — i token (`GooeyMillis`, `TabPuckLeadMillis`, …). `FluidGooey.kt` — la sfocatura gommosa. Esempi: `sample/.../GalleryActivity.kt` (la shell con la barra), `catalog/AllGlassDemo.kt` (banda, rail),
-  `catalog/CapsulesAndPartsDemo.kt` (capsula, ricerca).
+- `FluidFloatingTabBar.kt`: le due forme, `FluidTabRole`, `FluidTabSearchActivation`, la connessione, i tre vetri del
+  piano, la bolla, i `Defaults` (vendored, a quattro spazi). `FluidGooey.kt`: la piega di prima.
+- `FluidFloatingCapsule.kt`: capsula, azione, `fluidCapsuleInsets`. `toolbar/FluidBottomBar.kt`: la sede in basso.
+- `FluidSearch.kt`: `FluidSearchSpec` e le sue enumerazioni. `toolbar/FluidToolbarSearch.kt`: le sedi, il viaggio, la
+  tastiera. `FluidSearchField.kt`: il campo.
+- `FluidAdaptiveNavigation.kt`, `FluidSidebar.kt`, `FluidTabBar.kt` (`FluidTabItem`, rail, barra storica),
+  `FluidBackgroundExtension.kt`, `FluidFoldingTabBar.kt`.
+
+La galleria: **Chrome → «Barra in basso»** (`--es gallery.page BottomBar`, `sample/…/bottom/`) in quattro capitoli, la
+barra in basso e la capsula, la ricerca nelle sue sedi, la tab bar sul palco, il passaggio alla **navigazione adattiva**
+(`--es gallery.page TabletNavigation`, «Atlante cromatico»). Le stesse schede della tab bar stanno anche nella sezione
+«Scheda prominente» di «Pannello laterale e schede», e la ricerca fissata sotto il titolo nella pagina «Ricerca» di
+«Barre fra pagine».

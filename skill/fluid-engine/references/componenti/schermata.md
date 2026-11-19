@@ -81,6 +81,12 @@ La shell (una volta, alla radice) fornisce il registro della chrome, lo spazio d
 cima»; la tab bar flottante legge il fondale della pagina davanti da `activeBackdrop`. Modello: `Gallery` in
 `sample/.../GalleryActivity.kt`.
 
+La pagina davanti è la `FluidScreen` più esterna. Una `FluidScreen` composta **dentro** un'altra, come uno schermo
+d'esempio alto 320 dp in una lista, non si registra presso la stessa chrome: niente fondale, niente «davanti», niente
+aggiornamento. Fino alla 4.0.0 vinceva l'elezione perché si registrava per ultima. Da quel momento modali, menu e tab bar
+campionavano solo lei, e la sfocatura del vetro ne stirava i bordi su tutto lo schermo. Una chrome nuova dentro una pagina
+(`ProvideFluidChrome` attorno a un host di pagine annidato) la serve invece la sua prima `FluidScreen`.
+
 ```kotlin
 @Composable
 fun Shell(content: @Composable () -> Unit) {

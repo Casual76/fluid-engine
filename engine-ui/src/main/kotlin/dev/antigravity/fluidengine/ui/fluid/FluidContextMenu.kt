@@ -903,6 +903,30 @@ internal class FluidContextBirth {
     card = Animatable(0f, 0.001f)
     frozen = null
     frozenProgress = 1f
+    closeFrozen = false
+  }
+
+  /** Vero da quando il congedo in corso ha fermato la sagoma ([freeze]): una volta per congedo. */
+  private var closeFrozen = false
+
+  /**
+   * Ferma la sagoma della nascita per il congedo, al **primo fotogramma** in cui il viaggio e' in chiusura: il verso cambia
+   * nella composizione (`journey.retarget`), e quel fotogramma si disegna prima che parta la coroutine di [close]. Fino a S4b
+   * il primo fotogramma tornava dal pannello pieno, e solo il successivo dalla sagoma fermata: con un congedo presto nella
+   * nascita il bersaglio della goccia scattava verso il pannello per un fotogramma (al banco l'1,4% di ricrescita a 300 ms).
+   * La sagoma che si vede, cioe' quella di Apple senza l'anticipo chiesto alla goccia, come per il menu dal tasto.
+   */
+  private fun freeze(journey: FluidMenuJourney) {
+    closeFrozen = true
+    val seed = journey.seed
+    val t = clock.value
+    if (seed != null && t < FluidContextBirthProfile.EndMillis) {
+      frozen = fluidContextBirthSlab(seed, journey.to, radius, t, leadForDrop = false)
+      frozenProgress = journey.progress.value.coerceAtLeast(0.001f)
+    } else {
+      frozen = null
+      frozenProgress = 1f
+    }
   }
 
   /** I millisecondi della nascita, in disegno. */
@@ -923,6 +947,7 @@ internal class FluidContextBirth {
     val seed = journey.seed ?: return null
     val panel = journey.to
     if (!journey.closing) return fluidContextBirthSlab(seed, panel, radius, clock.value)
+    if (!closeFrozen) freeze(journey)
     val source = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f))
     val home = frozen ?: FluidForm.Slab(panel, FluidCornerRadii.all(radius))
     val q = (journey.progress.value / frozenProgress.coerceAtLeast(0.001f)).coerceIn(0f, 1f)
@@ -954,6 +979,7 @@ internal class FluidContextBirth {
     clock.snapTo(start)
     frozen = null
     frozenProgress = 1f
+    closeFrozen = false
     val remaining = (FluidContextBirthProfile.EndMillis - start).coerceAtLeast(1f)
     val millis = ceil(remaining).toInt()
     launch { clock.animateTo(FluidContextBirthProfile.EndMillis, tween(millis, easing = LinearEasing)) }
@@ -983,15 +1009,8 @@ internal class FluidContextBirth {
    * ci tornava col progresso del viaggio.
    */
   suspend fun close(journey: FluidMenuJourney, reducedMotion: Boolean): Unit = coroutineScope {
-    val seed = journey.seed
-    val t = clock.value
-    if (seed != null && t < FluidContextBirthProfile.EndMillis) {
-      frozen = fluidContextBirthSlab(seed, journey.to, radius, t)
-      frozenProgress = journey.progress.value.coerceAtLeast(0.001f)
-    } else {
-      frozen = null
-      frozenProgress = 1f
-    }
+    // Di solito l'ha gia' fermata il primo disegno in chiusura ([travel]).
+    if (!closeFrozen) freeze(journey)
     clock.stop()
     launch {
       if (reducedMotion) {

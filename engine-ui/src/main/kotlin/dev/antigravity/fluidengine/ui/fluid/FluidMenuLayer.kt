@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -63,6 +63,8 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
@@ -550,7 +552,7 @@ private fun FluidMenuLayerContent(
         val rest = anchor.restBounds
         Box(
           modifier = Modifier
-            .offset { IntOffset(rest.left.roundToInt(), rest.top.roundToInt()) }
+            .absoluteOffset { IntOffset(rest.left.roundToInt(), rest.top.roundToInt()) }
             .size(
               width = with(density) { rest.width.toDp() },
               height = with(density) { rest.height.toDp() },
@@ -567,6 +569,10 @@ private fun FluidMenuLayerContent(
         ) {
           FluidMenuAnchorFace(anchor)
         }
+      }
+      // Le icone del gruppo al ritorno, sopra il vetro che torna capsula (S4b, NO 4): le registra la barra, qui si disegnano.
+      if (anchor != null && anchor.groupBounds != null) {
+        Box(Modifier.fillMaxSize().drawWithContent { fluidMenuDrawGroupFaces(anchor) })
       }
 
       GlassInkContent(menuInk, LocalContentColor.current) {
@@ -632,7 +638,8 @@ private fun FluidMenuLayerContent(
         contentMap = contentMapNow,
         onPick = pick,
         modifier = Modifier
-          .offset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
+          // In coordinate della finestra come il vetro: `offset` in RTL specchiava le voci dall'altra parte (S4b, NO 5).
+          .absoluteOffset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
           .menuDrawMarker("items")
           .size(
             width = with(density) { panel.width.toDp() },
@@ -674,6 +681,14 @@ internal fun Modifier.menuDrawMarker(name: String): Modifier = if (GlassFrameDia
  * contorno deformato ([FluidContextBirth.warp]: goccia, fagiolo, uovo con la coda verso la card). Gratis se gli estremi
  * non cambiano, come `install`.
  */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.fluidMenuDrawGroupFaces(anchor: FluidMenuAnchor) {
+  if (!anchor.groupFacesAbove()) return
+  val faces = anchor.groupFaces ?: return
+  val at = anchor.groupBounds ?: return
+  if (faces.isReleased || anchor.groupProgress() >= FluidMotion.MenuGroupFaceProgressSpan) return
+  translate(at.left, at.top) { drawLayer(faces) }
+}
+
 private fun installMenuTravel(journey: FluidMenuJourney, physics: FluidPhysicsState, birth: FluidContextBirth?) {
   val seed = journey.seed
   if (birth == null || seed == null) {

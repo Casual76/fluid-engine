@@ -368,4 +368,27 @@ class FluidContextLiftTest {
     assertEquals(BlurEffect(8f, 8f, TileMode.Clamp), fluidLiftSwapBlur(8f))
     assertEquals(null, fluidLiftSwapBlur(0.2f))
   }
+
+  /**
+   * S4b sul Tab S9 (NO 3, A f72-75): il filo chiaro attorno alla foto anche all'**andata**. La card si gonfia piu' alta che
+   * larga ([FluidMotion.LiftedSwellY]), l'immagine la segue con una scala sola (la minore dei due lati) e il vetro restava
+   * scoperto su due lati. Con un'anteprima personalizzata il vetro sta dentro l'immagine in tutti e due i versi; una riga
+   * senza anteprima e' lei stessa il vetro, e non si ritaglia.
+   */
+  @Test
+  fun aCustomPreviewKeepsItsGlassInsideTheImageOnTheWayOutToo() {
+    val tile = Rect(80f, 80f, 200f, 200f)
+    val preview = Rect(30f, 50f, 310f, 230f)
+    // Il gonfiore dell'arrivo: piu' alto che largo.
+    val swollen = Rect(preview.left - 4f, preview.top - 9f, preview.right + 4f, preview.bottom + 9f)
+    val frame = requireNotNull(fluidLiftMaterialFrame(custom = true, incoming = 1f, outgoing = 0f, bounds = tile, rest = preview, current = swollen))
+    assertRect(fluidLiftPaintedFrame(preview, swollen), frame)
+    assertTrue("il vetro non sporge dai fianchi: $frame dentro $swollen", frame.top > swollen.top && frame.bottom < swollen.bottom)
+    // Prima dello scambio il vetro segue la tessera, dopo l'anteprima: lo stesso ritaglio dell'immagine davanti.
+    assertRect(
+      fluidLiftPaintedFrame(tile, swollen),
+      requireNotNull(fluidLiftMaterialFrame(custom = true, incoming = 0.2f, outgoing = 0.8f, bounds = tile, rest = preview, current = swollen)),
+    )
+    assertEquals(null, fluidLiftMaterialFrame(custom = false, incoming = 1f, outgoing = 1f, bounds = tile, rest = preview, current = swollen))
+  }
 }

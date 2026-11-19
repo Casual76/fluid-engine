@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -768,7 +768,7 @@ private fun MorphMenuFrameBox(frame: Rect, content: @Composable () -> Unit) {
 private fun Modifier.frame(frame: Rect): Modifier {
   val density = LocalDensity.current
   return this
-    .offset { IntOffset(frame.left.toInt(), frame.top.toInt()) }
+    .absoluteOffset { IntOffset(frame.left.toInt(), frame.top.toInt()) }
     .size(
       width = with(density) { frame.width.toDp() },
       height = with(density) { frame.height.toDp() },

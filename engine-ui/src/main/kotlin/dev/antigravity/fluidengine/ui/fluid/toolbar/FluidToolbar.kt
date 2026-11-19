@@ -1096,6 +1096,8 @@ internal fun FluidToolbarGroups(
     val groupLease = menuSource.groupLease
     val heldGroup = groupLease?.let { lease -> resolved.groups.firstOrNull { memory.glassIds[it.id] == lease.first } }
     val faces = if (heldGroup != null) rememberGraphicsLayer() else null
+    // Le facce passano anche all'host del menu, che al ritorno le disegna sopra il suo vetro (S4b, NO 4).
+    if (groupLease != null && faces != null) SideEffect { groupLease.second.groupFaces = faces }
     // Il piano conserva il pezzo misurato e la sua registrazione. Nel disegno si cede solo la sua
     // corsia: al ritorno capsula e facce sono già pronte, senza attendere una misura del piano.
     val mask = if (groupLease == null || heldGroup == null || faces == null) Modifier else Modifier.drawWithContent {
@@ -1110,8 +1112,9 @@ internal fun FluidToolbarGroups(
       clipRect(left - halfGap, -size.height, left + width + halfGap, size.height * 2f, ClipOp.Difference) {
         this@drawWithContent.drawContent()
       }
-      // Le facce della barra si sfocano all'andata; al ritorno ricompaiono col pezzo vero.
-      if (groupLease.second.groupProgress() < FluidMotion.MenuGroupFaceProgressSpan) {
+      // Le facce della barra si sfocano all'andata, qui sotto il vetro del menu che nasce; al ritorno le disegna l'host
+      // sopra il vetro che torna capsula (`groupFacesAbove`), e alla consegna sono quelle del pezzo vero.
+      if (!groupLease.second.groupFacesAbove() && groupLease.second.groupProgress() < FluidMotion.MenuGroupFaceProgressSpan) {
         translate(left, (size.height - faces.size.height) / 2f) { drawLayer(faces) }
       }
     }
@@ -1548,7 +1551,6 @@ private fun FluidToolbarSlot(
   val sourceCanTravel = declaredMenu != null && groupShared && fluidMenuUsesField()
   val active = menuSource.anchor(glass)
   val groupInMenu = active?.groupBounds != null
-  val menuHidden = declaredMenu?.anchor?.hidden == true
   // Il piano possiede il vetro del tasto singolo. Lo cede con lo stesso passaggio istantaneo
   // del menu; su una capsula condivisa il singolo slot cede solo la propria faccia.
   val modalHandoff: ((Boolean) -> Unit)? = if (interactive && groupShared && groupCount == 1) {
@@ -1642,18 +1644,23 @@ private fun FluidToolbarSlot(
         })
         .graphicsLayer {
           val dim = if (enabled) 1f else FluidToolbarDefaults.DisabledAlpha
-          val phase = active?.groupProgress?.invoke() ?: 0f
+          // Lo stato vivo, letto qui e non quello della composizione (S4b, NO 4): alla consegna del gruppo (la capsula torna
+          // al piano nello stesso fotogramma in cui il menu smette di disegnarla) le icone devono essere piene subito, non
+          // alla ricomposizione dopo, che le lasciava spente per 2-3 fotogrammi sopra la capsula vuota.
+          val live = menuSource.anchor(glass)
+          val liveGroup = live?.groupBounds != null
+          val phase = live?.groupProgress?.invoke() ?: 0f
           val u = phase / FluidMotion.MenuGroupFaceProgressSpan
           val role = GlassContentRole.Exit
           alpha = when {
-            groupInMenu -> dim * GlassContentCurves.alpha(role, u, effects != null)
-            menuHidden -> 0f
+            liveGroup -> dim * GlassContentCurves.alpha(role, u, effects != null)
+            declaredMenu?.anchor?.hidden == true -> 0f
             else -> dim
           }
-          val s = if (groupInMenu) GlassContentCurves.scale(role, u) else 1f
+          val s = if (liveGroup) GlassContentCurves.scale(role, u) else 1f
           scaleX = s
           scaleY = s
-          renderEffect = effects?.let {
+          renderEffect = if (!liveGroup) null else effects?.let {
             val sigma = glassContentSigmaPx(GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur,
               FluidMetrics.BarIconSize.toPx())
             it.at(glassContentBlurRadiusPx(sigma))

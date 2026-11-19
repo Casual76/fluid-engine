@@ -2193,6 +2193,45 @@
           },
           "content": [
             {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.548526,
+              "scale": 1,
+              "blurDp": 2.636364
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.548526,
+              "scale": 1,
+              "blurDp": 2.636364
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.548526,
+              "scale": 1,
+              "blurDp": 2.636364
+            },
+            {
               "name": "voci",
               "x": 0,
               "y": 0,
@@ -2378,6 +2417,45 @@
             }
           },
           "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.933477,
+              "scale": 1,
+              "blurDp": 0.659214
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.933477,
+              "scale": 1,
+              "blurDp": 0.659214
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.933477,
+              "scale": 1,
+              "blurDp": 0.659214
+            },
             {
               "name": "voci",
               "x": 0,
@@ -2565,6 +2643,45 @@
           },
           "content": [
             {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.999304,
+              "scale": 1,
+              "blurDp": 0.008157
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.999304,
+              "scale": 1,
+              "blurDp": 0.008157
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 0.999304,
+              "scale": 1,
+              "blurDp": 0.008157
+            },
+            {
               "name": "voci",
               "x": 0,
               "y": 0,
@@ -2750,6 +2867,45 @@
             }
           },
           "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
             {
               "name": "voci",
               "x": 0,
@@ -2937,6 +3093,45 @@
           },
           "content": [
             {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
               "name": "voci",
               "x": 0,
               "y": 0,
@@ -3123,6 +3318,45 @@
           },
           "content": [
             {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
               "name": "voci",
               "x": 0,
               "y": 0,
@@ -3306,7 +3540,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3388,7 +3664,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3470,7 +3788,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3552,7 +3912,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3634,7 +4036,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3716,7 +4160,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3798,7 +4284,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3880,7 +4408,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -3962,7 +4532,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4044,7 +4656,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4126,7 +4780,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4208,7 +4904,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4290,7 +5028,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4372,7 +5152,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4454,7 +5276,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },
@@ -4536,7 +5400,49 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "tasto-1",
+              "x": 24,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:share|share",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-2",
+              "x": 70,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:star|circle",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "tasto-3",
+              "x": 116,
+              "y": 175,
+              "w": 46,
+              "h": 46,
+              "icon": "fluid:more_horiz|dots",
+              "iconSizeDp": 28,
+              "color": "#1F9E6EFF",
+              "alpha": 1,
+              "scale": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
         }
       ]
     },

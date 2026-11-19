@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuBirthProgress
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceReturn
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
@@ -418,7 +419,9 @@ internal fun buildMenuTrace(
     val faceMap = fluidMenuContentMap(target = rest, current = bounds)
     if (variant?.grouped == true) {
       val showRest = closing && springNow.finished(playNanos) && physics.liquid.quiet
-      val faceProgress = if (variant.corrected && closing && !showRest) 1f else journey.faceProgress
+      // Al ritorno le icone tornano con la capsula, nell'ultimo tratto, disegnate dall'host sopra il vetro (S4b, NO 4:
+      // `FluidMenuAnchor.groupFacesAbove`); prima restavano spente fino alla consegna.
+      val faceProgress = if (variant.corrected && closing && !showRest) fluidMenuGroupFaceReturn(p) else journey.faceProgress
       val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {

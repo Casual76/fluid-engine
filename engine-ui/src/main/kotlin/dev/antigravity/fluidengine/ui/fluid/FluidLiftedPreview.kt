@@ -2,7 +2,7 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -153,11 +153,10 @@ internal fun FluidLiftedPreview(
       .fillMaxSize()
       .drawWithContent {
         if (materialPresence() <= 0.004f) return@drawWithContent
-        if (custom == null || !closing()) {
+        val painted = fluidLiftMaterialFrame(custom != null, incoming(), outgoing(), bounds, rest, physics.contentBoundsNow())
+        if (painted == null) {
           drawContent()
         } else {
-          val natural = if (incoming() >= outgoing()) rest else bounds
-          val painted = fluidLiftPaintedFrame(natural, physics.contentBoundsNow())
           if (painted.isEmpty) return@drawWithContent
           materialClip.reset()
           when (val outline = clipShape.createOutline(painted.size, layoutDirection, density)) {
@@ -195,7 +194,7 @@ internal fun FluidLiftedPreview(
   if (preview != null) {
     Box(
       modifier = Modifier
-        .offset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+        .absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
         .size(
           width = with(density) { bounds.width.toDp() },
           height = with(density) { bounds.height.toDp() },
@@ -272,6 +271,25 @@ internal fun fluidLiftContentMap(target: Rect, current: Rect): FluidMenuContentM
     translation = current.center - target.center,
     scale = minOf(current.width / target.width, current.height / target.height),
   )
+}
+
+/**
+ * Dove puo' stare il vetro della card: con un'anteprima personalizzata ([custom]) il riquadro dell'immagine davanti, prima
+ * dello scambio la tessera e dopo l'anteprima ([fluidLiftPaintedFrame]); null senza, perche' una riga sollevata e' lei stessa
+ * il vetro. All'andata come al ritorno: nel gonfiore dell'arrivo la card cresce piu' in alto che in largo, l'immagine la segue
+ * con una scala sola, e il vetro restava scoperto su due lati (S4b sul Tab S9, NO 3: il filo chiaro in A f72-75). Fino a S4
+ * il ritaglio c'era solo al ritorno.
+ */
+internal fun fluidLiftMaterialFrame(
+  custom: Boolean,
+  incoming: Float,
+  outgoing: Float,
+  bounds: Rect,
+  rest: Rect,
+  current: Rect,
+): Rect? {
+  if (!custom) return null
+  return fluidLiftPaintedFrame(if (incoming >= outgoing) rest else bounds, current)
 }
 
 /** Riquadro effettivamente coperto dall'immagine, dopo la stessa scala uniforme della registrazione. */

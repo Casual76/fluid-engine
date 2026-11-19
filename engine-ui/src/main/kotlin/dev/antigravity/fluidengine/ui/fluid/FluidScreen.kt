@@ -465,6 +465,24 @@ val LocalFluidChromeController: ProvidableCompositionLocal<FluidChromeController
   staticCompositionLocalOf { null }
 
 /**
+ * La chrome che la [FluidScreen] di fuori sta gia' servendo come pagina, o null fuori da una [FluidScreen] (correzioni
+ * dopo S4b). Una schermata composta dentro un'altra (lo schermo «Foto» della galleria dei menu, alto 320 dp dentro la
+ * lista) non e' la pagina: se si registrasse, vincerebbe l'elezione ([frontMostBackdropKey], l'ultima registrata fra quelle
+ * davanti, e il «davanti» lo eredita) e modali, menu e tab bar campionerebbero solo lei. Sul Tab S9 la sfocatura del vetro
+ * ne stirava i bordi su tutto lo schermo: le bande dietro il contestuale e la pagina bianca dietro i menu dal tasto.
+ */
+internal val LocalFluidScreenChrome: ProvidableCompositionLocal<FluidChromeController?> =
+  staticCompositionLocalOf { null }
+
+/**
+ * Se una [FluidScreen] composta con [controller] serve la chrome come pagina: no se non c'e' chrome, e no se la schermata di
+ * fuori ([enclosing], [LocalFluidScreenChrome]) serve gia' la stessa. Una chrome nuova dentro una pagina (lo zoom della
+ * galleria, con un suo [ProvideFluidChrome]) la serve la sua prima schermata.
+ */
+internal fun fluidScreenServesChrome(controller: FluidChromeController?, enclosing: FluidChromeController?): Boolean =
+  controller != null && controller !== enclosing
+
+/**
  * Lets the shell ask whichever screen is on top to return to its top.
  *
  * Re-tapping the active tab is the gesture people reach for when they want to get back to the start
@@ -956,7 +974,10 @@ private fun FluidScreenLayout(
       rememberCombinedGlassBackdrop(canvasBackdrop, bodyBackdrop)
     }
   }
-  val chromeController = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
+  val pageChrome = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
+  // Dentro un'altra schermata della stessa chrome non si e' la pagina: niente fondale, davanti o aggiornamento (S4b).
+  val enclosingChrome = LocalFluidScreenChrome.current
+  val chromeController = pageChrome.takeIf { fluidScreenServesChrome(it, enclosingChrome) }
   val chromeRegistration = remember { Any() }
   val density = LocalDensity.current
   val scope = rememberCoroutineScope()
@@ -1197,6 +1218,7 @@ private fun FluidScreenLayout(
     LocalFluidCanvasBackdrop provides canvasBackdrop,
     LocalFluidGlassQuality provides glassQuality,
     LocalFluidScreenBottomEdges provides bottomEdges,
+    LocalFluidScreenChrome provides (pageChrome ?: enclosingChrome),
   ) {
   Box(
     modifier = Modifier

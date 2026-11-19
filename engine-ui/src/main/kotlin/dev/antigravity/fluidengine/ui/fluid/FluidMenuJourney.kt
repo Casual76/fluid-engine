@@ -730,6 +730,10 @@ internal fun fluidMenuSeedFrame(panel: Rect, pivot: Offset, scale: Float): Rect 
  *
  * Prima il seme era il pannello stesso a 0,42 attorno al perno: un pannello piccolo che compariva
  * sfumando dal nulla accanto alla riga, e la riga e il menu erano due oggetti.
+ *
+ * Dentro la riga, non dentro la colonna del pannello (correzioni dopo S4b, NO 7): col dito sul bordo della riga (x = 130 sul
+ * Tab S9) e il pannello centrato la goccia nasceva gia' spostata verso il centro. Nasce sotto il dito, e il corpo va verso il
+ * pannello inclinandosi, come l'uovo di Apple verso la graffetta ([fluidContextBirthWarp]).
  */
 internal fun fluidMenuDropSeed(
   row: Rect,
@@ -740,8 +744,8 @@ internal fun fluidMenuDropSeed(
 ): Rect {
   val d = diameterPx.coerceAtMost(row.minDimension.coerceAtLeast(1f))
   val r = d / 2f
-  val minX = panel.left + r
-  val maxX = (panel.right - r).coerceAtLeast(minX)
+  val minX = row.left + r
+  val maxX = (row.right - r).coerceAtLeast(minX)
   val x = (touchX ?: row.center.x).coerceIn(minX, maxX)
   val below = panel.center.y >= row.center.y
   val top = if (below) row.bottom - overlapPx else row.top + overlapPx - d
@@ -836,6 +840,15 @@ internal class FluidMenuAnchor {
   var groupProgress: () -> Float = { 0f }
   var groupClip: () -> androidx.compose.ui.geometry.RoundRect? = { null }
 
+  /**
+   * Le icone del gruppo registrate dalla barra (il pezzo che il menu porta via), nelle coordinate della capsula, e se le
+   * disegna l'host del menu SOPRA il suo vetro ([groupFacesAbove]: al ritorno) invece che la barra sotto. Correzioni dopo
+   * S4b (NO 4): nell'ultimo tratto del ritorno il vetro del menu e' gia' la capsula, e le icone disegnate dalla barra stavano
+   * sotto di lui: 2-3 fotogrammi di capsula vuota prima della consegna.
+   */
+  var groupFaces: androidx.compose.ui.graphics.layer.GraphicsLayer? = null
+  var groupFacesAbove: () -> Boolean = { false }
+
   var face: (@Composable () -> Unit)? = null
 
   /**
@@ -861,9 +874,23 @@ internal class FluidMenuAnchor {
       groupLease = null
       groupProgress = { 0f }
       groupClip = { null }
+      groupFaces = null
+      groupFacesAbove = { false }
     }
   }
 }
+
+/**
+ * Le icone del gruppo al ritorno, come `groupProgress` (0 = piene, 1 = spente, [FluidMotion.MenuGroupFaceProgressSpan]):
+ * spente finche' il vetro torna verso la capsula, e di nuovo piene nell'ultimo tratto, quello in cui la bolla si allarga
+ * nella capsula ([FluidMotion.MenuReturnBubble] in poi, cioe' il progresso sotto [FluidMenuGroupFaceReturnShare]). Alla
+ * consegna sono gia' quelle del pezzo vero: capsula e icone tornano nello stesso fotogramma (S4b, NO 4).
+ */
+internal fun fluidMenuGroupFaceReturn(progress: Float): Float =
+  (progress / FluidMenuGroupFaceReturnShare).coerceIn(0f, 1f)
+
+/** Il tratto finale del ritorno, in progresso: dalla bolla alla capsula. */
+internal const val FluidMenuGroupFaceReturnShare: Float = 1f - FluidMotion.MenuReturnBubble
 
 /**
  * La faccia dell'ancora dentro l'host (G1, C-R2): con l'inchiostro del tasto ([FluidMenuAnchor.ink]), così la faccia in
@@ -1260,10 +1287,13 @@ internal class FluidMenuJourney {
     this.liquidMenu = liquidMenu
     this.expansionOrigin = expansionOrigin
     anchor?.groupProgress = progressBlockForGroup
+    anchor?.groupFacesAbove = groupFacesAboveBlock
   }
 
-  // Il ritorno lascia il gruppo spento fino alla consegna della capsula intera.
-  private val progressBlockForGroup: () -> Float = { if (closing) 1f else faceProgress }
+  // Il ritorno lascia il gruppo spento finche' il vetro non torna capsula, e lo riaccende con lei (S4b, NO 4): le icone le
+  // disegna l'host sopra il vetro ([groupFacesAboveBlock]), e alla consegna sono gia' piene.
+  private val progressBlockForGroup: () -> Float = { if (closing) fluidMenuGroupFaceReturn(progress.value) else faceProgress }
+  private val groupFacesAboveBlock: () -> Boolean = { closing }
 
   /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
   fun install(physics: FluidPhysicsState) {

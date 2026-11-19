@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -343,9 +344,14 @@ class FluidMenuJourneyTest {
     // Appesa alla riga, ci entra di 4: esce DALLA riga, non le compare accanto.
     assertEquals(row.bottom - 4f, drop.top, 0.001f)
 
-    // Un dito oltre il pannello: la goccia resta sopra il pannello.
-    val clamped = fluidMenuDropSeed(row, below, touchX = 390f, diameterPx = 28f, overlapPx = 4f)
-    assertEquals(below.right - 14f, clamped.center.x, 0.001f)
+    // Un dito oltre il pannello: la goccia nasce sotto il dito (S4b, NO 7: a x = 130 compariva spostata verso il centro),
+    // e resta dentro la riga da cui esce.
+    val beyond = fluidMenuDropSeed(row, below, touchX = 330f, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(330f, beyond.center.x, 0.001f)
+    val atTheEdge = fluidMenuDropSeed(row, below, touchX = 395f, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(row.right - 14f, atTheEdge.center.x, 0.001f)
+    val left = fluidMenuDropSeed(row, below, touchX = 2f, diameterPx = 28f, overlapPx = 4f)
+    assertEquals(row.left + 14f, left.center.x, 0.001f)
 
     // Un pannello sopra la riga: la goccia sta sul bordo alto, e senza dito sotto il centro della riga.
     val above = fluidMenuDropSeed(row, Rect(20f, 0f, 272f, 90f), touchX = null, diameterPx = 28f, overlapPx = 4f)
@@ -461,6 +467,41 @@ class FluidMenuJourneyTest {
     val warp = requireNotNull(physics.dropWarpNow())
     assertTrue(warp.tailTaper > 0.3f)
     assertEquals(trigger.center.x, warp.tailX, 0.5f)
+  }
+
+  /**
+   * S4b sul Tab S9 (NO 4): al ritorno del gruppo la capsula vuota per 2-3 fotogrammi prima delle icone. Le icone ora le
+   * disegna l'host sopra il vetro mentre torna ([FluidMenuAnchor.groupFacesAbove]), spente fino all'ultimo tratto e piene
+   * alla consegna; all'andata restano della barra, sotto il vetro che nasce.
+   */
+  @Test
+  fun theGroupIconsComeBackWithTheCapsuleAboveTheGlass() = runTest {
+    val capsule = Rect(40f, 600f, 172f, 644f)
+    val trigger = Rect(40f, 600f, 84f, 644f)
+    val a = FluidMenuAnchor().apply {
+      restBounds = trigger
+      pressedBounds = trigger
+      groupBounds = capsule
+    }
+    val journey = born(a)
+    assertFalse("all'andata le icone sono della barra", a.groupFacesAbove())
+    journey.progress.snapTo(1f)
+    journey.retarget(0f)
+    assertTrue("al ritorno le disegna l'host sopra il vetro", a.groupFacesAbove())
+    val span = FluidMotion.MenuGroupFaceProgressSpan
+    for (p in listOf(1f, 0.8f, 0.5f, FluidMenuGroupFaceReturnShare + 0.01f)) {
+      journey.progress.snapTo(p)
+      assertTrue("spente a $p mentre il vetro torna", a.groupProgress() >= span)
+    }
+    journey.progress.snapTo(FluidMenuGroupFaceReturnShare / 2f)
+    assertTrue("a meta' dell'ultimo tratto si vedono", a.groupProgress() in 0.3f..0.7f)
+    journey.progress.snapTo(0f)
+    assertEquals("piene alla consegna", 0f, a.groupProgress(), 0f)
+    // La consegna scioglie tutto: la barra riprende icone e capsula.
+    a.consume(false)
+    assertFalse(a.groupFacesAbove())
+    assertNull(a.groupFaces)
+    assertEquals(0f, a.groupProgress(), 0f)
   }
 
   @Test

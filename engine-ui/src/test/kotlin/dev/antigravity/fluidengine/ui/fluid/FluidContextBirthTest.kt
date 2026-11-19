@@ -183,7 +183,8 @@ class FluidContextBirthTest {
 
   @Test
   fun aSeedOnTheLeftEdgeGrowsToTheRightLikeApplesPaperclip() {
-    val left = fluidMenuDropSeed(row = card, panel = panel, touchX = 0f, diameterPx = 84f, overlapPx = 12f)
+    // Il dito sul bordo sinistro del pannello: la goccia nasce li', come la graffetta sul bordo del menu.
+    val left = fluidMenuDropSeed(row = card, panel = panel, touchX = panel.left + 42f, diameterPx = 84f, overlapPx = 12f)
     assertEquals(panel.left, left.left, 0.01f)
     for (ms in listOf(133.5f, 233.6f, 333.7f, 467.1f)) {
       val f = at(ms, left).frame
@@ -191,6 +192,35 @@ class FluidContextBirthTest {
     }
     val centred = at(233.6f).frame
     assertTrue("un seme al centro cresce dai due lati", centred.left > panel.left + 20f && centred.right < panel.right - 20f)
+  }
+
+  /**
+   * S4b sul Tab S9 (NO 7): premendo a x = 130, sul bordo della riga, la prima goccia compariva gia' spostata verso il centro
+   * (f203-204): il seme era tenuto sopra il pannello. Nasce sotto il dito, e il corpo va verso il pannello inclinandosi
+   * (la coda del contorno resta dalla parte del dito), fino a posarsi su di lui.
+   */
+  @Test
+  fun aFingerOnTheEdgeOfTheRowBeyondThePanelIsWhereTheDropIsBorn() {
+    val touch = card.left + 60f
+    assertTrue("il dito sta fuori dal pannello", touch < panel.left)
+    val s = fluidMenuDropSeed(row = card, panel = panel, touchX = touch, diameterPx = 84f, overlapPx = 12f)
+    assertEquals(touch, s.center.x, 0.01f)
+    val born = at(0f, s).frame
+    assertEquals("a 0 ms la sagoma e' la goccia sotto il dito", touch, born.center.x, 1f)
+    // Il bordo dalla parte del dito va dal dito al pannello: mai oltre il dito, e oltre il pannello solo del superamento.
+    val travel = panel.left - s.left
+    var ms = 0f
+    while (ms < FluidContextBirthProfile.EndMillis) {
+      val f = at(ms, s).frame
+      assertTrue("a $ms ms il bordo sinistro ${f.left} fra il dito e il pannello", f.left >= s.left - 1f && f.left <= panel.left + 0.06f * travel)
+      ms += 10f
+    }
+    assertTrue("a 133 ms il corpo si e' gia' mosso verso il pannello", at(133.5f, s).frame.left > s.left + 0.1f * travel)
+    val end = at(FluidContextBirthProfile.EndMillis - 1f, s).frame
+    assertEquals("posato sul pannello", panel.left, end.left, 2f)
+    assertEquals("posato sul pannello", panel.right, end.right, 2f)
+    val warp = fluidContextBirthWarp(s, panel, at(133.5f, s), 133.5f)
+    assertTrue("la coda del contorno sta dalla parte del dito: $warp", warp != null && warp.tailX < panel.center.x)
   }
 
   @Test
@@ -413,15 +443,21 @@ class FluidContextBirthTest {
     val opening = scope.launch { birth.open(journey) }
     advanceTimeBy(136)
     runCurrent()
-    val before = requireNotNull(birth.travel(journey))
+    // La sagoma che si vede in quell'istante: quella di Apple, senza l'anticipo chiesto alla goccia (che la insegue in ritardo).
+    val shown = requireNotNull(fluidContextBirthSlab(seed, panel, radius, birth.millis(), leadForDrop = false))
     journey.retarget(0f)
+    // Il primo disegno in chiusura, prima della coroutine di `close` (S4b): la sagoma e' gia' fermata li'.
+    val first = requireNotNull(birth.travel(journey))
     opening.cancel()
     scope.launch { birth.close(journey, reducedMotion = false) }
     runCurrent()
     val after = requireNotNull(birth.travel(journey))
-    // Nessun salto: la chiusura parte dalla sagoma che c'era, entro mezzo fotogramma di moto.
-    assertTrue("salto di ${abs(after.frame.bottom - before.frame.bottom)} px", abs(after.frame.bottom - before.frame.bottom) < 24f)
-    assertTrue("salto di ${abs(after.frame.width - before.frame.width)} px", abs(after.frame.width - before.frame.width) < 24f)
+    // Nessun salto: la chiusura parte dalla sagoma che si vedeva, gia' dal primo fotogramma, e non da quella chiesta alla goccia
+    // con l'anticipo (fermata li', la goccia continuava a crescere dopo il congedo).
+    for (f in listOf(first, after)) {
+      assertTrue("salto di ${abs(f.frame.bottom - shown.frame.bottom)} px", abs(f.frame.bottom - shown.frame.bottom) < 1f)
+      assertTrue("salto di ${abs(f.frame.width - shown.frame.width)} px", abs(f.frame.width - shown.frame.width) < 1f)
+    }
     advanceTimeBy(600)
     runCurrent()
     assertTrue(journey.settledClosed)

@@ -205,8 +205,7 @@ campo»).
 1. **Si raccoglie.** Il tasto premuto si stringe sul posto nei primi fotogrammi. Dal **gruppo** (un'azione con `menu` dentro un
    gruppo con lo sfondo condiviso di una barra dichiarata) è tutta la capsula del gruppo a farlo: si stringe al 60% della sua
    larghezza in circa 33 ms, e le altre icone del gruppo si sfocano sul posto e spariscono entro 67–100 ms con le curve del cambio
-   di contenuto della barra. «Menu aperto» è per la barra un cambio di stato in cui il gruppo sorgente si dichiara vuoto: il menu
-   non spegne niente, e alla chiusura le icone tornano nello stesso modo.
+   di contenuto della barra. La barra conserva il gruppo misurato e il bersaglio della pressione fino al rilascio del dito.
 2. **Sale come goccia.** La goccia va verso il **centro del menu** a riposo; un punto di luce forte le passa sul fianco lontano dal
    tasto fra il 12% e il 55% del viaggio (il bagliore dello strato della luce, nessun termine speculare nuovo).
 3. **Si apre da lì.** L'espansione comincia mentre la goccia sta ancora salendo; la sagoma è goccia, uovo, quadrato panciuto, mai un
@@ -217,14 +216,14 @@ campo»).
 che disegna la sagoma (la lente del contenuto, `GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci). Dal tasto la lente le ingrandisce fino a
 1,42× nella prima risalita e poi le riporta alla misura di lettura; dal gruppo crescono dentro la goccia. La messa a fuoco dura 270
 ms dal primo fotogramma: inchiostro pieno verso ≈195 ms, la piega si spegne fra ≈100 e ≈230 ms (prima e ultima riga restano piegate
-più a lungo), nitide a 270 ms. Le voci sono ritagliate sulla sagoma del vetro finché la goccia non si è posata. Il layout, le celle e
+più a lungo), nitide a 270 ms. Dopo la sfocatura, lo stesso campo che disegna il vetro ritaglia anche l'inchiostro delle voci. Il layout, le celle e
 la scelta col dito usano sempre i riquadri del pannello a riposo: il dito che ha aperto può scegliere durante il viaggio.
 
 **I tempi.** Il superamento raggiunge il picco attorno a 158 ms. Il bordo verticale lontano dal tasto
 si sposta fino al 6% dell'altezza e la larghezza cresce fino al 3,4% nei margini disponibili.
 Al congedo da fermo il bordo lontano cede nei primi 67 ms. Poi il corpo si raccoglie in una bolla
 sulla colonna del tasto e si posa in circa 233 ms. La sfocatura delle voci ha una curva di 100 ms,
-l'inchiostro si spegne in 90 ms. Le icone del gruppo tornano durante la posa della bolla.
+l'inchiostro si spegne in 90 ms. Quando la bolla tocca casa, la capsula del gruppo e le sue icone tornano insieme.
 Le tracce del banco sono in `tools/glassbench/traces/f5a-corr/`.
 
 **Un congedo a metà apertura torna indietro da dove si trova**, con la sua velocità (`retarget` la legge *prima* che la molla vecchia
@@ -510,17 +509,44 @@ Box(
 - **L'anteprima personalizzata** (`preview`) è composta dall'host alla sua taglia (al più larga quanto lo schermo meno i margini e alta
   il 55% dello schermo), centrata sull'elemento e dentro i margini. La card va dall'elemento all'anteprima e i due contenuti si
   scambiano **attraverso la sfocatura** (l'elemento se ne va fra 0,05 e 0,45 del sollevamento, l'anteprima arriva fra 0,15 e 0,6,
-  sfocati fino a 8 dp per la parte che manca). La taglia si misura al primo fotogramma, in cui card e goccia sono ancora spente.
+  sfocati fino a 8 dp per la parte che manca, coi bordi tenuti: `Clamp`, non `Decal`). Il vetro della card, con un'anteprima
+  personalizzata, è la piattaforma dell'anteprima: arriva e se ne va con lei (al cubo della sua opacità), così nello scambio, quando i
+  contenuti sono in parte trasparenti, dietro non traspare la pellicola chiara né il filo di luce del vetro — il bordo bianco attorno
+  alla foto che rientrava (S10a, ritrovato da S4 sul tablet). La taglia si misura al primo fotogramma, in cui card e goccia sono ancora
+  spente.
 - **La forma** (`previewShape`) è la sagoma del vetro e il ritaglio dell'immagine insieme. Una forma ad angoli (`RoundedCornerShape`,
   `CircleShape`, `ContinuousCornerShape`) dà i suoi raggi; un rettangolo, angoli vivi; una forma libera ritaglia l'immagine com'è, ma il
   vetro resta il rettangolo arrotondato dei pannelli (il campo di Fluid-physics è fatto di lastre). Senza forma: il raggio dei
   pannelli (22 dp).
 - **Il menu nasce da una goccia** di 28 dp appesa al bordo della card che guarda il pannello, sotto il dito (o al centro), che entra
   nella card di 4 dp; il punto d'origine è fermato all'apertura. Il pannello sta **accanto, mai sopra** (`BesideAnchor`): sotto la card
-  se ci sta o se sotto c'è più spazio, altrimenti sopra, a 12 dp, centrato e dentro i margini. Con il campo Liquid, il seme si
-  raccoglie sul bordo dell'elemento, si sposta verso il centro del menu e si apre. Le voci sono dentro la prima goccia visibile,
-  piccole e sfocate, e si mettono a fuoco come quelle del gruppo. Al ritorno il materiale dell'anteprima cede il bordo all'elemento
-  registrato durante lo scambio dei contenuti.
+  se ci sta o se sotto c'è più spazio, altrimenti sopra, a 12 dp, centrato e dentro i margini.
+- **La nascita è quella di Apple sulla foto** (WWDC25 219 a 7:15, il tasto graffetta che diventa menu: la clip che Alessio ha scelto
+  come modello, letta fotogramma per fotogramma), con il campo Liquid. Un orologio in millisecondi suo (`FluidContextBirth`) guida
+  la sagoma con i profili misurati (`FluidContextBirthProfile`, interpolati senza rimbalzi inventati): la goccia esce dalla card in 50
+  ms; a 67 ms è una goccia piccola, a 100 ms un fagiolo con le voci minuscole dentro; poi cresce verso il lato lontano **staccandosi
+  dalla card** (il bordo vicino si allontana fino al 15% dell'altezza a ~234 ms e poi torna), è larga quanto il pannello a ~334 ms,
+  supera una volta sola del 3% (prima il bordo lontano, a 367–467 ms, poi la larghezza, a 400–534 ms) ed è ferma a ~770 ms. Gli angoli
+  restano quelli della goccia fino a ~200 ms e arrivano al raggio del pannello a ~367 ms (quelli verso la card più tardi: in viaggio è
+  un uovo con la coda verso la card; mai oltre il 78% di mezzo lato, perché il ritaglio delle voci segua la goccia). Ogni lato va dal bordo del seme a quello del pannello: un seme sul bordo cresce dalla parte
+  opposta, come la graffetta. La sagoma chiesta alla goccia è quella di Apple **qualche ms dopo** (l'anticipo misurato sul banco,
+  18–51 ms), perché il corpo liquido insegue in ritardo: è il corpo che si vede a stare su Apple. **Il contorno non è un rettangolo
+  che cambia misura**: la goccia insegue un contorno deformato (`FluidDropWarp`, dato a `driveExternally(travelWarp = …)`) lungo
+  l'asse dal seme sotto il dito al lato lontano del pannello, e finché è piccola ha le **proporzioni della goccia di Apple** (tonda a
+  67 ms, alta a 100–133 ms, larga 0,64 della sua altezza a 100 ms) e non quelle del pannello, che per un menu largo darebbero una
+  pillola; fra 133 e 300 ms si allarga fino alla frazione del pannello. A 67 ms è una goccia grassa sulla card e più stretta in
+  avanti, tutta lente (limpida, ingrandisce ciò che ha sotto, velo diradato); a 100 ms un fagiolo; a 133–200 ms un uovo con la testa lontana e la coda verso la
+  card (un dito sul bordo della riga inclina l'asse, e l'uovo si piega verso il dito); a 234–300 ms un corpo a botte; da 400 ms
+  nessuna deformazione. La stessa deformazione vale per la molla della goccia, l'anello disegnato, il ritaglio delle voci (che
+  lascia fuori coda e punta) e la lente; la lente della goccia torna al vetro del profilo a ~200 ms. Le voci entrano nella goccia
+  fra 67 e 117 ms (prima è solo lente), alla sua scala, piegate dalla lente e sfocate; nitide a 334 ms, con una sfocatura che cala
+  dritta nel tempo. La card sollevata **non** rallenta col menu: ha la sua molla, quella di prima. Senza campo (o col movimento ridotto) il
+  menu fa il viaggio dei menu di sempre.
+- **Il congedo** è il ritorno del menu dal tasto (sul contorno, 233 ms: il corpo che crolla nella goccia e la goccia che rientra
+  nella card) con l'inchiostro di Apple (B1 a, scelta di Alessio del 2026-11-19): le voci si sfocano subito ma restano piene dentro
+  il vetro fino a ~67 ms e se ne vanno entro ~167 ms (`fluidContextExitInkSpec`), senza mai un vetro vuoto che si stringe. I menu
+  dal tasto e dal gruppo tengono i ~90 ms. Un congedo a nascita in corso parte dalla sagoma che c'era, senza salti.
+  Al ritorno il materiale dell'anteprima cede il bordo all'elemento registrato durante lo scambio dei contenuti.
 - **Il colore** di chi ha alzato il menu (`tint`, che `FluidVividCard` passa da sola) va sulla card sollevata, **non** sul pannello: il
   menu è chrome, e la chrome non prende il colore di ciò che l'ha chiamata.
 - `open()` ritorna `false` senza host, con un menu già aperto o con zero voci: chi chiama suona `Open` **solo se ritorna vero**
@@ -552,7 +578,8 @@ azioni della barra con `FluidBarAction(actions)` **non passano di qui** e non ca
 Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può superare 1) che guida la finestra di Fluid-physics con
 `driveExternally`. Col campo del vetro il menu dal tasto segue un contorno che ha curve distinte per larghezza, altezza, centro e
 raggio (`fluidMenuButtonTravel`; dal gruppo `fluidMenuJourneySeed`, che parte dalla capsula raccolta). Il
-contestuale Liquid fa partire lo stesso contorno dal seme sotto il dito. Il viaggio senza campo interpola fra seme e pannello.
+contestuale Liquid ha una nascita sua (`FluidContextBirth`, sotto): il progresso del viaggio lo segue, e la chiusura e' quella del
+viaggio. Il viaggio senza campo interpola fra seme e pannello.
 
 | cosa | valore |
 |---|---|
@@ -568,8 +595,8 @@ contestuale Liquid fa partire lo stesso contorno dal seme sotto il dito. Il viag
 | scrim del layer | entra in 110 ms, esce in 280 ms (`MenuFadeOutMillis`) |
 | movimento ridotto | `snapTo`: arriva senza viaggiare |
 
-**Il ritaglio delle voci dura quanto la goccia.** `travelClipIn` ritaglia il contenuto sul rettangolo che sta dentro il vetro di
-adesso finché la goccia non si è posata, qualunque sia il progresso, e si spegne solo all'arrivo con la goccia ferma. La molla
+**Il ritaglio delle voci dura quanto la goccia.** `travelClipIn` fornisce il rettangolo interno usato per posare le voci.
+Nel menu Liquid dal tasto o dal gruppo il campo dell’anello ritaglia l’inchiostro anche sui fianchi concavi. La molla
 d'apertura supera l'1 verso 150 ms e ci resta fino a ≈355 ms mentre la goccia, che arriva dopo la molla, è ancora più stretta del
 pannello: un ritaglio che si spegnesse all'1 lascerebbe testo, glifi e capi dei separatori sopra la pagina. Vale per tutti quelli che
 ritagliano sulla goccia: il contestuale, il menu dal tasto, il menu che si trasforma, il pop-up ancorato.
@@ -666,6 +693,24 @@ Quasi tutto è interno: **non c'è un `object …Defaults`** per i menu. Le cost
 I numeri del viaggio in tre tempi (raccolta, risalita, espansione, lente, punto di luce, ritorno rapido) sono interni a `FluidMotion`
 («I menu Liquid»): si tarano guardando le tavole contro Apple, non dalle app.
 
+### La nascita del contestuale (`FluidContextBirth`, in `FluidContextMenu.kt`)
+
+| cosa | valore |
+|---|---|
+| modello | WWDC25 219 a 7:15 (f13046 → f13072), il menu sulla foto: contorni letti a mano sul 4K, ±0,4% dell'altezza |
+| orologio | un `Animatable` in millisecondi, lineare, 0 → 867,5 ms (`FluidContextBirthProfile.EndMillis`); il progresso del viaggio corre nello stesso fotogramma sul bordo lontano di Apple (`fluidContextBirthProgress`), 1 esatto alla fine |
+| profili | bordo vicino, bordo lontano, larghezza in frazioni del pannello (`Near`, `Far`, `Width`), cubica monotona fra i punti (`FluidMeasuredCurve`) |
+| dal seme ad Apple | nei primi 100 ms (`BlendMillis`); la goccia si vede tutta a 50 ms (`fluidContextBirthPresence`) |
+| anticipo per la goccia | il bordo lontano chiede Apple 18–51 ms dopo, la larghezza 10–41 ms, il vicino 4–12 ms (`FarLead`, `WidthLead`, `NearLead`); oltrepasso chiesto all'85% (`OvershootShare`): il resto lo aggiunge la goccia |
+| angoli | della goccia (al più il 78% di mezzo lato, `RoundnessInTravel`) fino a 200 ms, al raggio del pannello a 367 ms i lontani e a 434 ms i vicini |
+| contorno | `FluidDropWarp` da `fluidContextBirthWarp`: punta 0,35 a 67 ms, vita 0,15 a 100 ms, coda 0,50–0,55 a 133–167 ms (su 3/4–2/3 dell'asse) che si accorcia fino a 300 ms, pancia fino a 0,06 a 267 ms; niente da 400 ms (`TailTaper`, `TailReach`, `HeadTaper`, `Waist`, `Belly`, `WarpEndMillis`) |
+| proporzioni | fino a 133 ms quelle della goccia di Apple (larghezza / altezza 1,10 a 67 ms, 0,64 a 100 ms, 0,68 a 133 ms, `Aspect`), poi verso la frazione del pannello fino a 300 ms (`AspectFrom`, `AspectTo`) |
+| lente della goccia | soglia della lente in moto 1 a 33–100 ms, ingrandimento fino a 0,25 a 67 ms, limpidezza fino a 0,7 (velo diradato quanto la limpidezza; la pellicola resta, perché nel contestuale porta anche il nero dello sfondo); al profilo (0,035 e 0,25 in viaggio) a ~200 ms (`Lens`, `Magnify`, `Clarity`, `physicsDropLensRecipe`) |
+| voci in entrata | da 67 a 117 ms (`fluidContextBirthInk`) |
+| voci | messa a fuoco in 334 ms (`FluidContextFocusMillis`) con l'andamento 1 − √(1 − f): la sfocatura cala dritta nel tempo |
+| card sollevata | la sua molla, `dropOpen` all'andata e le molle del viaggio al ritorno (le stesse di prima) |
+| congedo | `FluidMenuJourney.run` senza la sua lente (il ritorno sul contorno da fermo, la molla 900 a metà nascita) dalla sagoma fermata al congedo; fuoco in 100 ms come i menu, inchiostro di B1 a (pieno fino a 67 ms, via entro 167 ms, `fluidContextExitInkSpec`) |
+
 ## Cosa è verificato
 
 Puri, in `engine-ui` (JVM):
@@ -686,9 +731,18 @@ Puri, in `engine-ui` (JVM):
 - `GlassCompatSignaturesTest`: la `FluidContextAction` a sette argomenti per posizione e per nome, le forme nuove con la lambda in coda,
   `copy`, `component7`/`component10`, `equals`.
 - `FluidContextLiftTest`: al click lungo la card è la riga gonfiata, alla fine del ritorno è la riga a riposo, l'oltrepasso,
-  l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra compreso), lo scambio, i
+  l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra compreso), lo scambio (e
+  il vetro che dietro un'anteprima personalizzata non traspare: sotto l'11% nello scambio, sotto il 5% con la tessera davanti), i
   tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura), la manopola `ctxscrim`.
 - `DropPlanTest`: con la molla vera del menu, nei fotogrammi oltre l'1 a goccia non posata il ritaglio c'è e sta dentro la goccia.
+- `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
+  100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
+  dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello
+  sopra la card, specchiato; gli angoli; l'orologio (a meta' fra 134 e 167 ms, al 90% fra 234 e 300) e la ripresa a meta'; la
+  sfocatura delle voci; il layer che apre con l'orologio suo e la card con la sua molla, e chiude col ritorno dei menu e l'inchiostro
+  di B1 (a); un back a meta' che parte dalla sagoma che c'era; il contorno (goccia, fagiolo, uovo con la coda verso la card, botte,
+  nessuna deformazione da 400 ms; un pannello sopra tiene la coda verso la card), la lente della goccia che torna al profilo entro
+  234 ms senza scatti, e la deformazione che stringe soltanto verso l'asse e non esce mai dal rettangolo a riposo.
 
 Nel `sample` (Robolectric, aptica registrata):
 
@@ -708,7 +762,14 @@ Sul banco del movimento (`tools/glassbench/traces/`, scritte dal codice dei test
   `menu-apertura-gruppo`, `menu-chiusura`, `menu-chiusura-gruppo`, `menu-interrotto` (il congedo a 133 ms), `contestuale-apre`.
 - `f5a-2/scelta-*`: le scelte di Alessio sul viaggio (tasto, gruppo, chiusura, interruzione, punto di luce).
 - `f5a-3/`: il sottomenu che si apre e torna, `Priority` e `Fixed` verso l'alto.
-- `f5a-4/`: il contestuale coi tre livelli dello sfondo, chiaro e scuro, apertura e ritorno, con l'inchiostro misurato dentro il vetro.
+- `f5a-4/`: il contestuale coi tre livelli dello sfondo, chiaro e scuro, apertura e ritorno, con l'inchiostro misurato dentro il vetro
+  (il viaggio senza campo: non cambia con la nascita nuova).
+- `contestuale/` (`ContestualeTraceTest`): la nascita nuova dalla riga, chiaro e scuro (`apre-riga`, `apre-riga-scuro`, accoppiate al
+  menu sulla foto di Apple, f13046), e il congedo con un tocco fuori (`chiude-tocco`, `chiude-tocco-scuro`, accoppiate al ritorno del
+  menu dal tasto, f9187). Il test confronta la sagoma vera (l'anello della goccia) coi contorni di Apple fotogramma per fotogramma
+  (entro il 5% sui bordi, il 4% sul bordo vicino), misura le voci dentro il vetro con la mappa della lente che si disegna, e tiene il
+  costo: al più tre superfici, tre catture e una sola a tutto schermo per fotogramma. Le `f5a-corr/contestuale-*` seguono la stessa
+  nascita.
 
 **Non è provato** al PC: il vetro e la goccia sul vetro dentro i test Robolectric (gli host dei test non hanno fondale), il cambio di
 proprietario fra tasto e finestra, il menu dal vero a 120 Hz, il costo della lente sul layer delle voci: sono del tablet.

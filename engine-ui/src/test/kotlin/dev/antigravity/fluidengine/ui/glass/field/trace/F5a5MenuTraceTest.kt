@@ -214,8 +214,10 @@ internal object F5a5MenuTraces {
       retitled(
         context, "contestuale-apre",
         "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (C) e l'inchiostro nella lente, " +
-          "(F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni.",
+          "(F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni. Dalla sessione contestuale il menu nasce " +
+          "come B1 (b) di Apple (la ripresa `foto`, il modello); `telefono` resta per il confronto con le tracce di prima.",
         listOf(
+          ContestualeTraces.Photo,
           linkedMapOf(
             "name" to "telefono",
             "video" to "wwdc2025-219_hd",
@@ -265,8 +267,14 @@ class F5a5MenuTraceTest {
       val content = (first["content"] as List<*>).filterIsInstance<Map<*, *>>()
       assertTrue("$name: inchiostro e lente al primo fotogramma", content.any { it["name"] == "voci" && it["effect"] != null && (it["alpha"] as Float) > 0f })
     }
-    val contextMenu = requireNotNull(byName["contestuale-apre"]).frames
-      .firstNotNullOf { frame -> frame.elements.firstOrNull { it["name"] == "menu" } }
+    // Il contestuale (sessione contestuale, giro di correzione): le voci entrano nella goccia come in B1 (b), niente prima di
+    // 67 ms (la goccia e' solo lente), dentro la lente da 117 ms.
+    fun contextInk(frame: GlassTraceFrame): Float = frame.elements.firstOrNull { it["name"] == "menu" }
+      ?.let { (it["content"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>() }
+      ?.filter { it["name"] == "voci" }?.maxOfOrNull { it["alpha"] as? Float ?: 0f } ?: 0f
+    val contextFrames = requireNotNull(byName["contestuale-apre"]).frames
+    for (frame in contextFrames.filter { it.tMs in 0.0..66.0 }) assertEquals("voci a ${frame.tMs} ms", 0f, contextInk(frame), 0f)
+    val contextMenu = contextFrames.first { it.tMs >= 117.0 }.elements.first { it["name"] == "menu" }
     assertTrue((contextMenu["content"] as List<*>).filterIsInstance<Map<*, *>>().any {
       it["name"] == "voci" && it["effect"] != null && (it["alpha"] as Float) > 0f
     })

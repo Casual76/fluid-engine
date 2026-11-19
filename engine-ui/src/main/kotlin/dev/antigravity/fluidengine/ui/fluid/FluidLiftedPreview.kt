@@ -147,7 +147,7 @@ internal fun FluidLiftedPreview(
     )
   }
   val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
-  val materialPresence: () -> Float = { fluidLiftMaterialPresence(presence(), lift(), closing()) }
+  val materialPresence: () -> Float = { fluidLiftMaterialPresence(presence(), lift(), closing(), custom = custom != null) }
   Box(
     modifier = Modifier
       .fillMaxSize()
@@ -211,7 +211,7 @@ internal fun FluidLiftedPreview(
           scaleY = map.scale
           val a = outgoing().coerceIn(0f, 1f)
           alpha = a
-          renderEffect = swapBlur((1f - a) * swapBlurPx)
+          renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
           clip = true
           this.shape = clipShape
         }
@@ -241,7 +241,7 @@ internal fun FluidLiftedPreview(
             scaleY = map.scale
             val a = incoming().coerceIn(0f, 1f)
             alpha = a
-            renderEffect = swapBlur((1f - a) * swapBlurPx)
+            renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
             clip = true
             this.shape = clipShape
           },
@@ -282,15 +282,35 @@ internal fun fluidLiftPaintedFrame(natural: Rect, current: Rect): Rect {
   return Rect(center - half, center + half)
 }
 
-/** Una sfocatura per lo scambio, o niente sotto mezzo pixel (un `RenderEffect` a zero costa lo stesso). */
-private fun swapBlur(radiusPx: Float) =
-  if (radiusPx < 0.5f) null else BlurEffect(radiusPx, radiusPx, TileMode.Decal)
+/**
+ * Una sfocatura per lo scambio, o niente sotto mezzo pixel (un `RenderEffect` a zero costa lo stesso). Coi bordi
+ * **tenuti** (`Clamp`), non sfumati nel vuoto (`Decal`): sfumati, i bordi del contenuto diventavano trasparenti per
+ * tutto il raggio, e dietro c'era il vetro chiaro della card col suo filo di luce — il bordo bianco attorno alla foto
+ * che rientra (S10a, ritrovato da S4 sul tablet in A, B e C). Il contenuto ha gia' il suo ritaglio (`clip`, `shape`).
+ */
+internal fun fluidLiftSwapBlur(radiusPx: Float) =
+  if (radiusPx < 0.5f) null else BlurEffect(radiusPx, radiusPx, TileMode.Clamp)
 
 private fun liftRamp(p: Float, from: Float, to: Float): Float = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
-/** Allo scambio con l'elemento registrato anche il filo del vetro lascia il posto al suo bordo. */
-internal fun fluidLiftMaterialPresence(presence: Float, lift: Float, closing: Boolean): Float =
-  presence.coerceIn(0f, 1f) * if (closing) liftRamp(lift, FluidLiftSwapOutFrom, FluidLiftSwapOutTo) else 1f
+/**
+ * Quanto vetro ha la card sollevata. Senza anteprima personalizzata: tutto, e al ritorno, allo scambio con l'elemento
+ * registrato, anche il filo del vetro lascia il posto al suo bordo.
+ *
+ * Con un'anteprima personalizzata ([custom]) il vetro e' della **piattaforma dell'anteprima**: arriva e se ne va con lei,
+ * al cubo della sua opacita' (`incoming³`), all'andata e al ritorno. Il vetro sta dietro il contenuto, e nello scambio
+ * il contenuto e' in parte trasparente (due immagini che si incrociano sfocate): col vetro pieno se ne vedevano la
+ * pellicola chiara e il filo di luce attorno alla tessera che rientrava (S4, NO 1: A f387, B f1077, C f854–856). Cosi'
+ * il vetro che traspare resta sotto l'11% (al piu' `i³·(1 − i)`), e quando il contenuto e' gia' l'elemento sotto il 5%.
+ */
+internal fun fluidLiftMaterialPresence(presence: Float, lift: Float, closing: Boolean, custom: Boolean = false): Float {
+  val p = presence.coerceIn(0f, 1f)
+  if (custom) {
+    val i = liftRamp(lift, FluidLiftSwapInFrom, FluidLiftSwapInTo)
+    return p * i * i * i
+  }
+  return p * if (closing) liftRamp(lift, FluidLiftSwapOutFrom, FluidLiftSwapOutTo) else 1f
+}
 
 /**
  * Lo scambio elemento → anteprima personalizzata, sul progresso della card: l'elemento se ne va fra

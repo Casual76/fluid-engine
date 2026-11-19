@@ -1414,6 +1414,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "9.213dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["141.363dp", "762.884dp", "125.22dp", "101.369dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1423,15 +1424,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 24.142,
-              "y": 18.515,
-              "w": 250.441,
-              "h": 202.738,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1604,6 +1597,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["139.451dp", "765.534dp", "122.881dp", "99.475dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1613,15 +1607,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 24.569,
-              "y": 23.059,
-              "w": 245.763,
-              "h": 198.951,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1794,6 +1780,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["136.264dp", "769.953dp", "118.983dp", "96.319dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1803,15 +1790,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 25.281,
-              "y": 30.633,
-              "w": 237.966,
-              "h": 192.639,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1984,6 +1963,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["131.802dp", "776.138dp", "113.525dp", "91.901dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1993,15 +1973,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 26.277,
-              "y": 41.237,
-              "w": 227.05,
-              "h": 183.803,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -2174,6 +2146,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["122.343dp", "781.791dp", "105.32dp", "85.9dp"],
                   "pieceRadii": ["23.146dp", "23.146dp", "23.146dp", "23.146dp"],
@@ -2183,15 +2156,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 25.023,
-              "y": 52.891,
-              "w": 210.64,
-              "h": 171.801,
-              "radius": [23.146, 23.146, 23.146, 23.146]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },

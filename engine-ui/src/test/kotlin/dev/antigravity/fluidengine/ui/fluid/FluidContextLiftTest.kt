@@ -5,10 +5,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -266,6 +268,7 @@ class FluidContextLiftTest {
   @Test
   fun theElementLeavesBeforeThePreviewIsFullAndThePreviewArrivesWhileTheCardForms() {
     assertTrue(FluidLiftSwapOutFrom < FluidLiftSwapInFrom)
+    // (Lo scambio resta quello di F5A.4: l'elemento se ne va prima che l'anteprima arrivi del tutto.)
     assertTrue(FluidLiftSwapInFrom < FluidLiftSwapOutTo)
     assertTrue(FluidLiftSwapOutTo < FluidLiftSwapInTo)
     // L'anteprima e' piena prima che la molla d'apertura arrivi al traguardo.
@@ -333,5 +336,36 @@ class FluidContextLiftTest {
     } finally {
       FluidContextScrimTuning.apply(null)
     }
+  }
+
+  /**
+   * S4 sul tablet (NO 1): il filo chiaro attorno alla foto che rientra, in A, B e C. Il vetro della card sta dietro il
+   * contenuto, e nello scambio il contenuto e' in parte trasparente. Con un'anteprima personalizzata il vetro arriva e se
+   * ne va con lei: quello che traspare dietro il contenuto (anche contando solo l'anteprima, il caso peggiore) resta
+   * sotto l'11% del vetro, e quando davanti c'e' gia' la tessera sotto il 5%. La sfocatura dello scambio tiene i bordi.
+   */
+  @Test
+  fun aCustomPreviewShowsNoLightRimOfTheGlassDuringTheSwap() {
+    for (closing in listOf(false, true)) {
+      var worst = 0f
+      for (k in 0..1000) {
+        val lift = k / 1000f
+        val element = 1f - ((lift - FluidLiftSwapOutFrom) / (FluidLiftSwapOutTo - FluidLiftSwapOutFrom)).coerceIn(0f, 1f)
+        val preview = ((lift - FluidLiftSwapInFrom) / (FluidLiftSwapInTo - FluidLiftSwapInFrom)).coerceIn(0f, 1f)
+        val glass = fluidLiftMaterialPresence(1f, lift, closing, custom = true)
+        worst = maxOf(worst, glass * (1f - preview))
+        if (preview < element) assertTrue("vetro a $lift con la tessera davanti: $glass", glass <= 0.05f)
+      }
+      assertTrue("vetro che traspare al piu' $worst", worst <= 0.11f)
+      // A card posata il vetro c'e' tutto: la piattaforma dell'anteprima.
+      assertEquals(1f, fluidLiftMaterialPresence(1f, 1f, closing, custom = true), 0f)
+      assertEquals(0f, fluidLiftMaterialPresence(1f, 0f, closing, custom = true), 0f)
+    }
+    // Senza anteprima personalizzata (una riga) il vetro e' quello di prima.
+    assertEquals(0.7f, fluidLiftMaterialPresence(0.7f, 0f, closing = false), 0f)
+    assertEquals(0.7f, fluidLiftMaterialPresence(0.7f, FluidLiftSwapOutTo, closing = true), 0f)
+    // La sfocatura dello scambio tiene i bordi: sfumati nel vuoto lasciavano vedere il vetro dietro.
+    assertEquals(BlurEffect(8f, 8f, TileMode.Clamp), fluidLiftSwapBlur(8f))
+    assertEquals(null, fluidLiftSwapBlur(0.2f))
   }
 }

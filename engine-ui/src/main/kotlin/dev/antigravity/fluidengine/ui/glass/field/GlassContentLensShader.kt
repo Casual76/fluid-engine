@@ -35,13 +35,15 @@ uniform float2 menuOrigin;
 uniform float menuScale;
 uniform float lensDepth;
 uniform float lensPull;
+uniform float clipInk;
 
 half4 glassMenuContent(float2 xy) {
     float2 normal, center;
     float d = glassField(menuOrigin + xy * menuScale, normal, center);
     float edge = 1.0 - smoothstep(0.0, lensDepth, abs(d));
     float2 sampleAt = xy + normal * (edge * edge * lensPull);
-    return content.eval(sampleAt);
+    float coverage = clipInk > 0.5 ? clamp(0.5 - d, 0.0, 1.0) : 1.0;
+    return content.eval(sampleAt) * half(coverage);
 }"""
 
 @Language("AGSL")
@@ -79,6 +81,7 @@ internal class GlassContentLensEffect {
     density: Float,
     blurDp: Float,
     strength: Float,
+    clipInk: Boolean = false,
   ): androidx.compose.ui.graphics.RenderEffect? {
     val radius = blurDp * density
     val blur = if (radius >= 0.5f) {
@@ -88,7 +91,7 @@ internal class GlassContentLensEffect {
     }
     val depth = glassMenuLensDepthPx(plan.bounds, density)
     val shader = when {
-      strength <= 0f -> null
+      strength <= 0f && !clipInk -> null
       plan.mode == PlanModePoly && plan.vertCount > 2 -> ring?.apply {
         val field = physicsRingField(plan, 1f, density, depth, depth, ringField)
         setFloatUniform("vertCount", field.count.toFloat())
@@ -116,6 +119,7 @@ internal class GlassContentLensEffect {
     if (shader == null) return blur?.asComposeRenderEffect()
     shader.setFloatUniform("menuOrigin", origin.x, origin.y)
     shader.setFloatUniform("menuScale", scale)
+    shader.setFloatUniform("clipInk", if (clipInk) 1f else 0f)
     shader.setFloatUniform("lensDepth", depth)
     shader.setFloatUniform("lensPull", glassMenuLensPullPx(depth, strength) / scale)
     val lens = RuntimeShaderEffect(shader, "content").asAndroidRenderEffect()

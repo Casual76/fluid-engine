@@ -1,5 +1,11 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
@@ -30,10 +36,17 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidDropWarp
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import java.util.WeakHashMap
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.roundToInt
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 // Il menu contestuale dal lato di chi lo apre: il controller, l'ancora che registra la riga e il
 // modificatore che unisce le due cose. Il pannello lo disegna `FluidMenuLayer`, la card sollevata
@@ -474,4 +487,553 @@ internal fun fluidContextPreviewRadii(
     )
     is Outline.Generic -> FluidCornerRadii.all(c(fallbackPx))
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// La nascita del menu contestuale (sessione «contestuale», 2026-11-19): B1 (b) di Apple, WWDC25 219 a 7:15, il tasto
+// graffetta che diventa menu sulla foto, letto a mano fotogramma per fotogramma sul 4K (f13046 -> f13072, 29,97 fps,
+// `riferimento-apple.md`). Funzioni pure, provate da `FluidContextBirthTest`.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Una curva misurata: punti (ms, valore) uniti da una cubica monotona (Fritsch-Carlson).
+ *
+ * Perche' non una molla: la sagoma di Apple non e' una molla sola. Il bordo lontano corre, il bordo vicino si stacca dalla
+ * sorgente e ci torna, la larghezza parte in ritardo e supera piu' tardi dell'altezza; tre molle tarate a occhio darebbero
+ * tre errori. I punti sono le misure, e fra due punti la cubica monotona non inventa rimbalzi che i fotogrammi non hanno
+ * (una spline qualunque oscillerebbe fra 400 e 534 ms, dove Apple e' quasi ferma). Fuori dai capi vale il capo.
+ */
+internal class FluidMeasuredCurve(private val ms: FloatArray, private val values: FloatArray) {
+  private val slopes = FloatArray(ms.size)
+
+  init {
+    require(ms.size == values.size && ms.size >= 2) { "una curva vuole almeno due punti, tanti tempi quanti valori" }
+    val n = ms.size
+    val d = FloatArray(n - 1) { (values[it + 1] - values[it]) / (ms[it + 1] - ms[it]) }
+    slopes[0] = d[0]
+    slopes[n - 1] = d[n - 2]
+    for (i in 1 until n - 1) slopes[i] = if (d[i - 1] * d[i] <= 0f) 0f else (d[i - 1] + d[i]) / 2f
+    // Fritsch-Carlson: dove la tangente sfora, si accorcia; cosi' fra due punti monotoni la curva resta monotona.
+    for (i in 0 until n - 1) {
+      if (d[i] == 0f) {
+        slopes[i] = 0f
+        slopes[i + 1] = 0f
+        continue
+      }
+      val a = slopes[i] / d[i]
+      val b = slopes[i + 1] / d[i]
+      val s = a * a + b * b
+      if (s > 9f) {
+        val k = 3f / kotlin.math.sqrt(s)
+        slopes[i] = k * a * d[i]
+        slopes[i + 1] = k * b * d[i]
+      }
+    }
+  }
+
+  fun at(t: Float): Float {
+    if (t <= ms[0]) return values[0]
+    val last = ms.size - 1
+    if (t >= ms[last]) return values[last]
+    var i = 0
+    while (t > ms[i + 1]) i++
+    val h = ms[i + 1] - ms[i]
+    val x = (t - ms[i]) / h
+    val x2 = x * x
+    val x3 = x2 * x
+    return (2f * x3 - 3f * x2 + 1f) * values[i] + (x3 - 2f * x2 + x) * h * slopes[i] +
+      (-2f * x3 + 3f * x2) * values[i + 1] + (x3 - x2) * h * slopes[i + 1]
+  }
+}
+
+/**
+ * Le misure di B1 (b), nel sistema del pannello a riposo: `u` lungo l'asse della crescita (0 = il bordo vicino alla
+ * sorgente a riposo, 1 = il bordo lontano, in frazioni dell'altezza del pannello), `v` di traverso (0 = il lato della
+ * sorgente, 1 = l'altro, in frazioni della larghezza). Tempi dal primo fotogramma che si muove (f13046, t = 0).
+ *
+ * Il menu di Apple e' alto 720 px e largo 495 px sul ritaglio a mezza risoluzione del 4K; ogni valore e' letto a ±3 px
+ * (±0,4% dell'altezza). Cosa si vede: a 0-33 ms la capsula di tre tasti si stringe verso la graffetta; a 67 ms e' una goccia
+ * inclinata (33% x 21% del menu) col punto di luce; a 100 ms un fagiolo con le voci minuscole dentro; fino a 234 ms il corpo
+ * cresce verso l'alto e a destra **staccandosi dalla barra** (il bordo vicino sale del 15%); poi il bordo vicino torna giu',
+ * quello lontano supera del 3% fra 367 e 467 ms, la larghezza del 3% fra 400 e 534 ms, e il menu e' fermo a ~770 ms.
+ */
+internal object FluidContextBirthProfile {
+  /** I tempi dei fotogrammi letti, in ms: f13046 + k, k = 0..12, 14, 16, 18, 20, 23, 26 (29,97 fps). */
+  private val Ms = floatArrayOf(
+    0f, 33.4f, 66.7f, 100.1f, 133.5f, 166.8f, 200.2f, 233.6f, 266.9f, 300.3f, 333.7f, 367.0f, 400.4f,
+    467.1f, 533.9f, 600.6f, 667.3f, 767.4f, 867.5f,
+  )
+
+  /** Il bordo vicino (quello della sorgente), in `u`: si stacca fino a 0,15 a 234 ms e torna a 0 a ~600 ms. */
+  val Near = FluidMeasuredCurve(
+    Ms,
+    floatArrayOf(0.007f, 0.014f, 0.019f, 0.039f, 0.069f, 0.100f, 0.128f, 0.153f, 0.139f, 0.121f, 0.093f, 0.072f, 0.053f, 0.024f, 0.006f, 0f, 0f, 0f, 0f),
+  )
+
+  /** Il bordo lontano, in `u`: 0,146 e' la capsula; supera 1 a 334 ms, picco 1,031 a 467, fermo a 767. */
+  val Far = FluidMeasuredCurve(
+    Ms,
+    floatArrayOf(0.146f, 0.142f, 0.225f, 0.385f, 0.542f, 0.683f, 0.794f, 0.878f, 0.938f, 0.975f, 1.003f, 1.028f, 1.028f, 1.031f, 1.019f, 1.010f, 1.003f, 1f, 1f),
+  )
+
+  /** La larghezza, in frazioni del pannello: la capsula 0,55 si raccoglie a 0,32 (100 ms), poi cresce e supera del 3%. */
+  val Width = FluidMeasuredCurve(
+    Ms,
+    floatArrayOf(0.546f, 0.404f, 0.332f, 0.322f, 0.469f, 0.610f, 0.737f, 0.838f, 0.909f, 0.964f, 1.004f, 1.026f, 1.030f, 1.032f, 1.030f, 1.024f, 1.016f, 1.004f, 1f),
+  )
+
+  /** Dove si legge la sorgente di Apple a t = 0 (la capsula): il nostro seme la sostituisce in [BlendMillis]. */
+  val SourceNear: Float get() = Near.at(0f)
+  val SourceFar: Float get() = Far.at(0f)
+  val SourceWidth: Float get() = Width.at(0f)
+
+  /**
+   * In quanti ms la sagoma passa dal **nostro** seme (la goccia sotto il dito, appesa alla card) al profilo di Apple.
+   * La sorgente di Apple e' una capsula larga mezzo menu; la nostra e' una goccia di 28 dp: per i primi 100 ms il profilo
+   * parte dal seme, dai 100 ms in poi e' Apple tal quale (a 67 ms la goccia di Apple e' gia' la capsula raccolta).
+   */
+  const val BlendMillis = 100f
+
+  /** Fine della nascita: il menu di Apple e' fermo (l'ultimo punto letto, f13072). */
+  const val EndMillis = 867.5f
+
+  /**
+   * L'anticipo della sagoma chiesta sulla sagoma che si vede, in ms, per ogni bordo: la goccia (`FluidPhysicsLiquid`)
+   * insegue la sagoma a riposo con molle morbide lontano dall'ancora: senza anticipo il bordo lontano arrivava in ritardo
+   * di 18 ms a 100 ms e di 51 ms a 334 ms, la larghezza di 15 e 41 ms (misurati sull'anello delle tracce del banco della
+   * sessione, «ritardo_goccia.py»); col primo anticipo restava indietro di 7-18 ms fra 100 e 300 ms, ed e' questo il
+   * secondo. Si chiede quindi la sagoma di Apple **di qualche ms dopo**, perche' quella che si vede sia di Apple
+   * all'istante giusto. Zero all'inizio: la nascita parte dal seme.
+   */
+  private val LeadMs = floatArrayOf(0f, 50f, 100.1f, 133.5f, 166.8f, 200.2f, 233.6f, 266.9f, 300.3f, 333.7f, 400.4f, 867.5f)
+  val FarLead = FluidMeasuredCurve(LeadMs, floatArrayOf(0f, 12f, 25f, 28f, 38f, 49f, 56f, 62f, 58f, 52f, 51f, 51f))
+  val WidthLead = FluidMeasuredCurve(LeadMs, floatArrayOf(0f, 6f, 14f, 25f, 35f, 40f, 47f, 46f, 47f, 45f, 41f, 41f))
+  val NearLead = FluidMeasuredCurve(LeadMs, floatArrayOf(0f, 0f, 4f, 8f, 10f, 12f, 12f, 12f, 12f, 12f, 12f, 12f))
+
+  /**
+   * Gli angoli in viaggio non arrivano mai a mezzo lato: al 78%. Il ritaglio delle voci sulla goccia
+   * (`dropInnerClip`) prende ogni lato dai punti dell'anello che stanno sui **tratti dritti** della sagoma a riposo; uno
+   * stadio (raggio = mezzo lato) non ne ha su due lati, e li' il ritaglio restava il bordo a riposo mentre la goccia era
+   * ancora indietro: 8-14 px di voci fuori dal vetro a 183-283 ms nella prima prova, 1 px all'82%. Il seme parte tondo
+   * (fino a 30 ms) e a 80 ms e' gia' al 78%: a occhio la goccia, che arrotonda da se', non cambia.
+   */
+  const val RoundnessInTravel = 0.78f
+
+  /**
+   * Quanto dell'oltrepasso di Apple si chiede alla sagoma a riposo: la goccia ci aggiunge il suo (~0,5% sui due assi,
+   * misurato come sopra), e chiedendolo tutto il vetro supererebbe del 3,6% invece che del 3,1-3,2%.
+   */
+  const val OvershootShare = 0.85f
+
+  /**
+   * Gli angoli: lontani al raggio del pannello fra 200 e 367 ms, vicini (la coda verso la sorgente) fra 267 e 434 ms. In
+   * Apple sono quasi quelli finali a 334 ms; qui si chiedono un fotogramma di Apple piu' tardi, perche' un angolo che si
+   * stringe in fretta corre piu' della goccia che lo insegue, e il ritaglio delle voci (sul raggio chiesto) sporgeva di un
+   * pixel dalla goccia a 217 ms. La goccia, che arriva in ritardo, li mostra comunque attorno a 367 ms.
+   */
+  const val FarCornersFrom = 200.2f
+  const val FarCornersTo = 367.0f
+  const val NearCornersFrom = 266.9f
+  const val NearCornersTo = 434.0f
+
+  /** Fin dove sale il progresso prima di arrivare al pannello: la fine della salita del bordo lontano (334 ms). */
+  const val RiseEndMillis = 333.7f
+
+  // --- Il contorno (giro di correzione del 2026-11-19): la sagoma di B1 (b), non un rettangolo che cambia misura -----
+
+  /*
+   * Letti su B1 (b) fotogramma per fotogramma (`riferimento-apple.md`, «Il contorno»), nel sistema dell'asse che va dalla
+   * sorgente (la coda) al lato lontano (la testa). Diventano una [FluidDropWarp] sul contorno a riposo della goccia:
+   *  - 67 ms: la goccia sulla sorgente, grassa li' e piu' stretta verso dove crescera' (la punta), e tutta lente;
+   *  - 100 ms: il fagiolo, con la vita;
+   *  - 133–200 ms: l'uovo con la testa lontana e la coda verso la sorgente;
+   *  - 234–300 ms: il corpo panciuto, a botte;
+   *  - 334 ms: il rettangolo; da 400 ms nessuna deformazione (a menu aperto il contorno e' la lastra).
+   */
+  private val WarpMs = floatArrayOf(0f, 33.4f, 66.7f, 100.1f, 133.5f, 166.8f, 200.2f, 233.6f, 266.9f, 300.3f, 333.7f, 367.0f, 400.4f)
+
+  /** Quanto si stringe la coda verso la sorgente: la larghezza al capo della coda e' `1 − TailTaper` del corpo. */
+  val TailTaper = FluidMeasuredCurve(WarpMs, floatArrayOf(0f, 0f, 0f, 0f, 0.50f, 0.55f, 0.42f, 0.22f, 0.10f, 0.04f, 0f, 0f, 0f))
+
+  /** Fin dove arriva la coda, in frazioni dell'asse dalla sorgente. */
+  val TailReach = FluidMeasuredCurve(WarpMs, floatArrayOf(0.7f, 0.7f, 0.7f, 0.7f, 0.75f, 0.65f, 0.5f, 0.4f, 0.35f, 0.3f, 0.3f, 0.3f, 0.3f))
+
+  /** La punta verso dove la goccia crescera': a 67 ms la goccia di Apple e' grassa sulla sorgente e piu' stretta in avanti. */
+  val HeadTaper = FluidMeasuredCurve(WarpMs, floatArrayOf(0f, 0.10f, 0.35f, 0.08f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
+
+  /** La vita del fagiolo a 100 ms. */
+  val Waist = FluidMeasuredCurve(WarpMs, floatArrayOf(0f, 0f, 0f, 0.15f, 0.03f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
+
+  /** La pancia: i capi piu' stretti del mezzo, il corpo a botte di 234–300 ms. */
+  val Belly = FluidMeasuredCurve(WarpMs, floatArrayOf(0f, 0f, 0f, 0f, 0f, 0.01f, 0.03f, 0.05f, 0.06f, 0.04f, 0.02f, 0.01f, 0f))
+
+  /**
+   * La lente della goccia (giro di correzione, B1 b a 67–117 ms): la goccia piccola e' una lente intera, limpida, che
+   * ingrandisce cio' che ha sotto; da 133 ms torna verso il vetro del profilo, che raggiunge a ~200 ms. [Lens] e' la
+   * soglia della lente in moto, [Magnify] l'ingrandimento del corpo (il profilo in viaggio ne ha al piu' 0,035), [Clarity]
+   * quanto la goccia e' limpida in piu'.
+   */
+  val Lens = FluidMeasuredCurve(WarpMs, floatArrayOf(0.3f, 1f, 1f, 1f, 0.6f, 0.3f, 0.1f, 0f, 0f, 0f, 0f, 0f, 0f))
+  val Magnify = FluidMeasuredCurve(WarpMs, floatArrayOf(0.05f, 0.18f, 0.25f, 0.22f, 0.12f, 0.06f, 0.02f, 0f, 0f, 0f, 0f, 0f, 0f))
+  val Clarity = FluidMeasuredCurve(WarpMs, floatArrayOf(0.2f, 0.6f, 0.7f, 0.6f, 0.35f, 0.15f, 0.04f, 0f, 0f, 0f, 0f, 0f, 0f))
+
+  /** Da qui in poi il contorno e' quello della lastra: nessuna deformazione. */
+  const val WarpEndMillis = 400.4f
+
+  /**
+   * Le proporzioni della goccia di Apple (larghezza / altezza, in pixel, B1 b): la goccia piccola e' tonda a 67 ms e alta a
+   * 100–234 ms, qualunque sia il menu che diventera'. In frazioni del pannello un menu largo come il nostro (quattro voci,
+   * 256 × 212 dp) dava una pillola larga il doppio che alta, non una goccia: fino a [AspectFrom] la larghezza e' quella delle
+   * proporzioni di Apple, da li' a [AspectTo] torna alla frazione del pannello (il riquadro di Apple, [Width]).
+   */
+  private val AspectMs = floatArrayOf(66.7f, 100.1f, 133.5f, 166.8f, 200.2f, 233.6f, 266.9f, 300.3f)
+  val Aspect = FluidMeasuredCurve(AspectMs, floatArrayOf(1.10f, 0.64f, 0.68f, 0.72f, 0.76f, 0.80f, 0.78f, 0.78f))
+  const val AspectFrom = 133.5f
+  const val AspectTo = 300.3f
+
+  /** Le voci entrano nella goccia fra 67 ms (in Apple la goccia e' ancora solo lente) e 117 ms (voci minuscole dentro). */
+  const val InkInFrom = 66.7f
+  const val InkInTo = 116.8f
+}
+
+/** Da [a] a [b] per [f], esatto ai capi (i raggi a riposo sono quelli del pannello, non un loro arrotondamento). */
+private fun birthLerp(a: Float, b: Float, f: Float): Float = when {
+  f <= 0f -> a
+  f >= 1f -> b
+  else -> a + (b - a) * f
+}
+
+/** Smoothstep fra [from] e [to]: 0 prima, 1 dopo. */
+private fun birthStep(t: Float, from: Float, to: Float): Float {
+  val x = ((t - from) / (to - from)).coerceIn(0f, 1f)
+  return x * x * (3f - 2f * x)
+}
+
+/**
+ * La sagoma del menu contestuale a [ms] dalla sua nascita, verso il pannello [panel] a raggio [panelRadius], dal seme
+ * [seed] (la goccia appesa alla card, [fluidMenuDropSeed]). Null dalla fine in poi: e' il pannello fermo.
+ *
+ * Il profilo e' quello di Apple ([FluidContextBirthProfile]) nel sistema del pannello: il bordo lontano e quello vicino
+ * lungo l'asse che va dalla card al pannello (verso il basso o verso l'alto), la larghezza di traverso dai bordi del
+ * seme a quelli del pannello, cosi' che un seme sul bordo sinistro cresca verso destra (come la graffetta di Apple) e
+ * uno al centro su tutti e due i lati. Il bordo vicino **si stacca** dalla card e ci torna: e' il «prima sale, poi rilascia» del
+ * baricentro (memoria `viaggi-contro-apple`). Gli angoli sono la goccia (al piu' il 78% di mezzo lato corto,
+ * [FluidContextBirthProfile.RoundnessInTravel]) fino a 200 ms e poi si stringono al raggio del pannello, i lontani prima dei
+ * vicini: in viaggio il corpo e' un uovo con la coda verso la card.
+ *
+ * Nei primi [FluidContextBirthProfile.BlendMillis] la sagoma parte dal seme e non dalla capsula di Apple: a 0 ms e'
+ * esattamente il seme, a 100 ms e' Apple. L'oltrepasso di Apple (3% dell'altezza sul bordo lontano, 3% della larghezza)
+ * resta in frazioni del pannello, non della corsa: con un seme piu' piccolo della capsula sarebbe stato piu' grande.
+ */
+internal fun fluidContextBirthSlab(
+  seed: Rect,
+  panel: Rect,
+  panelRadius: Float,
+  ms: Float,
+  /**
+   * Con l'anticipo della goccia ([FluidContextBirthProfile.FarLead]): la sagoma da chiedere alla superficie liquida perche'
+   * quella che si vede sia Apple. Senza: la sagoma di Apple stessa (per le prove e per chi non ha la goccia).
+   */
+  leadForDrop: Boolean = true,
+): FluidForm.Slab? {
+  if (ms >= FluidContextBirthProfile.EndMillis) return null
+  if (panel.width <= 0f || panel.height <= 0f) return null
+  val t = ms.coerceAtLeast(0f)
+  val p = FluidContextBirthProfile
+  val e = birthStep(t, 0f, p.BlendMillis)
+  fun over(v: Float) = if (leadForDrop && v > 1f) 1f + (v - 1f) * p.OvershootShare else v
+  val tNear = if (leadForDrop) t + p.NearLead.at(t) else t
+  val tFar = if (leadForDrop) t + p.FarLead.at(t) else t
+  val tWidth = if (leadForDrop) t + p.WidthLead.at(t) else t
+  val down = panel.center.y >= seed.center.y
+  val h = panel.height
+  // Il seme nel sistema del pannello: dove stanno i suoi due bordi lungo l'asse della crescita.
+  val nearRest = if (down) panel.top else panel.bottom
+  fun u(y: Float) = if (down) (y - nearRest) / h else (nearRest - y) / h
+  fun y(u: Float) = if (down) nearRest + u * h else nearRest - u * h
+  val seedNear = u(if (down) seed.top else seed.bottom)
+  val seedFar = u(if (down) seed.bottom else seed.top)
+  val near = p.Near.at(tNear) + (seedNear - p.SourceNear) * (1f - e)
+  val far = over(p.Far.at(tFar)) + (seedFar - p.SourceFar) * (1f - e)
+  // Di traverso: ogni lato va dal bordo del seme al bordo del pannello con la stessa frazione, scelta perche' la larghezza
+  // sia quella di Apple. Un lato che non ha strada da fare (il seme sul bordo, come la graffetta) resta fermo, e
+  // l'oltrepasso va tutto dalla parte lontana.
+  val seedW = seed.width.coerceAtMost(panel.width - 0.5f)
+  val travelW = panel.width - seedW
+  val a = y(near)
+  val b = y(far)
+  // La larghezza: quella delle proporzioni della goccia di Apple finche' e' piccola, poi la frazione del pannello.
+  val fractionW = over(p.Width.at(tWidth)) * panel.width
+  val dropW = abs(b - a) * p.Aspect.at(tWidth)
+  val widthNow = if (dropW < fractionW) dropW + (fractionW - dropW) * birthStep(tWidth, p.AspectFrom, p.AspectTo) else fractionW
+  val g = ((widthNow - seedW) / travelW).coerceAtLeast(0f) * e
+  val left = seed.left + (panel.left - seed.left) * g
+  val right = seed.right + (panel.right - seed.right) * g
+  val frame = Rect(left, minOf(a, b), right, maxOf(a, b))
+  val cap = frame.minDimension / 2f * birthLerp(1f, p.RoundnessInTravel, birthStep(t, 30f, 80f))
+  val r = panelRadius.coerceAtMost(cap)
+  val farR = birthLerp(cap, r, birthStep(t, p.FarCornersFrom, p.FarCornersTo))
+  val nearR = birthLerp(cap, r, birthStep(t, p.NearCornersFrom, p.NearCornersTo))
+  val radii = if (down) {
+    FluidCornerRadii(topLeft = nearR, topRight = nearR, bottomRight = farR, bottomLeft = farR)
+  } else {
+    FluidCornerRadii(topLeft = farR, topRight = farR, bottomRight = nearR, bottomLeft = nearR)
+  }
+  return FluidForm.Slab(frame, radii)
+}
+
+/**
+ * Il contorno della nascita a [ms] ([FluidDropWarp]) sulla sagoma [slab] di quell'istante ([fluidContextBirthSlab]): la
+ * coda verso il seme [seed] (il lato della card), la testa verso il lato lontano del pannello [panel]. L'asse va dal seme,
+ * sul bordo vicino, al centro del bordo lontano: un dito sul bordo della riga lo inclina, e l'uovo si piega verso il
+ * dito come quello di Apple verso la graffetta. Null da [FluidContextBirthProfile.WarpEndMillis]: il contorno e' la lastra.
+ */
+internal fun fluidContextBirthWarp(seed: Rect, panel: Rect, slab: FluidForm.Slab, ms: Float): FluidDropWarp? {
+  if (ms >= FluidContextBirthProfile.WarpEndMillis) return null
+  val p = FluidContextBirthProfile
+  val t = ms.coerceAtLeast(0f)
+  val f = slab.frame
+  val down = panel.center.y >= seed.center.y
+  return FluidDropWarp(
+    tailX = seed.center.x.coerceIn(f.left, f.right),
+    tailY = if (down) f.top else f.bottom,
+    headX = f.center.x,
+    headY = if (down) f.bottom else f.top,
+    tailTaper = p.TailTaper.at(t).coerceAtLeast(0f),
+    tailReach = p.TailReach.at(t),
+    headTaper = p.HeadTaper.at(t).coerceAtLeast(0f),
+    waist = p.Waist.at(t).coerceAtLeast(0f),
+    belly = p.Belly.at(t).coerceAtLeast(0f),
+    lens = p.Lens.at(t).coerceIn(0f, 1f),
+    magnify = p.Magnify.at(t).coerceAtLeast(0f),
+    clarity = p.Clarity.at(t).coerceIn(0f, 1f),
+  )
+}
+
+/** Quanto delle voci c'e' nella goccia a [ms] dalla nascita: niente fino a 67 ms, tutte a 117 ms. */
+internal fun fluidContextBirthInk(ms: Float): Float =
+  birthStep(ms, FluidContextBirthProfile.InkInFrom, FluidContextBirthProfile.InkInTo)
+
+/**
+ * Il progresso del menu contestuale a [ms] dalla nascita: la corsa del bordo lontano di Apple dalla capsula (0) al menu a
+ * riposo (1), col suo oltrepasso (1,036 a 467 ms). E' il numero che leggono gli altri pezzi del menu (la lente, il
+ * ritaglio, il punto di luce, il verso della chiusura); non dipende dalla geometria, cosi' un pannello che si sposta a
+ * meta' nascita (un'anteprima misurata dopo) non cambia l'orologio. Vale 1 **esatto** dalla fine in poi: il vetro si dice
+ * fermo solo li'.
+ */
+internal fun fluidContextBirthProgress(ms: Float): Float {
+  if (ms >= FluidContextBirthProfile.EndMillis) return 1f
+  if (ms <= 0f) return 0f
+  val p = FluidContextBirthProfile
+  // Nei primi 33 ms la capsula di Apple si stringe e il suo bordo lontano scende di un filo: qui e' zero, non negativo.
+  return ((p.Far.at(ms) - p.SourceFar) / (1f - p.SourceFar) * birthStep(ms, 0f, p.BlendMillis)).coerceAtLeast(0f)
+}
+
+/**
+ * Quanto della goccia del contestuale si vede a [ms] dalla nascita: tutta a 50 ms. Nel fotogramma di Apple a 33 ms la
+ * capsula e' ancora quella, a 67 ms e' gia' una goccia piena: la nostra esce dalla card in quei due fotogrammi.
+ */
+internal fun fluidContextBirthPresence(ms: Float): Float = birthStep(ms, 0f, FluidContextBirthPresenceMillis)
+
+internal const val FluidContextBirthPresenceMillis = 50f
+
+/**
+ * La messa a fuoco delle voci nella nascita: nitide a [FluidContextFocusMillis] (Apple: leggibili a 234-267 ms, nitide a
+ * ~334). L'andamento e' 1 − √(1 − f): la sfocatura della lente va col quadrato di quanto manca
+ * (`fluidMenuLensBlurDp`), e cosi' cala **dritta** nel tempo, come nei fotogrammi di Apple (a 234 ms le voci sono ancora
+ * morbide; con la rampa lineare dei menu dal tasto sarebbero gia' nitide).
+ */
+internal const val FluidContextFocusMillis = 334
+
+internal val FluidContextFocusEasing = Easing { f ->
+  1f - kotlin.math.sqrt((1f - f).coerceIn(0f, 1f))
+}
+
+/**
+ * L'istante della nascita a cui corrisponde [progress], per una nascita ripresa a meta' (un menu riaperto mentre si
+ * chiudeva): il primo istante della salita in cui il progresso vale [progress]. Bisezione sulla parte che sale (fino a
+ * 334 ms, dove il bordo lontano arriva al pannello).
+ */
+internal fun fluidContextBirthMillisAt(progress: Float): Float {
+  if (progress <= 0f) return 0f
+  var lo = 0f
+  var hi = FluidContextBirthProfile.RiseEndMillis
+  if (fluidContextBirthProgress(hi) <= progress) return hi
+  repeat(24) {
+    val mid = (lo + hi) / 2f
+    if (fluidContextBirthProgress(mid) < progress) lo = mid else hi = mid
+  }
+  return hi
+}
+
+/**
+ * La nascita di UN menu contestuale col vetro liquido: l'orologio in millisecondi che guida la sagoma
+ * ([fluidContextBirthSlab]), la molla della card sollevata e la sagoma fermata al congedo.
+ *
+ * Perche' un orologio a parte e non il progresso del viaggio dei menu ([FluidMenuJourney]): quel progresso e' una molla
+ * tarata sul menu dal tasto del telefono (R4 B1 a, quasi pieno a ~130 ms), e il contestuale ha come modello la nascita
+ * sulla foto (B1 b), che ha tempi suoi su ogni bordo. Il viaggio resta la fonte del progresso per tutti gli altri pezzi
+ * (lente, ritaglio, punto di luce, chiusura): qui lo si fa correre sul profilo di Apple, nello stesso fotogramma
+ * dell'orologio, e la chiusura resta quella del viaggio. La card ha la sua molla, quella di prima (`dropOpen`): il suo
+ * sollevamento non rallenta con il menu.
+ *
+ * Gli `Animatable` si **ricreano** a un'apertura nuova ([prepare], in composizione) invece di uno `snapTo`: lo `snapTo` e'
+ * sospeso, e il primo fotogramma arriva prima di qualunque coroutine (lo stesso motivo di `anchorRelax`).
+ */
+@Stable
+internal class FluidContextBirth {
+  var clock = Animatable(FluidContextBirthProfile.EndMillis, 0.5f)
+    private set
+  var card = Animatable(0f, 0.001f)
+    private set
+
+  /** La sagoma al congedo, se la nascita non era finita: la chiusura torna alla goccia da li'. Null: dal pannello. */
+  var frozen: FluidForm.Slab? = null
+    private set
+  var frozenProgress: Float = 1f
+    private set
+
+  /** Il raggio del pannello in pixel: lo scrive la composizione del menu, lo leggono la sagoma e il congedo. */
+  var radius: Float = 0f
+
+  /** Un'apertura nuova da fermo: orologio e card ripartono da zero, gia' al primo fotogramma. */
+  fun prepare(fresh: Boolean) {
+    if (!fresh) return
+    clock = Animatable(0f, 0.5f)
+    card = Animatable(0f, 0.001f)
+    frozen = null
+    frozenProgress = 1f
+  }
+
+  /** I millisecondi della nascita, in disegno. */
+  fun millis(): Float = clock.value
+
+  /**
+   * Quanto della goccia si vede: in apertura col tempo della nascita ([fluidContextBirthPresence]), in chiusura col
+   * progresso del viaggio come prima (la goccia rientra nella card).
+   */
+  fun presence(journey: FluidMenuJourney): Float =
+    if (!journey.closing) fluidContextBirthPresence(clock.value) else fluidMenuDropPresence(journey.progress.value)
+
+  /**
+   * La sagoma di questo istante, per `driveExternally(travelSlab = ...)`: la nascita in apertura, il ritorno del menu dal
+   * tasto (R4 B1 a, [fluidMenuReturnSlab]) in chiusura, dal pannello o dalla sagoma fermata al congedo. Null a riposo.
+   */
+  fun travel(journey: FluidMenuJourney): FluidForm.Slab? {
+    val seed = journey.seed ?: return null
+    val panel = journey.to
+    if (!journey.closing) return fluidContextBirthSlab(seed, panel, radius, clock.value)
+    val source = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f))
+    val home = frozen ?: FluidForm.Slab(panel, FluidCornerRadii.all(radius))
+    val q = (journey.progress.value / frozenProgress.coerceAtLeast(0.001f)).coerceIn(0f, 1f)
+    return fluidMenuReturnSlab(source, home, q)
+  }
+
+  /**
+   * Il contorno di questo istante, per `driveExternally(travelWarp = ...)`: la goccia, il fagiolo e l'uovo della nascita
+   * ([fluidContextBirthWarp]) in apertura; nessuno in chiusura (il ritorno e' quello dei menu) ne' a riposo.
+   */
+  fun warp(journey: FluidMenuJourney): FluidDropWarp? {
+    if (journey.closing) return null
+    val seed = journey.seed ?: return null
+    val slab = fluidContextBirthSlab(seed, journey.to, radius, clock.value) ?: return null
+    return fluidContextBirthWarp(seed, journey.to, slab, clock.value)
+  }
+
+  /** Quanto delle voci si vede: in apertura col tempo della nascita ([fluidContextBirthInk]), in chiusura tutte. */
+  fun inkPresence(journey: FluidMenuJourney): Float = if (journey.closing) 1f else fluidContextBirthInk(clock.value)
+
+  /**
+   * L'apertura: l'orologio fino alla fine, il progresso del viaggio sul profilo di Apple, la messa a fuoco in
+   * [FluidContextFocusMillis], la card con la sua molla. Da dove si trova: un menu riaperto a meta' chiusura riprende la
+   * nascita dall'istante del suo progresso.
+   */
+  suspend fun open(journey: FluidMenuJourney): Unit = coroutineScope {
+    val from = journey.progress.value
+    val start = if (from <= 0.001f) clock.value.coerceAtMost(FluidContextBirthProfile.EndMillis) else fluidContextBirthMillisAt(from)
+    clock.snapTo(start)
+    frozen = null
+    frozenProgress = 1f
+    val remaining = (FluidContextBirthProfile.EndMillis - start).coerceAtLeast(1f)
+    val millis = ceil(remaining).toInt()
+    launch { clock.animateTo(FluidContextBirthProfile.EndMillis, tween(millis, easing = LinearEasing)) }
+    launch {
+      val focus = journey.focus
+      val left = (FluidContextFocusMillis * (1f - focus.value)).toInt().coerceAtLeast(1)
+      focus.animateTo(1f, tween(left, easing = FluidContextFocusEasing))
+    }
+    launch { journey.contentVisibility.snapTo(1f) }
+    launch { card.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = card.velocity) }
+    val span = 1f - from
+    if (span > 0.0001f) {
+      journey.progress.animateTo(
+        1f,
+        tween(millis, easing = Easing { f -> (fluidContextBirthProgress(start + f * remaining) - from) / span }),
+      )
+    } else {
+      journey.progress.snapTo(1f)
+    }
+  }
+
+  /**
+   * Il congedo: la sagoma si ferma dov'e' (se la nascita non era finita) e il viaggio la riporta alla goccia col ritorno
+   * dei menu (`FluidMenuJourney.run`). Le voci si sfocano subito come nei menu dal tasto, ma l'inchiostro e' quello di
+   * B1 (a) ([fluidContextExitInkSpec]): resta dentro il vetro che crolla fino a ~67 ms e se ne va entro ~167. Per questo
+   * il viaggio corre senza la sua lente e fuoco e inchiostro si animano qui. La card torna con le stesse molle con cui
+   * ci tornava col progresso del viaggio.
+   */
+  suspend fun close(journey: FluidMenuJourney, reducedMotion: Boolean): Unit = coroutineScope {
+    val seed = journey.seed
+    val t = clock.value
+    if (seed != null && t < FluidContextBirthProfile.EndMillis) {
+      frozen = fluidContextBirthSlab(seed, journey.to, radius, t)
+      frozenProgress = journey.progress.value.coerceAtLeast(0.001f)
+    } else {
+      frozen = null
+      frozenProgress = 1f
+    }
+    clock.stop()
+    launch {
+      if (reducedMotion) {
+        card.snapTo(0f)
+      } else {
+        val spec: AnimationSpec<Float> = if (journey.controlledReturn) {
+          fluidMenuReturnSpec()
+        } else {
+          spring(FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness)
+        }
+        card.animateTo(0f, spec, initialVelocity = card.velocity)
+      }
+    }
+    if (!reducedMotion) {
+      launch { journey.focus.animateTo(0f, fluidMenuReturnFocusSpec(journey.focus.value)) }
+      launch {
+        val visibility = journey.contentVisibility
+        visibility.animateTo(0f, fluidContextExitInkSpec(visibility.value))
+      }
+    }
+    // Con le animazioni ridotte `run` mette a zero fuoco e inchiostro da se'.
+    journey.run(reducedMotion, withLens = false)
+  }
+}
+
+/**
+ * Quanto resta pieno l'inchiostro delle voci al congedo del contestuale, e quando se n'e' andato (B1 a: a 67 ms le voci
+ * sono sfocate e piene, a 133 ms ne resta un'ombra, a 200 ms niente). Scelta di Alessio del 2026-11-19 per il
+ * contestuale; i menu dal tasto e dal gruppo tengono i ~90 ms di F5A-corr (`fluidMenuReturnInkSpec`).
+ */
+internal const val FluidContextExitInkHoldMillis = 67f
+internal const val FluidContextExitInkMillis = 167f
+
+/**
+ * L'inchiostro del congedo del contestuale da [from] a 0: fermo fino a [FluidContextExitInkHoldMillis], poi via con una
+ * curva morbida entro [FluidContextExitInkMillis]. Un congedo con l'inchiostro gia' a meta' dura in proporzione.
+ */
+internal fun fluidContextExitInkSpec(from: Float): AnimationSpec<Float> {
+  val total = (FluidContextExitInkMillis * from.coerceIn(0f, 1f)).roundToInt().coerceAtLeast(1)
+  val hold = FluidContextExitInkHoldMillis / FluidContextExitInkMillis
+  return tween(total, easing = Easing { f ->
+    val x = ((f - hold) / (1f - hold)).coerceIn(0f, 1f)
+    x * x * (3f - 2f * x)
+  })
 }

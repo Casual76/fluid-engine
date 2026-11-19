@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Menu Liquid dal tasto e dal gruppo. Le voci seguono il bordo della goccia, il congedo in volo conserva il contorno e il gruppo restituisce insieme capsula e icone. Il dito che apre può scegliere al rilascio.
+
 - Liquid riusa il filtro di sfocatura al cambio della mescola o della tinta e aggiorna la fotografia del corpo quando cambiano i suoi uniform.
 
 - Liquid Glass (F7.4). Con una lastra Liquid nella prima schermata i suoi programmi si compilano fuori schermo prima del primo disegno, su un filo a parte. La sonda dello sfondo rallenta fino a una lettura ogni 480 ms quando le letture tornano uguali mentre la pagina si ridisegna altrove. Il bordo dello scorrimento tiene la taglia della cattura durante la piega della tab bar, non fa passate a intensità zero e in basso ne fa una sola. Nessun cambio a vista né di firma; la metà risoluzione del bordo resta spenta, da scegliere.
@@ -15,6 +17,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 - Pannello laterale. La molla riparte al rilascio anche se il trascinamento si conclude fra due ricomposizioni. Se Compose interrompe il riconoscitore, il pannello riprende il viaggio verso la destinazione corrente.
 
 - Durante lo scorrimento e il movimento delle lastre Liquid la risoluzione della cattura segue area e frequenza con isteresi. A riposo torna alla scala del materiale.
+
+- Menu contestuale, il grande passo. Col vetro liquido il menu nasce come quello di Apple sulla foto (WWDC25 219, 7:15), letto fotogramma per fotogramma, e non come un rettangolo che cambia misura: a 67 ms una goccia sulla card, limpida, che fa da lente; a 100 ms un fagiolo; a 133–200 ms un uovo con la coda verso la card (il contorno della goccia si deforma: `driveExternally(travelWarp = …)` di Fluid-physics, opzionale, senza effetto per chi non lo passa); poi un corpo a botte che si stacca dalla card e ci torna, largo quanto il pannello a ~334 ms, fermo a ~770 ms. Le voci entrano nella goccia a 67–117 ms e sono nitide a 334 ms. Al congedo le voci si sfocano subito ma restano dentro il vetro fino a ~67 ms e se ne vanno entro ~167 ms, come in Apple (i menu dal tasto e dal gruppo tengono i ~90 ms). Il vetro dell'anteprima personalizzata arriva e se ne va con lei: niente più bordo bianco attorno alla foto che rientra. Le prove stanno in `tools/glassbench/traces/contestuale/`.
 
 - Barre e menu. Tondi di serie da 46 dp, icone da 28 dp (Indietro 25), passo dei gruppi e riga superiore da 46 dp. Il contestuale usa il livello C (nero al 32% o 48%, sfocatura 6,5 dp). Con `Automatic` un menu dal tasto che si apre verso l’alto tiene la prima voce vicino al tasto. Il contestuale mantiene l’ordine scritto.
 

@@ -166,6 +166,12 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * Con [travelSlab] il chiamante può fornire il contorno già interpolato, per esempio se posizione,
    * taglia e raggi devono avere tempi diversi. La goccia segue quello stesso contorno.
    *
+   * Con [travelWarp] (4.0, la nascita del menu contestuale) il chiamante deforma quel contorno ([FluidDropWarp]):
+   * coda, punta, vita, pancia e la lente della goccia. La stessa deformazione vale per la molla della goccia, per
+   * l'anello disegnato, per il ritaglio del contenuto e per la lente; null, o una deformazione che non cambia
+   * niente, e' il comportamento di sempre al bit. Non vale col movimento ridotto, ne' senza goccia (a riposo, o
+   * dove il liquido e' spento): li' la sagoma e' la lastra di [travelSlab].
+   *
    * Interna: l'API pubblica di Fluid-physics non cambia firma.
    */
   internal fun driveExternally(
@@ -176,6 +182,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     overshootInflationY: Float = 0f,
     startFrame: (() -> Rect)?,
     travelSlab: (() -> FluidForm.Slab?)? = null,
+    travelWarp: (() -> FluidDropWarp?)? = null,
   ) {
     val current = externalDrive
     if (current != null && current.from == from && current.to == to &&
@@ -188,6 +195,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // un cambio di partenza si vede al disegno successivo senza reinstallare nulla.
       if (startFrame != null) current.startFrame = startFrame
       current.travelSlab = travelSlab
+      current.travelWarp = travelWarp
       return
     }
     planeDrive = null
@@ -200,6 +208,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       overshootInflationY = overshootInflationY,
       startFrame = startFrame,
       travelSlab = travelSlab,
+      travelWarp = travelWarp,
     )
     transitPlanStamp = Float.NaN
     transitPlanStart = null
@@ -265,6 +274,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * posata. Senza una superficie che la alimenti resta posata, e il piano e' quello di prima.
    */
   internal val liquid = LiquidDrop()
+  internal var useSampledDropFrame = false
+  private var sampledDropSlab: FluidForm.Slab? = null
 
   /** La tensione del bordo della goccia, frazione di quella del banco: la scrive la superficie. */
   internal var dropEdgeTension: Float = FluidMotion.DropEdgeTensionDefault
@@ -274,7 +285,8 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   private val dropPerimeter = RoundedRectPerimeter()
   private val dropParameters = FloatArray(DropRenderPoints)
   private val dropRing = FloatArray(DropRenderPoints * 2)
-  private val dropPoint = FloatArray(2)
+  // Quattro: il punto del perimetro (due) e il riquadro del ritaglio della goccia deformata ([dropInnerClip]).
+  private val dropPoint = FloatArray(4)
 
   /** L'ancora dell'ultimo viaggio: la goccia che si posa dopo l'arrivo la tiene. */
   private var lastAnchor = Offset.Unspecified
@@ -335,6 +347,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
   /** Il rettangolo di partenza con cui e' stato costruito il piano esterno (null: partenza fissa). */
   private var transitPlanStart: Rect? = null
   private var transitPlanTravel: FluidForm.Slab? = null
+  private var transitPlanWarp: FluidDropWarp? = null
 
   /** La versione del corpo elastico con cui e' stato costruito il piano in viaggio. */
   private var transitPlanLiquid = -1
@@ -604,8 +617,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       // l'istanza resta una anche se il chiamante muove ancora il suo rettangolo.
       val startRect = if (t >= 1f) null else drive.startFrame?.invoke()
       val travel = drive.travelSlab?.invoke()
+      val warp = if (travel != null) dropWarpNow() else null
       if (transitPlanTransit !== drive.transit || transitPlanStamp != t || transitPlanStart != startRect ||
-        transitPlanTravel != travel || transitPlanLiquid != liquidVersion
+        transitPlanTravel != travel || transitPlanWarp != warp || transitPlanLiquid != liquidVersion
       ) {
         transitPlan.clipToBounds = maskInShader
         val toSlab = drive.to as? FluidForm.Slab
@@ -616,7 +630,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
           drive.from as? FluidForm.Slab
         }
         if (travel != null) {
-          if (liquid.quiet) buildRestPlan(transitPlan, travel) else buildDropPlan(transitPlan, travel)
+          if (liquid.quiet) buildRestPlan(transitPlan, travel) else buildDropPlan(transitPlan, travel, warp)
         } else if (!liquid.quiet && toSlab != null && fromSlab != null && drive.transit.pairs.size == 1) {
           // La goccia: vedi [buildDropPlan].
           buildDropPlan(transitPlan, dropRestSlab(fromSlab, toSlab, t, drive.overshootInflationX, drive.overshootInflationY))
@@ -643,6 +657,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
         transitPlanStamp = t
         transitPlanStart = startRect
         transitPlanTravel = travel
+        transitPlanWarp = warp
         transitPlanLiquid = liquidVersion
       }
       return transitPlan
@@ -704,8 +719,11 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
    * spostata dello scarto del baricentro, e si ritaglia sul rettangolo arrotondato che sta dentro la
    * goccia di adesso ([dropInnerClip]).
    */
-  private fun buildDropPlan(plan: PhysicsRenderPlan, rest: FluidForm.Slab) {
-    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters, fieldCorners = liquidBody)
+  private fun buildDropPlan(plan: PhysicsRenderPlan, current: FluidForm.Slab, warp: FluidDropWarp? = null) {
+    // La molla e l'integratore ricevono lo stesso vsync, ma possono svegliarsi in ordine diverso.
+    // Gli scarti appartengono alla lastra campionata: applicarli alla prossima ripiega l'anello.
+    val rest = if (useSampledDropFrame) sampledDropSlab ?: current else current
+    val reach = buildDropRing(rest, liquid, DropRenderPoints, dropRing, dropPerimeter, dropParameters, fieldCorners = liquidBody, warp = warp)
     plan.writeRing(dropRing, DropRenderPoints, smoothPath = false)
     plan.soften = 0f
     val dx = liquid.offsetX
@@ -715,8 +733,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     plan.contentBounds = moved
     // Il ritaglio e' il vetro di adesso, non la sagoma a riposo: dove la goccia e' rimasta indietro il
     // contenuto non sta sopra la pagina (vedi [dropInnerClip]).
-    plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint)
+    plan.contentClipRect = dropInnerClip(rest, dropRing, DropRenderPoints, dropPerimeter, dropParameters, dropPoint, warp)
     plan.dropRest = rest
+    plan.dropWarp = warp
     plan.dropReach = reach
     plan.dropSettle = physicsDropSettle(liquid.lens, reach / density.coerceAtLeast(0.0001f))
   }
@@ -743,6 +762,18 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     val transit = activeTransit
     if (transit != null) return transitRestSlab(transit, transit.progress.value)
     return formState as? FluidForm.Slab
+  }
+
+  /**
+   * La deformazione della goccia in questo istante ([FluidDropWarp], `driveExternally(travelWarp = …)`), o null: senza
+   * guida esterna o senza contorno in viaggio, col movimento ridotto, o se non cambia niente. Fase di disegno, o dal
+   * conducente.
+   */
+  internal fun dropWarpNow(): FluidDropWarp? {
+    if (planeDrive != null || reducedMotion) return null
+    val drive = externalDrive ?: return null
+    val warp = drive.travelWarp?.invoke() ?: return null
+    return if (warp.isIdentity && warp.lens <= 0f && warp.magnify <= 0f && warp.clarity <= 0f) null else warp
   }
 
   /**
@@ -825,17 +856,7 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
               liquid.reset()
               false
             } else {
-              sampleRestContour(slab, liquid.points, dropRest, dropPerimeter)
-              val anchor = dropAnchorNow()
-              liquid.step(
-                timeNanos = if (scale == 1f) now else (now / scale.toDouble()).toLong(),
-                restContour = dropRest,
-                anchorX = anchor.x,
-                anchorY = anchor.y,
-                reachPx = FluidMotion.DropAnchorReachDp * density,
-                density = density,
-                edgeTension = dropEdgeTension,
-              )
+              stepDrop(slab, if (scale == 1f) now else (now / scale.toDouble()).toLong())
             }
           }
         }
@@ -843,6 +864,24 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
     } finally {
       liquid.reset()
     }
+  }
+
+  internal fun stepDrop(slab: FluidForm.Slab, timeNanos: Long, density: Float = this.density): Boolean {
+    // La deformazione della goccia (il contestuale, `FluidDropWarp`): la stessa per la molla e per l'anello.
+    val warp = dropWarpNow()
+    sampleRestContour(slab, liquid.points, dropRest, dropPerimeter, warp)
+    val anchor = dropAnchorNow()
+    if (useSampledDropFrame) sampledDropSlab = slab
+    return liquid.step(
+      timeNanos = timeNanos,
+      restContour = dropRest,
+      anchorX = anchor.x,
+      anchorY = anchor.y,
+      reachPx = FluidMotion.DropAnchorReachDp * density,
+      density = density,
+      edgeTension = dropEdgeTension,
+      lensFloor = warp?.lens ?: 0f,
+    )
   }
 }
 
@@ -934,6 +973,8 @@ private class ExternalWindowDrive(
   var startFrame: (() -> Rect)? = null,
   /** Il contorno in viaggio fornito dal chiamante, condiviso fra il disegno e il conducente. */
   var travelSlab: (() -> FluidForm.Slab?)? = null,
+  /** La deformazione di quel contorno ([FluidDropWarp]), condivisa allo stesso modo. */
+  var travelWarp: (() -> FluidDropWarp?)? = null,
 ) {
   /** Il traguardo all'oltrepasso [t] > 1: gonfiato attorno al proprio centro (in punto all'1, lui). */
   fun inflatedTarget(to: FluidForm.Slab, t: Float): FluidForm.Slab {
@@ -1226,6 +1267,9 @@ internal class PhysicsRenderPlan {
   /** La sagoma a riposo che la goccia insegue, se il piano e' una goccia: il bordo ne prende la luce. */
   var dropRest: FluidForm.Slab? = null
 
+  /** La deformazione della goccia ([FluidDropWarp]), se c'e': la ricetta ne prende la lente. Null fuori dalla goccia. */
+  var dropWarp: FluidDropWarp? = null
+
   // --- Cio' che legge solo il materiale nuovo (4.0, F1B.1): il vetro di prima non li guarda -----------------
 
   /**
@@ -1384,6 +1428,7 @@ private fun PhysicsRenderPlan.finishSlabs(count: Int, blend: Float) {
   pieceBlend.fill(blendRadius)
   contentClipRect = null
   dropRest = null
+  dropWarp = null
   dropSettle = 0f
   soften = 0f
   vertCount = 0
@@ -1432,6 +1477,7 @@ private fun PhysicsRenderPlan.writeRing(ring: FloatArray, count: Int, smoothPath
   pieceUnion.fill(-1)
   contentClipRect = null
   dropRest = null
+  dropWarp = null
   dropSettle = 0f
   vertCount = count
   ring.copyInto(verts, endIndex = count * 2)

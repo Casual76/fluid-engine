@@ -1311,6 +1311,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "9.213dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["141.647dp", "762.884dp", "125.22dp", "101.369dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1320,15 +1321,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 24.427,
-              "y": 18.515,
-              "w": 250.441,
-              "h": 202.738,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1489,6 +1482,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["140.589dp", "765.534dp", "122.881dp", "99.475dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1498,15 +1492,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 25.708,
-              "y": 23.059,
-              "w": 245.762,
-              "h": 198.951,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1667,6 +1653,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["138.826dp", "769.953dp", "118.983dp", "96.319dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1676,15 +1663,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 27.843,
-              "y": 30.633,
-              "w": 237.966,
-              "h": 192.639,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -1845,6 +1824,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["136.357dp", "776.138dp", "113.525dp", "91.901dp"],
                   "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
@@ -1854,15 +1834,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 30.832,
-              "y": 41.237,
-              "w": 227.05,
-              "h": 183.803,
-              "radius": [22, 22, 22, 22]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -2023,6 +1995,7 @@
                   "menuScale": 1,
                   "lensDepth": "38dp",
                   "lensPull": "15.96dp",
+                  "clipInk": 1,
                   "pieceCount": 1,
                   "pieceRect": ["131.122dp", "781.791dp", "105.32dp", "85.9dp"],
                   "pieceRadii": ["23.146dp", "23.146dp", "23.146dp", "23.146dp"],
@@ -2032,15 +2005,7 @@
               }
             }
           ],
-          "contentClip": [
-            {
-              "x": 33.802,
-              "y": 52.891,
-              "w": 210.64,
-              "h": 171.801,
-              "radius": [23.146, 23.146, 23.146, 23.146]
-            }
-          ]
+          "contentClip": "alpha"
         }
       ]
     },
@@ -2490,49 +2455,7 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          },
-          "content": [
-            {
-              "name": "tasto-1",
-              "x": 24,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:share|share",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.050658,
-              "scale": 1,
-              "blurDp": 3
-            },
-            {
-              "name": "tasto-2",
-              "x": 70,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:star|circle",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.050658,
-              "scale": 1,
-              "blurDp": 3
-            },
-            {
-              "name": "tasto-3",
-              "x": 116,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:more_horiz|dots",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.050658,
-              "scale": 1,
-              "blurDp": 3
-            }
-          ],
-          "contentClip": "alpha"
+          }
         }
       ]
     },
@@ -2607,49 +2530,7 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          },
-          "content": [
-            {
-              "name": "tasto-1",
-              "x": 24,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:share|share",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.511147,
-              "scale": 1,
-              "blurDp": 2.720146
-            },
-            {
-              "name": "tasto-2",
-              "x": 70,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:star|circle",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.511147,
-              "scale": 1,
-              "blurDp": 2.720146
-            },
-            {
-              "name": "tasto-3",
-              "x": 116,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:more_horiz|dots",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.511147,
-              "scale": 1,
-              "blurDp": 2.720146
-            }
-          ],
-          "contentClip": "alpha"
+          }
         }
       ]
     },
@@ -2724,49 +2605,7 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          },
-          "content": [
-            {
-              "name": "tasto-1",
-              "x": 24,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:share|share",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.884727,
-              "scale": 1,
-              "blurDp": 1.062944
-            },
-            {
-              "name": "tasto-2",
-              "x": 70,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:star|circle",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.884727,
-              "scale": 1,
-              "blurDp": 1.062944
-            },
-            {
-              "name": "tasto-3",
-              "x": 116,
-              "y": 175,
-              "w": 46,
-              "h": 46,
-              "icon": "fluid:more_horiz|dots",
-              "iconSizeDp": 28,
-              "color": "#1F9E6EFF",
-              "alpha": 0.884727,
-              "scale": 1,
-              "blurDp": 1.062944
-            }
-          ],
-          "contentClip": "alpha"
+          }
         }
       ]
     },

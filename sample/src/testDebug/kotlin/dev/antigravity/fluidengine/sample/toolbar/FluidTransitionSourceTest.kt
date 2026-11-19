@@ -1,6 +1,11 @@
 package dev.antigravity.fluidengine.sample.toolbar
 
 import android.os.Looper
+import android.os.Handler
+import android.graphics.Bitmap
+import android.view.PixelCopy
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawWithContent
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +23,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -40,11 +47,15 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarTransitionSource
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
+import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuOpensOn
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.page.FluidPageHost
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.time.Duration
+import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -87,6 +98,20 @@ class FluidTransitionSourceTest {
     }
   }
 
+  private fun capture(name: String) {
+    val dir = System.getenv("FLUID_S4_MENU_FRAMES")?.let(::File) ?: return
+    val window = compose.activity.window
+    val image = Bitmap.createBitmap(window.decorView.width, window.decorView.height, Bitmap.Config.ARGB_8888)
+    compose.runOnIdle {
+      PixelCopy.request(window, null, image, { status ->
+        check(status == PixelCopy.SUCCESS)
+        dir.mkdirs()
+        File(dir, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+      }, Handler(Looper.getMainLooper()))
+    }
+    compose.waitForIdle()
+  }
+
   @Test fun `un menu dichiarato consuma e restituisce solo il suo gruppo`() {
     var picked = 0
     lateinit var source: FluidTransitionSource
@@ -122,12 +147,66 @@ class FluidTransitionSourceTest {
     compose.onNodeWithContentDescription("Menu del gruppo").performClick()
     advance(704)
     compose.onNodeWithContentDescription("Primo").assertDoesNotExist()
+    assertEquals("il pezzo di riposo resta pronto durante il viaggio", before, compose.runOnIdle { source.resolve() })
     assertEquals(separate, compose.runOnIdle { neighbour.resolve() })
     compose.onNodeWithText("Scegli bene").performClick()
     advance(960)
     assertEquals(1, compose.runOnIdle { picked })
     assertEquals(before, compose.runOnIdle { source.resolve() })
     compose.onNodeWithContentDescription("Primo").assertExists()
+  }
+
+  @Test fun `il dito del gruppo e del tasto sceglie la riga senza un secondo down`() {
+    val picks = androidx.compose.runtime.mutableStateListOf<String>()
+    compose.mainClock.autoAdvance = false
+    compose.setContent {
+      val host = rememberFluidGlassModalHostState()
+      val backdrop = rememberGlassBackdrop()
+      FluidTheme(settings = remember { EngineSettings() }) {
+        CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
+          Box(Modifier.fillMaxSize()) {
+            val actions = {
+              listOf("Condividi", "Aggiungi ai preferiti", "Elimina").map { label ->
+                FluidContextAction(label) { picks += label }
+              }
+            }
+            FluidScreen("Foto", toolbar = {
+              group("tools", placement = FluidToolbarPlacement.BottomBar) {
+                button("share", FluidIcons.MoreHoriz, "Condividi foto", onClick = {})
+                button("star", FluidIcons.MoreHoriz, "Preferiti", onClick = {})
+                action("menu", FluidIcons.MoreHoriz, "Menu del gruppo", menu = actions)
+              }
+            }) { item { androidx.compose.material3.Text("Scelta: " + (picks.lastOrNull() ?: "—")) } }
+            FluidBarAction(FluidIcons.MoreHoriz, "Altro", onClick = {}, actions = actions,
+              opensOn = FluidMenuOpensOn.Tap, modifier = Modifier.align(Alignment.TopEnd))
+            // Sonda del gesto: composizione, registrazione, celle e hit-test restano quelli del menu.
+            // Il backend Skia di Robolectric non compila GlassBody8 al ridisegno di una cattura.
+            FluidGlassModalHost(state = host, backdrop = backdrop, modifier = Modifier.drawWithContent { })
+          }
+        }
+      }
+    }
+    advance(256)
+    val cases = listOf("Menu del gruppo" to "Condividi", "Menu del gruppo" to "Aggiungi ai preferiti", "Altro" to "Elimina")
+    for ((source, label) in cases) {
+      val root = compose.onRoot()
+      val downAt = compose.onNodeWithContentDescription(source).fetchSemanticsNode().boundsInRoot.center
+      val shareAt = compose.onNodeWithContentDescription("Condividi foto").fetchSemanticsNode().boundsInRoot.center
+      root.performTouchInput { down(downAt) }
+      advance(768)
+      val cell = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot
+      val target = if (label == "Condividi") cell.center.copy(x = shareAt.x.coerceIn(cell.left, cell.right - 1f)) else cell.center
+      root.performTouchInput {
+        val duration = if (label == "Condividi") 480L else 3232L
+        repeat(24) { i -> moveTo(downAt + (target - downAt) * ((i + 1) / 24f), delayMillis = duration / 24) }
+        up()
+      }
+      advance(800)
+      assertEquals(label, picks.lastOrNull())
+      compose.onNodeWithText(label).assertDoesNotExist()
+      capture("$label-scelto")
+    }
+    assertEquals(cases.map { it.second }, picks)
   }
 
   @Test fun `stesso id prima sorgente posata poi seconda e infine nessuna`() {

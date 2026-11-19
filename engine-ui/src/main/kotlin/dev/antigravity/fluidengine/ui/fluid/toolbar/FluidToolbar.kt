@@ -60,6 +60,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
@@ -93,7 +97,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransitionWithShape
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
-import dev.antigravity.fluidengine.ui.fluid.FluidMenuRoundRectShape
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerRelay
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuUsesField
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarMenu
@@ -1090,7 +1093,29 @@ internal fun FluidToolbarGroups(
       searchField == null -> FluidGlassAnimation.Default
       else -> ToolbarSearchAnimation
     }
-    FluidGlassContainer(Modifier.fillMaxSize(), animation = animation) {
+    val groupLease = menuSource.groupLease
+    val heldGroup = groupLease?.let { lease -> resolved.groups.firstOrNull { memory.glassIds[it.id] == lease.first } }
+    val faces = if (heldGroup != null) rememberGraphicsLayer() else null
+    // Il piano conserva il pezzo misurato e la sua registrazione. Nel disegno si cede solo la sua
+    // corsia: al ritorno capsula e facce sono già pronte, senza attendere una misura del piano.
+    val mask = if (groupLease == null || heldGroup == null || faces == null) Modifier else Modifier.drawWithContent {
+      if (!groupLease.second.hidden) {
+        drawContent()
+        return@drawWithContent
+      }
+      val start = heldGroup.leftDp.dp.roundToPx().toFloat()
+      val width = heldGroup.widthDp.dp.roundToPx().toFloat()
+      val left = if (layoutDirection == LayoutDirection.Ltr) start else size.width - start - width
+      val halfGap = resolved.metrics.groupSpacingDp.dp.toPx() / 2f
+      clipRect(left - halfGap, -size.height, left + width + halfGap, size.height * 2f, ClipOp.Difference) {
+        this@drawWithContent.drawContent()
+      }
+      // Le facce della barra si sfocano all'andata; al ritorno ricompaiono col pezzo vero.
+      if (groupLease.second.groupProgress() < FluidMotion.MenuGroupFaceProgressSpan) {
+        translate(left, (size.height - faces.size.height) / 2f) { drawLayer(faces) }
+      }
+    }
+    FluidGlassContainer(Modifier.fillMaxSize().then(mask), animation = animation) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       Box(Modifier.fillMaxSize()) {
         for (group in resolved.groups) {
@@ -1106,6 +1131,7 @@ internal fun FluidToolbarGroups(
               selection = selection,
               interactive = interactive,
               menuSource = menuSource,
+              menuFaces = faces.takeIf { heldGroup === group },
               modifier = Modifier.align(Alignment.CenterStart).offset(x = group.leftDp.dp),
             )
           }
@@ -1326,6 +1352,7 @@ private fun FluidToolbarGroupPiece(
   selection: Map<Any, State<Float>>,
   interactive: Boolean,
   menuSource: FluidToolbarMenuSource,
+  menuFaces: GraphicsLayer?,
   modifier: Modifier,
 ) {
   val scheme = MaterialTheme.colorScheme
@@ -1334,7 +1361,7 @@ private fun FluidToolbarGroupPiece(
   val primaryEntry = single?.let { declaration.buttons[it.id] }
   val leased = menuSource.anchor(glass)
   val surface = when {
-    leased != null -> FluidGlass.Identity
+    leased != null && menuFaces == null -> FluidGlass.Identity
     !group.sharedBackground -> FluidGlass.Identity
     // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4); la sua icona è chiara.
     primary -> FluidGlass.Regular.tint(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary).interactive()
@@ -1342,11 +1369,14 @@ private fun FluidToolbarGroupPiece(
   }
   Row(
     modifier
-      .then(if (leased?.groupBounds != null) Modifier.graphicsLayer {
-        val round = leased.groupClip()
-        if (round != null) shape = FluidMenuRoundRectShape(round)
-        clip = round != null
-      } else Modifier)
+      .then(if (menuFaces == null || leased == null) Modifier else Modifier.drawWithContent {
+        menuFaces.record {
+          val round = leased.groupClip()
+          if (round == null) this@drawWithContent.drawContent()
+          else clipPath(Path().apply { addRoundRect(round) }) { this@drawWithContent.drawContent() }
+        }
+        drawLayer(menuFaces)
+      })
       .fluidGlassId(glass, namespace)
       .fluidGlassTransition(fluidToolbarGlassTransition(group))
       .fluidGlassContentAnchor(when (group.side) {
@@ -1388,6 +1418,7 @@ private fun FluidToolbarGroupPiece(
 
 private class FluidToolbarMenuSource {
   private var leased by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
+  val groupLease get() = leased?.takeIf { it.second.groupBounds != null }
   private var modalLeases by mutableStateOf(emptyMap<FluidToolbarGlassId, FluidMenuAnchor>())
   var instant by mutableStateOf(false)
   var handoff by mutableStateOf(0)
@@ -1408,6 +1439,7 @@ private class FluidToolbarMenuSource {
     if (consumed) leased = glass to anchor
     else if (leased?.second === anchor) leased = null
     else return
+    if (anchor.groupBounds != null) return // il pezzo resta nel piano, anche mentre lo porta il menu
     instant = true
     handoff++
   }
@@ -1640,9 +1672,10 @@ private fun FluidToolbarSlot(
       )
     }
     // Il bersaglio: almeno 48 dp per lato, centrato sul posto, senza cambiare la misura del vetro.
-    if (interactive && active == null && item.id !in memory.transfers) Box(
+    if (interactive && (active == null || declaredMenu?.anchor === active) && item.id !in memory.transfers) Box(
       Modifier
         .requiredSize(max(width, FluidMetrics.TouchTarget), FluidMetrics.TouchTarget)
+        .then(if (active != null) Modifier.clearAndSetSemantics { } else Modifier)
         .then(
           when {
             declaredMenu != null -> Modifier.combinedClickable(

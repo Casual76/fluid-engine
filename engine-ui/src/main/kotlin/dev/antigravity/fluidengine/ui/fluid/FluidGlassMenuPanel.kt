@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -322,7 +324,23 @@ internal fun FluidGlassMenuPanel(
         paneTitle?.let { this.paneTitle = it }
         isTraversalGroup = true
       }
-      .then(if (travelClip != null) Modifier.fluidMenuTravelClip(travelClip) else Modifier),
+      .then(when {
+        lens?.journey?.anchor != null -> Modifier.drawWithContent {
+          val plan = lens.physics.ensurePlan()
+          if (plan.dropRest == null && travelClip?.invoke() == null) {
+            drawContent()
+          } else {
+            val origin = lens.panelTopLeft
+            translate(-origin.x, -origin.y) {
+              clipPath(plan.silhouette) {
+                translate(origin.x, origin.y) { this@drawWithContent.drawContent() }
+              }
+            }
+          }
+        }
+        travelClip != null -> Modifier.fluidMenuTravelClip(travelClip)
+        else -> Modifier
+      }),
   ) {
     if (pageBackdrop != null && cells.size > 0) {
       FluidMenuDrop(
@@ -377,15 +395,18 @@ internal fun FluidGlassMenuPanel(
             val focus = lens.journey.focus.value
             val blur = fluidMenuLensBlurDp(focus)
             val strength = fluidMenuLensStrength(focus)
-            if (blur > 0f || strength > 0f) {
+            val clipInk = lens.journey.anchor != null &&
+              (lens.physics.ensurePlan().dropRest != null || travelClip?.invoke() != null)
+            if (blur > 0f || strength > 0f || clipInk) {
               val padding = Offset(size.width, size.height) * ((1f - map.scale) / 2f)
               lensEffect.effect(
                 plan = lens.physics.ensurePlan(),
                 origin = lens.panelTopLeft + map.translation + padding,
                 scale = map.scale,
                 density = this.density,
-                blurDp = blur,
+                blurDp = max(blur, levelBlurDp?.invoke() ?: 0f),
                 strength = strength,
+                clipInk = clipInk,
               )
             } else {
               fluidMenuLevelBlurEffect(levelBlurDp, this.density)

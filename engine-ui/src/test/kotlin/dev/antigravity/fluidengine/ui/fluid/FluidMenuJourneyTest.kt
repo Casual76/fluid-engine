@@ -75,6 +75,35 @@ class FluidMenuJourneyTest {
   }
 
   @Test
+  fun ilDisegnoFraMollaEIntegratoreConservaTuttiIVerticiDopoIlCongedo() = runTest {
+    val journey = FluidMenuJourney()
+    journey.prepare(anchor(), Offset.Zero, panel, 22f, FluidMenuInflation.None, liquidMenu = true)
+    journey.retarget(1f)
+    val physics = FluidPhysicsState(FluidForm.circle(Offset.Zero, 1f))
+    journey.install(physics)
+    val opening = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
+    fun step(t: Long) = physics.stepDrop(requireNotNull(physics.dropRestSlabNow()), t * 1_000_000L)
+    for (ms in 0L..160L step 8) {
+      journey.progress.snapTo(opening.value(ms * 1_000_000L))
+      step(ms)
+    }
+    journey.retarget(0f)
+    val closing = TodaySpring(androidx.compose.animation.core.spring<Float>(
+      FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness),
+      journey.progress.value, 0f, opening.velocity(160_000_000L))
+    for (ms in listOf(177L, 202L, 227L, 251L, 277L)) {
+      val plan = physics.ensurePlan()
+      assertTrue("anello in moto a $ms", plan.vertCount > 0)
+      val previous = plan.verts.copyOf(plan.vertCount * 2)
+      journey.progress.snapTo(closing.value((ms - 160) * 1_000_000L))
+      val between = physics.ensurePlan()
+      org.junit.Assert.assertArrayEquals("prima del passo fisico a $ms", previous,
+        between.verts.copyOf(between.vertCount * 2), 0f)
+      step(ms)
+    }
+  }
+
+  @Test
   fun theReturnHoldsThePanelAndLeavesABubbleOnTheSourceColumn() {
     val source = FluidForm.Slab(Rect(42f, 510f, 86f, 554f), FluidCornerRadii.all(22f))
     val destination = FluidForm.Slab(panel, FluidCornerRadii.all(24f))

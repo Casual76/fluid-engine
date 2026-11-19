@@ -362,7 +362,9 @@ internal fun buildMenuTrace(
     // La faccia del tasto: segue la sagoma e se ne va entro il 35% del viaggio.
     val faceMap = fluidMenuContentMap(target = rest, current = bounds)
     if (variant?.grouped == true) {
-      val u = journey.faceProgress / FluidMotion.MenuGroupFaceProgressSpan
+      val showRest = closing && springNow.finished(playNanos) && physics.liquid.quiet
+      val faceProgress = if (variant.corrected && closing && !showRest) 1f else journey.faceProgress
+      val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {
         listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
@@ -380,7 +382,7 @@ internal fun buildMenuTrace(
       color = palette.primary,
       origin = origin,
       density = d,
-      alpha = fluidMenuFaceAlpha(journey.faceProgress),
+      alpha = if (variant?.corrected == true) journey.faceAlpha(physics) else fluidMenuFaceAlpha(journey.faceProgress),
       scaleX = faceMap.scale,
     )
 
@@ -439,11 +441,12 @@ internal fun buildMenuTrace(
         "items" to items,
         "alpha" to alpha,
       )
-      if (lens && focus < 1f) {
+      val mask = variant?.corrected == true && (plan.dropRest != null || clip != null)
+      if (lens && (focus < 1f || mask)) {
         layer["blurDp"] = fluidMenuLensBlurDp(focus) * map.scale
-        menuTraceContentLens(plan, origin, d, focus)?.let { layer["effect"] = it }
+        menuTraceContentLens(plan, origin, d, focus, clipInk = mask)?.let { layer["effect"] = it }
       }
-      if (clip != null) {
+      if (clip != null && !mask) {
         val onCanvas = clip.translate(Offset(panelBox.left - origin.x, panelBox.top - origin.y))
         val clipData = linkedMapOf(
           "x" to round3(onCanvas.left / d),

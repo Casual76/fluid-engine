@@ -493,8 +493,8 @@ def check_uniforms(rep: Report, sources: Sources, where: str, frame: int, part: 
         if name not in declared:
             rep.err(f"{where}.uniforms.{name}", f"`{ref}` non dichiara questo uniform", frame)
     for name, (components, count) in declared.items():
-        # Le tracce schema 1 antecedenti a F6.1 hanno il lobo a zero (default AGSL).
-        if name == "gelTip" and name not in uniforms:
+        # Default AGSL delle tracce schema 1 precedenti al lobo e alla maschera della lente del menu.
+        if name in ("gelTip", "clipInk") and name not in uniforms:
             continue
         if name not in uniforms:
             rep.err(f"{where}.uniforms", f"manca `{name}`, che `{ref}` dichiara", frame)

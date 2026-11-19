@@ -409,7 +409,12 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   sfocatura in un `FluidScrimLook`), di serie **C**: 32% / 48% di nero e 6,5 dp di sfocatura, mai oltre 7 dp
   (`FluidScrimBlurCeilingDp`). La pellicola della finestra del menu porta lo stesso nero. Nelle build di debug il livello si
   cambia con la manopola `ctxscrim=a|b|c` (`FluidContextScrimTuning`), per le catture del tablet. Gli altri modali, il menu
-  dal tasto compreso, tengono lo scrim di sempre ([menu-liquidi.md](menu-liquidi.md), «Il menu contestuale»).
+  dal tasto compreso, tengono lo scrim di sempre ([menu-liquidi.md](menu-liquidi.md), «Il menu contestuale»). Arriva in
+  110 ms e se ne va in 280: tempi e curva di Apple per lo sfondo di un contestuale non sono nel materiale (la sessione
+  contestuale li ha cercati), e restano quelli di sempre.
+- **Il menu del contestuale nasce come il menu sulla foto di Apple** (WWDC25 219 a 7:15), col campo Liquid: un orologio
+  suo (`FluidContextBirth`) e i profili dei bordi letti fotogramma per fotogramma; la card sollevata tiene la sua molla.
+  I dettagli in [menu-liquidi.md](menu-liquidi.md), «Il menu contestuale».
 - **Ordine delle voci.** `FluidMenuOrder.Automatic` tiene la prima voce vicino al tasto d'apertura. Se il pannello si
   apre verso l'alto, l'ordine si capovolge. Il menu contestuale mantiene l'ordine dichiarato. `Fixed` e `Priority`
   permettono di scegliere esplicitamente per entrambi.
@@ -1119,6 +1124,10 @@ I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDet
 - `FluidContextLiftTest` (engine-ui): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
   sono più scuri, in ordine e sotto il tetto della sfocatura; la manopola `ctxscrim`; la geometria del sollevamento (vedi
   [menu-liquidi.md](menu-liquidi.md)).
+- `FluidContextBirthTest` (engine-ui): la nascita del menu contestuale contro i contorni di Apple, l'orologio, la card con
+  la sua molla, il congedo; `ContestualeTraceTest` scrive le tracce `tools/glassbench/traces/contestuale/` e confronta la
+  sagoma vera (con la goccia) con Apple fotogramma per fotogramma, e il costo (al più tre superfici e una cattura a tutto
+  schermo per fotogramma).
 - `FluidHostContentColorTest`: il testo negli host ha il colore della superficie sul tema scuro.
 - `FluidMenuHandOffTest` (sample): l'avviso sta nell'host senza finestre di piattaforma, esce anche dopo la rimozione,
   un suo pulsante sceglie con un `Tap` e poi l'azione.
@@ -1170,7 +1179,7 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidTransitionSource.kt` | le sorgenti delle transizioni e la sorgente consumata |
 | `FluidConfirmationDialog.kt` | `FluidConfirmationDialog` (con e senza dato) e la sua posa sopra il comando (`fluidConfirmationFrame`) |
 | `FluidLiftedPreview.kt` | la card sollevata del menu contestuale (`FluidLiftedPreview`): partenza dalla riga sotto il dito, l'immagine sulla sagoma (`fluidLiftContentMap`), l'anteprima personalizzata e lo scambio attraverso la sfocatura |
-| `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`) |
+| `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`); la nascita del menu (`FluidContextBirth`, `FluidContextBirthProfile`, `fluidContextBirthSlab`) |
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso e la conferma (`FluidAlertLayer`, la card, i pulsanti con la goccia, il viaggio dalla sorgente) |
 | `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert` (con e senza sorgente, a dato), `FluidAlertAction`, il `Dialog` di ripiego |
 | `FluidSheetScaffold.kt` | `FluidSheetScaffold`, `FluidSheetScaffoldDefaults`, `FluidConfirmSheet`, l'aritmetica pura del budget |

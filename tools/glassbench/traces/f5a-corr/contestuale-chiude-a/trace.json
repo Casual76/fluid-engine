@@ -275,7 +275,7 @@
         {
           "kind": "material",
           "name": "menu",
-          "_ricetta": "fisica ferma",
+          "_ricetta": "fisica in viaggio, luce in corpo",
           "x": 0,
           "y": 0,
           "w": 411,
@@ -285,27 +285,34 @@
           "capture": {
             "saturation": 1.5,
             "blurDp": 5.886526,
-            "w": 0,
+            "w": 0.000222,
             "paddingDp": 6.666667,
             "scale": 1
           },
           "body": {
-            "source": "kotlin:GlassBody8ShaderString",
+            "source": "kotlin:GlassBodyRingShaderString",
             "uniforms": {
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
-              "pieceCount": 1,
-              "pieceRect": [["205.5dp", "398.96dp", "128.25dp", "106dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
-              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
-              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
-              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
-              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "292.96dp"], ["222.484dp", "292.96dp"], ["239.47dp", "292.96dp"], ["256.456dp", "292.96dp"], ["273.444dp", "292.96dp"], ["290.434dp", "292.96dp"], ["307.426dp", "292.958dp"], ["312.593dp", "293.138dp"], ["316.361dp", "293.677dp"], ["319.642dp", "294.573dp"], ["322.556dp", "295.818dp"], ["325.137dp", "297.407dp"], ["327.391dp", "299.331dp"], ["329.316dp", "301.584dp"], ["330.907dp", "304.162dp"], ["332.154dp", "307.074dp"], ["333.051dp", "310.354dp"], ["333.592dp", "314.12dp"], ["333.774dp", "319.285dp"], ["333.78dp", "335.217dp"], ["333.786dp", "351.15dp"], ["333.791dp", "367.085dp"], ["333.797dp", "383.02dp"], ["333.804dp", "398.955dp"], ["333.811dp", "414.892dp"], ["333.818dp", "430.828dp"], ["333.824dp", "446.765dp"], ["333.826dp", "462.7dp"], ["333.822dp", "478.63dp"], ["333.641dp", "483.795dp"], ["333.099dp", "487.559dp"], ["332.201dp", "490.838dp"], ["330.953dp", "493.749dp"], ["329.362dp", "496.326dp"], ["327.436dp", "498.577dp"], ["325.18dp", "500.5dp"], ["322.599dp", "502.087dp"], ["319.684dp", "503.331dp"], ["316.4dp", "504.225dp"], ["312.631dp", "504.763dp"], ["307.462dp", "504.941dp"], ["294.711dp", "504.935dp"], ["281.964dp", "504.93dp"], ["269.219dp", "504.929dp"], ["256.475dp", "504.93dp"], ["243.731dp", "504.931dp"], ["230.987dp", "504.931dp"], ["218.244dp", "504.931dp"], ["205.5dp", "504.932dp"], ["192.756dp", "504.931dp"], ["180.013dp", "504.931dp"], ["167.269dp", "504.931dp"], ["154.525dp", "504.93dp"], ["141.781dp", "504.929dp"], ["129.036dp", "504.93dp"], ["116.289dp", "504.935dp"], ["103.538dp", "504.941dp"], ["98.369dp", "504.763dp"], ["94.6dp", "504.225dp"], ["91.316dp", "503.331dp"], ["88.401dp", "502.087dp"], ["85.82dp", "500.5dp"], ["83.565dp", "498.577dp"], ["81.638dp", "496.326dp"], ["80.047dp", "493.749dp"], ["78.799dp", "490.838dp"], ["77.901dp", "487.559dp"], ["77.359dp", "483.795dp"], ["77.177dp", "478.63dp"], ["77.174dp", "462.7dp"], ["77.176dp", "446.765dp"], ["77.182dp", "430.828dp"], ["77.189dp", "414.892dp"], ["77.196dp", "398.955dp"], ["77.203dp", "383.02dp"], ["77.209dp", "367.085dp"], ["77.214dp", "351.15dp"], ["77.22dp", "335.217dp"], ["77.226dp", "319.284dp"], ["77.408dp", "314.12dp"], ["77.949dp", "310.354dp"], ["78.846dp", "307.074dp"], ["80.093dp", "304.162dp"], ["81.684dp", "301.584dp"], ["83.609dp", "299.331dp"], ["85.863dp", "297.407dp"], ["88.444dp", "295.818dp"], ["91.357dp", "294.573dp"], ["94.639dp", "293.677dp"], ["98.407dp", "293.138dp"], ["103.573dp", "292.958dp"], ["120.566dp", "292.96dp"], ["137.556dp", "292.96dp"], ["154.544dp", "292.96dp"], ["171.53dp", "292.96dp"], ["188.516dp", "292.96dp"]],
+              "bbox": ["76.424dp", "292.208dp", "334.576dp", "505.691dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "398.95dp"],
+              "restCenter": ["205.5dp", "398.96dp"],
+              "restHalfSize": ["128.25dp", "106dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 1,
+              "dropReach": "0.493dp",
+              "ringBand": ["0.75dp", "40.75dp"],
               "thickness": "40dp",
-              "refraction": "-36dp",
-              "dome": 0,
-              "dispersion": 0,
-              "magnify": 0,
+              "refraction": "-36.016dp",
+              "dome": 0.000445,
+              "dispersion": 0.000133,
+              "magnify": 0.000031,
               "materialize": 1,
               "veilColor": "#F5F5F700",
               "veilAdapt": 0,
@@ -330,8 +337,8 @@
               "reflexDepth": "7dp",
               "reflexFloor": 0,
               "reflexHalo": 0.45,
-              "glowCenter": ["205.5dp", "398.96dp"],
-              "glowRadius": "256.5dp",
+              "glowCenter": ["205.5dp", "398.95dp"],
+              "glowRadius": "256.652dp",
               "glow": 0,
               "glowFill": 0.4,
               "lightColor": "#FFFFFFFF",
@@ -352,69 +359,76 @@
                 {
                   "kind": "text",
                   "text": "Condividi",
-                  "x": 93.333,
-                  "y": 329,
+                  "x": 93.292,
+                  "y": 328.965,
                   "sizeDp": 17,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:share|share",
-                  "x": 306.75,
-                  "y": 323,
+                  "x": 306.708,
+                  "y": 322.965,
                   "sizeDp": 22,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Aggiungi ai preferiti",
-                  "x": 93.333,
-                  "y": 377,
+                  "x": 93.292,
+                  "y": 376.965,
                   "sizeDp": 17,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:star.fill|circle",
-                  "x": 306.75,
-                  "y": 371,
+                  "x": 306.708,
+                  "y": 370.965,
                   "sizeDp": 22,
                   "color": "#121214FF"
                 },
                 {
                   "kind": "text",
                   "text": "Modifica (spenta)",
-                  "x": 93.333,
-                  "y": 425,
+                  "x": 93.292,
+                  "y": 424.965,
                   "sizeDp": 17,
                   "color": "#12121461"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:edit|circle",
-                  "x": 306.75,
-                  "y": 419,
+                  "x": 306.708,
+                  "y": 418.965,
                   "sizeDp": 22,
                   "color": "#12121461"
                 },
                 {
                   "kind": "text",
                   "text": "Elimina",
-                  "x": 93.333,
-                  "y": 481,
+                  "x": 93.292,
+                  "y": 480.965,
                   "sizeDp": 17,
                   "color": "#D70015FF"
                 },
                 {
                   "kind": "icon",
                   "icon": "fluid:delete|close",
-                  "x": 306.75,
-                  "y": 475,
+                  "x": 306.708,
+                  "y": 474.965,
                   "sizeDp": 22,
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 1
+              "alpha": 1,
+              "clip": {
+                "x": 77.226,
+                "y": 292.96,
+                "w": 256.548,
+                "h": 211.969,
+                "radius": [22, 22, 22, 22]
+              }
             }
           ],
           "contentClip": "alpha"
@@ -1498,7 +1512,7 @@
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 0.56622,
+              "alpha": 0.852839,
               "blurDp": 0.882127,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -1795,7 +1809,7 @@
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 0.22264,
+              "alpha": 0.561608,
               "blurDp": 2.415165,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -2099,7 +2113,7 @@
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 0.075691,
+              "alpha": 0.383185,
               "blurDp": 3.615613,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -2403,7 +2417,7 @@
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 0.019383,
+              "alpha": 0.288366,
               "blurDp": 4.178226,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -2707,7 +2721,7 @@
                   "color": "#D70015FF"
                 }
               ],
-              "alpha": 0.001352,
+              "alpha": 0.228894,
               "blurDp": 4.088894,
               "effect": {
                 "source": "kotlin:GlassContentLensSlabShaderString",
@@ -2937,7 +2951,110 @@
               "shadowAlphas": [0, 0.093682],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 133.496,
+                  "y": 308.892,
+                  "sizeDp": 10.909,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 270.445,
+                  "y": 305.042,
+                  "sizeDp": 14.117,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 133.496,
+                  "y": 339.693,
+                  "sizeDp": 10.909,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 270.445,
+                  "y": 335.843,
+                  "sizeDp": 14.117,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 133.496,
+                  "y": 370.494,
+                  "sizeDp": 10.909,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 270.445,
+                  "y": 366.644,
+                  "sizeDp": 14.117,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 133.496,
+                  "y": 406.429,
+                  "sizeDp": 10.909,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 270.445,
+                  "y": 402.579,
+                  "sizeDp": 14.117,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.170285,
+              "blurDp": 3.208479,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "33.228dp",
+                  "lensPull": "13.956dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "613.798dp", "82.271dp", "69.225dp"],
+                  "pieceRadii": ["21.407dp", "21.407dp", "21.407dp", "21.407dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 123.229,
+              "y": 284.572,
+              "w": 164.541,
+              "h": 138.45,
+              "radius": [21.407, 21.407, 21.407, 21.407]
+            }
+          ]
         }
       ]
     },
@@ -3138,7 +3255,110 @@
               "shadowAlphas": [0, 0.090676],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 158.235,
+                  "y": 298.468,
+                  "sizeDp": 7.161,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 248.131,
+                  "y": 295.941,
+                  "sizeDp": 9.267,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 158.235,
+                  "y": 318.687,
+                  "sizeDp": 7.161,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 248.131,
+                  "y": 316.16,
+                  "sizeDp": 9.267,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 158.235,
+                  "y": 338.906,
+                  "sizeDp": 7.161,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 248.131,
+                  "y": 336.378,
+                  "sizeDp": 9.267,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 158.235,
+                  "y": 362.494,
+                  "sizeDp": 7.161,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 248.131,
+                  "y": 359.967,
+                  "sizeDp": 9.267,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.107581,
+              "blurDp": 2.106111,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "22.516dp",
+                  "lensPull": "9.457dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "587.945dp", "54.004dp", "46.909dp"],
+                  "pieceRadii": ["20.902dp", "20.902dp", "20.902dp", "20.902dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 151.496,
+              "y": 281.036,
+              "w": 108.008,
+              "h": 93.818,
+              "radius": [20.902, 20.902, 20.902, 20.902]
+            }
+          ]
         }
       ]
     },
@@ -3339,7 +3559,110 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 179.011,
+                  "y": 289.715,
+                  "sizeDp": 4.013,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 229.393,
+                  "y": 288.298,
+                  "sizeDp": 5.194,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 179.011,
+                  "y": 301.046,
+                  "sizeDp": 4.013,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 229.393,
+                  "y": 299.63,
+                  "sizeDp": 5.194,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 179.011,
+                  "y": 312.378,
+                  "sizeDp": 4.013,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 229.393,
+                  "y": 310.961,
+                  "sizeDp": 5.194,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 179.011,
+                  "y": 325.598,
+                  "sizeDp": 4.013,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 229.393,
+                  "y": 324.181,
+                  "sizeDp": 5.194,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.05173,
+              "blurDp": 1.180362,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "13.521dp",
+                  "lensPull": "5.679dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "566.235dp", "30.266dp", "28.168dp"],
+                  "pieceRadii": ["16.792dp", "16.792dp", "16.792dp", "16.792dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 175.234,
+              "y": 278.067,
+              "w": 60.533,
+              "h": 56.337,
+              "radius": [20.478, 20.478, 20.478, 20.478]
+            }
+          ]
         }
       ]
     },
@@ -3540,7 +3863,110 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 187.733,
+                  "y": 286.04,
+                  "sizeDp": 2.692,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 221.525,
+                  "y": 285.09,
+                  "sizeDp": 3.483,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 187.733,
+                  "y": 293.64,
+                  "sizeDp": 2.692,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 221.525,
+                  "y": 292.69,
+                  "sizeDp": 3.483,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 187.733,
+                  "y": 301.24,
+                  "sizeDp": 2.692,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 221.525,
+                  "y": 300.29,
+                  "sizeDp": 3.483,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 187.733,
+                  "y": 310.107,
+                  "sizeDp": 2.692,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 221.525,
+                  "y": 309.157,
+                  "sizeDp": 3.483,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.013685,
+              "blurDp": 0.791681,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "9.744dp",
+                  "lensPull": "4.092dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "557.12dp", "20.3dp", "20.3dp"],
+                  "pieceRadii": ["20.3dp", "20.3dp", "20.3dp", "20.3dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 185.2,
+              "y": 276.82,
+              "w": 40.6,
+              "h": 40.6,
+              "radius": [20.3, 20.3, 20.3, 20.3]
+            }
+          ]
         }
       ]
     },
@@ -3741,7 +4167,110 @@
               "shadowAlphas": [0, 0.09],
               "shadowColor": "#000000FF"
             }
-          }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 188.311,
+                  "y": 285.755,
+                  "sizeDp": 2.604,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 221.004,
+                  "y": 284.835,
+                  "sizeDp": 3.37,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 188.311,
+                  "y": 293.108,
+                  "sizeDp": 2.604,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 221.004,
+                  "y": 292.188,
+                  "sizeDp": 3.37,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 188.311,
+                  "y": 300.461,
+                  "sizeDp": 2.604,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 221.004,
+                  "y": 299.541,
+                  "sizeDp": 3.37,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 188.311,
+                  "y": 309.039,
+                  "sizeDp": 2.604,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 221.004,
+                  "y": 308.12,
+                  "sizeDp": 3.37,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.000005,
+              "blurDp": 0.765938,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "9.427dp",
+                  "lensPull": "3.959dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "556.475dp", "19.64dp", "19.64dp"],
+                  "pieceRadii": ["19.64dp", "19.64dp", "19.64dp", "19.64dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 185.86,
+              "y": 276.835,
+              "w": 39.28,
+              "h": 39.28,
+              "radius": [19.64, 19.64, 19.64, 19.64]
+            }
+          ]
         }
       ]
     },

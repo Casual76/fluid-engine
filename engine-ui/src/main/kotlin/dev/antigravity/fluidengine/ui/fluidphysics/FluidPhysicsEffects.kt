@@ -782,6 +782,26 @@ internal fun physicsRingField(
   return out
 }
 
+/**
+ * La lente della goccia deformata (4.0, la nascita del menu contestuale, [FluidDropWarp]): sopra la ricetta in viaggio,
+ * l'ingrandimento ([FluidDropWarp.magnify], il `magnify` del corpo, se piu' grande di quello del profilo) e la limpidezza
+ * ([FluidDropWarp.clarity], la mescola verso il nitido) della goccia di Apple a 67–117 ms (B1 b). Scrive [recipe] sul
+ * posto. Senza deformazione non tocca niente, al bit; con lei cambiano solo uniform: niente catture ne' passate.
+ */
+internal fun physicsDropLensRecipe(recipe: GlassRecipe, warp: FluidDropWarp?): GlassRecipe {
+  if (warp == null) return recipe
+  if (warp.magnify > recipe.magnify) recipe.magnify = warp.magnify
+  val clear = clampGlassUnit(warp.clarity) * clampGlassUnit(recipe.materialize)
+  if (clear > 0f) {
+    recipe.mix = recipe.mix + (1f - recipe.mix) * clear
+    // La goccia limpida e' una lente, non un pannello smerigliato: il velo si dirada con lei e torna con lei. La pellicola
+    // resta: nel contestuale porta anche il nero dello sfondo (la finestra campiona la pagina cruda), e senza la goccia
+    // si accendeva piu' chiara del menu che diventa (provato sul banco, giro di correzione del 2026-11-19).
+    recipe.veilColor = recipe.veilColor.copy(alpha = recipe.veilColor.alpha * (1f - clear))
+  }
+  return recipe
+}
+
 /** Sopra questa lente in moto (`LiquidDrop.lens`) il campo della goccia è tutto anello: vedi [physicsDropSettle]. */
 internal const val DropSettleLensFrom: Float = 0.05f
 
@@ -1335,6 +1355,8 @@ internal class PhysicsLiquidSurface(
       journeyGlow = if (animatedJourney) planeShape?.journeyGlow ?: 0f else 0f,
       accessibility = access,
     )
+    // La lente della goccia deformata (la nascita del contestuale): solo uniform, e solo mentre la deformazione c'e'.
+    if (!reducedMotion && !access.reduceTransparency) physicsDropLensRecipe(recipe, plan.dropWarp)
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {
       glassMaterializeRecipe(recipe, planeShape.materialize, materializeChannels)

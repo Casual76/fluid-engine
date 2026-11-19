@@ -24,12 +24,10 @@ import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsLensUniforms
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
 import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
-import dev.antigravity.fluidengine.ui.fluidphysics.RoundedRectPerimeter
 import dev.antigravity.fluidengine.ui.fluidphysics.depthEffectUniform
 import dev.antigravity.fluidengine.ui.fluidphysics.liquidMagnify
 import dev.antigravity.fluidengine.ui.fluidphysics.liquidMaterial
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLensUniforms
-import dev.antigravity.fluidengine.ui.fluidphysics.sampleRestContour
 import dev.antigravity.fluidengine.ui.theme.resolveFluidColorScheme
 import kotlin.math.min
 
@@ -130,8 +128,6 @@ internal class TodayLiquidDriver(private val state: FluidPhysicsState, private v
   private var watched: FluidForm.Slab? = state.dropRestSlabNow()
   private var startNext = false
   private var running = false
-  private val rest = FloatArray(FluidMotion.DropPoints * 2)
-  private val perimeter = RoundedRectPerimeter()
 
   /** Quanti fotogrammi la goccia ha integrato davvero (per i controlli dei test). */
   var integratedFrames: Int = 0
@@ -149,18 +145,8 @@ internal class TodayLiquidDriver(private val state: FluidPhysicsState, private v
         state.liquid.reset()
         running = false
       } else {
-        sampleRestContour(slab, state.liquid.points, rest, perimeter)
-        val anchor = state.dropAnchorNow()
         val wasQuiet = state.liquid.quiet
-        running = state.liquid.step(
-          timeNanos = timeNanos,
-          restContour = rest,
-          anchorX = anchor.x,
-          anchorY = anchor.y,
-          reachPx = FluidMotion.DropAnchorReachDp * density,
-          density = density,
-          edgeTension = state.dropEdgeTension,
-        )
+        running = state.stepDrop(slab, timeNanos, density)
         if (!wasQuiet || !state.liquid.quiet) integratedFrames++
       }
       // Finita (o tolta): torna ad aspettare che la sagoma cambi da qui.

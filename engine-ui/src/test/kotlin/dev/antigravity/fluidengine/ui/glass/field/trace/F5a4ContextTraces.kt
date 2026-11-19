@@ -7,6 +7,9 @@ import androidx.compose.ui.geometry.translate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidContextBirth
+import dev.antigravity.fluidengine.ui.fluid.FluidContextFocusEasing
+import dev.antigravity.fluidengine.ui.fluid.FluidContextFocusMillis
 import dev.antigravity.fluidengine.ui.fluid.FluidContextScrimLevel
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorGap
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuDropSeedDiameter
@@ -32,6 +35,10 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.fluidContextAnchorScale
+import dev.antigravity.fluidengine.ui.fluid.fluidContextBirthInk
+import dev.antigravity.fluidengine.ui.fluid.fluidContextBirthPresence
+import dev.antigravity.fluidengine.ui.fluid.fluidContextExitInkSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidContextBirthProgress
 import dev.antigravity.fluidengine.ui.fluid.fluidContextLiftTarget
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidLiftContentMap
@@ -63,6 +70,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsRenderPlan
 import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsFormShortPx
 import dev.antigravity.fluidengine.ui.fluidphysics.sdPolygon
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsDropLensRecipe
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsLiquidRecipe
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsRecipeShortPx
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
@@ -122,12 +130,25 @@ internal class ContextBuilt(
   val inkOutsideBefore: Float,
   /** Il fotogramma peggiore dell'apertura, in ms dal click lungo. */
   val inkWorstOpenMs: Double,
+  /** Dove sta il punto peggiore dell'apertura (diagnosi): che inchiostro, dove sul pannello, la sagoma e il ritaglio. */
+  val inkWorstOpenWhere: String = "",
+  /**
+   * La sagoma vera del menu (con la goccia) in ogni fotogramma in cui si vede, apertura e ritorno: (ms, riquadro in pixel
+   * dello schermo). E' cio' che si confronta coi contorni letti sui fotogrammi di Apple (sessione «contestuale»).
+   */
+  val menuOpenBounds: List<Pair<Double, Rect>> = emptyList(),
+  val menuCloseBounds: List<Pair<Double, Rect>> = emptyList(),
+  /** La card a ogni fotogramma dell'apertura: (ms, riquadro in pixel dello schermo). */
+  val cardOpenBounds: List<Pair<Double, Rect>> = emptyList(),
 )
 
 internal object F5a4ContextTraces {
   const val Phase = "f5a-4"
 
   private const val D = 3f
+
+  /** La diagnosi dell'ultima misura di [menuInkOutsidePx]: dove sta il punto peggiore. */
+  private var inkProbe = ""
   private const val Fps = 60
 
   /** Il telefono di Apple delle scene dei menu (OggiMenuApertura): 411 x 891 dp. */
@@ -240,10 +261,13 @@ internal object F5a4ContextTraces {
     val radius = FluidPopoverRadius.value * D
     var cardStart = fluidLiftStartFraction(row, lifted, s0)
     var p = 0f
+    // La card: col progresso del menu fino a F5A-corr; dalla nascita del contestuale (`corrected`) ha la sua molla, la
+    // stessa (`FluidContextBirth.card`), e il menu corre sul profilo di Apple.
+    var cardP = 0f
     cardPhysics.driveExternally(
       from = FluidForm.Slab(row, FluidCornerRadii.all(radius.coerceAtMost(row.minDimension / 2f))),
       to = FluidForm.Slab(lifted, FluidCornerRadii.all(radius.coerceAtMost(lifted.minDimension / 2f))),
-      progress = { fluidLiftProgress(p.coerceAtLeast(0f), cardStart) },
+      progress = { fluidLiftProgress((if (corrected) cardP else p).coerceAtLeast(0f), cardStart) },
       overshootInflationX = FluidMotion.LiftedSwellX,
       overshootInflationY = FluidMotion.LiftedSwellY,
     )
@@ -268,7 +292,24 @@ internal object F5a4ContextTraces {
       liquidMenu = corrected,
     )
     if (corrected) journey.retarget(1f)
-    journey.install(menuPhysics)
+    // La nascita del contestuale (`FluidMenuLayer.installMenuTravel`): la sagoma di B1 (b) fra la goccia e il pannello.
+    val birth = FluidContextBirth().apply {
+      this.radius = metrics.radiusPx
+      prepare(fresh = true)
+    }
+    if (corrected) {
+      val seed = requireNotNull(journey.seed)
+      menuPhysics.driveExternally(
+        from = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f)),
+        to = FluidForm.Slab(journey.to, FluidCornerRadii.all(journey.toRadius)),
+        progress = { journey.progress.value },
+        startFrame = null,
+        travelSlab = { birth.travel(journey) },
+        travelWarp = { birth.warp(journey) },
+      )
+    } else {
+      journey.install(menuPhysics)
+    }
 
     val cardDriver = TodayLiquidDriver(cardPhysics, D)
     val menuDriver = TodayLiquidDriver(menuPhysics, D)
@@ -283,7 +324,8 @@ internal object F5a4ContextTraces {
 
     val openSpring = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
     val exitFocus = TodaySpring(fluidMenuReturnFocusSpec(1f), 1f, 0f)
-    val exitInk = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
+    // L'inchiostro al congedo: col contestuale nuovo quello di B1 (a), `FluidContextBirth.close`; prima i ~90 ms dei menu.
+    val exitInk = TodaySpring(if (corrected) fluidContextExitInkSpec(1f) else fluidMenuReturnInkSpec(1f), 1f, 0f)
     val fadeIn = TodaySpring(FluidMotion.fadeIn(FluidMenuLayerFadeInMillis), 0f, 1f)
     val dismissNanos = (DismissAtMs * 1_000_000.0).toLong()
     var closeSpring: TodaySpring? = null
@@ -297,6 +339,10 @@ internal object F5a4ContextTraces {
     var inkClose = -Float.MAX_VALUE
     var inkBefore = -Float.MAX_VALUE
     var inkWorstOpenMs = 0.0
+    var inkWorstOpenWhere = ""
+    val menuOpenBounds = ArrayList<Pair<Double, Rect>>()
+    val menuCloseBounds = ArrayList<Pair<Double, Rect>>()
+    val cardOpenBounds = ArrayList<Pair<Double, Rect>>()
 
     // Il preambolo: la pagina con la riga che si gonfia sotto il dito, niente host.
     val preambleFrames = ceil(PreambleMs * Fps / 1000.0 - 1e-9).toInt()
@@ -322,11 +368,19 @@ internal object F5a4ContextTraces {
         cardStart = fluidLiftStartFraction(row, lifted, 1f)
       }
       val since = nanos - dismissNanos
-      p = if (closing) closeSpring!!.value(since) else openSpring.value(nanos)
+      p = when {
+        closing -> closeSpring!!.value(since)
+        corrected -> fluidContextBirthProgress(tMs.toFloat())
+        else -> openSpring.value(nanos)
+      }
+      cardP = if (closing) closeSpring!!.value(since) else openSpring.value(nanos)
       val fade = if (closing) fadeOut!!.value(since) else fadeIn.value(nanos)
       runBlocking {
         journey.progress.snapTo(p)
-        if (corrected) journey.openingAge.snapTo((tMs / FluidMotion.MenuOvershootEndMillis).toFloat().coerceIn(0f, 1f))
+        if (corrected) {
+          journey.openingAge.snapTo((tMs / FluidMotion.MenuOvershootEndMillis).toFloat().coerceIn(0f, 1f))
+          if (!closing) birth.clock.snapTo(tMs.toFloat())
+        }
       }
       cardDriver.frame(nanos)
       if (corrected) menuPhysics.liquidAllowed = !journey.controlledReturn
@@ -339,34 +393,56 @@ internal object F5a4ContextTraces {
 
       // Le voci dentro il vetro in ogni fotogramma in cui si vedono (S9, f218): con il ritaglio di oggi e con quello di
       // prima, che si spegneva all'1 anche a goccia non posata.
-      val inkAlpha = fluidMenuContentAlpha(p, closing = closing)
+      // Con la lente (`corrected`) le voci si disegnano con la mappa della lente, dentro il ritaglio visibile
+      // (`fluidMenuLensMap`, come `FluidMenuLens.contentMap`), e si vedono finche' l'inchiostro della lente c'e': la misura
+      // usa la stessa mappa e la stessa opacita' di cio' che si disegna. Prima misurava la mappa senza lente anche qui.
+      val lensFocus = if (closing) exitFocus.value(nanos - dismissNanos)
+        else FluidContextFocusEasing.transform((tMs / FluidContextFocusMillis).toFloat().coerceIn(0f, 1f))
+      val presenceNow = (if (closing) fadeOut!!.value(nanos - dismissNanos) else fadeIn.value(nanos)) *
+        if (corrected && !closing) fluidContextBirthPresence(tMs.toFloat()) else fluidMenuDropPresence(p)
+      // Le voci entrano nella goccia fra 67 e 117 ms, come in B1 (b) (`FluidContextBirth.inkPresence`).
+      val birthInk = if (corrected && !closing) fluidContextBirthInk(tMs.toFloat()) else 1f
+      val inkAlpha = if (corrected) {
+        if (presenceNow > 0.004f) fluidMenuLensAlpha(lensFocus) * birthInk * (if (closing) exitInk.value(nanos - dismissNanos) else 1f) else 0f
+      } else {
+        fluidMenuContentAlpha(p, closing = closing)
+      }
       if (inkAlpha > 0.01f) {
-        val inkMap = fluidMenuLiquidContentMap(target = panel, current = menuPhysics.contentBoundsNow(), alpha = inkAlpha)
         val clipNow = menuPhysics.travelClipIn(panelBox, p)
+        val inkMap = if (corrected) {
+          fluidMenuLensMap(panelBox, clipNow?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox)
+        } else {
+          fluidMenuLiquidContentMap(target = panel, current = menuPhysics.contentBoundsNow(), alpha = inkAlpha)
+        }
         val now = menuInkOutsidePx(layout, panelBox, menuPlan, inkMap, clipNow)
         if (closing) {
           inkClose = maxOf(inkClose, now)
         } else if (now > inkOpen) {
           inkOpen = now
           inkWorstOpenMs = tMs
+          val ring = menuPlan.bounds
+          inkWorstOpenWhere = "$inkProbe; pannello ${panelBox}; sagoma ${ring}; ritaglio ${clipNow?.let { "${it.left},${it.top},${it.right},${it.bottom} r=${it.topLeftCornerRadius.x}/${it.bottomLeftCornerRadius.x}" }}; modo ${menuPlan.mode}"
         }
         inkBefore = maxOf(inkBefore, menuInkOutsidePx(layout, panelBox, menuPlan, inkMap, if (p >= 1f) null else clipNow))
       }
 
       val elements = ArrayList<Map<String, Any?>>()
       if (fade > 0.004f) elements += scrim(look, dark, fade)
-      val cardPresence = if (corrected) fluidLiftMaterialPresence(fade, fluidLiftProgress(p.coerceAtLeast(0f), cardStart), closing) else fade
+      val cardPresence = if (corrected) fluidLiftMaterialPresence(fade, fluidLiftProgress(cardP.coerceAtLeast(0f), cardStart), closing) else fade
       if (cardPresence > 0.004f) {
         elements += cardDress.element("card", cardPhysics, cardPlan, origin, CanvasWidthDp, CanvasHeightDp, rowContent(palette, cardBounds, origin), panelTint, cardPresence, tMs)
       } else {
         // Il materiale e' spento: resta l'immagine della riga, mai sfumata, sulla sagoma.
         elements += textOnly("card", rowContent(palette, cardBounds, origin))
       }
-      val windowAmount = fade * fluidMenuDropPresence(p)
+      val windowAmount = fade * if (corrected && !closing) fluidContextBirthPresence(tMs.toFloat()) else fluidMenuDropPresence(p)
+      if (!closing) cardOpenBounds += tMs to cardBounds
       if (windowAmount > 0.004f) {
+        val body = menuPlan.bounds
+        if (closing) menuCloseBounds += (tMs - DismissAtMs) to body else menuOpenBounds += tMs to body
         val focus = if (!corrected) null else if (closing) exitFocus.value(since)
-          else (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceIn(0f, 1f)
-        val visibility = windowAmount * if (closing) exitInk.value(since) else 1f
+          else FluidContextFocusEasing.transform((tMs / FluidContextFocusMillis).toFloat().coerceIn(0f, 1f))
+        val visibility = windowAmount * birthInk * if (closing) exitInk.value(since) else 1f
         val raw = menuContent(palette, layout, panel, panelBox, menuPhysics, p, closing, origin, focus, visibility)
         val clip = raw.singleOrNull()?.takeIf { it["effect"] != null }?.get("clip")
         val element = menuDress.element(
@@ -408,6 +484,10 @@ internal object F5a4ContextTraces {
       inkOutsideClose = inkClose,
       inkOutsideBefore = inkBefore,
       inkWorstOpenMs = inkWorstOpenMs,
+      inkWorstOpenWhere = inkWorstOpenWhere,
+      menuOpenBounds = menuOpenBounds,
+      menuCloseBounds = menuCloseBounds,
+      cardOpenBounds = cardOpenBounds,
     )
   }
 
@@ -454,8 +534,15 @@ internal object F5a4ContextTraces {
     for (i in 1 until layout.tops.size) inks += Rect(0f, layout.tops[i], w, layout.tops[i])
     for (y in layout.sectionBands) inks += Rect(0f, y, w, y + layout.sectionGapPx)
     var worst = -Float.MAX_VALUE
-    fun visit(p: Offset) {
-      if (clip == null || clip.contains(p)) worst = maxOf(worst, outside(p))
+    var where = ""
+    fun visit(p: Offset, what: String = "voce") {
+      if (clip == null || clip.contains(p)) {
+        val d = outside(p)
+        if (d > worst) {
+          worst = d
+          where = "$what a (${p.x - panelBox.left}, ${p.y - panelBox.top}) dal pannello"
+        }
+      }
     }
     for (r in inks) {
       val a = mapped(r.left, r.top)
@@ -473,9 +560,16 @@ internal object F5a4ContextTraces {
     if (clip != null) {
       val rects = inks.map { r -> Rect(mapped(r.left, r.top), mapped(r.right, r.bottom)) }
       for (p in roundRectOutline(clip)) {
-        if (rects.any { it.left <= p.x && p.x <= it.right && it.top <= p.y && p.y <= it.bottom }) worst = maxOf(worst, outside(p))
+        if (rects.any { it.left <= p.x && p.x <= it.right && it.top <= p.y && p.y <= it.bottom }) {
+          val d = outside(p)
+          if (d > worst) {
+            worst = d
+            where = "bordo del ritaglio a (${p.x - panelBox.left}, ${p.y - panelBox.top}) dal pannello"
+          }
+        }
       }
     }
+    inkProbe = "$where, mappa ${map.translation} x${map.scale}"
     return worst
   }
 
@@ -833,6 +927,8 @@ private class ContextDress(
       scratch = recipes,
       largeVeil = largeVeil(state, plan, timeMs),
     )
+    // La lente della goccia deformata, come `PhysicsLiquidSurface` (solo con la deformazione della nascita).
+    physicsDropLensRecipe(recipe, plan.dropWarp)
     val rest = state.restFormNow() != null
     val inputs = liquidPhysicsInputs(plan, recipe, density, paddingDp, rest, shadow = true)
     return liquidPhysicsElement(

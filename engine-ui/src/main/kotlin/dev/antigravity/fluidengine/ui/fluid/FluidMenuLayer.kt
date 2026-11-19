@@ -123,13 +123,18 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   val fade = remember { Animatable(0f, 0.001f) }
   val physics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   val selection = entry.selection
+  // La nascita del contestuale col vetro liquido (sessione «contestuale»): B1 (b) di Apple, con un orologio suo e la card
+  // sulla sua molla. Il menu dal tasto e quello del gruppo non la vedono: il loro viaggio resta quello di `FluidMenuJourney`.
+  val birth = remember { FluidContextBirth() }
+  val bornLiquid = liquidMenu && !reducedMotion && entry.presentation == FluidGlassModalPresentation.ContextMenu
   // L'uscita aspetta anche la goccia (3.0): un'azione della barra torna al suo tasto solo quando la
   // coda si e' posata su di lui, se no il tasto vero comparirebbe sopra una goccia ancora in moto. Il
-  // contestuale a quel punto e' gia' spento (la dissolvenza), e non aspetta niente.
+  // contestuale a quel punto e' gia' spento (la dissolvenza), e non aspetta niente; la card della nascita, si'.
   val exitFinished by remember {
     derivedStateOf {
       journey.settledClosed && !fade.isRunning && fade.value <= 0.001f &&
-        (entry.presentation != FluidGlassModalPresentation.Expand || physics.liquid.quiet)
+        (entry.presentation != FluidGlassModalPresentation.Expand || physics.liquid.quiet) &&
+        !birth.card.isRunning && birth.card.value <= 0.001f
     }
   }
 
@@ -142,6 +147,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   var lastPaneTitle by remember { mutableStateOf(entry.paneTitle) }
   var lastPaneTint by remember { mutableStateOf(entry.paneTint) }
   var lastAnchor by remember { mutableStateOf(entry.menuAnchor) }
+  var fromGroup by remember { mutableStateOf(false) }
   // F5A.4: il sollevamento del contestuale (scala viva del dito, anteprima, forma), tenuto come gli altri.
   var lastLift by remember { mutableStateOf<FluidContextLift?>(null) }
   if (entry.visible) {
@@ -153,6 +159,7 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     lastPaneTitle = entry.paneTitle
     lastPaneTint = entry.paneTint
     lastAnchor = entry.menuAnchor
+    fromGroup = lastAnchor?.groupBounds != null
     entry.lifted = true
   }
 
@@ -174,7 +181,11 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
         if (reducedMotion) fade.snapTo(0f) else fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.MenuFadeOutMillis))
       }
     }
-    journey.run(reducedMotion, withLens = liquidMenu)
+    when {
+      !bornLiquid -> journey.run(reducedMotion, withLens = liquidMenu)
+      entry.visible -> birth.open(journey)
+      else -> birth.close(journey, reducedMotion)
+    }
   }
 
   if (!entry.visible && exitFinished) {
@@ -187,6 +198,8 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     return
   }
 
+  val groupAtHome = fromGroup && !entry.visible && journey.settledClosed && physics.liquid.quiet
+  if (groupAtHome && lastAnchor?.hidden == true) SideEffect { lastAnchor?.consume(false) }
   FluidMenuLayerContent(
     entry = entry,
     backdrop = backdrop,
@@ -202,6 +215,8 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     anchor = if (entry.presentation == FluidGlassModalPresentation.Expand) lastAnchor else null,
     lift = lastLift,
     withLens = liquidMenu,
+    birth = if (bornLiquid) birth else null,
+    groupAtHome = groupAtHome,
   )
 }
 
@@ -221,6 +236,9 @@ private fun FluidMenuLayerContent(
   anchor: FluidMenuAnchor?,
   lift: FluidContextLift? = null,
   withLens: Boolean,
+  /** La nascita del contestuale col vetro liquido, o null: il viaggio dei menu di sempre. */
+  birth: FluidContextBirth? = null,
+  groupAtHome: Boolean,
 ) {
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -325,6 +343,7 @@ private fun FluidMenuLayerContent(
       onDismiss = entry.onDismissRequest,
       look = scrimLook,
     )
+    if (groupAtHome) return@Box // solo il velo finisce la propria dissolvenza dopo la consegna
     Box(
       modifier = Modifier
         .size(1.dp)
@@ -441,11 +460,15 @@ private fun FluidMenuLayerContent(
           )
           levels.driving = true
         } else {
-          journey.install(physics)
+          installMenuTravel(journey, physics, birth)
           levels.driving = false
         }
         if (anchor?.groupBounds != null) {
           anchor.groupClip = { anchor.groupBounds?.let { physics.travelClipIn(it, progress()) } }
+        }
+        if (birth != null) {
+          birth.radius = metrics.radiusPx
+          birth.prepare(fresh = fresh && journey.progress.value <= 0.001f)
         }
         val g = selection.geometry
         val enabled = shownStructure.entries.map { it.enabled }
@@ -455,7 +478,7 @@ private fun FluidMenuLayerContent(
         }
       } else if (levels.driving) {
         // Congedo a meta' di un cambio di livello: il ritorno lo fa il viaggio, dalla sagoma del livello di arrivo.
-        journey.install(physics)
+        installMenuTravel(journey, physics, birth)
         levels.driving = false
       }
 
@@ -466,7 +489,8 @@ private fun FluidMenuLayerContent(
           paneTint = paneTint,
           backdrop = backdrop,
           physics = previewPhysics,
-          progress = progress,
+          // Nella nascita del contestuale la card ha la sua molla (la stessa di prima): non rallenta col menu.
+          progress = if (birth != null) ({ birth.card.value }) else progress,
           presence = fade,
           swells = true,
           target = liftTarget,
@@ -483,7 +507,11 @@ private fun FluidMenuLayerContent(
       // nascosto). Contestuale: la goccia esce dalla riga mentre si accende e, al ritorno, si spegne
       // mentre la riga la riassorbe — mai un seme fermo che sfuma da solo (era il rettangolo pallido
       // che restava a mezz'aria dopo la chiusura).
-      val windowAmount: () -> Float = if (anchor != null) ({ 1f }) else ({ fade() * fluidMenuDropPresence(progress()) })
+      val windowAmount: () -> Float = when {
+        anchor != null -> ({ 1f })
+        birth != null -> ({ fade() * birth.presence(journey) })
+        else -> ({ fade() * fluidMenuDropPresence(progress()) })
+      }
       // F2.3b: il menu possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono.
       val menuInk = rememberGlassInk()
       FluidMenuReturnSurface(journey.controlledReturn) {
@@ -522,7 +550,7 @@ private fun FluidMenuLayerContent(
               height = with(density) { rest.height.toDp() },
             )
             .graphicsLayer {
-              alpha = fluidMenuFaceAlpha(journey.faceProgress) * fluidMenuAnchorInkAlpha(anchor)
+              alpha = journey.faceAlpha(physics) * fluidMenuAnchorInkAlpha(anchor)
               val map = fluidMenuContentMap(target = rest, current = physics.contentBoundsNow())
               translationX = map.translation.x
               translationY = map.translation.y
@@ -543,7 +571,9 @@ private fun FluidMenuLayerContent(
       val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
       // L'opacita' del contenuto prima del cambio di livello: il viaggio (o la lente) e l'inchiostro.
       val baseAlpha: () -> Float = {
-        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value * windowAmount() else
+        // Nella nascita del contestuale le voci entrano nella goccia quando in B1 (b): a 67 ms la goccia e' solo lente.
+        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value * windowAmount() *
+          (birth?.inkPresence(journey) ?: 1f) else
           fluidMenuContentAlpha(progress(), journey.closing)
         alpha * (menuInk.state?.inkAlpha() ?: 1f)
       }
@@ -609,6 +639,28 @@ private fun FluidMenuLayerContent(
       }
     }
   }
+}
+
+/**
+ * La sagoma del menu al servizio del suo viaggio: quello dei menu ([FluidMenuJourney.install]) o, per il contestuale col
+ * vetro liquido, la nascita di B1 (b) ([FluidContextBirth.travel]) fra la goccia appesa alla card e il pannello, col suo
+ * contorno deformato ([FluidContextBirth.warp]: goccia, fagiolo, uovo con la coda verso la card). Gratis se gli estremi
+ * non cambiano, come `install`.
+ */
+private fun installMenuTravel(journey: FluidMenuJourney, physics: FluidPhysicsState, birth: FluidContextBirth?) {
+  val seed = journey.seed
+  if (birth == null || seed == null) {
+    journey.install(physics)
+    return
+  }
+  physics.driveExternally(
+    from = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f)),
+    to = FluidForm.Slab(journey.to, FluidCornerRadii.all(journey.toRadius)),
+    progress = { journey.progress.value },
+    startFrame = null,
+    travelSlab = { birth.travel(journey) },
+    travelWarp = { birth.warp(journey) },
+  )
 }
 
 // --- I livelli di un menu (4.0, F5A.3) ------------------------------------------------------------

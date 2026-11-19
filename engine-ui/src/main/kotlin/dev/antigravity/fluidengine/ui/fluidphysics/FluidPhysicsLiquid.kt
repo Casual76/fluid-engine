@@ -145,6 +145,8 @@ internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
    * Un fotogramma: il contorno a riposo di questo istante ([restContour], x,y interlacciati, [points]
    * punti), l'ancora ([anchorX], [anchorY]) e fin dove arriva ([reachPx]), all'istante [timeNanos].
    * [edgeTension] e' la frazione di [FluidMotion.DropEdgeTensionReference]; [density] tara le soglie.
+   * [lensFloor] e' la soglia della lente in moto pubblicata ([lens]): la goccia deformata del contestuale
+   * ([FluidDropWarp.lens]) e' una lente anche quando la sua sagoma corre piano. Zero (di serie) = la lente di sempre.
    *
    * @return vero finche' la goccia e' viva (si muove o non si e' posata): il chiamante chiede un altro
    *   fotogramma. Falso quando si e' posata, e allora ogni scarto vale zero esatto.
@@ -157,6 +159,7 @@ internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
     reachPx: Float,
     density: Float,
     edgeTension: Float = FluidMotion.DropEdgeTensionDefault,
+    lensFloor: Float = 0f,
   ): Boolean {
     val n = points
     if (!hasSample) {
@@ -270,7 +273,7 @@ internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
     }
     offsetX = ox / n
     offsetY = oy / n
-    lens = lensRaw.coerceIn(0f, 1f)
+    lens = if (lensFloor > 0f) max(lensRaw, lensFloor).coerceIn(0f, 1f) else lensRaw.coerceIn(0f, 1f)
     quiet = false
     version++
     return true
@@ -452,12 +455,122 @@ internal class RoundedRectPerimeter {
 /**
  * Il contorno a riposo di [slab] in [count] punti equidistanti lungo il perimetro, dall'alto al centro
  * in senso orario: gli stessi indici fra il mittente e il destinatario, quindi fra un fotogramma e
- * l'altro (il "per lunghezza d'arco" del banco).
+ * l'altro (il "per lunghezza d'arco" del banco). Con [warp] ogni punto e' deformato come in
+ * [FluidDropWarp.warpInto]: la stessa deformazione che [buildDropRing] da' all'anello disegnato.
  */
-internal fun sampleRestContour(slab: FluidForm.Slab, count: Int, out: FloatArray, perimeter: RoundedRectPerimeter = RoundedRectPerimeter()) {
+internal fun sampleRestContour(
+  slab: FluidForm.Slab,
+  count: Int,
+  out: FloatArray,
+  perimeter: RoundedRectPerimeter = RoundedRectPerimeter(),
+  warp: FluidDropWarp? = null,
+) {
   perimeter.set(slab.frame, slab.cornerRadii)
   val total = perimeter.total
-  for (i in 0 until count) perimeter.pointAt(total * i / count, out, i * 2)
+  for (i in 0 until count) {
+    perimeter.pointAt(total * i / count, out, i * 2)
+    warp?.warpInto(out[i * 2], out[i * 2 + 1], out, i * 2)
+  }
+}
+
+/**
+ * La deformazione del contorno a riposo di una goccia (4.0, la nascita del menu contestuale): la goccia insegue un
+ * rettangolo arrotondato **deformato** invece del rettangolo. Senza (null, il caso di tutti gli altri) niente cambia.
+ *
+ * Lungo l'asse dalla coda ([tailX], [tailY]: il lato della sorgente) alla testa ([headX], [headY]), ogni punto si
+ * avvicina all'asse: la sua distanza dall'asse e' moltiplicata per un fattore `s(a) ≤ 1`, con `a` la posizione lungo
+ * l'asse (0 alla coda, 1 alla testa). Il fattore e' il prodotto di quattro termini:
+ *  - la **coda** ([tailTaper], [tailReach]): `1 − tailTaper·(1 − a/tailReach)²` per `a < tailReach` — l'uovo con la coda
+ *    verso la sorgente;
+ *  - la **punta** ([headTaper], [headReach]): lo stesso dalla testa — la goccia che si allunga verso dove crescera';
+ *  - la **vita** ([waist]): `1 − waist·(1 − (2a − 1)²)` — il fagiolo;
+ *  - la **pancia** ([belly]): `1 − belly·(2a − 1)²` — i capi piu' stretti del mezzo, il corpo a botte.
+ *
+ * Perche' il fattore non supera mai uno e l'asse sta dentro la sagoma, il contorno deformato sta **dentro** il
+ * rettangolo a riposo: la portata della goccia ([buildDropRing]) e le scorciatoie degli shader che ci contano restano
+ * vere. La deformazione e' uguale per la molla ([sampleRestContour]), per l'anello disegnato ([buildDropRing]), per il
+ * ritaglio delle voci ([dropInnerClip]) e per la lente ([lens], [magnify], [clarity]).
+ *
+ * @property lens la soglia della lente in moto della goccia (`LiquidDrop.lens` non scende sotto), 0..1.
+ * @property magnify l'ingrandimento della goccia, sopra quello del profilo in viaggio (`magnify` del corpo).
+ * @property clarity quanto la goccia e' limpida in piu', 0..1: la mescola verso il nitido.
+ */
+@Immutable
+internal data class FluidDropWarp(
+  val tailX: Float,
+  val tailY: Float,
+  val headX: Float,
+  val headY: Float,
+  val tailTaper: Float = 0f,
+  val tailReach: Float = 0.6f,
+  val headTaper: Float = 0f,
+  val headReach: Float = 0.6f,
+  val waist: Float = 0f,
+  val belly: Float = 0f,
+  val lens: Float = 0f,
+  val magnify: Float = 0f,
+  val clarity: Float = 0f,
+) {
+  private val axisX: Float
+  private val axisY: Float
+  private val length: Float
+
+  init {
+    val dx = headX - tailX
+    val dy = headY - tailY
+    val l = sqrt(dx * dx + dy * dy)
+    length = l
+    axisX = if (l > 0.0001f) dx / l else 0f
+    axisY = if (l > 0.0001f) dy / l else 1f
+  }
+
+  /** Vero se la sagoma non cambia: nessun termine acceso. */
+  val isIdentity: Boolean
+    get() = tailTaper <= 0f && headTaper <= 0f && waist <= 0f && belly <= 0f
+
+  /** La posizione lungo l'asse del punto ([x], [y]): 0 alla coda, 1 alla testa. */
+  fun axial(x: Float, y: Float): Float =
+    if (length <= 0.0001f) 0.5f else (((x - tailX) * axisX + (y - tailY) * axisY) / length).coerceIn(0f, 1f)
+
+  /** Il termine dei due capi (coda e punta) a [a]: e' quello che il ritaglio delle voci tiene fuori. */
+  fun endsAt(a: Float): Float {
+    var s = 1f
+    if (tailTaper > 0f && a < tailReach) {
+      val k = 1f - a / tailReach.coerceAtLeast(0.001f)
+      s *= 1f - tailTaper.coerceIn(0f, 0.95f) * k * k
+    }
+    val b = 1f - a
+    if (headTaper > 0f && b < headReach) {
+      val k = 1f - b / headReach.coerceAtLeast(0.001f)
+      s *= 1f - headTaper.coerceIn(0f, 0.95f) * k * k
+    }
+    return s
+  }
+
+  /** Il fattore laterale a [a], `s(a)` in 0,05..1. */
+  fun scaleAt(a: Float): Float {
+    val m = 2f * a - 1f
+    val waistTerm = 1f - waist.coerceIn(0f, 0.9f) * (1f - m * m)
+    val bellyTerm = 1f - belly.coerceIn(0f, 0.9f) * m * m
+    return (endsAt(a) * waistTerm * bellyTerm).coerceIn(0.05f, 1f)
+  }
+
+  /** Il punto ([x], [y]) deformato, scritto in [out] a [index] (x) e [index] + 1 (y). Nessuna allocazione. */
+  fun warpInto(x: Float, y: Float, out: FloatArray, index: Int) {
+    if (isIdentity) {
+      out[index] = x
+      out[index + 1] = y
+      return
+    }
+    val px = x - tailX
+    val py = y - tailY
+    val along = px * axisX + py * axisY
+    val qx = px - along * axisX
+    val qy = py - along * axisY
+    val shrink = 1f - scaleAt(axial(x, y))
+    out[index] = x - qx * shrink
+    out[index + 1] = y - qy * shrink
+  }
 }
 
 /**
@@ -540,6 +653,12 @@ internal fun buildDropRing(
    * archi di cerchio al raggio nominale, come sempre.
    */
   fieldCorners: Boolean = false,
+  /**
+   * La deformazione del contorno a riposo ([FluidDropWarp]), la stessa data alla molla: il punto a riposo si deforma
+   * prima di aggiungere lo scarto della goccia, che e' relativo al contorno deformato. Lo spostamento entra nella
+   * portata: finche' la sagoma e' deformata la goccia non si confonde con la lastra (`physicsDropSettle`).
+   */
+  warp: FluidDropWarp? = null,
 ): Float {
   if (fieldCorners) perimeter.setField(slab) else perimeter.set(slab.frame, slab.cornerRadii)
   renderParameters(perimeter, count, parameters)
@@ -549,6 +668,16 @@ internal fun buildDropRing(
   for (i in 0 until count) {
     val u = parameters[i]
     perimeter.pointAt(u * total, out, i * 2)
+    // Lo spostamento della deformazione: zero senza, e allora la portata e' quella di sempre, al bit.
+    var wx = 0f
+    var wy = 0f
+    if (warp != null) {
+      val rx = out[i * 2]
+      val ry = out[i * 2 + 1]
+      warp.warpInto(rx, ry, out, i * 2)
+      wx = out[i * 2] - rx
+      wy = out[i * 2 + 1] - ry
+    }
     val x = u * n
     val i1 = x.toInt().coerceIn(0, n - 1)
     val f = x - i1
@@ -559,7 +688,11 @@ internal fun buildDropRing(
     val dy = catmullRom(drop.displacementY[i0], drop.displacementY[i1], drop.displacementY[i2], drop.displacementY[i3], f)
     out[i * 2] += dx
     out[i * 2 + 1] += dy
-    reach = maxOf(reach, sqrt(dx * dx + dy * dy))
+    // La portata e' quanto il punto disegnato si allontana dal suo punto del rettangolo a riposo: scarto della goccia
+    // piu' deformazione.
+    val ex = dx + wx
+    val ey = dy + wy
+    reach = maxOf(reach, sqrt(ex * ex + ey * ey))
   }
   return reach
 }
@@ -572,6 +705,12 @@ internal fun buildDropRing(
  * contenuto li' dove il vetro non e' ancora arrivato (o se n'e' gia' andato), e il testo non sta mai
  * sopra la pagina. Un lato senza tratto diritto (i fianchi di una capsula) resta quello a riposo. Gli
  * angoli hanno i raggi della sagoma a riposo, entro meta' del lato corto.
+ *
+ * Con [warp] (la goccia deformata, [FluidDropWarp]) i punti dei due capi assottigliati — dove il termine dei capi
+ * scende sotto [DropClipEndsFloor] — non stringono i fianchi: spingono il capo del ritaglio verso il corpo, oltre
+ * di loro. Le voci stanno nel corpo dell'uovo e la coda resta vetro vuoto; senza questa regola il ritaglio sarebbe
+ * largo quanto la coda per tutta l'altezza. Un fianco i cui punti sono tutti nei capi prende il piu' rientrato di
+ * tutti, come prima.
  */
 internal fun dropInnerClip(
   slab: FluidForm.Slab,
@@ -580,6 +719,7 @@ internal fun dropInnerClip(
   perimeter: RoundedRectPerimeter,
   parameters: FloatArray,
   scratch: FloatArray,
+  warp: FluidDropWarp? = null,
 ): RoundRect {
   val f = slab.frame
   val r = slab.cornerRadii
@@ -592,12 +732,38 @@ internal fun dropInnerClip(
   var seenLeft = false
   var seenRight = false
   val eps = 0.01f
+  // I capi della goccia deformata: quale lato del rettangolo guarda la coda e quale la testa, e fin dove li spingono
+  // i punti esclusi. Senza deformazione non servono.
+  val shaped = warp != null && !warp.isIdentity
+  val vertical = warp != null && abs(warp.headY - warp.tailY) >= abs(warp.headX - warp.tailX)
+  val headAfter = warp != null && (if (vertical) warp.headY >= warp.tailY else warp.headX >= warp.tailX)
+  var pushTop = f.top
+  var pushBottom = f.bottom
+  var pushLeft = f.left
+  var pushRight = f.right
+  var allLeft = f.left
+  var allRight = f.right
   for (i in 0 until count) {
     perimeter.pointAt(parameters[i] * perimeter.total, scratch, 0)
     val rx = scratch[0]
     val ry = scratch[1]
     val x = ring[i * 2]
     val y = ring[i * 2 + 1]
+    if (shaped) {
+      val a = warp!!.axial(rx, ry)
+      if (warp.endsAt(a) < DropClipEndsFloor) {
+        // Un punto di un capo: spinge quel capo del ritaglio oltre di se'. La coda (a < 1/2) e' dal lato della coda.
+        val towardEnd = if (a < 0.5f) !headAfter else headAfter
+        if (vertical) {
+          if (towardEnd) pushBottom = min(pushBottom, y) else pushTop = max(pushTop, y)
+        } else {
+          if (towardEnd) pushRight = min(pushRight, x) else pushLeft = max(pushLeft, x)
+        }
+        if (abs(rx - f.left) < eps) allLeft = max(allLeft, x)
+        if (abs(rx - f.right) < eps) allRight = min(allRight, x)
+        continue
+      }
+    }
     when {
       abs(ry - f.top) < eps && rx >= f.left + r.topLeft - eps && rx <= f.right - r.topRight + eps -> {
         top = if (seenTop) max(top, y) else y
@@ -617,6 +783,30 @@ internal fun dropInnerClip(
       }
     }
   }
+  if (shaped) {
+    if (!seenLeft) left = allLeft
+    if (!seenRight) right = allRight
+    top = max(top, pushTop)
+    bottom = min(bottom, pushBottom)
+    left = max(left, pushLeft)
+    right = min(right, pushRight)
+    if (right < left) right = left
+    if (bottom < top) bottom = top
+    // La deformazione stringe anche gli angoli dell'anello, che il ritaglio legge coi raggi a riposo: ogni punto
+    // dell'anello che cade dentro il ritaglio lo stringe di traverso (verso l'asse) finche' resta fuori, o, se servisse
+    // stringerlo oltre la meta', ne sposta il capo. Due passate: stringere cambia i raggi, che stanno entro mezzo lato.
+    // Il riquadro di lavoro: lo scratch se ha posto (lo stato ne passa uno da quattro), se no uno nuovo (solo nei test).
+    val box = if (scratch.size >= 4) scratch else FloatArray(4)
+    box[0] = left
+    box[1] = top
+    box[2] = right
+    box[3] = bottom
+    repeat(2) { dropClipKeepInside(box, ring, count, r, vertical) }
+    left = box[0]
+    top = box[1]
+    right = box[2]
+    bottom = box[3]
+  }
   if (right < left) right = left
   if (bottom < top) bottom = top
   val half = min(right - left, bottom - top) / 2f
@@ -631,6 +821,64 @@ internal fun dropInnerClip(
     bottomLeftCornerRadius = CornerRadius(r.bottomLeft.coerceIn(0f, half)),
   )
 }
+
+/**
+ * Una passata di [dropInnerClip] per la goccia deformata: il ritaglio [box] (sinistra, alto, destra, basso, sul posto),
+ * coi raggi [radii] entro mezzo lato, si stringe finche' nessun punto dell'anello [ring] ci cade dentro. Di traverso
+ * all'asse ([vertical]: l'asse coda-testa e' verticale, quindi di traverso e' in x), o spostando il capo piu' vicino al
+ * punto se stringere di traverso costasse piu' di meta' del ritaglio. Nessuna allocazione.
+ */
+private fun dropClipKeepInside(box: FloatArray, ring: FloatArray, count: Int, radii: FluidCornerRadii, vertical: Boolean) {
+  for (i in 0 until count) {
+    // Nel sistema (u di traverso, v lungo l'asse); gli angoli del ritaglio dello stesso sistema.
+    val u = if (vertical) ring[i * 2] else ring[i * 2 + 1]
+    val v = if (vertical) ring[i * 2 + 1] else ring[i * 2]
+    val uMin = if (vertical) box[0] else box[1]
+    val vMin = if (vertical) box[1] else box[0]
+    val uMax = if (vertical) box[2] else box[3]
+    val vMax = if (vertical) box[3] else box[2]
+    if (!(u > uMin && u < uMax && v > vMin && v < vMax)) continue
+    val half = min(uMax - uMin, vMax - vMin) / 2f
+    // (uMin, vMin) e' l'angolo in alto a sinistra in verticale, in alto a sinistra anche in orizzontale (u = y, v = x).
+    val lowU = u < (uMin + uMax) / 2f
+    val rStart = (if (vertical) (if (lowU) radii.topLeft else radii.topRight) else (if (lowU) radii.topLeft else radii.bottomLeft)).coerceIn(0f, half)
+    val rEnd = (if (vertical) (if (lowU) radii.bottomLeft else radii.bottomRight) else (if (lowU) radii.topRight else radii.bottomRight)).coerceIn(0f, half)
+    // Dov'e' il bordo del ritaglio di traverso, all'altezza v, se lo spostassimo: serve che il punto ne resti fuori.
+    val inset = when {
+      v < vMin + rStart -> {
+        val dv = vMin + rStart - v
+        rStart - sqrt(max(rStart * rStart - dv * dv, 0f))
+      }
+      v > vMax - rEnd -> {
+        val dv = v - (vMax - rEnd)
+        rEnd - sqrt(max(rEnd * rEnd - dv * dv, 0f))
+      }
+      else -> 0f
+    }
+    // Il punto e' dentro solo se e' oltre la curva dell'angolo.
+    if (lowU && u <= uMin + inset) continue
+    if (!lowU && u >= uMax - inset) continue
+    val newSide = if (lowU) u - inset + 0.5f else u + inset - 0.5f
+    val keeps = if (lowU) uMax - newSide else newSide - uMin
+    if (keeps >= (uMax - uMin) / 2f) {
+      if (lowU) {
+        if (vertical) box[0] = newSide else box[1] = newSide
+      } else {
+        if (vertical) box[2] = newSide else box[3] = newSide
+      }
+    } else if (v < (vMin + vMax) / 2f) {
+      if (vertical) box[1] = v + 0.5f else box[0] = v + 0.5f
+    } else {
+      if (vertical) box[3] = v - 0.5f else box[2] = v - 0.5f
+    }
+  }
+}
+
+/**
+ * Sotto questo termine dei capi ([FluidDropWarp.endsAt]) un punto della goccia deformata e' nella coda o nella punta, e il
+ * ritaglio delle voci lo tiene fuori ([dropInnerClip]): dove il vetro e' piu' stretto di un ottavo circa del corpo.
+ */
+internal const val DropClipEndsFloor = 0.88f
 
 /** Catmull-Rom uniforme fra [b] e [c], con [a] e [d] come vicini. */
 internal fun catmullRom(a: Float, b: Float, c: Float, d: Float, t: Float): Float {

@@ -19,9 +19,10 @@ internal fun menuTraceContentLens(
   origin: Offset,
   density: Float,
   focus: Float,
+  clipInk: Boolean = false,
 ): Map<String, Any?>? {
   val strength = fluidMenuLensStrength(focus)
-  if (strength <= 0f) return null
+  if (strength <= 0f && !clipInk) return null
   val d = density
   val depth = glassMenuLensDepthPx(plan.bounds, d)
   fun dp(x: Float) = glassDp(x / d)
@@ -32,6 +33,7 @@ internal fun menuTraceContentLens(
     "menuOrigin" to coords(origin.x, origin.y), "menuScale" to 1,
     "lensDepth" to dp(depth), "lensPull" to dp(glassMenuLensPullPx(depth, strength)),
   )
+  if (clipInk) u["clipInk"] = 1
   val kernel = if (plan.mode == PlanModePoly) {
     val f = physicsRingField(plan, 1f, d, depth, depth, GlassRingField())
     u["vertCount"] = f.count

@@ -892,6 +892,11 @@ internal class FluidMenuJourney {
   val faceProgress: Float get() =
     if (returningOnContour) fluidMenuReturnFaceProgress(progress.value) else progress.value
 
+  fun faceAlpha(physics: FluidPhysicsState): Float =
+    if (closing && liquidMenu && !controlledReturn && anchor != null) {
+      fluidModalReturnFaceAlpha(progress.value, physics.ensurePlan().bounds, startFrame())
+    } else fluidMenuFaceAlpha(faceProgress)
+
   /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
   var anchorRelax = Animatable(1f, ProgressThreshold)
     private set
@@ -1024,11 +1029,13 @@ internal class FluidMenuJourney {
     anchor?.groupProgress = progressBlockForGroup
   }
 
-  private val progressBlockForGroup: () -> Float = { faceProgress }
+  // Il ritorno lascia il gruppo spento fino alla consegna della capsula intera.
+  private val progressBlockForGroup: () -> Float = { if (closing) 1f else faceProgress }
 
   /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
   fun install(physics: FluidPhysicsState) {
     val a = anchor
+    physics.useSampledDropFrame = liquidMenu && a != null
     // Il `from` e' fisso per un'apertura (il tasto premuto, o il seme): e' il segnaposto con cui
     // `driveExternally` riconosce la stessa corsa. La partenza vera, viva, la da' [startFrame].
     // F1B.3: il segnaposto ha la taglia del tasto a riposo (vedi [fluidMenuOriginFrame]).

@@ -654,7 +654,7 @@ fun FluidMorphMenuHost(
             modifier = Modifier
               .fillMaxSize()
               .graphicsLayer {
-                alpha = fluidMenuFaceAlpha(state.journey.faceProgress) * fluidMenuAnchorInkAlpha(anchor)
+                alpha = state.journey.faceAlpha(state.physics) * fluidMenuAnchorInkAlpha(anchor)
                 val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
                 translationX = map.translation.x
                 translationY = map.translation.y

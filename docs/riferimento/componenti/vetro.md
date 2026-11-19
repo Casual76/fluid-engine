@@ -1423,9 +1423,7 @@ su un `nestedScroll` del corpo, e `CompositionLocalProvider(LocalFluidGlassQuali
 - **Cosa scala**: lente e suoi extra (dislocazione, dispersione, ombre, bordo speculare) — la *forma* del materiale.
   **Non scala la tinta** (tiene leggibile il testo: un testo che perde contrasto mentre la lista scorre è peggio di qualunque
   fotogramma in ritardo). La **sfocatura scala poco**: da 1 a `FluidGlassBlurFloor` 0,45 sulla stessa rampa, quindi a pavimento
-  resta ~59% del raggio. La dispersione si spegne sotto 0,75. Sotto **0,7** la cattura scende a **metà risoluzione** (un quarto
-  dei pixel nella catena: la leva più grande che il materiale abbia), quantizzata a due soli valori perché cambiare la risoluzione
-  *è* ri-catturare: due ricatture per lancio invece di sessanta.
+  resta ~59% del raggio. La dispersione si spegne sotto 0,75. La risoluzione si dimezza con l’isteresi descritta in «Il costo».
 - **Tetto da fuori** (`ceiling`): il livello è il **minimo** fra scorrimento e tetto. `FluidScreen` lo aggancia al movimento fra
   pagine: mentre due pagine si attraversano esistono due fondali e due serie di pannelli, e il vetro resta al pavimento
   (un timbro da 40 ms che scade da solo, perché nessuna delle due pagine sa quando l'altra ha finito).
@@ -1517,6 +1515,19 @@ il contenuto nuovo. Solo il **padding** della catena invalida (non i numeri degl
 - `backdropResolution` (ottica) e la scala **guidata dalla sfocatura**: la risoluzione di cattura è `1 − t·0,6` con `t = raggio_dp / 10` (a un raggio ≥ 10 dp il pannello lavora al **40%**), per ruolo
   a 2,5 dp di base: `Bar` 0,40, `Floating` 0,73, `Modal` 0,48, `Content` 0,88 × 0,5 di `backdropResolution`. Un pannello quasi chiaro resta a piena risoluzione perché la sua lente *è* tutto bordo e un bordo
   morbido è l'unica cosa che non può avere. Il pavimento è prudente: più giù il raggio si schiaccia sotto il pixel e l'upscale non ha più niente che lo nasconda (pixelatura, non brina).
+
+**Quando dimezzare la cattura (F7.2).** Il nodo mantiene la risoluzione ordinaria e può dimezzare entrambi i lati durante
+il moto. Calcola il punteggio sui pixel alla scala ordinaria, dopo il tetto della texture, moltiplicati per il numero di
+aggiornamenti recenti (al massimo quattro in 96 ms). Usa il maggiore di due conteggi. Il primo segue i disegni con qualità
+ridotta da scorrimento o cambio pagina. Il secondo segue le catture valide di una lastra Liquid che cambia taglia o si
+sposta rispetto alle medesime sorgenti, senza trasformazione esplicita del layer. Una cattura alla sola nuova scala
+e il disegno dell’export lasciano fermo questo secondo conteggio.
+
+Si entra a **512.000 pixel-aggiornamenti** con almeno due fotogrammi distinti. Per la sola qualità si entra sotto 0,70,
+si resta in movimento fino a 0,85. A **256.000** o meno, oppure dopo 96 ms senza aggiornamenti, si torna alla scala ordinaria.
+La soglia dimezzata evita il rimbalzo durante il viaggio. Con quattro aggiornamenti una piccola cattura da 50.000 pixel conserva
+tutto il dettaglio. Una cattura da 256.000 pixel può dimezzarsi già al secondo aggiornamento. Queste soglie sono iniziali.
+La prova fisica che misura il costo è descritta in `sessioni/f7-2/riprese.md`. Il materiale fermo usa la scala di ricetta.
 
 **5. Il costo della sorgente segue i lettori (F7.5).** Una pagina con `glassBackdropSource` disegna il corpo anche da sola. Quando si attacca la prima superficie o sonda, il produttore
 registra una cattura nuova, anche con `frozen = { true }`. Le superfici successive condividono la registrazione. All'uscita dell'ultimo lettore il produttore restituisce il layer a Compose

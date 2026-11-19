@@ -38,16 +38,66 @@ class BackdropTextureCapTest {
   }
 
   @Test
-  fun theScaleFactorOnlyEverTakesTwoValues() {
-    // Resolution decides the recorded size, and a changed recorded size is a re-capture: a
-    // continuously varying factor would re-run the whole chain on every frame of the gesture it
-    // exists to make cheaper.
-    assertEquals(1f, quantiseScaleFactor(1f), 0f)
-    assertEquals(1f, quantiseScaleFactor(0.9f), 0f)
-    assertEquals(ReducedScaleFactor, quantiseScaleFactor(0.25f), 0f)
-    assertEquals(ReducedScaleFactor, quantiseScaleFactor(0f), 0f)
-    // A malformed factor must never strip resolution off a still page.
-    assertEquals(1f, quantiseScaleFactor(Float.NaN), 0f)
+  fun alternatingAcrossTheOldBoundarySwitchesOnlyOnceUntilTheGestureSettles() {
+    val resolution = BackdropCaptureResolution()
+    val levels = (0..15).map { index ->
+      resolution.update(if (index % 2 == 0) 0.69f else 0.71f, 200_000f, index * 16L)
+    }
+    assertEquals(listOf(1f, 1f) + List(14) { ReducedScaleFactor }, levels)
+    assertEquals(1f, resolution.update(1f, 200_000f, 256L), 0f)
+    assertEquals(1f, resolution.update(0.25f, 200_000f, 272L), 0f)
+  }
+
+  @Test
+  fun pixelPressureHasSeparateEntryAndExitThresholds() {
+    val resolution = BackdropCaptureResolution()
+    val pixels = listOf(126_000f, 130_000f, 126_000f, 130_000f, 126_000f, 66_000f, 64_000f, 66_000f)
+    val levels = pixels.mapIndexed { i, area -> resolution.update(0.4f, area, i * 8L) }
+    assertEquals(listOf(1f, 1f, 1f, 0.5f, 0.5f, 0.5f, 1f, 1f), levels)
+  }
+
+  @Test
+  fun preDrawAndRepeatedDrawsDoNotInventAdditionalFrames() {
+    val resolution = BackdropCaptureResolution()
+    repeat(6) {
+      assertEquals(1f, resolution.preview(0.25f, 300_000f, 10L), 0f)
+      assertEquals(1f, resolution.update(0.25f, 300_000f, 10L), 0f)
+    }
+    assertEquals(0.5f, resolution.preview(0.25f, 300_000f, 27L), 0f)
+    assertEquals(1f, resolution.factor, 0f)
+    assertEquals(0.5f, resolution.update(0.25f, 300_000f, 27L), 0f)
+    assertEquals(1f, resolution.update(0.25f, 300_000f, 27L + BackdropCaptureResolution.WindowMillis), 0f)
+  }
+
+  @Test
+  fun validMovingCapturesCanReduceAtFullQualityAndExpireWithoutScroll() {
+    val resolution = BackdropCaptureResolution()
+    // The sheet moves against its source without scrolling a list. Counting commits after capture
+    // keeps pre-draw and drawing the exported material from advancing its history.
+    for (i in 0..2) {
+      val t = i * 16L
+      assertEquals(1f, resolution.update(1f, 200_000f, t), 0f)
+      resolution.movedCapture(t)
+      resolution.movedCapture(t)
+    }
+    assertEquals(0.5f, resolution.preview(1f, 200_000f, 48L), 0f)
+    assertEquals(0.5f, resolution.update(1f, 200_000f, 48L), 0f)
+    assertEquals(1f, resolution.update(1f, 200_000f, 128L), 0f)
+    resolution.movedCapture(144L)
+    resolution.reset()
+    assertEquals(1f, resolution.update(1f, 900_000f, 150L), 0f)
+  }
+
+  @Test
+  fun smallTexturesSlowUpdatesAndMalformedQualityKeepTheOrdinaryScale() {
+    val resolution = BackdropCaptureResolution()
+    repeat(10) { i -> assertEquals(1f, resolution.update(0.25f, 55_000f, i * 16L), 0f) }
+    repeat(5) { i -> assertEquals(1f, resolution.update(0.25f, 900_000f, 300L + i * 120L), 0f) }
+    assertEquals(0.5f, resolution.update(0.25f, 900_000f, 790L), 0f)
+    assertEquals(1f, resolution.update(Float.NaN, 900_000f, 805L), 0f)
+    assertEquals(1f, resolution.update(0.25f, 900_000f, 820L), 0f)
+    assertEquals(0.5f, resolution.update(0.25f, 900_000f, 836L), 0f)
+    assertEquals(1f, resolution.update(0.85f, 900_000f, 852L), 0f)
   }
 
   @Test

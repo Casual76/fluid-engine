@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropCaptureResolution
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,6 +66,25 @@ class FluidGlassQualityTest {
     quality.onSettled()
 
     assertEquals(1f, quality.level, 0f)
+  }
+
+  @Test
+  fun aRouteCeilingAndScrollFeedTheSameCaptureBudget() {
+    var ceiling = 1f
+    val quality = FluidGlassQuality { ceiling }
+    val budget = BackdropCaptureResolution()
+    fun draw(time: Long) = budget.update(quality.level, 240_000f, time)
+
+    assertEquals(1f, draw(0), 0f)
+    ceiling = 0.4f
+    assertEquals(1f, draw(16), 0f)
+    assertEquals(1f, draw(32), 0f)
+    assertEquals(0.5f, draw(48), 0f)
+    quality.onScrollDelta(150f)
+    ceiling = 1f
+    assertEquals(0.5f, draw(64), 0f)
+    quality.onSettled()
+    assertEquals(1f, draw(80), 0f)
   }
 
   @Test

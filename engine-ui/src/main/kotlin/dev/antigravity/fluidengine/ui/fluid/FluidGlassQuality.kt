@@ -40,7 +40,8 @@ import kotlin.math.abs
  * che passa sotto — durante un lancio non esiste, perché a quella velocità non si legge niente;
  * ma sotto quella frazione il vetro smette di sembrare vetro e il cambio si vedrebbe quando la
  * pagina si ferma. La regola della taglia (vedi [glassSizeGain]) lavora sul raggio già scalato
- * dalla qualità.
+ * dalla qualità. La risoluzione della cattura ha due soli livelli. Ogni pannello usa questo segnale
+ * insieme al numero di pixel e alla cadenza dei propri disegni per decidere quando dimezzarla.
  */
 @Stable
 class FluidGlassQuality internal constructor(

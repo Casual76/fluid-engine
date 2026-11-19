@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Durante lo scorrimento e il movimento delle lastre Liquid la risoluzione della cattura segue area e frequenza con isteresi. A riposo torna alla scala del materiale.
+
 - Zoom dalla sorgente, correzione dell'orologio. Il video di Apple da cui F5B.3 aveva misurato la molla (WWDC24 10145) è proiettato a metà velocità, come dice Apple nella sua trascrizione: a tempo vero la molla dello zoom è critica con risposta 0,355 s, non 0,71 (`FluidPageMotion.ResponseZoomSeconds`). Apertura e ritorno con la sorgente vanno al doppio della velocità di prima; `Slide`, `ShrinkSlide`, l'`Expand` senza sorgente e il foglio dal tasto, misurato su un altro video, non cambiano. Le tracce `tools/glassbench/traces/f5b-3/zoom-*` sono rifatte e confrontano Apple a tempo vero.
 
 - Barre in basso (correzione F4B). Quando la lente si apre, i comandi perdono subito nitidezza e «Altro» compare a gruppo raccolto. Al tocco di una scheda Liquid la bolla si sgonfia durante l'arrivo. Il banco include la posa della scheda prominente.

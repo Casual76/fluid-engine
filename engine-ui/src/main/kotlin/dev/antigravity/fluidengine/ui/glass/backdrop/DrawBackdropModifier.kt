@@ -229,8 +229,8 @@ fun Modifier.drawBackdrop(
      * The effect chain is charged per pixel, so halving the capture is a quarter of the work — by
      * far the largest lever the material has. It is **quantised** on purpose: a scale that varied
      * continuously would change the recorded size on every frame, and changing the recorded size is
-     * the one thing that forces a re-capture. Two steps mean two re-captures per fling instead of
-     * sixty.
+     * the one thing that forces a re-capture. The adaptive factor uses the pixel cost and a short history
+     * of draws, with separate entry and recovery thresholds.
      */
     backdropScaleFactor: () -> Float = OneScale,
     /**
@@ -523,22 +523,90 @@ internal fun fitToTexture(requested: Float, width: Float, height: Float): Float 
 }
 
 /**
- * Snaps a live quality factor onto the two values a capture is allowed to have.
- *
- * Resolution is the one knob that cannot be animated: it decides the recorded size, and a changed
- * recorded size *is* a re-capture. Continuous would therefore re-run the whole chain on every frame
- * of the very gesture it is trying to make cheaper. Two steps, with the switch well inside the fast
- * range, means one re-capture on the way down and one on the way back.
+ * Two capture sizes. Count distinct active frames over a short window, using the cost at the
+ * surface's ordinary scale even while reduced. Scoring the current texture would create feedback:
+ * halving each side would immediately divide the score by four.
  */
-internal fun quantiseScaleFactor(factor: Float): Float {
-    if (!factor.isFinite()) return 1f
-    return if (factor < ReducedScaleThreshold) ReducedScaleFactor else 1f
+internal class BackdropCaptureResolution {
+    private class Frames {
+        private val stamps = LongArray(4)
+        private var count = 0
+        private var next = 0
+        var last = Long.MIN_VALUE
+            private set
+
+        fun record(now: Long) {
+            if (now == last) return
+            stamps[next] = now
+            next = (next + 1) % stamps.size
+            count = (count + 1).coerceAtMost(stamps.size)
+            last = now
+        }
+
+        fun recent(now: Long, includeNow: Boolean): Int {
+            var n = if (includeNow && last != now) 1 else 0
+            for (i in 0 until count) {
+                if (stamps[i] > now - WindowMillis && stamps[i] <= now) n++
+            }
+            return n.coerceAtMost(stamps.size)
+        }
+
+        fun clear() {
+            count = 0
+            next = 0
+            last = Long.MIN_VALUE
+        }
+    }
+
+    private val activeDraws = Frames()
+    private val movingCaptures = Frames()
+    var factor = 1f
+        private set
+
+    // Draws follow scroll/route quality even when the display list follows its source by reference.
+    // A moving Liquid surface can instead provide evidence from its completed, valid captures.
+    // A frame present in both streams never counts twice.
+    fun preview(quality: Float, pixels: Float, frameMillis: Long): Float {
+        if (!quality.isFinite() || !(pixels > 0f)) return 1f
+        val draws = if (quality < RecoverQuality) activeDraws.recent(frameMillis, includeNow = true) else 0
+        val captures = movingCaptures.recent(frameMillis, includeNow = false)
+        val updates = if (factor == ReducedScaleFactor || quality < EnterQuality) maxOf(draws, captures) else captures
+        if (updates < 2) return 1f
+        val score = pixels * updates
+        val reduce = if (factor == ReducedScaleFactor) score > ExitPixels else score >= EnterPixels
+        return if (reduce) ReducedScaleFactor else 1f
+    }
+
+    fun update(quality: Float, pixels: Float, frameMillis: Long): Float {
+        factor = preview(quality, pixels, frameMillis)
+        if (quality.isFinite() && quality < RecoverQuality && pixels > 0f) {
+            activeDraws.record(frameMillis)
+        } else {
+            activeDraws.clear()
+        }
+        if (movingCaptures.last <= frameMillis - WindowMillis) movingCaptures.clear()
+        return factor
+    }
+
+    fun movedCapture(frameMillis: Long) = movingCaptures.record(frameMillis)
+
+    val lastUpdate: Long get() = maxOf(activeDraws.last, movingCaptures.last)
+
+    fun reset() {
+        activeDraws.clear()
+        movingCaptures.clear()
+        factor = 1f
+    }
+
+    companion object {
+        const val WindowMillis = 96L
+        private const val EnterQuality = 0.70f
+        private const val RecoverQuality = 0.85f
+        private const val EnterPixels = 512_000f
+        private const val ExitPixels = 256_000f
+    }
 }
 
-/** Below this quality level the capture drops to [ReducedScaleFactor]. */
-internal const val ReducedScaleThreshold = 0.7f
-
-/** Half the linear resolution: a quarter of the pixels through the effect chain. */
 internal const val ReducedScaleFactor = 0.5f
 
 /** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
@@ -817,6 +885,12 @@ private class DrawBackdropNode(
      */
     private data class SamplePosition(val source: LayerBackdrop, val offset: Offset)
 
+    private fun movedAgainstRecordedSources(current: List<SamplePosition>?): Boolean {
+        val old = recordedSourceOffsets ?: return false
+        if (current == null || current == old || current.size != old.size) return false
+        return current.indices.all { current[it].source === old[it].source }
+    }
+
     private fun currentSourceOffsets(): List<SamplePosition>? {
         val sources = sampledBackdrop.layerSources
         if (sources.isEmpty()) return null
@@ -851,6 +925,47 @@ private class DrawBackdropNode(
      * the resolution can lose.
      */
     private var effectiveScale: Float = 1f
+
+    private val resolution = BackdropCaptureResolution()
+    private var recoveryPending = false
+    private val recoverResolution = object : Runnable {
+        override fun run() {
+            val deadline = resolution.lastUpdate + BackdropCaptureResolution.WindowMillis
+            if (android.os.SystemClock.uptimeMillis() < deadline) {
+                MainHandler.postAtTime(this, deadline)
+            } else {
+                recoveryPending = false
+                resolution.reset()
+                if (isAttached) invalidateDraw()
+            }
+        }
+    }
+
+    private fun captureScale(width: Float, height: Float, commit: Boolean): Float {
+        val full = fitToTexture(backdropScale, width, height)
+        val quality = backdropScaleFactor()
+        // A full-quality draw is the common case (including callers that never opt in).
+        if (quality >= 1f && resolution.lastUpdate == Long.MIN_VALUE && (!sampled || recordedScale == full)) return full
+        val frame = android.view.animation.AnimationUtils.currentAnimationTimeMillis()
+        val pixels = width * full * (height * full)
+        val factor = if (commit) resolution.update(quality, pixels, frame)
+                     else resolution.preview(quality, pixels, frame)
+        if (commit) {
+            if (factor == ReducedScaleFactor && !recoveryPending) {
+                recoveryPending = true
+                MainHandler.postAtTime(recoverResolution, frame + BackdropCaptureResolution.WindowMillis)
+            } else if (factor == 1f && recoveryPending) {
+                MainHandler.removeCallbacks(recoverResolution)
+                recoveryPending = false
+            }
+        }
+        val requested = if (factor == 1f) full else fitToTexture(backdropScale * factor, width, height)
+        return if (sampled && requested != recordedScale && !sampledBackdrop.isReadyToSample()) recordedScale else requested
+    }
+
+    // A held capture retains its own transform while the source is temporarily missing.
+    private var recordedScale = 1f
+    private var recordedLogicalSize = Size.Zero
 
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
@@ -978,8 +1093,9 @@ private class DrawBackdropNode(
 
             val needsRecord = when {
                 lostLoan -> true
-                holding -> false
                 sourceGone -> false
+                sampled && recordedScale != contentScale -> true
+                holding -> false
                 refreshAfterHold -> true
                 else -> wanted && !tooSoon
             }
@@ -998,6 +1114,17 @@ private class DrawBackdropNode(
                 // life of the node — a tile that came up in the wrong frame stayed a flat tint for
                 // ever, with no path back. Now the bookkeeping waits for a valid one.
                 if (sampledBackdrop.isReadyToSample()) {
+                    // Compare logical geometry, never the size of the texture we chose ourselves.
+                    // An unknown offset or a change of source is not evidence of motion.
+                    if (sampled && onDrawLight != null && layerBlock == null &&
+                        (size != recordedLogicalSize || movedAgainstRecordedSources(sourceOffsets))) {
+                        resolution.movedCapture(android.view.animation.AnimationUtils.currentAnimationTimeMillis())
+                    }
+                    recordedLogicalSize = size
+                    GlassFrameDiagnostics.event("capture", this@DrawBackdropNode) {
+                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize"
+                    }
+                    recordedScale = contentScale
                     recordedSize = recordSize
                     recordedSourceOffsets = sourceOffsets
                     recordedSelfOffset = selfOffset
@@ -1046,11 +1173,7 @@ private class DrawBackdropNode(
         // Fluid Engine addition (4.0.0, F2.3c): uno scrittore di riserva arrivato dopo l'attacco (la chrome rifatta).
         adoptFallbacks()
         if (containerDirty) resolveContainer()
-        effectiveScale = fitToTexture(
-            backdropScale * quantiseScaleFactor(backdropScaleFactor()),
-            size.width,
-            size.height
-        )
+        effectiveScale = captureScale(size.width, size.height, commit = true)
         // LOCAL CHANGE (F1B, voce 20): a monte `if (update) updateEffects()`, fuori dall'osservazione.
         effectsUpdates.onDraw(scopeChanged = effectScope.update(this, effectiveScale))
         GlassFrameDiagnostics.event("draw", this@DrawBackdropNode)
@@ -1192,7 +1315,7 @@ private class DrawBackdropNode(
         val coordinates = lastCoordinates?.takeIf { it.isAttached } ?: return false
         val width = coordinates.size.width.toFloat()
         val height = coordinates.size.height.toFloat()
-        val contentScale = fitToTexture(backdropScale * quantiseScaleFactor(backdropScaleFactor()), width, height)
+        val contentScale = captureScale(width, height, commit = false)
         if (contentScale != effectiveScale) return false
         val density = requireDensity()
         val size = if (contentScale != 1f) Size(width * contentScale, height * contentScale) else Size(width, height)
@@ -1268,6 +1391,9 @@ private class DrawBackdropNode(
 
     override fun onDetach() {
         bindMotionLight(null)
+        if (recoveryPending) MainHandler.removeCallbacks(recoverResolution)
+        recoveryPending = false
+        resolution.reset()
         cancelBeforeFrame()
         borrowed = emptyList()
         sampled = false

@@ -130,7 +130,7 @@ class F5b3ZoomTraceTest {
    * scrim arriva e se ne va con le dissolvenze dell'host. La sorgente (l'icona della cartella) è consumata per tutto il
    * foglio: la capsula del gruppo resta, sotto lo scrim.
    */
-  private fun foglioDalTasto(closing: Boolean): GlassTrace {
+  internal fun foglioDalTasto(closing: Boolean): GlassTrace {
     val open = TodaySpring(FluidSheetZoomSpring, 0f, 1f)
     val host = TodaySpring(FluidMotion.PopoverOpenY, 0f, 1f)
     val exit = TodaySpring(FluidMotion.PopoverExit, 1f, 0f)

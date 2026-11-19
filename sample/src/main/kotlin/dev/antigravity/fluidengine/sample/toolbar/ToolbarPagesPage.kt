@@ -3,6 +3,8 @@ package dev.antigravity.fluidengine.sample.toolbar
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Build
+import android.os.Trace
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,11 +22,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.sample.material.isDebuggableApp
+import dev.antigravity.fluidengine.sample.catalog.LongListsDemo
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidBarMinimizeBehavior
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -239,7 +243,10 @@ internal object ToolbarPagesLaunch {
 
   private val truthy = setOf("true", "1", "on", "yes", "si", "sì", "acceso")
 
-  data class Request(val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean, val legacyOnly: Boolean = false, val uniform: Boolean = false)
+  data class Request(
+    val start: ToolbarHostPage, val autoMs: Long, val follow: Boolean, val legacyOnly: Boolean = false,
+    val uniform: Boolean = false, val longList: Boolean = false, val profile: Boolean = false,
+  )
 
   fun parse(extra: (String) -> String?): Request {
     fun value(key: String): String? = extra(key)?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
@@ -253,7 +260,8 @@ internal object ToolbarPagesLaunch {
     }
     val auto = value(ExtraAuto)?.let { raw -> raw.toLongOrNull()?.takeIf { it > 0L } ?: if (raw in truthy) DefaultAutoMs else 0L } ?: 0L
     val follow = value(ExtraFollow)?.let { it in truthy } ?: false
-    return Request(start, auto, follow, legacyOnly, value("pages.uniform") in truthy)
+    return Request(start, auto, follow, legacyOnly, value("pages.uniform") in truthy,
+      longList = value("pages.list") in truthy, profile = value("pages.profile") in truthy)
   }
 
   /** La pila che porta a [page]: la scheda, poi la catena fino a lei. */
@@ -317,6 +325,12 @@ private fun ToolbarPagesHost(
   var stack by remember { mutableStateOf(ToolbarPagesLaunch.stackTo(launched.start, launched.legacyOnly)) }
   var queries by rememberSaveable { mutableStateOf(mapOf<ToolbarHostPage, String>()) }
   var auto by remember { mutableLongStateOf(launched.autoMs) }
+  fun changeStack(next: List<ToolbarHostPage>) {
+    if (launched.profile) {
+      Log.i(ToolbarLogTag, "RICHIESTA ${next.last().key} t=${android.os.SystemClock.uptimeMillis()}")
+    }
+    stack = next
+  }
   // L'interruttore è dell'engine (le prove della barra dell'host): lo si accende qui e lo si rimette a posto uscendo.
   DisposableEffect(Unit) {
     val before = FluidPageBarDiagnostics.gestureFollowsFinger
@@ -334,16 +348,23 @@ private fun ToolbarPagesHost(
     while (true) {
       delay(wait)
       step = (step + 1) % ToolbarPagesScript.size
-      stack = ToolbarPagesScript[step]
+      changeStack(ToolbarPagesScript[step])
     }
   }
-  val back: () -> Unit = { if (stack.size > 1) stack = stack.dropLast(1) }
+  val back: () -> Unit = { if (stack.size > 1) changeStack(stack.dropLast(1)) }
   FluidPageHost(
     stack = stack,
+    precomposePage = stack.last().next,
     onBack = back,
     state = hostState,
     modifier = Modifier
       .fillMaxSize()
+      .then(if (launched.profile && Build.VERSION.SDK_INT >= 29 && Trace.isEnabled()) {
+        Modifier.drawWithContent {
+          Trace.setCounter("F4A.pageProgress", (hostState.progress * 1_000_000).toLong())
+          drawContent()
+        }
+      } else Modifier)
       .testTag("toolbar-pages"),
     peer = remember {
       FluidPeerMove<ToolbarHostPage> { from, to ->
@@ -353,6 +374,10 @@ private fun ToolbarPagesHost(
   ) { page ->
     // La radice della pila non ha l'indietro (le schede, e la prima pagina dell'host di sole pagine di prima).
     val root = page.isTab || stack.firstOrNull() == page
+    if (launched.longList && page == ToolbarHostPage.Note) {
+      LongListsDemo(bottomInset, onBack = back)
+      return@FluidPageHost
+    }
     if (uniform != null) {
       // Il materiale legge la stessa superficie uniforme sui due lati anche mentre passa l'ombra della carta.
       Box(Modifier.fillMaxSize().clickable {
@@ -410,7 +435,7 @@ private fun ToolbarPagesHost(
             title = "Apri «${next.title}»",
             subtitle = "Un push: i tasti partono col tocco, col tempo del piano",
             modifier = Modifier.testTag("toolbar-pages-open"),
-            onClick = { stack = stack + next },
+            onClick = { changeStack(stack + next) },
           )
         }
       }

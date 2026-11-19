@@ -104,7 +104,7 @@ class F5b2SheetTraceTest {
   // --- Gli scenari -----------------------------------------------------------------------------------------------
 
   /** L'apertura a meta' altezza: la molla dell'host (`PopoverOpenY`) e lo scrim che arriva (`fadeIn`). */
-  private fun sale(): GlassTrace {
+  internal fun sale(): GlassTrace {
     val slide = TodaySpring(FluidMotion.PopoverOpenY, 0f, 1f)
     val fade = TodaySpring(FluidMotion.fadeIn(FluidMotion.PopoverFadeInMillis), 0f, 1f)
     val frames = timeline(-3, 48) { k, nanos ->
@@ -125,7 +125,7 @@ class F5b2SheetTraceTest {
   }
 
   /** Da meta' altezza in cima col dito di Apple; al rilascio la molla dei detent, con lo slancio del dito. */
-  private fun aTuttaAltezza(): GlassTrace {
+  internal fun aTuttaAltezza(): GlassTrace {
     val start = medium.heights[0]
     val releaseIndex = appleTopPx.size - 1
     val releaseMs = releaseIndex * appleFrameMs
@@ -170,7 +170,7 @@ class F5b2SheetTraceTest {
    * F5B-e: la maniglia manda il foglio in cima; a 150 ms il dito lo riprende (la molla si ferma dov'e'), lo tira giu' di
    * 120 dp in 250 ms e lo lascia piano: torna a meta' altezza.
    */
-  private fun interrotto(): GlassTrace {
+  internal fun interrotto(): GlassTrace {
     val start = medium.heights[0]
     val up = TodaySpring(FluidSheetDetentSpring, start, medium.heights[1])
     val grabMs = 150.0

@@ -92,9 +92,10 @@ class F5b1ModalTraceTest {
     }
   }
 
-  @Test fun exportOpeningAndReturnAtNativeTime() {
+  /** Le tre scene, sulla tela di 360 x 520 dp. Le riusano le prove di chiusura di F5B.4 (`F5b4PresentationTraceTest`). */
+  internal val scenes: List<Scene> = run {
     val anchor = Rect(264f, 280f, 308f, 324f)
-    val scenes = listOf(
+    listOf(
       Scene("popover", FluidModalSourceMotion.Popover,
         Rect(276f, 38f, 320f, 82f), Rect(112f, 94f, 344f, 253f), listOf("Ordina per", "Per data", "Per nome")),
       Scene("conferma", FluidModalSourceMotion.Confirmation,
@@ -103,6 +104,9 @@ class F5b1ModalTraceTest {
       Scene("avviso", FluidModalSourceMotion.Alert, Rect(42f, 376f, 86f, 420f), Rect(40f, 182f, 320f, 338f),
         listOf("Modifiche non salvate", "Continuare?"), modal = true),
     )
+  }
+
+  @Test fun exportOpeningAndReturnAtNativeTime() {
     val output = GlassTraceOutput.requestedDir(System.getenv("GLASS_F5B1_TRACE_DIR"))
     for (scene in scenes) for (closing in listOf(false, true)) {
       val trace = trace(scene, closing)
@@ -112,7 +116,7 @@ class F5b1ModalTraceTest {
     }
   }
 
-  private data class Scene(
+  internal data class Scene(
     val name: String,
     val motion: FluidModalSourceMotion,
     val anchor: Rect,
@@ -121,7 +125,7 @@ class F5b1ModalTraceTest {
     val modal: Boolean = false,
   )
 
-  private fun trace(scene: Scene, closing: Boolean): GlassTrace {
+  internal fun trace(scene: Scene, closing: Boolean): GlassTrace {
     val start = FluidForm.Slab(scene.anchor, FluidCornerRadii.all(22f))
     val end = FluidForm.Slab(scene.target, FluidCornerRadii.all(24f))
     val physics = FluidPhysicsState(start)

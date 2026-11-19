@@ -22,7 +22,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Tema, forma, tipo](tema.md) | 8 | 108 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
-| [Pagine e navigazione](pagine.md) | 9 | 119 |
+| [Pagine e navigazione](pagine.md) | 9 | 120 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
 | [engine-foundation](foundation.md) | 6 | 42 |

@@ -143,6 +143,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 import dev.antigravity.fluidengine.ui.page.FluidPageBarSpec
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
+import dev.antigravity.fluidengine.ui.page.LocalFluidPagePreparing
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageTransition
 import dev.antigravity.fluidengine.ui.page.RegisterFluidPageBar
 import androidx.compose.runtime.currentCompositionLocalContext
@@ -955,7 +956,7 @@ private fun FluidScreenLayout(
       rememberCombinedGlassBackdrop(canvasBackdrop, bodyBackdrop)
     }
   }
-  val chromeController = LocalFluidChromeController.current
+  val chromeController = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
   val chromeRegistration = remember { Any() }
   val density = LocalDensity.current
   val scope = rememberCoroutineScope()

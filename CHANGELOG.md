@@ -8,6 +8,10 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Pagine (F4A.7b). Il push ordinario compone il dettaglio al cambio di pila. Con `precomposePage` la pagina chiamante può anticiparne anche la misura delle righe visibili prima del tocco.
+
+- Presentazioni, chiusura di F5B (F5B.4). La pagina «Righe e fogli» della galleria si legge in tre capitoli: le righe, le presentazioni (in `sample/…/presentations/`: il popover dal tasto, la conferma sopra «Elimina», l'avviso con e senza sorgente, i fogli di vetro coi detent, la soglia di oscuramento e la dissolvenza, l'ingresso dello zoom dalla card e del foglio dal tasto) e i fogli e gli avvisi di sempre. Le prove di movimento del piano stanno in `tools/glassbench/traces/f5b-4/` (`F5b4PresentationTraceTest`): popover, conferma e avviso accanto ai fotogrammi di WWDC25 284 e 323, il foglio che sale (R4 B8), a tutta altezza, con la soglia, trascinato e interrotto, e dal tasto, con il velo dei fogli di oggi (senza sfocatura). La scheda `menu-modali.md` racconta popover, avvisi, conferme, fogli e zoom come sono oggi. Nessun cambio all'engine.
+
 - Tocco e controlli (F6.8). La galleria riunisce il tasto premuto, la capsula trascinata, il bagliore ai vicini, i controlli a gesto, gli stili, le taglie e le prove di luce e accessibilità. Le schede e le tracce del banco descrivono il comportamento della 4.0.
 
 - Menu, chiusura di F5A (F5A.5). La pagina «Menù liquidi» della galleria si legge in quattro capitoli (dal tasto e dal gruppo, la struttura, il contestuale, la riga di debug dello sfondo) e perde la tessera a gradiente, doppione di quella con la foto. Le prove di movimento del piano stanno in `tools/glassbench/traces/f5a-5/` (`menu-apertura`, `menu-apertura-gruppo`, `menu-chiusura`, `menu-chiusura-gruppo`, `menu-interrotto`, `contestuale-apre`), accoppiate ai fotogrammi di Apple sul `t0` di R4 (`F5a5MenuTraceTest`). Le schede `menu-liquidi.md` e `menu-modali.md` raccontano i menu come sono oggi. Nessun cambio all'engine.

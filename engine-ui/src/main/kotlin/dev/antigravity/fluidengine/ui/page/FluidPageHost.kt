@@ -37,13 +37,18 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -51,6 +56,7 @@ import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -75,6 +81,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -116,6 +123,9 @@ interface FluidPageScope {
 /** L'host di pagine piu' vicino, o null fuori da un host. */
 val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?> =
   staticCompositionLocalOf { null }
+
+/** Una schermata misurata fuori dalla pila non può ancora offrire il proprio fondale alla shell. */
+internal val LocalFluidPagePreparing = compositionLocalOf { false }
 
 /**
  * Un host di pagine: la pila che riceve diventa due strati opachi, quello sopra e quello sotto, e
@@ -163,6 +173,38 @@ fun <K : Any> FluidPageHost(
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   FluidPageHostImpl(
+    stack = stack, onBack = onBack, modifier = modifier, transition = transition, backSwipe = backSwipe,
+    peer = peer, onTransitionStart = onTransitionStart, onSettled = onSettled, leaving = leaving,
+    state = state, pageColor = pageColor, ownOwners = true, pageKey = { it }, zoomSource = zoomSource,
+    content = content,
+  )
+}
+
+/**
+ * Variante per una destinazione già nota alla pagina chiamante. A riposo l'host può comporre e misurare
+ * [precomposePage] nella sua sede definitiva prima del tocco. La pagina preparata ha ciclo di vita CREATED,
+ * resta fuori dal disegno e dai tocchi e può essere scartata se cambia la previsione. Gli effetti di
+ * composizione possono partire: riservare le azioni di apertura esplicita al davanti o al ciclo di vita.
+ * Null disattiva la preparazione. Una destinazione Expand si prepara soltanto al momento della navigazione.
+ */
+@Composable
+fun <K : Any> FluidPageHost(
+  stack: List<K>,
+  onBack: () -> Unit,
+  modifier: Modifier = Modifier,
+  transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide },
+  backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly },
+  peer: FluidPeerMove<K>? = null,
+  onTransitionStart: (List<K>) -> Unit = {},
+  onSettled: () -> Unit = {},
+  leaving: Set<K>? = null,
+  state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
+  zoomSource: (K) -> FluidTransitionSource? = { null },
+  precomposePage: K?,
+  content: @Composable FluidPageScope.(K) -> Unit,
+) {
+  FluidPageHostImpl(
     stack = stack,
     onBack = onBack,
     modifier = modifier,
@@ -177,6 +219,7 @@ fun <K : Any> FluidPageHost(
     ownOwners = true,
     pageKey = { it },
     zoomSource = zoomSource,
+    precomposePage = precomposePage,
     content = content,
   )
 }
@@ -207,6 +250,7 @@ internal fun <K : Any> FluidPageHostImpl(
   ownOwners: Boolean,
   pageKey: (K) -> Any,
   zoomSource: (K) -> FluidTransitionSource? = { null },
+  precomposePage: K? = null,
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -263,6 +307,24 @@ internal fun <K : Any> FluidPageHostImpl(
     lastTop[0] = top
   }
 
+  val top = stack.lastOrNull()
+  val next = if (precomposePage != null && top != null && parentFront.value &&
+    !reducedMotion && !state.isMoving && state.upper == top) {
+    precomposePage.takeIf { it !in stack && transition(it) != FluidPageTransition.Expand &&
+      (peer?.direction(top, it) ?: 0) == 0 }
+  } else null
+  // Lascia disegnare la pagina corrente prima di misurarne una seconda. Il lavoro viene annullato
+  // se cambia la previsione. La promozione riusa la stessa chiave anche se il tocco arriva subito.
+  var prepared by remember(state, next) { mutableStateOf<K?>(null) }
+  if (next != null) LaunchedEffect(state, next) {
+    withFrameNanos { }
+    prepared = next
+  }
+  val entering = top?.takeIf {
+    !reducedMotion && state.canComposePush(stack) && transition(it) != FluidPageTransition.Expand &&
+      (peer?.direction(stack[stack.lastIndex - 1], it) ?: 0) == 0
+  }
+
   SideEffect {
     state.scope = scope
     state.density = density.density
@@ -280,16 +342,19 @@ internal fun <K : Any> FluidPageHostImpl(
     state.backHandler?.isBackEnabled = stack.size > 1
     // Lo stato salvato di una pagina che ha lasciato la pila (e lo schermo) non serve piu'.
     savedKeys.removeAll { saved ->
-      val gone = saved !in stack && saved != state.upper && saved != state.lower
+      val gone = saved !in stack && saved != state.upper && saved != state.lower && saved != prepared
       if (gone) holder.removeState(saved)
       gone
     }
   }
 
   // Prima della prima chiusura a riposo lo stato non ha ancora le sue pagine: si disegna la pila.
-  val upper = if (state.initialized) state.upper as K? else stack.lastOrNull()
-  val lower = (if (state.initialized) state.lower as K? else stack.getOrNull(stack.size - 2))
-    ?.takeIf { it != upper }
+  val upper = entering ?: if (state.initialized) state.upper as K? else top
+  val lower = when {
+    entering != null -> state.upper as K?
+    state.initialized -> state.lower as K?
+    else -> stack.getOrNull(stack.size - 2)
+  }?.takeIf { it != upper }
 
   Box(
     modifier = modifier
@@ -300,11 +365,13 @@ internal fun <K : Any> FluidPageHostImpl(
   ) {
     // L'ordine e' quello del disegno: sotto, poi sopra. Le chiavi tengono la composizione di una
     // pagina quando passa da sopra a sotto o viceversa.
-    for (page in listOfNotNull(lower, upper)) {
+    for (page in listOfNotNull(lower, upper, prepared)) {
       key(pageKey(page)) {
         PageLayer(
           page = page,
           isUpper = page == upper,
+          preparedOnly = page == prepared,
+          entering = entering != null,
           state = state,
           pageColor = pageColor,
           shadowColor = shadowColor,
@@ -320,7 +387,9 @@ internal fun <K : Any> FluidPageHostImpl(
       }
     }
     // Sopra le pagine, sotto la chrome dell'app: una barra per host, ferma mentre le pagine passano.
-    FluidAnchoredBar(state = state, registry = barRegistry, lowerKey = lower, upperKey = upper)
+    FluidAnchoredBar(state = state, registry = barRegistry,
+      lowerKey = if (entering == null) lower else state.lower,
+      upperKey = if (entering == null) upper else state.upper)
   }
 }
 
@@ -328,6 +397,8 @@ internal fun <K : Any> FluidPageHostImpl(
 private fun <K : Any> PageLayer(
   page: K,
   isUpper: Boolean,
+  preparedOnly: Boolean,
+  entering: Boolean,
   state: FluidPageHostState,
   pageColor: Color,
   shadowColor: Color,
@@ -341,9 +412,9 @@ private fun <K : Any> PageLayer(
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val barSlot = remember(page, barRegistry) { FluidPageBarSlot(page, barRegistry) }
-  val covered = !isUpper && state.kind == FluidPageMove.None
+  val covered = preparedOnly || (!isUpper && !entering && state.kind == FluidPageMove.None)
   // La pagina che riappare sotto il dito è una previsione finché il gesto non viene confermato.
-  val hiddenFromAccessibility = state.blocksInput(page) ||
+  val hiddenFromAccessibility = (entering && !isUpper) || state.blocksInput(page) ||
     (!isUpper && (state.phase == FluidPageHostState.Phase.Dragging || state.phase == FluidPageHostState.Phase.Cancelling))
   val coveredState = rememberUpdatedState(covered)
   // Il ruolo si legge dallo stato, non dalla composizione: vedi [pageLayer].
@@ -368,8 +439,12 @@ private fun <K : Any> PageLayer(
   Box(
     modifier = Modifier
       .fillMaxSize()
+      .then(if (preparedOnly) Modifier.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) { /* Prima del push la pagina ha solo una misura. */ }
+      } else Modifier)
       .then(
-        if (isUpper && state.pendingPlacement == page) {
+        if (isUpper && (entering || state.pendingPlacement == page)) {
           Modifier.onGloballyPositioned {
             if (state.pendingPlacement == page) {
               fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page, System.nanoTime()) }
@@ -388,6 +463,7 @@ private fun <K : Any> PageLayer(
       }),
   ) {
     CompositionLocalProvider(
+      LocalFluidPagePreparing provides (preparedOnly || LocalFluidPagePreparing.current),
       LocalFluidRouteFront provides front,
       LocalFluidPageTransition provides state,
       LocalFluidPageBar provides barSlot,
@@ -568,7 +644,7 @@ private fun Modifier.pageInputGate(state: FluidPageHostState, page: Any): Modifi
 @Composable
 private fun CappedLifecycle(capped: Boolean, content: @Composable () -> Unit) {
   val parent = LocalLifecycleOwner.current
-  val owner = remember(parent) { CappedLifecycleOwner(parent) }
+  val owner = remember(parent) { CappedLifecycleOwner(parent, capped) }
   DisposableEffect(owner) {
     owner.attach()
     onDispose { owner.detach() }
@@ -577,9 +653,9 @@ private fun CappedLifecycle(capped: Boolean, content: @Composable () -> Unit) {
   CompositionLocalProvider(LocalLifecycleOwner provides owner, content = content)
 }
 
-private class CappedLifecycleOwner(private val parent: LifecycleOwner) : LifecycleOwner {
+private class CappedLifecycleOwner(private val parent: LifecycleOwner, initiallyCapped: Boolean) : LifecycleOwner {
   private val registry = LifecycleRegistry(this)
-  private var cap = Lifecycle.State.RESUMED
+  private var cap = if (initiallyCapped) Lifecycle.State.CREATED else Lifecycle.State.RESUMED
   private val observer = LifecycleEventObserver { _, _ -> update() }
 
   override val lifecycle: Lifecycle get() = registry

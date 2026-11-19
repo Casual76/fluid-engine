@@ -20,7 +20,7 @@ c'è mai una seconda finestra che compare accanto). La famiglia è legata a Flui
 
 | file | contiene |
 |---|---|
-| questo (`menu-modali.md`) | l'host e il portale, le presentazioni (pop-up, foglio, pagina intera), `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidAlert`, `FluidPromptAlert`, il foglio deprecato, e dalla 3.1.0 `FluidDrawer` (il pannello laterale modale) e `FluidDateTimeSheet` (data e ora) |
+| questo (`menu-modali.md`) | l'host e il portale; le presentazioni che nascono da una sorgente (popover, avviso, conferma) con la modalità e il velo; il foglio di vetro coi detent (`FluidGlassSheet`) e quello che nasce dal tasto; `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidAlert`, `FluidConfirmationDialog`, `FluidPromptAlert`, il foglio deprecato; il pannello laterale (`FluidDrawer`) e il foglio data e ora (`FluidDateTimeSheet`). La pagina che nasce da una card è in [pagine.md](pagine.md) |
 | [menu-liquidi.md](menu-liquidi.md) | i menu: quello che nasce da un tasto o da un gruppo della barra (il viaggio in tre tempi, le voci nella lente), la struttura (fila di simboli, sottomenu, ordine, voci che lasciano aperto), il contestuale (sollevamento, sfondo, anteprima), la scelta col dito |
 | [notifiche.md](notifiche.md) | `FluidNotificationHost`, la card che si tocca, si apre e si lancia via |
 
@@ -40,16 +40,18 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` + `open()` dal suo click lungo |
 | un menu contestuale che solleva un'**anteprima diversa** dall'elemento, o con una **forma** sua | `preview = { … }` e `previewShape = …` di `Modifier.fluidContextMenu` o di `rememberFluidContextMenu` (4.0) → [menu-liquidi.md](menu-liquidi.md) |
 | un pannello di **contenuto** che nasce da una riga o da un tasto | `FluidGlassModalPortal(origin = …)` + `Modifier.fluidExpandOrigin` |
-| un popover che prende il posto del tasto e vi rientra | `FluidGlassModalPortal(source = …)` |
+| un popover che **prende il posto del suo tasto** e ci rientra | `FluidGlassModalPortal(source = …)` (sotto 600 dp diventa un foglio, salvo `compactAdaptation = FluidCompactAdaptation.Popover`) |
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
-| un foglio con **altezze di riposo** (a metà, in cima), che il dito porta su e giù e che in cima diventa una pagina | `FluidGlassSheet(visible, onDismissRequest, detents = setOf(Medium, Large))` (4.0, sezione «Il foglio di vetro con i detent») |
-| un foglio che **nasce dal tasto** che lo apre (della barra, o una card) e ci rientra | `FluidGlassSheet(…, source = rememberFluidToolbarTransitionSource("id"))` o `source = FluidTransitionSource(id, ns)` (4.0, «Il foglio che nasce dal tasto») |
-| una conferma («Eliminare?», «Usare i dati mobili?») | `FluidConfirmSheet` |
-| una conferma compatta sopra l'azione che l'ha aperta | `FluidConfirmationDialog(source = …)` |
+| un foglio con **altezze di riposo** (a metà, in cima), che il dito porta su e giù e che in cima diventa una pagina | `FluidGlassSheet(visible, onDismissRequest, detents = setOf(Medium, Large))` |
+| un foglio che lascia la pagina **attiva** finché sta basso (una mappa, un lettore) | `FluidGlassSheet(…, undimmedUpTo = FluidSheetDetent.Medium)` |
+| un foglio che **nasce dal tasto** che lo apre (della barra, o una card) e ci rientra | `FluidGlassSheet(…, source = rememberFluidToolbarTransitionSource("id"))` o `source = FluidTransitionSource(id, ns)` |
+| una pagina che **nasce dalla card** toccata e ci torna, anche col dito | `composable(…, transition = FluidPageTransition.Expand, zoomSource = { … })` → [pagine.md](pagine.md) |
+| una conferma con un corpo («Eliminare 12 elementi?» e l'elenco degli effetti) | `FluidConfirmSheet` |
+| una conferma compatta **sopra il comando** che l'ha aperta («Elimina») | `FluidConfirmationDialog(source = …)` (senza sorgente: al centro, con Annulla) |
 | un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
 | far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
-| un avviso breve con due o tre pulsanti (UIKit) | `FluidAlert` con `FluidAlertAction` |
+| un avviso breve con due o tre pulsanti (UIKit) | `FluidAlert` con `FluidAlertAction`; con `source = …` esce dall'elemento che lo apre |
 | chiedere una riga di testo (rinomina, valore) | `FluidPromptAlert` |
 | una pagina intera per un compito con più di tre campi | `FluidGlassModalPortal(presentation = FullScreen)` |
 | un messaggio transitorio, in alto, che scade | `FluidNotificationHost` → [notifiche.md](notifiche.md) |
@@ -87,33 +89,13 @@ per tenere conto dello scorrimento, della misura e della pagina corrente. Per lo
 permette al componente che presenta di usare il proprio ripiego.
 Per i comandi dichiarati vedi [la toolbar](toolbar.md#le-sorgenti-delle-transizioni-f5a1).
 
-**La sorgente consumata (4.0, F5B.3).** Una pagina o un foglio aperti con lo zoom da una sorgente la **nascondono** finché
-sono in scena e la restituiscono nel fotogramma in cui la loro sagoma ci rientra: le due cose non si vedono mai insieme.
-Il modificatore nasconde ciò che gli sta **dopo** nella catena, quindi va messo in testa (prima di `clip`, fondo e
-contenuto). A riposo non disegna e non misura niente di suo. I collegamenti di F5B.3: le pagine (`FluidPageTransition.Expand`
-con `zoomSource`, [pagine.md](pagine.md)) e il foglio (`FluidGlassSheet(source = …)`, sotto).
-
-### Popover, avvisi e conferme dalla sorgente
-
-`FluidGlassModalPortal(source = …)`, `FluidAlert(source = …)` e `FluidConfirmationDialog(source = …)` usano la
-traiettoria del menu dal tasto. La sorgente si raccoglie sul posto. La goccia va verso il centro di arrivo mentre
-il pannello si apre. Al congedo la forma rientra nella sorgente e questa riprende a disegnarsi. Un tasto singolo
-della toolbar cede anche il vetro del piano. Le voci adiacenti in una capsula condivisa conservano il proprio fondo.
-
-- Il popover occupa lo spazio accanto alla sorgente. Su una finestra sotto 600 dp prende la forma di un foglio.
-  `compactAdaptation = FluidCompactAdaptation.Popover` conserva il popover. Di serie il popover lascia attiva la
-  pagina e il foglio adattato è modale. `mode` permette di dichiarare il comportamento del compito.
-- L'avviso interrompe il compito ed è centrato. Con una sorgente parte dalla sua forma. Fuori dall'host usa
-  il dialogo di piattaforma.
-- La conferma con una sorgente si posa sopra il comando, lascia la pagina attiva e si congeda con un tocco
-  all'esterno. Al centro offre Annulla. Le azioni usano `FluidAlertAction` e la scelta chiude il pannello
-  prima di chiamare l'azione.
-- I sovraccarichi `item` aprono il pannello quando il dato è presente e tengono il dato mostrato mentre il
-  pannello esce. `source` identifica il controllo di partenza.
-
-Il foglio di vetro scurisce la pagina con un velo uniforme e mantiene nitido lo sfondo visibile oltre il foglio.
-Con `undimmedUpTo = FluidSheetDetent.Medium`, a metà altezza e durante i movimenti sotto quella quota
-la pagina resta attiva. Sopra la soglia il velo e la modalità seguono la posizione corrente del foglio.
+**La sorgente consumata.** Una presentazione che nasce da una sorgente la **prende in prestito**: finché è in scena la
+sorgente non si disegna, e torna a disegnarsi nel fotogramma in cui la sagoma ci rientra. Le due cose non si vedono mai
+insieme. Vale per il popover, l'avviso e la conferma (la faccia del tasto si spegne mentre la goccia si raccoglie), per il
+foglio dal tasto e per la pagina dello zoom. Un tasto singolo della barra cede anche il vetro del piano; un tasto dentro un
+gruppo cede solo la sua faccia, e la capsula del gruppo resta (come in Mail). Il modificatore nasconde ciò che gli sta
+**dopo** nella catena, quindi va messo in testa (prima di `clip`, fondo e contenuto). A riposo non disegna e non misura
+niente di suo.
 
 ## Regola trasversale: un portale dichiara, un host disegna
 
@@ -156,6 +138,8 @@ trasforma, poi le notifiche. **Un host che non c'è non è un errore**: è la ca
 | `FluidConfirmSheet` | come il portale: non si apre |
 | `FluidAlert` / `FluidPromptAlert` | ripiego sul `Dialog` di piattaforma (vetro dipinto) |
 | `FluidSheet` (deprecato) | ripiego sul `ModalBottomSheet` |
+| `FluidGlassSheet` | come il portale: non si apre |
+| `FluidConfirmationDialog` | ripiego sul `Dialog` di piattaforma, con le azioni e Annulla |
 | `FluidBarAction(actions)`, `Modifier.fluidContextMenu`, `FluidListRow(contextActions)` | il menu non si apre (e `open()` ritorna `false`: nessun colpo `Open`) |
 | `FluidMorphMenuButton` senza `FluidMorphMenuHost` composto | il menu non si apre e non vibra; con `opensOnTap` il tocco non fa **niente** (non chiama nemmeno `onClick`) |
 
@@ -172,13 +156,15 @@ float.
 - **Voci in pila.** «Più recente» = aperta per ultima, non dichiarata per ultima. Un menu aperto da dentro un modale
   sta **sopra** il modale, non lo sostituisce.
 - **Fuoco e TalkBack.** Ogni layer è un `isTraversalGroup` + `focusGroup` con un bersaglio da 1 dp che prende il fuoco
-  all'apertura: senza, il primo movimento da tastiera o D-pad finiva nella pagina sotto. `paneTitle` (o
-  `LocalFluidLabels.current.actions`, «Azioni», per i menu) è l'annuncio del pannello.
+  all'apertura di un compito **modale**: senza, il primo movimento da tastiera o D-pad finiva nella pagina sotto. Un compito
+  in parallelo (il popover dalla sorgente, la conferma sopra il comando, un foglio sotto `undimmedUpTo`) non lo prende: la
+  pagina resta raggiungibile, perché è davvero usabile. `paneTitle` (o `LocalFluidLabels.current.actions`, «Azioni», per i
+  menu) è l'annuncio del pannello.
 - **La pagina sotto** va nascosta all'accessibilità con `Modifier.fluidGlassModalObscured()` (da mettere su quello che
   sta sotto l'host): un pop-up traslucido che lascia camminare il fuoco nella pagina è peggio di uno opaco, perché la
-  pagina si vede e niente avvisa che non è raggiungibile. Usa `isPresenting`, che diventa falso **nell'istante in cui
-  si chiede la chiusura**: va bene per l'accessibilità, è sbagliato per quello che il pannello ha preso in prestito
-  dalla pagina (per quello c'è `isOnScreen`).
+  pagina si vede e niente avvisa che non è raggiungibile. La nasconde solo mentre è aperto un compito **modale**, e smette
+  **nell'istante in cui si chiede la chiusura**: va bene per l'accessibilità, è sbagliato per quello che il pannello ha
+  preso in prestito dalla pagina (per quello c'è `isOnScreen`).
 - **Colore del testo.** L'host sta alla radice, fuori da una `Surface`, dove `LocalContentColor` vale nero: ogni host
   fornisce `onSurface` (dalla 3.0.1), quindi un `Text` nudo nel pannello è leggibile anche sul tema scuro
   (`FluidHostContentColorTest`).
@@ -213,6 +199,95 @@ per call-site** il cui corpo il compilatore sostituisce *sul posto* a ogni ricom
   restano per l'uscita, il `content` si rilegge vivo e se legge uno stato che il chiamante azzera nell'istante in cui
   toglie l'avviso, l'uscita lo mostra vuoto.
 
+## Presentare dalla sorgente
+
+Il popover, l'avviso, la conferma, il foglio dal tasto e la pagina dello zoom fanno la stessa cosa: **la sorgente diventa
+la presentazione, e la presentazione torna sorgente**. Non c'è un fotogramma in cui si vedono tutte e due. Si chiede
+passando una sorgente (`source = …`, una `FluidTransitionSource`: sopra, «Sorgenti delle transizioni»); senza, ognuno fa la
+strada di prima («Il ripiego», sotto).
+
+### Il viaggio del popover, dell'avviso e della conferma
+
+È il viaggio del menu dal tasto ([menu-liquidi.md](menu-liquidi.md), «Il viaggio in tre tempi»), sulla stessa finestra di
+Fluid-physics:
+
+1. **Raccolta.** La sorgente si raccoglie sul posto in una goccia e la sua faccia (il glifo, l'etichetta) si spegne mentre
+   la goccia si stringe. La faccia della sorgente e il testo del pannello non sono mai leggibili insieme: le loro finestre
+   di visibilità sono disgiunte in tutti e due i versi.
+2. **Viaggio.** La goccia va verso il centro d'arrivo e il pannello si apre attorno a lei. Il contenuto è dentro dal primo
+   fotogramma in cui c'è un corpo, **sfocato e piegato dalla lente del contenuto** (`GlassContentLensEffect`, come le voci
+   del menu), e si mette a fuoco mentre il vetro si posa.
+3. **Posa.** Il vetro si ferma senza un secondo rimbalzo e il testo diventa nitido.
+
+Al congedo la forma rientra nel contorno della sorgente, l'inchiostro del pannello se ne va prima che la faccia torni, e la
+sorgente riprende a disegnarsi nel fotogramma in cui il viaggio finisce. Un congedo chiesto a metà apertura riparte dalla
+sagoma che si vede, con lo slancio che ha. Il dato di un sovraccarico `item` resta mostrato per tutto il ritorno; la
+sorgente si legge all'apertura e vale per il ritorno, anche se il chiamante smette di passarla quando chiude.
+
+| | popover | conferma | avviso |
+|---|---|---|---|
+| dove si posa | accanto alla sorgente | **sopra** il comando, centrata su di lui (12 dp sopra, 24 dp dai bordi), larga 280 dp | al centro della finestra |
+| la goccia | parte subito | resta ferma sul comando fino a 133 ms, poi il corpo cresce | parte subito e va al centro: il vetro è posato a ≈200 ms, il testo si mette a fuoco dopo |
+| testo leggibile, nitido | 167–183 ms, 267 ms | ≈383 ms, 400 ms | ≈383 ms, 400 ms |
+| rientro nella sorgente | 250 ms | 250 ms | 250 ms |
+| la pagina | attiva, nessun velo | attiva, nessun velo | velata, bloccata |
+| si chiude | toccando fuori (il tocco arriva anche alla pagina), back | toccando fuori, back; niente Annulla | coi pulsanti, toccando il velo, back |
+
+Contro Apple (WWDC25 284: il popover di formattazione sull'iPad e la conferma UIKit «Discard Changes»; WWDC25 323: la
+conferma SwiftUI «Delete»): il popover di Apple si posa a ≈267 ms, la conferma UIKit a ≈267 e quella SwiftUI a ≈400; tutti
+rientrano in 200–267 ms. La lettura fase per fase è nelle prove di F5B (`tools/glassbench/traces/f5b-4/`).
+
+### Modalità e velo
+
+Un compito che **interrompe** (rispondere a un avviso, scegliere in un foglio a tutta altezza) scurisce la pagina e la
+blocca; un compito che **accompagna** la pagina (cambiare un ordine, una mappa sotto un foglio basso) la lascia attiva e
+chiara. Sono `FluidPresentationMode.Modal` e `Parallel`. Di serie:
+
+- il **popover** con una sorgente è parallelo: nessun velo, la pagina risponde, un tocco fuori lo chiude e passa anche alla
+  pagina (si può scorrere mentre esce). Su una finestra sotto 600 dp di larghezza diventa un foglio dal basso, modale, come
+  in iOS; `compactAdaptation = FluidCompactAdaptation.Popover` lo tiene popover. `mode = …` dichiara il compito a mano;
+- la **conferma** sopra il comando è parallela; quella al centro è modale e ha Annulla;
+- l'**avviso** è modale;
+- il **foglio di vetro** (`FluidGlassSheet`) è modale. Con `undimmedUpTo = FluidSheetDetent.Medium` resta parallelo fino a
+  quella quota compresa e diventa modale appena il foglio la supera, anche sotto il dito: la quota si legge dalla posizione
+  dal vivo, con mezzo pixel di tolleranza. Il passaggio è netto: la pagina si scurisce tutta nel fotogramma in cui il foglio
+  lascia la soglia (vedi «Cosa non c'è»).
+
+**Il velo.** I fogli di vetro e le presentazioni modali dalla sorgente scuriscono la pagina con un velo nero, 12% sul chiaro
+e 20% sullo scuro (i livelli di `GlassPaintedScrim`), **senza sfocarla**: Apple la scurisce e basta (WWDC25 284 e 323), e
+un po' di più (≈23% misurato su 323). I portali chiamati come prima (il pop-up con `origin` o al centro, il foglio del
+portale, `FluidConfirmSheet`, l'avviso senza sorgente, la pagina intera) tengono lo scrim di vetro di sempre, sfocato di
+3,75 dp (sotto, «`FluidGlassModalPortal` e `FluidGlassModalHost`»). Un compito parallelo non ha velo.
+
+### Il ripiego
+
+Senza sorgente, o con una sorgente che all'apertura non si trova (uscita dallo scorrimento, pagina cambiata), ognuno fa
+la strada di prima: il popover si apre dall'`origin` o al centro, l'avviso si posa al centro con la sua molla, la conferma
+sta al centro con Annulla, il foglio sale dal basso, la pagina fa l'`Expand` di sempre. Con le animazioni ridotte il
+viaggio dalla sorgente non anima: il pannello è al suo posto o non c'è (il foglio e la pagina fanno la strada di prima,
+senza zoom). Una sorgente che sparisce mentre la presentazione è aperta: il congedo rientra dove l'aveva trovata l'ultima
+volta, mai un salto. Fuori dall'host l'avviso e la conferma usano il `Dialog` di piattaforma.
+
+### Lo zoom: il foglio dal tasto e la pagina dalla card
+
+Il foglio (`FluidGlassSheet(source = …)`) e la pagina (`FluidPageTransition.Expand` con `zoomSource`) non fanno la goccia:
+**crescono dal riquadro della sorgente**, i lati verso i bordi e la cima verso l'alto, col contenuto dentro dal principio e
+sfocato. Il foglio è sotto, in «Il foglio che nasce dal tasto»; la pagina in [pagine.md](pagine.md), «Lo zoom dalla
+sorgente» (la molla di Apple da 0,71 s nei due versi, il dito che la riporta nella card, la dissolvenza all'arrivo come
+variante spenta).
+
+### Cosa non c'è
+
+- **Il velo della soglia è a scatto.** Con `undimmedUpTo` la pagina passa da chiara a scurita del 12% in un fotogramma,
+  quando il foglio lascia la quota (`foglio-soglia` nelle prove di F5B). Nel materiale di Apple del progetto la scena non
+  c'è: che UIKit (`largestUndimmedDetentIdentifier`) porti il velo insieme al foglio fra la soglia e il detent sopra è da
+  verificare, non è misurato.
+- **Il popover adattato a foglio sul telefono sale dal basso**, senza il viaggio dal tasto: il viaggio dalla sorgente vale
+  per il popover, non per il foglio del portale.
+- **Al congedo il testo resta nitido nei primi ≈67 ms** mentre la forma rientra, e se ne va sbiadendo: Apple lo sfoca dal
+  primo fotogramma del ritorno. Il ritorno del popover e dell'avviso rimette la faccia della sorgente a ≈167–200 ms, quello
+  della conferma a ≈233 ms (Apple 200–267).
+
 ## `FluidGlassModalPortal` e `FluidGlassModalHost`
 
 **Cos'è.** `FluidGlassModalPortal` non emette niente nel punto in cui lo chiami (nessuna taglia, nessun pixel): scrive
@@ -236,13 +311,50 @@ fun FluidGlassModalPortal(
   content: @Composable ColumnScope.() -> Unit,
 )
 
+// Dalla sorgente: gli stessi, più tre
+@Composable
+fun FluidGlassModalPortal(
+  /* …gli stessi… */
+  source: FluidTransitionSource? = null,   // la vista da cui nasce e in cui rientra
+  compactAdaptation: FluidCompactAdaptation = FluidCompactAdaptation.Sheet,   // sotto 600 dp: Sheet o Popover
+  mode: FluidPresentationMode? = null,     // Modal o Parallel; di serie dal tipo (popover parallelo, foglio modale)
+  content: @Composable ColumnScope.() -> Unit,
+)
+
 @Composable
 fun <T : Any> FluidGlassModalPortal(item: T?, onDismissRequest: () -> Unit, /* …stessi, con (T) nelle lambda */)
+// e la forma a `item` con source, compactAdaptation e mode
 ```
 
-Tutti i parametri: [api/menu-modali.md](../api/menu-modali.md).
+Il secondo sovraccarico si sceglie nominando uno dei suoi tre parametri: chi chiama il portale come prima ha il portale di
+prima. Tutti i parametri: [api/menu-modali.md](../api/menu-modali.md).
 
-**Uso** (da `MaterialTab` del sample):
+**Uso**, dalla sorgente (da `presentations/PresentationsChapter.kt` del sample, il popover dal tasto ··· della barra):
+
+```kotlin
+// Nel contesto della pagina che dichiara la barra.
+val popoverSource = rememberFluidToolbarTransitionSource(PresentationsPopoverButton)
+FluidScreen(
+  title = "Righe e fogli",
+  toolbar = {
+    button(PresentationsPopoverButton, FluidIcons.MoreHoriz, "Opzioni della galleria", onClick = { aperto = true })
+  },
+) { /* la pagina */ }
+
+FluidGlassModalPortal(
+  visible = aperto,
+  onDismissRequest = { aperto = false },
+  source = popoverSource,
+  paneTitle = "Opzioni della galleria",
+) {
+  Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text("Ordina per", style = MaterialTheme.typography.titleMedium)
+    // le scelte: FluidChoiceRow(…)
+  }
+}
+```
+
+e da una riga, con l'origine (da `MaterialTab` del sample):
 
 ```kotlin
 var expandOrigin by remember { mutableStateOf<Rect?>(null) }
@@ -274,15 +386,18 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
 
 **Comportamento.**
 
-- **Chiusura = una richiesta.** Scrim, back, trascinamento del foglio chiamano `onDismissRequest`: il portale non si
-  chiude da solo, lo chiude chi lo possiede con `visible = false`. Lo scrim smette di mangiare i tocchi non appena la
-  chiusura è richiesta (la pagina è già sua mentre l'uscita finisce di sfumare).
-- **Lo scrim è quasi niente, di proposito.** Sfocatura ×1,5 della base, nessuno spostamento (una lente grande quanto
-  lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro (gli stessi livelli
-  dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModalScrim` li legge da lì), `sizeResponse = 0`
-  (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
-  non servirebbe: un rettangolo dipinto costa meno. Arriva con un alpha sul pannello finito, **mai** con l'`intensity`
-  del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni fotogramma).
+- **Chiusura = una richiesta.** Scrim, back, trascinamento del foglio, un tocco fuori da un popover parallelo chiamano
+  `onDismissRequest`: il portale non si chiude da solo, lo chiude chi lo possiede con `visible = false`. Lo scrim smette di
+  mangiare i tocchi non appena la chiusura è richiesta (la pagina è già sua mentre l'uscita finisce di sfumare).
+- **Dalla sorgente**: il viaggio, la modalità e il velo di «Presentare dalla sorgente».
+- **Lo scrim dei portali di sempre è quasi niente, di proposito.** Sfocatura ×1,5 della base (3,75 dp), nessuno
+  spostamento (una lente grande quanto lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20%
+  sullo scuro (gli stessi livelli dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e
+  `FluidGlassModalScrim` li legge da lì), `sizeResponse = 0` (altrimenti la regola della taglia lo sfocherebbe fino alla
+  media della pagina). Se togliesse la pagina il vetro non servirebbe: un rettangolo dipinto costa meno. Arriva con un
+  alpha sul pannello finito, **mai** con l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe
+  tutto lo schermo a ogni fotogramma). I fogli di vetro e le presentazioni dalla sorgente non lo usano: il loro velo non
+  sfoca.
 - **Il menu contestuale ha uno scrim suo**, più scuro: lì la pagina deve andare *dietro* l'elemento sollevato (scelta di
   Alessio: «scurito con una sfocatura leggera»). Tre livelli (`FluidContextScrimLevel`, il nero e il moltiplicatore della
   sfocatura in un `FluidScrimLook`), di serie **B**: 24% / 38% di nero e 5 dp di sfocatura, mai oltre 7 dp
@@ -295,10 +410,10 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
 - **Tutto passa dalla finestra di Fluid-physics** (dalla 3.0, fase 7): anche il pop-up senza ancora (cresce da un seme
   al centro) e quello accanto a una riga. Niente layer scalato sul vetro. Senza fondale resta il ripiego opaco
   (`surfaceContainerHigh`).
-- **Il contenuto viaggia con la sagoma, non compare dentro di lei**: trasla col centro corrente, si scala
-  uniformemente fino a 0,90 e si materializza dal 45% al 90% del viaggio; la scritta della riga d'origine (la sua
-  immagine registrata) parte da dov'era e svanisce entro metà viaggio. In chiusura il testo se ne va **per primo**
-  (dal 94% al 62%) e il vetro rientra vuoto.
+- **Il contenuto viaggia con la sagoma, non compare dentro di lei** (il pop-up con `origin` o al centro): trasla col
+  centro corrente, si scala uniformemente fino a 0,90 e si materializza dal 45% al 90% del viaggio; la scritta della riga
+  d'origine (la sua immagine registrata) parte da dov'era e svanisce entro metà viaggio. In chiusura il testo se ne va
+  **per primo** (dal 94% al 62%) e il vetro rientra vuoto. Dalla sorgente il contenuto passa invece dalla lente.
 - **Il contenuto non scorre da solo** (a parte `FullScreen`): in un pop-up o in un foglio un corpo più alto del
   pannello viene tagliato. È il mestiere di `FluidSheetScaffold`.
 
@@ -306,30 +421,35 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
 
 | `FluidGlassModalPresentation` | com'è | misure vere |
 |---|---|---|
-| `Popover` (di serie) | **con** `origin`: la sagoma parte dal rettangolo esatto dell'ancora, il pannello si posa *sopra* di lei (il bordo da cui si allontana resta fermo); **senza**: al centro, da un seme a 0,42 | largo quanto serve fino a 360 dp con origine (620 dp senza), mai oltre lo schermo meno 16 dp per lato; alto al più il 78% dell'host meno i margini; raggio `FluidRadius.Group` (22 dp) |
-| `Sheet` | dal basso, a tutta larghezza, con grabber, trascinabile **da qualunque punto** (negoziato col contenuto scorrevole via nested scroll). Con un `FluidGlassSheet` (4.0) ha i detent, è una lastra di vetro **staccata dai bordi** con gli angoli bassi concentrici allo schermo e a tutta altezza diventa opaca; dal portale resta il foglio di sempre | larghezza ≤ 620 dp (poi sta in mezzo), altezza ≤ 640 dp, angoli alti `FluidRadius.Sheet` (38 dp); si chiude oltre 110 dp di trascinamento o 900 dp/s di spinta |
+| `Popover` (di serie) | **con** `source`: il tasto diventa il pannello e ci rientra (sopra); **con** `origin`: la sagoma parte dal rettangolo esatto dell'ancora, il pannello si posa *sopra* di lei (il bordo da cui si allontana resta fermo); **senza**: al centro, da un seme a 0,42 | largo quanto serve fino a 360 dp con origine (620 dp senza), mai oltre lo schermo meno 16 dp per lato; alto al più il 78% dell'host meno i margini; raggio `FluidRadius.Group` (22 dp) |
+| `Sheet` | dal basso, a tutta larghezza, con grabber, trascinabile **da qualunque punto** (negoziato col contenuto scorrevole via nested scroll). Con un `FluidGlassSheet` ha i detent, è una lastra di vetro **staccata dai bordi** con gli angoli bassi concentrici allo schermo e a tutta altezza diventa opaca; dal portale resta il foglio di sempre | larghezza ≤ 620 dp (poi sta in mezzo), altezza ≤ 640 dp, angoli alti `FluidRadius.Sheet` (38 dp); si chiude oltre 110 dp di trascinamento o 900 dp/s di spinta |
 | `FullScreen` | una pagina intera: barra in alto (titolo al centro, chiusura di vetro a destra), corpo che **scorre da solo**, `footer` fermo sotto, congedo trascinando | **opaca** (`surface`, o `pageColor`, o `surface` col 8% della tinta): una pagina non galleggia, copre. Da 600 dp di larghezza si stacca: margine 24 dp, larghezza di lettura (760 dp), angoli tutti tondi. Dentro non va una `LazyColumn` |
 | `Expand` | come `Popover` con origine, ma a capsula (il raggio d'inizio è metà dell'altezza dell'ancora) e con la larghezza di un menu (210–300 dp). Senza azioni (e dal portale non ce ne sono) presenta il `content` | per i tasti che «diventano» un pannello |
 | `ContextMenu` | cresce **accanto** all'ancora (mai sopra: la riga sollevata sta lì), senza tinta | come `Expand`. Dal portale è raro: i menu veri passano da `rememberFluidContextMenu` |
 
-Arrivo e uscita (valori da `FluidMotion`): il `Popover`/`Expand` con origine fa una **rincorsa** di 130 ms in ease-in
-fino al 92% del viaggio, poi due molle sottosmorzate di assestamento (X 0,55/300, Y 0,62/300: «due molle diverse
-danno lo squash, due uguali un pallone»); senza origine solo le molle (X 0,62/260, Y 0,74/260). La dissolvenza
-d'entrata è 110 ms (arriva ben prima della geometria, così il contenuto è già leggibile). In chiusura con origine la
-sagoma rientra nella riga con una molla critica rigida (620) mentre la dissolvenza dura 280 ms: **deve atterrare
-prima che finisca**, altrimenti il pannello svanisce per aria e la riga ricompare di colpo. Senza origine: critica a
-420 e dissolvenza 240 ms. Il foglio è la sua molla: nessuna dissolvenza d'entrata, l'alpha vale solo per gli ultimi
-pixel dell'uscita, ed è l'unico a cui il layer aspetta la coda delle molle prima di smontarsi.
+Arrivo e uscita del pop-up con origine o al centro (valori da `FluidMotion`): il `Popover`/`Expand` con origine fa una
+**rincorsa** di 130 ms in ease-in fino al 92% del viaggio, poi due molle sottosmorzate di assestamento (X 0,55/300, Y
+0,62/300: «due molle diverse danno lo squash, due uguali un pallone»); senza origine solo le molle (X 0,62/260, Y
+0,74/260). La dissolvenza d'entrata è 110 ms (arriva ben prima della geometria, così il contenuto è già leggibile). In
+chiusura con origine la sagoma rientra nella riga con una molla critica rigida (620) mentre la dissolvenza dura 280 ms:
+**deve atterrare prima che finisca**, altrimenti il pannello svanisce per aria e la riga ricompare di colpo. Senza
+origine: critica a 420 e dissolvenza 240 ms. Il foglio è la sua molla: nessuna dissolvenza d'entrata, l'alpha vale solo
+per gli ultimi pixel dell'uscita, ed è l'unico a cui il layer aspetta la coda delle molle prima di smontarsi. Dalla
+sorgente i tempi sono quelli di «Presentare dalla sorgente».
 
 **Tastiera e inset.** Il pop-up, il foglio e l'avviso hanno `imePadding()` (solo in basso, così l'origine resta quella
-dell'host): un campo di ricerca nel pannello non finisce sotto la tastiera (3.0.1). Il pop-up rispetta anche la barra
-di navigazione di sistema nel limite basso (3.0.3); il foglio a pagina intera lascia sotto la barra di sistema
-l'ultima cosa (i tasti del `footer`, o la coda del contenuto).
+dell'host): un campo di ricerca nel pannello non finisce sotto la tastiera. Il pop-up rispetta anche la barra di
+navigazione di sistema nel limite basso; il foglio a pagina intera lascia sotto la barra di sistema l'ultima cosa (i
+tasti del `footer`, o la coda del contenuto).
 
 **Trappole.**
 
 - *Il pop-up non si apre e nessuno lo dice*: manca `LocalFluidGlassModalHostState` (o l'host non è composto).
 - *Il pop-up si chiude a scatto, col testo già andato*: è la trappola delle lambda sopra → overload a `item`.
+- *`source = null` non è «come prima»*: nominare `source`, `compactAdaptation` o `mode` sceglie il sovraccarico nuovo,
+  con il popover parallelo e, sotto 600 dp, il foglio. Per il portale di sempre non si nominano.
+- *La sorgente di un tasto della barra* si crea con `rememberFluidToolbarTransitionSource(id)` **nel contesto della pagina
+  che dichiara la barra**, con lo stesso `id` del tasto: altrove non trova niente e il popover si apre dal ripiego.
 - *`origin` è una lambda*, letta mentre il portale è aperto: passa `{ rect }` (uno stato che `fluidExpandOrigin` aggiorna), non un valore
   catturato prima che la riga sia misurata.
 - *`FullScreen` non è vetro* (la tinta, se c'è, resta un velo dell'8%) e scorre da solo: una `LazyColumn` dentro lancia (altezza illimitata
@@ -341,11 +461,13 @@ l'ultima cosa (i tasti del `footer`, o la coda del contenuto).
   immagine in uscita.
 
 **Non usarlo quando.** Per un menu di voci (→ [menu-liquidi.md](menu-liquidi.md): la sequenza, la goccia e la scelta col
-dito non sono nel portale); per un avviso con pulsanti (`FluidAlert`); per un messaggio che scade.
+dito non sono nel portale); per un avviso con pulsanti (`FluidAlert`); per una conferma (`FluidConfirmationDialog`,
+`FluidConfirmSheet`); per un messaggio che scade.
 
 **Versione.** Portale e host dalla 1.5.0; overload a `item` e morph dal rettangolo dell'ancora dalla 1.8; `FullScreen` e
 `footer` dalla 1.32; `pageColor`, colore del testo dell'host e `imePadding` del pop-up dalla 3.0.1; limite alla barra di
-navigazione 3.0.3. Dalla 3.0 ogni pannello passa dalla finestra di Fluid-physics.
+navigazione 3.0.3. Dalla 3.0 ogni pannello passa dalla finestra di Fluid-physics. Dalla 4.0 la sorgente (`source`,
+`compactAdaptation`, `mode`).
 
 ### `Modifier.fluidExpandOrigin`
 
@@ -369,13 +491,14 @@ niente. Costa poco: riporta solo quando la riga si muove.
 per ciò che il modale ha preso in prestito), `dismissTop()` (chiude la più recente). Il resto è interno. Lo si crea con
 `rememberFluidGlassModalHostState()`.
 
-## Fogli e conferme
+## Fogli
 
-### Il foglio di vetro con i detent (`FluidGlassSheet`, 4.0)
+### Il foglio di vetro con i detent (`FluidGlassSheet`)
 
-**Cos'è.** Il foglio di iOS 26/27 (`sheet` + `presentationDetents` + `presentationDragIndicator`): sale dal basso, si
-ferma a delle altezze di riposo (i **detent**), si trascina da ogni punto, e cambia materiale con l'altezza. Sotto c'è il
-portale con `presentation = Sheet`: serve l'host, e senza host non si apre (non va in crash).
+**Cos'è.** Il foglio di iOS 26/27 (`sheet` + `presentationDetents` + `presentationDragIndicator` +
+`presentationBackgroundInteraction`): sale dal basso, si ferma a delle altezze di riposo (i **detent**), si trascina da
+ogni punto, e cambia materiale con l'altezza: vetro staccato dai bordi a metà, pagina opaca in cima. Sotto c'è il portale
+con `presentation = Sheet`: serve l'host, e senza host non si apre (non va in crash).
 
 ```kotlin
 fun FluidGlassSheet(
@@ -388,23 +511,26 @@ fun FluidGlassSheet(
   transition: FluidSheetTransition = FluidSheetTransition.Slide,   // o CrossFade (iOS 27)
   paneTitle: String? = null,
   paneTint: Color? = null,
-  source: FluidTransitionSource? = null,             // 4.0 (F5B.3): il tasto da cui nasce con lo zoom
+  source: FluidTransitionSource? = null,             // il tasto da cui nasce con lo zoom
   content: @Composable ColumnScope.() -> Unit,
 )
-// e la forma a dato: FluidGlassSheet(item: T?, onDismissRequest, …) { item -> … }
+// la stessa con `undimmedUpTo: FluidSheetDetent?` prima del contenuto: la pagina attiva fino a quel detent
+// e la forma a dato, con e senza la soglia: FluidGlassSheet(item: T?, onDismissRequest, …) { item -> … }
 ```
 
-**Uso** (da `RowsAndSheetsDemo`):
+**Uso** (da `presentations/PresentationsChapter.kt` del sample, il foglio con la soglia):
 
 ```kotlin
 FluidGlassSheet(
-  visible = aperto,
-  onDismissRequest = { aperto = false },
+  visible = open == Presentation.GlassSheet,
+  onDismissRequest = sheetClosed,
   detents = remember { setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+  undimmedUpTo = FluidSheetDetent.Medium,
+  onSelectedDetentChange = sheetRested,
   paneTitle = "Luoghi",
 ) {
   Text("Scegli i luoghi", style = MaterialTheme.typography.titleMedium)
-  Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { /* la lista */ }
+  Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { /* la lista */ }
 }
 ```
 
@@ -415,19 +541,21 @@ FluidGlassSheet(
   verso `Large` il rientro si chiude nella metà alta del tratto fra il detent parziale più alto e la cima, e un velo del
   colore della pagina (`surface`: bianco, #1B1B1E sullo scuro) cresce fino a opaco **in continuo** nell'ultimo decimo
   del tratto, inseguendo l'altezza con 60 ms di ritardo: è ciò che fa il foglio di Apple (WWDC25 323, 6:47), dove i lati
-  si aprono dalla metà del tratto e il bianco arriva subito dopo il foglio (vetro fino a 33 ms dopo l'arrivo, pieno a
-  ≈170 ms). I gruppi di vetro dentro il foglio leggono lo stesso materiale, velo incluso. A tutta altezza la pagina
-  sottostante scompare anche dietro le righe dei gruppi.
+  si aprono dalla metà del tratto e il bianco arriva subito dopo il foglio. I gruppi di vetro dentro il foglio leggono lo
+  stesso materiale, velo incluso: a tutta altezza la pagina sottostante non si vede più, nemmeno dietro le righe dei
+  gruppi.
 - **Le altezze.** `Large` arriva fin sotto la barra di stato (6 dp sotto); `Medium` è il 52% della finestra (misurato su
   Apple); `Fraction(f)` è una frazione di `Large`; `Height(dp)` un'altezza fissa del foglio. Tutte fra 64 dp e `Large`.
   Il foglio si apre al detent più basso, o a `selectedDetent`.
+- **L'apertura.** Sale con la molla dell'host (`PopoverOpenY`): 85% a 167 ms, appena oltre a 300, fermo verso 400 ms. Il
+  foglio di Apple (R4 B8, WWDC25 219 4:05,6) è al 95% a 200 ms e supera appena verso 267–300.
 - **Il dito.** Il foglio segue il dito al pixel anche fra un detent e l'altro; sopra il detent più alto tira con
   l'elastico di UIKit; sotto il più basso scende intero e si chiude oltre 110 dp o con un colpo giù oltre 900 dp/s
   partito dalla metà bassa del primo tratto (dalla cima un colpo lo porta al detent più basso, non fuori). Al rilascio
   va al detent più vicino a dove lo slancio lo porterebbe in 0,15 s: salendo con una molla che supera appena (0,8 / 290:
-  95% a 200 ms, punta di 1,5% a 310 ms, sulla curva del foglio di Apple, R4 B8), scendendo con la stessa rigidezza e lo
+  95% a 200 ms, punta di 1,5% a 310 ms, sulla curva del foglio di Apple), scendendo con la stessa rigidezza e lo
   smorzamento critico (il foglio di Apple che si richiude non rimbalza). Un dito che lo riprende mentre si muove ferma la
-  molla dov'è.
+  molla dov'è, anche senza trascinare.
 - **Lo scorrimento.** Il contenuto è una colonna alta quanto il foglio (sopra la barra di navigazione): una lista con
   `Modifier.weight(1f)` ci scorre dentro. Finché il foglio non è al detent più alto, scorrere verso l'alto **alza il
   foglio** invece della lista; a lista in cima, scorrere verso il basso lo abbassa.
@@ -435,30 +563,35 @@ FluidGlassSheet(
   la nasconde (lo spazio in cima resta).
 - **Il dito si vede.** Il foglio premuto si schiarisce attorno al dito (velo bianco al 9%, 6% sullo scuro) e la lente
   si approfondisce (la pressione del materiale), come il foglio di Apple prima di muoversi.
-- **La pagina sotto non si muove.** iOS 26 non fa più rientrare la pagina che presenta il foglio (323 f12225, 284
-  f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce lo scrim dei modali.
+- **La pagina sotto non si muove e non si sfoca.** iOS 26 non fa più rientrare la pagina che presenta il foglio (323
+  f12225, 284 f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce il velo dei fogli, nero al 12% (20%
+  sullo scuro), senza sfocatura. Con `undimmedUpTo` il velo c'è solo sopra la soglia («Modalità e velo», sopra).
 - **In dissolvenza** (`FluidSheetTransition.CrossFade`, iOS 27 `.crossFade`): il foglio compare al suo posto con la
   molla d'entrata letta come opacità. Apple non lo mostra in nessun video: tempi a occhio.
 
 **Il foglio di oggi resta com'era.** Un portale `Sheet` (e `FluidConfirmSheet`, `FluidSheet` con l'host, il foglio data e
-ora) è ancora alto quanto il contenuto e a filo dei bordi: il rientro stringerebbe il contenuto delle app di 10 dp, e un
-contenuto che non scorre e sta vicino al tetto di 640 dp andrebbe a capo e perderebbe il fondo. Il foglio staccato è
-quello di `FluidGlassSheet`.
+ora) è ancora alto quanto il contenuto e a filo dei bordi, con lo scrim di vetro di sempre: il rientro stringerebbe il
+contenuto delle app di 10 dp, e un contenuto che non scorre e sta vicino al tetto di 640 dp andrebbe a capo e perderebbe
+il fondo. Il foglio staccato è quello di `FluidGlassSheet`.
 
-**Non c'è ancora** (chiede l'host o il portale, che sono di F5B.1): `undimmedUpTo` (niente scrim fino a un detent, la
-pagina sotto toccabile).
-
-#### Il foglio che nasce dal tasto (`source`, 4.0, F5B.3)
+#### Il foglio che nasce dal tasto (`source`)
 
 `navigationTransition(.zoom)` su un foglio, con `matchedTransitionSource` sul tasto (anche della barra: UIKit
-`preferredTransition = .zoom { _ in barButtonItem }`).
+`preferredTransition = .zoom { _ in barButtonItem }`). Da `ZoomDemo.kt` del sample, la scena «Sposta» di Mail:
 
 ```kotlin
-val sposta = rememberFluidToolbarTransitionSource("sposta")      // nel contesto della pagina che dichiara la barra
-FluidScreen(title = "Messaggio", toolbar = {
-  group("azioni") { button("sposta", FluidIcons.Folder, "Sposta", onClick = { aperto = true }) }
-}) { … }
-FluidGlassSheet(visible = aperto, onDismissRequest = { aperto = false }, paneTitle = "Sposta", source = sposta) { … }
+val sheetSource = rememberFluidToolbarTransitionSource(ZoomSheetButton)   // nel contesto della pagina che dichiara la barra
+FluidScreen(
+  title = "Zoom",
+  toolbar = {
+    group("azioni") {
+      button(ZoomSheetButton, FluidIcons.Folder, "Sposta", onClick = { sheet = true })
+    }
+  },
+) { /* la griglia */ }
+FluidGlassSheet(visible = sheet, onDismissRequest = { sheet = false }, paneTitle = "Sposta", source = sheetSource) {
+  /* le cartelle */
+}
 ```
 
 - **Il vetro cresce dal tasto.** La sagoma va dal riquadro della sorgente (per un tasto della barra la capsula del suo
@@ -470,16 +603,13 @@ FluidGlassSheet(visible = aperto, onDismissRequest = { aperto = false }, paneTit
   e **sfocato**: σ fino a 6 dp, nitido a ≈300 ms (`FluidSheetZoomSharpMillis`); alla chiusura torna sfocato mentre rientra.
 - **Il velo** di un foglio che a riposo è opaco (`Large`) cresce **mentre il vetro cresce**, fra il 45% e l'85% del
   viaggio (`fluidSheetZoomVeil`): vetro fino a ≈100 ms, metà a ≈133, quasi pieno a ≈167, come Apple (284 f25411–f25413).
-  La fascia del foglio trascinato (l'ultimo decimo dell'altezza, F5B.2) qui lo farebbe bianco solo a ≈400 ms. Un foglio
-  a un detent parziale resta vetro.
+  Un foglio a un detent parziale resta vetro.
 - **Il tasto è consumato** finché il foglio è in scena: la sua faccia non si disegna; il vetro del gruppo resta. Rinasce
   quando il foglio esce (l'ultimo fotogramma del vetro è sul tasto).
-- **La pagina dietro** si scurisce con lo scrim dei modali. Apple la scurisce e **non la sfoca**; lo scrim dell'engine la
-  smeriglia appena (3,75 dp) per tutti i modali: è dell'host e dello scrim (F5B.1, contestuale), non del foglio.
+- **La pagina dietro** si scurisce col velo dei fogli, senza sfocarla, come Apple.
 - **Il ripiego.** `source` nullo, `FluidSheetTransition.CrossFade`, le animazioni ridotte, o una sorgente che
   all'apertura non si trova: il foglio sale dal basso come sempre. Una sorgente che sparisce a foglio aperto: il vetro
   rientra dove l'aveva trovata l'ultima volta.
-
 
 ### `FluidSheetScaffold`
 
@@ -565,7 +695,7 @@ fun FluidConfirmSheet(
 )
 ```
 
-**Uso** (da `RowsAndSheetsDemo`):
+**Uso** (da `catalog/RowsAndSheetsDemo.kt`):
 
 ```kotlin
 FluidConfirmSheet(
@@ -573,7 +703,7 @@ FluidConfirmSheet(
   onDismissRequest = { overlay = null },
   title = "Eliminare 12 elementi?",
   message = "Non si può annullare.",
-  icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+  icon = { FluidIcon(FluidIcons.Delete, contentDescription = null) },
   destructive = true,
   confirmLabel = "Elimina dal telefono",
   onConfirm = { overlay = null },
@@ -621,14 +751,15 @@ della 3.x, contenitore al 92%, scrim e dipinto di prima, nessuna ombra ([vetro.m
 `FluidGrabber` è la maniglia: capsula 36×5 dp al 18% di `onSurface` (quella di Material è quasi il doppio, ed è la prima
 cosa che tradisce un foglio). Il foglio di vetro la mette da solo.
 
-## Avvisi
+## Avvisi e conferme
 
 ### `FluidAlert` e `FluidAlertAction`
 
 **Cos'è.** Un avviso alla UIKit: centrato, stretto, **fatto di righe sottili e non di spazio** — i pulsanti sono celle di
 una griglia che arriva ai bordi della card, non pillole in un angolo (Material mette i pulsanti in basso a destra, e quella
 sola differenza basta a collocare un dialogo sulla piattaforma sbagliata). Due azioni affiancate, tre o più (e una sola)
-in pila, perché a tre le etichette non stanno più su una riga.
+in pila, perché a tre le etichette non stanno più su una riga. Con una sorgente esce dall'elemento che lo apre e vi
+rientra («Presentare dalla sorgente»).
 
 ```kotlin
 @Composable
@@ -641,6 +772,12 @@ fun FluidAlert(
   inHost: Boolean = true,
   content: (@Composable ColumnScope.() -> Unit)? = null,
 )
+// lo stesso con `source: FluidTransitionSource?` prima del contenuto, e la forma a dato:
+fun <T : Any> FluidAlert(
+  item: T?, onDismissRequest: () -> Unit, title: (T) -> String, modifier: Modifier = Modifier,
+  message: ((T) -> String?)? = null, actions: (T) -> List<FluidAlertAction>, inHost: Boolean = true,
+  source: FluidTransitionSource? = null, content: (@Composable ColumnScope.(T) -> Unit)? = null,
+)
 
 data class FluidAlertAction(
   val label: String, val onClick: () -> Unit,
@@ -649,7 +786,23 @@ data class FluidAlertAction(
 )
 ```
 
-**Uso** (da `MenusDemo`): l'avviso esiste finché è composto.
+**Uso**, dalla riga che lo apre (da `presentations/PresentationsChapter.kt`: «Avviso dal tasto» e «Avviso al centro» sono
+lo stesso avviso, con e senza sorgente):
+
+```kotlin
+// La riga è la sorgente: `Modifier.fluidTransitionSource("alert", namespace, shape)` sulla riga,
+// `FluidTransitionSource("alert", namespace)` qui.
+FluidAlert(
+  item = open?.takeIf { it == Presentation.AnchoredAlert || it == Presentation.CenteredAlert },
+  onDismissRequest = state::close,
+  title = { "Modifiche non salvate" },
+  message = { "Vuoi continuare a modificare questa voce?" },
+  source = state.alertSource.takeIf { open == Presentation.AnchoredAlert },
+  actions = { listOf(FluidAlertAction("Continua", state::close, FluidAlertAction.Emphasis.Preferred)) },
+)
+```
+
+e la forma di sempre, che esiste finché è composta (da `MenusDemo`):
 
 ```kotlin
 if (mostra) {
@@ -671,17 +824,18 @@ if (mostra) {
 
 **Comportamento.**
 
-- **Composto = aperto.** Non c'è un `visible`: chi lo toglie dalla composizione lo chiude, **e nell'host l'uscita si vede lo
-  stesso, fino in fondo**: la voce si ritira (`retire`) invece di sparire e la toglie il layer a uscita finita
-  (`finishExit`). Prima, con `unregister`, un avviso tolto spariva di colpo, testo e vetro insieme.
+- **Composto = aperto** (la forma di sempre): non c'è un `visible`, chi lo toglie dalla composizione lo chiude, **e
+  nell'host l'uscita si vede lo stesso, fino in fondo**: la voce si ritira (`retire`) invece di sparire e la toglie il layer
+  a uscita finita (`finishExit`). La forma a `item` è aperta quando il dato c'è e lo tiene per l'uscita.
 - **Nessun pulsante chiude da solo**: ogni `onClick` deve togliere l'avviso. Scrim e back chiamano `onDismissRequest`
   (come il `Dialog`).
-- **Nell'host (3.0)**: vetro vero (`panelOptics`, la pagina rifratta), arrivo alla iOS (la sagoma parte dal pannello gonfiato
-  dell'8% e si posa con `FluidMotion.snappy()`, il materiale entra in 140 ms, il contenuto la segue in scala uniforme
-  0,9–1,1), uscita in 160 ms (la sagoma scende al 96% mentre tutto si spegne). **I pulsanti hanno la goccia**: la goccia
-  segue il dito di pulsante in pulsante (in orizzontale fra due affiancati, in verticale nella pila), un `Tick` per
-  pulsante attraversato, un `Tap` alla scelta, poi l'azione. Si sceglie col dito che ha toccato: tocca, trascina,
-  rilascia su un pulsante (stessa regola dei menu).
+- **Nell'host**: vetro vero (`panelOptics`, la pagina rifratta). **Dalla sorgente** il viaggio in tre tempi e il velo
+  senza sfocatura di «Presentare dalla sorgente»; **senza** l'arrivo alla iOS di sempre (la sagoma parte dal pannello
+  gonfiato dell'8% e si posa con `FluidMotion.snappy()`, il materiale entra in 140 ms, il contenuto la segue in scala
+  uniforme 0,9–1,1), uscita in 160 ms (la sagoma scende al 96% mentre tutto si spegne), con lo scrim di vetro dei portali.
+  **I pulsanti hanno la goccia**: la goccia segue il dito di pulsante in pulsante (in orizzontale fra due affiancati, in
+  verticale nella pila), un `Tick` per pulsante attraversato, un `Tap` alla scelta, poi l'azione. Si sceglie col dito che
+  ha toccato: tocca, trascina, rilascia su un pulsante (stessa regola dei menu).
 - **Misure**: larghezza 280 dp (meno 24 dp di margine per lato su schermi stretti), altezza al più l'86%; il messaggio
   scorre nello spazio che i pulsanti lasciano (**i pulsanti sono l'unica uscita**, e non devono mai finire fuori
   dallo schermo: un changelog lungo spingeva i pulsanti fuori e l'avviso diventava una trappola). Altezza minima di un
@@ -697,10 +851,66 @@ if (mostra) {
 non affiancata. `content` è una lambda composable (vedi sopra). Un avviso nell'host sta **sotto** un menu aperto dopo di lui e
 sopra una voce aperta prima.
 
-**Non usarlo quando.** C'è un modulo (→ foglio), o una decisione da accompagnare con un elenco (→ `FluidConfirmSheet` con
-`content`).
+**Non usarlo quando.** C'è un modulo (→ foglio), una decisione da accompagnare con un elenco (→ `FluidConfirmSheet` con
+`content`), o una sola scelta che conferma un comando appena toccato (→ `FluidConfirmationDialog`).
 
-**Versione.** `inHost`, il vetro vero, la goccia dei pulsanti e l'uscita che si vede anche dopo la rimozione: 3.0.0.
+**Versione.** `inHost`, il vetro vero, la goccia dei pulsanti e l'uscita che si vede anche dopo la rimozione: 3.0.0. La
+sorgente e la forma a `item`: 4.0.
+
+### `FluidConfirmationDialog`
+
+**Cos'è.** Il `confirmationDialog` di SwiftUI (e l'*action sheet* di UIKit con la sorgente): una conferma compatta che
+nasce dal comando appena toccato («Elimina», la X di un modulo) e **gli sta sopra**. Le varianti «legate a un elemento» di
+iOS 27 sono legate a un dato e non cambiano né aspetto né posto: qui sono la forma a `item`.
+
+```kotlin
+@Composable
+fun FluidConfirmationDialog(
+  visible: Boolean,
+  onDismissRequest: () -> Unit,
+  source: FluidTransitionSource? = null,
+  title: String? = null,
+  actions: List<FluidAlertAction>,
+  cancelLabel: String = "Annulla",
+)
+
+@Composable
+fun <T : Any> FluidConfirmationDialog(
+  item: T?, onDismissRequest: () -> Unit, source: FluidTransitionSource? = null,
+  title: ((T) -> String?)? = null, cancelLabel: String = "Annulla", actions: (T) -> List<FluidAlertAction>,
+)
+```
+
+**Uso** (da `presentations/PresentationsChapter.kt`: la riga «Elimina» porta `Modifier.fluidTransitionSource("delete",
+namespace, shape)`):
+
+```kotlin
+FluidConfirmationDialog(
+  item = itemName.takeIf { open == Presentation.InlineConfirmation },
+  onDismissRequest = state::close,
+  source = state.deleteSource,
+  title = { "Eliminare «$it»?" },
+  actions = { shown ->
+    listOf(FluidAlertAction("Elimina", { onResult("Eliminata «$shown»") }, FluidAlertAction.Emphasis.Destructive))
+  },
+)
+```
+
+**Comportamento.**
+
+- **Con una sorgente posata** la conferma si posa **sopra** il comando, centrata su di lui (12 dp sopra, 24 dp dai bordi,
+  280 dp di larghezza), ed è un compito parallelo: nessun velo, la pagina resta attiva, **nessun Annulla** (si annulla
+  toccando fuori, e quel tocco arriva anche alla pagina). La goccia resta ferma sul comando per 133 ms prima di crescere.
+- **Senza sorgente** (o con una che all'apertura non si trova) è al centro, modale, con Annulla (`cancelLabel`) in fondo.
+- **La scelta chiude e poi agisce**: ogni azione abilitata chiama `onDismissRequest` e poi il suo `onClick`. Le azioni
+  distruttive vanno in cima.
+- La forma a `item` tiene il dato per tutto il ritorno nella sorgente.
+- Fuori dall'host è il `Dialog` di piattaforma, con le azioni e Annulla.
+
+**Non usarlo quando.** La decisione ha bisogno di un corpo o di un elenco degli effetti (→ `FluidConfirmSheet`), o di
+una riga di testo (→ `FluidPromptAlert`).
+
+**Versione.** 4.0.
 
 ### `FluidPromptAlert`
 
@@ -857,7 +1067,8 @@ o fusi dell'altro utente.
 ## Token, costanti, Defaults
 
 Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620/360 dp, 78% di altezza, 38 dp del foglio,
-110 dp e 900 dp/s del congedo) sono `private` nel file: **non sono API**. Quello che un'app può leggere:
+110 dp e 900 dp/s del congedo, i 600 dp della finestra compatta, i 12 e 24 dp della conferma) sono `private` o `internal`
+nei loro file: **non sono API**. Quello che un'app può leggere:
 
 | cosa | valore |
 |---|---|
@@ -868,9 +1079,14 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
 | `FluidMotion.PopoverFadeInMillis` / `PopoverFadeOutMillis` / `PopoverWindowFadeOutMillis` | 110 / 240 / 280 ms |
 | `FluidMotion.PopoverWindowRunUp`, `PopoverWindowRunUpEnd` | 130 ms ease-in, fino al 92% del viaggio |
 | `FluidMotion.PopoverWindowSettleX` / `PopoverWindowSettleY` | molle (0,55, 300) / (0,62, 300) |
-| `FluidMotion.PopoverOpenX` / `PopoverOpenY` | molle (0,62, 260) / (0,74, 260), per il pop-up senza origine |
+| `FluidMotion.PopoverOpenX` / `PopoverOpenY` | molle (0,62, 260) / (0,74, 260), per il pop-up senza origine e per il foglio che sale |
 | `FluidMotion.PopoverWindowExit` / `PopoverExit` | critiche, 620 / 420 |
 | `FluidMotion.SheetSettle` | il foglio trascinato che torna: (0,9, 500) |
+| `FluidMotion.MenuButtonGatherEnd`, `MenuButtonFirstRise` | dove finisce la raccolta della sorgente e comincia la risalita, sulla strada del viaggio: i tre tempi del menu, che popover, avviso e conferma riusano ([menu-liquidi.md](menu-liquidi.md)) |
+
+I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDetentSpringDown`, `FluidSheetVeilLagMillis`
+60, `FluidSheetZoomSpring`, `FluidSheetZoomSharpMillis`) e i tempi del viaggio dalla sorgente (`fluidModalGeometrySpec`,
+`fluidModalFocusSpec`) sono interni, con la loro fonte nel KDoc.
 
 ## Cosa è verificato dai test
 
@@ -878,6 +1094,12 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
   la più **recente**; una voce chiusa non è «presente»; `retire` chiude e mantiene la voce fino a `finishExit`.
 - `FluidGlassModalContentTest`: `Expand` con contenuto e senza azioni disegna il contenuto (non un pannello vuoto); un
   pop-up e un foglio disegnano sempre il contenuto; foglio e pagina intera arrivano dal basso, il resto nasce da un'ancora.
+- `FluidPopoverKeyboardTest` (sample, Robolectric): il pop-up si posa sopra la tastiera; la conferma con la sorgente sta
+  sopra il comando, un tocco fuori la chiude e arriva alla pagina, senza sorgente è al centro con Annulla.
+- `F5b1ModalTraceTest` (engine-ui): il popover si adatta a foglio solo se richiesto; la conferma sta sopra la sorgente e al
+  centro senza; il velo segue la posizione del foglio nei due versi del trascinamento; faccia e inchiostro non sono mai
+  visibili insieme e la forma torna allo stesso contorno; la goccia della conferma resta ferma fino a 133 ms e la lente
+  mette a fuoco dopo quella del popover. Scrive le sei tracce di `tools/glassbench/traces/f5b-1`.
 - `FluidSheetScaffoldLayoutTest` e `FluidRowsAndSheetsTest` (sample, Robolectric): corpo = quello che resta dopo testata e
   tasti; tasti in vista sotto un corpo più lungo del foglio; larghezza massima; conferma e annulla sono due cose;
   il tasto invio conferma solo se valido; un valore fuori misura mostra la frase e tiene spento il tasto.
@@ -885,32 +1107,35 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
 - `FluidContextLiftTest` (engine-ui): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
   sono più scuri, in ordine e sotto il tetto della sfocatura; la manopola `ctxscrim`; la geometria del sollevamento (vedi
   [menu-liquidi.md](menu-liquidi.md)).
-- `FluidPopoverKeyboardTest`: il pop-up si posa sopra la tastiera. `FluidHostContentColorTest`: il testo negli host ha il
-  colore della superficie sul tema scuro.
+- `FluidHostContentColorTest`: il testo negli host ha il colore della superficie sul tema scuro.
 - `FluidMenuHandOffTest` (sample): l'avviso sta nell'host senza finestre di piattaforma, esce anche dopo la rimozione,
   un suo pulsante sceglie con un `Tap` e poi l'azione.
 - `AllGlassTest`: la chiusura della pagina intera è un tasto di vetro e chiude; con un host `FluidSheet` è il foglio di
   vetro e dice «chiuso» una volta sola, dopo l'uscita.
-
+- `FluidGlassSheetTest` (`engine-ui`): altezze dei detent, elastico e discesa intera, rilascio e chiusura, «grandezza»
+  continua, il velo che insegue, rientro, angoli concentrici, dissolvenza, le due molle (salita e discesa) sulle curve di
+  Apple. `FluidGlassSheetUiTest` (`sample`): la dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano,
+  il dito lo porta in cima e lo chiude, un dito fermo ferma la molla, il foglio di oggi resta com'era. Le tracce del banco:
+  `F5b2SheetTraceTest`.
+- Lo zoom dalla sorgente: `FluidZoomTest` (`engine-ui`: sagome, dito, contenuto, raggi delle sorgenti, i numeri del foglio
+  dal tasto), `FluidPageZoomTest` (`engine-ui`: la macchina delle pagine con la sorgente: avvio dalla sorgente, nascosta e
+  rinata, ripiego, gesto interrotto e ripreso, pop che inverte il push, il ritorno sulla molla di Apple, `Slide` e
+  `ShrinkSlide` invariate), `FluidZoomUiTest` (`sample`: la pagina nasce dentro la card, il foglio nasce dal tasto della
+  barra), le tracce `F5b3ZoomTraceTest` (`tools/glassbench/traces/f5b-3`).
+- **Le prove contro Apple** (`F5b4PresentationTraceTest`, `tools/glassbench/traces/f5b-4`): popover, conferma e avviso
+  all'andata e al ritorno accanto ai fotogrammi di WWDC25 284 e 323; il foglio che sale (R4 B8), a tutta altezza (323), con
+  la soglia di oscuramento, trascinato e interrotto, e dal tasto (284), con il velo dei fogli di oggi; si rendono con
+  `glassmotion.py` (`pair`, `first`, `last`, `curve`). Lo zoom fra pagine si rende dalle tracce di F5B.3.
 - `FluidDrawerRulesTest` (`engine-ui`, 12) e `FluidDrawerTest` (`sample`, 17; 3.1.0): la larghezza (85% al massimo, mai negativa), il rilascio con la regola del back delle pagine (lento = distanza, spinta = chiude, contraria = tiene
   aperto), lo stato che salva solo «aperto o chiuso»; poi il comportamento: si apre col tasto e si chiude toccando la pagina oscurata, il back chiude il pannello e non la pagina, **menu → pannello → selezione → pagina**, riaperto torna
   davanti alla selezione, il dito lo segue 1:1 (anche dalla pagina oscurata) e verso destra non si muove, **nessun gesto dal bordo lo apre**, movimento ridotto, TalkBack (pagina nascosta, annuncio, «chiudi»), ricreazione, tolto da aperto.
-- `FluidGlassSheetTest` (`engine-ui`, 14): altezze dei detent, elastico e discesa intera, rilascio e chiusura, «grandezza»
-  continua, il velo che insegue, rientro, angoli concentrici, dissolvenza, le due molle (salita e discesa) sulle curve di Apple. `FluidGlassSheetUiTest` (`sample`, 4): la
-  dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano, il dito lo porta in cima e lo chiude, il
-  foglio di oggi resta com'era. Le tracce del banco: `F5b2SheetTraceTest`.
-- Lo zoom dalla sorgente (F5B.3): `FluidZoomTest` (`engine-ui`, 10: sagome, dito, contenuto, raggi delle sorgenti, i numeri
-  del foglio dal tasto), `FluidPageZoomTest` (`engine-ui`, 8: la macchina delle pagine con la sorgente: avvio dalla sorgente,
-  nascosta e rinata, ripiego, gesto interrotto e ripreso, pop che inverte il push, il ritorno che finisce all'arrivo,
-  `Slide` e `ShrinkSlide` invariate),
-  `FluidZoomUiTest` (`sample`, 2: la pagina nasce dentro la card, il foglio nasce dal tasto della barra), le tracce
-  `F5b3ZoomTraceTest` (`tools/glassbench/traces/f5b-3`).
 - `FluidDateTimeMathTest` (`engine-ui`, 6) e `FluidDateTimeSheetTest` (`sample`, 10): salti e ripetizioni dell'ora legale, anni bisestili e confini di mese, primo giorno della settimana per lingua, limiti e riverifica del passato alla
   conferma, giorni locali a cavallo dell'ora legale e della mezzanotte, minuto iniziale dentro i limiti; la conferma una volta sola con la zona, l'annullo che non conferma, l'orologio riletto alla conferma, il foglio a testo grande, scuro,
   movimento ridotto e inglese, il back che annulla, lo stato che sopravvive al ripristino.
 **Non è provato da nessun test**: il vetro (gli host dei test hanno fondale nullo), i fotogrammi dell'arrivo e
-dell'uscita, la goccia dei pulsanti dell'avviso sul vetro, il trascinamento fra i pulsanti, la tastiera sopra un
-`FluidPromptAlert` nell'host. Si guardano in mano.
+dell'uscita sul dispositivo (il banco li rende dalle funzioni, non dal disegno vero), la goccia dei pulsanti dell'avviso
+sul vetro, il trascinamento fra i pulsanti, la tastiera sopra un `FluidPromptAlert` nell'host, il back predittivo durante
+un viaggio dalla sorgente. Si guardano in mano.
 
 ## Dove guardare
 
@@ -918,21 +1143,25 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 
 | file | cosa c'è dentro |
 |---|---|
-| `FluidGlassModalPortal.kt` | il lato di chi dichiara: `FluidGlassModalPresentation`, `FluidContextAction`, il portale (due overload), `fluidExpandOrigin` |
-| `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`) |
-| `FluidGlassModalScrim.kt` | lo scrim (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`, in vigore `FluidContextScrimTuning`), il tetto della sfocatura |
-| `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio, i numeri privati del suo moto |
-| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici) e i suoi numeri (4.0, F5B.2); lo zoom dal tasto: sagoma, sfocatura, molla (F5B.3) |
-| `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito, lo zoom dal tasto) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
-| `FluidTransitionSource.kt` | le sorgenti delle transizioni (F5A.1) e la sorgente consumata (F5B.3) |
+| `FluidGlassModalPortal.kt` | il lato di chi dichiara: `FluidGlassModalPresentation`, `FluidCompactAdaptation`, `FluidPresentationMode`, `FluidContextAction`, il portale (con e senza sorgente, a `visible` e a `item`), `fluidExpandOrigin` |
+| `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`: sorgente, modo, conferma in linea, soglia del foglio), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`), il velo dei fogli e delle presentazioni dalla sorgente (`FluidPresentationScrim`), il tocco fuori da un compito parallelo |
+| `FluidGlassModalScrim.kt` | lo scrim di vetro (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`, in vigore `FluidContextScrimTuning`), il tetto della sfocatura |
+| `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio; il viaggio dalla sorgente (`FluidModalSourceJourney`: raccolta, faccia e inchiostro, lente, tempi) e i numeri privati del moto |
+| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici, soglia) e i suoi numeri; lo zoom dal tasto: sagoma, sfocatura, molla |
+| `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito, soglia, lo zoom dal tasto) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
+| `FluidTransitionSource.kt` | le sorgenti delle transizioni e la sorgente consumata |
+| `FluidConfirmationDialog.kt` | `FluidConfirmationDialog` (con e senza dato) e la sua posa sopra il comando (`fluidConfirmationFrame`) |
 | `FluidLiftedPreview.kt` | la card sollevata del menu contestuale (`FluidLiftedPreview`): partenza dalla riga sotto il dito, l'immagine sulla sagoma (`fluidLiftContentMap`), l'anteprima personalizzata e lo scambio attraverso la sfocatura |
 | `FluidContextMenu.kt` | il menu contestuale dal lato di chi lo apre: `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento per l'host (`FluidContextLift`) e la sua geometria pura (`fluidLiftedFrame`, `fluidContextPreviewFrame`, `fluidLiftStartFraction`, `fluidContextPreviewRadii`) |
-| `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso (`FluidAlertLayer`, la card, i pulsanti con la goccia) |
-| `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert`, `FluidAlertAction`, il `Dialog` di ripiego |
+| `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso e la conferma (`FluidAlertLayer`, la card, i pulsanti con la goccia, il viaggio dalla sorgente) |
+| `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert` (con e senza sorgente, a dato), `FluidAlertAction`, il `Dialog` di ripiego |
 | `FluidSheetScaffold.kt` | `FluidSheetScaffold`, `FluidSheetScaffoldDefaults`, `FluidConfirmSheet`, l'aritmetica pura del budget |
 | `FluidPromptAlert.kt` | `FluidPromptAlert`, `FluidPromptValidation`, `fluidPromptNotBlank` |
 | `FluidMotion.kt` | i token (`Popover*`, `SheetSettle`, e i menu: vedi [menu-liquidi.md](menu-liquidi.md)) |
 
-Il sample che li usa: `MaterialTab.kt` (portali con e senza origine, foglio), `catalog/RowsAndSheetsDemo.kt` (conferme,
-prompt e i fogli di vetro con i detent), `catalog/MenusDemo.kt` (i menu in quattro capitoli: dal tasto e dal gruppo, la struttura, il contestuale con l'anteprima e la forma, la riga di debug dello sfondo; in fondo l'avviso a due e a tre pulsanti), `catalog/AllGlassDemo.kt` (la pagina intera),
+Il sample che li usa: `catalog/RowsAndSheetsDemo.kt` («Righe e fogli», in tre capitoli: le righe, le presentazioni, i
+fogli e gli avvisi di sempre) con `presentations/PresentationsChapter.kt` (le presentazioni nell'ordine: il popover dal tasto
+della barra, la conferma sopra «Elimina», l'avviso con e senza sorgente, i fogli di vetro coi detent, la soglia e la
+dissolvenza, l'ingresso dello zoom), `ZoomDemo.kt` (le card che diventano pagine e il foglio «Sposta» dal tasto),
+`MaterialTab.kt` (portali con e senza origine, foglio), `catalog/MenusDemo.kt` (i menu in quattro capitoli: dal tasto e dal gruppo, la struttura, il contestuale con l'anteprima e la forma, la riga di debug dello sfondo; in fondo l'avviso a due e a tre pulsanti), `catalog/AllGlassDemo.kt` (la pagina intera),
 `GalleryActivity.kt` (la radice con i tre host).

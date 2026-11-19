@@ -244,6 +244,11 @@ class FluidPageHostState internal constructor() {
 
   internal val stackSize: Int get() = processed.size
 
+  /** Un'aggiunta in coda da fermo può condividere la composizione che ha ricevuto la nuova pila. */
+  internal fun canComposePush(stack: List<Any>): Boolean =
+    initialized && !isMoving && width > 0f && processed.isNotEmpty() && stack.size == processed.size + 1 &&
+      stack.last() !in processed && processed.indices.all { processed[it] == stack[it] }
+
   /** I controlli seguono subito la pila richiesta, anche mentre la pagina uscente resta disegnata. */
   internal val interactionPage: Any? get() = processed.lastOrNull()
 

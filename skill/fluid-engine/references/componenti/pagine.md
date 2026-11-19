@@ -264,6 +264,15 @@ effettivamente comparsa. Se arriva un pop prima di allora, l'host conserva la pa
 `[R,A] → [R,A,B] → [R]` esce A. Con movimento ridotto le pagine si incrociano sul posto. Durante il push l'host tiene
 la pagina di partenza opaca e avvia la dissolvenza quando può disegnare quella di arrivo.
 
+**Preparare la destinazione.** Se la pagina conosce già il prossimo dettaglio, può passare la sua chiave a
+`FluidPageHost(precomposePage = dettaglio, …)`. Dopo un fotogramma a riposo l'host compone e misura la
+destinazione con i vincoli reali. Le righe visibili di una lista lazy hanno così già la propria composizione
+quando arriva il tocco. La pagina resta senza posizionamento, con ciclo di vita `CREATED`. Se la pila apre
+quella chiave, la stessa istanza viene posata. Una previsione sostituita viene eliminata. Gli effetti di
+composizione possono eseguire lavoro già in preparazione: legare le azioni che richiedono l'apertura al ciclo
+di vita o a `isFront`. Le schede, Expand e il movimento ridotto seguono il loro percorso dedicato.
+Con una destinazione sconosciuta l'host compone il push ordinario da fermo nella composizione che riceve la pila.
+
 **Campi.**
 
 | campo | significato |

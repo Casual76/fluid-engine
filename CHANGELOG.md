@@ -10,6 +10,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - Menu Liquid dal tasto e dal gruppo. Le voci seguono il bordo della goccia, il congedo in volo conserva il contorno e il gruppo restituisce insieme capsula e icone. Il dito che apre può scegliere al rilascio.
 
+- Zoom dalla sorgente. Il titolo grande della pagina, che la barra disegna sopra le pagine, segue la dissolvenza della sua pagina: al ritorno se ne va con lei e la card è sola verso 200 ms, col tasto e col dito; all'apertura compare con la pagina. Prima restava nitido sulla card fino all'arrivo. Il ritaglio dei titoli nella sagoma tiene conto della barra di stato, così il titolo della pagina sotto non sporge più sopra quella che si apre. Nessuna firma pubblica cambia.
+
 - Liquid riusa il filtro di sfocatura al cambio della mescola o della tinta e aggiorna la fotografia del corpo quando cambiano i suoi uniform.
 
 - Liquid Glass (F7.4). Con una lastra Liquid nella prima schermata i suoi programmi si compilano fuori schermo prima del primo disegno, su un filo a parte. La sonda dello sfondo rallenta fino a una lettura ogni 480 ms quando le letture tornano uguali mentre la pagina si ridisegna altrove. Il bordo dello scorrimento tiene la taglia della cattura durante la piega della tab bar, non fa passate a intensità zero e in basso ne fa una sola. Nessun cambio a vista né di firma; la metà risoluzione del bordo resta spenta, da scegliere.

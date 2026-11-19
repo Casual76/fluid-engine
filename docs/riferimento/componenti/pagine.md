@@ -405,7 +405,11 @@ suoi tasti si trasformano in quelli della pagina d'arrivo sul tempo del piano fl
 basso dichiarata (F4B.1) pure. Apple fa così: in UIKit la barra è del controller di navigazione e non entra nello zoom, che
 porta solo il contenuto; in iOS 26 i suoi tasti di vetro si trasformano sul posto. Il **titolo grande** invece è
 contenuto: quello della pagina che arriva viaggia con la sagoma, in scala, e si vede solo dentro; quello della pagina
-sotto resta dov'è, coperto dove la sagoma lo copre. Il vetro della barra rifrange la pagina sotto finché la sagoma non
+sotto resta dov'è, coperto dove la sagoma lo copre. Lo disegna la barra, sopra le pagine, ma segue la **dissolvenza della
+sua pagina** (`FluidPageHostState.zoomContentAlpha`, la stessa curva del contenuto): all'apertura compare con la pagina e
+non sopra la card, al ritorno se ne va con lei e la sagoma è la sola card verso 200 ms, col tasto e col dito. Il ritaglio
+è nelle coordinate del titolo, che sta sotto la barra di stato (corr-s4-zoom: prima il «Faro» restava nitido sulla card
+fino all'arrivo, ≈480 ms, e il titolo della griglia sporgeva sopra la sagoma per l'altezza della barra di stato). Il vetro della barra rifrange la pagina sotto finché la sagoma non
 arriva sotto la riga dei controlli (la registrazione della pagina sopra è intera e non scalata: impilata prima, la barra
 avrebbe mostrato la pagina d'arrivo sopra la griglia).
 

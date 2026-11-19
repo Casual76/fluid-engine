@@ -172,6 +172,12 @@ class FluidPageHostState internal constructor() {
   /** Dove sta l'host nella radice Compose: le sorgenti dello zoom danno il loro riquadro lì. */
   internal var hostOriginInRoot = Offset.Zero
 
+  /**
+   * Le coordinate dell'host, quelle della sagoma dello zoom ([zoomShape]). Chi disegna in un riquadro suo, come il titolo
+   * della barra ancorata che sta sotto la barra di stato, ci riporta la sagoma (corr-s4-zoom).
+   */
+  internal var hostCoordinates: LayoutCoordinates? = null
+
   // --- Lo zoom dalla sorgente (4.0, F5B.3) ------------------------------------------------------------------------
 
   /**
@@ -358,6 +364,19 @@ class FluidPageHostState internal constructor() {
     val shape = zoomShape() ?: return 0f
     return FluidZoom.crossfade(shape, fullZoomShape(), journey.source)
   }
+
+  /**
+   * Quanto si vede adesso il contenuto della pagina che ha il ruolo [role]: `1 − zoomCrossfadeAlpha` per la pagina sopra
+   * durante uno zoom (lo stesso numero del `saveLayer` con cui la pagina sbiadisce dentro la sagoma), 1 altrimenti.
+   *
+   * È la curva di **tutto** ciò che è della pagina, anche di quello che non disegna lei: il titolo grande lo disegna la
+   * barra dell'host, sopra le pagine, e lo sbiadisce con questo numero in un `saveLayer` grande quanto la sagoma, come la
+   * pagina. Fino a corr-s4-zoom la barra lo ritagliava dentro la sagoma ma non lo sbiadiva, e
+   * sul Tab S9 il «Faro» nero restava sulla card fino all'arrivo (≈480 ms) mentre il resto della pagina se n'era andato
+   * verso 200 ms, come in Apple (S4, NO 4). Con la stessa curva la pagina se ne va intera, titolo compreso, col tasto, col
+   * dito e all'apertura.
+   */
+  internal fun zoomContentAlpha(role: PageRole): Float = if (role == PageRole.Upper) 1f - zoomCrossfadeAlpha() else 1f
 
   /** La fotografia della sorgente della pagina sopra, se la variante l'ha chiesta e la sorgente si è già registrata. */
   internal fun zoomSnapshot(): FluidTransitionSnapshot? = upper?.let { consumed[it] }?.snapshot
@@ -1011,6 +1030,7 @@ class FluidPageHostState internal constructor() {
     height = coordinates.size.height.toFloat()
     val bounds = coordinates.boundsInWindow()
     hostOriginInRoot = coordinates.positionInRoot()
+    hostCoordinates = coordinates
     hostLeftInWindow = bounds.left
     hostRightInWindow = bounds.right
     val root = view.rootView

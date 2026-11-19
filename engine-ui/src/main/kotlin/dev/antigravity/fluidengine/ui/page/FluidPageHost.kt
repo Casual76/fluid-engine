@@ -506,6 +506,9 @@ private class PageScopeImpl(
  * della sorgente, che può arrivare al fotogramma dopo): lì la pagina, fondo compreso, si disegna con l'opacità che le
  * spetta, così all'apertura non compare per un fotogramma la miniatura piena della pagina prima della card. Fuori dallo
  * zoom, o senza dissolvenza, disegna la pagina e basta.
+ *
+ * L'opacità del contenuto (`1 − alfa`) è [FluidPageHostState.zoomContentAlpha]: la legge anche la barra ancorata per il
+ * titolo grande, che è contenuto della pagina ma sta sopra le pagine (corr-s4-zoom).
  */
 private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier = drawWithContent {
   val alpha = if (state.roleOf(page) == PageRole.Upper) state.zoomCrossfadeAlpha() else 0f

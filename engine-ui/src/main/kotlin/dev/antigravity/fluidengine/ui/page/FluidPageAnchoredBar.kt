@@ -587,11 +587,47 @@ internal fun anchoredBarSplit(
 
 /**
  * Il ritaglio di un titolo grande dalla sagoma di uno zoom (F5B.3): dentro per la pagina sopra, fuori per quella sotto.
- * La sagoma è nelle coordinate dell'host, che sono quelle della barra (sta nel suo angolo in alto a sinistra).
+ * [zoom] è già nelle coordinate di chi disegna ([barTitleZoomClip]).
  */
 private inline fun DrawScope.clipZoom(zoom: FluidZoomShape, inside: Boolean, block: DrawScope.() -> Unit) {
   val path = Path().apply { addRoundRect(zoom.toRoundRect()) }
   clipPath(path, if (inside) ClipOp.Intersect else ClipOp.Difference, block)
+}
+
+/**
+ * La sagoma di uno zoom ([zoom], nelle coordinate dell'host) nelle coordinate del riquadro del titolo, che sta a [origin]
+ * nell'host (corr-s4-zoom). Il titolo non sta nell'angolo dell'host: sta nella riga dei controlli, sotto la barra di
+ * stato. Ritagliato con la sagoma dell'host, il taglio scendeva dell'altezza della barra di stato: sul Tab S9 il «Zoom»
+ * della griglia restava sopra la pagina che si apriva per 27 dp sotto il bordo della sagoma (S4, apertura, fotogrammi
+ * 6–8), e al ritorno sopra la pagina che rientrava.
+ */
+internal fun barTitleZoomClip(zoom: FluidZoomShape, origin: Offset): FluidZoomShape =
+  if (origin == Offset.Zero) zoom else zoom.translate(-origin)
+
+/**
+ * Il titolo della pagina sopra con l'opacità della sua pagina nello zoom ([alpha], da
+ * [FluidPageHostState.zoomContentAlpha]): in un `saveLayer` grande quanto la sagoma, come il contenuto della pagina in
+ * `FluidPageHost.zoomCrossfade`. Non nell'`alpha` del layer della barra: sotto 1 quello passa per un buffer grande quanto
+ * il suo nodo, la riga dei controlli alta 46 dp, e il titolo grande, che sta più in basso, sparirebbe tutto al primo
+ * fotogramma della dissolvenza (corr-s4-zoom, visto nei fotogrammi del primo tentativo). La sagoma contiene tutto ciò che
+ * del titolo si vede.
+ */
+private inline fun DrawScope.barTitleZoomFade(shape: FluidZoomShape, alpha: Float, paint: Paint, block: DrawScope.() -> Unit) {
+  if (alpha >= 1f) {
+    block()
+    return
+  }
+  paint.alpha = alpha
+  drawContext.canvas.saveLayer(shape.bounds, paint)
+  block()
+  drawContext.canvas.restore()
+}
+
+/** Dove sta il riquadro [box] nell'host di [state], o zero se uno dei due non è (più) nell'albero. */
+private fun barTitleOrigin(state: FluidPageHostState, box: LayoutCoordinates?): Offset {
+  val host = state.hostCoordinates?.takeIf { it.isAttached } ?: return Offset.Zero
+  val here = box?.takeIf { it.isAttached } ?: return Offset.Zero
+  return host.localPositionOf(here, Offset.Zero)
 }
 
 /** La parte pura di [anchoredBarSplit]: la pagina sopra copre da [from] a [to] px. */
@@ -660,12 +696,16 @@ private fun BoxScope.BarTitle(
     )
   }
   val glyphPx = with(LocalDensity.current) { spec.compactStyle.fontSize.toPx() }
+  // Il riquadro del titolo, per riportarci la sagoma dello zoom (che è nelle coordinate dell'host): vedi [barTitleZoomClip].
+  val box = remember { arrayOfNulls<LayoutCoordinates>(1) }
+  val fade = remember { Paint() }
   CompositionLocalProvider(spec.context) {
     // Il titolo segue il lato della striscia della barra anche col contesto della pagina (dal seguito di F2.5).
     CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
     Box(
       modifier = Modifier
         .matchParentSize()
+        .onGloballyPositioned { box[0] = it }
         // F2.3c: il titolo svanisce e risale con l'inchiostro della barra quando la barra cambia lato.
         .graphicsLayer {
           alpha = shade.fade()
@@ -685,9 +725,14 @@ private fun BoxScope.BarTitle(
         .drawWithContent {
           when (state.roleOf(page)) {
             PageRole.Gone -> Unit
-            // Nello zoom (F5B.3) il titolo grande della pagina sopra si vede solo dentro la sua sagoma.
+            // Nello zoom (F5B.3) il titolo grande della pagina sopra si vede solo dentro la sua sagoma, e se ne va con la
+            // sua pagina, sulla stessa curva (corr-s4-zoom): vedi [barTitleZoomFade].
             PageRole.Upper -> state.zoomShape()?.let { zoom ->
-              clipZoom(zoom, inside = true) { this@drawWithContent.drawContent() }
+              val shape = barTitleZoomClip(zoom, barTitleOrigin(state, box[0]))
+              val alpha = state.zoomContentAlpha(PageRole.Upper)
+              if (alpha > 0f) clipZoom(shape, inside = true) {
+                barTitleZoomFade(shape, alpha, fade) { this@drawWithContent.drawContent() }
+              }
             } ?: drawContent()
             // Il titolo grande della pagina sotto e' suo contenuto: dove la pagina sopra la copre, lo copre anche
             // lui. Col modello il titolo agganciato invece e' della barra (F4A.3): non si taglia con la pagina.
@@ -700,7 +745,9 @@ private fun BoxScope.BarTitle(
               val far = size.width * 4f + size.height * 4f
               if (zoom != null) {
                 // Nello zoom la pagina sopra copre un riquadro, non una striscia (F5B.3).
-                clipZoom(zoom, inside = false) { this@drawWithContent.drawContent() }
+                clipZoom(barTitleZoomClip(zoom, barTitleOrigin(state, box[0])), inside = false) {
+                  this@drawWithContent.drawContent()
+                }
               } else if (left > 0.5f) {
                 clipRect(left = -far, top = -far, right = left, bottom = far) {
                   this@drawWithContent.drawContent()

@@ -229,6 +229,42 @@ class FluidTabBarExtensionsTest {
   }
 
   @Test
+  @Config(qualifiers = "w360dp-h640dp-340dpi")
+  fun translucentArcOutsideThePageDoesNotPaintOverItsReflection() {
+    var inset by mutableStateOf(20.dp)
+    compose.setContent {
+      Box(Modifier.size(160.dp, 80.dp).background(Color.Black).testTag("marea")) {
+        Canvas(Modifier.align(Alignment.Center).size(100.dp, 72.dp)
+          .fluidBackgroundExtension(start = inset, end = inset)) {
+          drawRect(Color.Blue)
+          // Maree disegna un arco traslucido largo più della pagina. Esce dal Canvas da entrambi i lati.
+          drawCircle(Color.Red.copy(alpha = .65f), radius = size.width * .75f)
+        }
+      }
+    }
+    for (width in listOf(20, 2, 25)) {
+      compose.runOnIdle { inset = width.dp }
+      val bounds = compose.onNodeWithTag("marea").fetchSemanticsNode().boundsInWindow
+      val region = android.graphics.Rect(bounds.left.roundToInt(), bounds.top.roundToInt(),
+        bounds.right.roundToInt(), bounds.bottom.roundToInt())
+      val bitmap = Bitmap.createBitmap(region.width(), region.height(), Bitmap.Config.ARGB_8888)
+      compose.runOnIdle {
+        PixelCopy.request(compose.activity.window, region, bitmap, { result ->
+          assertEquals(PixelCopy.SUCCESS, result)
+        }, Handler(Looper.getMainLooper()))
+      }
+      val pixels = bitmap.asImageBitmap().toPixelMap()
+      val page = (100 * compose.density.density).roundToInt()
+      val left = ((pixels.width - page) / 2f).roundToInt()
+      val right = left + page
+      val y = pixels.height / 2
+      assertEquals("arco dipinto nella pagina", .65f, pixels[left, y].red, .02f)
+      assertEquals("sinistra a $width dp", pixels[left, y].red, pixels[left - 1, y].red, .02f)
+      assertEquals("destra a $width dp", pixels[right - 1, y].red, pixels[right, y].red, .02f)
+    }
+  }
+
+  @Test
   @Config(qualifiers = "w1280dp-h800dp-mdpi")
   fun adaptiveColumnAndSelectedRouteSurviveNarrowingAndRestoration() {
     val restoration = StateRestorationTester(compose)

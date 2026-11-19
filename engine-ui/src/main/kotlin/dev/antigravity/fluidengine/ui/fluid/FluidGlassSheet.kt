@@ -661,6 +661,10 @@ internal fun fluidSheetZoomBlurFraction(elapsedMillis: Float, slide: Float): Flo
   return kotlin.math.max(byTime, byShape).coerceIn(0f, 1f)
 }
 
+/** Il fuoco del ritorno parte col congedo, anche quando la molla è ancora vicina alla posa aperta. */
+internal fun fluidSheetZoomContentBlurDp(elapsedMillis: Float, travel: Float, focus: Float): Float =
+  maxOf(FluidSheetZoomBlur.value * fluidSheetZoomBlurFraction(elapsedMillis, travel), fluidMenuLensBlurDp(focus))
+
 /** L'opacità di un foglio che entra in dissolvenza ([FluidSheetTransition.CrossFade]) a viaggio [slide] della molla. */
 internal fun fluidSheetCrossFadeAlpha(slide: Float): Float = slide.finiteOr(0f).coerceIn(0f, 1f)
 

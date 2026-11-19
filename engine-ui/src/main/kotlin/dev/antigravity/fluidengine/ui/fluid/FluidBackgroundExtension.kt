@@ -52,7 +52,10 @@ fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifi
       if (size.width <= 0f || (leading == 0f && trailing == 0f)) {
         drawContent()
       } else {
-        original.record { this@onDrawWithContent.drawContent() }
+        // Un GraphicsLayer può rigiocare operazioni oltre la sua misura. Il grande arco di Maree
+        // esce dalla pagina e, nell'ultimo drawLayer, si sovrapporrebbe all'estensione già disegnata.
+        // Ritaglia la registrazione comune una volta, prima di specchiarla e sfocarla.
+        original.record { clipRect { this@onDrawWithContent.drawContent() } }
         if (blur) mirror.record { drawLayer(original) }
         val extension = if (blur) mirror else original
         val left = if (layoutDirection == LayoutDirection.Ltr) leading else trailing

@@ -81,12 +81,11 @@
   ],
   "apple": [
     {
-      "name": "telefono",
+      "name": "popover-ipad",
       "video": "artifacts/liquid-glass/ricerca/r7/video/wwdc2025-284_hd.mp4",
-      "t0Frame": 25408,
-      "crop": [1270, 60, 460, 960],
-      "collage": "artifacts/liquid-glass/sessioni/f5b-3/rif/apple_foglio_dal_tasto_284_f25406-25420.jpg",
-      "note": "classe B (interfaccia vera, UIKit): il vetro nasce dal gruppo della barra, contenuto sfocato dentro, pagina scurita; misure in sessioni/f5b-3/strumenti/misura_284.py."
+      "t0Frame": 25230,
+      "crop": [600, 480, 560, 420],
+      "note": "Classe B, popover UIKit. Riferimento affine per il fuoco e l'inchiostro nel rientro al tasto. La scena Mail del foglio mostra solo l'apertura."
     }
   ],
   "frames": [
@@ -1491,14 +1490,15 @@
                   "color": "#121214FF"
                 }
               ],
-              "blurDp": 0.089,
+              "blurDp": 0.887,
               "clip": {
                 "x": 0,
                 "y": 0,
                 "w": 392.163,
                 "h": 776.849,
                 "radius": 38
-              }
+              },
+              "alpha": 0.664
             }
           ],
           "contentClip": "none"
@@ -1774,14 +1774,15 @@
                   "color": "#121214FF"
                 }
               ],
-              "blurDp": 0.911,
+              "blurDp": 2.476,
               "clip": {
                 "x": 0,
                 "y": 0,
                 "w": 368.493,
                 "h": 697.079,
                 "radius": 38
-              }
+              },
+              "alpha": 0.396
             }
           ],
           "contentClip": "none"
@@ -2057,14 +2058,15 @@
                   "color": "#121214FF"
                 }
               ],
-              "blurDp": 2.601,
+              "blurDp": 3.828,
               "clip": {
                 "x": 0,
                 "y": 0,
                 "w": 339.955,
                 "h": 600.906,
                 "radius": 38
-              }
+              },
+              "alpha": 0.198
             }
           ],
           "contentClip": "none"
@@ -2340,14 +2342,15 @@
                   "color": "#121214FF"
                 }
               ],
-              "blurDp": 4.333,
+              "blurDp": 4.636,
               "clip": {
                 "x": 0,
                 "y": 0,
                 "w": 313.085,
                 "h": 510.354,
                 "radius": 38
-              }
+              },
+              "alpha": 0.067
             }
           ],
           "contentClip": "none"
@@ -2630,7 +2633,8 @@
                 "w": 286.897,
                 "h": 422.097,
                 "radius": 38
-              }
+              },
+              "alpha": 0.005
             }
           ],
           "contentClip": "none"
@@ -2913,7 +2917,8 @@
                 "w": 264.166,
                 "h": 345.494,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -3196,7 +3201,8 @@
                 "w": 246.146,
                 "h": 284.765,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -3479,7 +3485,8 @@
                 "w": 230.396,
                 "h": 231.688,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -3762,7 +3769,8 @@
                 "w": 217.756,
                 "h": 189.09,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -4045,7 +4053,8 @@
                 "w": 208.282,
                 "h": 157.162,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -4328,7 +4337,8 @@
                 "w": 200.35,
                 "h": 130.432,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -4611,7 +4621,8 @@
                 "w": 194.205,
                 "h": 109.722,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -4894,7 +4905,8 @@
                 "w": 189.726,
                 "h": 94.626,
                 "radius": 38
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -5177,7 +5189,8 @@
                 "w": 186.061,
                 "h": 82.276,
                 "radius": 35.528
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -5449,7 +5462,8 @@
                 "w": 183.278,
                 "h": 72.897,
                 "radius": 31.478
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -5721,7 +5735,8 @@
                 "w": 181.283,
                 "h": 66.174,
                 "radius": 28.575
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -5993,7 +6008,8 @@
                 "w": 179.674,
                 "h": 60.752,
                 "radius": 26.234
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -6265,7 +6281,8 @@
                 "w": 178.468,
                 "h": 56.688,
                 "radius": 24.479
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -6537,7 +6554,8 @@
                 "w": 177.613,
                 "h": 53.807,
                 "radius": 23.235
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -6809,7 +6827,8 @@
                 "w": 176.93,
                 "h": 51.506,
                 "radius": 22.241
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -7081,7 +7100,8 @@
                 "w": 176.423,
                 "h": 49.796,
                 "radius": 21.503
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -7353,7 +7373,8 @@
                 "w": 176.066,
                 "h": 48.594,
                 "radius": 20.984
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -7625,7 +7646,8 @@
                 "w": 175.784,
                 "h": 47.641,
                 "radius": 20.572
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -7897,7 +7919,8 @@
                 "w": 175.575,
                 "h": 46.937,
                 "radius": 20.268
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -8169,7 +8192,8 @@
                 "w": 175.429,
                 "h": 46.445,
                 "radius": 20.056
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"
@@ -8441,7 +8465,8 @@
                 "w": 175.314,
                 "h": 46.057,
                 "radius": 19.888
-              }
+              },
+              "alpha": 0
             }
           ],
           "contentClip": "none"

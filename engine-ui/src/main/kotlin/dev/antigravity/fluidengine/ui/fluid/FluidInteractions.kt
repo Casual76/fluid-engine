@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.semantics.onLongClick as semanticsOnLongClick
@@ -205,10 +206,14 @@ fun Modifier.fluidPressable(
   return this
     .drawWithContent {
       if (focusShape != null && focusWash > 0.001f) {
-        drawOutline(
-          focusShape.createOutline(size, layoutDirection, this),
-          focusColor.copy(alpha = focusColor.alpha * focusWash),
-        )
+        val bounds = press.visualBounds
+        val offset = bounds?.topLeft ?: Offset.Zero
+        translate(offset.x, offset.y) {
+          drawOutline(
+            focusShape.createOutline(bounds?.size ?: size, layoutDirection, this),
+            focusColor.copy(alpha = focusColor.alpha * focusWash),
+          )
+        }
       }
       val transform = if (drawsPress) {
         fluidPressTransform(
@@ -229,7 +234,7 @@ fun Modifier.fluidPressable(
       } else {
         withTransform({
           translate(transform.translationX, transform.translationY)
-          scale(transform.scaleX * lift, transform.scaleY * lift, pivot = center)
+          scale(transform.scaleX * lift, transform.scaleY * lift, pivot = press.visualBounds?.center ?: center)
         }) {
           this@drawWithContent.drawContent()
         }

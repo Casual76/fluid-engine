@@ -607,7 +607,8 @@ FluidGlassSheet(visible = sheet, onDismissRequest = { sheet = false }, paneTitle
   superare; WWDC25 284, f25409–f25420). In chiusura ci rientra sulla molla d'uscita dell'host. Gli angoli sono quelli del
   foglio ridotti in proporzione finché non ci stanno: al primo fotogramma la capsula.
 - **Il contenuto è dentro dal principio**, alla sua misura d'arrivo, in cima al vetro e al centro, ritagliato dal vetro,
-  e **sfocato**: σ fino a 6 dp, nitido a ≈300 ms (`FluidSheetZoomSharpMillis`); alla chiusura torna sfocato mentre rientra.
+  e **sfocato**: σ fino a 6 dp, nitido a ≈300 ms (`FluidSheetZoomSharpMillis`). Il congedo avvia subito la perdita di
+  fuoco di F5A per tutto il contenuto. L'inchiostro si spegne entro 90 ms mentre il vetro continua verso la sorgente.
 - **Il velo** di un foglio che a riposo è opaco (`Large`) cresce **mentre il vetro cresce**, fra il 45% e l'85% del
   viaggio (`fluidSheetZoomVeil`): vetro fino a ≈100 ms, metà a ≈133, quasi pieno a ≈167, come Apple (284 f25411–f25413).
   Un foglio a un detent parziale resta vetro.

@@ -598,6 +598,7 @@ private fun FluidGlassModalPaneLayer(
     if (fluidModalSlidesUp(entry.presentation)) {
       FluidGlassModalSheet(
         paneTitle = lastPaneTitle,
+        visible = entry.visible,
         paneTint = lastPaneTint,
         pageColor = lastPageColor,
         backdrop = popoverBackdrop,

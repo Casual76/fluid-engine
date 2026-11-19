@@ -11,18 +11,20 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetOpaqueBand
-import dev.antigravity.fluidengine.ui.fluid.FluidSheetZoomBlur
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetZoomSpring
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSourceGeometry
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetDimColor
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnFocusSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnInkSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeHeightPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeness
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetStops
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetZoomBlurFraction
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetZoomBounds
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetZoomContentBlurDp
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetZoomVeil
 import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import dev.antigravity.fluidengine.ui.page.FluidPageCorners
@@ -88,6 +90,7 @@ class F5b3ZoomTraceTest {
     val traces = listOf(sheetOpen, sheetClose, open, back, backFading, finger, interrupted)
     GlassTraceOutput.requestedDir(System.getenv("GLASS_F5B3_DIR"))?.let { dir ->
       for (t in traces) t.write(File(dir, "${t.name}/trace.json"))
+      foglioDalTasto(closing = true, returnInk = false).write(File(dir, "foglio-dal-tasto-chiude-prima/trace.json"))
     }
 
     // Il foglio nasce dal gruppo del tasto e arriva in cima, a filo dei lati.
@@ -120,6 +123,25 @@ class F5b3ZoomTraceTest {
     assertTrue("all'arrivo la card è piena: ${home["color"]}", (home["color"] as String).endsWith("FF"))
   }
 
+  @Test
+  fun `nel rientro lo strato del foglio perde fuoco subito e si spegne prima della lastra`() {
+    val prima = foglioDalTasto(closing = true, returnInk = false)
+    val dopo = foglioDalTasto(closing = true)
+    fun at(trace: GlassTrace, ms: Double) = trace.frames.first { it.tMs >= ms }
+    fun inkAt(trace: GlassTrace, ms: Double): Map<*, *> {
+      val content = at(trace, ms).elements.single { it["name"] == "contenuto" }["content"] as List<*>
+      return content.single() as Map<*, *>
+    }
+    assertEquals(1f, (inkAt(dopo, 0.0)["alpha"] as? Number)?.toFloat() ?: 1f, 0f)
+    val early = inkAt(dopo, 16.0)
+    assertTrue((early["blurDp"] as Number).toFloat() > (inkAt(prima, 16.0)["blurDp"] as Number).toFloat() + .7f)
+    assertTrue((early["alpha"] as Number).toFloat() < 0.8f)
+    assertEquals(0f, (inkAt(dopo, 90.0)["alpha"] as Number).toFloat(), 0f)
+    assertTrue(at(dopo, 90.0).elements.any { it["name"] == "foglio" })
+    assertEquals(prima.frames.map { f -> f.elements.filter { it["name"] != "contenuto" } },
+      dopo.frames.map { f -> f.elements.filter { it["name"] != "contenuto" } })
+  }
+
   // --- Il foglio dal tasto (Apple 284) ---------------------------------------------------------------------------
 
   private val windowPx get() = androidx.compose.ui.geometry.Size(canvasW * d, canvasH * d)
@@ -131,12 +153,14 @@ class F5b3ZoomTraceTest {
    * scrim arriva e se ne va con le dissolvenze dell'host. La sorgente (l'icona della cartella) è consumata per tutto il
    * foglio: la capsula del gruppo resta, sotto lo scrim.
    */
-  internal fun foglioDalTasto(closing: Boolean): GlassTrace {
+  internal fun foglioDalTasto(closing: Boolean, returnInk: Boolean = true): GlassTrace {
     val open = TodaySpring(FluidSheetZoomSpring, 0f, 1f)
     val host = TodaySpring(FluidMotion.PopoverOpenY, 0f, 1f)
     val exit = TodaySpring(FluidMotion.PopoverExit, 1f, 0f)
     val fadeIn = TodaySpring(FluidMotion.fadeIn(FluidMotion.PopoverFadeInMillis), 0f, 1f)
     val fadeOut = TodaySpring(FluidMotion.fadeOut(FluidMotion.PopoverFadeOutMillis), 1f, 0f)
+    val focus = TodaySpring(fluidMenuReturnFocusSpec(1f), 1f, 0f)
+    val ink = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
     val sheetTop = canvasH - largePx / d
     val sheet = Rect(0f, sheetTop, canvasW, canvasH)
     val frames = (-3..48).map { k ->
@@ -157,7 +181,10 @@ class F5b3ZoomTraceTest {
         presence = if (k < 0) 1f else fadeOut.value(nanos)
       }
       val elapsed = if (closing) 10_000f else ms.toFloat()
-      GlassTraceFrame(ms, sheetFrame(travel, presence, elapsed, sheet))
+      val returning = closing && returnInk && k >= 0
+      GlassTraceFrame(ms, sheetFrame(travel, presence, elapsed, sheet,
+        focus = if (returning) focus.value(nanos) else 1f,
+        alpha = if (returning) ink.value(nanos) else 1f))
     }
     return GlassTrace(
       if (closing) "foglio-dal-tasto-chiude" else "foglio-dal-tasto", phase, d, "light", canvasW, canvasH, frames, fps,
@@ -166,7 +193,9 @@ class F5b3ZoomTraceTest {
   }
 
   /** Un fotogramma del foglio: la pagina di Mail, la barra, lo scrim, il vetro con la sagoma dello zoom, velo e contenuto. */
-  private fun sheetFrame(travel: Float, presence: Float, elapsedMs: Float, sheet: Rect): List<Map<String, Any?>> {
+  private fun sheetFrame(travel: Float, presence: Float, elapsedMs: Float, sheet: Rect,
+    focus: Float, alpha: Float,
+  ): List<Map<String, Any?>> {
     val out = ArrayList<Map<String, Any?>>()
     // La barra in basso: il gruppo (la sorgente) e il tasto «scrivi», capsule di vetro schematiche.
     out += shapeOf("gruppo", Group, Group.height / 2f, Color.White.copy(alpha = 0.22f))
@@ -192,7 +221,7 @@ class F5b3ZoomTraceTest {
       "color" to glassColor(surface.copy(alpha = veil)),
     )
     // Il contenuto alla misura d'arrivo, in cima al vetro e al centro, ritagliato dal vetro e sfocato.
-    val blur = FluidSheetZoomBlur.value * fluidSheetZoomBlurFraction(elapsedMs, travel.coerceAtMost(1f))
+    val blur = fluidSheetZoomContentBlurDp(elapsedMs, travel.coerceAtMost(1f), focus)
     val x0 = (g.width - sheet.width) / 2f
     val items = ArrayList<Map<String, Any?>>()
     fun text(text: String, x: Float, y: Float, size: Float, color: Color, weight: Int? = null) {
@@ -211,7 +240,7 @@ class F5b3ZoomTraceTest {
         linkedMapOf<String, Any?>(
           "name" to "righe", "items" to items, "blurDp" to round3(blur),
           "clip" to linkedMapOf("x" to 0, "y" to 0, "w" to round3(g.width), "h" to round3(g.height), "radius" to radii[0]),
-        ),
+        ).apply { if (alpha < 1f) put("alpha", round3(alpha)) },
       ),
       "contentClip" to "none",
     )
@@ -247,7 +276,14 @@ class F5b3ZoomTraceTest {
         "label" to "il lato sinistro del vetro all'altezza della barra"),
     ),
     "apple" to listOf(
-      linkedMapOf(
+      if (closing) linkedMapOf(
+        "name" to "popover-ipad",
+        "video" to "artifacts/liquid-glass/ricerca/r7/video/wwdc2025-284_hd.mp4",
+        "t0Frame" to 25230,
+        "crop" to listOf(600, 480, 560, 420),
+        "note" to "Classe B, popover UIKit. Riferimento affine per il fuoco e l'inchiostro nel rientro al tasto. " +
+          "La scena Mail del foglio mostra solo l'apertura.",
+      ) else linkedMapOf(
         "name" to "telefono",
         "video" to "artifacts/liquid-glass/ricerca/r7/video/wwdc2025-284_hd.mp4",
         "t0Frame" to 25408,

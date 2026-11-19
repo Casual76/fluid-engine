@@ -28,8 +28,6 @@ import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.onChildren
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -98,8 +96,7 @@ class FluidGapsTest {
       compose.onNodeWithTag("icon-${size.name}")
         .assertWidthIsEqualTo(size.touchTarget)
         .assertHeightIsEqualTo(size.touchTarget)
-      // Il click sta sul vetro, dentro il riquadro: e' il figlio che ha l'azione.
-      compose.onNodeWithTag("icon-${size.name}").onChildren().onFirst().assertHasClickAction()
+        .assertHasClickAction()
     }
     compose.onNodeWithTag("icon-Compact").assertWidthIsEqualTo(48.dp)
     compose.onNodeWithTag("icon-Large").assertWidthIsEqualTo(54.dp)
@@ -107,8 +104,7 @@ class FluidGapsTest {
 
   @Test
   fun `un tocco nel margine attorno a un vetro da 40 dp clicca lo stesso`() {
-    // La prova che il bersaglio e' da 48 dp e non da 40: l'angolo del riquadro sta a 4 dp dal
-    // vetro per lato, e Compose da' a ogni bersaglio piccolo il suo minimo da 48.
+    // L'angolo del riquadro da 48 dp sta a 4 dp dal vetro per lato.
     var clicks = 0
     compose.setContent {
       Themed {

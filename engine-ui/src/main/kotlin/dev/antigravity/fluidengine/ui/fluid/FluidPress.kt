@@ -54,6 +54,7 @@ import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -360,8 +361,10 @@ class FluidPressState internal constructor(
    * Dove e' sceso il dito, nelle coordinate dell'elemento. Stato, perche' lo legge il disegno del
    * bagliore e puo' cambiare mentre un ritorno e' ancora in corso.
    */
-  internal var origin: Offset by mutableStateOf(Offset.Zero)
-    private set
+  private var downInTouchTarget by mutableStateOf(Offset.Zero)
+  /** La lente di un pulsante può essere più piccola del bersaglio che guida il gesto. */
+  internal var visualBounds: Rect? by mutableStateOf(null)
+  internal val origin: Offset get() = downInTouchTarget - (visualBounds?.topLeft ?: Offset.Zero)
 
   /**
    * Quanto si e' mosso il dito dal contatto, in pixel dello schermo. Una molla: lo [touchMove] la
@@ -420,7 +423,7 @@ class FluidPressState internal constructor(
   internal fun touchDown(position: Offset, uptimeMillis: Long? = null) {
     lastMoveMs = uptimeMillis
     if (gelVelocity.isInitialized()) scope.launch { gelVelocity.value.snapTo(Offset.Zero) }
-    origin = position
+    downInTouchTarget = position
     travel = Offset.Zero
     scope.launch {
       leanAnimation.updateBounds(null, null)

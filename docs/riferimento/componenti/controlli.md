@@ -141,12 +141,10 @@ propria ottica: da solo, senza chiederlo.
 | `FluidSegmentedControl` | alto 32 dp | 32 dp (è una pista, non un tasto) |
 | `FluidButton` | altezza minima 50 / 42 / 32 dp | l'altezza è un **minimo**, non toccato oltre |
 
-Nei tasti di vetro il gesto sta sul **vetro** (bagliore e flessione partono dal punto del dito nelle sue coordinate), e il
-riquadro da 48 dp attorno non ha altri nodi: Compose allarga il bersaglio di un nodo cliccabile più piccolo fino al
-minimo della piattaforma (`ViewConfiguration.minimumTouchTargetSize`, 48 dp), quindi un dito nell'anello fra vetro e
-riquadro clicca, e TalkBack vede 48 dp (`touchBoundsInRoot`). Vale per ogni taglia, per la misura libera (un vetro da 32
-dp), per l'etichetta `Compact` e per i tasti della barra di sempre: «almeno 44 dp», i 44 pt di Apple, lo prova
-`FluidGlassButtonStylesUiTest` (F6.4). Un'app che abbassa `minimumTouchTargetSize` abbassa anche questo.
+Nei tasti di vetro il gesto e l'azione di TalkBack occupano il **riquadro misurato**. Il dito nel margine attorno
+alla lente clicca anche quando l'app riduce `ViewConfiguration.minimumTouchTargetSize`. Il bagliore legge il punto
+di contatto nelle coordinate del vetro. Vale per ogni taglia, per le misure libere, per i tasti con testo e per
+Indietro. `FluidGlassButtonStylesUiTest` prova anche il tocco S5 a 2 dp fuori dal disco `Compact`.
 
 ### TalkBack
 
@@ -334,8 +332,8 @@ fun BarraConferma(onShare: () -> Unit, onCancel: () -> Unit, onConfirm: () -> Un
 **Comportamento.**
 
 - **Taglie** (`FluidGlassSize`, `lens` / `buttonHeight`): `Compact` 40/40 dp, `Regular` 44/48 dp, `Large` 54/54 dp.
-  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 26, 32 dp; erano 20, 22, 27: la meta'). A `Regular` l'albero è quello di prima
-  della 3.0, nodo per nodo. La ricetta della pressione vale **in proporzione** (crescita = frazione, deriva sul lato corto
+  `touchTarget = lens.coerceAtLeast(48 dp)`; `iconSize = FluidMetrics.iconSizeIn(lens)` = 0,6 del lato al dp intero (24, 26, 32 dp).
+  La ricetta della pressione vale **in proporzione** (crescita = frazione, deriva sul lato corto
   del vetro, bagliore Classic sul lato lungo): nessun numero in dp da riscalare, tranne il tetto di crescita dei tondi (24 dp
   in tutto).
 - **Misura libera** (`size: Dp`): `size` è il lato del *vetro*; il riquadro è `max(size, 48 dp)`. Tra le due strade si

@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -37,12 +38,14 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
@@ -93,12 +96,9 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  *
  * **Il bersaglio del tocco non scende mai sotto i 48 dp**, qualunque sia la taglia: un vetro da
  * 40 dp sta dentro un riquadro da 48 che e' quello che occupa nel layout, e il tocco lo vede. Il
- * vetro e' la parte che si disegna, il riquadro e' la parte che si tocca. Il gesto sta sul vetro (le
- * coordinate del dito sono le sue: bagliore e flessione partono da li'), e Compose ne allarga il
- * bersaglio fino al bersaglio minimo della piattaforma (`ViewConfiguration.minimumTouchTargetSize`,
- * 48 dp) quando il vetro e' piu' piccolo: il riquadro da 48 non ha altri nodi che prendano il tocco,
- * quindi un dito nell'anello fra il vetro e il riquadro arriva al tasto. Anche TalkBack vede i 48 dp
- * (`touchBoundsInRoot`). Lo prova `FluidGlassButtonStylesUiTest` per ogni taglia, per la misura libera,
+ * vetro e' la parte che si disegna, il riquadro e' la parte che si tocca. Il gesto e l'azione accessibile
+ * vivono sul riquadro misurato. Il bagliore legge il contatto nelle coordinate del vetro. Lo prova
+ * `FluidGlassButtonStylesUiTest` per ogni taglia, per la misura libera,
  * per l'etichetta `Compact` e per i tasti della barra di sempre (F6.4: «almeno 44 dp», i 44 pt di
  * Apple, chiusura di F4A).
  *
@@ -158,14 +158,17 @@ internal val FluidGlassSize.buttonLeading: Dp
  * e senza leggere `LocalMinimumInteractiveComponentSize`: un'app che spegne quella per i suoi
  * componenti Material non toglie il bersaglio a un tasto che dice di averne uno da 48 dp.
  */
-internal fun Modifier.fluidTouchTarget(min: Dp = FluidGlassIconTouchTargetSize): Modifier =
+internal fun Modifier.fluidTouchTarget(press: FluidPressState): Modifier =
   layout { measurable, constraints ->
-    val minPx = min.roundToPx()
+    val minPx = FluidGlassIconTouchTargetSize.roundToPx()
     val placeable = measurable.measure(constraints)
     val width = constraints.constrainWidth(maxOf(placeable.width, minPx))
     val height = constraints.constrainHeight(maxOf(placeable.height, minPx))
     layout(width, height) {
-      placeable.place((width - placeable.width) / 2, (height - placeable.height) / 2)
+      val x = (width - placeable.width) / 2
+      val y = (height - placeable.height) / 2
+      press.visualBounds = Rect(Offset(x.toFloat(), y.toFloat()), Size(placeable.width.toFloat(), placeable.height.toFloat()))
+      placeable.place(x, y)
     }
   }
 
@@ -925,17 +928,10 @@ internal fun FluidGlassIconButtonCore(
   // Il `modifier` dell'app sta sul riquadro del tocco, fuori dal vetro: gli attributi del piano scritti lì (`fluidGlassId`,
   // …) sono del vetro qui dentro (F3.2).
   val planeAttributes = fluidGlassAttributesOf(modifier)
-  Box(
+  Layout(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
-      .size(lens.coerceAtLeast(FluidGlassIconTouchTargetSize)),
-    contentAlignment = Alignment.Center,
-  ) {
-    val lensChain = Modifier
-      .size(lens)
-      .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
-      .then(lensModifier)
-      // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
+      .size(lens.coerceAtLeast(FluidGlassIconTouchTargetSize))
       .fluidPressable(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -947,30 +943,44 @@ internal fun FluidGlassIconButtonCore(
         pressState = if (look.glassless) null else press,
         longClickHaptic = longClickHaptic,
         grip = grip,
-      )
-    Box(
-      modifier = if (look.glassless) {
-        lensChain
-      } else {
-        lensChain.glassButtonSurface(
-          look = look,
-          backdrop = backdrop,
-          shape = shape,
-          selected = selected,
-          interactive = enabled,
-          press = press,
-          ink = ink,
-          forwardedAttributes = planeAttributes,
-          labelAnchor = null,
-          blurIcon = FluidGel.BlurIcon,
-        )
-      },
-      contentAlignment = Alignment.Center,
-    ) {
-      // Il tasto dice all'icona quanto e' grande (4.0): 0,6 del vetro. Un'icona con la sua taglia scritta resta com'e'.
-      FluidGlassButtonInk(look, ink, ambientInk) {
-        CompositionLocalProvider(LocalFluidIconSize provides FluidMetrics.iconSizeIn(lens)) { content() }
+      ),
+    content = {
+      val lensChain = Modifier.size(lens)
+        .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
+        .then(lensModifier)
+      Box(
+        modifier = if (look.glassless) {
+          lensChain
+        } else {
+          lensChain.glassButtonSurface(
+            look = look,
+            backdrop = backdrop,
+            shape = shape,
+            selected = selected,
+            interactive = enabled,
+            press = press,
+            ink = ink,
+            forwardedAttributes = planeAttributes,
+            labelAnchor = null,
+            blurIcon = FluidGel.BlurIcon,
+          )
+        },
+        contentAlignment = Alignment.Center,
+      ) {
+        // Il tasto dice all'icona quanto e' grande (4.0): 0,6 del vetro. Un'icona con la sua taglia scritta resta com'e'.
+        FluidGlassButtonInk(look, ink, ambientInk) {
+          CompositionLocalProvider(LocalFluidIconSize provides FluidMetrics.iconSizeIn(lens)) { content() }
+        }
       }
+    },
+  ) { measurables, constraints ->
+    val glass = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
+    val target = IntSize(constraints.constrainWidth(glass.width), constraints.constrainHeight(glass.height))
+    val position = Alignment.Center.align(IntSize(glass.width, glass.height), target, layoutDirection)
+    layout(target.width, target.height) {
+      // Le ancore mantengono la misura del vetro. Il bagliore parte dal contatto nel suo riquadro.
+      press.visualBounds = Rect(Offset(position.x.toFloat(), position.y.toFloat()), Size(glass.width.toFloat(), glass.height.toFloat()))
+      glass.place(position)
     }
   }
 }
@@ -1122,9 +1132,6 @@ fun FluidGlassButton(
   // F2.3: l'etichetta segue l'inchiostro del lato del vetro (sul lato del tema e' quella di sempre). Selezionato, il
   // vetro e' una pellicola d'accento che non gira, e l'etichetta resta `onPrimaryContainer`.
   val ink = rememberGlassInk()
-  // Il riquadro da 48 dp lo porta fuori dal vetro solo chi e' piu' basso: a 48 e 54 dp l'albero e'
-  // quello di prima, nodo per nodo.
-  val touchTarget = if (size.buttonHeight < FluidGlassIconTouchTargetSize) Modifier.fluidTouchTarget() else Modifier
   val labelStyle = if (size == FluidGlassSize.Compact) {
     MaterialTheme.typography.bodyMedium
   } else {
@@ -1135,7 +1142,6 @@ fun FluidGlassButton(
   val pressed = modifier
     // Flessibile: tutta la larghezza data, con l'etichetta al centro (`buttonSizing(.flexible)`).
     .then(if (sizing == FluidButtonSizing.Flexible) Modifier.fillMaxWidth() else Modifier)
-    .then(touchTarget)
     .alpha(if (enabled) 1f else 0.38f)
     // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
     .fluidPressable(
@@ -1148,6 +1154,7 @@ fun FluidGlassButton(
       pressState = if (look.glassless) null else press,
       grip = grip,
     )
+    .fluidTouchTarget(press)
   val glassed = if (look.glassless) {
     pressed
   } else {

@@ -138,6 +138,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun FluidGlassModalSheet(
   paneTitle: String?,
+  visible: Boolean,
   paneTint: Color?,
   /** Il fondo della pagina intera, se l'app ne ha dato uno: vedi `FluidGlassModalPortal(pageColor)`. */
   pageColor: Color?,
@@ -167,6 +168,7 @@ internal fun FluidGlassModalSheet(
   } else {
     FluidSheetPane(
       paneTitle = paneTitle,
+      visible = visible,
       paneTint = paneTint,
       backdrop = backdrop,
       slide = slide,
@@ -398,7 +400,7 @@ private class FluidSheetMotion {
 
   // Lo zoom dalla sorgente (F5B.3). Campi del layout, letti dal disegno dello stesso fotogramma.
   /** Vero mentre il vetro ha la sagoma dello zoom (il layout lo misura lì, il contenuto resta alla misura d'arrivo). */
-  var zoomActive: Boolean = false
+  var zoomActive: Boolean by mutableStateOf(false)
 
   /** Il riquadro d'arrivo del foglio (al suo detent), nelle coordinate dell'area dell'host. */
   var zoomFinal: Rect = Rect.Zero
@@ -417,6 +419,9 @@ private class FluidSheetMotion {
 
   /** L'apertura dello zoom, 0..1, sulla molla misurata su Apple ([FluidSheetZoomSpring]); la chiusura è dell'host. */
   val zoomOpen = Animatable(0f)
+
+  val zoomFocus = Animatable(1f)
+  val zoomInk = Animatable(1f)
 
   /** Il viaggio dello zoom adesso: l'apertura sua, ma mai oltre la molla dell'host (che alla chiusura scende). */
   fun zoomTravel(slide: Float): Float = min(zoomOpen.value, slide)
@@ -448,6 +453,7 @@ private val FluidSheetContentDetents: List<FluidSheetDetent> = listOf(FluidSheet
 @Composable
 private fun FluidSheetPane(
   paneTitle: String?,
+  visible: Boolean,
   paneTint: Color?,
   backdrop: GlassBackdropState?,
   slide: () -> Float,
@@ -625,6 +631,25 @@ private fun FluidSheetPane(
         if (start == 0L) start = now
         motion.zoomElapsed = (now - start) / 1_000_000f
       }
+    }
+  }
+  // Il congedo avvia fuoco e inchiostro della lente F5A anche quando il contorno è ancora quasi fermo.
+  // Durante una riapertura le due curve ripartono dai valori raggiunti, prima della riconsegna alla sorgente.
+  LaunchedEffect(motion, visible, reducedMotion) {
+    // A riposo lo zoom è inattivo anche quando la sorgente è ancora consumata e può ricevere il foglio.
+    if (reducedMotion || motion.consumed == null) {
+      motion.zoomFocus.snapTo(1f)
+      motion.zoomInk.snapTo(1f)
+    } else if (visible) {
+      if (motion.zoomFocus.value < 1f) launch {
+        motion.zoomFocus.animateTo(1f, fluidModalFocusSpec(FluidModalSourceMotion.Popover, true, motion.zoomFocus.value, false))
+      }
+      if (motion.zoomInk.value < 1f) launch {
+        motion.zoomInk.animateTo(1f, fluidModalInkExitSpec(1f - motion.zoomInk.value))
+      }
+    } else {
+      launch { motion.zoomFocus.animateTo(0f, fluidMenuReturnFocusSpec(motion.zoomFocus.value)) }
+      launch { motion.zoomInk.animateTo(0f, fluidMenuReturnInkSpec(motion.zoomInk.value)) }
     }
   }
   DisposableEffect(motion) {
@@ -831,8 +856,9 @@ private fun FluidSheetPane(
               }
             }
             .graphicsLayer {
-              val sigma = if (motion.zoomActive) {
-                FluidSheetZoomBlur.toPx() * fluidSheetZoomBlurFraction(motion.zoomElapsed, motion.zoomTravel(slide()))
+              alpha = if (motion.zoomActive) motion.zoomInk.value else 1f
+              val sigma = if (motion.zoomActive && alpha > 0f) {
+                fluidSheetZoomContentBlurDp(motion.zoomElapsed, motion.zoomTravel(slide()), motion.zoomFocus.value).dp.toPx()
               } else {
                 0f
               }

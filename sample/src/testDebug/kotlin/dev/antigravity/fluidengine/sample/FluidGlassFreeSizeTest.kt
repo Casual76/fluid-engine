@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.sample
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -11,8 +12,6 @@ import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onChildren
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Dp
@@ -58,7 +57,9 @@ class FluidGlassFreeSizeTest {
       Themed {
         Column {
           sizes.forEach { size ->
-            FluidGlassIconButton(onClick = {}, size = size, modifier = Modifier.testTag("icon-${size.value.toInt()}")) {}
+            FluidGlassIconButton(onClick = {}, size = size, modifier = Modifier.testTag("icon-${size.value.toInt()}")) {
+              Box(Modifier.matchParentSize().testTag("glass-${size.value.toInt()}"))
+            }
           }
         }
       }
@@ -67,10 +68,8 @@ class FluidGlassFreeSizeTest {
     sizes.forEach { size ->
       val box = maxOf(size, 48.dp)
       val tag = "icon-${size.value.toInt()}"
-      compose.onNodeWithTag(tag).assertWidthIsEqualTo(box).assertHeightIsEqualTo(box)
-      // Il click sta sul vetro, dentro il riquadro: e' il figlio che ha l'azione, ed e' di `size`.
-      compose.onNodeWithTag(tag).onChildren().onFirst()
-        .assertHasClickAction()
+      compose.onNodeWithTag(tag).assertWidthIsEqualTo(box).assertHeightIsEqualTo(box).assertHasClickAction()
+      compose.onNodeWithTag("glass-${size.value.toInt()}", useUnmergedTree = true)
         .assertWidthIsEqualTo(size)
         .assertHeightIsEqualTo(size)
     }
@@ -98,7 +97,9 @@ class FluidGlassFreeSizeTest {
         Column {
           FluidGlassSize.entries.forEach { size ->
             FluidGlassIconButton(onClick = {}, size = size, modifier = Modifier.testTag("enum-${size.name}")) {}
-            FluidGlassIconButton(onClick = {}, size = size.lens, modifier = Modifier.testTag("dp-${size.name}")) {}
+            FluidGlassIconButton(onClick = {}, size = size.lens, modifier = Modifier.testTag("dp-${size.name}")) {
+              Box(Modifier.matchParentSize().testTag("dp-glass-${size.name}"))
+            }
           }
         }
       }
@@ -107,7 +108,7 @@ class FluidGlassFreeSizeTest {
     FluidGlassSize.entries.forEach { size ->
       compose.onNodeWithTag("enum-${size.name}").assertWidthIsEqualTo(size.touchTarget).assertHeightIsEqualTo(size.touchTarget)
       compose.onNodeWithTag("dp-${size.name}").assertWidthIsEqualTo(size.touchTarget).assertHeightIsEqualTo(size.touchTarget)
-      compose.onNodeWithTag("dp-${size.name}").onChildren().onFirst().assertWidthIsEqualTo(size.lens)
+      compose.onNodeWithTag("dp-glass-${size.name}", useUnmergedTree = true).assertWidthIsEqualTo(size.lens)
     }
   }
 
@@ -115,12 +116,14 @@ class FluidGlassFreeSizeTest {
   fun `senza size vale la taglia Regular, come prima`() {
     compose.setContent {
       Themed {
-        FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("default")) {}
+        FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("default")) {
+          Box(Modifier.matchParentSize().testTag("default-glass"))
+        }
       }
     }
     compose.waitForIdle()
     val regular: Dp = FluidGlassSize.Regular.touchTarget
     compose.onNodeWithTag("default").assertWidthIsEqualTo(regular).assertHeightIsEqualTo(regular)
-    compose.onNodeWithTag("default").onChildren().onFirst().assertWidthIsEqualTo(FluidGlassSize.Regular.lens)
+    compose.onNodeWithTag("default-glass", useUnmergedTree = true).assertWidthIsEqualTo(FluidGlassSize.Regular.lens)
   }
 }

@@ -15,18 +15,20 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onChildren
-import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
@@ -40,6 +42,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPresentation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSize
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
+import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidButtonSizing
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
@@ -120,9 +123,8 @@ class FluidGlassButtonStylesUiTest {
       }
       assertEquals("$tag: ogni punto del quadrato da 44 dp clicca", points.size, clicks[tag] ?: 0)
 
-      // TalkBack: il nodo con l'azione ha un bersaglio di almeno 44 dp per lato (Compose allarga quelli piu' piccoli).
-      val clickable = if (wide) compose.onNodeWithTag(tag) else compose.onNodeWithTag(tag).onChildren().onFirst()
-      val node = clickable.fetchSemanticsNode()
+      // Il nodo che espone l'azione occupa lo stesso riquadro che riceve il gesto.
+      val node = compose.onNodeWithTag(tag).fetchSemanticsNode()
       assertTrue("$tag ha l'azione", node.config.contains(SemanticsActions.OnClick))
       val touch = node.touchBoundsInRoot
       val density = compose.density.density
@@ -132,31 +134,68 @@ class FluidGlassButtonStylesUiTest {
   }
 
   @Test
+  @Config(qualifiers = "w360dp-h640dp-340dpi")
+  fun `il tocco oltre il vetro arriva anche senza allargamento implicito della piattaforma`() {
+    var compact = 0
+    var back = 0
+    compose.setContent {
+      val platform = LocalViewConfiguration.current
+      val config = remember(platform) {
+        object : ViewConfiguration by platform {
+          override val minimumTouchTargetSize = DpSize.Zero
+        }
+      }
+      CompositionLocalProvider(LocalViewConfiguration provides config) {
+        Themed {
+          FluidScreen(title = "Stili", onBack = { back++ }) {
+            item {
+              FluidGlassIconButton(onClick = { compact++ }, size = FluidGlassSize.Compact,
+                modifier = Modifier.testTag("compact")) { FluidIcon(FluidIcons.Share, "Vetro Compact") }
+            }
+          }
+        }
+      }
+    }
+    val button = compose.onNodeWithTag("compact")
+    val backButton = compose.onNodeWithContentDescription("Indietro")
+    val center = button.fetchSemanticsNode().boundsInRoot.center
+    compose.onRoot().performTouchInput { click(center - Offset(22.dp.toPx(), 0f)) }
+    compose.runOnIdle { assertEquals(1, compact) }
+    val backCenter = backButton.fetchSemanticsNode().boundsInRoot.center
+    // La barra di FluidScreen è alta 44 dp. Il margine tra il disco e il bersaglio è orizzontale.
+    compose.onRoot().performTouchInput { click(backCenter + Offset(23.dp.toPx(), 0f)) }
+    compose.runOnIdle { assertEquals(1, back) }
+  }
+
+  @Test
   fun `la taglia d'ambiente vale per i tasti dentro, e l'icona ne discende`() {
     compose.setContent {
       Themed {
         Column {
           CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) {
             FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("ambiente")) {
+              Box(Modifier.matchParentSize().testTag("ambiente-vetro"))
               FluidIcon(FluidIcons.Share, null, Modifier.testTag("ambiente-icona"))
             }
             // Scritta sul tasto, la taglia vince sull'ambiente.
             FluidGlassIconButton(onClick = {}, size = FluidGlassSize.Large, modifier = Modifier.testTag("scritta")) {
+              Box(Modifier.matchParentSize().testTag("scritta-vetro"))
               FluidIcon(FluidIcons.Share, null, Modifier.testTag("scritta-icona"))
             }
           }
           FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("serie")) {
+            Box(Modifier.matchParentSize().testTag("serie-vetro"))
             FluidIcon(FluidIcons.Share, null, Modifier.testTag("serie-icona"))
           }
         }
       }
     }
     compose.waitForIdle()
-    compose.onNodeWithTag("ambiente").onChildren().onFirst().assertWidthIsEqualTo(40.dp)
+    compose.onNodeWithTag("ambiente-vetro", useUnmergedTree = true).assertWidthIsEqualTo(40.dp)
     compose.onNodeWithTag("ambiente-icona", useUnmergedTree = true).assertWidthIsEqualTo(24.dp).assertHeightIsEqualTo(24.dp)
-    compose.onNodeWithTag("scritta").onChildren().onFirst().assertWidthIsEqualTo(54.dp)
+    compose.onNodeWithTag("scritta-vetro", useUnmergedTree = true).assertWidthIsEqualTo(54.dp)
     compose.onNodeWithTag("scritta-icona", useUnmergedTree = true).assertWidthIsEqualTo(32.dp)
-    compose.onNodeWithTag("serie").onChildren().onFirst().assertWidthIsEqualTo(44.dp)
+    compose.onNodeWithTag("serie-vetro", useUnmergedTree = true).assertWidthIsEqualTo(44.dp)
     compose.onNodeWithTag("serie-icona", useUnmergedTree = true).assertWidthIsEqualTo(26.dp)
   }
 
@@ -175,10 +214,11 @@ class FluidGlassButtonStylesUiTest {
           LocalFluidButtonSizing provides FluidButtonSizing.Flexible,
         ) {
           Box(Modifier.fillMaxSize()) {
-            FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("barra")) {}
+            FluidGlassIconButton(onClick = {}) { Box(Modifier.matchParentSize().testTag("barra-vetro")) }
             FluidGlassSheet(visible = true, onDismissRequest = {}) {
               inSheet = Triple(LocalFluidGlassSize.current, LocalFluidGlassButtonStyle.current, LocalFluidButtonSizing.current)
               FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag("nel-foglio")) {
+                Box(Modifier.matchParentSize().testTag("foglio-vetro"))
                 FluidIcon(FluidIcons.Share, null, Modifier.testTag("nel-foglio-icona"))
               }
             }
@@ -191,11 +231,11 @@ class FluidGlassButtonStylesUiTest {
       }
     }
     compose.waitForIdle()
-    compose.onNodeWithTag("barra").onChildren().onFirst().assertWidthIsEqualTo(40.dp)
+    compose.onNodeWithTag("barra-vetro", useUnmergedTree = true).assertWidthIsEqualTo(40.dp)
     val defaults = Triple(FluidGlassSize.Regular, FluidGlassButtonStyle.Glass, FluidButtonSizing.Fitted)
     assertEquals(defaults, inSheet)
     assertEquals(defaults, inPopover)
-    compose.onNodeWithTag("nel-foglio").onChildren().onFirst().assertWidthIsEqualTo(44.dp)
+    compose.onNodeWithTag("foglio-vetro", useUnmergedTree = true).assertWidthIsEqualTo(44.dp)
     compose.onNodeWithTag("nel-foglio-icona", useUnmergedTree = true).assertWidthIsEqualTo(26.dp)
   }
 

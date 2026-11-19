@@ -101,8 +101,8 @@ class FluidPageHostTest {
   private fun leftPx(text: String): Float =
     with(compose.density) { compose.onNodeWithText(text).getUnclippedBoundsInRoot().left.toPx() }
 
-  private fun isShown(text: String): Boolean =
-    compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+  private fun isShown(text: String, useUnmergedTree: Boolean = false): Boolean =
+    compose.onAllNodesWithText(text, useUnmergedTree = useUnmergedTree).fetchSemanticsNodes().isNotEmpty()
 
   /**
    * Un trascinamento a passi regolari, un fotogramma per passo. I test del rilascio partono dal bordo
@@ -642,9 +642,11 @@ class FluidPageHostTest {
     compose.mainClock.advanceTimeByFrame()
     assertTrue(isShown(PagesMarkB))
     val rest = leftPx(PagesMarkB)
-    assertTrue(isShown(PagesMarkA))
+    // La pagina in uscita si disegna durante la dissolvenza e cede subito i comandi accessibili.
+    assertTrue(isShown(PagesMarkA, useUnmergedTree = true))
+    assertTrue(!isShown(PagesMarkA))
     compose.mainClock.advanceTimeBy(80)
-    assertTrue(isShown(PagesMarkA))
+    assertTrue(isShown(PagesMarkA, useUnmergedTree = true))
     assertEquals(rest, leftPx(PagesMarkB), 0.5f)
     compose.mainClock.advanceTimeBy(240)
     assertTrue(!isShown(PagesMarkA))

@@ -21,6 +21,7 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import android.graphics.ColorMatrixColorFilter
@@ -145,6 +146,7 @@ internal class GlassDrawInputs(pieces: Int = 1) {
   var tintMode: Float = 0f
   var tintFollow: Float = 0f
   var slabFilms: List<GlassTint>? = null
+  var materialAccessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default
   val filmModes = FloatArray(GlassFieldMaxPieces)
   var bodyShade: Color = Color.Transparent
   var bodyShadeDepth: Float = 0f
@@ -777,7 +779,12 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
           GlassTintMode.Colored -> 1f
           GlassTintMode.Neutral -> 0f
         }
-        setColorUniform("film$i", if (mode == GlassTintMode.Neutral) Color.Transparent else films[i].overlay)
+        val overlay = films[i].overlay
+        setColorUniform("film$i", when (mode) {
+          GlassTintMode.Neutral -> Color.Transparent
+          GlassTintMode.Fixed -> overlay.glassAccessibleFilm(inputs.materialAccessibility)
+          GlassTintMode.Colored -> overlay
+        })
       }
       setFloatUniform("filmModes", inputs.filmModes)
     }
@@ -1036,6 +1043,7 @@ internal class GlassLiquidSurface(
    */
   private val variant: GlassLiquidVariant = GlassLiquidVariant.Regular,
   private val gel: FluidGlassPressGeometry? = null,
+  private val accessibility: () -> GlassMaterialAccessibility = { GlassMaterialAccessibility.Default },
 ) {
 
   /** Vedi [glassLiquidCaptureScale]. */
@@ -1074,6 +1082,7 @@ internal class GlassLiquidSurface(
     preference = preference,
     out = out,
     scratch = side,
+    accessibility = accessibility(),
   )
 
   // ---- Il vetro annidato -----------------------------------------------------------------------------------

@@ -53,6 +53,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassAdaptiveHost
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassAdaptiveState
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveMaterial
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
@@ -279,6 +280,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
 
   state.liquidBody = glass.liquid
   if (glass.liquid) {
+    val accessibility = rememberGlassMaterialAccessibility()
     // Il materiale nuovo (4.0, F1B.1): lo stesso corpo e la stessa ricetta di `glassSurface`, sulla sagoma del
     // motore. Niente pellicola dipinta, niente bordo, niente bagliore e (F1B.2) niente ombra a parte: sono nel
     // corpo e nella luce. L'ombra in corpo ha gli stessi due profili di caduta delle maschere a riposo, e si vede
@@ -364,6 +366,8 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
         preference = preference,
         variant = variant,
         planeJourney = planeJourney,
+        accessibility = { accessibility.value },
+        reducedMotion = reducedMotion,
       )
     }
     return this

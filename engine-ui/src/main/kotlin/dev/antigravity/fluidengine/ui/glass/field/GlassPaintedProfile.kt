@@ -40,6 +40,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -59,8 +60,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassMaterialAccessibility
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -188,6 +191,7 @@ internal fun glassPaintedRecipe(
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
+  accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
 ): GlassRecipe = glassRecipe(
   role = GlassRole.Modal,
   widthDp = widthDp,
@@ -200,6 +204,7 @@ internal fun glassPaintedRecipe(
   largeVeil = largeVeil,
   preference = preference,
   out = out,
+  accessibility = accessibility,
 )
 
 /**
@@ -237,9 +242,11 @@ internal fun glassPaintedPanelBody(
   darkSide: Boolean,
   profile: GlassLiquidProfile = GlassLiquidProfile.Default,
   preference: Float = FluidGlassPreference.Default,
+  accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
 ): Color = glassPaintedBody(
   glassPaintedRecipe(
     PanelReferenceDp, PanelReferenceDp, darkSide, largeVeil = 1f, profile = profile, preference = preference,
+    accessibility = accessibility,
   ),
   glassPaintedSeen(page, darkSide),
 )
@@ -557,6 +564,7 @@ private fun paintedOutline(
  * @param preference il cursore dell'utente (`LocalFluidGlassPreference`), letto da chi chiama dove legge il modello del
  *   vetro: vedi [glassPaintedRecipe].
  */
+@Composable
 internal fun Modifier.glassPainted(
   shape: Shape,
   darkSide: Boolean,
@@ -569,6 +577,7 @@ internal fun Modifier.glassPainted(
   extendTop: () -> Float = { 0f },
   extendBottomPx: Float = 0f,
   preference: Float = FluidGlassPreference.Default,
+  accessibility: GlassMaterialAccessibility = rememberGlassMaterialAccessibility().value,
 ): Modifier = this.drawWithCache {
   val top = max(extendTop().let { if (it.isFinite()) it else 0f }, 0f)
   val area = Size(size.width, size.height + top + max(extendBottomPx, 0f))
@@ -582,6 +591,7 @@ internal fun Modifier.glassPainted(
     largeVeil = largeVeil,
     profile = profile,
     preference = preference,
+    accessibility = accessibility,
   )
   val corners = glassPaintedCorners(shape, area, this, layoutDirection)
   val plan = glassPaintedPlan(recipe, seen, area.width, area.height, density, corners)
@@ -614,7 +624,7 @@ internal fun Modifier.glassPainted(
           )
         }
       }
-      val glow = glassPaintedGlow(recipe, pressure())
+      val glow = glassPaintedGlow(recipe, pressure()) * if (accessibility.receded) recipe.lightColor.alpha else 1f
       if (glow > 0f) drawOutline(bodyOutline, recipe.lightColor.copy(alpha = glow), blendMode = BlendMode.Plus)
     }
   }

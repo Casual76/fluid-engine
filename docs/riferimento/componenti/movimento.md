@@ -38,7 +38,7 @@ cedono» e «Un solo vocabolario di movimento» in [../regole.md](../regole.md).
 | un valore che si accende e si spegne in un lampo | `FluidMotion.flick()` (la molla di serie di Compose, ma col suo nome) |
 | un segno che pulsa (un pallino «dal vivo») | `FluidMotion.pulse(...)` dentro `rememberInfiniteTransition`, **solo se** `LocalFluidMotionPolicy.current.allowDecorativeMotion` |
 | un giro che si ripete (spinner, barra indeterminata) | `FluidMotion.loop(durationMillis, ...)` con `SpinnerMillis` / `IndeterminateMillis` |
-| spegnere il movimento decorativo | `FluidMotionPolicyProvider` in radice **e** `LocalFluidMotionPolicy` nei tuoi componenti: vedi «Movimento ridotto» (l'engine **non** lo installa da solo) |
+| spegnere il movimento decorativo | `FluidTheme` applica la durata di sistema a zero. I tuoi componenti leggono `LocalFluidMotionPolicy`. Fuori dal tema usa `FluidMotionPolicyProvider` |
 | sapere che «oggi» è oggi anche dopo mezzanotte | `rememberCurrentDate()`; **non** `remember { LocalDate.now() }` |
 | due forme che si fondono come gocce | `Modifier.gooey { raggioPx }` (offscreen layer + soglia sull'alfa) |
 | un'animazione di **pagina** | non qui: [pagine](../api/pagine.md) e la scheda delle pagine |
@@ -437,12 +437,10 @@ val LocalFluidMotionPolicy: ProvidableCompositionLocal<FluidMotionPolicy>   // s
 @Composable fun FluidMotionPolicyProvider(policy: FluidMotionPolicy = rememberFluidMotionPolicy(), content: @Composable () -> Unit)
 ```
 
-**Come si spegne il movimento decorativo.** Due metà, e la prima **l'engine non la fa per te**:
+**Come si spegne il movimento decorativo.**
 
-1. **Installare la policy in radice.** `FluidTheme` **non** installa `FluidMotionPolicyProvider` (verificato: nessuno
-   nell'engine, nel `sample` né nei `templates` lo fa; `LocalFluidMotionPolicy` resta `Default`, scala 1, per ogni
-   componente sotto). Se vuoi che i componenti dell'engine (pressione, menu, pagine, respiro, scorrimento rapido,
-   overscroll…) rispettino la scala a zero, avvolgi il contenuto:
+1. **Fornire la policy.** `FluidTheme` applica la scala di sistema a zero e normalmente eredita la policy già attiva.
+   Usa il provider in un tema personalizzato, per seguire anche le scale intermedie o per provare la modalità ridotta:
 
    ```kotlin
    FluidTheme(settings = settings) {
@@ -478,10 +476,8 @@ che non sono un'animazione (non creare la transizione infinita, dimezzare la cre
 - **Eccezioni note** (R1, da `docs/10-coerenza.md`): lo squash di pillola e interruttore **non guarda** il movimento
   ridotto; era così e cambiarlo è una decisione, non una correzione.
 
-**Trappole.** La più grossa è la prima metà: un'app che non installa il provider ha tutti i componenti dell'engine sul
-`Default`. Poi: leggere `LocalFluidMotionPolicy` in composizione per un valore che cambia a ogni fotogramma (leggilo nel
-disegno); `staticCompositionLocalOf` ricompone **tutto** l'albero se il valore cambia (accade solo se l'utente cambia la
-scala di sistema).
+**Trappole.** Fuori da `FluidTheme` e dal provider si applica `Default`. Leggi i valori che cambiano a ogni fotogramma
+in disegno. Un cambio della policy ricompone l'albero che la usa.
 
 ## `Modifier.gooey`
 

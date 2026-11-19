@@ -133,7 +133,10 @@ fun FluidSheet(
   // Il vetro dipinto del foglio (F1B.5, `glass/field/GlassPaintedProfile.kt`): il corpo e' il colore pieno che il
   // foglio di vetro ha sopra la pagina del tema sotto lo scrim, e lo dipinge il contenitore, che copre anche la
   // maniglia. Prima il contenitore era la superficie al 92%: dal foglio si leggeva la pagina dietro, nitida.
-  val body = remember(page, darkSide, preference) { glassPaintedPanelBody(page, darkSide, preference = preference) }
+  val accessibility = rememberGlassMaterialAccessibility().value
+  val body = remember(page, darkSide, preference, accessibility) {
+    glassPaintedPanelBody(page, darkSide, preference = preference, accessibility = accessibility)
+  }
   val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
   // Dove comincia il contenuto sotto la maniglia: il bordo dipinto sale fin li', alla cima vera del foglio.
   var contentTop by remember { mutableFloatStateOf(0f) }
@@ -175,6 +178,7 @@ fun FluidSheet(
             extendTop = { contentTop },
             extendBottomPx = bottomBleed,
             preference = preference,
+            accessibility = accessibility,
           )
       } else {
         // Il foglio di prima: il dipinto della 3.x sotto la maniglia (lo sceglie lo stesso `fluidStaticGlassSurface`).
@@ -449,12 +453,15 @@ private fun FluidAlertDialog(
   val liquid = rememberPaintedGlassLiquid(LocalFluidGlassModel.current)
   // Il cursore dell'utente, come nel foglio.
   val preference = LocalFluidGlassPreference.current
-  val body = remember(page, darkSide, preference) { glassPaintedPanelBody(page, darkSide, preference = preference) }
   val seen = remember(page, darkSide) { glassPaintedSeen(page, darkSide) }
   Dialog(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false),
   ) {
+    val accessibility = rememberGlassMaterialAccessibility().value
+    val body = remember(page, darkSide, preference, accessibility) {
+      glassPaintedPanelBody(page, darkSide, preference = preference, accessibility = accessibility)
+    }
     // Lo scrim dei pannelli dipinti (F1B.5): lo stesso nero del foglio di piattaforma e dei modali di vetro, al
     // posto del velo di piattaforma della `Dialog`.
     val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
@@ -489,6 +496,7 @@ private fun FluidAlertDialog(
               seen = seen,
               largeVeil = 1f,
               preference = preference,
+              accessibility = accessibility,
             )
           } else {
             Modifier

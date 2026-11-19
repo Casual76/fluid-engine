@@ -2,20 +2,33 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import android.app.UiModeManager
 import android.content.Context
+import android.database.ContentObserver
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.core.app.OnMultiWindowModeChangedProvider
+import androidx.core.app.MultiWindowModeChangedInfo
 import androidx.core.content.ContextCompat
+import androidx.core.util.Consumer
 
 /**
  * Il contrasto che il sistema chiede, da 0 (standard) a 1 (alto): Android 14+, Impostazioni >
@@ -127,7 +140,7 @@ fun GlassTint.forSystemContrast(): GlassTint = forContrast(LocalFluidSystemContr
 private fun Color.denser(veil: Float): Color =
   if (!isSpecified) this else copy(alpha = alpha + (1f - alpha) * veil)
 
-private fun Color.sharper(veil: Float): Color {
+internal fun Color.sharper(veil: Float): Color {
   if (!isSpecified || alpha <= 0f) return this
   // Il guadagno e' pieno ad alto contrasto, e a medio e' la parte che gli spetta. Un bordo che gia'
   // supera il tetto non si abbassa: il tetto frena la crescita, non toglie niente.
@@ -174,3 +187,86 @@ private fun rememberSystemContrast34(context: Context): Float {
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 private fun readContrast34(manager: UiModeManager?): Float =
   if (manager == null) FluidSystemContrast.Standard else FluidSystemContrast.level(manager.contrast)
+
+/**
+ * Consente a un'app di ridurre la trasparenza del materiale Liquid anche quando il dispositivo
+ * non offre un controllo equivalente. Il tema aggiunge la preferenza di sistema al valore
+ * fornito dall'app. Di serie l'app non aggiunge alcuna preferenza.
+ */
+val LocalFluidReduceTransparency: ProvidableCompositionLocal<Boolean> = compositionLocalOf { false }
+
+internal val LocalGlassSystemReduceTransparency = compositionLocalOf { false }
+internal val LocalGlassMultiWindow = compositionLocalOf { false }
+
+// Impostazioni esplicite, una AOSP da API 31 e una di One UI. La disponibilità delle
+// sfocature di WindowManager dipende anche da GPU, batteria e riproduzione video.
+private const val DisableWindowBlurs = "disable_window_blurs"
+private const val SamsungReduceTransparency = "accessibility_reduce_transparency"
+
+@Composable
+internal fun rememberGlassSystemReduceTransparency(): Boolean {
+  val resolver = LocalContext.current.contentResolver
+  val keys = remember {
+    buildList {
+      if (Build.VERSION.SDK_INT >= 31) add(DisableWindowBlurs)
+      if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) add(SamsungReduceTransparency)
+    }
+  }
+  fun read(): Boolean = keys.any { key ->
+    runCatching { Settings.Global.getInt(resolver, key, 0) == 1 }.getOrDefault(false)
+  }
+  var reduced by remember(resolver, keys) { mutableStateOf(read()) }
+  DisposableEffect(resolver, keys) {
+    val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+      override fun onChange(selfChange: Boolean) { reduced = read() }
+    }
+    keys.forEach { key ->
+      runCatching { resolver.registerContentObserver(Settings.Global.getUriFor(key), false, observer) }
+    }
+    reduced = read()
+    onDispose { if (keys.isNotEmpty()) resolver.unregisterContentObserver(observer) }
+  }
+  return reduced
+}
+
+@Composable
+internal fun rememberGlassMultiWindow(): Boolean {
+  val activity = LocalActivity.current ?: return false
+  // La configurazione copre anche le Activity prive del listener AndroidX.
+  val configuration = LocalConfiguration.current
+  var multiWindow by remember(activity, configuration) {
+    mutableStateOf(activity.isInMultiWindowMode && !activity.isInPictureInPictureMode)
+  }
+  val provider = activity as? OnMultiWindowModeChangedProvider
+  DisposableEffect(activity, provider, configuration) {
+    val listener = Consumer<MultiWindowModeChangedInfo> {
+      multiWindow = it.isInMultiWindowMode && !activity.isInPictureInPictureMode
+    }
+    provider?.addOnMultiWindowModeChangedListener(listener)
+    multiWindow = activity.isInMultiWindowMode && !activity.isInPictureInPictureMode
+    onDispose { provider?.removeOnMultiWindowModeChangedListener(listener) }
+  }
+  return multiWindow
+}
+
+internal data class GlassMaterialAccessibility(
+  val reduceTransparency: Boolean = false,
+  val contrast: Float = FluidSystemContrast.Standard,
+  val receded: Boolean = false,
+) {
+  companion object {
+    val Default = GlassMaterialAccessibility()
+  }
+}
+
+@Composable
+internal fun rememberGlassMaterialAccessibility(): State<GlassMaterialAccessibility> {
+  val app = LocalFluidReduceTransparency.current
+  val system = LocalGlassSystemReduceTransparency.current
+  val contrast = FluidSystemContrast.level(LocalFluidSystemContrast.current)
+  val receded = LocalGlassMultiWindow.current && !LocalWindowInfo.current.isWindowFocused
+  return rememberUpdatedState(
+    if (app || system || contrast > 0f || receded) GlassMaterialAccessibility(app || system, contrast, receded)
+    else GlassMaterialAccessibility.Default,
+  )
+}

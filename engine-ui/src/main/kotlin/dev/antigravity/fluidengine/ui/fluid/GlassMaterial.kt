@@ -2026,6 +2026,7 @@ internal fun Modifier.glassLiquidSurface(
   val currentDepth by rememberUpdatedState(opticalDepth)
   val currentPressed by rememberUpdatedState(pressed)
   val currentTouch by rememberUpdatedState(touch)
+  val accessibility = rememberGlassMaterialAccessibility()
   // Pellicola e tinta sono lette in disegno: un colore che si anima rifa' la catena, non l'elemento del nodo.
   // Il modo risolto, non quello scritto: una tinta di serie a cui hanno cambiato colore e' una pellicola.
   val tintMode = glassTintLiquidMode(tint)
@@ -2107,6 +2108,7 @@ internal fun Modifier.glassLiquidSurface(
       nesting = nesting,
       variant = variant,
       gel = gel,
+      accessibility = { accessibility.value },
     )
   }
 

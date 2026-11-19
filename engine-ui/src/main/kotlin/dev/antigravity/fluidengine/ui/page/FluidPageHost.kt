@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -341,6 +342,9 @@ private fun <K : Any> PageLayer(
 ) {
   val barSlot = remember(page, barRegistry) { FluidPageBarSlot(page, barRegistry) }
   val covered = !isUpper && state.kind == FluidPageMove.None
+  // La pagina che riappare sotto il dito è una previsione finché il gesto non viene confermato.
+  val hiddenFromAccessibility = state.blocksInput(page) ||
+    (!isUpper && (state.phase == FluidPageHostState.Phase.Dragging || state.phase == FluidPageHostState.Phase.Cancelling))
   val coveredState = rememberUpdatedState(covered)
   // Il ruolo si legge dallo stato, non dalla composizione: vedi [pageLayer].
   val front = remember(state, page, parentFront) {
@@ -377,7 +381,11 @@ private fun <K : Any> PageLayer(
       .zoomCrossfade(state, page, pageColor)
       .then(if (pageColor.isSpecified) Modifier.background(pageColor) else Modifier)
       .pageInputGate(state, page)
-      .then(if (covered) Modifier.clearAndSetSemantics { } else Modifier),
+      .then(when {
+        covered -> Modifier.clearAndSetSemantics { }
+        hiddenFromAccessibility -> Modifier.clearAndSetSemantics { hideFromAccessibility() }
+        else -> Modifier
+      }),
   ) {
     CompositionLocalProvider(
       LocalFluidRouteFront provides front,

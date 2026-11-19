@@ -885,9 +885,8 @@ alla radice, il dipinto si vede nella pagina «Vetro dipinto» (`--es gallery.pa
 **Sceglie il materiale come ogni altro vetro** (`paintedGlassTakesLiquid`, chiesto da `fluidStaticGlassSurface`,
 `FluidSheet` e `FluidAlert`): con `FluidGlassModel.Classic`, sotto Android 13 o con le sorgenti delle lastre rifiutate
 il dipinto è **per intero** quello della 3.x (i suoi gradienti, il contenitore del foglio al 92% da cui si legge la
-pagina, lo scrim e il velo della `Dialog` di prima, nessuna ombra del vetro). Mai un foglio ibrido. Il dipinto **non
-segue il contrasto di sistema**: il corpo è il velo della ricetta, mai la pellicola densa che le lastre prendono sopra
-il contrasto standard.
+pagina, lo scrim e il velo della `Dialog` di prima, nessuna ombra del vetro). Il dipinto Liquid segue le impostazioni
+del materiale. A contrasto aumentato il velo del profilo si ispessisce e il bordo si fa più netto anche nel foglio.
 
 **Come si verifica in un'app.** Nel codice: nessun foglio o dialogo con uno scrim proprio (`grep -n "scrimColor\|setDimAmount"`)
 o un fondo traslucido scritto a mano al posto di `fluidStaticGlassSurface`. A schermo: un foglio di piattaforma e un
@@ -1340,6 +1339,23 @@ Il testo sul vetro si tiene leggibile con quattro leve, in quest'ordine:
 l'app aperta; 0 prima di Android 14 e dove il servizio manca). `GlassTint.forContrast(c)` / `forSystemContrast()`
 rendono la pellicola più densa; le tinte di `GlassDefaults` lo fanno da sole, una tinta scritta a mano **no**
 (e neppure `selectionTint()`).
+
+### Accessibilità del materiale Liquid
+
+- **Trasparenza ridotta.** `FluidTheme` osserva `Settings.Global.disable_window_blurs` da API 31 e la preferenza
+  `accessibility_reduce_transparency` su One UI, dove è leggibile. Un'app può chiedere lo stesso effetto con
+  `CompositionLocalProvider(LocalFluidReduceTransparency provides true)`. Basta una delle due richieste. La
+  ricetta porta la pellicola fissa, oppure il velo del profilo, almeno al 96% anche nella variante limpida.
+  L'intensità delle transizioni continua a governare quanto materiale viene disegnato.
+- **Contrasto.** La ricetta Liquid segue il livello anche sui campi di più lastre, in viaggio e nei fogli
+  dipinti. L'opacità è almeno 82% a contrasto medio e 92% ad alto. Le pellicole già più dense mantengono
+  la loro opacità e il velo neutro scuro si avvicina al nero per far risaltare l'inchiostro chiaro.
+  Ad alto contrasto il filo è largo almeno 0,85 dp e resta visibile lungo il perimetro.
+- **Movimento ridotto.** Il tema applica la politica ridotta quando la durata animazioni di sistema è a zero.
+  La pressione perde elasticità e flessione, e la lente in viaggio e la luce mobile si spengono.
+- **Multi-finestra.** In split screen o in una finestra libera, alla perdita del fuoco il materiale percorre
+  il 28% dell'opacità rimanente e la luce scende al 55%. Il contrasto richiesto e l'inchiostro conservano forza.
+  A schermo intero e in picture-in-picture si applica la ricetta della finestra attiva.
 
 **Numeri veri** (`FluidSystemContrast`, fissati in `FluidSystemContrastTest`):
 - `veil(c)`: 0 a standard, **0,40 a medio**, **0,85 ad alto**, lineare fra uno e l'altro. Valori fuori scala o non finiti

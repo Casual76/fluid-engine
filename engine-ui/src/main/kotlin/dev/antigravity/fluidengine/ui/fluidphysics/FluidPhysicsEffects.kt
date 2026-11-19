@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.FluidPressState
+import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
@@ -907,6 +908,7 @@ internal fun physicsLiquidRecipe(
    * si spegne prima. Di serie [journeyLight]: l'alone segue la luce, com'era fino a F3.12b, al bit.
    */
   journeyGlow: Float = journeyLight,
+  accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
 ): GlassRecipe {
   fun fill(of: GlassTint, out: GlassRecipe): GlassRecipe {
     val mode = glassTintLiquidMode(of)
@@ -929,6 +931,7 @@ internal fun physicsLiquidRecipe(
       preference = preference,
       out = out,
       scratch = scratch.side,
+      accessibility = accessibility,
     )
   }
   val recipe = fill(tint, scratch.to)
@@ -950,6 +953,7 @@ internal fun physicsLiquidRecipe(
   }
   recipe.dispersion = if (quality > 0.75f) GlassLiquidDispersion * clampGlassUnit(material.dispersion) else 0f
   glassTravelRecipe(recipe, profile.travel, motion, quality)
+  if (accessibility.reduceTransparency || accessibility.contrast > 0f || accessibility.receded) return recipe
   // Dopo il vetro in viaggio, e prima della comparsa per lente (che il chiamante applica dopo): in un campo per lente
   // il livello è zero e il carattere non tocca niente. Il lato corto dà la geometria dell'alone (F3.12b).
   return glassJourneyRecipe(
@@ -1210,6 +1214,8 @@ internal class PhysicsLiquidSurface(
    * dal piano e i grappoli fermi del contenitore, al bit come prima.
    */
   private val planeJourney: Boolean = false,
+  private val accessibility: () -> GlassMaterialAccessibility = { GlassMaterialAccessibility.Default },
+  private val reducedMotion: Boolean = false,
 ) {
 
   private val adaptiveMaterial = GlassAdaptiveMaterial()
@@ -1297,6 +1303,8 @@ internal class PhysicsLiquidSurface(
     val shortDp = physicsRecipeShortPx(plan) / screenDensity
     val large = largeVeilWeight(glassLiquidLargeVeilGain(shortDp))
     largeVeilShown = large
+    val access = accessibility()
+    val animatedJourney = planeJourney && !reducedMotion
     val recipe = physicsLiquidRecipe(
       role = role,
       material = material.at(opticsBlend()),
@@ -1311,7 +1319,7 @@ internal class PhysicsLiquidSurface(
       nested = nested,
       // La lente in moto: zero esatto a goccia posata, quindi a riposo la ricetta è quella della lastra. Per il piano
       // flottante, la velocità dei suoi lati (`physicsPlaneMotion`): zero da fermi.
-      motion = planeShape?.motion ?: state.liquid.lens,
+      motion = if (reducedMotion) 0f else planeShape?.motion ?: state.liquid.lens,
       profile = profile,
       scratch = recipes,
       largeVeil = large,
@@ -1320,11 +1328,12 @@ internal class PhysicsLiquidSurface(
       preference = preference,
       variant = variant,
       // Il carattere del viaggio del piano (F3.10): solo sul palco, zero ovunque altrove.
-      journeyLight = if (planeJourney) planeShape?.journeyLight ?: 0f else 0f,
+      journeyLight = if (animatedJourney) planeShape?.journeyLight ?: 0f else 0f,
       // La luce del dito porta l'alone verso quello di Apple (F3.12b): lo stesso bagliore che `physicsLiquidGlow` disegna.
-      journeyTouch = if (planeJourney) planeShape?.touch?.amount ?: 0f else 0f,
+      journeyTouch = if (animatedJourney) planeShape?.touch?.amount ?: 0f else 0f,
       // L'alone ha la sua curva (F3.12c): sale con la luce e si spegne prima.
-      journeyGlow = if (planeJourney) planeShape?.journeyGlow ?: 0f else 0f,
+      journeyGlow = if (animatedJourney) planeShape?.journeyGlow ?: 0f else 0f,
+      accessibility = access,
     )
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {
@@ -1372,6 +1381,7 @@ internal class PhysicsLiquidSurface(
       }
     }
     inputs.slabFilms = planeShape?.slabFilms
+    inputs.materialAccessibility = access
     return true
   }
 

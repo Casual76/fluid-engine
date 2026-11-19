@@ -22,13 +22,16 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassBlurFloor
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
+import dev.antigravity.fluidengine.ui.fluid.FluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.clampGlassUnit
 import dev.antigravity.fluidengine.ui.fluid.glassEdgeDepth
 import dev.antigravity.fluidengine.ui.fluid.glassResolutionScale
 import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
+import dev.antigravity.fluidengine.ui.fluid.sharper
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import kotlin.math.max
@@ -512,6 +515,7 @@ internal fun glassRecipe(
   preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
   scratch: GlassRecipe? = null,
+  accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
 ): GlassRecipe {
   val darkness = adaptive?.darkness ?: Float.NaN
   val side = if (darkness.isFinite()) clampGlassUnit(darkness) else if (darkSide) 1f else 0f
@@ -519,16 +523,16 @@ internal fun glassRecipe(
   if (side <= 0f || side >= 1f) {
     return glassRecipeSide(
       role, widthDp, heightDp, side >= 1f, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-      nested, profile, largeVeil, live, preference, out,
+      nested, profile, largeVeil, live, preference, out, accessibility,
     )
   }
   glassRecipeSide(
     role, widthDp, heightDp, false, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-    nested, profile, largeVeil, live, preference, out,
+    nested, profile, largeVeil, live, preference, out, accessibility,
   )
   val dark = glassRecipeSide(
     role, widthDp, heightDp, true, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-    nested, profile, largeVeil, live, preference, scratch ?: GlassRecipe(),
+    nested, profile, largeVeil, live, preference, scratch ?: GlassRecipe(), accessibility,
   )
   return lerpGlassRecipe(out, dark, side, out)
 }
@@ -556,6 +560,7 @@ private fun glassRecipeSide(
   live: GlassAdaptiveMaterial?,
   preference: Float,
   out: GlassRecipe,
+  accessibility: GlassMaterialAccessibility,
 ): GlassRecipe {
   val amount = clampGlassUnit(intensity)
   val q = clampGlassUnit(quality)
@@ -738,7 +743,74 @@ private fun glassRecipeSide(
     shadowColor = lerpSrgb(shadowColor, tint.copy(alpha = shadowColor.alpha), clampGlassUnit(adapt.tintHalo))
   }
   out.shadowColor = shadowColor
+  out.applyMaterialAccessibility(accessibility, darkSide, veilColor, fixedFilm)
   return out
+}
+
+private const val ReducedTransparencyOpacity = 0.96f
+private const val RecededVeilShare = 0.28f
+private const val RecededLight = 0.55f
+private const val MediumContrastOpacity = 0.82f
+private const val HighContrastOpacity = 0.92f
+private const val AccessibleDarkVeilBlackShare = 0.55f
+private const val ContrastRimFloor = 0.28f
+private const val ContrastRimWidthDp = 0.85f
+
+/** La stessa densità vale per una pellicola singola e per quelle dei pezzi del campo. */
+internal fun Color.glassAccessibleFilm(accessibility: GlassMaterialAccessibility): Color {
+  val contrast = FluidSystemContrast.level(accessibility.contrast)
+  if (!isSpecified || (contrast == 0f && !accessibility.reduceTransparency && !accessibility.receded)) return this
+  // Pavimento anziché una seconda applicazione di forContrast: le pellicole già dense restano tali.
+  val minimum = if (accessibility.reduceTransparency) {
+    ReducedTransparencyOpacity
+  } else if (contrast <= FluidSystemContrast.Medium) {
+    MediumContrastOpacity * contrast / FluidSystemContrast.Medium
+  } else {
+    val aboveMedium = (contrast - FluidSystemContrast.Medium) / (FluidSystemContrast.High - FluidSystemContrast.Medium)
+    mixFloat(MediumContrastOpacity, HighContrastOpacity, aboveMedium)
+  }
+  val opacity = max(alpha, minimum)
+  val result = if (accessibility.receded) opacity + (1f - opacity) * RecededVeilShare else opacity
+  return if (result == alpha) this else copy(alpha = result)
+}
+
+private fun GlassRecipe.applyMaterialAccessibility(
+  accessibility: GlassMaterialAccessibility,
+  darkSide: Boolean,
+  neutralVeil: Color,
+  fixedFilm: Boolean,
+) {
+  val contrastVeil = FluidSystemContrast.veil(accessibility.contrast)
+  if (contrastVeil == 0f && !accessibility.reduceTransparency && !accessibility.receded) return
+  if (fixedFilm) {
+    tintColor = tintColor.glassAccessibleFilm(accessibility)
+  } else {
+    // Anche il limpido acquista un velo. Parte dalla sua opacità effettiva, zero a riposo.
+    val base = neutralVeil.copy(alpha = veilColor.alpha)
+    val opaque = base.glassAccessibleFilm(accessibility)
+    // Il grigio dei piccoli sul lato scuro è luminoso per far vedere il vetro. Sul bianco si legge
+    // peggio anche quasi pieno, quindi avviciniamo il velo neutro al nero quando è richiesta leggibilità.
+    val blackShare = if (accessibility.reduceTransparency) 1f else min(contrastVeil / FluidSystemContrast.MediumVeil, 1f)
+    veilColor = if (darkSide && blackShare > 0f) {
+      lerpSrgb(opaque, Color.Black.copy(alpha = opaque.alpha), AccessibleDarkVeilBlackShare * blackShare)
+    } else {
+      opaque
+    }
+    if (contrastVeil > 0f || accessibility.reduceTransparency) veilAdapt = 0f
+  }
+  if (contrastVeil > 0f) {
+    val share = contrastVeil / FluidSystemContrast.HighVeil
+    val ink = if (darkSide) Color.White else Color.Black
+    val line = if (rimDark.alpha > 0f) rimDark.sharper(contrastVeil) else ink
+    val opacity = max(if (rimDark.alpha > 0f) line.alpha else 0f, ContrastRimFloor * share)
+    rimDark = line.copy(alpha = opacity)
+    rimWidthDp = max(rimWidthDp, ContrastRimWidthDp * share)
+    rimLift *= 1f - share
+    rimFeather *= 1f - share
+  }
+  if (accessibility.receded) {
+    lightColor = lightColor.copy(alpha = lightColor.alpha * RecededLight)
+  }
 }
 
 /**

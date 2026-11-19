@@ -3319,6 +3319,7 @@ private fun rememberLiquidPuck(
     barFilm: Color = Color.Unspecified,
 ): LiquidPuck {
     val quality = LocalFluidGlassQuality.current
+    val accessibility = rememberGlassMaterialAccessibility()
     // G1 (B-R4): il cursore dell'utente arriva anche alla pillola e alla riga nascosta, come alla barra.
     val preference = LocalFluidGlassPreference.current
     val screenDensity = LocalDensity.current.density
@@ -3341,6 +3342,7 @@ private fun rememberLiquidPuck(
             opticalDepth = { glassPuckLensDepth(currentPressed()) }, pressed = { currentPressed() },
             quality = { quality?.level ?: 1f }, film = { restFilm }, tint = { Color.Unspecified },
             touch = { null }, profile = profile, adaptive = fromHost, preference = preference,
+            accessibility = { accessibility.value },
         )
         LiquidPuck(surface, if (restFilm.isSpecified) restFilm else profile.veil(darkSide).color)
     }

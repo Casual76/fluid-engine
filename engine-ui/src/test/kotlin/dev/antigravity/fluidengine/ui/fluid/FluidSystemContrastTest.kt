@@ -1,6 +1,11 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import dev.antigravity.fluidengine.ui.glass.field.glassAccessibleFilm
+import dev.antigravity.fluidengine.ui.glass.field.glassPaintedBody
+import dev.antigravity.fluidengine.ui.glass.field.glassRecipe
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
@@ -175,5 +180,64 @@ class FluidSystemContrastTest {
     assertEquals(Color.Unspecified, high.overlay)
     assertEquals(Color.Unspecified, high.fallback)
     assertEquals(Color.Unspecified, high.hairline)
+  }
+
+  @Test
+  fun `il contorno Liquid diventa netto e l'inchiostro regge uno sfondo opposto`() {
+    for (role in GlassRole.entries) for (dark in listOf(false, true)) {
+      val before = glassRecipe(role, 300f, 120f, dark)
+      val high = glassRecipe(role, 300f, 120f, dark, accessibility = GlassMaterialAccessibility(contrast = 1f))
+      assertTrue("$role, dark=$dark", high.rimDark.alpha > before.rimDark.alpha)
+      assertEquals(0f, high.rimLift, 0f)
+      assertTrue(high.rimWidthDp >= 0.85f)
+      val ink = if (dark) Color(0xFFF2F2F5) else Color(0xFF121214)
+      val background = if (dark) Color.White else Color.Black
+      val modes = listOf(
+        GlassMaterialAccessibility(contrast = 0.5f),
+        GlassMaterialAccessibility(contrast = 1f),
+        GlassMaterialAccessibility(reduceTransparency = true),
+      )
+      for (mode in modes) for (size in listOf(44f, 58f, 120f)) {
+        val recipe = glassRecipe(role, 300f, size, dark, accessibility = mode)
+        val body = glassPaintedBody(recipe, background)
+        val luminances = listOf(ink.luminance(), body.luminance()).sorted()
+        val ratio = (luminances[1] + 0.05f) / (luminances[0] + 0.05f)
+        assertTrue("$role, dark=$dark, size=$size, $mode: $ratio", ratio >= 4.5f)
+      }
+    }
+  }
+
+  @Test
+  fun `la trasparenza ridotta copre anche il limpido e le pellicole fisse senza cambiare la cattura`() {
+    val reduced = GlassMaterialAccessibility(reduceTransparency = true)
+    val clear = glassRecipe(GlassRole.Floating, 120f, 48f, true, variant = GlassLiquidVariant.Clear)
+    val solidClear = glassRecipe(
+      GlassRole.Floating, 120f, 48f, true, variant = GlassLiquidVariant.Clear, accessibility = reduced,
+    )
+    assertEquals(0f, clear.veilColor.alpha, 0f)
+    assertEquals(0.96f, solidClear.veilColor.alpha, Quantum)
+    assertEquals(0f, solidClear.veilAdapt, 0f)
+    assertEquals(clear.blurDp, solidClear.blurDp, 0f)
+    assertEquals(clear.paddingDp, solidClear.paddingDp, 0f)
+    assertEquals(clear.captureScale, solidClear.captureScale, 0f)
+    val custom = Color(0x33445566)
+    val fixed = glassRecipe(GlassRole.Modal, 300f, 180f, true, film = custom, accessibility = reduced)
+    assertEquals(custom.copy(alpha = 0.96f), fixed.tintColor)
+    assertEquals(fixed.tintColor, custom.glassAccessibleFilm(reduced))
+    assertEquals(Color.Unspecified, Color.Unspecified.glassAccessibleFilm(reduced))
+  }
+
+  @Test
+  fun `la finestra inattiva conserva il contrasto e può ritornare alla ricetta esatta`() {
+    val high = GlassMaterialAccessibility(contrast = 1f)
+    val normal = glassRecipe(GlassRole.Floating, 300f, 64f, false, accessibility = high)
+    val reused = glassRecipe(GlassRole.Floating, 300f, 64f, false, accessibility = high.copy(receded = true))
+    assertTrue(reused.veilColor.alpha > normal.veilColor.alpha)
+    assertTrue(reused.lightColor.alpha < normal.lightColor.alpha)
+    assertEquals(normal.rimDark, reused.rimDark)
+    assertEquals(normal.paddingDp, reused.paddingDp, 0f)
+    glassRecipe(GlassRole.Floating, 300f, 64f, false, accessibility = high, out = reused)
+    assertEquals(normal.veilColor, reused.veilColor)
+    assertEquals(normal.lightColor, reused.lightColor)
   }
 }

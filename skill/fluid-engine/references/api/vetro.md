@@ -99,6 +99,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun GlassTint.forContrast(contrast: Float): GlassTint` — La stessa pellicola, resa piu' densa per il [contrast] del sistema (vedi [LocalFluidSystemContrast]).
 - `@Composable fun GlassTint.forSystemContrast(): GlassTint` — [forContrast] col contrasto del sistema che il tema ha messo in [LocalFluidSystemContrast].
 - `@Composable fun rememberFluidSystemContrast(): Float` — Il contrasto del sistema adesso, e **si aggiorna quando l'utente lo cambia** mentre l'app e' aperta. 0 prima di Android 14, dove le impostazioni non esistono (e `UiModeManager.getContrast()` neppure), e dove il servizio manca.
+- `val LocalFluidReduceTransparency: ProvidableCompositionLocal<Boolean>` — Consente a un'app di ridurre la trasparenza del materiale Liquid anche quando il dispositivo non offre un controllo equivalente. Il tema aggiunge la preferenza di sistema al valore fornito dall'app. Di serie l'app non aggiunge alcuna preferenza.
 
 ## `engine-ui/ui/fluid/GlassMaterial.kt`
 

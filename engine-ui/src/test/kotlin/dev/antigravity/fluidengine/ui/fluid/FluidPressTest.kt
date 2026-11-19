@@ -201,6 +201,22 @@ class FluidPressMotionTest {
     FluidPressSprings.configure(motion, FluidPressFeedback.Expand, reducedMotion = true)
     assertTrue(motion.waitsForArrival)
   }
+
+  @Test
+  fun `la pressione ridotta sale e torna a riposo senza superamenti`() = bench {
+    // Il tempo virtuale resta a scala uno per osservare la forma della curva ridotta.
+    FluidPressSprings.configure(motion, FluidPressFeedback.ExpandRound, reducedMotion = true)
+    motion.press()
+    settle()
+    val rise = frames(48)
+    assertTrue("salita: $rise", rise.all { it in 0f..1f } && risesUntil(rise, 0.99f))
+    motion.release()
+    settle()
+    val fall = frames(48)
+    assertTrue("rilascio: $fall", fall.all { it in 0f..1f })
+    assertTrue("rilascio: $fall", fall.zipWithNext().all { (a, b) -> b <= a + 1e-4f })
+    assertEquals(0f, fall.last(), 0.001f)
+  }
 }
 
 private class CountingHaptics : FluidHaptics {

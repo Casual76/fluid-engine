@@ -33,7 +33,13 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.fluidTypography
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSurfaceSide
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassMultiWindow
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassSystemReduceTransparency
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassMultiWindow
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassSystemReduceTransparency
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassLightEnvironment
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassLightEnvironment
 import dev.antigravity.fluidengine.foundation.AccentMode
@@ -188,6 +194,8 @@ fun FluidTheme(
 
   // L'aptica del design system (1.19.0): un solo motore per tema, dietro l'interruttore condiviso.
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)
+  val motionPolicy = LocalFluidMotionPolicy.current
+  val systemMotion = rememberFluidMotionPolicy()
   CompositionLocalProvider(
     LocalFluidHaptics provides haptics,
     // Il lato lo sa il tema, quindi il vetro non deve indovinarlo dalla luminanza di `surface`.
@@ -198,6 +206,13 @@ fun FluidTheme(
     LocalFluidStatusBarSide provides statusBar,
     // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto.
     LocalFluidSystemContrast provides rememberFluidSystemContrast(),
+    LocalGlassSystemReduceTransparency provides rememberGlassSystemReduceTransparency(),
+    LocalGlassMultiWindow provides rememberGlassMultiWindow(),
+    LocalFluidMotionPolicy provides if (systemMotion.reducedMotion && !motionPolicy.reducedMotion) {
+      systemMotion
+    } else {
+      motionPolicy
+    },
     LocalGlassLightEnvironment provides rememberGlassLightEnvironment(),
   ) {
     MaterialTheme(

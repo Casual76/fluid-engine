@@ -166,11 +166,11 @@ Ogni compito ha la sua ricetta con i passi e il perché in `references/ricette.m
 - **Qualcosa non va** — `risoluzione-problemi.md`, e prima: l'app è sull'ultima patch (3.0.1–3.0.4 correggono
   metà dei sintomi)?
 
-## Il movimento ridotto non è automatico
+## Il movimento ridotto
 
-`LocalFluidMotionPolicy` vale scala 1 di serie e `FluidTheme` **non** installa `FluidMotionPolicyProvider`
-(verificato nel codice 3.0.4): finché la radice dell'app non lo avvolge, il movimento decorativo dell'engine ignora la
-scala di animazione di sistema a zero. Mettilo in radice in un'app nuova (`componenti/movimento.md`).
+`FluidTheme` applica il movimento ridotto quando la durata delle animazioni di sistema è a zero (4.0).
+Per un tema proprio o per seguire anche le scale intermedie, usa `FluidMotionPolicyProvider`
+(`componenti/movimento.md`).
 
 ## Prima di dire che hai finito
 

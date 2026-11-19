@@ -3,6 +3,14 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -69,6 +77,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
@@ -217,16 +226,38 @@ private fun FluidMenuLayerContent(
   val selection = entry.selection
   val previewPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   physics.density = density.density
-  val current by androidx.compose.runtime.rememberUpdatedState(actions)
+  // F5A.3: le voci lette una volta per composizione (il contenuto vivo di `FluidMenuActions` si rilegge qui, e una
+  // voce che lascia il menu aperto si aggiorna), l'ordine e la taglia dichiarati, e i livelli del sottomenu.
+  val list = fluidMenuSnapshot(actions)
+  val order = fluidMenuOrderOf(actions)
+  val elementSize = fluidMenuElementSizeOf(actions)
+  val levels = remember { FluidMenuLevels() }
+  levels.subscribe()
+  val scope = rememberCoroutineScope()
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  // Le celle del livello che si vede e il pannello del livello verso cui si va: le scrive la composizione, le leggono
+  // la scelta e il cambio di livello.
+  val shownCells = remember { arrayOfNulls<List<FluidMenuEntry>>(1) }
+  val targetPanel = remember { arrayOfNulls<Rect>(1) }
 
-  // Una scelta: un colpo (Tap), il congedo, l'azione. Una voce spenta o un menu gia' in uscita: niente.
-  val pick: (Int) -> Unit = remember(entry, haptics) {
+  // Una scelta: un colpo (Tap), poi secondo la cella. L'intestazione di un sottomenu torna indietro, una voce coi figli
+  // apre il sottomenu dentro lo stesso vetro, una voce che lascia il menu aperto fa la sua azione e basta; le altre
+  // chiedono il congedo e fanno l'azione, come prima. Una voce spenta, un menu in uscita o a meta' di un cambio di
+  // livello: niente.
+  val pick: (Int) -> Unit = remember(entry, haptics, levels, scope, reducedMotion) {
     { index ->
-      val action = current.getOrNull(index)
-      if (entry.visible && action != null && action.enabled) {
+      val cell = shownCells[0]?.getOrNull(index)
+      if (entry.visible && cell != null && cell.enabled && !levels.swapping) {
         haptics.play(FluidHapticEvent.Tap)
-        entry.onDismissRequest()
-        action.onClick()
+        when {
+          cell.kind == FluidMenuCellKind.Header -> levels.change(-1, targetPanel[0], scope, reducedMotion)
+          cell.opensSubmenu -> levels.change(cell.source, targetPanel[0], scope, reducedMotion)
+          cell.action.keepsMenuOpen -> cell.action.onClick()
+          else -> {
+            entry.onDismissRequest()
+            cell.action.onClick()
+          }
+        }
       }
     }
   }
@@ -252,6 +283,11 @@ private fun FluidMenuLayerContent(
     } catch (_: CancellationException) {
       backProgress = 0f
     }
+  }
+  // Il back dentro un sottomenu torna al menu di prima (F5A.3); al primo livello resta quello predittivo, che congeda.
+  // Composto dopo il predittivo, e quindi davanti a lui finche' un sottomenu e' aperto.
+  BackHandler(enabled = entry.visible && levels.openParent >= 0) {
+    if (!levels.swapping) levels.change(-1, targetPanel[0], scope, reducedMotion)
   }
 
   val scrimGlass = rememberGlassBackdrop()
@@ -295,20 +331,25 @@ private fun FluidMenuLayerContent(
     )
 
     val labelWidth = rememberFluidMenuLabelMeasure()
+    val subtitleWidth = rememberFluidMenuSubtitleMeasure()
+    val structureMetrics = rememberFluidMenuStructureMetrics(metrics, elementSize)
     val densityValue = LocalDensity.current.density
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
       val host = Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
-      val layout = remember(actions, metrics) { fluidMenuPanelLayout(actions.map { it.startsSection }, metrics) }
+      // Un'apertura si prepara una volta (la sequenza la distingue dalla riapertura e dalle
+      // ricomposizioni); in uscita non si tocca niente: il viaggio torna dove era partito. Un'apertura nuova riparte
+      // dal primo livello (F5A.3), anche se il menu di prima si era chiuso dentro un sottomenu.
+      val prepared = remember { intArrayOf(-1) }
+      val fresh = entry.visible && prepared[0] != entry.openedAt
+      if (fresh) levels.reset()
+      // Le celle del primo livello nell'ordine scritto: l'altezza non dipende dal capovolgimento, quindi il pannello si
+      // risolve con queste e l'ordine si sceglie dopo, sapendo da che parte si apre.
+      val written = remember(list, elementSize, structureMetrics) {
+        fluidMenuStructure(fluidMenuEntries(list, elementSize, reversed = false), structureMetrics)
+      }
       // Largo quanto serve alla voce piu' lunga, fino a un tetto (3.0.1): vedi [fluidMenuPanelWidth].
-      val panelWidth = remember(actions, metrics, labelWidth, host.width) {
-        fluidMenuPanelWidth(
-          metrics = metrics,
-          labelWidthsPx = actions.map { labelWidth(it.label) },
-          hasIcon = actions.any { it.icon != null },
-          hasCheck = actions.any { it.selected },
-          density = densityValue,
-          hostWidthPx = host.width,
-        )
+      val panelWidth = remember(written, metrics, labelWidth, subtitleWidth, host.width) {
+        fluidMenuLevelWidth(written.entries, metrics, labelWidth, subtitleWidth, densityValue, host.width)
       }
       // F5A.4: il contestuale si apre accanto alla card SOLLEVATA (o all'anteprima personalizzata, alla sua
       // taglia misurata), non accanto alla riga a riposo: la card cresce attorno al centro, e un'anteprima
@@ -324,37 +365,59 @@ private fun FluidMenuLayerContent(
         null
       }
       val anchorRect = anchor?.restBounds ?: liftTarget ?: origin ?: Rect(host.width / 2f, host.height / 2f, host.width / 2f, host.height / 2f)
-      val panel = solveFluidMenuPanel(
+      val rootPanel = solveFluidMenuPanel(
         anchor = anchorRect,
         host = host,
         width = panelWidth,
-        height = layout.height,
+        height = written.height,
         gapPx = metrics.gapPx,
         marginPx = metrics.marginPx,
         placement = if (anchor != null) FluidMenuPlacement.OverAnchor else FluidMenuPlacement.BesideAnchor,
       )
-      // Un'apertura si prepara una volta (la sequenza la distingue dalla riapertura e dalle
-      // ricomposizioni); in uscita non si tocca niente: il viaggio torna dove era partito.
-      val prepared = remember { intArrayOf(-1) }
+      // F5A.3: l'ordine. Con `Priority` un menu che si apre verso l'alto si capovolge, e le prime voci restano vicino
+      // al dito; di serie (e con `Fixed`) resta com'e' scritto.
+      val upward = fluidMenuOpensUpward(anchorRect, rootPanel)
+      val reversed = fluidMenuReverses(order, upward)
+      val root = if (!reversed) {
+        written
+      } else {
+        remember(list, elementSize, structureMetrics) {
+          fluidMenuStructure(fluidMenuEntries(list, elementSize, reversed = true), structureMetrics)
+        }
+      }
+      // Il sottomenu aperto, se c'e' (e se la voce madre ha ancora dei figli: il contenuto vivo puo' averli tolti).
+      fun submenuLevel(parentIndex: Int): Pair<FluidMenuStructure, Rect>? {
+        val parent = list.getOrNull(parentIndex)?.takeIf { it.children.isNotEmpty() } ?: return null
+        val cells = fluidMenuStructure(fluidMenuSubmenuEntries(parent, reversed), structureMetrics)
+        val width = fluidMenuLevelWidth(cells.entries, metrics, labelWidth, subtitleWidth, densityValue, host.width)
+        return cells to fluidMenuSubmenuPanel(rootPanel, width, cells.height, host, metrics.marginPx, upward)
+      }
+      // Il pannello disegna il livello verso cui si va da subito; finche' il contenuto cambia, anche quello che se ne va.
+      val target = submenuLevel(levels.openParent) ?: (root to rootPanel)
+      val (shownStructure, panel) = target
+      val leaving = if (levels.swapping) submenuLevel(levels.previousParent) ?: (root to rootPanel) else null
+      val destination = target.second
+      shownCells[0] = shownStructure.entries
+      targetPanel[0] = destination
       // Dove il dito ha tenuto premuto, fermato all'apertura: la goccia del contestuale nasce li' sotto
       // e il menu ci torna. Seguire il dito mentre scorre sulle voci sposterebbe la partenza in volo.
       val touch = remember { floatArrayOf(Float.NaN) }
       if (entry.visible) {
-        val fresh = prepared[0] != entry.openedAt
         prepared[0] = entry.openedAt
         if (fresh) touch[0] = entry.menuHandOff?.takeIf { it.pointerDown }?.lastRoot?.x ?: Float.NaN
         journey.prepare(
           anchor = anchor,
           hostOrigin = Offset.Zero,
-          panel = panel,
+          // Il pannello verso cui si va: dentro un sottomenu e' il suo, e il congedo riporta a casa quella sagoma.
+          panel = destination,
           radius = metrics.radiusPx,
-          inflation = fluidDropInflation(panel.width, host.width, metrics.edgeMinPx),
+          inflation = fluidDropInflation(destination.width, host.width, metrics.edgeMinPx),
           // Il contestuale nasce da una goccia appesa alla riga, sotto il dito (3.0, il vetro liquido):
           // il corpo esce dalla riga e la goccia resta un istante a svuotarsi, col collo fra le due.
           seed = if (anchor == null) {
             fluidMenuDropSeed(
               row = anchorRect,
-              panel = panel,
+              panel = destination,
               touchX = touch[0].takeIf { !it.isNaN() },
               diameterPx = with(density) { FluidMenuDropSeedDiameter.toPx() },
               overlapPx = with(density) { FluidMenuDropSeedOverlap.toPx() },
@@ -365,16 +428,33 @@ private fun FluidMenuLayerContent(
           freshStart = fresh && journey.progress.value <= 0.001f,
           liquidMenu = liquidMenu,
         )
-        journey.install(physics)
+        // Mentre il vetro passa da un livello all'altro (F5A.3) lo guida il cambio di livello, da dove stava al
+        // pannello nuovo, con la molla d'andata del menu; finito, torna al viaggio, che a quel punto sta proprio li'.
+        val from = levels.fromPanel
+        if (levels.morphing && from != null) {
+          physics.driveExternally(
+            from = FluidForm.Slab(from, FluidCornerRadii.all(metrics.radiusPx)),
+            to = FluidForm.Slab(destination, FluidCornerRadii.all(metrics.radiusPx)),
+            progress = { levels.morph.value },
+          )
+          levels.driving = true
+        } else {
+          journey.install(physics)
+          levels.driving = false
+        }
         if (anchor?.groupBounds != null) {
           anchor.groupClip = { anchor.groupBounds?.let { physics.travelClipIn(it, progress()) } }
         }
-        val enabled = actions.map { it.enabled }
         val g = selection.geometry
-        if (g == null || g.panel != panel || g.enabled != enabled) {
+        val enabled = shownStructure.entries.map { it.enabled }
+        if (g == null || g.panel != panel || g.enabled != enabled || g.cells.size != shownStructure.size) {
           // Subito, prima del layout del pannello: il dito passato si muove gia' adesso.
-          selection.geometry = fluidMenuGeometryOf(layout, enabled, panel)
+          selection.geometry = shownStructure.geometry(panel)
         }
+      } else if (levels.driving) {
+        // Congedo a meta' di un cambio di livello: il ritorno lo fa il viaggio, dalla sagoma del livello di arrivo.
+        journey.install(physics)
+        levels.driving = false
       }
 
       if (anchor == null) {
@@ -459,24 +539,48 @@ private fun FluidMenuLayerContent(
         panel.top.roundToInt() - panel.top,
       )
       val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
+      // L'opacita' del contenuto prima del cambio di livello: il viaggio (o la lente) e l'inchiostro.
+      val baseAlpha: () -> Float = {
+        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value else
+          fluidMenuContentAlpha(progress(), journey.closing)
+        alpha * (menuInk.state?.inkAlpha() ?: 1f)
+      }
+      val blurAvailable = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+      // F5A.3: il livello che se ne va, posato dov'era e disegnato sotto quello che arriva finche' svanisce.
+      val outgoing = leaving?.let { (cells, rect) ->
+        FluidMenuOutgoingLevel(
+          structure = cells,
+          offset = IntOffset(rect.left.roundToInt() - panel.left.roundToInt(), rect.top.roundToInt() - panel.top.roundToInt()),
+          size = androidx.compose.ui.unit.IntSize(rect.width.roundToInt(), rect.height.roundToInt()),
+          tileLabels = elementSize == FluidMenuElementSize.Medium,
+          alpha = { baseAlpha() * fluidMenuLevelExitAlpha(levels.swap.value, blurAvailable) },
+          scale = { fluidMenuLevelExitScale(levels.swap.value) },
+          blurDp = { fluidMenuLevelExitBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp },
+        )
+      }
       FluidGlassMenuPanel(
-        actions = actions,
+        actions = shownStructure.entries.map { it.action },
         selection = selection,
-        layout = layout,
+        layout = null,
         panelMaterial = if (backdrop != null) paneGlass else null,
         pageBackdrop = backdrop,
         // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato (le voci stanno in un nodo fratello).
+        // F5A.3: e, durante un cambio di livello, quella del livello che arriva.
         contentAlpha = {
-          val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value else
-            fluidMenuContentAlpha(progress(), journey.closing)
-          alpha * (menuInk.state?.inkAlpha() ?: 1f)
+          val level = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
+          baseAlpha() * level
         },
         contentMap = {
-          lens?.contentMap() ?: fluidMenuLiquidContentMap(
-            target = panel,
-            current = physics.contentBoundsNow(),
-            alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
-          )
+          if (levels.swapping || levels.morphing) {
+            // Il livello sta fermo dove si posa e cambia solo di poco la scala: e' il vetro che cambia forma attorno.
+            FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
+          } else {
+            lens?.contentMap() ?: fluidMenuLiquidContentMap(
+              target = panel,
+              current = physics.contentBoundsNow(),
+              alpha = fluidMenuContentAlpha(progress(), closing = journey.closing) * (menuInk.state?.inkAlpha() ?: 1f),
+            )
+          }
         },
         onPick = pick,
         modifier = Modifier
@@ -487,15 +591,201 @@ private fun FluidMenuLayerContent(
           ),
         paneTitle = paneTitle ?: LocalFluidLabels.current.actions,
         lens = lens,
-        // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate.
+        // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate. Mentre il vetro passa da
+        // un livello all'altro il ritaglio segue la sua sagoma anche a viaggio d'apertura finito.
         travelClip = {
           physics.travelClipIn(
             Rect(panel.left.roundToInt().toFloat(), panel.top.roundToInt().toFloat(), panel.right, panel.bottom),
-            progress(),
+            if (levels.morphing) levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling) else progress(),
           )
         },
+        structure = shownStructure,
+        tileLabels = elementSize == FluidMenuElementSize.Medium,
+        levelBlurDp = { if (levels.swapping) fluidMenuLevelEnterBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp else 0f },
+        outgoing = outgoing,
       )
       }
+    }
+  }
+}
+
+// --- I livelli di un menu (4.0, F5A.3) ------------------------------------------------------------
+
+/**
+ * Il sottomenu aperto e il passaggio fra due livelli dello stesso menu.
+ *
+ * Due orologi, perche' sono due cose: [swap] e' il tempo del contenuto in frazioni di T (le voci di prima che se ne
+ * vanno sfocandosi, quelle nuove che arrivano e si mettono a fuoco: il cambio di contenuto di F3.4, lineare fino a
+ * [FluidMenuLevelEnd]), [morph] e' la forma del vetro che passa dal pannello di prima a quello nuovo, con la molla
+ * d'andata del menu. Il pannello disegna [openParent] da subito e, finche' il contenuto cambia, anche [previousParent],
+ * il livello che se ne va.
+ *
+ * Stato semplice, non di snapshot: chi lo cambia (la scelta, le coroutine) incrementa [version], che la composizione
+ * legge. [reset] lo azzera DENTRO la composizione di un'apertura nuova, prima che qualcuno lo legga.
+ */
+@Stable
+internal class FluidMenuLevels {
+  var version by mutableIntStateOf(0)
+    private set
+
+  /** La voce madre del sottomenu aperto (indice nella lista dichiarata), o −1 al primo livello. */
+  var openParent: Int = -1
+    private set
+
+  /** Il livello che se ne va durante un cambio (−1: il primo livello). */
+  var previousParent: Int = -1
+    private set
+
+  /** Il pannello da cui il vetro e' partito per il cambio in corso. */
+  var fromPanel: Rect? = null
+    private set
+
+  var swap: Animatable<Float, AnimationVector1D> = Animatable(FluidMenuLevelEnd, LevelThreshold)
+    private set
+  var morph: Animatable<Float, AnimationVector1D> = Animatable(1f, LevelThreshold)
+    private set
+
+  /** Il contenuto sta cambiando livello: niente scelte, e i due livelli hanno l'opacita' e la sfocatura del cambio. */
+  var swapping: Boolean = false
+    private set
+
+  /** Il vetro sta cambiando forma fra due livelli: lo guida [morph], non il viaggio. */
+  var morphing: Boolean = false
+    private set
+
+  /** La superficie e' guidata dal cambio di livello (la composizione lo scrive, il congedo lo legge). */
+  var driving: Boolean = false
+
+  private var swapJob: Job? = null
+  private var morphJob: Job? = null
+
+  /** Legge [version]: la composizione che la chiama si ricompone a ogni cambio di livello e a ogni sua tappa. */
+  fun subscribe(): Int = version
+
+  /** Un'apertura nuova: il primo livello, fermo. */
+  fun reset() {
+    swapJob?.cancel()
+    morphJob?.cancel()
+    openParent = -1
+    previousParent = -1
+    fromPanel = null
+    swap = Animatable(FluidMenuLevelEnd, LevelThreshold)
+    morph = Animatable(1f, LevelThreshold)
+    swapping = false
+    morphing = false
+  }
+
+  /**
+   * Va al livello [parent] (−1: il primo). [current] e' il pannello del livello di adesso: il vetro parte da li', o da
+   * dove stava se un altro cambio lo stava ancora muovendo.
+   */
+  fun change(parent: Int, current: Rect?, scope: CoroutineScope, reducedMotion: Boolean) {
+    if (parent == openParent) return
+    val from = fromPanel
+    val start = if (morphing && from != null && current != null) {
+      androidx.compose.ui.geometry.lerp(from, current, morph.value.coerceIn(0f, 1f))
+    } else {
+      current
+    }
+    swapJob?.cancel()
+    morphJob?.cancel()
+    previousParent = openParent
+    openParent = parent
+    fromPanel = start
+    if (reducedMotion || start == null) {
+      swap = Animatable(FluidMenuLevelEnd, LevelThreshold)
+      morph = Animatable(1f, LevelThreshold)
+      swapping = false
+      morphing = false
+      version++
+      return
+    }
+    val s = Animatable(0f, LevelThreshold)
+    val m = Animatable(0f, LevelThreshold)
+    swap = s
+    morph = m
+    swapping = true
+    morphing = true
+    version++
+    swapJob = scope.launch {
+      s.animateTo(FluidMenuLevelEnd, tween((GlassContentDefaults.DurationMs * FluidMenuLevelEnd).roundToInt(), easing = LinearEasing))
+      swapping = false
+      version++
+    }
+    morphJob = scope.launch {
+      m.animateTo(1f, FluidMotion.dropOpen())
+      morphing = false
+      version++
+    }
+  }
+
+  private companion object {
+    const val LevelThreshold = 0.001f
+  }
+}
+
+/** Sotto questo valore della molla il ritaglio segue la sagoma del vetro (vedi `travelClipIn`, che a 1 lo spegne). */
+internal const val FluidMenuLevelClipCeiling = 0.999f
+
+/**
+ * Quanto e' largo il pannello di un livello: [fluidMenuPanelWidth] sulle sue righe (le tessere della fila si dividono
+ * la larghezza che c'e' e non la allargano), con l'etichetta o il sottotitolo, il piu' largo dei due; la colonna della
+ * spunta vale anche per il gallone di un sottomenu.
+ */
+internal fun fluidMenuLevelWidth(
+  entries: List<FluidMenuEntry>,
+  metrics: FluidMenuPanelMetrics,
+  labelWidth: (String) -> Float,
+  subtitleWidth: (String) -> Float,
+  density: Float,
+  hostWidthPx: Float,
+): Float {
+  val rows = entries.filter { it.kind != FluidMenuCellKind.Tile }
+  return fluidMenuPanelWidth(
+    metrics = metrics,
+    labelWidthsPx = rows.map { e -> maxOf(labelWidth(e.action.label), e.action.subtitle?.let(subtitleWidth) ?: 0f) },
+    hasIcon = rows.any { it.action.icon != null },
+    hasCheck = rows.any { (it.action.selected && it.kind == FluidMenuCellKind.Row) || it.opensSubmenu || it.kind == FluidMenuCellKind.Header },
+    density = density,
+    hostWidthPx = hostWidthPx,
+  )
+}
+
+/** La larghezza di un sottotitolo di menu nel suo tipo (`bodyMedium`), per [fluidMenuLevelWidth]. */
+@Composable
+internal fun rememberFluidMenuSubtitleMeasure(): (String) -> Float {
+  val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+  val style = MaterialTheme.typography.bodyMedium
+  return remember(measurer, style) {
+    { text -> measurer.measure(text, style = style, maxLines = 1).size.width.toFloat() }
+  }
+}
+
+/** Le misure verticali delle celle dalla densita' e dal tipo del tema: la riga, quella col sottotitolo, la tessera. */
+@Composable
+internal fun rememberFluidMenuStructureMetrics(
+  metrics: FluidMenuPanelMetrics,
+  elementSize: FluidMenuElementSize,
+): FluidMenuStructureMetrics {
+  val density = LocalDensity.current
+  val body = MaterialTheme.typography.bodyLarge
+  val subtitle = MaterialTheme.typography.bodyMedium
+  val tile = MaterialTheme.typography.bodySmall
+  return remember(density, body, subtitle, tile, metrics, elementSize) {
+    with(density) {
+      fun line(style: androidx.compose.ui.text.TextStyle) =
+        if (style.lineHeight.isSpecified) style.lineHeight.toDp() else (style.fontSize.toDp() * 1.4f)
+      FluidMenuStructureMetrics(
+        rowHeightPx = metrics.rowHeightPx,
+        subtitleRowHeightPx = fluidMenuSubtitleRowHeight(line(body), line(subtitle)).toPx(),
+        tileHeightPx = if (elementSize == FluidMenuElementSize.Medium) {
+          fluidMenuMediumTileHeight(line(tile)).toPx()
+        } else {
+          metrics.rowHeightPx
+        },
+        paddingPx = metrics.paddingPx,
+        sectionGapPx = metrics.sectionGapPx,
+      )
     }
   }
 }

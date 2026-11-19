@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -47,15 +49,21 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.field.GlassContentLensEffect
@@ -247,12 +255,18 @@ internal fun rememberFluidMenuDropState(selection: FluidMenuSelection, count: In
  * @param travelClip la sagoma del corpo di vetro in questo istante, nelle coordinate del pannello, o
  *   null a riposo (3.0): voci e goccia non escono mai dal vetro mentre si forma o si ritira. Letta in
  *   disegno; un rettangolo arrotondato, quindi il ritaglio hardware del nodo, niente maschera.
+ * @param structure le celle come le dispone l'host dei modali (4.0, F5A.3): fila in cima, righe col
+ *   sottotitolo, sottomenu, ordine capovolto. [onPick] riceve allora l'indice di una cella, non di una voce.
+ *   Null: una riga per voce di [actions] alle quote di [layout], come prima (il menu di `FluidMorphMenuHost`).
+ * @param tileLabels le tessere della fila mostrano l'etichetta sotto il simbolo ([FluidMenuElementSize.Medium]).
+ * @param levelBlurDp la sfocatura del cambio di livello (aprire o chiudere un sottomenu), letta in disegno.
+ * @param outgoing il livello che se ne va durante un cambio di livello, disegnato sotto quello nuovo.
  */
 @Composable
 internal fun FluidGlassMenuPanel(
   actions: List<FluidContextAction>,
   selection: FluidMenuSelection,
-  layout: FluidMenuPanelLayout,
+  layout: FluidMenuPanelLayout?,
   panelMaterial: GlassBackdropState?,
   pageBackdrop: GlassBackdropState?,
   contentAlpha: () -> Float,
@@ -262,14 +276,24 @@ internal fun FluidGlassMenuPanel(
   paneTitle: String? = null,
   travelClip: (() -> RoundRect?)? = null,
   lens: FluidMenuLens? = null,
+  structure: FluidMenuStructure? = null,
+  tileLabels: Boolean = false,
+  levelBlurDp: (() -> Float)? = null,
+  outgoing: FluidMenuOutgoingLevel? = null,
 ) {
   val density = LocalDensity.current
   val coordinates = remember { FluidMenuCoordinates() }
-  val enabled = remember(actions) { actions.map { it.enabled } }
-  val drop = rememberFluidMenuDropState(selection, actions.size)
+  // Senza struttura le celle sono le righe di sempre, una per voce, alle quote che il chiamante ha risolto: la
+  // stessa aritmetica, quindi le stesse celle (e la stessa goccia) di prima.
+  val cells = structure ?: remember(actions, layout) { fluidMenuStructureOfLayout(actions, requireNotNull(layout)) }
+  val plain = structure == null
+  val enabled = remember(cells) { cells.entries.map { it.enabled } }
+  val drop = rememberFluidMenuDropState(selection, cells.size)
+  val uniform = remember(cells) { fluidMenuCellsUniform(cells) }
   val separator = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
   val band = MaterialTheme.colorScheme.onSurface.copy(alpha = if (GlassDefaults.isDarkSurface()) 0.08f else 0.05f)
   val insetPx = with(density) { FluidMenuSeparatorInset.toPx() }
+  val tileInsetPx = with(density) { FluidMenuTileSeparatorInset.toPx() }
   val hairlinePx = with(density) { 0.5.dp.toPx() }
   val lensEffect = remember(lens != null) {
     if (lens != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -289,8 +313,8 @@ internal fun FluidGlassMenuPanel(
         val topLeft = c.localToRoot(Offset.Zero)
         val panel = Rect(topLeft, Size(c.size.width.toFloat(), c.size.height.toFloat()))
         val current = selection.geometry
-        if (current == null || current.panel != panel || current.enabled != enabled) {
-          selection.geometry = fluidMenuGeometryOf(layout, enabled, panel)
+        if (current == null || current.panel != panel || current.enabled != enabled || current.cells.size != cells.size) {
+          selection.geometry = cells.geometry(panel)
         }
       }
       .fluidMenuPointerArea(selection, coordinates)
@@ -300,16 +324,43 @@ internal fun FluidGlassMenuPanel(
       }
       .then(if (travelClip != null) Modifier.fluidMenuTravelClip(travelClip) else Modifier),
   ) {
-    if (pageBackdrop != null && actions.isNotEmpty()) {
+    if (pageBackdrop != null && cells.size > 0) {
       FluidMenuDrop(
         state = drop,
         selection = selection,
         backdrop = pageBackdrop,
-        cellSize = { Size(it.width, layout.rowHeightPx) },
+        // Una fila di tessere o righe di altezze diverse: la goccia prende la misura della cella su cui sta,
+        // scivolando fra le due quando passa dall'una all'altra.
+        cellSize = { panel: Size ->
+          if (uniform) Size(panel.width, cells.heights[0]) else fluidMenuDropCellSize(cells, panel.width, drop.drag.value)
+        },
         vertical = true,
         contentAlpha = contentAlpha,
         contentMap = contentMap,
       )
+    }
+
+    // Il livello che se ne va durante un cambio di livello (F5A.3): posato dov'era, sotto quello che arriva, senza
+    // goccia e senza semantica (non si sceglie piu'), con la sua opacita', la sua scala e la sua sfocatura. Il ritaglio
+    // del pannello vale anche per lui: le voci restano dentro il vetro che cambia forma.
+    if (outgoing != null) {
+      Box(
+        modifier = Modifier
+          .fluidMenuOutgoingPlacement(outgoing.offset, outgoing.size)
+          .clearAndSetSemantics { }
+          .graphicsLayer {
+            alpha = outgoing.alpha().coerceIn(0f, 1f)
+            val s = outgoing.scale()
+            scaleX = s
+            scaleY = s
+            renderEffect = fluidMenuLevelBlurEffect(outgoing.blurDp, this.density)
+          }
+          .drawBehind {
+            drawMenuSeparators(outgoing.structure, { 0f }, separator, band, insetPx, tileInsetPx, hairlinePx)
+          },
+      ) {
+        FluidMenuCells(outgoing.structure, plain = false, tileLabels = outgoing.tileLabels, weight = { 0f }, onPick = {})
+      }
     }
 
     Box(
@@ -337,30 +388,123 @@ internal fun FluidGlassMenuPanel(
                 strength = strength,
               )
             } else {
-              null
+              fluidMenuLevelBlurEffect(levelBlurDp, this.density)
             }
           } else {
-            null
+            fluidMenuLevelBlurEffect(levelBlurDp, this.density)
           }
         }
         .drawBehind {
-          drawMenuSeparators(layout, actions, drop, separator, band, insetPx, hairlinePx)
+          drawMenuSeparators(cells, { drop.weight(it) }, separator, band, insetPx, tileInsetPx, hairlinePx)
         },
     ) {
-      val rowHeight = with(density) { layout.rowHeightPx.toDp() }
-      actions.forEachIndexed { index, action ->
-        FluidGlassMenuRow(
-          action = action,
-          weight = { drop.weight(index) },
-          onClick = { onPick(index) },
-          modifier = Modifier
-            .offset { IntOffset(0, layout.tops[index].roundToInt()) }
-            .fillMaxWidth()
-            .height(rowHeight),
-        )
-      }
+      FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick)
     }
   }
+}
+
+/** Le celle di un livello: le righe alle loro quote, le tessere nella loro parte di fila. */
+@Composable
+private fun FluidMenuCells(
+  cells: FluidMenuStructure,
+  plain: Boolean,
+  tileLabels: Boolean,
+  weight: (Int) -> Float,
+  onPick: (Int) -> Unit,
+) {
+  val density = LocalDensity.current
+  for (index in 0 until cells.size) {
+    val entry = cells.entries[index]
+    val height = with(density) { cells.heights[index].toDp() }
+    if (entry.kind == FluidMenuCellKind.Tile) {
+      FluidGlassMenuTile(
+        entry = entry,
+        labeled = tileLabels,
+        weight = { weight(index) },
+        onClick = { onPick(index) },
+        modifier = Modifier.fluidMenuTileCell(cells, index),
+      )
+    } else {
+      FluidGlassMenuRow(
+        action = entry.action,
+        weight = { weight(index) },
+        onClick = { onPick(index) },
+        modifier = Modifier
+          .offset { IntOffset(0, cells.tops[index].roundToInt()) }
+          .fillMaxWidth()
+          .height(height),
+        // L'intestazione di un sottomenu e' il suo titolo e basta: il sottotitolo diceva la scelta, che ora si vede sotto.
+        subtitle = if (plain || entry.kind == FluidMenuCellKind.Header) null else entry.action.subtitle,
+        submenu = !plain && entry.opensSubmenu,
+        header = entry.kind == FluidMenuCellKind.Header,
+      )
+    }
+  }
+}
+
+/**
+ * Il livello che se ne va durante un cambio di livello (F5A.3): le sue celle, dove stava il suo pannello rispetto a
+ * quello nuovo ([offset], pixel, gia' posati all'intero come i pannelli), quanto era grande, e le tre grandezze del
+ * cambio di contenuto, lette in disegno.
+ */
+internal class FluidMenuOutgoingLevel(
+  val structure: FluidMenuStructure,
+  val offset: IntOffset,
+  val size: IntSize,
+  val tileLabels: Boolean,
+  val alpha: () -> Float,
+  val scale: () -> Float,
+  val blurDp: () -> Float,
+)
+
+/** Posa il livello che se ne va alla sua taglia e al suo posto, anche fuori dal pannello nuovo (che e' piu' piccolo). */
+private fun Modifier.fluidMenuOutgoingPlacement(offset: IntOffset, size: IntSize): Modifier =
+  this.layout { measurable, constraints ->
+    val placeable = measurable.measure(Constraints.fixed(size.width.coerceAtLeast(0), size.height.coerceAtLeast(0)))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+      placeable.place(offset.x, offset.y)
+    }
+  }
+
+/** Posa una tessera della fila nella sua cella: larga quanto la sua parte di pannello, dalla larghezza di adesso. */
+private fun Modifier.fluidMenuTileCell(cells: FluidMenuStructure, index: Int): Modifier =
+  this.layout { measurable, constraints ->
+    val cell = cells.cell(index, constraints.maxWidth.toFloat())
+    val w = cell.width.roundToInt().coerceAtLeast(0)
+    val placeable = measurable.measure(Constraints.fixed(w, cell.height.roundToInt().coerceAtLeast(0)))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+      placeable.place(cell.left.roundToInt(), cell.top.roundToInt())
+    }
+  }
+
+/** Le celle di sempre per una lista e le sue quote: una riga piena per voce (il menu senza struttura). */
+internal fun fluidMenuStructureOfLayout(actions: List<FluidContextAction>, layout: FluidMenuPanelLayout): FluidMenuStructure {
+  val n = minOf(actions.size, layout.tops.size)
+  return FluidMenuStructure(
+    entries = List(n) { i -> FluidMenuEntry(actions[i], FluidMenuCellKind.Row, actions[i].startsSection, i) },
+    tops = layout.tops.copyOf(n),
+    heights = FloatArray(n) { layout.rowHeightPx },
+    columns = IntArray(n),
+    columnCounts = IntArray(n) { 1 },
+    height = layout.height,
+    sectionBands = layout.sectionBands,
+    sectionGapPx = layout.sectionGapPx,
+  )
+}
+
+/** Tutte righe piene della stessa altezza: la goccia ha una taglia sola, come prima della 4.0. */
+internal fun fluidMenuCellsUniform(cells: FluidMenuStructure): Boolean {
+  if (cells.size == 0) return true
+  val h = cells.heights[0]
+  for (i in 0 until cells.size) if (cells.columnCounts[i] > 1 || cells.heights[i] != h) return false
+  return true
+}
+
+/** La sfocatura del cambio di livello come effetto del layer delle voci, o niente (API < 31, o a fuoco). */
+private fun fluidMenuLevelBlurEffect(blurDp: (() -> Float)?, density: Float): androidx.compose.ui.graphics.RenderEffect? {
+  if (blurDp == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+  val px = blurDp() * density
+  return if (px > 0.05f) androidx.compose.ui.graphics.BlurEffect(px, px, androidx.compose.ui.graphics.TileMode.Decal) else null
 }
 
 /** La texture delle voci parla le coordinate della stessa finestra da cui legge il campo. */
@@ -410,39 +554,58 @@ internal class FluidMenuRoundRectShape(private val round: RoundRect) : Shape {
  * la fa sembrare due.
  */
 private fun DrawScope.drawMenuSeparators(
-  layout: FluidMenuPanelLayout,
-  actions: List<FluidContextAction>,
-  drop: FluidMenuDropState,
+  cells: FluidMenuStructure,
+  weight: (Int) -> Float,
   separator: Color,
   band: Color,
   insetPx: Float,
+  tileInsetPx: Float,
   hairlinePx: Float,
 ) {
-  for (y in layout.sectionBands) {
-    drawRect(band, topLeft = Offset(0f, y), size = Size(size.width, layout.sectionGapPx))
+  for (y in cells.sectionBands) {
+    drawRect(band, topLeft = Offset(0f, y), size = Size(size.width, cells.sectionGapPx))
   }
-  for (i in 1 until actions.size) {
-    if (actions[i].startsSection) continue
-    val fade = 1f - max(drop.weight(i - 1), drop.weight(i))
+  for (i in 1 until cells.size) {
+    if (cells.entries[i].startsSection) continue
+    val fade = 1f - max(weight(i - 1), weight(i))
     if (fade <= 0.01f) continue
-    val y = layout.tops[i] - hairlinePx / 2f
+    val color = separator.copy(alpha = separator.alpha * fade)
+    if (cells.sameLine(i - 1, i)) {
+      // Fra due tessere della fila: un filo verticale, staccato dai bordi alto e basso della fila.
+      val x = cells.cell(i, size.width).left - hairlinePx / 2f
+      drawRect(
+        color = color,
+        topLeft = Offset(x, cells.tops[i] + tileInsetPx),
+        size = Size(hairlinePx, cells.heights[i] - tileInsetPx * 2f),
+      )
+      continue
+    }
+    val y = cells.tops[i] - hairlinePx / 2f
     drawRect(
-      color = separator.copy(alpha = separator.alpha * fade),
+      color = color,
       topLeft = Offset(insetPx, y),
       size = Size(size.width - insetPx, hairlinePx),
     )
   }
 }
 
+/**
+ * Una riga del menu. [subtitle] e' la seconda riga di testo (4.0); [submenu] mette il gallone di una voce che apre un
+ * sottomenu; [header] e' la voce madre in cima al sottomenu aperto: in grassetto, col gallone girato verso il basso
+ * (il menu e' «aperto su di lei»), e sceglierla torna indietro.
+ */
 @Composable
 private fun FluidGlassMenuRow(
   action: FluidContextAction,
   weight: () -> Float,
   onClick: () -> Unit,
   modifier: Modifier,
+  subtitle: String? = null,
+  submenu: Boolean = false,
+  header: Boolean = false,
 ) {
-  val base = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-  val tone = if (action.enabled) base else base.copy(alpha = base.alpha * 0.38f)
+  val base = if (action.destructive && !header) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+  val tone = if (action.enabled || header) base else base.copy(alpha = base.alpha * 0.38f)
   Row(
     modifier = modifier
       // Per TalkBack e tastiera: il ruolo, l'azione, lo stato spento. Dal dito non scatta mai — il
@@ -450,11 +613,11 @@ private fun FluidGlassMenuRow(
       .clickable(
         interactionSource = null,
         indication = null,
-        enabled = action.enabled,
+        enabled = action.enabled || header,
         role = Role.Button,
         onClick = onClick,
       )
-      .semantics { if (action.selected) selected = true }
+      .semantics { if (action.selected && !header) selected = true }
       .drawWithContent {
         // La voce sotto la goccia si fa avanti di un 5%, dal bordo d'attacco: e' la goccia che la
         // solleva. Solo in disegno — niente layer, niente ricomposizione mentre il dito scorre. Non
@@ -471,14 +634,33 @@ private fun FluidGlassMenuRow(
     horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      text = action.label,
-      style = MaterialTheme.typography.bodyLarge,
-      color = tone,
-      maxLines = 1,
-      overflow = TextOverflow.Ellipsis,
-      modifier = Modifier.weight(1f),
-    )
+    val labelStyle = if (header) {
+      MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+    } else {
+      MaterialTheme.typography.bodyLarge
+    }
+    if (subtitle == null) {
+      Text(
+        text = action.label,
+        style = labelStyle,
+        color = tone,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f),
+      )
+    } else {
+      // Il sottotitolo e' un'informazione in piu', non una seconda voce: piu' piccolo e meno contrastato.
+      Column(modifier = Modifier.weight(1f)) {
+        Text(text = action.label, style = labelStyle, color = tone, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+          text = subtitle,
+          style = MaterialTheme.typography.bodyMedium,
+          color = tone.copy(alpha = tone.alpha * FluidMenuSubtitleAlpha),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+      }
+    }
     // L'icona della voce a 22 dp dalla 4.0 (erano 20): quella della barra divisa per poco piu' di 1,2, come in
     // Apple (R6). Il colore e' quello della voce, che e' gia' l'inchiostro del testo (o `error`).
     action.icon?.let {
@@ -486,8 +668,80 @@ private fun FluidGlassMenuRow(
     }
     // La spunta della voce scelta (3.0.1), a destra come nei menu di scelta di iOS, nel colore della voce:
     // e' un segno di stato, non un'azione, e l'accento lo hanno gia' la goccia e il tasto.
-    if (action.selected) {
+    if (action.selected && !header) {
       FluidIcon(imageVector = FluidIcons.Check, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
+    }
+    // Il gallone del sottomenu (4.0): nella colonna della spunta, un filo piu' tenue della voce. Girato in giu'
+    // sull'intestazione del sottomenu aperto, come il gallone di un gruppo che si e' aperto.
+    if (submenu || header) {
+      FluidIcon(
+        imageVector = FluidIcons.ChevronRight,
+        contentDescription = null,
+        tint = tone.copy(alpha = tone.alpha * FluidMenuSubtitleAlpha),
+        size = FluidMenuRowGlyph,
+        modifier = if (header) Modifier.rotate(90f) else Modifier,
+      )
+    }
+  }
+}
+
+/**
+ * Una tessera della fila in cima (4.0, F5A.3): il simbolo al centro e, se [labeled], l'etichetta corta sotto. Senza
+ * simbolo, l'etichetta. Per TalkBack e' un pulsante con l'etichetta della voce anche quando non la si vede.
+ */
+@Composable
+private fun FluidGlassMenuTile(
+  entry: FluidMenuEntry,
+  labeled: Boolean,
+  weight: () -> Float,
+  onClick: () -> Unit,
+  modifier: Modifier,
+) {
+  val action = entry.action
+  val base = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+  val tone = if (action.enabled) base else base.copy(alpha = base.alpha * 0.38f)
+  Column(
+    modifier = modifier
+      .clickable(
+        interactionSource = null,
+        indication = null,
+        enabled = action.enabled,
+        role = Role.Button,
+        onClick = onClick,
+      )
+      .semantics {
+        // L'etichetta che non si vede si legge lo stesso; quella che si vede la legge gia' il suo testo.
+        if (!labeled && action.icon != null) contentDescription = action.label
+        if (action.selected) selected = true
+      }
+      .drawWithContent {
+        // La tessera sotto la goccia si fa avanti dal centro, come un pulsante dell'avviso.
+        val w = weight()
+        if (w > 0.001f) {
+          val s = 1f + FluidMenuRowLift * w
+          scale(s, s) { this@drawWithContent.drawContent() }
+        } else {
+          drawContent()
+        }
+      }
+      .padding(horizontal = 4.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.Center,
+  ) {
+    val icon = action.icon
+    if (icon != null) {
+      FluidIcon(imageVector = icon, contentDescription = null, tint = tone, size = FluidMenuRowGlyph)
+    }
+    if (labeled || icon == null) {
+      Text(
+        text = action.label,
+        style = MaterialTheme.typography.bodySmall,
+        color = tone,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = if (icon != null) Modifier.padding(top = FluidMenuTileGap) else Modifier,
+      )
     }
   }
 }
@@ -605,3 +859,12 @@ private const val FluidMenuDropConfirmMillis = 140L
 private val FluidMenuDropInsetX = 4.dp
 private val FluidMenuDropInsetY = 2.dp
 private val FluidMenuSeparatorInset = 16.dp
+
+/** Quanto il filo fra due tessere della fila resta lontano dai bordi alto e basso della fila. */
+private val FluidMenuTileSeparatorInset = 10.dp
+
+/** Fra il simbolo e l'etichetta di una tessera [FluidMenuElementSize.Medium]. */
+internal val FluidMenuTileGap = 4.dp
+
+/** Quanto e' tenue il sottotitolo (e il gallone) rispetto all'inchiostro della voce. */
+private const val FluidMenuSubtitleAlpha = 0.6f

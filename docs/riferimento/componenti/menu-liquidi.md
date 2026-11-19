@@ -29,6 +29,11 @@ Il portale, l'host dei modali, l'avviso e i fogli stanno in [menu-modali.md](men
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` e `controller.open()` nel suo click lungo |
 | una voce che dice la scelta di adesso («Ordina per…») | `FluidContextAction(selected = true)` |
 | un gruppo di voci staccato dal resto («Elimina») | `FluidContextAction(startsSection = true)` (e `destructive = true`) |
+| una voce che apre altre voci («Ordina per ›») | `FluidContextAction(children = listOf(…))`: il sottomenu si apre dentro lo stesso vetro (4.0) |
+| una seconda riga sotto l'etichetta («Ordina» / «Per data») | `FluidContextAction(subtitle = …)` |
+| un interruttore nel menu, o «+»/«−», che non chiude il menu | `FluidContextAction(keepsMenuOpen = true)` dentro `FluidMenuActions { … }` (il contenuto si rilegge dal vivo) |
+| la fila di simboli in cima («Taglia, Copia, Incolla») | `FluidMenuActions(elementSize = FluidMenuElementSize.Small)` (o `Medium`, con l'etichetta) |
+| le prime voci vicino al dito quando il menu si apre verso l'alto | `FluidMenuActions(order = FluidMenuOrder.Priority)` |
 | aprire il menu da una scorciatoia, senza un tasto | `FluidMorphMenuState.open(bounds, text, icon, items)` (si sceglie con un tocco) |
 | un menu che sta in una barra, vicino al bordo alto | `FluidBarAction(actions)`: si apre **sull'ancora**, verso il basso |
 | **non così**: `FluidGlassMenuButton` | deprecato: `FluidMorphMenuButton` + `FluidMorphMenuHost` |
@@ -77,8 +82,15 @@ data class FluidContextAction(
   val enabled: Boolean = true,         // spenta: niente tick, non si sceglie
   val startsSection: Boolean = false,  // banda sopra di lei (sulla prima voce non conta)
   val selected: Boolean = false,       // spunta a destra, «selezionato» per TalkBack
+  val subtitle: String? = null,        // 4.0: seconda riga, più piccola e più tenue
+  val children: List<FluidContextAction> = emptyList(), // 4.0: sottomenu, un livello
+  val keepsMenuOpen: Boolean = false,  // 4.0: la scelta non chiude il menu
   val onClick: () -> Unit,
-)
+) {
+  // La firma della 3.x, sette argomenti: la chiamata per posizione resta valida.
+  constructor(label: String, icon: ImageVector?, destructive: Boolean, enabled: Boolean,
+    startsSection: Boolean, selected: Boolean, onClick: () -> Unit)
+}
 ```
 
 **Uso** (da `MenusDemo`):
@@ -96,6 +108,22 @@ private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = list
 - **`startsSection`** sta *prima* di `onClick` (e `selected` pure) perché la lambda in coda resti l'azione: una chiamata che passa
   `onClick` per posizione, dopo la 3.0, **non compila**; per la JVM la firma è comunque cambiata, quindi un modulo già
   compilato va ricompilato.
+- **I campi della 4.0** (`subtitle`, `children`, `keepsMenuOpen`, F5A.3) stanno anch'essi prima di `onClick`. La chiamata della 3.x a
+  sette argomenti per posizione (`FluidContextAction("X", null, false, true, false, false, {})`) passerebbe la lambda a `subtitle`:
+  la tiene viva un **costruttore secondario** con quella firma esatta, su cui risolvono anche la chiamata con tutti e sette i nomi
+  e quella con sei argomenti e la lambda in coda (Kotlin preferisce il candidato che non usa valori di serie). Cosa cambia della
+  data class: `copy` **per nome** compila come prima e porta i campi nuovi (per posizione il settimo è `subtitle`); la
+  destrutturazione a sette non è più l'azione (`component7` è `subtitle`, `onClick` è `component10`); `equals` e `hashCode`
+  contano i campi nuovi. Per la JVM cambia il costruttore con i valori di serie: un modulo già compilato va ricompilato. Lo
+  fissa `GlassCompatSignaturesTest`.
+- **`children`** fa della voce un sottomenu: il gallone a destra e, scelta, il menu **non si chiude** ma diventa il sottomenu
+  dentro lo stesso vetro (vedi «La struttura»). `onClick` della voce madre non viene chiamata. Un livello solo: i figli dei figli
+  si mostrano come righe semplici.
+- **`subtitle`** è la seconda riga, `bodyMedium` al 60% dell'inchiostro della voce; la riga passa da 48 a 60 dp (segue il font).
+  Non si tronca l'etichetta per fargli posto: il pannello si allarga per il più largo dei due, fino al tetto di sempre.
+- **`keepsMenuOpen`**: la scelta fa `Tap` e chiama `onClick`, e il menu resta com'è. Perché la voce mostri lo stato nuovo (la spunta
+  di un interruttore) il menu va scritto con `FluidMenuActions { … }`, il cui contenuto si rilegge a ogni ridisegno: una
+  `listOf(…)` resta la fotografia dell'apertura.
 - **`selected`** (3.0.1) è per i menu che scelgono fra alternative («Ordina per», «Vista»): prima ogni app metteva
   un'icona di spunta a mano, che TalkBack non leggeva. La spunta va a destra, nel colore della voce; il pannello si allarga
   per tenerla.
@@ -106,6 +134,69 @@ private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = list
 - **`actions` è una lambda, valutata all'apertura**, non in composizione: legge lo stato del momento. Lista vuota =
   nessun menu (`open()` ritorna `false`, nessun `Open`, e il chiamante può ripiegare sul suo click lungo).
 - Etichetta su una riga sola, con i puntini oltre il tetto (vedi le misure).
+
+## La struttura: `FluidMenuActions`, `FluidMenuOrder`, `FluidMenuElementSize`, il sottomenu
+
+**Cos'è** (4.0, F5A.3). Le regole di disposizione di un menu, da SwiftUI e UIKit: `menuOrder`, `preferredElementSize`,
+`menuActionDismissBehavior`, i sottomenu. Un menu passa da una lambda che restituisce `List<FluidContextAction>`; la struttura
+viaggia **dentro la lista**: `FluidMenuActions` *è* una lista di voci, quindi va in ogni ingresso senza parametri nuovi.
+
+```kotlin
+class FluidMenuActions(
+  val order: FluidMenuOrder = FluidMenuOrder.Automatic,
+  val elementSize: FluidMenuElementSize = FluidMenuElementSize.Large,
+  content: () -> List<FluidContextAction>,          // riletto a ogni ridisegno: puo' leggere stato
+) : AbstractList<FluidContextAction>() {
+  constructor(actions: List<FluidContextAction>, order: FluidMenuOrder = …, elementSize: FluidMenuElementSize = …)
+  fun current(): List<FluidContextAction>
+}
+enum class FluidMenuOrder { Automatic, Priority, Fixed }
+enum class FluidMenuElementSize { Small, Medium, Large }
+```
+
+**Uso** (da `MenusDemo`, sezione «Struttura»):
+
+```kotlin
+FluidListRow(
+  title = "Cartella Progetti",
+  contextActions = {
+    FluidMenuActions(elementSize = FluidMenuElementSize.Small) {
+      listOf(
+        FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { … },
+        FluidContextAction(label = "Preferiti", icon = FluidIcons.Filled.Star) { … },
+        FluidContextAction(label = "Modifica", icon = FluidIcons.Edit) { … },
+        FluidContextAction(
+          label = "Ordina", subtitle = sort, startsSection = true,
+          children = listOf("Per data", "Per nome").map { l -> FluidContextAction(l, selected = l == sort) { sort = l } },
+        ) {},
+        FluidContextAction(label = "Mostra anteprime", selected = previews, keepsMenuOpen = true) { previews = !previews },
+        FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) { … },
+      )
+    }
+  },
+)
+```
+
+**Comportamento.**
+
+| cosa | come |
+|---|---|
+| **ordine** | `Priority`: se il menu si apre verso l'alto (il pannello sta sopra l'ancora: un tasto in basso, una riga vicina al fondo) le sezioni vanno in ordine inverso e le voci di ogni sezione pure, così la prima voce scritta sta in fondo, vicino al dito; le bande seguono le sezioni. `Fixed`: sempre come scritto. **`Automatic` vale `Fixed`**: Apple sceglie priority fuori dai contenuti che scorrono, qui un menu già scritto non cambia ordine aggiornando l'engine (decisione aperta, nel rapporto di F5A.3) |
+| **fila di simboli** | `Small` e `Medium` mettono le prime voci della **prima sezione** su una fila in cima: `Small` fino a quattro simboli senza etichetta (che resta per TalkBack), alta quanto una riga; `Medium` fino a tre con l'etichetta corta sotto (`bodySmall`), alta 68 dp. Le tessere si dividono la larghezza del pannello e non la allargano; fra due tessere un filo verticale; sotto la fila una banda. Le voci della prima sezione che non ci stanno continuano nella lista. Capovolto, la fila va in fondo, con le tessere nell'ordine scritto |
+| **sottomenu** | la voce coi `children` ha il gallone; scelta (col dito, anche col dito che ha aperto, o con TalkBack) fa `Tap` e il menu **diventa** il sottomenu: in cima la voce madre in grassetto col gallone girato in giù, sotto i figli con le loro sezioni. Il vetro cambia forma restando dov'era — stesso centro orizzontale, stesso bordo da cui il menu era cresciuto — con la molla d'andata del menu (0,72 / 500); le voci di prima se ne vanno sfocandosi e quelle nuove arrivano sfocate e si mettono a fuoco nel tempo di un cambio di contenuto (T = 300 ms, le curve di F3.4: due strati che si incrociano a ≈0,47 T con l'opacità complessiva ≈0,7, chi esce sparito a 0,66 T, chi entra nitido a T e pieno a 1,15 T; il vetro non resta mai vuoto. Sotto API 31, senza sfocatura, i due strati si passano il posto senza sovrapporsi). L'intestazione, o il **back**, torna indietro allo stesso modo; il secondo back congeda. Uno scrim toccato congeda tutto. Un congedo dentro il sottomenu riporta a casa la sagoma del sottomenu |
+| **chiusura** | `keepsMenuOpen`: `Tap`, `onClick`, il menu resta; la goccia si posa e se ne va come dopo ogni rilascio |
+
+**Dove vale.** Nei menu dell'host dei modali: l'azione della barra (`FluidBarAction`), `toolbar { action(menu = …) }`, il contestuale
+(`contextActions`, `fluidContextMenu`). Il menu di `FluidMorphMenuHost` legge `FluidMenuActions` come una lista e basta: una riga per
+voce, niente fila, sottomenu né capovolgimento (la scelta di una voce madre chiama il suo `onClick`).
+
+**Non così**: un sottomenu dentro un sottomenu (Apple ne vuole uno: oltre, un menu a parte o un foglio); la fila per voci senza
+simbolo (si vedrebbe l'etichetta stretta nella tessera); `keepsMenuOpen` su una `listOf(…)` fotografata, se la voce deve cambiare
+aspetto.
+
+**Apple.** Nessuna clip di riferimento mostra un sottomenu che si apre, la fila di simboli o un ordine capovolto (R1 lo segna fra i
+punti non documentati); il collage `B1_menu_foto` è un menu che si apre verso l'alto, ma non dice l'ordine dichiarato. Il movimento
+del sottomenu è quindi a occhio, con le regole già misurate: la molla del menu e il cambio di contenuto di R7.
 
 ## Il tasto che si trasforma: `FluidMorphMenuButton`, `FluidMorphMenuHost`, `FluidMorphMenuState`
 
@@ -537,6 +628,13 @@ Puri, in `engine-ui` (JVM):
   (252 → 340, mai oltre lo schermo).
 - `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, **l'inversione a 100 ms**, riaprire mentre si chiude.
 - `FluidMenuMotionTest`: le finestre di opacità e il loro verso, la mappa del contenuto, il gonfiore, i token.
+- `FluidMenuStructureTest` (F5A.3): un menu di sempre ha le stesse celle al bit (quote, bande, altezza, hit-test); `Priority`
+  capovolge sezioni e voci solo verso l'alto e `Automatic` mai; la fila `Small`/`Medium` (capienza, banda, colonne, celle del dito,
+  in fondo quando capovolta); la goccia che cambia misura fra tessera e riga; la riga col sottotitolo; il sottomenu (intestazione,
+  un livello, capovolto) e il suo pannello dallo stesso bordo; le curve del cambio di livello; `FluidMenuActions` come lista, la
+  copia della lista fissa, il contenuto vivo; la larghezza di un livello.
+- `GlassCompatSignaturesTest` (F5A.3): la `FluidContextAction` a sette argomenti per posizione e per nome, le forme nuove con la
+  lambda in coda, `copy`, `component7`/`component10`, `equals`.
 - `FluidContextLiftTest` (F5A.4): al click lungo la card è la riga gonfiata (sagoma e scala dell'immagine), alla fine del ritorno è la riga
   a riposo, l'oltrepasso, l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra
   compreso), lo scambio, i tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura).
@@ -554,6 +652,10 @@ Nel `sample` (Robolectric, aptica registrata):
   una riga in `LazyColumn` resta ferma; `fluidContextMenu`; il back a metà apertura chiude in silenzio; l'azione della barra.
 - `FluidMorphMenuBackOrderTest`: con l'host alla radice e le pagine di un `FluidNavHost`, il back chiude prima il menu, poi la sottopagina
   di un `FluidPageHost` annidato, poi la pagina; e passa davanti al `BackHandler` di una pagina (che gira solo al back dopo).
+- `FluidMenuStructureBehaviourTest` (F5A.3): la voce coi figli apre il sottomenu senza chiudere e senza chiamare la madre (`Open`
+  `Tap`), il figlio sceglie e chiude; l'intestazione e il back tornano indietro, il secondo back congeda; la voce `keepsMenuOpen`
+  fa la sua azione, il menu resta e la spunta si aggiorna; `Priority` capovolge il menu di un tasto in basso e sceglie la voce che si
+  vede, `Automatic` no; la fila `Small` affianca i simboli senza etichetta e li sceglie.
 - `FluidApiAdditionsTest`: `selected` è «selezionato» per TalkBack (e le altre no), `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
   fornitore. `FluidButtonDragTest`: il tocco sul tasto che si trasforma fa i tre colpi di un tasto e non apre.
 
@@ -565,10 +667,10 @@ Nel `sample` (Robolectric, aptica registrata):
 
 | file (`engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/…`) | cosa c'è dentro |
 |---|---|
-| `fluid/FluidMenu.kt` | `FluidMenuOpensOn`; il modello puro della selezione: `FluidMenuSelection`, `FluidMenuHandOff`, il relè (`FluidMenuRelayTracker`) |
+| `fluid/FluidMenu.kt` | `FluidMenuOpensOn`; il modello puro della selezione: `FluidMenuSelection`, `FluidMenuHandOff`, il relè (`FluidMenuRelayTracker`); la struttura (4.0): `FluidMenuOrder`, `FluidMenuElementSize`, `FluidMenuActions`, le celle (`fluidMenuEntries`, `fluidMenuSubmenuEntries`, `FluidMenuStructure`), il pannello del sottomenu, le curve del cambio di livello |
 | `fluid/FluidMenuJourney.kt` | le funzioni pure del viaggio (finestre di opacità, mappa del contenuto, gonfiore, posto del pannello, seme, goccia del contestuale), `FluidMenuAnchor`, `FluidMenuJourney` |
-| `fluid/FluidMenuLayer.kt` | il layer dell'host per i menu `Expand` e contestuale (`FluidMenuLayer`), e per l'avviso |
-| `fluid/FluidGlassMenuPanel.kt` | il pannello, le voci, i separatori, la goccia, l'area dei gesti |
+| `fluid/FluidMenuLayer.kt` | il layer dell'host per i menu `Expand` e contestuale (`FluidMenuLayer`), i livelli del sottomenu (`FluidMenuLevels`), e per l'avviso |
+| `fluid/FluidGlassMenuPanel.kt` | il pannello, le voci (righe, tessere della fila, intestazione del sottomenu), i separatori, la goccia, l'area dei gesti |
 | `fluid/FluidGlassModalPortal.kt` | `FluidContextAction`, `FluidGlassModalPresentation` |
 | `fluid/FluidContextMenu.kt` | `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu` |
 | `fluid/FluidLiftedPreview.kt` | la riga sollevata (`FluidLiftedPreview`) |

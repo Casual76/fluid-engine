@@ -34,8 +34,9 @@ import org.junit.Test
  *  - `GlassTint` a tre argomenti, nominati e posizionali, la sua destrutturazione, e i costruttori della 4.0;
  *  - ogni funzione di `GlassDefaults`, con i suoi argomenti;
  *  - le chiamate di `engine-wear` ricopiate com'erano (questo modulo non vede l'orologio: le sue forme sono qui);
- *  - la `FluidContextAction` posizionale a **sette** argomenti, che F5A dovra' tenere viva con un costruttore
- *    secondario quando aggiungera' campi prima di `onClick` (piano 3.11).
+ *  - la `FluidContextAction` posizionale a **sette** argomenti, che dalla 4.0 (F5A.3) tiene viva un costruttore
+ *    secondario con quella firma, ora che `subtitle`, `children` e `keepsMenuOpen` stanno prima di `onClick` (piano
+ *    3.11); accanto, le forme nuove e cosa cambia della data class (`copy`, `componentN`, `equals`).
  *
  * Regole per chi lo tocca, come in `Compat307SourceTest`: gli import sono quelli di un'app (a stella sui pacchetti
  * pubblici); le funzioni @Composable non si eseguono, contano perche' compilano; i test qui sotto provano a quale
@@ -413,7 +414,87 @@ internal fun contextActionsAsInThe3x(log: MutableList<String>): List<FluidContex
   FluidContextAction("Sei e coda", null, false, true, true, false) { log += "sei e coda" },
 )
 
+/**
+ * Le forme della 4.0 (F5A.3), **accanto** a quelle di sopra: i tre campi nuovi stanno prima di `onClick`, quindi la
+ * lambda in coda resta l'azione anche quando li si passa.
+ */
+internal fun contextActionsOfThe40(log: MutableList<String>): List<FluidContextAction> = listOf(
+  FluidContextAction("Ordina", subtitle = "Per data") { log += "sottotitolo" },
+  FluidContextAction(
+    label = "Vista",
+    children = listOf(FluidContextAction("Griglia") { log += "figlio" }),
+  ) { log += "madre" },
+  FluidContextAction("Griglia", selected = true, keepsMenuOpen = true) { log += "resta" },
+  // Tutti e dieci, per nome.
+  FluidContextAction(
+    label = "Dieci",
+    icon = null,
+    destructive = false,
+    enabled = true,
+    startsSection = true,
+    selected = false,
+    subtitle = "Sotto",
+    children = emptyList(),
+    keepsMenuOpen = false,
+    onClick = { log += "dieci" },
+  ),
+)
+
 class GlassCompatSignaturesTest {
+
+  @Test
+  fun theNewContextActionFieldsDefaultToTheOldBehaviour() {
+    val log = mutableListOf<String>()
+    // Le forme della 3.x prendono i valori di serie dei campi nuovi, dal costruttore secondario o dal primario.
+    for (action in contextActionsAsInThe3x(log)) {
+      assertNull(action.subtitle)
+      assertTrue(action.children.isEmpty())
+      assertFalse(action.keepsMenuOpen)
+    }
+    // La chiamata posizionale e quella per nome danno la stessa voce, a parte la lambda (che e' un'altra istanza).
+    val onClick = {}
+    assertEquals(
+      FluidContextAction(label = "X", icon = null, destructive = true, enabled = false, startsSection = true, selected = true, onClick = onClick),
+      FluidContextAction("X", null, true, false, true, true, onClick),
+    )
+    assertEquals(
+      FluidContextAction("X", null, true, false, true, true, onClick),
+      FluidContextAction(label = "X", destructive = true, enabled = false, startsSection = true, selected = true, onClick = onClick),
+    )
+  }
+
+  @Test
+  fun theNewFieldsSitBeforeTheTrailingLambda() {
+    val log = mutableListOf<String>()
+    val actions = contextActionsOfThe40(log)
+    actions.forEach { it.onClick() }
+    assertEquals(listOf("sottotitolo", "madre", "resta", "dieci"), log)
+    assertEquals("Per data", actions[0].subtitle)
+    assertEquals("Griglia", actions[1].children.single().label)
+    assertTrue(actions[2].keepsMenuOpen)
+    assertEquals("Sotto", actions[3].subtitle)
+  }
+
+  @Test
+  fun whatChangesOfTheDataClass() {
+    val onClick = {}
+    val action = FluidContextAction("X", null, false, true, false, false, onClick)
+    // `copy` per nome compila come prima, e tiene i campi nuovi.
+    val copied = action.copy(label = "Y", subtitle = "Sotto")
+    assertEquals("Y", copied.label)
+    assertEquals("Sotto", copied.subtitle)
+    assertTrue(copied.onClick === onClick)
+    // La destrutturazione: il settimo componente e' il sottotitolo, l'azione e' il decimo.
+    val (_, _, _, _, _, _, seventh, children, keeps, tenth) = action
+    assertNull(seventh)
+    assertTrue(children.isEmpty())
+    assertFalse(keeps)
+    assertTrue(tenth === onClick)
+    // `equals` conta i campi nuovi: con figli diversi e' un'altra voce.
+    assertFalse(action == action.copy(children = listOf(action)))
+    assertFalse(action == action.copy(keepsMenuOpen = true))
+    assertEquals(action, action.copy())
+  }
 
   @Test
   fun theWatchOpticsKeepTheirDefaultsForTheThreeFieldsTheyDoNotWrite() {

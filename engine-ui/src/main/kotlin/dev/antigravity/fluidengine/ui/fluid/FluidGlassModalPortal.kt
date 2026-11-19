@@ -77,7 +77,17 @@ enum class FluidGlassModalPresentation {
   FullScreen,
 }
 
-/** One action in a context menu. */
+/**
+ * One action in a context menu.
+ *
+ * Dalla 4.0 (F5A.3) i campi nuovi — [subtitle], [children], [keepsMenuOpen] — stanno **prima** di [onClick], come
+ * `startsSection` e `selected`, cosi' la lambda in coda resta l'azione. La chiamata a sette argomenti per posizione
+ * della 3.x (`FluidContextAction("X", null, false, true, false, false, {})`) passerebbe la lambda a [subtitle]: la
+ * tiene viva il costruttore secondario, con quella firma esatta. Cosa cambia della data class: `copy` per nome
+ * compila come prima (per posizione no: il settimo e' [subtitle]); `component7` e' [subtitle] e [onClick] e'
+ * `component10`, quindi una destrutturazione a sette non e' piu' l'azione; `equals` e `hashCode` contano anche i
+ * tre campi nuovi, e due voci uguali in tutto il resto ma con figli diversi sono diverse.
+ */
 @Immutable
 data class FluidContextAction(
   val label: String,
@@ -97,8 +107,51 @@ data class FluidContextAction(
    * mano, che TalkBack non leggeva. Prima di [onClick], cosi' la lambda in coda resta l'azione.
    */
   val selected: Boolean = false,
+  /**
+   * Una seconda riga sotto l'etichetta, piu' piccola e piu' tenue (4.0, F5A.3): il secondo `Text` di una voce di
+   * iOS («Ordina» / «Per data»). La riga si alza per tenerla; non si tronca mai l'etichetta per farle posto.
+   */
+  val subtitle: String? = null,
+  /**
+   * Le voci di un sottomenu (4.0, F5A.3): la voce mostra un gallone e, scelta, il menu non si chiude ma si
+   * trasforma **dentro lo stesso vetro** nel sottomenu, con in cima la voce madre per tornare indietro. Un livello
+   * solo, come chiede Apple: i figli dei figli non si aprono. Con dei figli [onClick] non viene chiamata.
+   */
+  val children: List<FluidContextAction> = emptyList(),
+  /**
+   * La scelta non chiude il menu (4.0, F5A.3; `menuActionDismissBehavior(.disabled)` di SwiftUI): un interruttore
+   * nel menu, «+» e «−» della dimensione del testo. [onClick] parte e il menu resta; perche' la voce mostri lo
+   * stato nuovo il menu va dichiarato con [FluidMenuActions] e un contenuto che legge quello stato.
+   */
+  val keepsMenuOpen: Boolean = false,
   val onClick: () -> Unit,
-)
+) {
+  /**
+   * La firma della 3.x, sette argomenti per posizione: la chiamata `FluidContextAction("X", null, false, true,
+   * false, false, {})` e quella con tutti e sette i nomi risolvono qui (Kotlin preferisce il candidato che non usa
+   * valori di serie), e i tre campi nuovi prendono i loro.
+   */
+  constructor(
+    label: String,
+    icon: ImageVector?,
+    destructive: Boolean,
+    enabled: Boolean,
+    startsSection: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+  ) : this(
+    label = label,
+    icon = icon,
+    destructive = destructive,
+    enabled = enabled,
+    startsSection = startsSection,
+    selected = selected,
+    subtitle = null,
+    children = emptyList(),
+    keepsMenuOpen = false,
+    onClick = onClick,
+  )
+}
 
 /**
  * Se una finestra ancorata disegna le proprie azioni o il contenuto che le è stato passato.

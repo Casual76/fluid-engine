@@ -43,7 +43,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidBarAction
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuActions
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuElementSize
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuOpensOn
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuOrder
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
@@ -107,6 +110,9 @@ fun MenusDemo() {
     CardSection(pick)
     PreviewSection(pick)
     AlertSection(pick)
+    // In fondo alla pagina, apposta: scorrendo fino alla fine il palco tocca il bordo basso dello schermo e i suoi menu
+    // si aprono verso l'alto, che e' dove l'ordine `Priority` si vede.
+    StructureSection(pick)
   }
 }
 
@@ -495,6 +501,122 @@ private fun AlertSection(pick: (String) -> Unit) {
         FluidAlertAction(label = "Annulla", onClick = { threeButtons = false }),
       ),
     )
+  }
+}
+
+// --- La struttura (F5A.3) -----------------------------------------------------------------------------
+
+/**
+ * La struttura dei menu della 4.0: la fila di simboli in cima ([FluidMenuElementSize.Small] e
+ * [FluidMenuElementSize.Medium]), un sottomenu che si apre dentro il vetro («Ordina», col sottotitolo che dice la scelta
+ * di adesso), un interruttore che lascia il menu aperto («Mostra anteprime», letto dal vivo da [FluidMenuActions]), e due
+ * tasti in basso con le stesse voci: `Priority` si capovolge aprendosi verso l'alto, `Fixed` no.
+ */
+@Composable
+private fun StructureSection(pick: (String) -> Unit) {
+  FluidSectionHeader(
+    title = "Struttura: fila, sottomenu, ordine, chiusura",
+    detail = "Tieni premuta la riga: la fila in cima, «Ordina» si apre nel vetro, «Mostra anteprime» lascia il menu aperto.",
+  )
+  var sort by remember { mutableStateOf("Per data") }
+  var previews by remember { mutableStateOf(true) }
+  val structured: () -> List<FluidContextAction> = {
+    FluidMenuActions(elementSize = FluidMenuElementSize.Small) {
+      listOf(
+        FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi (fila)") },
+        FluidContextAction(label = "Preferiti", icon = FluidIcons.Filled.Star) { pick("Preferiti (fila)") },
+        FluidContextAction(label = "Modifica", icon = FluidIcons.Edit) { pick("Modifica (fila)") },
+        FluidContextAction(
+          label = "Ordina",
+          subtitle = sort,
+          startsSection = true,
+          children = listOf("Per data", "Per nome", "Per dimensione").map { label ->
+            FluidContextAction(label = label, selected = label == sort) {
+              sort = label
+              pick("Ordina: $label")
+            }
+          },
+        ) {},
+        FluidContextAction(label = "Mostra anteprime", selected = previews, keepsMenuOpen = true) {
+          previews = !previews
+          pick(if (previews) "Anteprime accese" else "Anteprime spente")
+        },
+        FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {
+          pick("Elimina (struttura)")
+        },
+      )
+    }
+  }
+  FluidListGroup {
+    FluidListRow(
+      title = "Cartella Progetti",
+      subtitle = "Ordine: $sort · anteprime ${if (previews) "accese" else "spente"}",
+      onClick = { pick("Cartella (tocco)") },
+      contextActions = structured,
+      modifier = Modifier.testTag("menus-structure-row"),
+    )
+  }
+
+  FluidSectionHeader(
+    title = "Priority e Fixed, verso l'alto",
+    detail = "Scorri fino in fondo e tocca i due tasti: con Priority «Uno» resta vicino al dito; la fila Medium si apre dall'alto.",
+  )
+  val ordered: (FluidMenuOrder) -> List<FluidContextAction> = { order ->
+    FluidMenuActions(
+      actions = listOf(
+        FluidContextAction(label = "Uno", icon = FluidIcons.Share) { pick("Uno ($order)") },
+        FluidContextAction(label = "Due", icon = FluidIcons.Filled.Star) { pick("Due ($order)") },
+        FluidContextAction(label = "Tre", icon = FluidIcons.Edit, startsSection = true) { pick("Tre ($order)") },
+        FluidContextAction(label = "Quattro", icon = FluidIcons.Delete, destructive = true) { pick("Quattro ($order)") },
+      ),
+      order = order,
+    )
+  }
+  Stage(height = 200.dp) { backdrop ->
+    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+      FluidBarAction(
+        icon = FluidIcons.MoreVert,
+        contentDescription = "Fila Medium",
+        onClick = {},
+        actions = {
+          FluidMenuActions(
+            actions = listOf(
+              FluidContextAction(label = "Copia", icon = FluidIcons.Share) { pick("Copia (Medium)") },
+              FluidContextAction(label = "Stella", icon = FluidIcons.Filled.Star) { pick("Stella (Medium)") },
+              FluidContextAction(label = "Scrivi", icon = FluidIcons.Edit) { pick("Scrivi (Medium)") },
+              FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {
+                pick("Elimina (Medium)")
+              },
+            ),
+            elementSize = FluidMenuElementSize.Medium,
+          )
+        },
+        opensOn = FluidMenuOpensOn.Tap,
+        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).testTag("menus-medium"),
+      )
+      Row(
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        FluidBarAction(
+          icon = FluidIcons.MoreVert,
+          contentDescription = "Priority",
+          onClick = {},
+          actions = { ordered(FluidMenuOrder.Priority) },
+          opensOn = FluidMenuOpensOn.Tap,
+          modifier = Modifier.testTag("menus-priority"),
+        )
+        FluidBarAction(
+          icon = FluidIcons.MoreVert,
+          contentDescription = "Fixed",
+          onClick = {},
+          actions = { ordered(FluidMenuOrder.Fixed) },
+          opensOn = FluidMenuOpensOn.Tap,
+          modifier = Modifier.testTag("menus-fixed"),
+        )
+      }
+    }
   }
 }
 

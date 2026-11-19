@@ -59,7 +59,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidGlassModalPortal.kt`
 
 - `enum class FluidGlassModalPresentation` — How a modal arranges itself once it has finished arriving.
-- `data class FluidContextAction(val label: String, val icon: ImageVector? = null, val destructive: Boolean = false, val enabled: Boolean = true, val startsSection: Boolean = false, val selected: Boolean = false, val onClick: () -> Unit)` — One action in a context menu.
+- `data class FluidContextAction(val label: String, val icon: ImageVector? = null, val destructive: Boolean = false, val enabled: Boolean = true, val startsSection: Boolean = false, val selected: Boolean = false, val subtitle: String? = null, val children: List<FluidContextAction> = emptyList(), val keepsMenuOpen: Boolean = false, val onClick: () -> Unit)` — One action in a context menu.
 - `@Composable fun FluidGlassModalPortal(visible: Boolean, onDismissRequest: () -> Unit, origin: () -> Rect? = { null }, presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover, paneTitle: String? = null, paneTint: Color? = null, footer: (@Composable ColumnScope.() -> Unit)? = null, pageColor: Color? = null, content: @Composable ColumnScope.() -> Unit)` — Declares a modal here and draws it at the root.
 - `@Composable fun <T : Any> FluidGlassModalPortal(item: T?, onDismissRequest: () -> Unit, origin: () -> Rect? = { null }, presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover, paneTitle: String? = null, paneTint: Color? = null, footer: (@Composable ColumnScope.(T) -> Unit)? = null, pageColor: Color? = null, content: @Composable ColumnScope.(T) -> Unit)` — Declares a modal that presents **an item**, and stays whole while it leaves.
 - `@Composable fun Modifier.fluidExpandOrigin(open: () -> Boolean = { false }, onMeasured: (Rect) -> Unit): Modifier` — Reports this element's bounds in root coordinates, for a modal to expand out of.
@@ -78,6 +78,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidMenu.kt`
 
 - `enum class FluidMenuOpensOn` — Quale gesto apre il menu di un tasto (3.0, fase 7).
+- `enum class FluidMenuOrder` — In che ordine stanno le voci quando il menu si apre verso l'alto (`menuOrder` di SwiftUI, 4.0).
+- `enum class FluidMenuElementSize` — Quanto spazio prende una voce (`preferredElementSize` di UIKit, 4.0).
+- `class FluidMenuActions(val order: FluidMenuOrder = FluidMenuOrder.Automatic, val elementSize: FluidMenuElementSize = FluidMenuElementSize.Large, private val content: () -> List<FluidContextAction>) : AbstractList<FluidContextAction>()` — Un menu come valore: le voci piu' come si dispongono ([order], [elementSize]). E' una `List<FluidContextAction>`, quindi va dove va una lista di voci — `contextActions = { … }`, `FluidBarAction(actions = { … })`, `action(menu = { … })`, `Modifier.fluidContextMenu(actions = { … })` — e chi non lo conosce lo legge come una lista.
+  - `fun current(): List<FluidContextAction>` — Le voci di adesso: una lettura sola, da usare quando le si scorre tutte.
 
 ## `engine-ui/ui/fluid/FluidMenuJourney.kt`
 

@@ -15,7 +15,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
 | [Controlli](controlli.md) | 9 | 58 |
-| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 14 | 95 |
+| [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 14 | 99 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
 | [Vetro](vetro.md) | 32 | 249 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 77 |

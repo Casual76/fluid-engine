@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
@@ -50,7 +54,6 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedSelectionAlpha
@@ -90,7 +93,19 @@ internal val FluidGlassButtonHeight: Dp = 48.dp
  *
  * **Il bersaglio del tocco non scende mai sotto i 48 dp**, qualunque sia la taglia: un vetro da
  * 40 dp sta dentro un riquadro da 48 che e' quello che occupa nel layout, e il tocco lo vede. Il
- * vetro e' la parte che si disegna, il riquadro e' la parte che si tocca.
+ * vetro e' la parte che si disegna, il riquadro e' la parte che si tocca. Il gesto sta sul vetro (le
+ * coordinate del dito sono le sue: bagliore e flessione partono da li'), e Compose ne allarga il
+ * bersaglio fino al bersaglio minimo della piattaforma (`ViewConfiguration.minimumTouchTargetSize`,
+ * 48 dp) quando il vetro e' piu' piccolo: il riquadro da 48 non ha altri nodi che prendano il tocco,
+ * quindi un dito nell'anello fra il vetro e il riquadro arriva al tasto. Anche TalkBack vede i 48 dp
+ * (`touchBoundsInRoot`). Lo prova `FluidGlassButtonStylesUiTest` per ogni taglia, per la misura libera,
+ * per l'etichetta `Compact` e per i tasti della barra di sempre (F6.4: «almeno 44 dp», i 44 pt di
+ * Apple, chiusura di F4A).
+ *
+ * **La taglia d'ambiente** (F6.4, `controlSize` di SwiftUI): un tasto senza `size` prende
+ * [LocalFluidGlassSize], di serie [Regular]. Una barra `Compact` la fornisce una volta per tutti i suoi
+ * tasti, e l'icona di ciascuno ne discende ([iconSize]). Fogli e popover dell'host la riportano a
+ * [Regular].
  *
  * @property lens il lato del vetro di un tasto tondo solo icona.
  * @property buttonHeight l'altezza del vetro di un tasto con un testo. A [Regular] sono 48 dp e non
@@ -483,13 +498,15 @@ private fun Modifier.glassControlPiece(
   // sulla lastra del tasto in volo e rilascia con la sua molla, invece di tornare alla misura di riposo in un fotogramma.
   val pressGeometry = rememberGelGeometry(press, reducedMotion, interactive)
   val layer = remember(pressGeometry) { pressGeometry?.let(::gelTranslation) }
-  val look = remember(backdrop, tint, optics, shape, press, touch, layer, pressGeometry) {
+  // La variante del tasto (F6.4): limpido per lo stile `Clear`, che la fornisce attorno a questa sola chiamata.
+  val variant = LocalGlassLiquidVariant.current
+  val look = remember(backdrop, tint, optics, shape, press, touch, layer, pressGeometry, variant) {
     FluidGlassLook(
       backdrop = backdrop,
       tint = tint,
       role = GlassRole.Interactive,
       optics = optics,
-      variant = GlassLiquidVariant.Regular,
+      variant = variant,
       shape = shape,
       press = press,
       touch = touch,
@@ -538,12 +555,27 @@ internal fun Modifier.gelContent(geometry: FluidGlassPressGeometry, iconBlur: St
     } else null
   }
 
-/** La scala esterna del contenuto porta la sigma locale alla sigma misurata sullo schermo. */
-private fun iconBlurEffect(sigmaPx: Float, scaleX: Float, scaleY: Float): RenderEffect? {
-  val rx = FluidGel.blurRadiusPx(sigmaPx / scaleX)
-  val ry = FluidGel.blurRadiusPx(sigmaPx / scaleY)
-  return if (rx > 0f && ry > 0f) BlurEffect(rx, ry) else null
-}
+/**
+ * La scala esterna del contenuto porta la sigma locale alla sigma misurata sullo schermo.
+ *
+ * Sotto [FluidGelBlurFloorPx] l'icona non passa piu' da una sfocatura di mezzo pixel a nitida in un fotogramma (il
+ * minimo di HWUI, F6.4): la copia sfocata al pavimento si mescola con quella nitida ([glassContentBlurEffect]). Sopra
+ * il pavimento l'effetto e' quello di F6.1, al bit.
+ */
+private fun iconBlurEffect(sigmaPx: Float, scaleX: Float, scaleY: Float): RenderEffect? = glassContentBlurEffect(
+  sigmaXPx = sigmaPx / scaleX,
+  sigmaYPx = sigmaPx / scaleY,
+  floorPx = FluidGelBlurFloorPx,
+  radiusOf = FluidGel::blurRadiusPx,
+  tileMode = TileMode.Clamp,
+)
+
+/**
+ * La sigma sotto la quale l'icona premuta si mescola invece di sfocarsi: 0,75 px. Con il raggio di F6.1
+ * ([FluidGel.blurRadiusPx], esatto: σ = 0,57735 r + 0,5) HWUI sa fare ogni σ sopra 0,5 px, ma a 0,5 il raggio e'
+ * zero e l'icona scattava nitida; da 0,75 px (raggio 0,43) in giu' la copia sfocata scende per pesi, senza scalino.
+ */
+internal const val FluidGelBlurFloorPx: Float = 0.75f
 
 /**
  * Glass without a backdrop to refract.
@@ -749,6 +781,10 @@ internal fun Modifier.fluidStaticGlassSurfaceClassic(
  * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: del tasto
  *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll], per un
  *   tasto ripetuto su ogni riga di una lista che scorre). Vedi [fluidPressable]. Dalla 3.0.
+ * @param style lo stile ([FluidGlassButtonStyle]): di serie quello d'ambiente ([LocalFluidGlassButtonStyle],
+ *   [FluidGlassButtonStyle.Glass] se nessuno lo fornisce). Con [FluidGlassButtonStyle.Prominent] l'icona prende
+ *   l'inchiostro che sulla tinta si legge meglio. Dalla 4.0 (F6.4). La taglia di serie e' quella d'ambiente
+ *   ([LocalFluidGlassSize]).
  */
 @Composable
 fun FluidGlassIconButton(
@@ -759,7 +795,7 @@ fun FluidGlassIconButton(
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
   onLongClick: (() -> Unit)? = null,
-  size: FluidGlassSize = FluidGlassSize.Regular,
+  size: FluidGlassSize = LocalFluidGlassSize.current,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   /**
    * Cosa si sente quando scatta il click lungo; null per un click lungo che ha il suo colpo (un menu
@@ -767,6 +803,7 @@ fun FluidGlassIconButton(
    */
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // One press for the click and the glass: the lens swells, leans and lights up on the same
@@ -786,6 +823,7 @@ fun FluidGlassIconButton(
     longClickHaptic = longClickHaptic,
     press = press,
     grip = grip,
+    style = style,
     content = content,
   )
 }
@@ -809,7 +847,8 @@ fun FluidGlassIconButton(
  * Le due strade si scelgono dal tipo: `size = FluidGlassSize.Large` o `size = 76.dp`. Senza `size`
  * vale l'overload con la taglia, `Regular`: questo vuole la misura.
  *
- * @param size il lato del vetro, positivo.
+ * @param size il lato del vetro, positivo. La misura scritta non segue la taglia d'ambiente.
+ * @param style lo stile, di serie quello d'ambiente: vedi l'altro overload. Dalla 4.0 (F6.4).
  * @see FluidGlassIconButton la versione con le tre taglie, e gli altri parametri.
  */
 @Composable
@@ -825,6 +864,7 @@ fun FluidGlassIconButton(
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,
   content: @Composable BoxScope.() -> Unit,
 ) {
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)
@@ -843,6 +883,7 @@ fun FluidGlassIconButton(
     press = press,
     grip = grip,
     lens = size,
+    style = style,
     content = content,
   )
 }
@@ -872,12 +913,15 @@ internal fun FluidGlassIconButtonCore(
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   /** Il lato del vetro; di serie quello della taglia. Una misura libera lo cambia, il riquadro con lui. */
   lens: Dp = size.lens,
+  /** Lo stile (F6.4). Di serie il vetro dei tasti: l'ancora di un menu della barra non segue lo stile d'ambiente. */
+  style: FluidGlassButtonStyle = FluidGlassButtonStyle.Glass,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // F2.3: il contenuto del tasto segue l'inchiostro del lato del vetro, e solo cosi' il vetro gira con lo sfondo. Sul
   // lato del tema l'inchiostro e' quello che il tasto trova intorno, come prima.
   val ink = rememberGlassInk()
   val ambientInk = LocalContentColor.current
+  val look = rememberFluidGlassButtonLook(style)
   // Il `modifier` dell'app sta sul riquadro del tocco, fuori dal vetro: gli attributi del piano scritti lì (`fluidGlassId`,
   // …) sono del vetro qui dentro (F3.2).
   val planeAttributes = fluidGlassAttributesOf(modifier)
@@ -887,45 +931,140 @@ internal fun FluidGlassIconButtonCore(
       .size(lens.coerceAtLeast(FluidGlassIconTouchTargetSize)),
     contentAlignment = Alignment.Center,
   ) {
+    val lensChain = Modifier
+      .size(lens)
+      .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
+      .then(lensModifier)
+      // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
+      .fluidPressable(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        enabled = enabled,
+        role = Role.Button,
+        haptic = haptic,
+        focusShape = shape,
+        // Senza vetro ([FluidGlass.Identity]) nessuno disegna la pressione: la disegna il gesto, che cede.
+        pressState = if (look.glassless) null else press,
+        longClickHaptic = longClickHaptic,
+        grip = grip,
+      )
     Box(
-      modifier = Modifier
-        .size(lens)
-        .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
-        .then(lensModifier)
-        // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
-        .fluidPressable(
-          onClick = onClick,
-          onLongClick = onLongClick,
-          enabled = enabled,
-          role = Role.Button,
-          haptic = haptic,
-          focusShape = shape,
-          pressState = press,
-          longClickHaptic = longClickHaptic,
-          grip = grip,
-        )
-        .glassControlSurfaceInked(
+      modifier = if (look.glassless) {
+        lensChain
+      } else {
+        lensChain.glassButtonSurface(
+          look = look,
           backdrop = backdrop,
           shape = shape,
-          tint = GlassDefaults.controlTint(),
-          optics = GlassDefaults.buttonOptics(),
           selected = selected,
           interactive = enabled,
-          depth = FullDepth,
-          frozen = NeverFrozen,
-          heldWhileMoving = NeverFrozen,
-          pressState = press,
+          press = press,
           ink = ink,
           forwardedAttributes = planeAttributes,
+          labelAnchor = null,
           blurIcon = FluidGel.BlurIcon,
-        ),
+        )
+      },
       contentAlignment = Alignment.Center,
     ) {
       // Il tasto dice all'icona quanto e' grande (4.0): 0,6 del vetro. Un'icona con la sua taglia scritta resta com'e'.
-      GlassInkContent(ink, ambientInk) {
+      FluidGlassButtonInk(look, ink, ambientInk) {
         CompositionLocalProvider(LocalFluidIconSize provides FluidMetrics.iconSizeIn(lens)) { content() }
       }
     }
+  }
+}
+
+/**
+ * Come un tasto disegna il suo [FluidGlassButtonStyle] (F6.4): la pellicola, la variante del materiale, se un vetro c'e'
+ * e, per lo stile in evidenza, l'inchiostro fisso dell'etichetta.
+ *
+ * @property ink l'inchiostro dell'etichetta di un tasto in evidenza, o [Color.Unspecified]: allora il contenuto segue il
+ *   lato del vetro come sempre ([GlassInkContent]).
+ */
+@Immutable
+internal class FluidGlassButtonLook(
+  val tint: GlassTint,
+  val variant: GlassLiquidVariant,
+  val glassless: Boolean,
+  val ink: Color,
+)
+
+/**
+ * La resa di [style] con la tinta dei controlli [base] e l'accento del tema [accent]. Pura: lo stile di serie e il
+ * limpido tengono la tinta dei controlli di sempre, quindi un tasto `Glass` si disegna con gli stessi ingressi di prima.
+ */
+internal fun resolveFluidGlassButtonLook(style: FluidGlassButtonStyle, base: GlassTint, accent: Color): FluidGlassButtonLook =
+  when {
+    style.glass.isIdentity -> FluidGlassButtonLook(base, GlassLiquidVariant.Regular, glassless = true, Color.Unspecified)
+    style.isProminent -> {
+      val tint = if (style.tint.isSpecified) style.tint else accent
+      FluidGlassButtonLook(fluidProminentTint(tint, base), GlassLiquidVariant.Regular, glassless = false, fluidProminentInk(tint))
+    }
+    else -> FluidGlassButtonLook(fluidGlassTint(style.glass, base), style.glass.liquidVariant, glassless = false, Color.Unspecified)
+  }
+
+@Composable
+private fun rememberFluidGlassButtonLook(style: FluidGlassButtonStyle): FluidGlassButtonLook {
+  val base = GlassDefaults.controlTint()
+  val accent = MaterialTheme.colorScheme.primary
+  return remember(style, base, accent) { resolveFluidGlassButtonLook(style, base, accent) }
+}
+
+/**
+ * Il vetro di un tasto col suo stile: [glassControlSurfaceInked] con la pellicola di [look]. La variante limpida arriva
+ * alla lastra per [LocalGlassLiquidVariant], fornita attorno a questa sola chiamata (come fa `fluidGlass`), e solo
+ * quando non e' quella di serie: un tasto `Glass` passa dagli stessi nodi di prima. Lo stile in evidenza non stringe il
+ * patto dell'inchiostro: la sua etichetta ha l'inchiostro della tinta e il vetro non gira.
+ */
+@Composable
+private fun Modifier.glassButtonSurface(
+  look: FluidGlassButtonLook,
+  backdrop: GlassBackdropState,
+  shape: Shape,
+  selected: Boolean,
+  interactive: Boolean,
+  press: FluidPressState,
+  ink: GlassInk,
+  forwardedAttributes: FluidGlassAttributes?,
+  labelAnchor: FluidGlassLabelAnchor?,
+  blurIcon: Boolean,
+): Modifier {
+  val surface: @Composable () -> Modifier = {
+    glassControlSurfaceInked(
+      backdrop = backdrop,
+      shape = shape,
+      tint = look.tint,
+      optics = GlassDefaults.buttonOptics(),
+      // Il tasto in evidenza non ha uno stato scelto: la sua pellicola e' la tinta, non l'accento della selezione.
+      selected = selected && !look.ink.isSpecified,
+      interactive = interactive,
+      depth = FullDepth,
+      frozen = NeverFrozen,
+      heldWhileMoving = NeverFrozen,
+      pressState = press,
+      ink = if (look.ink.isSpecified) null else ink,
+      forwardedAttributes = forwardedAttributes,
+      labelAnchor = labelAnchor,
+      blurIcon = blurIcon,
+    )
+  }
+  if (look.variant == GlassLiquidVariant.Regular) return surface()
+  var surfaced: Modifier = Modifier
+  CompositionLocalProvider(LocalGlassLiquidVariant provides look.variant) { surfaced = surface() }
+  return surfaced
+}
+
+/**
+ * L'inchiostro del contenuto di un tasto: quello fisso dello stile in evidenza, altrimenti quello del lato del vetro
+ * ([GlassInkContent]) col tema [themeInk] come prima.
+ */
+@Composable
+private fun FluidGlassButtonInk(look: FluidGlassButtonLook, ink: GlassInk, themeInk: Color, content: @Composable () -> Unit) {
+  if (look.ink.isSpecified) {
+    CompositionLocalProvider(LocalContentColor provides look.ink, content = content)
+  } else {
+    GlassInkContent(ink, themeInk, content)
   }
 }
 
@@ -950,6 +1089,11 @@ internal fun FluidGlassIconButtonCore(
  * @param maxLines quante righe puo' avere l'etichetta (3.0.4). `1` la tronca con i puntini in uno spazio
  *   stretto, invece di farla andare a capo dentro un tasto di altezza fissa. Di serie senza tetto, come
  *   sempre; un'etichetta che va a capo fa crescere il tasto oltre l'altezza della taglia invece di tagliarla.
+ * @param style lo stile ([FluidGlassButtonStyle]), di serie quello d'ambiente ([LocalFluidGlassButtonStyle]).
+ *   [FluidGlassButtonStyle.Prominent] e' l'azione principale: la tinta copre quanto serve perche' l'etichetta stia ad
+ *   almeno 4,5:1 su qualunque fondo. Dalla 4.0 (F6.4). La taglia di serie e' quella d'ambiente ([LocalFluidGlassSize]).
+ * @param sizing la larghezza ([FluidButtonSizing]), di serie quella d'ambiente ([LocalFluidButtonSizing]):
+ *   [FluidButtonSizing.Fitted] quanto l'etichetta, [FluidButtonSizing.Flexible] tutta quella che gli si da'. Dalla 4.0.
  */
 @Composable
 fun FluidGlassButton(
@@ -960,12 +1104,15 @@ fun FluidGlassButton(
   enabled: Boolean = true,
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
-  size: FluidGlassSize = FluidGlassSize.Regular,
+  size: FluidGlassSize = LocalFluidGlassSize.current,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   leading: (@Composable () -> Unit)? = null,
   maxLines: Int = Int.MAX_VALUE,
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,
+  sizing: FluidButtonSizing = LocalFluidButtonSizing.current,
 ) {
+  val look = rememberFluidGlassButtonLook(style)
   val contentColor = if (selected) {
     MaterialTheme.colorScheme.onPrimaryContainer
   } else {
@@ -985,40 +1132,46 @@ fun FluidGlassButton(
   }
   val plane = currentFluidGlassContainer(shape)
   val labelAnchor = remember(plane) { plane?.let { FluidGlassLabelAnchor() } }
+  val pressed = modifier
+    // Flessibile: tutta la larghezza data, con l'etichetta al centro (`buttonSizing(.flexible)`).
+    .then(if (sizing == FluidButtonSizing.Flexible) Modifier.fillMaxWidth() else Modifier)
+    .then(touchTarget)
+    .alpha(if (enabled) 1f else 0.38f)
+    // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
+    .fluidPressable(
+      onClick = onClick,
+      enabled = enabled,
+      role = Role.Button,
+      haptic = haptic,
+      focusShape = shape,
+      // Senza vetro ([FluidGlass.Identity]) la pressione la disegna il gesto, che cede.
+      pressState = if (look.glassless) null else press,
+      grip = grip,
+    )
+  val glassed = if (look.glassless) {
+    pressed
+  } else {
+    pressed.glassButtonSurface(
+      look = look,
+      backdrop = backdrop,
+      shape = shape,
+      selected = selected,
+      interactive = enabled,
+      press = press,
+      ink = ink,
+      forwardedAttributes = null,
+      labelAnchor = labelAnchor,
+      blurIcon = false,
+    )
+  }
   Row(
-    modifier = modifier
-      .then(touchTarget)
-      .alpha(if (enabled) 1f else 0.38f)
-      // Il bersaglio del gesto resta nelle coordinate di riposo anche mentre il contenuto cresce.
-      .fluidPressable(
-        onClick = onClick,
-        enabled = enabled,
-        role = Role.Button,
-        haptic = haptic,
-        focusShape = shape,
-        pressState = press,
-        grip = grip,
-      )
-      .glassControlSurfaceInked(
-        backdrop = backdrop,
-        shape = shape,
-        tint = GlassDefaults.controlTint(),
-        optics = GlassDefaults.buttonOptics(),
-        selected = selected,
-        interactive = enabled,
-        depth = FullDepth,
-        frozen = NeverFrozen,
-        heldWhileMoving = NeverFrozen,
-        pressState = press,
-        ink = ink,
-        labelAnchor = labelAnchor,
-      )
+    modifier = glassed
       .heightIn(min = size.buttonHeight)
       .padding(horizontal = size.buttonPadding),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    GlassInkContent(ink, contentColor) {
+    FluidGlassButtonInk(look, ink, contentColor) {
       if (leading != null) {
         Box(modifier = Modifier.size(size.buttonLeading), contentAlignment = Alignment.Center) {
           // L'icona davanti all'etichetta prende la taglia del suo posto, non quella di un tasto solo icona.

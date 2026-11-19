@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
@@ -160,16 +161,22 @@ fun <T : Any> FluidGlassSheet(
   }
 }
 
-/** Il contenuto di un foglio con detent: alto quanto il foglio, sopra la barra di navigazione. */
+/**
+ * Il contenuto di un foglio con detent: alto quanto il foglio, sopra la barra di navigazione, con i tasti alla taglia,
+ * allo stile e alla larghezza di serie (F6.4: in iOS 27 un foglio non eredita `controlSize` e `buttonSizing` della barra
+ * che lo apre). L'host li riporta gia' per ogni presentazione; il foglio lo dice anche da se', per il suo contenuto.
+ */
 @Composable
 private fun ColumnScope.FluidSheetBody(content: @Composable ColumnScope.() -> Unit) {
-  Column(
-    modifier = Modifier
-      .weight(1f)
-      .fillMaxWidth()
-      .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
-    content = content,
-  )
+  CompositionLocalProvider(*fluidGlassButtonDefaults()) {
+    Column(
+      modifier = Modifier
+        .weight(1f)
+        .fillMaxWidth()
+        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+      content = content,
+    )
+  }
 }
 
 // --- Dichiarazione: dal contenuto al foglio che lo disegna ---------------------------------------------------------

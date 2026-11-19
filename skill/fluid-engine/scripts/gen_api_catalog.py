@@ -64,7 +64,7 @@ UI_FLUID_FILES = {
     "grafici": ["FluidCharts", "FluidChartMath"],
     # tasti, interruttori, cursori, campi
     "controlli": [
-        "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls",
+        "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls", "FluidGlassButtonStyle",
         "FluidTextField", "FluidTextEdit", "FluidTokenField", "FluidStepper",
     ],
     # pop-up, fogli, menu, avvisi, notifiche

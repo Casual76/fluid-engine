@@ -190,6 +190,7 @@ class FluidBetaGalleryTest {
       GalleryPage.ToTry, GalleryPage.Measure, GalleryPage.Material, GalleryPage.Icons, GalleryPage.Robustness, GalleryPage.Parity,
       GalleryPage.Painted, GalleryPage.Adaptive, GalleryPage.Plane, GalleryPage.Assistant, GalleryPage.Toolbar,
       GalleryPage.ToolbarPages, GalleryPage.ListsForms, GalleryPage.TabletNavigation, GalleryPage.BottomBar,
+      GalleryPage.ButtonStyles,
     )
     GalleryPage.entries.filter { it !in tools }.forEach { page ->
       assertTrue("nessuna voce porta a $page", targets.any { it is TryTarget.Page && it.page == page })
@@ -262,6 +263,10 @@ class FluidBetaGalleryTest {
   @Test
   fun `liste, campi e stepper si aprono con due tocchi da Chrome`() =
     opensFromChrome("chrome-open-lists-forms", GalleryPage.ListsForms)
+
+  @Test
+  fun `gli stili dei tasti si aprono con due tocchi da Chrome`() =
+    opensFromChrome("chrome-open-button-styles", GalleryPage.ButtonStyles)
 
   @Test
   fun `la riga in cima a Materiale apre Da provare con un tocco`() {
@@ -471,6 +476,8 @@ class FluidBetaGalleryTest {
     GalleryPage.ToolbarPages -> shown("F4A.3 ·", substring = true)
     // «Liste, campi e stepper» (F6.6), come «Barre fra pagine»: il segno è il sottotitolo con la sigla del pacchetto.
     GalleryPage.ListsForms -> shown("F6.6 ·", substring = true)
+    // «Stili dei tasti» (F6.4), come «Liste, campi e stepper»: il segno è il sottotitolo con la sigla del pacchetto.
+    GalleryPage.ButtonStyles -> shown("F6.4 ·", substring = true)
   }
 }
 

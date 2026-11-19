@@ -333,6 +333,8 @@ internal fun Gallery(
               GalleryPage.ToolbarPages -> dev.antigravity.fluidengine.sample.toolbar.ToolbarPagesPage(bottomInset) { nav.back() }
               // Liste, campi e stepper (F6.6): `listsforms.swipe fill` apre con le azioni a scorrimento di prima.
               GalleryPage.ListsForms -> dev.antigravity.fluidengine.sample.listsforms.ListsFormsPage(bottomInset) { nav.back() }
+              // Gli stili dei tasti (F6.4): `buttons.sheet open` apre col foglio della barra compatta.
+              GalleryPage.ButtonStyles -> dev.antigravity.fluidengine.sample.buttons.ButtonStylesPage(bottomInset) { nav.back() }
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,

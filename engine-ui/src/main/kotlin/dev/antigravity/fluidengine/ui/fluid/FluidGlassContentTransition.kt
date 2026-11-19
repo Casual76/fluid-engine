@@ -23,6 +23,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.toAndroidTileMode
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -958,6 +961,89 @@ internal fun glassContentBlurRadiusPx(sigmaPx: Float): Float =
   if (sigmaPx <= 0f) 0f else GlassEdgeBlurKernel.sigmaToRadius(sigmaPx)
 
 /**
+ * La σ sotto la quale il contenuto che si mette a fuoco non si sfoca piu': 0,5 px, il minimo di HWUI. Ogni raggio
+ * positivo di `BlurEffect` vale almeno σ 0,5 px (σ = 0,57735 r + 0,5), quindi una messa a fuoco che scende con
+ * continuita' passava da circa mezzo pixel di sfocatura a nitida in un fotogramma: sul glifo di prova un salto di 49
+ * livelli (sonda di F3, `sessioni/f3-corr-lente`). Sotto il pavimento il contenuto e' la mescola della copia sfocata
+ * al pavimento e di quella nitida ([glassContentBlurMix]); sopra, la sfocatura e' quella di sempre, al bit (F6.4).
+ */
+internal const val GlassContentBlurFloorPx: Float = 0.5f
+
+/** Sotto questo peso la copia sfocata non lascia un livello su 255 nemmeno sul bordo di un glifo: l'effetto si toglie. */
+internal const val GlassContentBlurMixOff: Float = 1f / 512f
+
+/**
+ * Quanto pesa la copia sfocata al pavimento ([floorPx]) nella mescola con quella nitida, per una σ chiesta [sigmaPx]:
+ * uno dal pavimento in su, `σ / σ0` sotto, zero a σ nulla, cosi' la messa a fuoco continua a scendere col suo orologio
+ * fino a nitida invece di fermarsi a mezzo pixel. Lineare e non quadratico: sul bordo di un glifo i passi per fotogramma
+ * di una rampa che va a zero restano dell'ordine di quelli di una gaussiana vera (modello del bordo: 8,8 livelli contro
+ * 9,9 della gaussiana, e 44,7 prima, `GlassContentBlurMixTest`), mentre il quadrato tiene la varianza ma concentra il
+ * cambio all'ingresso della mescola (15,2). Continua e crescente. Pura.
+ */
+internal fun glassContentBlurMix(sigmaPx: Float, floorPx: Float = GlassContentBlurFloorPx): Float = when {
+  !(sigmaPx > 0f) -> 0f
+  sigmaPx >= floorPx -> 1f
+  else -> sigmaPx / floorPx
+}
+
+/**
+ * La sfocatura del contenuto per le σ chieste [sigmaXPx] e [sigmaYPx], senza il gradino di mezzo pixel di HWUI: sopra
+ * [floorPx] e' `BlurEffect` col raggio di [radiusOf], come prima; sotto e' **un solo effetto** che somma la copia
+ * sfocata al pavimento al peso k e quella nitida al peso 1 - k ([glassContentBlurMix]): due rami dello stesso layer,
+ * un filtro di colore che ne scala l'alfa e un `PLUS` che li riunisce. Nessun secondo disegno del contenuto, nessun
+ * layer in piu'; costa il secondo ramo solo negli ultimi fotogrammi della messa a fuoco. Null quando non c'e' niente da
+ * sfocare.
+ *
+ * Serve Android 12 (API 31), come ogni `RenderEffect`: chi chiama lo controlla gia'.
+ */
+internal fun glassContentBlurEffect(
+  sigmaXPx: Float,
+  sigmaYPx: Float = sigmaXPx,
+  floorPx: Float = GlassContentBlurFloorPx,
+  radiusOf: (Float) -> Float = ::glassContentBlurRadiusPx,
+  tileMode: TileMode = TileMode.Decal,
+): RenderEffect? {
+  val sigma = max(sigmaXPx, sigmaYPx)
+  val weight = glassContentBlurMix(sigma, floorPx)
+  if (weight < GlassContentBlurMixOff) return null
+  if (weight >= 1f) {
+    val rx = radiusOf(sigmaXPx)
+    val ry = radiusOf(sigmaYPx)
+    return if (rx > 0f && ry > 0f) BlurEffect(rx, ry, tileMode) else null
+  }
+  // La copia sfocata al pavimento, con le proporzioni dei due assi.
+  val toFloor = floorPx / sigma
+  val rx = radiusOf(sigmaXPx * toFloor)
+  val ry = radiusOf(sigmaYPx * toFloor)
+  if (!(rx > 0f && ry > 0f)) return null
+  return glassMixedBlur(rx, ry, weight, tileMode)
+}
+
+/** `PLUS` di (sfocato x [weight]) e (nitido x (1 - [weight])) sullo stesso contenuto. Vedi [glassContentBlurEffect]. */
+private fun glassMixedBlur(rx: Float, ry: Float, weight: Float, tileMode: TileMode): RenderEffect {
+  check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+  val blurred = android.graphics.RenderEffect.createBlurEffect(rx, ry, tileMode.toAndroidTileMode())
+  val blurredPart = android.graphics.RenderEffect.createColorFilterEffect(glassAlphaScale(weight), blurred)
+  val sharpPart = android.graphics.RenderEffect.createColorFilterEffect(glassAlphaScale(1f - weight))
+  return android.graphics.RenderEffect
+    .createBlendModeEffect(sharpPart, blurredPart, android.graphics.BlendMode.PLUS)
+    .asComposeRenderEffect()
+}
+
+/**
+ * Un filtro che moltiplica l'alfa per [k]. Skia applica la matrice ai colori non premoltiplicati: scalare l'alfa scala
+ * il colore premoltiplicato intero, ed e' cio' che la somma `PLUS` vuole.
+ */
+private fun glassAlphaScale(k: Float): android.graphics.ColorMatrixColorFilter = android.graphics.ColorMatrixColorFilter(
+  floatArrayOf(
+    1f, 0f, 0f, 0f, 0f,
+    0f, 1f, 0f, 0f, 0f,
+    0f, 0f, 1f, 0f, 0f,
+    0f, 0f, 0f, k.coerceIn(0f, 1f), 0f,
+  ),
+)
+
+/**
  * Il contenuto di un vetro che cambia, alla maniera di Apple (`blurReplace` dentro un vetro, R7 A.2): chi esce si
  * sfoca, rimpicciolisce appena e svanisce; chi entra arriva sfocato e si fa nitido; i due si incrociano al massimo della
  * sfocatura, e la tinta cambia lì dentro. Il contenuto con la **stessa [key]** nei due stati non si tocca: resta
@@ -1128,12 +1214,8 @@ internal fun <S> FluidGlassContentTransitionWithShape(
               scaleX = look.scale
               scaleY = look.scale
               val sigmaPx = look.blur * glyphPx
-              renderEffect = if (blurAvailable && sigmaPx > 0.05f) {
-                val radius = glassContentBlurRadiusPx(sigmaPx)
-                BlurEffect(radius, radius, TileMode.Decal)
-              } else {
-                null
-              }
+              // Sotto il mezzo pixel di HWUI la copia sfocata si mescola con la nitida, senza scalino (F6.4).
+              renderEffect = if (blurAvailable) glassContentBlurEffect(sigmaPx) else null
             }
             .padding(marginDp),
           contentAlignment = contentAlignment,

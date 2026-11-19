@@ -265,7 +265,9 @@ fun FluidGlassModalHost(
   // e li' `LocalContentColor` vale nero: un `Text` senza colore in un pop-up, un foglio, una pagina
   // intera o un avviso era nero sul tema scuro (il selettore dei formati di universal_converter).
   // `onSurface` e' il testo sul vetro dei pannelli e sulla pagina intera, che e' `surface`.
-  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+  // Taglia, stile e larghezza dei tasti tornano quelli di serie (F6.4): in iOS 27 un foglio o un popover non eredita
+  // `controlSize` e `buttonSizing` di chi lo apre, e un host messo dentro una barra di tasti `Compact` non li passa.
+  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, *fluidGlassButtonDefaults()) {
     Box(modifier = modifier.fillMaxSize()) {
       // Every registered entry, in the order they were opened, so a menu raised from inside a modal
       // sits over it instead of replacing it. An entry that is closed and finished animating draws

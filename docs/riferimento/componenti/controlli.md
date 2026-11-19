@@ -45,6 +45,10 @@ Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 | Un'azione con testo sopra una foto, una mappa, un hero, una barra | `FluidGlassButton` |
 | Un'azione solo icona sopra qualcosa (chrome, overlay, composer) | `FluidGlassIconButton` (taglie `FluidGlassSize.Compact`/`Regular`/`Large`) |
 | Un tasto tondo di una misura che non è 40/44/54 dp (disco di un player, hero) | `FluidGlassIconButton(onClick, size = 76.dp)` (l'overload con `Dp`) |
+| L'azione principale sopra una foto, una mappa, una barra (Fatto, Invia) | `FluidGlassButton(…, style = FluidGlassButtonStyle.Prominent)`: l'accento pieno quanto serve all'etichetta. Uno per schermata |
+| Un tasto di vetro sopra una foto o un video, con contenuto chiaro e marcato | `style = FluidGlassButtonStyle.Clear` |
+| Una riga di tasti tutti `Compact` (o `Large`), o tutti limpidi | la taglia o lo stile **d'ambiente**: `CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) { … }`, `LocalFluidGlassButtonStyle` |
+| Due tasti che si dividono una riga (Annulla / Conferma) | `FluidGlassButton(…, Modifier.weight(1f), sizing = FluidButtonSizing.Flexible)` |
 | Un'azione nella barra superiore di una schermata | `FluidBarAction`; con `actions = { … }` il tasto diventa il proprio menu |
 | Un'azione a vetro con una pillola di più azioni | non è questa scheda: `FluidFloatingCapsule` / `FluidCapsuleAction` |
 | Una scelta esclusiva fra 2–5 voci **corte** | `FluidSegmentedControl` |
@@ -132,8 +136,8 @@ propria ottica: da solo, senza chiederlo.
 
 | componente | misura disegnata | bersaglio |
 |---|---|---|
-| `FluidGlassIconButton` | vetro 40 / 44 / 54 dp, o `size: Dp` | `max(vetro, 48 dp)` in layout |
-| `FluidGlassButton` | altezza 40 / 48 / 54 dp | sotto i 48 dp il layout occupa comunque 48 dp d'altezza (`fluidTouchTarget`) |
+| `FluidGlassIconButton` (e `FluidBarAction`, l'indietro di `FluidScreen`) | vetro 40 / 44 / 54 dp, o `size: Dp` | `max(vetro, 48 dp)` in layout; il dito lo colpisce tutto |
+| `FluidGlassButton` | altezza 40 / 48 / 54 dp | sotto i 48 dp il layout occupa comunque 48 dp d'altezza (`fluidTouchTarget`); il dito lo colpisce tutto |
 | `FluidChip` | alto almeno 48 dp (`defaultMinSize`) | 48 dp |
 | `FluidColorDot` | cerchio 30 dp | `max(48 dp, size + 10 dp)` |
 | `FluidSlider`, `FluidScrubber` | pista 6 dp | riga alta 48 dp |
@@ -141,6 +145,13 @@ propria ottica: da solo, senza chiederlo.
 | tasto «cancella» di `FluidTextField` | disegno 17 dp in 28 dp | 48 dp, senza occupare spazio |
 | `FluidSegmentedControl` | alto 32 dp | 32 dp (è una pista, non un tasto) |
 | `FluidButton` | altezza minima 50 / 42 / 32 dp | l'altezza è un **minimo**, non toccato oltre |
+
+Nei tasti di vetro il gesto sta sul **vetro** (bagliore e flessione partono dal punto del dito nelle sue coordinate), e il
+riquadro da 48 dp attorno non ha altri nodi: Compose allarga il bersaglio di un nodo cliccabile più piccolo fino al
+minimo della piattaforma (`ViewConfiguration.minimumTouchTargetSize`, 48 dp), quindi un dito nell'anello fra vetro e
+riquadro clicca, e TalkBack vede 48 dp (`touchBoundsInRoot`). Vale per ogni taglia, per la misura libera (un vetro da 32
+dp), per l'etichetta `Compact` e per i tasti della barra di sempre: «almeno 44 dp», i 44 pt di Apple, lo prova
+`FluidGlassButtonStylesUiTest` (F6.4). Un'app che abbassa `minimumTouchTargetSize` abbassa anche questo.
 
 ### 8. TalkBack in breve
 
@@ -263,10 +274,11 @@ FluidGlassIconButton(
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
   onLongClick: (() -> Unit)? = null,
-  size: FluidGlassSize = FluidGlassSize.Regular,       // oppure l'overload con size: Dp
+  size: FluidGlassSize = LocalFluidGlassSize.current,   // oppure l'overload con size: Dp; di serie Regular
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,   // Glass | Clear | Prominent | Glass(glass)
   content: @Composable BoxScope.() -> Unit,
 )
 
@@ -278,13 +290,18 @@ FluidGlassButton(
   enabled: Boolean = true,
   selected: Boolean = false,
   shape: Shape = FluidCapsuleShape,
-  size: FluidGlassSize = FluidGlassSize.Regular,
+  size: FluidGlassSize = LocalFluidGlassSize.current,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   leading: (@Composable () -> Unit)? = null,
   maxLines: Int = Int.MAX_VALUE,
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,
+  sizing: FluidButtonSizing = LocalFluidButtonSizing.current,       // Fitted | Flexible
 )
 ```
+
+In SwiftUI: `style` è `buttonStyle(.glass / .glass(.clear) / .glassProminent / .glass(_:))`, la taglia d'ambiente è
+`controlSize`, `sizing` è `buttonSizing`, la forma di serie (`FluidCapsuleShape`) è `buttonBorderShape(.capsule)`.
 
 **Uso** (dal `sample`, `GapsDemo` e `GlassGrowthContrastDemo`).
 
@@ -299,6 +316,17 @@ FluidGlassButton(text = "Attiva", onClick = {}, selected = true)
 
 // Una misura libera: il disco del trasporto di un player
 FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons.Filled.PlayArrow, contentDescription = "Riproduci") }   // 46 dp, da solo
+
+// L'azione principale, e due tasti che si dividono la riga (dal `sample`, «Stili dei tasti»)
+Row(horizontalArrangement = Arrangement.spacedBy(FluidMetrics.GlassSpacing)) {
+  FluidGlassButton("Annulla", onCancel, Modifier.weight(1f), sizing = FluidButtonSizing.Flexible)
+  FluidGlassButton("Conferma", onConfirm, Modifier.weight(1f), style = FluidGlassButtonStyle.Prominent, sizing = FluidButtonSizing.Flexible)
+}
+
+// Una barra di tasti compatti: la taglia una volta, per tutti (anche per quelli aggiunti dopo)
+CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) {
+  FluidGlassContainer { Row { FluidGlassIconButton(onClick = onShare) { FluidIcon(FluidIcons.Share, "Condividi") } /* … */ } }
+}
 ```
 
 **Comportamento.**
@@ -325,6 +353,24 @@ FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons
   in circa 330 ms. In un `FluidGlassContainer` lo stesso punto illumina le lastre vicine entro 108 dp.
   Anche i ponti fra pezzi uniti ricevono la luce. Il tasto autonomo usa la stessa passata sul proprio vetro.
 - Lo stato disabilitato sfuma a 0,38 e smette di rispondere tenendo il materiale.
+- **Stili** (`FluidGlassButtonStyle`, F6.4). `Glass` è il vetro di sempre (stessi ingressi, stessi nodi). `Clear` è il
+  vetro limpido (`FluidGlass.Clear`: niente smerigliatura, scurimento del 35% sotto): sopra foto e video, con contenuto
+  chiaro e marcato. `Glass(glass)` prende un `FluidGlass` qualunque: `FluidGlass.Regular.tint(c)` è la tinta di Apple (la
+  tonalità resta, la luminosità segue lo sfondo, l'etichetta segue il lato del vetro), `FluidGlass.Identity` è il tasto
+  senza vetro (la pressione la disegna il gesto, che cede). `Prominent` (o `Prominent(tint)`) è l'azione principale:
+  la tinta resta quella scelta (l'accento di serie), e **copre quanto serve** perché l'etichetta stia ad almeno 4,5:1
+  sul fondo peggiore, nero o bianco, con un margine del 5% (`fluidProminentCoverage`: 0,92 per l'accento chiaro di
+  serie, 0,67 per lo scuro; l'alfa della tinta non conta). L'etichetta prende l'inchiostro che sulla tinta si legge
+  meglio (il quasi nero o il quasi bianco del tema; il nero o il bianco pieni sulle tinte di mezzo tono) e **non gira**
+  col fondo: il tasto pieno è lui il fondo. Sopra una foto la tinta a metà opacità scritta a mano stava a 3,90:1 e
+  3,20:1 (chiusura di F2); `Prominent` sta sopra 4,5 su ogni accento della palette (`FluidGlassButtonStyleTest`).
+- **Taglia, stile e larghezza d'ambiente.** Senza `size`, `style` e `sizing` il tasto prende `LocalFluidGlassSize`,
+  `LocalFluidGlassButtonStyle` e `LocalFluidButtonSizing` (di serie `Regular`, `Glass`, `Fitted`: senza un fornitore
+  niente cambia). L'icona discende dalla taglia: il tasto dà a una `FluidIcon` senza `size` 0,6 del suo vetro.
+  **Fogli, popover, avvisi e menu dell'host** (`FluidGlassModalHost`, `FluidGlassSheet`) riportano i tre valori a quelli
+  di serie: come in iOS 27, un foglio aperto da una barra `Compact` ha i tasti `Regular`.
+- **`sizing`** (solo `FluidGlassButton`): `Fitted` è largo quanto l'etichetta; `Flexible` riempie la larghezza data
+  (`fillMaxWidth`), con l'etichetta al centro. In una `Row` si dà a ciascuno `Modifier.weight(1f)`: il peso lo dà la riga.
 
 **Trappole.**
 
@@ -337,13 +383,18 @@ FluidGlassIconButton(onClick = onPlayPause, size = 76.dp) { FluidIcon(FluidIcons
 - Il tasto non è clippato: la crescita esce dal riquadro. Un genitore con `clip` la taglia.
 - Una riga di tasti tondi vicini: con 16 dp fra due dischi la crescita capata a 24 dp non li fa toccare, con meno sì.
 - Tasto in una lista che scorre: `grip = FluidPressGrip.YieldsToScroll` (stessa regola di `FluidButton`).
+- `Prominent` non ha uno stato `selected`: la sua pellicola è la tinta, e la selezione (accento al 36%) la coprirebbe.
+- `FluidBarAction` senza menu e l'indietro di `FluidScreen` seguono la taglia d'ambiente, quelli con menu no (sono
+  `Regular` scritti): non fornire `LocalFluidGlassSize` attorno a una `FluidScreen`, ma attorno alla riga che la vuole.
+- Un `Icon` di Material con la taglia scritta resta della sua taglia anche in un tasto `Compact`: per seguire, `FluidIcon`.
 
 **Non usarli quando.** Serve il pulsante pieno di una form su fondo piatto (`FluidButton`); il tasto sta in una barra di
 schermata (`FluidBarAction`, che li usa); serve una pillola con più azioni (`FluidFloatingCapsule`).
 
 **Versione.** Tasti di vetro dalle 1.x (1.4.0: `backdrop` obbligatorio nel vetro dei controlli); pressione che cresce 2.11.0; ricetta di LibrePods, `haptic` e `grip` 3.0;
 `FluidGlassSize` e `FluidGlassIconButton(size: Dp)` 3.0; backdrop del canvas per `FluidGlassButton` 3.0.1;
-`FluidGlassButton(maxLines)` 3.0.4.
+`FluidGlassButton(maxLines)` 3.0.4; stili (`FluidGlassButtonStyle`, `LocalFluidGlassButtonStyle`), `sizing`
+(`FluidButtonSizing`, `LocalFluidButtonSizing`) e taglia d'ambiente (`LocalFluidGlassSize`) 4.0 (F6.4).
 
 ---
 

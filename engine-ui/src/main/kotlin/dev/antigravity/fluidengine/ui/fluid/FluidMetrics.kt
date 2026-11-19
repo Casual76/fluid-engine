@@ -31,6 +31,9 @@ object FluidMetrics {
   /**
    * Il vetro di un tasto tondo solo icona: 44 dp, come i 44,0 pt misurati sul tasto della barra di iOS 27 (R6,
    * fiducia alta). Invariato: il tasto non era piccolo, lo sembrava.
+   *
+   * **Scelta aperta** (R6, F6.4): se con le icone a 0,6 del vetro il tasto sembra ancora piccolo, 46 dp (icona 28),
+   * che pero' alza la riga dei controlli. Di serie resta 44 finche' Alessio non sceglie sulla tavola 44 contro 46.
    */
   val GlassButtonLens: Dp = 44.dp
 

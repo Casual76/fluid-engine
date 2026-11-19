@@ -333,6 +333,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-lists-forms"),
           onClick = { onOpen(GalleryPage.ListsForms) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Stili dei tasti",
+          subtitle = "F6.4: vetro, limpido e in evidenza per tre taglie, larghezza, foglio da una barra compatta",
+          modifier = Modifier.testTag("chrome-open-button-styles"),
+          onClick = { onOpen(GalleryPage.ButtonStyles) },
+        )
       }
     }
 

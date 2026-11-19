@@ -28,6 +28,11 @@ import androidx.compose.ui.unit.Dp
  *
  * Un'app la fornisce a sua volta per un suo contenitore (`CompositionLocalProvider(LocalFluidIconSize provides 20.dp)`),
  * per esempio la riga di una lista con icone piu' piccole.
+ *
+ * **Discende dalla taglia dei tasti** (F6.4). Un tasto senza `size` prende la taglia d'ambiente ([LocalFluidGlassSize]) e
+ * fornisce qui 0,6 del suo vetro ([FluidGlassSize.iconSize]: 24, 26, 32 dp per `Compact`, `Regular`, `Large`): chi
+ * cambia la taglia di una barra cambia anche le sue icone, senza scriverle. Per questo non si fornisce da sola attorno
+ * a un tasto: dentro il tasto la riscrive lui.
  */
 val LocalFluidIconSize: ProvidableCompositionLocal<Dp> = compositionLocalOf { FluidMetrics.IconSize }
 

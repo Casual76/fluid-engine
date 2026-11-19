@@ -2664,6 +2664,9 @@ internal fun FluidBackButton(onBack: () -> Unit) {
   FluidGlassIconButton(
     onClick = onBack,
     modifier = Modifier.padding(start = FluidBarEdgeInset),
+    // I tasti della barra di sempre non seguono la taglia ne' lo stile d'ambiente (F6.4): come quelli con un menu.
+    size = FluidGlassSize.Regular,
+    style = FluidGlassButtonStyle.Glass,
   ) {
     FluidIcon(
       imageVector = FluidIcons.ArrowBackIosNew,
@@ -2819,7 +2822,14 @@ private fun FluidBarActionImpl(
   menuFace: @Composable () -> Unit,
 ) {
   if (actions == null) {
-    FluidGlassIconButton(onClick = onClick, modifier = modifier, enabled = enabled) { buttonFace() }
+    FluidGlassIconButton(
+      onClick = onClick,
+      modifier = modifier,
+      enabled = enabled,
+      // Come il tasto con un menu qui sotto: la barra di sempre non segue la taglia ne' lo stile d'ambiente (F6.4).
+      size = FluidGlassSize.Regular,
+      style = FluidGlassButtonStyle.Glass,
+    ) { buttonFace() }
     return
   }
 

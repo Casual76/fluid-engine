@@ -52,13 +52,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -3622,12 +3620,9 @@ private fun DrawScope.drawGlassPieceContent(
   layer.scaleX = look.scale
   layer.scaleY = look.scale
   val sigma = glassContentSigmaPx(look.blur, referencePx)
-  layer.renderEffect = if (sigma > 0.05f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-    val radius = glassContentBlurRadiusPx(sigma)
-    BlurEffect(radius, radius, TileMode.Decal)
-  } else {
-    null
-  }
+  // Sotto il mezzo pixel di HWUI la copia sfocata si mescola con la nitida nello stesso effetto: la messa a fuoco
+  // arriva a nitida senza lo scalino dell'ultimo fotogramma (F6.4). Sopra, la sfocatura di sempre.
+  layer.renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) glassContentBlurEffect(sigma) else null
   val offset = flight?.offset ?: Offset.Zero
   val clip = flight?.clip
   if (clip == null) {

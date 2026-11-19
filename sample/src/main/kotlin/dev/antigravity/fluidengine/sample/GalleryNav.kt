@@ -121,6 +121,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   ListsForms("Liste, campi e stepper"),
 
+  /**
+   * Gli stili dei tasti di vetro (piano «iOS in Android», F6.4): `Glass`, `Clear` e `Prominent` per le tre taglie, la
+   * larghezza adattata e flessibile, e un foglio aperto da una barra `Compact` i cui tasti tornano alla taglia di serie.
+   * Vedi `buttons/`. Si apre con `--es gallery.page ButtonStyles` (`--es buttons.sheet open` col foglio aperto). Uno
+   * strumento per le sessioni sul dispositivo, come «Liste, campi e stepper».
+   */
+  ButtonStyles("Stili dei tasti"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

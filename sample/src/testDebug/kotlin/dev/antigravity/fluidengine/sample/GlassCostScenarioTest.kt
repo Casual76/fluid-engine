@@ -184,9 +184,11 @@ class GlassCostScenarioTest {
     var pieces = 0
     var bodyShadows = 0
     val oldProbe = glassBodyProbe
+    val menuFinishes = mutableSetOf<Size>()
     GlassCostLevers.onCapture = { sample, finish ->
       assertEquals((finish.width.toInt() + 1) / 2, sample.width)
       assertEquals((finish.height.toInt() + 1) / 2, sample.height)
+      if (scene == MeasureScenario.MenuGroup) menuFinishes.add(finish)
       samples++
     }
     GlassCostLevers.onLight = { if (it) lightRecords++ else lightHits++ }
@@ -259,6 +261,11 @@ class GlassCostScenarioTest {
         previous = total
       }
       println("F73 $scene fine: campioni dimezzati=${samples - initialSamples}, luce records=$lightRecords hits=$lightHits, maxPezzi=$pieces")
+      if (scene == MeasureScenario.MenuGroup) {
+        assertTrue("finiture durante il viaggio: $menuFinishes", menuFinishes.isNotEmpty())
+        assertTrue("ritaglio del menu realmente registrato: $menuFinishes", menuFinishes.all { it.height < 1280f })
+        println("F73b finiture registrate $menuFinishes")
+      }
       if (scene == MeasureScenario.MenuGroup) assertTrue("campione fisico ridotto durante il viaggio", samples > initialSamples)
       assertNull("gesto $phase", actions.failure)
       if (scene == MeasureScenario.MenuGroup) assertTrue("il menu monta il pannello: $initialNodes -> $peak", peak > initialNodes)

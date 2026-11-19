@@ -1550,6 +1550,8 @@ usano lo stesso sistema di coordinate. Il limite massimo di texture vale anche p
 viaggio viene restituito. Il foglio con detent usa il vetro ordinario e continua a campionare la scena pagina–scrim.
 Il guadagno in millisecondi dei due scenari si misura sul dispositivo.
 
+**F7.3b. Menu in viaggio.** La capsula o il seme e il pannello definiscono il rettangolo di cattura. Il margine comprende oltrepasso, coda, ombra, rifrazione e sfocatura. Il campione dimezzato e la finitura si allineano alla griglia della finestra. Il campo, il clip delle voci e la sonda mantengono le coordinate del palco. Il velo del menu modale conserva blur e tinta in una texture alla risoluzione del display. Durante la dissolvenza l'alpha agisce sul risultato composto. La texture occupa spazio per tutta la vita del velo e si aggiorna quando il materiale cambia. Il confronto delle fence GPU sul tablet misura il guadagno.
+
 Una lastra ferma in disegno hardware riusa la display list della luce finché geometria, colore, forze e direzione
 coincidono. I due disegni conservano l'ordine additivo e poi SrcOver. Una pressione con flessione disegna direttamente.
 Nella stessa finestra le lastre con identiche geometria, densità, tinta e ricetta dell'ombra condividono un layer per

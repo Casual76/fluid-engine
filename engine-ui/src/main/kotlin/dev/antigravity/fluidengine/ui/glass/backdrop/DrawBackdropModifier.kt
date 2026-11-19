@@ -46,6 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import android.graphics.RenderEffect as AndroidEffect
+import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.IntRect
+import kotlin.math.ceil
+import kotlin.math.floor
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 // Fluid Engine addition (F1A, voce 18): lo scope degli effetti dice se la superficie sta su un vetro.
@@ -358,6 +366,55 @@ fun Modifier.drawBackdrop(
                 onDrawLight = onDrawLight
             )
         )
+}
+
+/** La fisica e gli shader continuano a lavorare nel sistema di coordinate dell'intera finestra. */
+internal class WindowedBackdropEffects(
+    private val screenDensity: Float,
+    private val bounds: () -> Rect?,
+    private val build: BackdropEffectScope.() -> Unit,
+) : (BackdropEffectScope) -> Unit {
+    var region: IntRect? = null
+        private set
+    private var previousEffect: RenderEffect? = null
+    private var previousOrigin = IntOffset.Zero
+    private var translated: RenderEffect? = null
+
+    @RequiresApi(31)
+    override fun invoke(scope: BackdropEffectScope) {
+        scope.build()
+        val size = scope.size
+        region = if (size.isSpecified) bounds()?.let { captureRegion(it, size, scope.density / screenDensity) } else null
+        val origin = region?.topLeft ?: IntOffset.Zero
+        val effect = scope.renderEffect ?: return
+        if (origin == IntOffset.Zero) return
+        if (effect !== previousEffect || origin != previousOrigin) {
+            previousEffect = effect
+            previousOrigin = origin
+            translated = windowedEffect(effect, origin)
+        }
+        scope.renderEffect = translated
+    }
+}
+
+/** Arrotonda verso l'esterno sulla griglia del campione e dei sottolivelli del Gaussian. */
+internal fun captureRegion(bounds: Rect, size: Size, scale: Float): IntRect? {
+    val width = size.width.toInt()
+    val height = size.height.toInt()
+    fun start(v: Float, limit: Int) = (floor(v * scale / 16f).toInt() * 16).coerceIn(0, limit)
+    fun end(v: Float, limit: Int) = (ceil(v * scale / 16f).toInt() * 16).coerceIn(0, limit)
+    val rect = IntRect(start(bounds.left, width), start(bounds.top, height), end(bounds.right, width), end(bounds.bottom, height))
+    return rect.takeIf { it.width > 0 && it.height > 0 && (it.width < width || it.height < height) }
+}
+
+/** I due offset interi sono opposti: anche la grana e la lettura rifratta conservano la fase originale. */
+@RequiresApi(31)
+internal fun windowedEffect(effect: RenderEffect, origin: IntOffset): RenderEffect {
+    val x = origin.x.toFloat()
+    val y = origin.y.toFloat()
+    val source = AndroidEffect.createOffsetEffect(x, y)
+    val inWindow = AndroidEffect.createChainEffect(effect.asAndroidRenderEffect(), source)
+    return AndroidEffect.createOffsetEffect(-x, -y, inWindow).asComposeRenderEffect()
 }
 
 private class DrawBackdropElement(
@@ -967,6 +1024,9 @@ private class DrawBackdropNode(
     private var recordedScale = 1f
     private var recordedLogicalSize = Size.Zero
 
+    private var recordedRegion: IntRect? = null
+    private var originalExtent = Size.Zero
+
     private val recordBackdropBlock: (DrawScope.() -> Unit) = {
         val canvas = drawContext.canvas
         val padding = padding
@@ -982,12 +1042,18 @@ private class DrawBackdropNode(
             canvas.scale(scale, scale)
         }
         onDrawBackdrop {
-            with(sampledBackdrop) {
-                drawBackdrop(
-                    density = effectScope,
-                    coordinates = layoutCoordinates,
-                    layerBlock = layerBlock
-                )
+            val origin = recordedRegion?.topLeft ?: IntOffset.Zero
+            val extent = drawContext.size
+            val sourceCanvas = drawContext.canvas
+            if (origin != IntOffset.Zero) sourceCanvas.translate(-origin.x / scale, -origin.y / scale)
+            if (recordedRegion != null) drawContext.size = originalExtent
+            try {
+                with(sampledBackdrop) {
+                    drawBackdrop(density = effectScope, coordinates = layoutCoordinates, layerBlock = layerBlock)
+                }
+            } finally {
+                if (recordedRegion != null) drawContext.size = extent
+                if (origin != IntOffset.Zero) sourceCanvas.translate(origin.x / scale, origin.y / scale)
             }
         }
         if (scale != 1f) {
@@ -1012,9 +1078,13 @@ private class DrawBackdropNode(
             // Not named `scale`: that shadows the DrawScope transform of the same name, which is
             // what un-scales the draw below.
             val contentScale = effectiveScale
+            val region = (effects as? WindowedBackdropEffects)?.region
+            val fullWidth = (size.width * contentScale).toInt()
+            val fullHeight = (size.height * contentScale).toInt()
+            val border = padding.toInt() * 2
             val recordSize = IntSize(
-                ((size.width * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1),
-                ((size.height * contentScale).toInt() + padding.toInt() * 2).coerceAtLeast(1)
+                ((region?.width ?: fullWidth) + border).coerceAtLeast(1),
+                ((region?.height ?: fullHeight) + border).coerceAtLeast(1),
             )
             // Una posa può spostare la cattura dentro le pagine. Una cattura della vecchia
             // riserva va sostituita anche se il vetro è congelato o campiona una volta sola.
@@ -1092,6 +1162,7 @@ private class DrawBackdropNode(
             if (sourceGone) surfaceDirty = true
 
             val needsRecord = when {
+                region != recordedRegion -> true
                 lostLoan -> true
                 sourceGone -> false
                 sampled && recordedScale != contentScale -> true
@@ -1101,6 +1172,8 @@ private class DrawBackdropNode(
             }
 
             if (needsRecord) {
+                recordedRegion = region
+                originalExtent = Size((fullWidth + border).toFloat(), (fullHeight + border).toFloat())
                 recordLayer(
                     this@DrawBackdropNode,
                     layer,
@@ -1122,7 +1195,7 @@ private class DrawBackdropNode(
                     }
                     recordedLogicalSize = size
                     GlassFrameDiagnostics.event("capture", this@DrawBackdropNode) {
-                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize"
+                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region"
                     }
                     recordedScale = contentScale
                     recordedSize = recordSize
@@ -1144,9 +1217,8 @@ private class DrawBackdropNode(
             // Not named `scale`: that shadows the DrawScope transform of the same name, which is
             // what un-scales the draw below.
             val contentScale = effectiveScale
-            layer.topLeft =
-                if (padding != 0f) IntOffset(-padding.toInt(), -padding.toInt())
-                else IntOffset.Zero
+            val origin = recordedRegion?.topLeft ?: IntOffset.Zero
+            layer.topLeft = IntOffset(origin.x - padding.toInt(), origin.y - padding.toInt())
             // `topLeft` is in the layer's own (scaled) coordinates, so the un-scale has to wrap the
             // placement as well as the draw.
             if (contentScale != 1f) {

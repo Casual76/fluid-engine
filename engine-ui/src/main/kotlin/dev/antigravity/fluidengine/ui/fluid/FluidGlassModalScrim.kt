@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -159,6 +160,7 @@ internal fun FluidGlassModalScrim(
   interactive: Boolean,
   onDismiss: () -> Unit,
   look: FluidScrimLook = FluidScrimLook.Modal,
+  menu: Boolean = false,
 ) {
   val dark = GlassDefaults.isDarkSurface()
   val tint = remember(dark, look) {
@@ -198,12 +200,19 @@ internal fun FluidGlassModalScrim(
     // it therefore re-records the whole screen and re-runs the entire effect chain on every frame of
     // the fade — on the largest surface in the system, at the exact moment something is trying to
     // animate. Fading the result instead costs one composited layer and looks identical.
-    .graphicsLayer { alpha = intensity().coerceIn(0f, 1f) }
+    .graphicsLayer {
+      alpha = intensity().coerceIn(0f, 1f)
+      if (menu) compositingStrategy = CompositingStrategy.ModulateAlpha
+    }
     // Il cancello del fotogramma di confine: al primo e all'ultimo fotogramma di vita del nodo
     // il layer qui sopra puo' disegnare con l'alpha di default (1) — e' il lampo scuro+blur di
     // un fotogramma misurato nel video dell'apertura E della chiusura. Con l'alpha a zero non
     // si registra niente, e una displaylist vuota non ha lampi da rigiocare.
+    .then(if (menu) Modifier.menuDrawMarker("scrim") else Modifier)
     .drawWithContent { if (intensity() > 0.004f) drawContent() }
+    // Il gate e la dissolvenza stanno fuori dalla texture. Se cambia solo l'alpha,
+    // HWUI riusa blur e tinta già composti alla risoluzione del display.
+    .then(if (menu && backdrop != null) MenuScrimMaterialLayer else Modifier)
     .then(
       if (interactive) {
         Modifier.pointerInput(onDismiss) { detectTapGestures { onDismiss() } }
@@ -231,3 +240,6 @@ internal fun FluidGlassModalScrim(
     )
   }
 }
+
+/** Conserva i due disegni originali del materiale fra i cambi della sola opacità. */
+private val MenuScrimMaterialLayer = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }

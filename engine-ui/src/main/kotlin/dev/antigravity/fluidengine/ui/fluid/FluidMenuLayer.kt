@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -342,6 +343,7 @@ private fun FluidMenuLayerContent(
       interactive = entry.visible,
       onDismiss = entry.onDismissRequest,
       look = scrimLook,
+      menu = true,
     )
     if (groupAtHome) return@Box // solo il velo finisce la propria dissolvenza dopo la consegna
     Box(
@@ -519,8 +521,10 @@ private fun FluidMenuLayerContent(
       FluidMenuReturnSurface(journey.controlledReturn) {
         Modifier
           .fillMaxSize()
+          .menuDrawMarker("surface")
           .drawWithContent { if (windowAmount() > 0.004f) drawContent() }
           .fluidPhysicsSurfaceInked(
+            menuSource = anchor?.groupBounds ?: anchor?.pressedBounds ?: journey.seed,
             ink = menuInk,
             state = physics,
             backdrop = backdrop ?: noBackdrop,
@@ -629,6 +633,7 @@ private fun FluidMenuLayerContent(
         onPick = pick,
         modifier = Modifier
           .offset { IntOffset(panel.left.roundToInt(), panel.top.roundToInt()) }
+          .menuDrawMarker("items")
           .size(
             width = with(density) { panel.width.toDp() },
             height = with(density) { panel.height.toDp() },
@@ -652,6 +657,16 @@ private fun FluidMenuLayerContent(
     }
   }
 }
+
+/** Marcatori per distinguere il velo, la finestra fisica e le voci nel rilievo sul dispositivo. */
+internal fun Modifier.menuDrawMarker(name: String): Modifier = if (GlassFrameDiagnostics.enabled) {
+  drawWithContent {
+    GlassFrameDiagnostics.span("menu.$name", this) {
+      GlassFrameDiagnostics.event("menu.$name", this) { "size=$size" }
+      drawContent()
+    }
+  }
+} else this
 
 /**
  * La sagoma del menu al servizio del suo viaggio: quello dei menu ([FluidMenuJourney.install]) o, per il contestuale col

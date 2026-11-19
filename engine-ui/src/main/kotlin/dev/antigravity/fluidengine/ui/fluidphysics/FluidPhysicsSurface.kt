@@ -5,6 +5,8 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.WindowedBackdropEffects
+import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
 import dev.antigravity.fluidengine.ui.glass.field.GlassCostLevers
 import dev.antigravity.fluidengine.ui.glass.field.GlassTravelCapture
 import androidx.compose.runtime.DisposableEffect
@@ -228,6 +230,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
    */
   planeJourney: Boolean = false,
   fieldPressed: (() -> Boolean)? = null,
+  menuSource: Rect? = null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -389,13 +392,33 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     val sampled = remember(original, capture) {
       if (capture == null) original else object : Backdrop by original {}
     }
+    val finish = capture?.effects ?: surface.effects
+    val windowed = if (menuSource != null || state.useSampledDropFrame) {
+      remember(state, menuSource, finish, surface, resolved, resolvedFrom, screenDensity) {
+        val shadow = maxOf(glassTravelShadowReachDp(resolved), resolvedFrom?.let { glassTravelShadowReachDp(it) } ?: 0f)
+        // Tre sigma per il Gaussian, spazio di lettura per lente/frangia e supporto esterno dell'ombra.
+        val lens = maxOf(resolved.refractionAmount.value, resolvedFrom?.refractionAmount?.value ?: 0f)
+        val opticsMargin = (shadow + 3f * surface.paddingDp + lens * 2f) * screenDensity + 2f
+        WindowedBackdropEffects(screenDensity, bounds = {
+          val from = state.journeyOriginNow()?.frame
+          val to = state.journeyTargetNow()?.frame
+          if (from == null || to == null) null else {
+            val endpoints = from.enclosing(to).let { if (menuSource == null) it else it.enclosing(menuSource) }
+            // Il profilo B1 supera dell'8% e il ritorno può essere interrotto. Il piano vivo
+            // protegge anche una posa eccezionale durante il cambio di livello.
+            val route = endpoints.inflate(endpoints.maxDimension * 0.20f)
+            route.enclosing(state.ensurePlan().bounds).inflate(opticsMargin)
+          }
+        }, build = finish)
+      }
+    } else finish
     return this
       .onSizeChanged { layoutWidth.floatValue = it.width.toFloat() }
       .glassProbe(backdrop.backdrop, probe, enabled = probes, region = probedArea)
       .drawBackdrop(
         backdrop = sampled,
         shape = clip,
-        effects = capture?.effects ?: surface.effects,
+        effects = windowed,
         highlight = null,
         shadow = null,
         innerShadow = null,
@@ -621,6 +644,10 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
     )
     .then(glow)
 }
+
+private fun Rect.enclosing(other: Rect) = Rect(
+  minOf(left, other.left), minOf(top, other.top), maxOf(right, other.right), maxOf(bottom, other.bottom),
+)
 
 /** La pellicola di adesso: [tint], o la miscela da [tintFrom] secondo [blend]. */
 private fun blendedTint(tint: GlassTint, tintFrom: GlassTint?, blend: Float): Color =

@@ -154,9 +154,11 @@ internal object F5b4PresentationTraces {
   }
 
   /**
-   * Lo scrim di un foglio di oggi (`FluidPresentationScrim`): un velo nero al 12% (`GlassPaintedScrim`, lato chiaro)
-   * per la presenza del fotogramma, senza sfocatura, al posto dello scrim sfocato dei portali che gli esportatori di F5B.2
-   * e F5B.3 disegnano ancora. [dimmed] dice se in quel fotogramma la pagina e' scurita (la soglia di `undimmedUpTo`).
+   * Lo scrim di un foglio di F5B.4 (`FluidPresentationScrim`): un velo nero al 12% (`GlassPaintedScrim`, lato chiaro)
+   * per la presenza del fotogramma, senza sfocatura. [dimmed] dice se in quel fotogramma la pagina e' scurita (la soglia di
+   * `undimmedUpTo`, allora a scatto). Dal giro di correzione di F5B i fogli scuriscono al 23% e la soglia e' graduata: gli
+   * esportatori di F5B.2 e F5B.3 disegnano gia' quel velo (con la presenza in `_presenza`) e le tracce di oggi sono in
+   * `f5b-corr`; queste restano quelle di F5B.4.
    */
   internal fun todaySheetScrim(
     frames: List<GlassTraceFrame>,
@@ -168,7 +170,7 @@ internal object F5b4PresentationTraces {
     val elements = frame.elements.mapNotNull { e ->
       if (e["name"] != "scrim") return@mapNotNull e
       if (!dim) return@mapNotNull null
-      val presence = (e["alpha"] as? Number)?.toFloat() ?: 1f
+      val presence = ((e["alpha"] ?: e["_presenza"]) as? Number)?.toFloat() ?: 1f
       linkedMapOf<String, Any?>(
         "kind" to "shape", "name" to "scrim",
         "x" to 0, "y" to 0, "w" to widthDp, "h" to heightDp, "radius" to 0,

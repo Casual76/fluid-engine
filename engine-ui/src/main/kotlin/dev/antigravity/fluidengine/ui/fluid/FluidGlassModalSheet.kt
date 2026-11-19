@@ -897,8 +897,12 @@ private fun FluidSheetPane(
       motion.detented = true
       if (!motion.detentedLook) motion.detentedLook = true
       val position = motion.position(stops, spec.selected)
+      // La soglia di `undimmedUpTo`: il tocco e il fuoco cambiano di colpo alla quota, il velo cresce con la strada fino al
+      // detent sopra (F5B, giro di correzione). Senza un detent sopra la pagina resta attiva e chiara a ogni altezza.
       val backgroundLimit = spec.undimmedUpTo?.let { fluidSheetDetentHeightPx(it, windowHeight, large, scale) }
-      sheetBackground.undimmed = fluidSheetIsUndimmed(position, backgroundLimit)
+      val dimCeiling = backgroundLimit?.let { fluidSheetDimCeilingPx(stops, it) }
+      sheetBackground.undimmed = fluidSheetIsUndimmed(position, backgroundLimit) || (backgroundLimit != null && dimCeiling == null)
+      sheetBackground.dim = fluidSheetDim(position, backgroundLimit, dimCeiling)
       val visible = fluidSheetVisibleHeight(position, stops, windowHeight)
       val largeness = fluidSheetLargeness(visible, stops, large)
       val inset = fluidSheetInsetPx(largeness, scale)
@@ -951,6 +955,7 @@ private fun FluidSheetPane(
       motion.stopsKey = null
       motion.detented = false
       sheetBackground.undimmed = false
+      sheetBackground.dim = 1f
       motion.zoomActive = false
       if (motion.detentedLook) motion.detentedLook = false
       layout(constraints.maxWidth, constraints.maxHeight) {

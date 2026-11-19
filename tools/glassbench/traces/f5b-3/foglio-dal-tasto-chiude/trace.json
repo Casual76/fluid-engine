@@ -114,25 +114,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 1,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 1
+          "color": "#0000003B"
         },
         {
           "kind": "material",
@@ -166,6 +156,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -219,6 +210,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -250,6 +242,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -404,25 +397,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 1,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 1
+          "color": "#0000003B"
         },
         {
           "kind": "material",
@@ -456,6 +439,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -509,6 +493,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -540,6 +525,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -694,25 +680,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 1,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 1
+          "color": "#0000003B"
         },
         {
           "kind": "material",
@@ -746,6 +722,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -799,6 +776,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -830,6 +808,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -984,25 +963,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 1,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 1
+          "color": "#0000003B"
         },
         {
           "kind": "material",
@@ -1036,6 +1005,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1089,6 +1059,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1120,6 +1091,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1274,25 +1246,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.991,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.991
+          "color": "#0000003A"
         },
         {
           "kind": "material",
@@ -1326,6 +1288,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1379,6 +1342,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1410,6 +1374,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1564,25 +1529,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.966,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.966
+          "color": "#00000039"
         },
         {
           "kind": "material",
@@ -1616,6 +1571,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1669,6 +1625,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1700,6 +1657,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1854,25 +1812,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.929,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.929
+          "color": "#00000037"
         },
         {
           "kind": "material",
@@ -1906,6 +1854,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -1959,6 +1908,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -1990,6 +1940,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2144,25 +2095,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.881,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.881
+          "color": "#00000034"
         },
         {
           "kind": "material",
@@ -2196,6 +2137,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2249,6 +2191,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2280,6 +2223,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2434,25 +2378,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.825,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.825
+          "color": "#00000031"
         },
         {
           "kind": "material",
@@ -2486,6 +2420,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2539,6 +2474,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2570,6 +2506,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2724,25 +2661,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.761,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.761
+          "color": "#0000002D"
         },
         {
           "kind": "material",
@@ -2776,6 +2703,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -2829,6 +2757,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -2860,6 +2789,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3014,25 +2944,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.69,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.69
+          "color": "#00000029"
         },
         {
           "kind": "material",
@@ -3066,6 +2986,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3119,6 +3040,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3150,6 +3072,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3304,25 +3227,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.613,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.613
+          "color": "#00000024"
         },
         {
           "kind": "material",
@@ -3356,6 +3269,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3409,6 +3323,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3440,6 +3355,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3594,25 +3510,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.531,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.531
+          "color": "#0000001F"
         },
         {
           "kind": "material",
@@ -3646,6 +3552,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3699,6 +3606,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3730,6 +3638,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -3884,25 +3793,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.443,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.443
+          "color": "#0000001A"
         },
         {
           "kind": "material",
@@ -3936,6 +3835,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -3989,6 +3889,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4020,6 +3921,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4174,25 +4076,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.351,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.351
+          "color": "#00000015"
         },
         {
           "kind": "material",
@@ -4226,6 +4118,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4279,6 +4172,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4310,6 +4204,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4464,25 +4359,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.254,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.254
+          "color": "#0000000F"
         },
         {
           "kind": "material",
@@ -4516,6 +4401,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4569,6 +4455,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4600,6 +4487,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4754,25 +4642,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.152,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.152
+          "color": "#00000009"
         },
         {
           "kind": "material",
@@ -4806,6 +4684,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -4859,6 +4738,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -4890,6 +4770,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5044,25 +4925,15 @@
           "color": "#FFFFFF38"
         },
         {
-          "kind": "shader",
+          "kind": "shape",
           "name": "scrim",
-          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "_presenza": 0.045,
           "x": 0,
           "y": 0,
           "w": 402,
           "h": 874,
           "radius": 0,
-          "inputs": {
-            "content": {
-              "saturation": 1,
-              "blurDp": 3.75,
-              "edge": "clamp"
-            }
-          },
-          "uniforms": {
-            "dim": 0.12
-          },
-          "alpha": 0.045
+          "color": "#00000003"
         },
         {
           "kind": "material",
@@ -5096,6 +4967,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5149,6 +5021,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5180,6 +5053,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5365,6 +5239,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5418,6 +5293,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5449,6 +5325,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5634,6 +5511,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5687,6 +5565,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5718,6 +5597,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5903,6 +5783,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -5956,6 +5837,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -5987,6 +5869,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6172,6 +6055,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6225,6 +6109,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6256,6 +6141,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6441,6 +6327,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6494,6 +6381,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6525,6 +6413,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6710,6 +6599,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -6763,6 +6653,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6794,6 +6685,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -6979,6 +6871,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7032,6 +6925,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7063,6 +6957,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7248,6 +7143,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7301,6 +7197,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7332,6 +7229,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7517,6 +7415,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7570,6 +7469,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7601,6 +7501,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7786,6 +7687,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -7839,6 +7741,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -7870,6 +7773,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8055,6 +7959,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8108,6 +8013,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8139,6 +8045,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8324,6 +8231,7 @@
               "offset": "$offset",
               "flex": [1, 0, 0, 1],
               "flexCenter": [0, 0],
+              "gelTip": [0, 0],
               "pieceCount": 1,
               "pieceRect": [["$center", "$halfSize"]],
               "pieceRadii": ["$radii"],
@@ -8377,6 +8285,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],
@@ -8408,6 +8317,7 @@
                 "offset": "$offset",
                 "flex": [1, 0, 0, 1],
                 "flexCenter": [0, 0],
+                "gelTip": [0, 0],
                 "pieceCount": 1,
                 "pieceRect": [["$center", "$halfSize"]],
                 "pieceRadii": ["$radii"],

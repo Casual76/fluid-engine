@@ -250,14 +250,22 @@ chiara. Sono `FluidPresentationMode.Modal` e `Parallel`. Di serie:
 - l'**avviso** è modale;
 - il **foglio di vetro** (`FluidGlassSheet`) è modale. Con `undimmedUpTo = FluidSheetDetent.Medium` resta parallelo fino a
   quella quota compresa e diventa modale appena il foglio la supera, anche sotto il dito: la quota si legge dalla posizione
-  dal vivo, con mezzo pixel di tolleranza. Il passaggio è netto: la pagina si scurisce tutta nel fotogramma in cui il foglio
-  lascia la soglia (vedi «Cosa non c'è»).
+  dal vivo, con mezzo pixel di tolleranza. **Il tocco e il fuoco passano di colpo, il velo no**: cresce con la strada fra la
+  soglia e il detent sopra (una S, morbida ai due capi: `fluidSheetDim`) ed è intero al detent sopra. È ciò che fa UIKit
+  con `largestUndimmedDetentIdentifier` (WWDC21 10063, 7:44: il velo parte quando il foglio lascia il detent medio e cresce
+  col dito). Se la soglia è al detent più alto la pagina resta attiva e chiara a ogni altezza, anche col foglio tirato
+  oltre la cima.
 
-**Il velo.** I fogli di vetro e le presentazioni modali dalla sorgente scuriscono la pagina con un velo nero, 12% sul chiaro
-e 20% sullo scuro (i livelli di `GlassPaintedScrim`), **senza sfocarla**: Apple la scurisce e basta (WWDC25 284 e 323), e
-un po' di più (≈23% misurato su 323). I portali chiamati come prima (il pop-up con `origin` o al centro, il foglio del
-portale, `FluidConfirmSheet`, l'avviso senza sorgente, la pagina intera) tengono lo scrim di vetro di sempre, sfocato di
-3,75 dp (sotto, «`FluidGlassModalPortal` e `FluidGlassModalHost`»). Un compito parallelo non ha velo.
+**Il velo.** I fogli di vetro e le presentazioni modali dalla sorgente scuriscono la pagina con un velo nero, **senza
+sfocarla**: Apple la scurisce e basta (WWDC25 284 e 323). Sotto un foglio (`FluidGlassSheet`, anche quello che nasce dal
+tasto, e il popover che sul telefono si adatta a foglio) il nero è al **23% sul chiaro e al 31% sullo scuro**
+(`FluidSheetDimLight`, `FluidSheetDimDark`); sotto l'avviso, la conferma al centro e un popover dichiarato modale è al 12%
+e al 20% (i livelli di `GlassPaintedScrim`). Il 23% è Apple misurato: la pagina di Mail sopra il foglio a tutta altezza
+(284 f25440, 22,7%) e il modulo sotto il foglio a metà (323 f12203, 22,5–24%). Il 31% è una scelta: Apple non mostra un
+foglio sullo scuro nel materiale, e sullo scuro un nero si vede meno (lo stesso passo dei modali fra chiaro e scuro). I
+portali chiamati come prima (il pop-up con `origin` o al centro, il foglio del portale, `FluidConfirmSheet`, l'avviso senza
+sorgente, la pagina intera) tengono lo scrim di vetro di sempre, sfocato di 3,75 dp (sotto, «`FluidGlassModalPortal` e
+`FluidGlassModalHost`»). Un compito parallelo non ha velo.
 
 ### Il ripiego
 
@@ -278,10 +286,8 @@ variante spenta).
 
 ### Cosa non c'è
 
-- **Il velo della soglia è a scatto.** Con `undimmedUpTo` la pagina passa da chiara a scurita del 12% in un fotogramma,
-  quando il foglio lascia la quota (`foglio-soglia` nelle prove di F5B). Nel materiale di Apple del progetto la scena non
-  c'è: che UIKit (`largestUndimmedDetentIdentifier`) porti il velo insieme al foglio fra la soglia e il detent sopra è da
-  verificare, non è misurato.
+- **Il velo dei fogli sullo scuro non è misurato**: il 31% è una scelta (sopra, «Il velo»). E di iOS 26 Apple non mostra
+  la soglia di `undimmedUpTo`: la curva del velo segue la demo di UIKit di WWDC21 (iOS 15), a occhio.
 - **Il popover adattato a foglio sul telefono sale dal basso**, senza il viaggio dal tasto: il viaggio dalla sorgente vale
   per il popover, non per il foglio del portale.
 - **Al congedo il testo resta nitido nei primi ≈67 ms** mentre la forma rientra, e se ne va sbiadendo: Apple lo sfoca dal
@@ -564,8 +570,9 @@ FluidGlassSheet(
 - **Il dito si vede.** Il foglio premuto si schiarisce attorno al dito (velo bianco al 9%, 6% sullo scuro) e la lente
   si approfondisce (la pressione del materiale), come il foglio di Apple prima di muoversi.
 - **La pagina sotto non si muove e non si sfoca.** iOS 26 non fa più rientrare la pagina che presenta il foglio (323
-  f12225, 284 f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce il velo dei fogli, nero al 12% (20%
-  sullo scuro), senza sfocatura. Con `undimmedUpTo` il velo c'è solo sopra la soglia («Modalità e velo», sopra).
+  f12225, 284 f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce il velo dei fogli, nero al 23% (31%
+  sullo scuro), senza sfocatura, quanto Apple. Con `undimmedUpTo` il velo c'è solo sopra la soglia e cresce col foglio fino
+  al detent sopra («Modalità e velo», sopra).
 - **In dissolvenza** (`FluidSheetTransition.CrossFade`, iOS 27 `.crossFade`): il foglio compare al suo posto con la
   molla d'entrata letta come opacità. Apple non lo mostra in nessun video: tempi a occhio.
 
@@ -606,7 +613,7 @@ FluidGlassSheet(visible = sheet, onDismissRequest = { sheet = false }, paneTitle
   Un foglio a un detent parziale resta vetro.
 - **Il tasto è consumato** finché il foglio è in scena: la sua faccia non si disegna; il vetro del gruppo resta. Rinasce
   quando il foglio esce (l'ultimo fotogramma del vetro è sul tasto).
-- **La pagina dietro** si scurisce col velo dei fogli, senza sfocarla, come Apple.
+- **La pagina dietro** si scurisce col velo dei fogli (23%, 31% sullo scuro), senza sfocarla, come Apple.
 - **Il ripiego.** `source` nullo, `FluidSheetTransition.CrossFade`, le animazioni ridotte, o una sorgente che
   all'apertura non si trova: il foglio sale dal basso come sempre. Una sorgente che sparisce a foglio aperto: il vetro
   rientra dove l'aveva trovata l'ultima volta.
@@ -1085,7 +1092,8 @@ nei loro file: **non sono API**. Quello che un'app può leggere:
 | `FluidMotion.MenuButtonGatherEnd`, `MenuButtonFirstRise` | dove finisce la raccolta della sorgente e comincia la risalita, sulla strada del viaggio: i tre tempi del menu, che popover, avviso e conferma riusano ([menu-liquidi.md](menu-liquidi.md)) |
 
 I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDetentSpringDown`, `FluidSheetVeilLagMillis`
-60, `FluidSheetZoomSpring`, `FluidSheetZoomSharpMillis`) e i tempi del viaggio dalla sorgente (`fluidModalGeometrySpec`,
+60, `FluidSheetZoomSpring`, `FluidSheetZoomSharpMillis`, il velo della pagina `FluidSheetDimLight` 23% e `FluidSheetDimDark`
+31%) e i tempi del viaggio dalla sorgente (`fluidModalGeometrySpec`,
 `fluidModalFocusSpec`) sono interni, con la loro fonte nel KDoc.
 
 ## Cosa è verificato dai test
@@ -1114,9 +1122,11 @@ I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDet
   vetro e dice «chiuso» una volta sola, dopo l'uscita.
 - `FluidGlassSheetTest` (`engine-ui`): altezze dei detent, elastico e discesa intera, rilascio e chiusura, «grandezza»
   continua, il velo che insegue, rientro, angoli concentrici, dissolvenza, le due molle (salita e discesa) sulle curve di
-  Apple. `FluidGlassSheetUiTest` (`sample`): la dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano,
-  il dito lo porta in cima e lo chiude, un dito fermo ferma la molla, il foglio di oggi resta com'era. Le tracce del banco:
-  `F5b2SheetTraceTest`.
+  Apple; il velo della pagina oltre la soglia (zero fino alla quota, intero al detent sopra, al più due livelli ogni 6 dp,
+  sempre intero senza soglia, mai senza un detent sopra) e i suoi livelli (23% come Apple, più dei modali).
+  `FluidGlassSheetUiTest` (`sample`): la dichiarazione arriva al foglio dell'host, la maniglia e l'app lo spostano, il dito
+  lo porta in cima e lo chiude, un dito fermo ferma la molla, con `undimmedUpTo` il tocco va alla pagina fino alla soglia e
+  allo scrim sopra, il foglio di oggi resta com'era. Le tracce del banco: `F5b2SheetTraceTest`, col velo dei fogli di oggi.
 - Lo zoom dalla sorgente: `FluidZoomTest` (`engine-ui`: sagome, dito, contenuto, raggi delle sorgenti, i numeri del foglio
   dal tasto), `FluidPageZoomTest` (`engine-ui`: la macchina delle pagine con la sorgente: avvio dalla sorgente, nascosta e
   rinata, ripiego, gesto interrotto e ripreso, pop che inverte il push, il ritorno sulla molla di Apple, `Slide` e
@@ -1124,8 +1134,12 @@ I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDet
   barra), le tracce `F5b3ZoomTraceTest` (`tools/glassbench/traces/f5b-3`).
 - **Le prove contro Apple** (`F5b4PresentationTraceTest`, `tools/glassbench/traces/f5b-4`): popover, conferma e avviso
   all'andata e al ritorno accanto ai fotogrammi di WWDC25 284 e 323; il foglio che sale (R4 B8), a tutta altezza (323), con
-  la soglia di oscuramento, trascinato e interrotto, e dal tasto (284), con il velo dei fogli di oggi; si rendono con
-  `glassmotion.py` (`pair`, `first`, `last`, `curve`). Lo zoom fra pagine si rende dalle tracce di F5B.3.
+  la soglia di oscuramento, trascinato e interrotto, e dal tasto (284), col velo dei fogli di allora (12%, la soglia a
+  scatto); si rendono con `glassmotion.py` (`pair`, `first`, `last`, `curve`). Lo zoom fra pagine si rende dalle tracce di
+  F5B.3.
+- **Il velo di oggi** (`F5bCorrSheetTraceTest`, `tools/glassbench/traces/f5b-corr`): la soglia graduata sul dito di Apple
+  (nessun fotogramma oltre otto livelli di luce, il primo sotto uno) e il foglio fermo a metà e in cima, sul chiaro e sullo
+  scuro, col velo di prima e con quello nuovo.
 - `FluidDrawerRulesTest` (`engine-ui`, 12) e `FluidDrawerTest` (`sample`, 17; 3.1.0): la larghezza (85% al massimo, mai negativa), il rilascio con la regola del back delle pagine (lento = distanza, spinta = chiude, contraria = tiene
   aperto), lo stato che salva solo «aperto o chiuso»; poi il comportamento: si apre col tasto e si chiude toccando la pagina oscurata, il back chiude il pannello e non la pagina, **menu → pannello → selezione → pagina**, riaperto torna
   davanti alla selezione, il dito lo segue 1:1 (anche dalla pagina oscurata) e verso destra non si muove, **nessun gesto dal bordo lo apre**, movimento ridotto, TalkBack (pagina nascosta, annuncio, «chiudi»), ricreazione, tolto da aperto.
@@ -1147,7 +1161,7 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidGlassModalHost.kt` | il lato della radice: lo stato dell'host, la voce che ogni modale vi registra (`FluidGlassModalEntry`: sorgente, modo, conferma in linea, soglia del foglio), `FluidGlassModalHost`, `fluidGlassModalObscured`, i layer per famiglia (`FluidGlassModalLayer`, `FluidGlassModalPaneLayer`), il velo dei fogli e delle presentazioni dalla sorgente (`FluidPresentationScrim`), il tocco fuori da un compito parallelo |
 | `FluidGlassModalScrim.kt` | lo scrim di vetro (`FluidGlassModalScrim`) e i suoi livelli: `FluidScrimLook` (`Modal`), i tre del contestuale (`FluidContextScrimLevel`, di serie `FluidContextScrimLook`, in vigore `FluidContextScrimTuning`), il tetto della sfocatura |
 | `FluidGlassModalPopover.kt` | la finestra ancorata (`FluidAnchoredPopover`), il suo posto e il ritaglio del contenuto in viaggio; il viaggio dalla sorgente (`FluidModalSourceJourney`: raccolta, faccia e inchiostro, lente, tempi) e i numeri privati del moto |
-| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici, soglia) e i suoi numeri; lo zoom dal tasto: sagoma, sfocatura, molla |
+| `FluidGlassSheet.kt` | `FluidGlassSheet`, `FluidSheetDetent`, `FluidSheetTransition`; la logica pura dei detent (altezze, elastico, rilascio, «grandezza», rientro, angoli concentrici, soglia e velo della pagina: `fluidSheetDim`, `FluidSheetDimLight`) e i suoi numeri; lo zoom dal tasto: sagoma, sfocatura, molla |
 | `FluidGlassModalSheet.kt` | il foglio (`FluidSheetPane`: detent, maniglia, velo, chiarore del dito, soglia, lo zoom dal tasto) e la pagina intera (`FluidFullScreenPane`), la barra in cima della pagina intera |
 | `FluidTransitionSource.kt` | le sorgenti delle transizioni e la sorgente consumata |
 | `FluidConfirmationDialog.kt` | `FluidConfirmationDialog` (con e senza dato) e la sua posa sopra il comando (`fluidConfirmationFrame`) |

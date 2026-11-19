@@ -9,7 +9,6 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
-import dev.antigravity.fluidengine.ui.fluid.FluidScrimLook
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetOpaqueBand
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetZoomBlur
@@ -18,6 +17,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSourceGeometry
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetDimColor
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeHeightPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeness
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetStops
@@ -48,14 +48,15 @@ import kotlin.math.min
  *   «cartella» nel gruppo della barra in basso apre «Move to mailbox»), sul telefono di 402 × 874 dp. La sagoma è
  *   [fluidSheetZoomBounds] fra la capsula del gruppo e il foglio `Large`, sulla molla dello zoom ([FluidSheetZoomSpring])
  *   in apertura e su quella d'uscita dell'host in chiusura; il velo e la sfocatura del contenuto sono quelli del foglio
- *   ([fluidSheetLargeness], [fluidSheetZoomBlurFraction]); lo scrim è quello dei modali.
+ *   ([fluidSheetLargeness], [fluidSheetZoomBlurFraction]); lo scrim è quello dei fogli di oggi, un nero al 23% senza
+ *   sfocatura (`fluidSheetDimColor`; fino al giro di correzione di F5B era lo scrim sfocato dei portali).
  * - **`zoom-apre`**, **`zoom-torna`**, **`zoom-dito`**, **`zoom-dito-interrotto`**: una card della griglia che diventa
  *   pagina e torna, **dalla macchina vera** ([FluidPageHostState] con un orologio finto): la sagoma è
  *   [FluidPageHostState.zoomShape], la pagina dentro è in scala come la disegna l'host. La card sorgente non si disegna
  *   finché la macchina la tiene consumata.
  *
  * **Fuori dalla traccia**: l'ombra della carta, la barra in alto (ferma, si trasforma sul suo tempo: F4A), le icone della
- * barra in basso (la capsula sì), la sfocatura dello scrim sotto il vetro del foglio (lo scrim sì).
+ * barra in basso (la capsula sì).
  *
  * Si scrivono con `GLASS_F5B3_DIR` (di solito `tools/glassbench/traces/f5b-3`), fase `f5b-3`.
  */
@@ -274,16 +275,9 @@ class F5b3ZoomTraceTest {
     ),
   )
 
-  private fun scrim(presence: Float): Map<String, Any?> = linkedMapOf(
-    "kind" to "shader",
-    "name" to "scrim",
-    "source" to "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
-    "x" to 0, "y" to 0, "w" to canvasW, "h" to canvasH,
-    "radius" to 0,
-    "inputs" to linkedMapOf("content" to linkedMapOf("saturation" to 1, "blurDp" to round3(FluidScrimLook.Modal.blurDp), "edge" to "clamp")),
-    "uniforms" to linkedMapOf("dim" to FluidScrimLook.Modal.alpha(false)),
-    "alpha" to round3(presence.coerceIn(0f, 1f)),
-  )
+  /** Lo scrim dei fogli di oggi (`FluidPresentationScrim`): un nero senza sfocatura, a [presence] del velo intero. */
+  private fun scrim(presence: Float): Map<String, Any?> =
+    todaySheetVeil(canvasW, canvasH, fluidSheetDimColor(false).alpha, presence)
 
   // --- Lo zoom fra pagine, dalla macchina vera -----------------------------------------------------------------------
 

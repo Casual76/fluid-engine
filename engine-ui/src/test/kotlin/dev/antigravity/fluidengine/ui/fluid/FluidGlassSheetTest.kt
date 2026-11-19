@@ -3,7 +3,9 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.core.TargetBasedAnimation
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -138,6 +140,66 @@ class FluidGlassSheetTest {
     }
     assertTrue("a un secondo e' arrivato: $v", v > 0.999f)
     assertEquals(0.8f, fluidSheetVeilStep(Float.NaN, 0.8f, 16f), 0f)
+  }
+
+  @Test
+  fun `oltre la soglia il velo cresce con la strada fino al detent sopra, senza scatti`() {
+    val s = stops(FluidSheetDetent.Medium, FluidSheetDetent.Large)
+    val medium = s.heights[0]
+    val ceiling = fluidSheetDimCeilingPx(s, medium)
+    assertEquals(large, requireNotNull(ceiling), 0f)
+    // Alla soglia e sotto (anche mentre il foglio scende per chiudersi) nessun velo, come il tocco; in cima e oltre, intero.
+    assertEquals(0f, fluidSheetDim(medium, medium, ceiling), 0f)
+    assertEquals(0f, fluidSheetDim(medium + 0.5f, medium, ceiling), 0f)
+    assertEquals(0f, fluidSheetDim(medium - 200f, medium, ceiling), 0f)
+    assertEquals(1f, fluidSheetDim(large, medium, ceiling), 0f)
+    assertEquals(1f, fluidSheetDim(large + 300f, medium, ceiling), 0f)
+    assertEquals(0.5f, fluidSheetDim((medium + large) / 2f, medium, ceiling), 1e-4f)
+    // Il difetto di F5B.4: 6 dp sopra la soglia la pagina passava da 242 a 212 livelli in un fotogramma. Ora, a passi di
+    // 6 dp lungo tutta la strada, la pagina chiara (242) scende al piu' di due livelli per passo, e il primo passo di
+    // mezzo livello.
+    val page = 242f
+    val step = 6f * d
+    var previous = 0f
+    var steepest = 0f
+    var h = medium
+    while (h < large + step) {
+      val now = fluidSheetDim(h, medium, ceiling)
+      assertTrue("il velo non torna indietro salendo, a $h", now >= previous)
+      steepest = maxOf(steepest, (now - previous) * FluidSheetDimLight * page)
+      previous = now
+      h += step
+    }
+    assertTrue("passo massimo $steepest livelli", steepest < 2f)
+    assertTrue("primo passo", fluidSheetDim(medium + step, medium, ceiling) * FluidSheetDimLight * page < 0.5f)
+  }
+
+  @Test
+  fun `senza soglia il velo e' intero, senza un detent sopra non c'e' mai`() {
+    val s = stops(FluidSheetDetent.Medium, FluidSheetDetent.Large)
+    // Il foglio di sempre (nessun undimmedUpTo): il velo arriva solo con la presenza dell'host.
+    for (h in listOf(0f, s.heights[0], large, large + 100f)) assertEquals(1f, fluidSheetDim(h, null, null), 0f)
+    // undimmedUpTo = Large: nessun detent sopra, la pagina resta chiara anche col foglio tirato oltre la cima.
+    assertEquals(null, fluidSheetDimCeilingPx(s, large))
+    assertEquals(0f, fluidSheetDim(large + 300f, large, null), 0f)
+    // Una soglia sotto il detent piu' basso: il velo e' intero gia' al piu' basso e cala solo se il foglio scende.
+    val low = FluidSheetMinDetentHeight.value * d
+    val first = fluidSheetDimCeilingPx(s, low)
+    assertEquals(s.heights[0], requireNotNull(first), 0f)
+    assertEquals(1f, fluidSheetDim(s.heights[0], low, first), 0f)
+    assertTrue(fluidSheetDim(s.heights[0] - 100f, low, first) in 0.01f..0.99f)
+    assertEquals(0f, fluidSheetDim(Float.NaN, s.heights[0], large), 0f)
+  }
+
+  @Test
+  fun `la pagina sotto un foglio si scurisce quanto in Apple, piu' che sotto gli altri modali`() {
+    // WWDC25 284 f25440 (22,7%) e 323 f12203 (22,5-24%): vedi FluidSheetDimLight.
+    assertEquals(0.23f, FluidSheetDimLight, 0f)
+    assertTrue(FluidSheetDimLight > GlassPaintedScrim.alpha(false))
+    // Sullo scuro e' una scelta: almeno quanto il chiaro, e piu' dei modali sullo scuro.
+    assertTrue(FluidSheetDimDark >= FluidSheetDimLight && FluidSheetDimDark > GlassPaintedScrim.alpha(true))
+    assertEquals(Color.Black.copy(alpha = FluidSheetDimLight), fluidSheetDimColor(false))
+    assertEquals(Color.Black.copy(alpha = FluidSheetDimDark), fluidSheetDimColor(true))
   }
 
   @Test

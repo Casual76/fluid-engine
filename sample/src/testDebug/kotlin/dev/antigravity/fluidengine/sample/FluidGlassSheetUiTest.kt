@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.sample
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -206,6 +207,42 @@ class FluidGlassSheetUiTest {
     }
     compose.waitForIdle()
     assertEquals(1, dismissed)
+  }
+
+  @Test
+  fun `con undimmedUpTo la pagina resta attiva fino alla soglia, sopra il foglio e' modale`() {
+    // Il velo e' graduato oltre la soglia (F5B, giro di correzione); il tocco no: alla soglia la pagina prende i tocchi,
+    // sopra li prende lo scrim, che chiede la chiusura.
+    var selected by mutableStateOf<FluidSheetDetent>(FluidSheetDetent.Medium)
+    var pageTaps = 0
+    var dismissed = 0
+    compose.setContent {
+      Hosted {
+        Box(Modifier.fillMaxSize().clickable { pageTaps++ })
+        FluidGlassSheet(
+          visible = true,
+          onDismissRequest = { dismissed++ },
+          detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
+          selectedDetent = selected,
+          undimmedUpTo = FluidSheetDetent.Medium,
+        ) {
+          Box(Modifier.fillMaxSize().testTag("corpo"))
+        }
+      }
+    }
+    compose.waitForIdle()
+    compose.onRoot().performTouchInput { click(Offset(centerX, (statusTop + 40.dp).toPx())) }
+    compose.waitForIdle()
+    assertEquals("a meta' il tocco arriva alla pagina", 1, pageTaps)
+    assertEquals(0, dismissed)
+
+    compose.runOnIdle { selected = FluidSheetDetent.Large }
+    compose.waitForIdle()
+    assertNear("in cima", large - grabberStrip, bodyHeight())
+    compose.onRoot().performTouchInput { click(Offset(centerX, (statusTop + 3.dp).toPx())) }
+    compose.waitForIdle()
+    assertEquals("in cima la pagina non prende il tocco", 1, pageTaps)
+    assertEquals("lo scrim chiede la chiusura", 1, dismissed)
   }
 
   @Test

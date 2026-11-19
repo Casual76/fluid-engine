@@ -16,6 +16,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -82,7 +83,8 @@ enum class FluidSheetTransition { Slide, CrossFade }
  * foglio mentre si muove: la molla si ferma dov'è e il dito continua da lì.
  *
  * **La pagina sotto non si muove.** Il foglio di iOS 26 non fa rientrare la pagina che lo presenta (323 f12225, 284
- * f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce lo scrim dell'host, come per ogni modale.
+ * f25440: a tutta altezza la pagina resta dov'era, scurita): qui la scurisce lo scrim dell'host con un nero al 23% (31%
+ * sullo scuro), senza sfocarla, quanto Apple sotto i suoi fogli.
  *
  * Sotto c'è [FluidGlassModalPortal] con [FluidGlassModalPresentation.Sheet]: serve un `FluidGlassModalHost` alla radice,
  * senza il quale il foglio non si apre e non va in crash. Il contenuto è una colonna alta quanto il foglio al detent in
@@ -122,8 +124,9 @@ fun FluidGlassSheet(
 )
 
 /**
- * Lascia la pagina attiva fino a [undimmedUpTo], incluso. Sopra quella quota la pagina
- * si scurisce e il foglio diventa modale. Usalo per un lavoro che può accompagnare la pagina.
+ * Lascia la pagina attiva fino a [undimmedUpTo], incluso. Sopra quella quota il foglio diventa modale e la pagina si
+ * scurisce man mano che il foglio sale verso il detent sopra, dove il velo è intero (come UIKit con
+ * `largestUndimmedDetentIdentifier`). Usalo per un lavoro che può accompagnare la pagina.
  */
 @Composable
 fun FluidGlassSheet(
@@ -238,13 +241,71 @@ internal data class FluidSheetSpec(
   val undimmedUpTo: FluidSheetDetent? = null,
 )
 
+/**
+ * Ciò che il foglio dice all'host della pagina sotto di lui, scritto dal suo layout a ogni fotogramma.
+ *
+ * Due grandezze, perché il velo e la modalità cambiano in modo diverso: [undimmed] è un sì o no (il tocco e il fuoco
+ * passano alla pagina o no, e non c'è un tocco a metà), [dim] è continuo (quanto del velo si vede), così che la pagina
+ * si scurisca mentre il foglio sale oltre la soglia invece di passare di colpo al velo intero.
+ */
 @Stable
 internal class FluidSheetBackground {
+  /** La pagina resta attiva: il foglio sta a [FluidGlassSheet] `undimmedUpTo` o sotto. */
   var undimmed by mutableStateOf(false)
+
+  /** La frazione del velo, da 0 (pagina chiara) a 1 (velo intero): vedi [fluidSheetDim]. Letta solo nel disegno. */
+  var dim by mutableFloatStateOf(1f)
 }
 
 internal fun fluidSheetIsUndimmed(positionPx: Float, limitPx: Float?): Boolean =
   limitPx != null && positionPx <= limitPx + 0.5f
+
+/**
+ * Il detent sopra la soglia [limitPx] di `undimmedUpTo`: il primo di [stops] più alto di mezzo pixel. È dove il velo
+ * diventa intero. Null se la soglia è al detent più alto o sopra: allora la pagina non si scurisce mai, nemmeno col foglio
+ * tirato oltre la cima con l'elastico.
+ */
+internal fun fluidSheetDimCeilingPx(stops: FluidSheetStops, limitPx: Float): Float? =
+  stops.heights.firstOrNull { it > limitPx + 0.5f }
+
+/**
+ * Quanto del velo si vede col foglio alla posizione [positionPx], da 0 a 1: la strada fatta fra la soglia [limitPx] di
+ * `undimmedUpTo` e il detent sopra [ceilingPx], con una curva morbida ai due capi (la stessa S della «grandezza» del velo
+ * bianco, [fluidSheetLargeness]).
+ *
+ * Prima il velo si accendeva intero nel fotogramma in cui il foglio lasciava la soglia: 30 livelli di luce in 16,7 ms
+ * sul banco (F5B.4, `foglio-soglia`). UIKit fa così (WWDC21 10063, la demo con `largestUndimmedDetentIdentifier =
+ * .medium`, a 7:44): il velo parte quando il foglio lascia il detent medio e cresce col dito, piano all'inizio (≈2 punti
+ * di velo a un quarto della strada), e arriva intero al detent grande. Di iOS 26 Apple non mostra la scena.
+ *
+ * Senza soglia ([limitPx] null) vale 1: il foglio di sempre scurisce a ogni altezza e il velo arriva con la presenza
+ * dell'host. A mezzo pixel dalla soglia o sotto vale 0, come [fluidSheetIsUndimmed]; senza un detent sopra vale 0.
+ */
+internal fun fluidSheetDim(positionPx: Float, limitPx: Float?, ceilingPx: Float?): Float {
+  if (limitPx == null) return 1f
+  if (ceilingPx == null || fluidSheetIsUndimmed(positionPx, limitPx)) return 0f
+  val span = ceilingPx - limitPx
+  if (span <= 0.5f) return 1f
+  val t = ((positionPx.finiteOr(limitPx) - limitPx) / span).coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/**
+ * Quanto si scurisce la pagina sotto un foglio, al massimo: un nero al 23% sul chiaro (al 31% sullo scuro), senza
+ * sfocatura. È più dei modali (`GlassPaintedScrim`, 12 e 20%) perché così fa Apple, e solo sotto un foglio: misurato sul
+ * chiaro in due video, la pagina di Mail sopra il foglio «Sposta» a tutta altezza (WWDC25 284 f25385 → f25440: bianco da
+ * 252 a 196 livelli, nero a 4, cioè 22,7%), il modulo grigio sotto il foglio a metà e a 180 pt (323 f12203 e f12100:
+ * `#F2F2F7` a 186 livelli, 23%; 183 nella prima demo, f11449). Sullo scuro Apple non mostra un foglio in nessuna delle
+ * clip guardate (WWDC25 219, 256, 284, 323; WWDC26 250, 251, 269, 278, 292): 31% è una scelta, lo stesso passo che i
+ * modali hanno fra chiaro e scuro, perché un nero sopra una pagina scura si vede meno (F5B, giro di correzione,
+ * 2026-11-19).
+ */
+internal const val FluidSheetDimLight: Float = 0.23f
+internal const val FluidSheetDimDark: Float = 0.31f
+
+/** Il velo della pagina sotto un foglio, intero: vedi [FluidSheetDimLight]. */
+internal fun fluidSheetDimColor(darkSide: Boolean): Color =
+  Color.Black.copy(alpha = if (darkSide) FluidSheetDimDark else FluidSheetDimLight)
 
 /**
  * Il canale fra il contenuto di un foglio e il foglio che lo disegna (`FluidGlassModalSheet`).

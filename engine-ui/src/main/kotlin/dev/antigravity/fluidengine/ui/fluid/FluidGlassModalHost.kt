@@ -535,6 +535,7 @@ private fun FluidGlassModalPaneLayer(
     SideEffect {
       entry.lifted = false
       entry.sheetBackground.undimmed = false
+      entry.sheetBackground.dim = 1f
       anchorNode?.hidden = false
       anchorNode = null
     }
@@ -659,7 +660,14 @@ private fun FluidGlassModalPaneLayer(
   }
 }
 
-/** Sotto un foglio la sorgente dello scrim è un colore, campionato dal vetro alla forza del fotogramma. */
+/**
+ * Sotto un foglio la sorgente dello scrim è un colore, campionato dal vetro alla forza del fotogramma.
+ *
+ * Un foglio scurisce la pagina di più degli altri modali ([fluidSheetDimColor], 23% come Apple, contro il 12% di
+ * avvisi e popover modali) e del tanto che il foglio dice ([FluidSheetBackground.dim]): oltre la soglia di
+ * `undimmedUpTo` il velo cresce con l'altezza del foglio. La frazione si legge solo qui nel disegno, così un foglio
+ * trascinato ridisegna lo scrim e non lo ricompone.
+ */
 @Composable
 internal fun FluidPresentationScrim(
   entry: FluidGlassModalEntry,
@@ -673,7 +681,9 @@ internal fun FluidPresentationScrim(
     return
   }
   if (entry.mode == FluidPresentationMode.Parallel || entry.inlineConfirmation) return
-  val tint = GlassPaintedScrim.color(GlassDefaults.isDarkSurface())
+  val dark = GlassDefaults.isDarkSurface()
+  val sheet = entry.presentation == FluidGlassModalPresentation.Sheet
+  val tint = if (sheet) fluidSheetDimColor(dark) else GlassPaintedScrim.color(dark)
   Box(
     Modifier.fillMaxSize()
       .then(if (entry.visible && entry.blocksPage) Modifier.pointerInput(entry) {
@@ -681,7 +691,10 @@ internal fun FluidPresentationScrim(
       } else Modifier)
       .glassMaterialSource(exports)
       .drawBehind {
-        if (entry.blocksPage) drawRect(tint.copy(alpha = tint.alpha * intensity().coerceIn(0f, 1f)))
+        if (entry.blocksPage) {
+          val dim = if (sheet) entry.sheetBackground.dim.coerceIn(0f, 1f) else 1f
+          drawRect(tint.copy(alpha = tint.alpha * intensity().coerceIn(0f, 1f) * dim))
+        }
       },
   )
 }

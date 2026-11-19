@@ -4,7 +4,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
-import dev.antigravity.fluidengine.ui.fluid.FluidScrimLook
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetentSpring
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetentSpringDown
@@ -14,6 +13,10 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSheetStops
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetBottomRadiusPx
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetDetentHeightPx
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetDim
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetDimCeilingPx
+import dev.antigravity.fluidengine.ui.fluid.fluidSheetDimColor
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetInsetPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeHeightPx
 import dev.antigravity.fluidengine.ui.fluid.fluidSheetLargeness
@@ -43,7 +46,13 @@ import kotlin.math.min
  * (`sessioni/f5b-2/strumenti/misura_323.py`, f12203–f12213), poi decide l'engine.
  *
  * **Fuori dalla traccia**: il chiarore e la pressione del dito (il banco non rende un gradiente), l'ultima frazione di
- * dissolvenza del foglio in uscita, il contenuto che lo scrim sfoca sotto il vetro (la pagina sì).
+ * dissolvenza del foglio in uscita.
+ *
+ * **Lo scrim è quello dei fogli di oggi** (F5B, giro di correzione): un nero senza sfocatura al livello del foglio
+ * (`fluidSheetDimColor`, 23% sul chiaro), per la presenza dell'host e per la frazione della soglia di `undimmedUpTo`
+ * ([aTuttaAltezza]). Le prime tracce di F5B.2 avevano lo scrim sfocato dei portali, che i fogli non hanno più da F5B.1.
+ * [dark] e [dimLevel] servono alla tavola del giro di correzione (`F5bCorrSheetTraceTest`): il tema scuro e il velo di
+ * prima, al 12/20%.
  *
  * Si scrivono con `GLASS_F5B2_DIR` (di solito `tools/glassbench/traces/f5b-2`), fase `f5b-2`.
  */
@@ -62,9 +71,17 @@ class F5b2SheetTraceTest {
   private val medium = fluidSheetStops(listOf(FluidSheetDetent.Medium, FluidSheetDetent.Large), windowPx.height, statusDp * d, d)
   private val small = fluidSheetStops(listOf(FluidSheetDetent.Height(150f.dpValue()), FluidSheetDetent.Medium), windowPx.height, statusDp * d, d)
 
-  private val surface = Color.White
-  private val ink = Color(0xFF121214)
-  private val secondary = Color(0xFF68686E)
+  /** La scena sullo scuro: pagina nera, schede `#1C1C1E`, vetro del lato scuro, velo opaco del `surface` scuro. */
+  internal var dark = false
+
+  /** Il livello del velo della pagina; null: quello dei fogli di oggi, [fluidSheetDimColor]. */
+  internal var dimLevel: Float? = null
+
+  private val surface get() = if (dark) Color(0xFF1B1B1E) else Color.White
+  private val card get() = if (dark) Color(0xFF2C2C2E) else Color.White
+  private val ink get() = if (dark) Color(0xFFF2F2F7) else Color(0xFF121214)
+  private val secondary get() = if (dark) Color(0xFF98989F) else Color(0xFF68686E)
+  private val pageCard get() = if (dark) "#1C1C1E" else "#FFFFFF"
 
   /**
    * Il bordo alto del foglio di Apple sotto il dito, f12203–f12214 (px del ritaglio 460 × 1000 del telefono; il bordo
@@ -124,9 +141,14 @@ class F5b2SheetTraceTest {
     return trace("foglio-cresce", frames, appleBlocks219Sale(), "il foglio piccolo che cresce a meta' (maniglia toccata)")
   }
 
-  /** Da meta' altezza in cima col dito di Apple; al rilascio la molla dei detent, con lo slancio del dito. */
-  internal fun aTuttaAltezza(): GlassTrace {
+  /**
+   * Da meta' altezza in cima col dito di Apple; al rilascio la molla dei detent, con lo slancio del dito. Con
+   * [undimmedUpTo] la pagina si scurisce come nel foglio vero: per la frazione di [fluidSheetDim] alla posizione del dito.
+   */
+  internal fun aTuttaAltezza(undimmedUpTo: FluidSheetDetent? = null): GlassTrace {
     val start = medium.heights[0]
+    val limit = undimmedUpTo?.let { fluidSheetDetentHeightPx(it, windowPx.height, largePx, d) }
+    val ceiling = limit?.let { fluidSheetDimCeilingPx(medium, it) }
     val releaseIndex = appleTopPx.size - 1
     val releaseMs = releaseIndex * appleFrameMs
     fun fingerAt(ms: Double): Float {
@@ -148,7 +170,7 @@ class F5b2SheetTraceTest {
         ms <= releaseMs -> fingerAt(ms)
         else -> settle.value(((ms - releaseMs) * 1_000_000.0).toLong())
       }
-      frame(medium, position)
+      frame(medium, position, dim = fluidSheetDim(position, limit, ceiling))
     }
     return trace(
       "foglio-a-tutta-altezza", frames, appleBlocks323(),
@@ -199,6 +221,13 @@ class F5b2SheetTraceTest {
         linkedMapOf("t" to grabMs + dragMs, "kind" to "mark", "label" to "rilascio"),
       ),
     )
+  }
+
+  /** Il foglio fermo a [detent], la scena di un fotogramma solo: per la tavola del velo (F5B, giro di correzione). */
+  internal fun fermo(name: String, detent: FluidSheetDetent, what: String): GlassTrace {
+    val at = medium.heights[medium.indexOf(detent)]
+    veil = -1f
+    return trace(name, listOf(GlassTraceFrame(0.0, frame(medium, at))), emptyList(), what)
   }
 
   /** Spinto giu' di 140 dp in 200 ms dalla meta' altezza e lasciato: si chiude con la molla d'uscita dell'host. */
@@ -261,6 +290,7 @@ class F5b2SheetTraceTest {
     slideOffsetPx: Float = 0f,
     presence: Float = 1f,
     sheetAlpha: Float = 1f,
+    dim: Float = 1f,
   ): List<Map<String, Any?>> {
     val visiblePx = fluidSheetVisibleHeight(positionPx, stops, windowPx.height)
     val sinkPx = fluidSheetSinkPx(positionPx, stops)
@@ -284,14 +314,14 @@ class F5b2SheetTraceTest {
     val y = canvasH - insetPx / d - h + (sinkPx + slideOffsetPx) / d
 
     val out = ArrayList<Map<String, Any?>>()
-    if (presence > 0.004f) out += scrim(presence)
+    if (presence * dim > 0.004f) out += scrim(presence * dim)
     if (sheetAlpha <= 0.004f || y >= canvasH) return out
     val radius = listOf(FluidRadius.Sheet.value, FluidRadius.Sheet.value, bottomRadius, bottomRadius)
     val recipe = glassRecipe(
       role = GlassRole.Modal,
       widthDp = w,
       heightDp = h,
-      darkSide = false,
+      darkSide = dark,
       optics = GlassDefaults.panelOptics(),
       intensity = sheetAlpha,
     )
@@ -314,17 +344,9 @@ class F5b2SheetTraceTest {
     return out
   }
 
-  /** Lo scrim dei modali (`FluidScrimLook.Modal`) con lo shader di servizio di F5A.4. */
-  private fun scrim(presence: Float): Map<String, Any?> = linkedMapOf(
-    "kind" to "shader",
-    "name" to "scrim",
-    "source" to "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
-    "x" to 0, "y" to 0, "w" to canvasW, "h" to canvasH,
-    "radius" to 0,
-    "inputs" to linkedMapOf("content" to linkedMapOf("saturation" to 1, "blurDp" to round3(FluidScrimLook.Modal.blurDp), "edge" to "clamp")),
-    "uniforms" to linkedMapOf("dim" to FluidScrimLook.Modal.alpha(false)),
-    "alpha" to round3(presence.coerceIn(0f, 1f)),
-  )
+  /** Lo scrim dei fogli di oggi (`FluidPresentationScrim`): un nero senza sfocatura, a [presence] del velo intero. */
+  private fun scrim(presence: Float): Map<String, Any?> =
+    todaySheetVeil(canvasW, canvasH, dimLevel ?: fluidSheetDimColor(dark).alpha, presence)
 
   /** Il contenuto del foglio: il titolo e le schede bianche coi luoghi, che salgono col bordo alto. */
   private fun content(x: Float, y: Float, w: Float, alpha: Float): List<Map<String, Any?>> {
@@ -345,7 +367,7 @@ class F5b2SheetTraceTest {
       out += linkedMapOf(
         "kind" to "shape", "name" to "scheda-${region.lowercase()}",
         "x" to round3(x + 16f), "y" to round3(top), "w" to round3(w - 32f), "h" to round3(cardH),
-        "radius" to FluidRadius.Group.value, "color" to glassColor(surface.copy(alpha = alpha)),
+        "radius" to FluidRadius.Group.value, "color" to glassColor(card.copy(alpha = alpha)),
       )
       places.forEachIndexed { i, place -> text(place, x + 32f, top + i * 52f + 32f, 17f, ink) }
       top += cardH + 12f
@@ -374,7 +396,7 @@ class F5b2SheetTraceTest {
         "dito di Apple ricostruiti (F5b2SheetTraceTest.kt). Senza chiarore del dito.",
       "palette" to "engine",
       "corner" to "engine",
-      "background" to linkedMapOf("kind" to "color", "color" to "#F2F2F7"),
+      "background" to linkedMapOf("kind" to "color", "color" to if (dark) "#000000" else "#F2F2F7"),
       "page" to page(),
       "probes" to listOf(
         linkedMapOf(
@@ -394,16 +416,16 @@ class F5b2SheetTraceTest {
     )
     if (events.isNotEmpty()) head["events"] = events
     if (apple.isNotEmpty()) head["apple"] = apple
-    return GlassTrace(name, phase, d, "light", canvasW, canvasH, frames, fps, head)
+    return GlassTrace(name, phase, d, if (dark) "dark" else "light", canvasW, canvasH, frames, fps, head)
   }
 
   /** La pagina sotto il foglio: un modulo come quello di Apple, con una griglia di foto dove il foglio si posa. */
   private fun page(): List<Map<String, Any?>> = listOf(
     linkedMapOf("kind" to "text", "text" to "Titolo", "x" to 20, "y" to 128, "sizeDp" to 15, "color" to glassColor(secondary)),
-    linkedMapOf("kind" to "rect", "x" to 16, "y" to 138, "w" to 370, "h" to 44, "color" to "#FFFFFF", "radius" to 10),
+    linkedMapOf("kind" to "rect", "x" to 16, "y" to 138, "w" to 370, "h" to 44, "color" to pageCard, "radius" to 10),
     linkedMapOf("kind" to "text", "text" to "Nuova raccolta", "x" to 30, "y" to 166, "sizeDp" to 17, "color" to glassColor(ink)),
     linkedMapOf("kind" to "text", "text" to "Descrizione", "x" to 20, "y" to 214, "sizeDp" to 15, "color" to glassColor(secondary)),
-    linkedMapOf("kind" to "rect", "x" to 16, "y" to 224, "w" to 370, "h" to 96, "color" to "#FFFFFF", "radius" to 10),
+    linkedMapOf("kind" to "rect", "x" to 16, "y" to 224, "w" to 370, "h" to 96, "color" to pageCard, "radius" to 10),
     linkedMapOf("kind" to "text", "text" to "Luoghi", "x" to 20, "y" to 352, "sizeDp" to 20, "color" to glassColor(ink)),
     linkedMapOf(
       "kind" to "background", "x" to 16, "y" to 366, "w" to 370, "h" to 480, "radius" to 14,

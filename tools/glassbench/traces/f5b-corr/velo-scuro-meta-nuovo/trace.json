@@ -1,0 +1,423 @@
+{
+  "schema": 1,
+  "name": "velo-scuro-meta-nuovo",
+  "phase": "f5b-corr",
+  "fps": 60,
+  "durationMs": 0,
+  "density": 3,
+  "theme": "dark",
+  "size": [402, 874],
+  "_": "F5B, giro di correzione del foglio, dal codice di oggi: il costruttore di F5B.2 (F5b2SheetTraceTest.kt): il foglio fermo a meta' altezza sul scuro, col velo nuovo dei fogli al 31%. Una scena ferma, per la tavola.",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#000000"
+  },
+  "page": [
+    {
+      "kind": "text",
+      "text": "Titolo",
+      "x": 20,
+      "y": 128,
+      "sizeDp": 15,
+      "color": "#98989FFF"
+    },
+    {
+      "kind": "rect",
+      "x": 16,
+      "y": 138,
+      "w": 370,
+      "h": 44,
+      "color": "#1C1C1E",
+      "radius": 10
+    },
+    {
+      "kind": "text",
+      "text": "Nuova raccolta",
+      "x": 30,
+      "y": 166,
+      "sizeDp": 17,
+      "color": "#F2F2F7FF"
+    },
+    {
+      "kind": "text",
+      "text": "Descrizione",
+      "x": 20,
+      "y": 214,
+      "sizeDp": 15,
+      "color": "#98989FFF"
+    },
+    {
+      "kind": "rect",
+      "x": 16,
+      "y": 224,
+      "w": 370,
+      "h": 96,
+      "color": "#1C1C1E",
+      "radius": 10
+    },
+    {
+      "kind": "text",
+      "text": "Luoghi",
+      "x": 20,
+      "y": 352,
+      "sizeDp": 20,
+      "color": "#F2F2F7FF"
+    },
+    {
+      "kind": "background",
+      "x": 16,
+      "y": 366,
+      "w": 370,
+      "h": 480,
+      "radius": 14,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 60,
+        "detail": 0.5,
+        "palette": ["#E9A23B", "#3A7BD5", "#2F5D34", "#F2994A", "#C0392B", "#8FB8DE"]
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "bordo-alto",
+      "kind": "edge",
+      "line": "v:120:40:874.0",
+      "which": "first",
+      "label": "il bordo alto del foglio, a 120 dp dal lato (lontano dagli angoli)"
+    },
+    {
+      "name": "luce-foglio",
+      "kind": "luma",
+      "rect": [20, 760, 60, 40],
+      "label": "un tratto del foglio sopra la griglia di foto: vetro (scuro, colorato) o pagina (bianco)"
+    }
+  ],
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "scrim",
+          "_presenza": 1,
+          "x": 0,
+          "y": 0,
+          "w": 402,
+          "h": 874,
+          "radius": 0,
+          "color": "#0000004F"
+        },
+        {
+          "kind": "material",
+          "name": "foglio",
+          "_ricetta": "glassRecipe: ruolo panel, 392.0 x 454.48 dp, intensita' 1.0",
+          "x": 5,
+          "y": 414.52,
+          "w": 392,
+          "h": 454.48,
+          "radius": [38, 38, 50, 50],
+          "clip": true,
+          "clipRadiusScale": 0.98,
+          "shadow": [
+            {
+              "radiusDp": 44.199997,
+              "offsetDp": [0, 8.709999],
+              "alpha": 0.216,
+              "color": "#000000"
+            }
+          ],
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.75,
+            "w": 0,
+            "paddingDp": 0,
+            "scale": 0.73
+          },
+          "body": {
+            "source": "kotlin:GlassBody1ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "gelTip": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["$center", "$halfSize"]],
+              "pieceRadii": ["$radii"],
+              "pieceBlend": [0],
+              "pieceSmooth": [0.6],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#36363CA1",
+              "veilAdapt": 0,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000033",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 0,
+              "rimWidth": "0.6dp",
+              "rimDark": "#FFFFFF57",
+              "rimFeather": 0.4,
+              "rimLift": -0.25,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.2,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.55,
+              "glowCenter": "$center",
+              "glowRadius": "454.48dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "0dp"],
+              "shadowRadii": ["0dp", "0dp"],
+              "shadowAlphas": [0, 0],
+              "shadowColor": "#00000000",
+              "nodeClip": [0, 0]
+            }
+          },
+          "light": [
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "blend": "Plus",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [1, 0, 0, 1],
+                "flexCenter": [0, 0],
+                "gelTip": [0, 0],
+                "pieceCount": 1,
+                "pieceRect": [["$center", "$halfSize"]],
+                "pieceRadii": ["$radii"],
+                "pieceBlend": [0],
+                "pieceSmooth": [0.6],
+                "lightPart": 0,
+                "rimWidth": "0.6dp",
+                "rimDark": "#FFFFFF57",
+                "rimFeather": 0.4,
+                "rimLift": -0.25,
+                "reflexDir": [0, -1],
+                "reflexWidths": [1.396, 1.396],
+                "reflexStrength": 0.2,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.55,
+                "glowCenter": "$center",
+                "glowRadius": "454.48dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            },
+            {
+              "source": "kotlin:GlassLight1ShaderString",
+              "uniforms": {
+                "offset": "$offset",
+                "flex": [1, 0, 0, 1],
+                "flexCenter": [0, 0],
+                "gelTip": [0, 0],
+                "pieceCount": 1,
+                "pieceRect": [["$center", "$halfSize"]],
+                "pieceRadii": ["$radii"],
+                "pieceBlend": [0],
+                "pieceSmooth": [0.6],
+                "lightPart": 1,
+                "rimWidth": "0.6dp",
+                "rimDark": "#FFFFFF57",
+                "rimFeather": 0.4,
+                "rimLift": -0.25,
+                "reflexDir": [0, -1],
+                "reflexWidths": [1.396, 1.396],
+                "reflexStrength": 0.2,
+                "reflexDepth": "7dp",
+                "reflexFloor": 0,
+                "reflexHalo": 0.55,
+                "glowCenter": "$center",
+                "glowRadius": "454.48dp",
+                "glow": 0,
+                "glowFill": 0.4,
+                "lightColor": "#FFFFFFFF",
+                "materialize": 1,
+                "aa": 1.25
+              }
+            }
+          ]
+        },
+        {
+          "kind": "shape",
+          "name": "velo",
+          "x": 5,
+          "y": 414.52,
+          "w": 392,
+          "h": 454.48,
+          "radius": [38, 38, 50, 50],
+          "color": "#1B1B1E00"
+        },
+        {
+          "kind": "shape",
+          "name": "maniglia",
+          "x": 183,
+          "y": 422.52,
+          "w": 36,
+          "h": 5,
+          "radius": 2.5,
+          "color": "#F2F2F72E"
+        },
+        {
+          "kind": "shape",
+          "name": "scheda-asia",
+          "x": 21,
+          "y": 498.52,
+          "w": 360,
+          "h": 156,
+          "radius": 22,
+          "color": "#2C2C2EFF"
+        },
+        {
+          "kind": "shape",
+          "name": "scheda-africa",
+          "x": 21,
+          "y": 688.52,
+          "w": 360,
+          "h": 156,
+          "radius": 22,
+          "color": "#2C2C2EFF"
+        },
+        {
+          "kind": "shape",
+          "name": "scheda-antartide",
+          "x": 21,
+          "y": 878.52,
+          "w": 360,
+          "h": 52,
+          "radius": 22,
+          "color": "#2C2C2EFF"
+        },
+        {
+          "kind": "shape",
+          "name": "testo",
+          "x": 0,
+          "y": 0,
+          "w": 402,
+          "h": 874,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "testo",
+              "x": 0,
+              "y": 0,
+              "w": 402,
+              "h": 874,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Scegli i luoghi",
+                  "x": 143,
+                  "y": 452.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF",
+                  "weight": 600
+                },
+                {
+                  "kind": "text",
+                  "text": "Asia",
+                  "x": 37,
+                  "y": 490.52,
+                  "sizeDp": 13,
+                  "color": "#98989FFF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Everest",
+                  "x": 37,
+                  "y": 530.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Fuji",
+                  "x": 37,
+                  "y": 582.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Wulingyuan",
+                  "x": 37,
+                  "y": 634.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Africa",
+                  "x": 37,
+                  "y": 680.52,
+                  "sizeDp": 13,
+                  "color": "#98989FFF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Deadvlei",
+                  "x": 37,
+                  "y": 720.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Sahara",
+                  "x": 37,
+                  "y": 772.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Serengeti",
+                  "x": 37,
+                  "y": 824.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Antartide",
+                  "x": 37,
+                  "y": 870.52,
+                  "sizeDp": 13,
+                  "color": "#98989FFF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Isole Shetland Meridionali",
+                  "x": 37,
+                  "y": 910.52,
+                  "sizeDp": 17,
+                  "color": "#F2F2F7FF"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    }
+  ]
+}

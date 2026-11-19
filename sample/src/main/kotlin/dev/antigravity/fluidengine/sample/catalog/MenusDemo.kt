@@ -75,17 +75,21 @@ import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 
 /**
- * I menu liquidi della 3.0 (fase 7), tutti e quattro gli ingressi piu' l'avviso, per provarli con le
- * dita: **un menu si sceglie col dito che l'ha aperto, e un rilascio altrove lo lascia aperto.**
+ * I menu liquidi come stanno dopo F5A, in quattro capitoli che si leggono in ordine: **il menu che nasce da un tasto o da
+ * un gruppo** (il tasto che si trasforma, le azioni della barra, il gruppo della barra dichiarata), **la struttura** (fila di
+ * simboli, sottomenu nello stesso vetro, voci che lasciano il menu aperto, `Priority` e `Fixed`), **il contestuale** (su una
+ * riga, su una tessera con la foto e la sua anteprima, su un tondo e su una card) e, solo dove la galleria ha i suoi
+ * interruttori, **la riga di debug dello sfondo** del contestuale. In fondo l'avviso, che non e' un menu ma vive nello
+ * stesso host.
  *
- * Tieni premuto: il menu si apre (un colpo, `Open`). Senza sollevare il dito, trascinalo sulle voci:
- * una goccia di vetro lo segue di voce in voce, un tick per voce, e al rilascio su una voce la scegli
- * (`Tap`). Rilascia fermo, o fuori dalle voci: il menu resta aperto e si sceglie con un tocco. Le voci
- * spente non fanno tick e non si scelgono; le sezioni hanno una banda fra loro.
+ * La regola di tutti: **un menu si sceglie col dito che l'ha aperto, e un rilascio altrove lo lascia aperto.** Tieni
+ * premuto: il menu si apre (un colpo, `Open`). Senza sollevare il dito, trascinalo sulle voci: una goccia di vetro lo segue
+ * di voce in voce, un tick per voce, e al rilascio su una voce la scegli (`Tap`). Rilascia fermo, o fuori dalle voci: il
+ * menu resta aperto e si sceglie con un tocco.
  *
- * Una colonna sola, cosi' va ovunque: la monta chi prepara la galleria. Il tasto che si trasforma ha il
- * suo host DENTRO il palco (il suo menu cresce li'); le azioni della barra, le righe, la card e
- * l'avviso usano l'host dei modali della radice (`LocalFluidGlassModalHostState`), come in un'app.
+ * Una colonna sola, cosi' va ovunque: la monta chi prepara la galleria. Il tasto che si trasforma ha il suo host DENTRO il
+ * palco (il suo menu cresce li'); tutto il resto usa l'host dei modali della radice (`LocalFluidGlassModalHostState`), come
+ * in un'app. I nomi delle sezioni e i `testTag` sono quelli che le riprese del tablet citano: cambiarli rompe le sessioni.
  */
 @Composable
 fun MenusDemo() {
@@ -102,17 +106,50 @@ fun MenusDemo() {
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       modifier = Modifier.padding(horizontal = 4.dp),
     )
+    // Il palco del tasto che si trasforma resta il primo palco della pagina: le riprese lo usano senza scorrere.
+    Chapter(
+      title = "Dal tasto e dal gruppo",
+      detail = "Il vetro del tasto, o di tutto il gruppo, si raccoglie, sale come una goccia verso il centro del menu e si " +
+        "apre da lì; le voci sono dentro dal primo fotogramma, sfocate e piegate dalla lente.",
+    )
     MorphSection(pick)
-    GroupMenuSection(pick)
     BarSection(pick)
-    ContextScrimPicker()
-    RowsSection(pick)
-    CardSection(pick)
-    PreviewSection(pick)
-    AlertSection(pick)
-    // In fondo alla pagina, apposta: scorrendo fino alla fine il palco tocca il bordo basso dello schermo e i suoi menu
-    // si aprono verso l'alto, che e' dove l'ordine `Priority` si vede.
+    GroupMenuSection(pick)
+    Chapter(
+      title = "La struttura",
+      detail = "Una fila di simboli in cima, un sottomenu che si apre nello stesso vetro, una voce che lascia il menu " +
+        "aperto, e l'ordine che si capovolge aprendosi verso l'alto.",
+    )
     StructureSection(pick)
+    OrderSection(pick)
+    Chapter(
+      title = "Il menu contestuale",
+      detail = "Tieni premuto: l'elemento si solleva, la pagina si scurisce con una sfocatura leggera e il menu nasce " +
+        "accanto, da una goccia appesa al suo bordo.",
+    )
+    RowsSection(pick)
+    PreviewSection(pick)
+    ContextScrimPicker()
+    Chapter(
+      title = "Nello stesso host",
+      detail = "L'avviso non è un menu, ma vive nello stesso host dei modali e si sceglie col dito allo stesso modo.",
+    )
+    AlertSection(pick)
+  }
+}
+
+/**
+ * Il titolo di un capitolo della pagina: piu' grande delle sezioni, perche' la pagina si legge come un racconto (dal
+ * tasto, la struttura, il contestuale) e non come un elenco di palchi.
+ */
+@Composable
+private fun Chapter(title: String, detail: String) {
+  Column(
+    modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 18.dp),
+    verticalArrangement = Arrangement.spacedBy(2.dp),
+  ) {
+    Text(text = title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
+    Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }
 
@@ -132,7 +169,8 @@ private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = list
 private fun MorphSection(pick: (String) -> Unit) {
   FluidSectionHeader(
     title = "Il tasto che si trasforma",
-    detail = "Tieni premuto \"Azione\"; \"Ordina\" si apre al tocco, con la spunta sulla scelta di adesso.",
+    detail = "Tieni premuto \"Azione\"; \"Ordina\" si apre al tocco, con la spunta sulla scelta di adesso. In alto il " +
+      "punto di luce della goccia, acceso di serie.",
   )
   Stage(height = 360.dp) { backdrop ->
     val menu = rememberFluidMorphMenuState()
@@ -184,7 +222,8 @@ private fun MorphSection(pick: (String) -> Unit) {
 private fun GroupMenuSection(pick: (String) -> Unit) {
   FluidSectionHeader(
     title = "Il gruppo che diventa menu",
-    detail = "Tocca o tieni premuto «Menu del gruppo». Il tasto «Modifica foto» resta al suo posto.",
+    detail = "Tocca o tieni premuto «Menu del gruppo»: tutta la capsula si stringe, diventa goccia e si apre nel menu; " +
+      "alla chiusura torna gruppo. Il tasto «Modifica foto» resta al suo posto.",
   )
   val photo = remember { generateMeasurePhoto() }
   FluidScreen(
@@ -217,7 +256,10 @@ private fun GroupMenuSection(pick: (String) -> Unit) {
 
 @Composable
 private fun BarSection(pick: (String) -> Unit) {
-  FluidSectionHeader(title = "Le azioni della barra", detail = "La stella si tiene premuta; i tre puntini si aprono al tocco.")
+  FluidSectionHeader(
+    title = "Le azioni della barra",
+    detail = "La stella si tiene premuta; i tre puntini si aprono al tocco. Il vetro del tasto diventa il menu, in tre tempi.",
+  )
   Stage(height = 96.dp) { backdrop ->
     CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
       Row(
@@ -250,7 +292,10 @@ private fun BarSection(pick: (String) -> Unit) {
 
 @Composable
 private fun RowsSection(pick: (String) -> Unit) {
-  FluidSectionHeader(title = "Righe con il menu contestuale", detail = "Tieni premuta una riga: si solleva, il menu cresce accanto.")
+  FluidSectionHeader(
+    title = "Righe con il menu contestuale",
+    detail = "Tieni premuta una riga: si solleva dal punto in cui il dito l'ha gonfiata, il menu cresce accanto.",
+  )
   FluidListGroup {
     FluidListRow(
       title = "Nota della riunione",
@@ -281,6 +326,10 @@ private fun RowsSection(pick: (String) -> Unit) {
 private fun ContextScrimPicker() {
   val switches = LocalGalleryGlassSwitches.current ?: return
   val context = LocalContext.current
+  Chapter(
+    title = "Solo nelle build di prova",
+    detail = "Le manopole per le catture del tablet: nella galleria dello store questa parte non c'è.",
+  )
   FluidSectionHeader(
     title = "Sfondo del contestuale (solo debug)",
     detail = "I tre candidati di F5A.4, per le catture a schermo intero. Da adb: --es gallery.tune ctxscrim=a|b|c.",
@@ -306,9 +355,13 @@ private const val ContextScrimKnob = "ctxscrim"
 
 // --- Una card qualunque ------------------------------------------------------------------------------
 
+/** Il caso piu' semplice del contestuale: senza anteprima ne' forma, e' l'elemento stesso a sollevarsi. */
 @Composable
 private fun CardSection(pick: (String) -> Unit) {
-  FluidSectionHeader(title = "Una card qualunque", detail = "Modifier.fluidContextMenu, per chi non ha un click suo.")
+  FluidSectionHeader(
+    title = "Una card qualunque",
+    detail = "Modifier.fluidContextMenu senza anteprima ne' forma, per chi non ha un click suo: si solleva lei.",
+  )
   Box(
     modifier = Modifier
       .fillMaxWidth()
@@ -331,55 +384,23 @@ private fun CardSection(pick: (String) -> Unit) {
 // --- L'anteprima e la forma (F5A.4) ------------------------------------------------------------------
 
 /**
- * I due parametri di `contextMenu(menuItems:preview:)` e `contentShape(.contextMenuPreview, _)`: una tessera che,
- * tenuta premuta, diventa un'anteprima piu' grande di se' (la card va dalla tessera all'anteprima, i due contenuti si
- * scambiano attraverso la sfocatura, il menu si apre accanto all'anteprima), e un tondo che si solleva tondo.
+ * I due parametri di `contextMenu(menuItems:preview:)` e `contentShape(.contextMenuPreview, _)`: una tessera con la foto
+ * che, tenuta premuta, diventa un'anteprima piu' grande di se' (la card va dalla tessera all'anteprima, i due contenuti si
+ * scambiano attraverso la sfocatura, il menu si apre accanto all'anteprima), e un tondo che si solleva tondo. Sotto, la
+ * card qualunque: lo stesso modificatore senza anteprima ne' forma.
+ *
+ * Fino a F5A.5 c'era anche una tessera a gradiente con la stessa anteprima: la tessera con la foto (correzione dopo S9) fa
+ * la stessa cosa su un'immagine con i suoi dettagli, che e' dove si giudicano la messa a fuoco e lo sfondo.
  */
 @Composable
 private fun PreviewSection(pick: (String) -> Unit) {
   FluidSectionHeader(
     title = "Anteprima e forma",
-    detail = "Modifier.fluidContextMenu(preview = …, previewShape = …): la tessera diventa la sua anteprima, il tondo resta tondo.",
+    detail = "Modifier.fluidContextMenu(preview = …, previewShape = …): la foto diventa la sua anteprima, il tondo resta tondo.",
   )
-  val sky = Brush.linearGradient(listOf(Color(0xFF3A7BD5), Color(0xFF8E54E9), Color(0xFFF2994A)))
   Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-    Box(
-      modifier = Modifier
-        .size(96.dp)
-        .clip(ContinuousCornerShape(FluidRadius.Card))
-        .drawBehind { drawRect(sky) }
-        .fluidContextMenu(
-          actions = {
-            listOf(
-              FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi (anteprima)") },
-              FluidContextAction(label = "Mi piace", icon = FluidIcons.Filled.Favorite) { pick("Mi piace (anteprima)") },
-            )
-          },
-          previewShape = ContinuousCornerShape(FluidRadius.Group),
-          preview = {
-            Box(
-              modifier = Modifier
-                .width(280.dp)
-                .height(180.dp)
-                .drawBehind { drawRect(sky) },
-              contentAlignment = Alignment.BottomStart,
-            ) {
-              Text(
-                text = "Tramonto, 18 novembre",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White,
-                modifier = Modifier.padding(16.dp),
-              )
-            }
-          },
-        )
-        .testTag("menus-preview-tile"),
-      contentAlignment = Alignment.Center,
-    ) {
-      Text(text = "Foto", style = MaterialTheme.typography.labelLarge, color = Color.White)
-    }
-    // La stessa tessera con la foto della galleria (correzione dopo S9): su un gradiente non si giudica come
-    // l'anteprima si mette a fuoco, ne' come lo sfondo del contestuale scurisce un'immagine con i suoi dettagli.
+    // La foto della galleria: su un gradiente non si giudica come l'anteprima si mette a fuoco, ne' come lo sfondo del
+    // contestuale scurisce un'immagine con i suoi dettagli.
     val photo = remember { generateMeasurePhoto() }
     Box(
       modifier = Modifier
@@ -445,6 +466,7 @@ private fun PreviewSection(pick: (String) -> Unit) {
       Text(text = "AP", style = MaterialTheme.typography.titleMedium, color = Color.White)
     }
   }
+  CardSection(pick)
 }
 
 // --- L'avviso --------------------------------------------------------------------------------------
@@ -507,10 +529,9 @@ private fun AlertSection(pick: (String) -> Unit) {
 // --- La struttura (F5A.3) -----------------------------------------------------------------------------
 
 /**
- * La struttura dei menu della 4.0: la fila di simboli in cima ([FluidMenuElementSize.Small] e
- * [FluidMenuElementSize.Medium]), un sottomenu che si apre dentro il vetro («Ordina», col sottotitolo che dice la scelta
- * di adesso), un interruttore che lascia il menu aperto («Mostra anteprime», letto dal vivo da [FluidMenuActions]), e due
- * tasti in basso con le stesse voci: `Priority` si capovolge aprendosi verso l'alto, `Fixed` no.
+ * La struttura dei menu della 4.0 su una riga: la fila di simboli in cima ([FluidMenuElementSize.Small]), un sottomenu che
+ * si apre dentro il vetro («Ordina», col sottotitolo che dice la scelta di adesso) e un interruttore che lascia il menu
+ * aperto («Mostra anteprime», letto dal vivo da [FluidMenuActions]).
  */
 @Composable
 private fun StructureSection(pick: (String) -> Unit) {
@@ -556,10 +577,19 @@ private fun StructureSection(pick: (String) -> Unit) {
       modifier = Modifier.testTag("menus-structure-row"),
     )
   }
+}
 
+/**
+ * L'ordine e la fila `Medium`: due tasti in basso con le stesse voci (`Priority` si capovolge aprendosi verso l'alto,
+ * `Fixed` no) e un tasto in alto con la fila [FluidMenuElementSize.Medium]. Il pannello di un tasto si apre verso l'alto
+ * solo se sotto non ci sta: i due tasti vanno portati nella parte bassa dello schermo.
+ */
+@Composable
+private fun OrderSection(pick: (String) -> Unit) {
   FluidSectionHeader(
     title = "Priority e Fixed, verso l'alto",
-    detail = "Scorri fino in fondo e tocca i due tasti: con Priority «Uno» resta vicino al dito; la fila Medium si apre dall'alto.",
+    detail = "Scorri finché il palco sta in fondo allo schermo e tocca i due tasti: con Priority «Uno» resta vicino al dito. " +
+      "La fila Medium si apre dal tasto in alto.",
   )
   val ordered: (FluidMenuOrder) -> List<FluidContextAction> = { order ->
     FluidMenuActions(

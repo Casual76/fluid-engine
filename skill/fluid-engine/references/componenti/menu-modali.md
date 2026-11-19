@@ -18,7 +18,7 @@ c'è mai una seconda finestra che compare accanto). La famiglia è legata a Flui
 | file | contiene |
 |---|---|
 | questo (`menu-modali.md`) | l'host e il portale, le presentazioni (pop-up, foglio, pagina intera), `FluidSheetScaffold`, `FluidConfirmSheet`, `FluidAlert`, `FluidPromptAlert`, il foglio deprecato, e dalla 3.1.0 `FluidDrawer` (il pannello laterale modale) e `FluidDateTimeSheet` (data e ora) |
-| [menu-liquidi.md](menu-liquidi.md) | i menu: il tasto che si trasforma, le azioni della barra, il contestuale di una riga, la selezione col dito, il viaggio, la goccia |
+| [menu-liquidi.md](menu-liquidi.md) | i menu: quello che nasce da un tasto o da un gruppo della barra (il viaggio in tre tempi, le voci nella lente), la struttura (fila di simboli, sottomenu, ordine, voci che lasciano aperto), il contestuale (sollevamento, sfondo, anteprima), la scelta col dito |
 | [notifiche.md](notifiche.md) | `FluidNotificationHost`, la card che si tocca, si apre e si lancia via |
 
 Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-physics.md](../api/fluid-physics.md) per
@@ -30,6 +30,8 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 |---|---|
 | un menu di voci da un tasto il cui **unico** mestiere è il menu («Ordina», «Altro») | `FluidMorphMenuButton(opensOnTap = true)` o `FluidBarAction(actions, opensOn = FluidMenuOpensOn.Tap)` → [menu-liquidi.md](menu-liquidi.md) |
 | un tasto con un'azione sua *e* un menu nascosto | gli stessi, di serie: il tocco è l'azione, il **tenuto premuto** apre il menu |
+| un menu che usa il vetro di **tutto il gruppo** di una barra dichiarata | `toolbar { group(…) { action(id, icon, label) { voci } } }` → [menu-liquidi.md](menu-liquidi.md) |
+| un menu con la fila di simboli in cima, un sottomenu, voci che lo lasciano aperto, o le prime voci vicino al dito | `FluidMenuActions(order, elementSize) { … }` e i campi `children`, `subtitle`, `keepsMenuOpen` di `FluidContextAction` → [menu-liquidi.md](menu-liquidi.md) |
 | un menu su una riga di lista | `FluidListRow(contextActions = { … })` |
 | un menu su una card o una vista qualunque, che non ha un click suo | `Modifier.fluidContextMenu(actions = { … })` |
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` + `open()` dal suo click lungo |
@@ -252,12 +254,14 @@ FluidGlassModalPortal(item = scelto, onDismissRequest = { scelto = null }, paneT
   lo schermo piega gli angoli e sembra un fish-eye), velo nero 12% sul chiaro / 20% sullo scuro (gli stessi livelli
   dello scrim dei pannelli dipinti: stanno in `GlassPaintedScrim`, e `FluidGlassModalScrim` li legge da lì), `sizeResponse = 0`
   (altrimenti la regola della taglia lo sfocherebbe fino alla media della pagina). Se togliesse la pagina il vetro
-  non servirebbe: un rettangolo dipinto costa meno. **Il menu contestuale ha un livello suo**, più scuro (4.0, F5A.4: di
-  serie 24% / 38% di nero e 5 dp di sfocatura, `FluidScrimLook` e `FluidContextScrimLevel`, mai oltre 7 dp): li' la pagina deve
-  andare *dietro* l'elemento sollevato (scelta di Alessio, vedi [menu-liquidi.md](menu-liquidi.md)). Nelle build di debug il
-  livello si cambia con la manopola `ctxscrim=a|b|c` (`FluidContextScrimTuning`), per le catture del tablet. Arriva con un alpha sul pannello finito, **mai** con
-  l'`intensity` del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni
-  fotogramma).
+  non servirebbe: un rettangolo dipinto costa meno. Arriva con un alpha sul pannello finito, **mai** con l'`intensity`
+  del materiale (che cambia il raggio di sfocatura e ricatturerebbe tutto lo schermo a ogni fotogramma).
+- **Il menu contestuale ha uno scrim suo**, più scuro: lì la pagina deve andare *dietro* l'elemento sollevato (scelta di
+  Alessio: «scurito con una sfocatura leggera»). Tre livelli (`FluidContextScrimLevel`, il nero e il moltiplicatore della
+  sfocatura in un `FluidScrimLook`), di serie **B**: 24% / 38% di nero e 5 dp di sfocatura, mai oltre 7 dp
+  (`FluidScrimBlurCeilingDp`). La pellicola della finestra del menu porta lo stesso nero. Nelle build di debug il livello si
+  cambia con la manopola `ctxscrim=a|b|c` (`FluidContextScrimTuning`), per le catture del tablet. Gli altri modali, il menu
+  dal tasto compreso, tengono lo scrim di sempre ([menu-liquidi.md](menu-liquidi.md), «Il menu contestuale»).
 - **Il pannello rifrange la pagina «come l'ha lasciata lo scrim»** (un fondale combinato), non la pagina cruda: altrimenti
   fa un buco nitido nello scrim. Il vetro che sta *dentro* il pannello (una `FluidCard`, un tasto, un campo) rifrange
   il pannello, non la pagina dietro (`LocalFluidCanvasBackdrop` + `glassContainer`: vetro su vetro, dalla 2.13).
@@ -851,7 +855,7 @@ Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620
   tasti; tasti in vista sotto un corpo più lungo del foglio; larghezza massima; conferma e annulla sono due cose;
   il tasto invio conferma solo se valido; un valore fuori misura mostra la frase e tiene spento il tasto.
 - `FluidPromptAlertTest`: vuoto = `Incomplete`; trim uguale per validare e confermare; selezione d'apertura.
-- `FluidContextLiftTest` (engine-ui, F5A.4): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
+- `FluidContextLiftTest` (engine-ui): lo scrim dei modali è quello dei pannelli dipinti; i tre livelli del contestuale
   sono più scuri, in ordine e sotto il tetto della sfocatura; la manopola `ctxscrim`; la geometria del sollevamento (vedi
   [menu-liquidi.md](menu-liquidi.md)).
 - `FluidPopoverKeyboardTest`: il pop-up si posa sopra la tastiera. `FluidHostContentColorTest`: il testo negli host ha il
@@ -903,5 +907,5 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidMotion.kt` | i token (`Popover*`, `SheetSettle`, e i menu: vedi [menu-liquidi.md](menu-liquidi.md)) |
 
 Il sample che li usa: `MaterialTab.kt` (portali con e senza origine, foglio), `catalog/RowsAndSheetsDemo.kt` (conferme,
-prompt e i fogli di vetro con i detent), `catalog/MenusDemo.kt` (l'avviso a due e a tre pulsanti; il contestuale con anteprima e forma), `catalog/AllGlassDemo.kt` (la pagina intera),
+prompt e i fogli di vetro con i detent), `catalog/MenusDemo.kt` (i menu in quattro capitoli: dal tasto e dal gruppo, la struttura, il contestuale con l'anteprima e la forma, la riga di debug dello sfondo; in fondo l'avviso a due e a tre pulsanti), `catalog/AllGlassDemo.kt` (la pagina intera),
 `GalleryActivity.kt` (la radice con i tre host).

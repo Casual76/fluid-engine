@@ -3,16 +3,18 @@
 
 # Menu liquidi
 
-I menu dell'engine (3.0): una lista di voci (`FluidContextAction`) che **nasce da quello che l'ha aperto** — un tasto, un'azione
-della barra, una riga — e gli torna dentro al congedo. Sono *un menu solo con quattro ingressi*: lo stesso pannello, lo
-stesso viaggio, lo stesso materiale, la stessa aptica. Prima erano tre prodotti con tre storie (il tasto che si
-espande, il contestuale, il menu sopra il tasto), ognuno con i suoi difetti, e nessuno si sceglieva col dito che
-l'aveva aperto.
+Un menu dell'engine è una lista di voci (`FluidContextAction`) che **nasce da quello che l'ha aperto** e gli torna dentro al
+congedo: un tasto, un gruppo di tasti della barra, una riga, una tessera. Gli ingressi sono tanti, il menu è uno: lo stesso
+pannello, lo stesso viaggio, lo stesso materiale, la stessa aptica. Il modello mentale è una frase: **un menu si sceglie col dito
+che l'ha aperto, e un rilascio altrove lo lascia aperto.** Tieni premuto, il menu si apre e prende il dito; trascina su una voce
+e rilascia: scelta. Rilascia fermo, o fuori dalle voci: il menu resta e si sceglie con un tocco. Il perché di ogni scelta sta in
+[regole.md](../regole.md) («Un menu si sceglie col dito che l'ha aperto»); qui c'è come si usa e cosa fa il codice.
 
-Modello mentale: **un menu si sceglie col dito che l'ha aperto, e un rilascio altrove lo lascia aperto.** Tieni premuto, il
-menu si apre e prende il dito; trascina su una voce e rilascia: scelta. Rilascia fermo (o fuori dalle voci): il menu
-resta e si sceglie con un tocco. La spiegazione di fondo, con il perché di ogni scelta, è in
-[regole.md](../regole.md) («Un menu si sceglie col dito che l'ha aperto»): qui c'è come si usa e cosa fa il codice.
+Col vetro Liquid il menu dal tasto si muove come quello di iOS 26, in tre tempi: il tasto (o il gruppo intero) si raccoglie, sale
+come una goccia verso il centro del menu e da lì si apre; le voci sono dentro dal primo fotogramma, piccole, sfocate e piegate
+dalla lente, e si mettono a fuoco mentre il vetro si posa. Il menu contestuale solleva l'elemento tenuto premuto, scurisce la
+pagina con una sfocatura leggera e fa nascere il menu accanto. Un menu sa avere una fila di simboli in cima, un sottomenu che si
+apre nello stesso vetro, voci che lo lasciano aperto e un ordine che si capovolge quando si apre verso l'alto.
 
 Il portale, l'host dei modali, l'avviso e i fogli stanno in [menu-modali.md](menu-modali.md). La superficie che viaggia
 (`FluidPhysicsState`, la goccia, `driveExternally`) è di [fluid-physics.md](fluid-physics.md): qui si usa, non si spiega.
@@ -23,56 +25,43 @@ Il portale, l'host dei modali, l'avviso e i fogli stanno in [menu-modali.md](men
 |---|---|
 | un tasto che apre un menu **e basta** («Ordina», tre puntini) | `FluidMorphMenuButton(opensOnTap = true)`; nella barra `FluidBarAction(actions = …, opensOn = FluidMenuOpensOn.Tap)` |
 | un tasto con un'azione sua (il tocco) e un menu di varianti (il tenuto premuto) | `FluidMorphMenuButton` o `FluidBarAction(actions = …)` di serie |
-| un menu che usa tutto il vetro di un gruppo dichiarato | `toolbar { group(…) { action(id, icon, label, menu = { … }) } }` |
+| un menu che usa il vetro di **tutto il gruppo** di una barra dichiarata | `toolbar { group(…) { action(id, icon, label) { voci } } }` |
 | un menu su una riga di lista | `FluidListRow(contextActions = { … })` (anche `FluidVividCard`, `FluidSidebarRow`) |
-| un menu su una card o su una vista che non ha click propri | `Modifier.fluidContextMenu(actions = { … })` |
-| un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` e `controller.open()` nel suo click lungo |
+| un menu su una tessera, una card, una vista che non ha click propri | `Modifier.fluidContextMenu(actions = { … })` |
+| un menu contestuale che solleva un'**anteprima** più grande, o con una **forma** sua | `Modifier.fluidContextMenu(…, preview = { … }, previewShape = …)` |
+| un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor`, e `open()` nel suo click lungo |
 | una voce che dice la scelta di adesso («Ordina per…») | `FluidContextAction(selected = true)` |
 | un gruppo di voci staccato dal resto («Elimina») | `FluidContextAction(startsSection = true)` (e `destructive = true`) |
-| una voce che apre altre voci («Ordina per ›») | `FluidContextAction(children = listOf(…))`: il sottomenu si apre dentro lo stesso vetro (4.0) |
+| una voce che apre altre voci («Ordina ›») | `FluidContextAction(children = listOf(…))`: il sottomenu si apre dentro lo stesso vetro |
 | una seconda riga sotto l'etichetta («Ordina» / «Per data») | `FluidContextAction(subtitle = …)` |
-| un interruttore nel menu, o «+»/«−», che non chiude il menu | `FluidContextAction(keepsMenuOpen = true)` dentro `FluidMenuActions { … }` (il contenuto si rilegge dal vivo) |
-| la fila di simboli in cima («Taglia, Copia, Incolla») | `FluidMenuActions(elementSize = FluidMenuElementSize.Small)` (o `Medium`, con l'etichetta) |
+| un interruttore, o «+»/«−», che non chiude il menu | `FluidContextAction(keepsMenuOpen = true)` dentro `FluidMenuActions { … }` |
+| la fila di simboli in cima («Condividi, Preferiti, Modifica») | `FluidMenuActions(elementSize = FluidMenuElementSize.Small)` (o `Medium`, con l'etichetta) |
 | le prime voci vicino al dito quando il menu si apre verso l'alto | `FluidMenuActions(order = FluidMenuOrder.Priority)` |
 | aprire il menu da una scorciatoia, senza un tasto | `FluidMorphMenuState.open(bounds, text, icon, items)` (si sceglie con un tocco) |
-| un menu che sta in una barra, vicino al bordo alto | `FluidBarAction(actions)`: si apre **sull'ancora**, verso il basso |
+| spegnere il punto di luce della goccia | `CompositionLocalProvider(LocalFluidMenuPointOfLight provides false) { … }` |
 | **non così**: `FluidGlassMenuButton` | deprecato: `FluidMorphMenuButton` + `FluidMorphMenuHost` |
-| **non così**: un pannello di contenuto fatto con `FluidGlassModalPortal(presentation = ContextMenu)` per «fare un menu» | non ha la sequenza, la goccia né la scelta col dito: sono dei menu veri |
-| **non così**: molte voci | il menu non scorre: una riga è 48 dp e il pannello ha l'altezza di tutte le sue righe. Per una lista lunga un foglio o `FluidPickerRow` |
+| **non così**: un pannello di contenuto fatto con `FluidGlassModalPortal(presentation = ContextMenu)` per «fare un menu» | non ha il viaggio, la goccia né la scelta col dito |
+| **non così**: molte voci | il menu non scorre: una riga è 48 dp e il pannello è alto quanto tutte le sue righe. Per una lista lunga, un foglio o `FluidPickerRow` |
 
-## I quattro ingressi
+## Gli ingressi
 
 | ingresso | come | si apre | host | scrim |
 |---|---|---|---|---|
-| il tasto che si trasforma | `FluidMorphMenuButton(state, actions, onClick, …, opensOnTap)` | tenuto premuto; con `opensOnTap` al tocco (e `onClick` non viene chiamato) | `FluidMorphMenuHost`, alla radice | nessuno: la pagina resta a colori, separa il bordo del vetro |
-| l'azione della barra | `FluidBarAction(icon, contentDescription, onClick, …, actions, opensOn)` | tenuto premuto; con `opensOn = Tap` al tocco | `FluidGlassModalHost` | sì, quello dei modali |
-| la riga | `FluidListRow(contextActions = { … })` | tenuto premuto: la riga si solleva, il pannello cresce accanto | `FluidGlassModalHost` | sì |
-| una card qualunque | `Modifier.fluidContextMenu(actions = { … })` | tenuto premuto | `FluidGlassModalHost` | sì |
+| il tasto che si trasforma | `FluidMorphMenuButton(state, actions, onClick, …, opensOnTap)` | tenuto premuto; con `opensOnTap` al tocco (e `onClick` non viene chiamato) | `FluidMorphMenuHost` | nessuno: la pagina resta a colori |
+| l'azione della barra | `FluidBarAction(icon, contentDescription, onClick, …, actions, opensOn)` | tenuto premuto; con `opensOn = Tap` al tocco | `FluidGlassModalHost` | quello dei modali |
+| l'azione di una barra dichiarata | `toolbar { group { action(id, icon, label, menu = { … }) } }` | al tocco e tenendo premuto | `FluidGlassModalHost` | quello dei modali |
+| la riga | `FluidListRow(contextActions = { … })` | tenuto premuto: la riga si solleva, il menu cresce accanto | `FluidGlassModalHost` | quello del contestuale, più scuro |
+| un elemento qualunque | `Modifier.fluidContextMenu(actions = { … })` | tenuto premuto | `FluidGlassModalHost` | quello del contestuale |
 
-Il **tenuto premuto apre sempre**, anche con `Tap`: è lui che porta il dito sul menu e permette di scegliere trascinando.
-`Tap` è per il tasto il cui *unico* mestiere è il menu (cinque app se lo riscrivevano a mano); un tasto che ha un'azione
-sua la tiene al tocco, e il menu si scopre tenendo premuto.
+Il **tenuto premuto apre sempre**, anche con `Tap`: è lui che porta il dito sul menu e permette di scegliere trascinando. `Tap` è
+per il tasto il cui *unico* mestiere è il menu; un tasto che ha un'azione sua la tiene al tocco, e il menu si scopre tenendo
+premuto. Ogni ingresso accetta una `List<FluidContextAction>` restituita da una lambda: la lambda si valuta **all'apertura**, quindi
+legge lo stato del momento, e una lista vuota vuol dire nessun menu (`open()` ritorna `false`, nessun `Open`, e il chiamante può
+ripiegare sul suo click lungo).
 
-## Il viaggio Liquid
+## Le voci: `FluidContextAction`
 
-Con il materiale Liquid la capsula si raccoglie, la goccia risale verso il centro del pannello e la sagoma si espande
-durante l'ultimo tratto della risalita. Dentro una toolbar dichiarata `action(menu = …)` legge la capsula del gruppo
-dal registro del piano. Le icone del gruppo si sfocano sul posto nei primi 67–100 ms e tornano sullo stesso tracciato
-in chiusura. Se il pezzo manca, il menu parte dal tasto. Se un'azione della barra finisce in «Altro», le sue voci
-sono disponibili in quel menu.
-
-Dal tasto la bolla cresce nella prima risalita. Fra circa 33 e 100 ms la lente ingrandisce le voci sfocate, poi le
-riporta alla misura di lettura. Dal gruppo le voci crescono dentro la goccia. L'effetto sul layer usa il campo del
-corpo e il ritaglio dura fino alla posa. Layout e scelta col dito usano i riquadri finali. Icona e spunta sono
-`FluidIcon` da 22 dp.
-
-I menu Liquid usano il ritorno rapido (rigidezza 900, smorzamento 0,72). Il punto di luce è acceso di serie.
-L'host può spegnerlo fornendo `LocalFluidMenuPointOfLight` a `false`.
-
-## `FluidContextAction`
-
-**Cos'è.** Una voce: etichetta, icona opzionale, e cosa fare. È la stessa classe per tutti e quattro gli ingressi (e per il
-vecchio menu): un'app che aggiorna ritrova le sue voci nel pannello nuovo.
+**Cos'è.** Una voce: etichetta, icona facoltativa, e cosa fare. È la stessa classe per tutti gli ingressi.
 
 ```kotlin
 data class FluidContextAction(
@@ -82,9 +71,9 @@ data class FluidContextAction(
   val enabled: Boolean = true,         // spenta: niente tick, non si sceglie
   val startsSection: Boolean = false,  // banda sopra di lei (sulla prima voce non conta)
   val selected: Boolean = false,       // spunta a destra, «selezionato» per TalkBack
-  val subtitle: String? = null,        // 4.0: seconda riga, più piccola e più tenue
-  val children: List<FluidContextAction> = emptyList(), // 4.0: sottomenu, un livello
-  val keepsMenuOpen: Boolean = false,  // 4.0: la scelta non chiude il menu
+  val subtitle: String? = null,        // seconda riga, più piccola e più tenue
+  val children: List<FluidContextAction> = emptyList(), // sottomenu, un livello
+  val keepsMenuOpen: Boolean = false,  // la scelta non chiude il menu
   val onClick: () -> Unit,
 ) {
   // La firma della 3.x, sette argomenti: la chiamata per posizione resta valida.
@@ -93,59 +82,56 @@ data class FluidContextAction(
 }
 ```
 
-**Uso** (da `MenusDemo`):
+**Uso** (da `MenusDemo`, le voci di prova della galleria):
 
 ```kotlin
 private fun demoActions(pick: (String) -> Unit): List<FluidContextAction> = listOf(
-  FluidContextAction(label = "Condividi", icon = Icons.Rounded.Share) { pick("Condividi") },
-  FluidContextAction(label = "Modifica (spenta)", icon = Icons.Rounded.Edit, enabled = false) { pick("Modifica") },
-  FluidContextAction(label = "Elimina", icon = Icons.Rounded.Delete, destructive = true, startsSection = true) { pick("Elimina") },
+  FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { pick("Condividi") },
+  FluidContextAction(label = "Aggiungi ai preferiti", icon = FluidIcons.Filled.Star) { pick("Aggiungi ai preferiti") },
+  FluidContextAction(label = "Modifica (spenta)", icon = FluidIcons.Edit, enabled = false) { pick("Modifica") },
+  FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {
+    pick("Elimina")
+  },
 )
 ```
 
 **Comportamento.**
 
-- **`startsSection`** sta *prima* di `onClick` (e `selected` pure) perché la lambda in coda resti l'azione: una chiamata che passa
-  `onClick` per posizione, dopo la 3.0, **non compila**; per la JVM la firma è comunque cambiata, quindi un modulo già
-  compilato va ricompilato.
-- **I campi della 4.0** (`subtitle`, `children`, `keepsMenuOpen`, F5A.3) stanno anch'essi prima di `onClick`. La chiamata della 3.x a
-  sette argomenti per posizione (`FluidContextAction("X", null, false, true, false, false, {})`) passerebbe la lambda a `subtitle`:
-  la tiene viva un **costruttore secondario** con quella firma esatta, su cui risolvono anche la chiamata con tutti e sette i nomi
-  e quella con sei argomenti e la lambda in coda (Kotlin preferisce il candidato che non usa valori di serie). Cosa cambia della
-  data class: `copy` **per nome** compila come prima e porta i campi nuovi (per posizione il settimo è `subtitle`); la
-  destrutturazione a sette non è più l'azione (`component7` è `subtitle`, `onClick` è `component10`); `equals` e `hashCode`
-  contano i campi nuovi. Per la JVM cambia il costruttore con i valori di serie: un modulo già compilato va ricompilato. Lo
-  fissa `GlassCompatSignaturesTest`.
-- **`children`** fa della voce un sottomenu: il gallone a destra e, scelta, il menu **non si chiude** ma diventa il sottomenu
-  dentro lo stesso vetro (vedi «La struttura»). `onClick` della voce madre non viene chiamata. Un livello solo: i figli dei figli
-  si mostrano come righe semplici.
+- **La scelta**: `Tap`, poi la richiesta di congedo e `onClick`, nello stesso istante. Se `onClick` apre un altro modale, questo sta
+  **sopra** il menu che sta uscendo. Fanno eccezione la voce coi `children` (apre il sottomenu e non chiama il suo `onClick`) e la
+  voce `keepsMenuOpen` (chiama `onClick` e il menu resta).
+- **`selected`** è per i menu che scelgono fra alternative («Ordina per», «Vista»): la spunta va a destra, nel colore della voce, e
+  TalkBack dice «selezionato». Il pannello si allarga per tenerla.
 - **`subtitle`** è la seconda riga, `bodyMedium` al 60% dell'inchiostro della voce; la riga passa da 48 a 60 dp (segue il font).
-  Non si tronca l'etichetta per fargli posto: il pannello si allarga per il più largo dei due, fino al tetto di sempre.
+  L'etichetta non si tronca per fargli posto: il pannello si allarga per il più largo dei due, fino al tetto di sempre.
+- **`children`** fa della voce un sottomenu: il gallone a destra e, scelta, il menu **diventa** il sottomenu dentro lo stesso vetro
+  (vedi «La struttura»). Un livello solo: i figli dei figli si mostrano come righe semplici.
 - **`keepsMenuOpen`**: la scelta fa `Tap` e chiama `onClick`, e il menu resta com'è. Perché la voce mostri lo stato nuovo (la spunta
   di un interruttore) il menu va scritto con `FluidMenuActions { … }`, il cui contenuto si rilegge a ogni ridisegno: una
   `listOf(…)` resta la fotografia dell'apertura.
-- **`selected`** (3.0.1) è per i menu che scelgono fra alternative («Ordina per», «Vista»): prima ogni app metteva
-  un'icona di spunta a mano, che TalkBack non leggeva. La spunta va a destra, nel colore della voce; il pannello si allarga
-  per tenerla.
 - **`destructive`** è un colore, non una conferma: l'azione parte alla scelta. Per una cosa che non si disfa, la voce apre un
   `FluidConfirmSheet` o un `FluidAlert`.
-- **L'azione parte dopo la richiesta di congedo**, nello stesso istante: `pick` fa `Tap`, chiede la chiusura e chiama
-  `onClick`. Se `onClick` apre un altro modale, questo sta **sopra** il menu che sta uscendo.
-- **`actions` è una lambda, valutata all'apertura**, non in composizione: legge lo stato del momento. Lista vuota =
-  nessun menu (`open()` ritorna `false`, nessun `Open`, e il chiamante può ripiegare sul suo click lungo).
-- Etichetta su una riga sola, con i puntini oltre il tetto (vedi le misure).
+- L'etichetta sta su una riga sola, con i puntini oltre il tetto della larghezza (vedi «Il pannello»).
 
-## La struttura: `FluidMenuActions`, `FluidMenuOrder`, `FluidMenuElementSize`, il sottomenu
+**La firma e la compatibilità.** Tutti i campi con un valore di serie stanno **prima** di `onClick`, perché la lambda in coda resti
+l'azione. La chiamata della 3.x a sette argomenti per posizione (`FluidContextAction("X", null, false, true, false, false, {})`)
+risolve sul costruttore secondario, e così quella con tutti e sette i nomi e quella con sei argomenti e la lambda in coda (Kotlin
+preferisce il candidato che non usa valori di serie). Della data class cambiano tre cose rispetto alla 3.x: `copy` **per nome**
+compila come prima e porta i campi nuovi (per posizione il settimo è `subtitle`); la destrutturazione a sette non è più l'azione
+(`component7` è `subtitle`, `onClick` è `component10`); `equals` e `hashCode` contano i campi nuovi. Per la JVM cambia il
+costruttore con i valori di serie: un modulo già compilato va ricompilato. Lo fissa `GlassCompatSignaturesTest`.
 
-**Cos'è** (4.0, F5A.3). Le regole di disposizione di un menu, da SwiftUI e UIKit: `menuOrder`, `preferredElementSize`,
-`menuActionDismissBehavior`, i sottomenu. Un menu passa da una lambda che restituisce `List<FluidContextAction>`; la struttura
-viaggia **dentro la lista**: `FluidMenuActions` *è* una lista di voci, quindi va in ogni ingresso senza parametri nuovi.
+## La struttura: `FluidMenuActions`, `FluidMenuOrder`, `FluidMenuElementSize`
+
+**Cos'è.** Le regole di disposizione di un menu, da SwiftUI e UIKit: `menuOrder`, `preferredElementSize`,
+`menuActionDismissBehavior`, i sottomenu. La struttura viaggia **dentro la lista**: `FluidMenuActions` *è* una lista di voci, quindi
+va in ogni ingresso senza parametri nuovi, e chi non la conosce la legge come una lista.
 
 ```kotlin
 class FluidMenuActions(
   val order: FluidMenuOrder = FluidMenuOrder.Automatic,
   val elementSize: FluidMenuElementSize = FluidMenuElementSize.Large,
-  content: () -> List<FluidContextAction>,          // riletto a ogni ridisegno: puo' leggere stato
+  content: () -> List<FluidContextAction>,          // riletto a ogni ridisegno: può leggere stato
 ) : AbstractList<FluidContextAction>() {
   constructor(actions: List<FluidContextAction>, order: FluidMenuOrder = …, elementSize: FluidMenuElementSize = …)
   fun current(): List<FluidContextAction>
@@ -154,26 +140,47 @@ enum class FluidMenuOrder { Automatic, Priority, Fixed }
 enum class FluidMenuElementSize { Small, Medium, Large }
 ```
 
-**Uso** (da `MenusDemo`, sezione «Struttura»):
+**Uso** (da `MenusDemo`, la riga «Cartella Progetti»: la fila di simboli, un sottomenu col sottotitolo vivo, un interruttore che
+lascia aperto):
 
 ```kotlin
+var sort by remember { mutableStateOf("Per data") }
+var previews by remember { mutableStateOf(true) }
 FluidListRow(
   title = "Cartella Progetti",
+  subtitle = "Ordine: $sort",
+  onClick = {},
   contextActions = {
     FluidMenuActions(elementSize = FluidMenuElementSize.Small) {
       listOf(
-        FluidContextAction(label = "Condividi", icon = FluidIcons.Share) { … },
-        FluidContextAction(label = "Preferiti", icon = FluidIcons.Filled.Star) { … },
-        FluidContextAction(label = "Modifica", icon = FluidIcons.Edit) { … },
+        FluidContextAction(label = "Condividi", icon = FluidIcons.Share) {},
+        FluidContextAction(label = "Preferiti", icon = FluidIcons.Filled.Star) {},
+        FluidContextAction(label = "Modifica", icon = FluidIcons.Edit) {},
         FluidContextAction(
-          label = "Ordina", subtitle = sort, startsSection = true,
-          children = listOf("Per data", "Per nome").map { l -> FluidContextAction(l, selected = l == sort) { sort = l } },
+          label = "Ordina",
+          subtitle = sort,
+          startsSection = true,
+          children = listOf("Per data", "Per nome", "Per dimensione").map { label ->
+            FluidContextAction(label = label, selected = label == sort) { sort = label }
+          },
         ) {},
         FluidContextAction(label = "Mostra anteprime", selected = previews, keepsMenuOpen = true) { previews = !previews },
-        FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) { … },
+        FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {},
       )
     }
   },
+)
+```
+
+L'ordine, su un tasto in basso (da `MenusDemo`, il palco «Priority e Fixed»):
+
+```kotlin
+FluidBarAction(
+  icon = FluidIcons.MoreVert,
+  contentDescription = "Priority",
+  onClick = {},
+  actions = { FluidMenuActions(actions = voci, order = FluidMenuOrder.Priority) },
+  opensOn = FluidMenuOpensOn.Tap,
 )
 ```
 
@@ -181,30 +188,76 @@ FluidListRow(
 
 | cosa | come |
 |---|---|
-| **ordine** | `Priority`: se il menu si apre verso l'alto (il pannello sta sopra l'ancora: un tasto in basso, una riga vicina al fondo) le sezioni vanno in ordine inverso e le voci di ogni sezione pure, così la prima voce scritta sta in fondo, vicino al dito; le bande seguono le sezioni. `Fixed`: sempre come scritto. **`Automatic` vale `Fixed`**: Apple sceglie priority fuori dai contenuti che scorrono, qui un menu già scritto non cambia ordine aggiornando l'engine (decisione aperta, nel rapporto di F5A.3) |
-| **fila di simboli** | `Small` e `Medium` mettono le prime voci della **prima sezione** su una fila in cima: `Small` fino a quattro simboli senza etichetta (che resta per TalkBack), alta quanto una riga; `Medium` fino a tre con l'etichetta corta sotto (`bodySmall`), alta 68 dp. Le tessere si dividono la larghezza del pannello e non la allargano; fra due tessere un filo verticale; sotto la fila una banda. Le voci della prima sezione che non ci stanno continuano nella lista. Capovolto, la fila va in fondo, con le tessere nell'ordine scritto |
-| **sottomenu** | la voce coi `children` ha il gallone; scelta (col dito, anche col dito che ha aperto, o con TalkBack) fa `Tap` e il menu **diventa** il sottomenu: in cima la voce madre in grassetto col gallone girato in giù, sotto i figli con le loro sezioni. Il vetro cambia forma restando dov'era — stesso centro orizzontale, stesso bordo da cui il menu era cresciuto — con la molla d'andata del menu (0,72 / 500); le voci di prima se ne vanno sfocandosi e quelle nuove arrivano sfocate e si mettono a fuoco nel tempo di un cambio di contenuto (T = 300 ms, le curve di F3.4: due strati che si incrociano a ≈0,47 T con l'opacità complessiva ≈0,7, chi esce sparito a 0,66 T, chi entra nitido a T e pieno a 1,15 T; il vetro non resta mai vuoto. Sotto API 31, senza sfocatura, i due strati si passano il posto senza sovrapporsi). L'intestazione, o il **back**, torna indietro allo stesso modo; il secondo back congeda. Uno scrim toccato congeda tutto. Un congedo dentro il sottomenu riporta a casa la sagoma del sottomenu |
+| **ordine** | `Priority`: se il menu si apre verso l'alto (il pannello sta sopra l'ancora: un tasto in basso, una riga vicina al fondo) le sezioni vanno in ordine inverso e le voci di ogni sezione pure, così la prima voce scritta sta in fondo, vicino al dito; le bande seguono le sezioni. `Fixed`: sempre come scritto. **`Automatic` vale `Fixed`**: Apple sceglie priority fuori dai contenuti che scorrono, qui un menu già scritto non cambia ordine aggiornando l'engine (la scelta per Alessio è aperta) |
+| **fila di simboli** | `Small` e `Medium` mettono le prime voci della **prima sezione** su una fila in cima: `Small` fino a quattro simboli senza etichetta (che resta per TalkBack), alta quanto una riga; `Medium` fino a tre con l'etichetta corta sotto (`bodySmall`), alta 68 dp. Le tessere si dividono la larghezza del pannello e non la allargano; fra due tessere un filo verticale, sotto la fila una banda. Le voci della prima sezione che non ci stanno continuano nella lista. Capovolto, la fila va in fondo, con le tessere nell'ordine scritto |
+| **sottomenu** | la voce coi `children` ha il gallone; scelta (col dito, anche quello che ha aperto, o con TalkBack) fa `Tap` e il menu **diventa** il sottomenu: in cima la voce madre in grassetto col gallone girato in giù, sotto i figli con le loro sezioni. Il vetro cambia forma restando dov'era (stesso centro orizzontale, stesso bordo da cui il menu era cresciuto) con la molla d'andata del menu (0,72 / 500); le voci di prima se ne vanno sfocandosi e quelle nuove arrivano sfocate e si mettono a fuoco nel tempo di un cambio di contenuto (T = 300 ms: due strati che si incrociano a ≈0,47 T con l'opacità complessiva ≈0,7, chi esce sparito a 0,66 T, chi entra nitido a T e pieno a 1,15 T): il vetro non resta mai vuoto. Sotto API 31, senza sfocatura, i due strati si passano il posto senza sovrapporsi. L'intestazione, o il **back**, torna indietro allo stesso modo; il secondo back congeda. Uno scrim toccato congeda tutto, e un congedo dentro il sottomenu riporta a casa la sagoma del sottomenu |
 | **chiusura** | `keepsMenuOpen`: `Tap`, `onClick`, il menu resta; la goccia si posa e se ne va come dopo ogni rilascio |
 
-**Dove vale.** Nei menu dell'host dei modali: l'azione della barra (`FluidBarAction`), `toolbar { action(menu = …) }`, il contestuale
-(`contextActions`, `fluidContextMenu`). Il menu di `FluidMorphMenuHost` legge `FluidMenuActions` come una lista e basta: una riga per
-voce, niente fila, sottomenu né capovolgimento (la scelta di una voce madre chiama il suo `onClick`).
+**Dove vale.** Nei menu dell'host dei modali: l'azione della barra, l'azione della barra dichiarata, il contestuale. Il menu di
+`FluidMorphMenuHost` legge `FluidMenuActions` come una lista e basta: una riga per voce, niente fila, sottomenu né capovolgimento (la
+scelta di una voce madre chiama il suo `onClick`).
 
 **Non così**: un sottomenu dentro un sottomenu (Apple ne vuole uno: oltre, un menu a parte o un foglio); la fila per voci senza
 simbolo (si vedrebbe l'etichetta stretta nella tessera); `keepsMenuOpen` su una `listOf(…)` fotografata, se la voce deve cambiare
 aspetto.
 
-**Apple.** Nessuna clip di riferimento mostra un sottomenu che si apre, la fila di simboli o un ordine capovolto (R1 lo segna fra i
-punti non documentati); il collage `B1_menu_foto` è un menu che si apre verso l'alto, ma non dice l'ordine dichiarato. Il movimento
-del sottomenu è quindi a occhio, con le regole già misurate: la molla del menu e il cambio di contenuto di R7.
+## Il menu dal tasto e dal gruppo: il viaggio in tre tempi
+
+**Cosa si vede** (vetro Liquid, campo del vetro disponibile: dall'API 33, con gli shader in salute; altrimenti vedi «Senza il
+campo»).
+
+1. **Si raccoglie.** Il tasto premuto si stringe sul posto nei primi fotogrammi. Dal **gruppo** (un'azione con `menu` dentro un
+   gruppo con lo sfondo condiviso di una barra dichiarata) è tutta la capsula del gruppo a farlo: si stringe al 60% della sua
+   larghezza in circa 33 ms, e le altre icone del gruppo si sfocano sul posto e spariscono entro 67–100 ms con le curve del cambio
+   di contenuto della barra. «Menu aperto» è per la barra un cambio di stato in cui il gruppo sorgente si dichiara vuoto: il menu
+   non spegne niente, e alla chiusura le icone tornano nello stesso modo.
+2. **Sale come goccia.** La goccia va verso il **centro del menu** a riposo; un punto di luce forte le passa sul fianco lontano dal
+   tasto fra il 12% e il 55% del viaggio (il bagliore dello strato della luce, nessun termine speculare nuovo).
+3. **Si apre da lì.** L'espansione comincia mentre la goccia sta ancora salendo; la sagoma è goccia, uovo, quadrato panciuto, mai un
+   rettangolo che cambia misura. Supera la misura del pannello **una volta**, verso il lato lontano dal tasto, e si posa senza una
+   seconda oscillazione visibile.
+
+**Le voci stanno nella lente.** Sono dentro dal primo fotogramma, all'alfa 0,28, sfocate (fino a 5 dp) e piegate dallo stesso campo
+che disegna la sagoma (la lente del contenuto, `GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci). Dal tasto la lente le ingrandisce fino a
+1,42× nella prima risalita e poi le riporta alla misura di lettura; dal gruppo crescono dentro la goccia. La messa a fuoco dura 270
+ms dal primo fotogramma: inchiostro pieno verso ≈195 ms, la piega si spegne fra ≈100 e ≈230 ms (prima e ultima riga restano piegate
+più a lungo), nitide a 270 ms. Le voci sono ritagliate sulla sagoma del vetro finché la goccia non si è posata. Il layout, le celle e
+la scelta col dito usano sempre i riquadri del pannello a riposo: il dito che ha aperto può scegliere durante il viaggio.
+
+**I tempi** (banco del movimento, tracce `tools/glassbench/traces/f5a-2/scelta-*` e `f5a-5/`, 60 Hz): dal tasto la sagoma è a
+riposo a vista verso 367 ms, dal gruppo verso 350 ms (Apple, B1: 330–370 ms sul telefono); il superamento della larghezza è del 5–6%
+verso 233 ms. La **chiusura** usa la molla rapida scelta da Alessio (rigidezza 900, smorzamento 0,72): la sagoma rientra entro l'1%
+in circa 233 ms dal tasto e 217 ms dal gruppo, le voci se ne vanno in 185 ms. Il confronto fase per fase con Apple, con quello che
+ancora manca, è nel rapporto di F5A.5 (`sessioni/f5a-5/`).
+
+**Un congedo a metà apertura torna indietro da dove si trova**, con la sua velocità (`retarget` la legge *prima* che la molla vecchia
+venga cancellata: un `Animatable` cancellato azzera la sua velocità), e la goccia continua dal contorno che sta già seguendo. Le
+voci perdono definizione da subito, senza scatti.
+
+**Il punto di luce** è acceso di serie (`LocalFluidMenuPointOfLight`, vero); dall'API 33. Un'app che non lo vuole lo spegne una volta
+sola, attorno all'host:
+
+```kotlin
+CompositionLocalProvider(LocalFluidMenuPointOfLight provides false) {
+  FluidGlassModalHost(state = modals, backdrop = backdrop)
+}
+```
+
+**La sorgente.** Il viaggio parte dalla sagoma vera dell'elemento: il tasto come il dito lo sta gonfiando (`fluidPressedBounds`, mai
+il rettangolo a riposo, che sarebbe un sussulto all'indietro proprio dove l'occhio guarda), o la capsula del gruppo letta dal
+registro del piano della barra (`rememberFluidToolbarTransitionSource`, vedi [toolbar.md](toolbar.md)). Se il pezzo non c'è (una
+barra scritta con `actions`, un tasto fuori da un contenitore) la sorgente è il tasto. Un'azione finita in «Altro» porta le sue voci
+in quel menu.
+
+**Senza il campo** (vetro Classic, API sotto la 33, shader del campo non sani) il menu dal tasto fa il viaggio di prima: la sagoma
+cresce dal tasto con la molla d'andata (0,72 / 500), le voci arrivano fra il 40% e il 75% del viaggio ritagliate nel corpo, nessuna
+lente né punto di luce, e il ritorno usa la molla lenta (rigidezza 158, ≈0,5 s).
 
 ## Il tasto che si trasforma: `FluidMorphMenuButton`, `FluidMorphMenuHost`, `FluidMorphMenuState`
 
-**Cos'è.** Il tasto che *si espande* nel proprio menu, la prima integrazione vera di Fluid-physics nell'interfaccia: la capsula del
-tasto viaggia fino a essere il pannello e al congedo torna capsula. Il predecessore (`FluidGlassMenuButton`) faceva comparire
-il pannello *sopra* il tasto: due superfici e una staffetta. Qui la superficie è una.
-
-**Firma essenziale.**
+**Cos'è.** Il tasto che *si espande* nel proprio menu: la capsula del tasto viaggia fino a essere il pannello e al congedo torna
+capsula. Il viaggio è quello in tre tempi, con le voci nella lente e il punto di luce. Il predecessore (`FluidGlassMenuButton`) faceva
+comparire il pannello *sopra* il tasto: due superfici e una staffetta. Qui la superficie è una.
 
 ```kotlin
 @Composable
@@ -228,13 +281,18 @@ val LocalFluidMorphMenuState: ProvidableCompositionLocal<FluidMorphMenuState?>
 
 Tutti i parametri: [api/fluid-physics.md](../api/fluid-physics.md).
 
-**Uso** (da `MenusDemo`: «Azione» si tiene premuto, «Ordina» si apre al tocco).
+**Uso** (da `MenusDemo`, il palco in cima alla pagina: «Azione» si tiene premuto, «Ordina» si apre al tocco):
 
 ```kotlin
 val menu = rememberFluidMorphMenuState()
+var order by remember { mutableStateOf("Per data") }
 CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
   FluidMorphMenuButton(
-    actions = { listOf("Per data", "Per nome").map { label -> FluidContextAction(label = label, selected = label == ordine) { ordine = label } } },
+    actions = {
+      listOf("Per data", "Per nome", "Per dimensione").map { label ->
+        FluidContextAction(label = label, selected = label == order) { order = label }
+      }
+    },
     onClick = {},
     text = "Ordina",
     backdrop = backdrop,
@@ -246,56 +304,46 @@ CompositionLocalProvider(LocalFluidMorphMenuState provides menu) {
 
 **Comportamento.**
 
-- **L'ancora** è una capsula di vetro con i gesti dei tasti (`FluidPressFeedback.Expand`: cresce e si illumina sotto il dito,
-  44 dp di altezza, 20 dp di margine laterale, la stessa taglia di `FluidGlassButton`). Tocco = `onClick` (un `PressClick`
-  come ogni tasto), tenuto premuto = menu (un solo `Open`, e il dito passa al menu), `opensOnTap` = il tocco apre (con un
-  `Open`, non un `Tap`: un'apertura è un'apertura).
-- **Mentre il menu è in scena l'ancora non disegna niente** (`drawWithContent { if (!hidden) drawContent() }`: un cambio di
-  proprietario, non un'uscita) e al suo posto, allo stesso pixel, sta la superficie dell'host. Mai un alpha di un layer sopra il vetro:
-  un vetro che sfuma sopra un altro vetro non è né l'uno né l'altro. Lo spazio resta riservato.
-- **Il pannello sta sopra il tasto se ci sta, altrimenti sotto**, col centro il più vicino possibile al tasto e sempre
-  dentro i margini dell'host (16 dp); un menu che nasce da un tasto in basso cresce verso l'alto.
+- **L'ancora** è una capsula di vetro con i gesti dei tasti (`FluidPressFeedback.Expand`: cresce e si illumina sotto il dito, 44 dp
+  di altezza, 20 dp di margine laterale). Tocco = `onClick` (un `PressClick` come ogni tasto), tenuto premuto = menu (un solo `Open`,
+  e il dito passa al menu), `opensOnTap` = il tocco apre (con un `Open`, non un `Tap`).
+- **Mentre il menu è in scena l'ancora non disegna niente**, e al suo posto, allo stesso pixel, sta la superficie dell'host: un
+  cambio di proprietario, mai un alpha di un vetro sopra un altro vetro. Lo spazio resta riservato.
+- **Il pannello sta sopra il tasto se ci sta, altrimenti sotto**, col centro il più vicino possibile al tasto e sempre dentro i
+  margini dell'host (16 dp): un menu che nasce da un tasto in basso cresce verso l'alto.
 - **L'apertura è sincrona.** `openFrom` risolve il pannello con le misure che l'host ha scritto al suo ultimo layout, installa il
   viaggio e nasconde il tasto *nello stesso istante del gesto*: il primo fotogramma dell'host è già la sagoma sul tasto.
-  Prima l'host si misurava da sé a ogni apertura, e per un fotogramma non c'era né il tasto né il menu, o c'erano tutti e due.
-- **Un tocco fuori, ovunque**, chiude (in silenzio). L'acchiappa-tocco dell'host copre solo i limiti dell'host: se è montato in
-  un palco, le quattro fasce attorno le disegna l'host dei modali (`outsideCatchers`), l'unico che vede tutto lo schermo.
-  Il back chiude, **prima di qualunque pagina**: l'host compone il suo `BackHandler` solo mentre il menu è aperto, quindi è il
-  gestore registrato per ultimo anche sopra un `FluidPageHost` annidato o il `BackHandler` di una pagina composti dopo l'avvio
-  (fino alla 3.0.5 era sempre composto, restava sotto di loro e il back toglieva la sottopagina col menu ancora aperto). Il
-  congedo lo toglie: il back dopo, anche durante il ritorno, è della pagina. Un tasto che esce dalla composizione col menu aperto se lo porta via.
+- **Un tocco fuori, ovunque**, chiude (in silenzio): se l'host è in un palco, le quattro fasce attorno le disegna l'host dei modali,
+  l'unico che vede tutto lo schermo. Il **back** chiude prima di qualunque pagina: l'host compone il suo `BackHandler` solo mentre il
+  menu è aperto, quindi è il gestore registrato per ultimo anche sopra un `FluidPageHost` annidato. Il congedo lo toglie.
 - **Riaprire dallo stesso tasto mentre si chiude è un'inversione**: il viaggio torna verso il pannello da dove si trova.
-- Il colore del testo dentro l'host è `onSurface` (3.0.1).
+- Il colore del testo dentro l'host è `onSurface`.
 
 **`FluidMorphMenuState`.** `isOpen` (dal gesto alla richiesta di congedo), `isOnScreen` (finché c'è qualcosa in scena, ritorno
-compreso: l'ancora resta nascosta), `dismiss()`, e `open(bounds, text, icon, items, content)`: apre dalla sagoma di `bounds` (pixel
-della radice) **senza il dito** — per un tasto tuo che apre al tocco, pubblico dalla 1.13. Chi lo usa deve nascondere la
-propria ancora finché `isOnScreen` è vero. `LocalFluidMorphMenuState` (3.0.1) evita di passare lo stato per ogni
-livello: l'app lo fornisce una volta e il tasto lo prende da solo; chi apre da lontano lo chiede lì.
+compreso), `dismiss()`, e `open(bounds, text, icon, items, content)`: apre dalla sagoma di `bounds` (pixel della radice) **senza il
+dito**, per un tasto tuo. Chi lo usa nasconde la propria ancora finché `isOnScreen` è vero. `LocalFluidMorphMenuState` evita di
+passare lo stato livello per livello: l'app lo fornisce una volta e il tasto lo prende da solo.
 
 **Trappole.**
 
 - *Il tasto non apre niente e non vibra*: manca il `FluidMorphMenuHost` composto (l'apertura legge le sue misure). Con `opensOnTap`
   il tocco è morto (non chiama `onClick`).
-- *Il tasto ha il proprio stato*: senza un `LocalFluidMorphMenuState` e senza `state` passato, il default è
-  `rememberFluidMorphMenuState()` — uno stato che nessun host pilota. Il tasto fa `onClick` e il menu non si apre.
-- *Un solo menu per stato*: se un menu è in scena e un secondo tasto prova ad aprire, la richiesta è ignorata
-  (`openFrom` ritorna falso e il colpo `Open` non suona). Con due menu simultanei servono due stati.
-- *Il tasto non riappare appena il menu si chiude*: è voluto. `finishClose` aspetta che anche la coda della goccia
-  (`physics.liquid.quiet`) si sia posata sulla sagoma del tasto; se tornasse prima, il tasto vero comparirebbe sopra una goccia ancora in moto.
-- *Il pannello non scorre.* Con molte voci cresce oltre quello che ci sta.
+- *Il tasto ha il proprio stato*: senza un `LocalFluidMorphMenuState` e senza `state`, il default è `rememberFluidMorphMenuState()`,
+  uno stato che nessun host pilota. Il tasto fa `onClick` e il menu non si apre.
+- *Un solo menu per stato*: se un menu è in scena e un secondo tasto prova ad aprire, la richiesta è ignorata (`openFrom` ritorna
+  falso e `Open` non suona). Per due menu simultanei servono due stati.
+- *Il tasto non riappare appena il menu si chiude*: è voluto. Il congedo aspetta che anche la coda della goccia
+  (`physics.liquid.quiet`) si sia posata sulla sagoma del tasto, o il tasto vero comparirebbe sopra una goccia ancora in moto.
 
-**Non usarlo quando.** Il tasto non è una capsula di vetro (usa `FluidBarAction(actions)` nella barra, o un controller
-contestuale), o non hai un punto in cui montare l'host.
+**Non usarlo quando** il tasto non è una capsula di vetro (nella barra c'è `FluidBarAction(actions)`) o non hai un punto in cui
+montare l'host.
 
-**Versione.** Il tasto dalla 1.9.4 (portale/host come i modali); `open` pubblico dalla 1.13.0; `opensOnTap`, la scelta col dito
-e il viaggio nuovo dalla 3.0; `LocalFluidMorphMenuState` dalla 3.0.1.
+## L'azione della barra: `FluidBarAction(actions, opensOn)` e `action(menu = …)`
 
-## L'azione della barra: `FluidBarAction(actions, opensOn)` e `FluidMenuOpensOn`
-
-**Cos'è.** L'azione in una barra (una lente di vetro da 48 dp sul fondale condiviso della barra) con un menu opzionale. Una
-barra ha posto per due o tre lenti, e l'app di verbi ne ha di più: gli altri non esistevano. Con `actions` non nullo l'azione
-diventa l'**ancora di un menu `Expand`** dell'host dei modali.
+**Cos'è.** L'azione in una barra (una lente di vetro da 44 dp sul fondale condiviso della barra) con un menu facoltativo. Con
+`actions` non nullo l'azione diventa l'**ancora di un menu** dell'host dei modali, con lo stesso viaggio in tre tempi del tasto che
+si trasforma. Nella barra dichiarata (`toolbar { … }`) la stessa cosa è `action(id, icon, label, menu = { … })`, e dentro un gruppo
+con lo sfondo condiviso il vetro che diventa il menu è quello del gruppo intero.
 
 ```kotlin
 @Composable
@@ -307,101 +355,132 @@ fun FluidBarAction(
   enabled: Boolean = true,
   actions: (() -> List<FluidContextAction>)? = null,
   opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
+  tint: Color = Color.Unspecified,
 )
+// con un contenuto tuo (un avatar) al posto dell'icona: stesso menu, stessa regola
+@Composable
+fun FluidBarAction(contentDescription: String?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+  actions: (() -> List<FluidContextAction>)? = null, opensOn: FluidMenuOpensOn = FluidMenuOpensOn.LongPress,
+  content: @Composable () -> Unit)
 
 enum class FluidMenuOpensOn { LongPress, Tap }
 ```
 
-**Uso** (da `MenusDemo`): la stella si tiene premuta, i tre puntini si aprono al tocco.
+**Uso** (da `MenusDemo`): la stella si tiene premuta, i tre puntini si aprono al tocco; poi il gruppo di una barra dichiarata.
 
 ```kotlin
-FluidBarAction(icon = Icons.Rounded.Star, contentDescription = "Preferiti", onClick = { }, actions = { voci })
-FluidBarAction(icon = Icons.Rounded.MoreVert, contentDescription = "Altro", onClick = {}, actions = { voci }, opensOn = FluidMenuOpensOn.Tap)
+FluidBarAction(icon = FluidIcons.Filled.Star, contentDescription = "Preferiti", onClick = {}, actions = { demoActions(pick) })
+FluidBarAction(
+  icon = FluidIcons.MoreVert,
+  contentDescription = "Altro",
+  onClick = {},
+  actions = { demoActions(pick) },
+  opensOn = FluidMenuOpensOn.Tap,
+)
+
+FluidScreen(
+  title = "Foto",
+  toolbar = {
+    group(id = "photo-tools", placement = FluidToolbarPlacement.BottomBar) {
+      button("share-photo", FluidIcons.Share, "Condividi foto", { pick("Condividi foto") })
+      button("star-photo", FluidIcons.Filled.Star, "Preferiti foto", { pick("Preferiti foto") })
+      action("photo-menu", FluidIcons.MoreVert, "Menu del gruppo") { demoActions(pick) }
+    }
+  },
+) { /* contenuto */ }
 ```
 
-**Comportamento.** Il pannello si posa **sull'ancora** (`OverAnchor`: il bordo da cui si allontana resta fermo, così il tasto non salta nel
-fotogramma in cui si apre) verso il basso se ci sta, altrimenti verso l'alto dal bordo basso. La sagoma parte dal tasto
-*premuto* (la lente com'è gonfiata dal dito, `FluidPressFeedback.ExpandRound`), con la pelle e la lente del tasto
-(`tintFrom`/`opticsFrom`), e la faccia (l'icona: 20 dp scritti nel tasto, non i 22 delle voci del pannello) se ne va entro il 35% del viaggio.
-**Dal tasto girato** (4.0, G1): col materiale nuovo il pannello nasce dove il tasto è adesso (il suo lato, la sua misura,
-il suo inchiostro, anche a metà giro) e la sua prima lettura insegue da lì invece di scattare; la faccia in viaggio porta
-l'inchiostro del tasto, con la sua dissolvenza. Prima nasceva dal tema: aprire «Altro» da un tasto girato sul nero
-partiva da una sagoma chiara col testo scuro del tema. Vale anche per `FluidGlassMenuButton` e per le azioni della barra
-che aprono un menu (che prendono il lato dalla barra che le ospita). Con `Tap` il tocco apre senza il dito
-(il menu si sceglie toccando) e suona `Open`; con `LongPress` il click lungo apre e passa il dito, suonando `Open` solo se il
-menu si apre. `FluidMenuOpensOn` vale solo per questo ingresso: il tasto che si trasforma ha il booleano `opensOnTap`.
+**Comportamento.** Il pannello si posa **sull'ancora** (`OverAnchor`: il bordo da cui si allontana resta fermo, così il tasto non
+salta nel fotogramma in cui si apre), verso il basso se ci sta, altrimenti verso l'alto dal bordo basso dell'ancora. La sagoma parte
+dal tasto *premuto* (`FluidPressFeedback.ExpandRound`), con la pelle, la lente e l'inchiostro del tasto com'è adesso, anche a metà di
+un giro sul nero; la faccia (l'icona) se ne va entro il 35% del viaggio. Con `Tap` il tocco apre senza il dito (il menu si sceglie
+toccando) e suona `Open`; con `LongPress` il click lungo apre e passa il dito, suonando `Open` solo se il menu si apre.
+`FluidMenuOpensOn` vale solo per questo ingresso: il tasto che si trasforma ha il booleano `opensOnTap`, l'azione della barra
+dichiarata apre al tocco e tenendo premuto.
 
-**Trappole.** *Senza `FluidGlassModalHost` il menu non si apre*; con `opensOn = Tap` e senza host il tasto è **morto** (il tocco chiama
-l'apertura, non `onClick`). Con `actions = null` è il vecchio `FluidGlassIconButton` e nient'altro.
+**Trappole.** *Senza `FluidGlassModalHost` il menu non si apre*; con `opensOn = Tap` e senza host il tasto è **morto** (il tocco
+chiama l'apertura, non `onClick`). Con `actions = null` è il vecchio tasto della barra e nient'altro.
 
-**Versione.** `actions` (il menu `Expand` sui tasti barra) dalla 1.8.0; `opensOn`, il dito, il viaggio nuovo dalla 3.0.
+## Il menu contestuale: `Modifier.fluidContextMenu`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`
 
-## Il menu di una riga o di una card: `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`
-
-**Cos'è.** Il menu contestuale: tieni premuta una riga, la pagina va **dietro uno scrim più scuro di quello dei menu, con una
-sfocatura leggera**, la riga si **solleva** (diventa una card di vetro sorella della sua immagine registrata, o l'anteprima che
-le dai), il pannello cresce accanto a lei da una goccia appesa al suo bordo, sotto il dito. Due pezzi e non uno, e la
-divisione non è ordine: un `detectTapGestures { onLongPress }` accanto al `combinedClickable` di una riga **non scatta mai**
-(il click consuma il gesto e il click lungo viene mangiato in silenzio, com'è successo la prima volta). Chi gestisce già i click deve aprire il
-menu dal **proprio** click lungo: è il mestiere di `FluidContextMenuController.open()`. `Modifier.fluidContextMenu` è la forma comoda per gli
-elementi che *non* gestiscono click.
+**Cos'è.** Tieni premuta una riga o una tessera: l'elemento si **solleva** (diventa una card di vetro sorella della sua immagine, o
+l'anteprima che gli dai), la pagina va **dietro uno scrim più scuro di quello dei menu, con una sfocatura leggera**, e il pannello
+cresce accanto, da una goccia appesa al bordo della card, sotto il dito. Due forme e non una, e la divisione non è ordine: un
+`detectTapGestures { onLongPress }` accanto al `combinedClickable` di una riga **non scatta mai** (il click consuma il gesto e il click
+lungo viene mangiato in silenzio). Chi gestisce già i click apre il menu dal **proprio** click lungo con
+`FluidContextMenuController.open()`; `Modifier.fluidContextMenu` è la forma comoda per gli elementi che *non* gestiscono click.
 
 ```kotlin
+@Composable
+fun Modifier.fluidContextMenu(
+  actions: () -> List<FluidContextAction>,
+  enabled: Boolean = true,
+  previewShape: Shape? = null,                  // la forma del sollevamento: contentShape(.contextMenuPreview, _)
+  preview: (@Composable () -> Unit)? = null,    // un'anteprima diversa dall'elemento: contextMenu(menuItems:preview:)
+): Modifier
+
 @Composable
 fun rememberFluidContextMenu(
   actions: () -> List<FluidContextAction>,
   tint: Color? = null,
-  previewShape: Shape? = null,                  // 4.0 (F5A.4): contentShape(.contextMenuPreview, _)
-  preview: (@Composable () -> Unit)? = null,    // 4.0 (F5A.4): contextMenu(menuItems:preview:)
+  previewShape: Shape? = null,
+  preview: (@Composable () -> Unit)? = null,
 ): FluidContextMenuController
 
 @Composable
 fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier
 
-@Composable
-fun Modifier.fluidContextMenu(
-  actions: () -> List<FluidContextAction>,
-  enabled: Boolean = true,
-  previewShape: Shape? = null,
-  preview: (@Composable () -> Unit)? = null,
-): Modifier
-
 class FluidContextMenuController { val isOpen: Boolean; fun open(): Boolean; fun dismiss() }
 ```
 
-**Uso.** La forma comoda, per una card senza click propri (da `MenusDemo`):
+**Uso.** Una tessera con la foto che, tenuta premuta, diventa la sua anteprima più grande (da `MenusDemo`, «Anteprima e forma»):
 
 ```kotlin
-Box(
-  modifier = Modifier
-    .fillMaxWidth().height(96.dp)
-    .fluidContextMenu(actions = {
-      listOf(
-        FluidContextAction(label = "Copia", icon = Icons.Rounded.Share) { copia() },
-        FluidContextAction(label = "Mi piace", icon = Icons.Rounded.Favorite) { piace() },
-      )
-    }),
-)
-```
-
-Con un'anteprima diversa dall'elemento e la forma del ritaglio (da `MenusDemo`, «Anteprima e forma»): tenuta premuta, la tessera
-diventa l'anteprima, centrata su di lei, e il menu si apre accanto all'anteprima.
-
-```kotlin
+val photo = remember { generateMeasurePhoto() }       // nella tua app, la tua immagine
 Box(
   modifier = Modifier
     .size(96.dp)
+    .clip(ContinuousCornerShape(FluidRadius.Card))
     .fluidContextMenu(
-      actions = { voci },
+      actions = {
+        listOf(
+          FluidContextAction(label = "Condividi", icon = FluidIcons.Share) {},
+          FluidContextAction(label = "Mi piace", icon = FluidIcons.Filled.Favorite) {},
+          FluidContextAction(label = "Elimina", icon = FluidIcons.Delete, destructive = true, startsSection = true) {},
+        )
+      },
       previewShape = ContinuousCornerShape(FluidRadius.Group),
-      preview = { Foto(modifier = Modifier.size(280.dp, 180.dp)) },
+      preview = {
+        Box(modifier = Modifier.width(280.dp).height(180.dp)) {
+          Image(bitmap = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        }
+      },
     ),
-)
-// Un tondo che si solleva tondo: la sagoma del vetro e il ritaglio dell'immagine sono la stessa forma.
-Avatar(modifier = Modifier.size(64.dp).clip(CircleShape).fluidContextMenu(actions = { voci }, previewShape = CircleShape))
+) {
+  Image(bitmap = photo, contentDescription = "Foto", contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+}
 ```
 
-La forma per un elemento con click propri (è quello che fa `FluidListRow` dietro `contextActions`):
+Un tondo che si solleva tondo (la sagoma del vetro e il ritaglio dell'immagine sono la stessa forma), e una card che non ha click
+suoi, col sollevamento di serie:
+
+```kotlin
+Box(
+  modifier = Modifier
+    .size(64.dp)
+    .clip(CircleShape)
+    .fluidContextMenu(actions = { voci }, previewShape = CircleShape),
+)
+Box(
+  modifier = Modifier
+    .fillMaxWidth()
+    .height(96.dp)
+    .clip(ContinuousCornerShape(FluidRadius.Card))
+    .fluidContextMenu(actions = { voci }),
+)
+```
+
+Per un elemento con click propri (è quello che fa `FluidListRow` dietro `contextActions`):
 
 ```kotlin
 val menu = rememberFluidContextMenu(actions = { voci })
@@ -415,56 +494,41 @@ Box(
 **Comportamento.**
 
 - **L'ancora registra solo mentre un dito è giù.** `fluidContextMenuAnchor` osserva il tocco nel passaggio *Initial* senza consumare
-  niente, e dipinge l'elemento in un `GraphicsLayer` fra il tocco e il rilascio: a riposo una lista di ancore non costa nulla.
-  Mentre il dito è giù la riga si gonfia (2%) e accende la luce speculare dei controlli di vetro: senza, un click lungo
-  era mezzo secondo di niente seguito da un overlay intero (e mezzo secondo è quanto basta per decidere che il controllo è rotto).
-  Con il movimento ridotto la riga non si gonfia.
-- **`open()` ritorna `false`** senza host, con un menu già aperto o con zero voci: chi chiama suona `Open` **solo se ritorna vero**
-  (`FluidListRow` altrimenti ripiega sul suo `onLongClick` con `GestureStart`).
-- **Aperto, la riga non si disegna più** nel suo posto (`lifted`: lo spazio resta riservato, nulla sotto si muove). La riga che vedi è
-  la sua *registrazione* in una superficie Fluid-physics: la sagoma va dalla riga alla riga gonfiata del 3% **attorno al centro**
-  (`fluidLiftedFrame`) con la molla del menu, oltrepasso compreso; a scalare è solo l'immagine, che non è vetro. La riga torna alla pagina
-  **solo a uscita finita** (`isOnScreen`): restituirla alla richiesta di congedo la mostrava sotto un pannello che le si stava ancora
-  ripiegando addosso.
-- **Il sollevamento è continuo** (4.0, F5A.4). La card parte dalla scala che la riga ha **sotto il dito** al click lungo
-  (`fluidLiftStartFraction`: la riga gonfiata del 2% e la card sono lo stesso rettangolo), non dalla riga a riposo: prima la riga
-  rimpiccioliva del 2% in un fotogramma prima di sollevarsi. La partenza resta ferma per tutta l'andata (il dito che si alza mentre la
-  card sale non la fa tornare indietro) e torna viva al ritorno: a dito alzato la card finisce esattamente sulla riga a riposo, che
-  ricompare nello stesso fotogramma. L'immagine **segue la sagoma del vetro** (`fluidLiftContentMap`: centrata, una scala sola, il
-  minore dei due rapporti dei lati, perché il gonfiore dell'arrivo è più alto che largo), non una scala calcolata a parte.
-- **Lo sfondo del contestuale** (4.0, F5A.4, scelta di Alessio del 10 novembre: «scurito con una sfocatura leggera»): uno scrim suo,
-  più scuro di quello dei menu dal tasto. Tre livelli (`FluidContextScrimLevel`, nel file dello scrim): **A** 18% / 30% di nero (chiaro /
-  scuro), sfocatura 3,75 dp; **B** 24% / 38%, 5 dp; **C** 32% / 48%, 6,5 dp. Di serie **B**, la proposta in attesa della scelta sulle
-  tavole (`sessioni/f5a-4/`). Nessuno passa i 7 dp di sfocatura (`FluidScrimBlurCeilingDp`): oltre ~8 dp uno scrim a tutto schermo
-  trasmette la media della pagina. La pellicola della finestra del menu porta lo stesso nero (`FluidScrimLook.color`), perché campiona
-  la pagina cruda: un livello cambiato in un posto solo farebbe un menu più chiaro o più scuro della pagina attorno. iOS 26 scurisce
-  soltanto (R1 X2): la sfocatura è la deroga voluta.
-  **Per la scelta sul tablet** (correzione dopo S9) il livello si cambia senza ricompilare, nelle sole build di debug e di misura: la
-  manopola `ctxscrim=a|b|c` della diagnostica (`FluidContextScrimTuning`, dalla porta di `FluidGlassDiagnostics.tuneLiquidProfile`;
-  nella galleria `--es gallery.tune ctxscrim=a`, o la riga «Sfondo del contestuale» della pagina «Menù liquidi»). Il menu la legge
-  mentre si compone: vale dal contestuale successivo. Fuori dalle build di debug il livello è sempre quello di serie.
-- **L'anteprima personalizzata** (`preview`): composta dall'host alla sua taglia (al più larga quanto lo schermo meno i margini e alta
-  il 55% dello schermo, `fluidContextPreviewMaxSize`), centrata sull'elemento e dentro i margini (`fluidContextPreviewFrame`). La card va
-  dall'elemento all'anteprima; i due contenuti si scambiano **attraverso la sfocatura** (l'elemento se ne va fra 0,05 e 0,45 del
-  sollevamento, l'anteprima arriva fra 0,15 e 0,6, sfocati fino a 8 dp per la parte che manca). Il menu si apre accanto all'anteprima.
-  La taglia si misura al primo fotogramma: in quel fotogramma la card e la goccia sono ancora spente, quindi non si vede.
-- **La forma** (`previewShape`): la sagoma del vetro e il ritaglio dell'immagine insieme, come `contentShape(.contextMenuPreview, _)`.
-  Una forma ad angoli (`RoundedCornerShape`, `CircleShape`, `ContinuousCornerShape`) dà i suoi raggi; un rettangolo, angoli vivi; una
-  forma libera ritaglia l'immagine com'è, ma il vetro resta il rettangolo arrotondato dei pannelli (il campo di Fluid-physics è fatto di
-  lastre). Senza forma: il raggio dei pannelli (22 dp).
-- **La goccia del contestuale**: un cerchio da 28 dp appeso al bordo della riga che guarda il pannello, sotto il dito (o al centro
-  della riga), che entra nella riga di 4 dp; il corpo del menu esce da lì come una goccia e a progresso 0,15 è tutta fuori. Prima il seme era
-  il pannello a 0,42 attorno al perno: un pannello piccolo che compariva dal nulla accanto alla riga, due oggetti. Il punto d'origine è
-  **fermato all'apertura**: seguire il dito sulle voci sposterebbe la partenza in volo.
-- **Il pannello sta accanto, mai sopra** (`BesideAnchor`): sotto la riga se ci sta o se sotto c'è più spazio che sopra, altrimenti sopra;
-  centrato sull'ancora e dentro i margini.
-- **Il colore della cosa che ha alzato il menu** (`tint`, che `FluidVividCard` passa da sola) va sulla riga sollevata, **non** sul pannello:
-  il menu è chrome, e la chrome non prende il colore di ciò che l'ha chiamata (una lista di azioni tinta come la cosa da cui
-  nasce diventa il secondo oggetto colorato della scena).
-- L'ancora usa `boundsInRoot` (ritagliati dagli antenati), mentre i tasti `Expand` usano i limiti non ritagliati: una riga mezza fuori
-  dal bordo di una lista alza la parte visibile.
-- **Il dito**: il relè è in testa all'ancora e consuma già nell'Initial: la `LazyColumn` attorno resta ferma mentre il dito scorre
-  sul menu (provato con una riga in lista).
+  niente, e dipinge l'elemento in un `GraphicsLayer` fra il tocco e il rilascio: a riposo una lista di ancore non costa nulla. Mentre
+  il dito è giù l'elemento si gonfia del 2% e accende la luce dei controlli di vetro (con il movimento ridotto non si gonfia).
+- **Il sollevamento è continuo.** Al click lungo la card parte dalla scala che l'elemento ha **sotto il dito** (`fluidLiftStartFraction`:
+  la riga gonfiata e la card sono lo stesso rettangolo) e cresce al 3% **attorno al centro** (`fluidLiftedFrame`) con la molla del
+  menu, oltrepasso compreso. La partenza resta ferma per tutta l'andata e torna viva al ritorno: a dito alzato la card finisce
+  esattamente sull'elemento a riposo, che ricompare nella pagina nello stesso fotogramma. L'immagine **segue la sagoma del vetro**
+  (`fluidLiftContentMap`: centrata, una scala sola, il minore dei due rapporti dei lati). Aperto, l'elemento non si disegna più nel suo
+  posto (lo spazio resta riservato) e torna alla pagina **solo a uscita finita**.
+- **Lo sfondo** (scelta di Alessio: «scurito con una sfocatura leggera») ha un livello suo, più scuro di quello dei menu dal tasto. Tre
+  candidati: **A** 18% / 30% di nero (chiaro / scuro), sfocatura 3,75 dp; **B** 24% / 38%, 5 dp; **C** 32% / 48%, 6,5 dp. Di serie
+  **B**, in attesa della scelta sulle catture del tablet. Nessuno passa i 7 dp di sfocatura: oltre ~8 dp uno scrim a tutto schermo
+  trasmette la media della pagina. La pellicola della finestra del menu porta lo stesso nero, perché campiona la pagina cruda: un
+  livello cambiato in un posto solo farebbe un menu più chiaro o più scuro della pagina attorno. iOS 26 scurisce soltanto: la
+  sfocatura è la deroga voluta. Nelle build di debug e di misura il livello si cambia senza ricompilare, con la manopola
+  `ctxscrim=a|b|c` della diagnostica (`--es gallery.tune ctxscrim=a`, o la riga «Sfondo del contestuale» della galleria): vale dal
+  contestuale successivo.
+- **L'anteprima personalizzata** (`preview`) è composta dall'host alla sua taglia (al più larga quanto lo schermo meno i margini e alta
+  il 55% dello schermo), centrata sull'elemento e dentro i margini. La card va dall'elemento all'anteprima e i due contenuti si
+  scambiano **attraverso la sfocatura** (l'elemento se ne va fra 0,05 e 0,45 del sollevamento, l'anteprima arriva fra 0,15 e 0,6,
+  sfocati fino a 8 dp per la parte che manca). La taglia si misura al primo fotogramma, in cui card e goccia sono ancora spente.
+- **La forma** (`previewShape`) è la sagoma del vetro e il ritaglio dell'immagine insieme. Una forma ad angoli (`RoundedCornerShape`,
+  `CircleShape`, `ContinuousCornerShape`) dà i suoi raggi; un rettangolo, angoli vivi; una forma libera ritaglia l'immagine com'è, ma il
+  vetro resta il rettangolo arrotondato dei pannelli (il campo di Fluid-physics è fatto di lastre). Senza forma: il raggio dei
+  pannelli (22 dp).
+- **Il menu nasce da una goccia** di 28 dp appesa al bordo della card che guarda il pannello, sotto il dito (o al centro), che entra
+  nella card di 4 dp; il punto d'origine è fermato all'apertura. Il pannello sta **accanto, mai sopra** (`BesideAnchor`): sotto la card
+  se ci sta o se sotto c'è più spazio, altrimenti sopra, a 12 dp, centrato e dentro i margini. Le voci arrivano fra il 40% e il 75% del
+  viaggio, ritagliate dentro il vetro finché la goccia non si è posata, e il ritorno usa la molla lenta (≈0,5 s): il contestuale non ha
+  il viaggio in tre tempi né la lente, che sono del menu che nasce da un tasto.
+- **Il colore** di chi ha alzato il menu (`tint`, che `FluidVividCard` passa da sola) va sulla card sollevata, **non** sul pannello: il
+  menu è chrome, e la chrome non prende il colore di ciò che l'ha chiamata.
+- `open()` ritorna `false` senza host, con un menu già aperto o con zero voci: chi chiama suona `Open` **solo se ritorna vero**
+  (`FluidListRow` altrimenti ripiega sul suo `onLongClick`). L'ancora usa `boundsInRoot` (ritagliati dagli antenati): una riga mezza
+  fuori dal bordo di una lista alza la parte visibile. Il relè del dito consuma già nell'Initial: la `LazyColumn` attorno resta ferma
+  mentre il dito scorre sul menu.
 
 **Trappole.**
 
@@ -472,91 +536,78 @@ Box(
 - *Non si apre e non vibra*: manca `FluidGlassModalHost` (`rememberFluidContextMenu` prende `LocalFluidGlassModalHostState`).
 - *L'ancora esce dalla composizione a dito giù* (una riga di `LazyColumn` rimossa): il gesto si annulla, il menu **resta aperto** e
   nessuno sceglie.
-- *Un `GraphicsLayer` rilasciato*: il pannello lo ridisegna dentro un `runCatching`; se la riga è sparita il pannello si apre
-  comunque, senza immagine e con le sue azioni.
-
-**Versione.** Controller e ancora dalla 1.5.0 (`tint` dalla 1.12.0); il dito, il seme per geometria, la goccia e il viaggio dalla 3.0.
+- *Un `GraphicsLayer` rilasciato*: il pannello lo ridisegna dentro un `runCatching`; se la riga è sparita il pannello si apre comunque,
+  senza immagine e con le sue azioni.
 
 ## `FluidGlassMenuButton` (deprecato)
 
-Il tasto che fa comparire il pannello *sopra* il tasto (due superfici). Dalla 3.0 passa comunque dal pannello, dal viaggio e dal dito dei
-menu nuovi, ma ha un'apertura sua e il suo `entry`. `shape` e `contentDescription` non hanno corrispondente nel nuovo (la superficie che viaggia
-parte sempre da una capsula; l'etichetta del tasto è già quella che si legge). Migrazione, dal KDoc: alla radice, accanto a
+Il tasto che fa comparire il pannello *sopra* il tasto (due superfici). Passa comunque dal pannello, dal viaggio e dal dito dei menu
+nuovi, ma ha un'apertura sua. `shape` e `contentDescription` non hanno corrispondente nel nuovo. Migrazione: alla radice, accanto a
 `FluidGlassModalHost`, `rememberFluidMorphMenuState()` + `FluidMorphMenuHost(state, backdrop)` sopra la tab bar; dove c'era
-`FluidGlassMenuButton(actions, onClick, text, icon)`, ora `FluidMorphMenuButton(state, actions, onClick, text, icon, backdrop)`. Le azioni di
-barra con `FluidBarAction(actions)` **non passano di qui** e non cambiano.
+`FluidGlassMenuButton(actions, onClick, text, icon)`, ora `FluidMorphMenuButton(state, actions, onClick, text, icon, backdrop)`. Le
+azioni della barra con `FluidBarAction(actions)` **non passano di qui** e non cambiano.
 
 ## Come funziona dentro
 
 ### Il viaggio (`FluidMenuJourney`)
 
 Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può superare 1) che guida la finestra di Fluid-physics con
-`driveExternally`. Tempi (3.0.4, in mano erano «si chiudono alla velocità giusta e si aprono lenti»):
+`driveExternally`. Col campo del vetro il menu dal tasto segue un contorno che ha curve distinte per larghezza, altezza, centro e
+raggio (`fluidMenuButtonTravel`; dal gruppo `fluidMenuJourneySeed`, che parte dalla capsula raccolta); il contestuale e il viaggio
+senza campo interpolano fra il seme e il pannello.
 
 | cosa | valore |
 |---|---|
-| apertura della goccia | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 (`DropOpenStiffness`), risposta **~0,28 s**; era ~0,42 s (k 224) fino alla 3.0.3 |
-| ritorno | `FluidMotion.dropClose()`: stesso smorzamento, rigidezza 158 (`DropCloseStiffness`), **~0,50 s**, un filo più lento dell'andata («troppo veloce») |
-| misurato sull'emulatore, 30 fps, «Ordina» | ~267 ms di moto in apertura (come la chiusura, 267–333 ms); voci leggibili a ~170 ms dal primo fotogramma |
-| le voci arrivano | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`; erano 0,55–0,9), sempre ritagliate dentro il corpo, **anche dopo l'arrivo finché la goccia non si posa** (vedi sotto) |
-| le voci se ne vanno (per prime) | da 0,94 a 0,62 (`LiquidContentCloseFrom/To`): prima restavano leggibili mentre il pannello si ritirava e le scritte galleggiavano sulla pagina |
-| la faccia del tasto | piena alla partenza, spenta entro 0,35 (`MenuFaceTo`): faccia e voci non sono mai leggibili insieme |
-| il materiale | smoothstep fino al 60% (`opticsFrom`/`tintFrom` → pannello): niente scalino di luminosità quando il viaggio si posa |
-| scala del contenuto | `0,86 + 0,14·opacità` (`LiquidContentMinScale`): un menu che si avvicina, non un menu in miniatura |
-| oltrepasso | gonfiore uniforme attorno al centro del pannello, 0,55 per unità (`DropInflationGain`), tenuto a 6 dp dai fianchi (mai il lerp oltre 1) |
+| andata | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 |
+| ritorno col campo (menu dal tasto e dal gruppo) | smorzamento 0,72, rigidezza 900: ≈233 ms di sagoma |
+| ritorno senza campo, e del contestuale | `FluidMotion.dropClose()`: smorzamento 0,72, rigidezza 158, ≈0,5 s |
+| raccolta del gruppo | al 60% della larghezza (`MenuGroupGatherWidth`) |
+| voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, uscita in 185 ms; ingrandimento dal tasto fino a 1,42× |
+| voci senza lente | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`), all'uscita fra 0,94 e 0,62; scala `0,86 + 0,14·opacità` |
+| la faccia del tasto | piena alla partenza, spenta entro 0,35 (`MenuFaceTo`) |
+| il materiale | dal tasto al pannello con uno smoothstep fino al 60%: niente scalino di luminosità quando il viaggio si posa |
+| oltrepasso | gonfiore attorno al centro del pannello, 0,55 per unità (`DropInflationGain`), tenuto a 6 dp dai fianchi |
 | scrim del layer | entra in 110 ms, esce in 280 ms (`MenuFadeOutMillis`) |
 | movimento ridotto | `snapTo`: arriva senza viaggiare |
 
-**Il ritaglio delle voci dura quanto la goccia** (correzione dopo S9). `travelClipIn` ritaglia il contenuto sul rettangolo che
-sta dentro il vetro di adesso finché la goccia non si è posata, **qualunque sia il progresso**; si spegne solo all'arrivo con la
-goccia ferma, dove il corpo è grande quanto il contenuto o di più. Prima si spegneva all'1: la molla d'apertura supera l'1 a ~150 ms
-e ci resta fino a ~355 ms, mentre la goccia (la coda arriva dopo la molla) è ancora più stretta del pannello, e in quella finestra
-testo, glifi e capi dei separatori stavano sopra la pagina (il tablet l'ha visto a +243 ms: «Elimina» e il cestino sotto la goccia).
-Vale per tutti quelli che usano il ritaglio: il contestuale, il menu dal tasto, il menu che si trasforma, il pop-up ancorato.
-
-**La partenza è il tasto *premuto*,** non il tasto a riposo (`fluidPressedBounds`): la sagoma che il dito sta gonfiando; partire dal
-rettangolo a riposo voleva dire un primo fotogramma più piccolo del tasto che il dito stava ancora gonfiando, un sussulto all'indietro
-proprio dove l'occhio guarda. Mentre il viaggio corre la pressione si scioglie verso il riposo.
-
-**Un congedo a metà apertura torna indietro da dove si trova**, con la sua velocità (`retarget` la legge *prima* che la molla vecchia
-venga cancellata: un `Animatable` cancellato azzera la sua velocità). Prima della 3.0 un viaggio cancellato saltava al traguardo per un
-fotogramma, e il menu chiuso a metà apertura compariva come pannello pieno: oggi vale la regola «un viaggio che si cancella si ferma dove
-si trova» (`regole.md`).
-
-**KDoc fuori fase**: `FluidMenuJourney` dice che l'apertura è `FluidMotion.menuOpen`; il codice (`run`) usa `dropOpen`/`dropClose`.
-`menuOpen`/`menuClose` esistono ancora e sono i token della molla di serie di `FluidPhysicsJourney`.
+**Il ritaglio delle voci dura quanto la goccia.** `travelClipIn` ritaglia il contenuto sul rettangolo che sta dentro il vetro di
+adesso finché la goccia non si è posata, qualunque sia il progresso, e si spegne solo all'arrivo con la goccia ferma. La molla
+d'apertura supera l'1 verso 150 ms e ci resta fino a ≈355 ms mentre la goccia, che arriva dopo la molla, è ancora più stretta del
+pannello: un ritaglio che si spegnesse all'1 lascerebbe testo, glifi e capi dei separatori sopra la pagina. Vale per tutti quelli che
+ritagliano sulla goccia: il contestuale, il menu dal tasto, il menu che si trasforma, il pop-up ancorato.
 
 ### Il pannello (`FluidGlassMenuPanel`)
 
-UNO per tutti, con le voci, i separatori e **una** goccia. Il pannello non è il vetro: il vetro è la superficie di Fluid-physics che l'host fa
-viaggiare; qui c'è quello che sta sopra, in due fratelli — la goccia (che campiona la pagina con dentro il materiale del pannello:
-vetro su vetro) e la colonna delle voci.
+Uno per tutti, con le voci, i separatori e **una** goccia. Il pannello non è il vetro: il vetro è la superficie di Fluid-physics che
+l'host fa viaggiare; qui c'è quello che sta sopra, in due fratelli, la goccia (che campiona la pagina con dentro il materiale del
+pannello: vetro su vetro) e la colonna delle voci.
 
 | misura | valore |
 |---|---|
-| altezza di una riga | `max(48 dp, lineHeight + 24 dp)`: segue il font (al testo grande la riga cresce invece di tagliare) |
+| altezza di una riga | `max(48 dp, lineHeight + 24 dp)`: segue il font; con il sottotitolo 60 dp |
+| tessere della fila | `Small` alta quanto una riga, `Medium` 68 dp |
 | padding del pannello / banda di sezione | 6 dp / 8 dp |
-| larghezza | 252 dp, o quanto serve alla voce più lunga (etichetta + icona 22 dp + spunta 22 dp + 12 dp fra i segni + 16 dp per lato; 20 fino alla 3.x, `FluidMetrics.MenuIconSize`) fino a **340 dp**, mai oltre lo schermo meno 16 dp per lato; oltre, i puntini (3.0.1) |
+| larghezza | 252 dp, o quanto serve alla voce più lunga (etichetta + icona 22 dp + spunta 22 dp + 12 dp fra i segni + 16 dp per lato) fino a **340 dp**, mai oltre lo schermo meno 16 dp per lato; oltre, i puntini |
+| icona e spunta di una riga | `FluidIcon` da 22 dp, riga da 48 dp e testo da 17 sp |
 | distanza dall'ancora / margine | 12 dp / 16 dp |
 | raggio | `FluidRadius.Group` (22 dp) |
 | separatori | linea da 0,5 dp al 12% di `onSurface`, rientrata di 16 dp; fra due sezioni una **banda** (5% sul chiaro, 8% sullo scuro) |
-| materiale | `GlassDefaults.panelOptics(compact = true)` (lente 7/9 dp, non 14/18: una lente assoluta su un menu di due righe sarebbe un terzo del pannello e si vedrebbero due versioni dello stesso oggetto) + `panelTint` |
+| materiale | `GlassDefaults.panelOptics(compact = true)` + `panelTint` |
 
-I separatori sono **disegnati, non scatole**: una scatola da mezzo dp aggiungerebbe altezza che l'aritmetica delle celle non conta, e il
-dito sceglierebbe la riga sopra quella che vede. Le **celle** (la geometria del hit-test) sono solo le voci: padding, banda e separatori non sono
-mai sotto il dito; sono semiaperte (a un confine vince la riga sotto).
+I separatori sono **disegnati, non scatole**: una scatola da mezzo dp aggiungerebbe altezza che l'aritmetica delle celle non conta, e
+il dito sceglierebbe la riga sopra quella che vede. Le **celle** (la geometria del hit-test) sono solo le voci: padding, banda e
+separatori non sono mai sotto il dito; sono semiaperte (a un confine vince la riga sotto).
 
-**La goccia** è la ricetta di `glassDrop` coi numeri del pomello dello slider: bianca a riposo, lente 10/14 dp sotto il dito, capsula
-rientrata 4×2 dp dalla cella, ombra fissa 4 dp al 5%, ombra interna solo premuta, crescita 4% (`FluidMenuDropPressedScale`). **Nasce sotto
-il dito** e non ci scivola da un'altra voce, segue la voce attraversata, e al rilascio si posa **bianca** per un attimo (al più 140 ms) prima di
-andarsene: è la conferma della scelta. La voce sotto la goccia si fa avanti del 5% dal bordo d'attacco, e i due separatori accanto si spengono
-(la goccia è la voce, e una riga che la taglia la fa sembrare due). Ha tutte le sue trasformazioni — posto, scala del viaggio, schiacciamento — nel proprio
-`layerBlock`, mai dentro il layer delle voci: un vetro scalato da un antenato rifrange quello che non c'è più. Presenza: entra in 110 ms, esce in 160.
-Senza fondale (API < 31) non c'è goccia: restano la scala della voce e i separatori che si spengono.
+**La goccia della selezione** è la ricetta di `glassDrop` coi numeri del pomello dello slider: bianca a riposo, lente 10/14 dp sotto il
+dito, capsula rientrata 4×2 dp dalla cella, crescita 4%. **Nasce sotto il dito**, segue la voce attraversata (fra una tessera e una
+riga cambia misura scivolando), e al rilascio si posa bianca per un attimo (al più 140 ms) prima di andarsene: è la conferma della
+scelta. La voce sotto la goccia si fa avanti del 5% dal bordo d'attacco e i due separatori accanto si spengono. Ha tutte le sue
+trasformazioni nel proprio `layerBlock`, mai dentro il layer delle voci: un vetro scalato da un antenato rifrange quello che non c'è
+più. Senza fondale (API sotto la 31) non c'è goccia: restano la scala della voce e i separatori che si spengono.
 
 ### La selezione col dito (`FluidMenuSelection` e il relè)
 
-Interni, ma sono la regola 3.0: un proprietario del dito alla volta.
+Interni, ma sono la regola dei menu: un proprietario del dito alla volta.
 
 | chi ha il dito | come | cosa succede al rilascio |
 |---|---|---|
@@ -565,44 +616,42 @@ Interni, ma sono la regola 3.0: un proprietario del dito alla volta.
 | nessuno | | il menu resta com'è |
 
 Un rilascio **fuori dalle voci, nel padding, su un separatore o su una voce spenta** lascia il menu aperto. Un rilascio veloce, lontano
-dall'ultimo movimento, conta come mosso (si arma anche al sollevamento). Un puntatore che sparisce dall'evento senza un sollevamento è un
-annullo: il menu resta com'è e nessuno sceglie. Un secondo proprietario non scavalca né annulla il primo. Se il dito si muove prima che il
-pannello abbia scritto la sua geometria, l'ultimo `hover` resta in attesa e viene rigiocato quando la geometria arriva; un rilascio senza geometria
-lascia aperto.
+dall'ultimo movimento, conta come mosso. Un puntatore che sparisce dall'evento senza un sollevamento è un annullo. Un secondo
+proprietario non scavalca né annulla il primo. Se il dito si muove prima che il pannello abbia scritto la sua geometria, l'ultimo
+`hover` resta in attesa e viene rigiocato quando la geometria arriva. Il dito che tiene su una voce madre non apre il sottomenu senza
+staccare: si apre al rilascio o al tocco.
 
 **Il relè** (`Modifier.fluidMenuPointerRelay`, in testa all'ancora) esiste perché Compose sceglie i nodi di un puntatore *al down*: un
-pannello che compare a dito giù non vede mai quel dito, il percorso dell'ancora sì. Legge **ignorando il consumato** (un discendente che ha
-già preso il gesto — il pulsante, `clickable` — non deve privare il menu del dito), consuma i cambi di quel dito **già nel passaggio Initial**
-(i tasti tengono il dito ma leggono nel Main: senza un consumo già nell'Initial il tasto nascosto continuava a seguire il dito sul menu e a
-suonare la sua grana sotto i tick delle voci) e consuma anche il sollevamento che chiude l'hand-off, o `clickable` lo leggerebbe come
-un click sull'ancora.
+pannello che compare a dito giù non vede mai quel dito, il percorso dell'ancora sì. Legge **ignorando il consumato**, consuma i cambi di
+quel dito **già nel passaggio Initial** (o il tasto nascosto continuerebbe a seguire il dito sul menu e a suonare la sua grana) e consuma
+anche il sollevamento che chiude l'hand-off, o `clickable` lo leggerebbe come un click sull'ancora.
 
 ### L'aptica
 
-Un momento, un colpo: `Open` all'apertura (**uno solo, e solo se il menu si apre**: lo suona il gesto che apre, mai il layer), `Tick` per ogni
-voce **abilitata** attraversata (mai sul down di un tocco nel pannello, mai su una voce spenta, mai uscendo da tutte, mai restando sulla
-stessa), `Tap` alla scelta, **niente al congedo**. Sui tasti alla LibrePods resta il `PressDown` al contatto: è del tasto, non del menu.
-Prima una riga con menu suonava `GestureStart`, `Open` e il `LongPress` di piattaforma: tre colpi per un momento.
+Un momento, un colpo: `Open` all'apertura (**uno solo, e solo se il menu si apre**: lo suona il gesto che apre, mai il layer), `Tick`
+per ogni voce **abilitata** attraversata, `Tap` alla scelta (anche quella che apre un sottomenu o lascia il menu aperto), **niente al
+congedo**. Sui tasti resta il `PressDown` al contatto: è del tasto, non del menu.
 
 ### Accessibilità
 
-Ogni voce è un `clickable(role = Button)` per TalkBack e tastiera (dal dito il click non scatta mai: il pannello consuma il down prima, e la
-scelta la fa la selezione, **una volta sola**); la voce `selected` dice «selezionato»; la voce spenta lo dice. Il pannello è un
-`isTraversalGroup` con `paneTitle` = il tuo, o `LocalFluidLabels.current.actions` («Azioni»). Il fuoco entra nel layer (bersaglio da
-1 dp). Con il movimento ridotto il viaggio e la goccia sono `snapTo`.
+Ogni voce è un `clickable(role = Button)` per TalkBack e tastiera (dal dito il click non scatta mai: il pannello consuma il down prima,
+e la scelta la fa la selezione, una volta sola); la voce `selected` dice «selezionato», la voce spenta lo dice, una tessera della fila
+dice la sua etichetta. Il pannello è un `isTraversalGroup` con `paneTitle` = il tuo, o `LocalFluidLabels.current.actions` («Azioni»).
+Il **back** dentro un sottomenu torna al menu di prima, al primo livello congeda (col gesto predittivo). Con il movimento ridotto viaggio
+e goccia sono `snapTo` e la riga tenuta premuta non si gonfia.
 
 ### Costi
 
-A riposo niente: il host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali non compone voci
-chiuse, l'ancora del contestuale non registra nulla senza un dito. In viaggio: una superficie di Fluid-physics (contorno di 48 punti
-integrati a 1/240 s, un fotogramma più lungo di 1/30 s è uno stallo e non si integra) più la goccia; senza fondale la superficie è
-`FluidPhysicsTier.Lite`. Lo scrim dei menu dell'host dei modali è la superficie più grande del sistema: la sua forza è un alpha sul pannello
-finito, mai l'`intensity` del materiale (vedi [menu-modali.md](menu-modali.md)).
+A riposo niente: l'host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali non compone voci chiuse,
+l'ancora del contestuale non registra nulla senza un dito. In viaggio: una superficie di Fluid-physics (contorno di 48 punti integrati a
+1/240 s) più la goccia; col campo, sul solo layer delle voci, una sfocatura e la lente (una lettura della texture),
+finché il menu non è a fuoco. Lo scrim è la superficie più grande del sistema: la sua forza è un alpha sul pannello finito, mai
+l'`intensity` del materiale (vedi [menu-modali.md](menu-modali.md)).
 
 ## Token, costanti, Defaults
 
-Quasi tutto è interno: **non c'è un `object …Defaults`** per i menu. Le costanti che un'app può leggere sono i token di `FluidMotion` (se le
-legge si lega a numeri che cambiano: vedi la nota del KDoc di `FluidPhysicsDropTuning`, «solo per la galleria»).
+Quasi tutto è interno: **non c'è un `object …Defaults`** per i menu. Le costanti che un'app può leggere sono i token di `FluidMotion`
+(chi le legge si lega a numeri che cambiano).
 
 | token | valore |
 |---|---|
@@ -612,72 +661,80 @@ legge si lega a numeri che cambiano: vedi la nota del KDoc di `FluidPhysicsDropT
 | `FluidMotion.DropInflationGain`, `DropPeakOvershoot` | 0,55, 0,0384 |
 | `FluidMotion.MenuFaceTo`, `MenuFadeOutMillis` | 0,35, 280 ms |
 | `FluidMotion.DropPoints`, `DropStiffnessNear/Far`, `DropDamping`, `DropEdgeTensionDefault` | 48, 1500 / 320, 0,72, 0,2 (la goccia della sagoma: di Fluid-physics) |
-| `FluidMotion.LiftedSwellX` / `LiftedSwellY` | 0,25 / 0,6 (il gonfiore della riga sollevata all'oltrepasso) |
-| `FluidMotion.MenuOpenDamping`, `MenuOpenStiffness`, `menuOpen()`, `menuClose()` | 0,62, risposta 0,36 s: **non** la molla dei menu di oggi (vedi sopra) |
+| `FluidMotion.LiftedSwellX` / `LiftedSwellY` | 0,25 / 0,6 (il gonfiore della card sollevata all'oltrepasso) |
+| `FluidMotion.MenuOpenDamping`, `MenuOpenStiffness`, `menuOpen()`, `menuClose()` | 0,62, risposta 0,36 s: **non** la molla dei menu (sono i token di serie di `FluidPhysicsJourney`) |
 | `FluidMotion.MenuContentOpenFrom/To`, `MenuContentCloseFrom/To` | `@Deprecated`: usa i `LiquidContent…` |
 
-## Cosa è verificato dai test
+I numeri del viaggio in tre tempi (raccolta, risalita, espansione, lente, punto di luce, ritorno rapido) sono interni a `FluidMotion`
+(«I menu Liquid»): si tarano guardando le tavole contro Apple, non dalle app.
+
+## Cosa è verificato
 
 Puri, in `engine-ui` (JVM):
 
-- `FluidMenuSelectionTest`: il dito che decide, lo slop, l'armo che resta, la voce spenta, il rilascio che lascia aperto, l'hover che arriva prima della
-  geometria, un proprietario alla volta.
-- `FluidMenuGeometryTest`: il hit-test (padding e separatore non sono celle, i confini vanno alla riga sotto), il centro della goccia fra le celle.
-- `FluidMenuRelayTest`: il consumo già nell'Initial, il click lungo che scatta durante un evento, il sollevamento consumato, il puntatore che sparisce = annullo.
-- `FluidMenuPanelTest`, `FluidMenuPanelWidthTest`: la riga da 48 dp che segue il font, le sezioni, il pannello sopra/sotto/sull'ancora/accanto, il seme, la larghezza
-  (252 → 340, mai oltre lo schermo).
-- `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, **l'inversione a 100 ms**, riaprire mentre si chiude.
+- `FluidMenuSelectionTest`: il dito che decide, lo slop, l'armo che resta, la voce spenta, il rilascio che lascia aperto, l'hover che
+  arriva prima della geometria, un proprietario alla volta.
+- `FluidMenuGeometryTest`: il hit-test (padding e separatore non sono celle, i confini vanno alla riga sotto), il centro della goccia.
+- `FluidMenuRelayTest`: il consumo già nell'Initial, il click lungo che scatta durante un evento, il sollevamento consumato, il puntatore
+  che sparisce = annullo.
+- `FluidMenuPanelTest`, `FluidMenuPanelWidthTest`: la riga che segue il font, le sezioni, il pannello sopra/sotto/sull'ancora/accanto,
+  il seme, la larghezza (252 → 340, mai oltre lo schermo) con l'icona da 22 dp.
+- `FluidMenuJourneyTest` (orologio finto): l'apertura oltrepassa e si posa, la partenza dal tasto premuto, il gonfiore, l'inversione a
+  100 ms, riaprire mentre si chiude; i tre tempi (raccolta, risalita verso il centro, espansione), la messa a fuoco delle voci.
 - `FluidMenuMotionTest`: le finestre di opacità e il loro verso, la mappa del contenuto, il gonfiore, i token.
-- `FluidMenuStructureTest` (F5A.3): un menu di sempre ha le stesse celle al bit (quote, bande, altezza, hit-test); `Priority`
-  capovolge sezioni e voci solo verso l'alto e `Automatic` mai; la fila `Small`/`Medium` (capienza, banda, colonne, celle del dito,
-  in fondo quando capovolta); la goccia che cambia misura fra tessera e riga; la riga col sottotitolo; il sottomenu (intestazione,
-  un livello, capovolto) e il suo pannello dallo stesso bordo; le curve del cambio di livello; `FluidMenuActions` come lista, la
-  copia della lista fissa, il contenuto vivo; la larghezza di un livello.
-- `GlassCompatSignaturesTest` (F5A.3): la `FluidContextAction` a sette argomenti per posizione e per nome, le forme nuove con la
-  lambda in coda, `copy`, `component7`/`component10`, `equals`.
-- `FluidContextLiftTest` (F5A.4): al click lungo la card è la riga gonfiata (sagoma e scala dell'immagine), alla fine del ritorno è la riga
-  a riposo, l'oltrepasso, l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra
-  compreso), lo scambio, i tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura).
-- `F5a4ContextExportTest` (F5A.4): le tracce del contestuale per il banco del movimento (tre livelli, chiaro e scuro, apertura e ritorno),
-  con gli stessi fatti sulla sagoma della card e lo scrim che sale e scende senza salti; dopo S9 anche **le voci dentro il vetro in
-  ogni fotogramma** (testo, glifo, separatori e bande, portati dalla mappa e ritagliati, misurati sull'anello della goccia: entro
-  mezzo pixel), e la stessa misura col ritaglio di prima, che dice di quanto uscivano.
-- `DropPlanTest` (`aDropStillSettlingAfterArrivalKeepsItsContentInsideTheGlass`): con la molla vera del menu, nei fotogrammi oltre
-  l'1 a goccia non posata il ritaglio c'è e il suo contorno, angoli compresi, sta dentro la goccia; posata, niente ritaglio.
-- `FluidContextLiftTest`: la manopola `ctxscrim` (i tre livelli, un valore sconosciuto e nessuna manopola tornano a B).
+- `FluidMenuStructureTest`: un menu di sempre ha le stesse celle al bit; `Priority` capovolge solo verso l'alto e `Automatic` mai; la
+  fila `Small`/`Medium`; la goccia che cambia misura fra tessera e riga; la riga col sottotitolo; il sottomenu e il suo pannello dallo
+  stesso bordo; le curve del cambio di livello; `FluidMenuActions` come lista e il contenuto vivo.
+- `GlassCompatSignaturesTest`: la `FluidContextAction` a sette argomenti per posizione e per nome, le forme nuove con la lambda in coda,
+  `copy`, `component7`/`component10`, `equals`.
+- `FluidContextLiftTest`: al click lungo la card è la riga gonfiata, alla fine del ritorno è la riga a riposo, l'oltrepasso,
+  l'anteprima centrata e dentro i margini, il tetto della sua taglia, i raggi di ogni forma (destra-sinistra compreso), lo scambio, i
+  tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura), la manopola `ctxscrim`.
+- `DropPlanTest`: con la molla vera del menu, nei fotogrammi oltre l'1 a goccia non posata il ritaglio c'è e sta dentro la goccia.
 
 Nel `sample` (Robolectric, aptica registrata):
 
-- `FluidMenuHandOffTest`: tieni-trascina-rilascia dà `Open` `Tick` `Tap` e nessuna grana; rilascio fermo, fuori dalle voci o su una voce spenta lascia aperto;
-  una riga in `LazyColumn` resta ferma; `fluidContextMenu`; il back a metà apertura chiude in silenzio; l'azione della barra.
-- `FluidMorphMenuBackOrderTest`: con l'host alla radice e le pagine di un `FluidNavHost`, il back chiude prima il menu, poi la sottopagina
-  di un `FluidPageHost` annidato, poi la pagina; e passa davanti al `BackHandler` di una pagina (che gira solo al back dopo).
-- `FluidMenuStructureBehaviourTest` (F5A.3): la voce coi figli apre il sottomenu senza chiudere e senza chiamare la madre (`Open`
-  `Tap`), il figlio sceglie e chiude; l'intestazione e il back tornano indietro, il secondo back congeda; la voce `keepsMenuOpen`
-  fa la sua azione, il menu resta e la spunta si aggiorna; `Priority` capovolge il menu di un tasto in basso e sceglie la voce che si
-  vede, `Automatic` no; la fila `Small` affianca i simboli senza etichetta e li sceglie.
-- `FluidApiAdditionsTest`: `selected` è «selezionato» per TalkBack (e le altre no), `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
+- `FluidMenuHandOffTest`: tieni-trascina-rilascia dà `Open` `Tick` `Tap` e nessuna grana; rilascio fermo, fuori dalle voci o su una voce
+  spenta lascia aperto; una riga in `LazyColumn` resta ferma; `fluidContextMenu`; il back a metà apertura chiude in silenzio; l'azione
+  della barra.
+- `FluidMorphMenuBackOrderTest`: il back chiude prima il menu, poi la sottopagina di un `FluidPageHost` annidato, poi la pagina.
+- `FluidMenuStructureBehaviourTest`: il sottomenu che si apre senza chiudere, il figlio che sceglie e chiude, l'intestazione e il back
+  che tornano indietro, `keepsMenuOpen` con la spunta che si aggiorna, `Priority` su un tasto in basso, la fila `Small`.
+- `FluidTransitionSourceTest`: la capsula del gruppo come sorgente, il gruppo che si consuma e ritorna, la scelta di una voce.
+- `FluidApiAdditionsTest`: `selected` per TalkBack, `opensOnTap` apre, una voce lunga si legge intera, il tasto prende lo stato dal
   fornitore. `FluidButtonDragTest`: il tocco sul tasto che si trasforma fa i tre colpi di un tasto e non apre.
 
-**Non è provato**: il vetro e la goccia sul vetro (gli host dei test non hanno fondale), il cambio di proprietario fra tasto e finestra, nessun fotogramma;
-`FluidBarAction(opensOn = Tap)` ha solo la demo. Il KDoc delle schede vecchie (`regole.md`) dice «`opensOn` e `opensOnTap` hanno solo la demo»: `opensOnTap` è provato da
-`FluidApiAdditionsTest`.
+Sul banco del movimento (`tools/glassbench/traces/`, scritte dal codice dei test `F5a*`):
+
+- `f5a-5/`: le prove di chiusura della fase, accoppiate ad Apple sul `t0` di R4 (`F5a5MenuTraceTest`): `menu-apertura`,
+  `menu-apertura-gruppo`, `menu-chiusura`, `menu-chiusura-gruppo`, `menu-interrotto` (il congedo a 133 ms), `contestuale-apre`.
+- `f5a-2/scelta-*`: le scelte di Alessio sul viaggio (tasto, gruppo, chiusura, interruzione, punto di luce).
+- `f5a-3/`: il sottomenu che si apre e torna, `Priority` e `Fixed` verso l'alto.
+- `f5a-4/`: il contestuale coi tre livelli dello sfondo, chiaro e scuro, apertura e ritorno, con l'inchiostro misurato dentro il vetro.
+
+**Non è provato** al PC: il vetro e la goccia sul vetro dentro i test Robolectric (gli host dei test non hanno fondale), il cambio di
+proprietario fra tasto e finestra, il menu dal vero a 120 Hz, il costo della lente sul layer delle voci: sono del tablet.
 
 ## Dove guardare
 
 | file (`engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/…`) | cosa c'è dentro |
 |---|---|
-| `fluid/FluidMenu.kt` | `FluidMenuOpensOn`; il modello puro della selezione: `FluidMenuSelection`, `FluidMenuHandOff`, il relè (`FluidMenuRelayTracker`); la struttura (4.0): `FluidMenuOrder`, `FluidMenuElementSize`, `FluidMenuActions`, le celle (`fluidMenuEntries`, `fluidMenuSubmenuEntries`, `FluidMenuStructure`), il pannello del sottomenu, le curve del cambio di livello |
-| `fluid/FluidMenuJourney.kt` | le funzioni pure del viaggio (finestre di opacità, mappa del contenuto, gonfiore, posto del pannello, seme, goccia del contestuale), `FluidMenuAnchor`, `FluidMenuJourney` |
-| `fluid/FluidMenuLayer.kt` | il layer dell'host per i menu `Expand` e contestuale (`FluidMenuLayer`), i livelli del sottomenu (`FluidMenuLevels`), e per l'avviso |
+| `fluid/FluidMenu.kt` | `FluidMenuOpensOn`; la selezione (`FluidMenuSelection`, `FluidMenuHandOff`, il relè); la struttura: `FluidMenuOrder`, `FluidMenuElementSize`, `FluidMenuActions`, le celle (`fluidMenuEntries`, `fluidMenuSubmenuEntries`, `FluidMenuStructure`), il pannello del sottomenu, le curve del cambio di livello |
+| `fluid/FluidMenuJourney.kt` | il viaggio (`FluidMenuJourney`, `FluidMenuAnchor`), i tre tempi (`fluidMenuButtonTravel`, `fluidMenuJourneySeed`), le voci nella lente (`fluidMenuLensMap`, `fluidMenuLensAlpha`, `fluidMenuLensBlurDp`), il punto di luce (`LocalFluidMenuPointOfLight`), le finestre di opacità, il posto del pannello |
+| `fluid/FluidMenuLayer.kt` | il layer dell'host per i menu dal tasto e contestuale (`FluidMenuLayer`), i livelli del sottomenu (`FluidMenuLevels`), e l'avviso |
 | `fluid/FluidGlassMenuPanel.kt` | il pannello, le voci (righe, tessere della fila, intestazione del sottomenu), i separatori, la goccia, l'area dei gesti |
+| `glass/field/GlassContentLensShader.kt` | la lente delle voci |
 | `fluid/FluidGlassModalPortal.kt` | `FluidContextAction`, `FluidGlassModalPresentation` |
-| `fluid/FluidContextMenu.kt` | `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu` |
-| `fluid/FluidLiftedPreview.kt` | la riga sollevata (`FluidLiftedPreview`) |
+| `fluid/FluidContextMenu.kt` | `FluidContextMenuController`, `rememberFluidContextMenu`, `fluidContextMenuAnchor`, `fluidContextMenu`; il sollevamento e la sua geometria |
+| `fluid/FluidLiftedPreview.kt` | la card sollevata e l'anteprima personalizzata |
+| `fluid/FluidGlassModalScrim.kt` | lo scrim e i livelli dello sfondo del contestuale |
 | `fluid/FluidScreen.kt` | `FluidBarAction(actions, opensOn)` |
+| `fluid/toolbar/FluidToolbar.kt` | `action(menu = …)` e il gruppo che diventa il menu |
 | `fluid/FluidGlassMenuButton.kt` | il tasto deprecato |
 | `fluidphysics/FluidMorphMenu.kt` | `FluidMorphMenuState`, `FluidMorphMenuButton`, `FluidMorphMenuHost`, `LocalFluidMorphMenuState` |
-| `fluid/FluidMotion.kt` | i token (sezioni «Menus (3.0)» e «La goccia») |
+| `fluid/FluidMotion.kt` | i token (sezioni «Menus (3.0)», «La goccia», «I menu Liquid») |
 
-Sample: `catalog/MenusDemo.kt` (i quattro ingressi e l'avviso, con un palco per il tasto che si trasforma), raggiungibile dalla galleria in Chrome ›
-Catalogo della 3.0 › «Menù liquidi».
+**Galleria**: `sample/…/catalog/MenusDemo.kt`, pagina «Menù liquidi» (Chrome › Catalogo della 3.0), in quattro capitoli: il menu dal
+tasto e dal gruppo (il tasto che si trasforma col punto di luce, le azioni della barra, il gruppo di una barra dichiarata sulla foto);
+la struttura (la riga «Cartella Progetti», il palco «Priority e Fixed»); il contestuale (le righe, la tessera con la foto e la sua
+anteprima, il tondo, la card); nelle build di debug la riga dello sfondo del contestuale. In fondo l'avviso.

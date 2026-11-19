@@ -300,12 +300,29 @@ object FluidMotion {
   internal const val MenuButtonBubble = 0.52f
   internal const val MenuButtonPanel = 0.82f
   internal const val MenuButtonRoundnessEnd = 0.94f
-  internal const val MenuButtonInflationX = 1.20f
   internal const val MenuButtonLensMagnification = 1.42f
   internal const val MenuButtonLensInkPivot = 0.32f
   internal const val MenuLiquidCloseStiffness = 900f
   internal const val MenuContentFocusMillis = 270
   internal const val MenuContentExitMillis = 185
+  internal const val MenuReturnMillis = 233
+  internal const val MenuReturnFocusMillis = 100
+  internal const val MenuReturnInkMillis = 90
+  // R4 B1 (a), alta: prima cede il bordo lontano, poi si raccoglie la bolla sul tasto.
+  internal const val MenuReturnHold = 67f / MenuReturnMillis
+  internal const val MenuReturnBubble = 150f / MenuReturnMillis
+  internal const val MenuReturnFarEdge = 0.12f
+  internal const val MenuReturnNearEdge = 0.02f
+  internal const val MenuReturnWidthHold = 0.10f
+  internal const val MenuReturnBubbleSize = 1.45f
+  internal const val MenuReturnBubbleLift = 0.22f
+  // R4 B1 (a), alta: un solo superamento, più evidente sul lato verticale lontano.
+  internal const val MenuOvershootStartMillis = 92
+  internal const val MenuOvershootPeakMillis = 125
+  internal const val MenuOvershootWidthEndMillis = 183
+  internal const val MenuOvershootEndMillis = 208
+  internal const val MenuOvershootWidth = 0.034f
+  internal const val MenuOvershootFarEdge = 0.06f
   internal const val MenuContentInkFull = 0.72f
   internal const val MenuContentFieldFade = 0.38f
   internal const val MenuContentFieldEnd = 0.85f

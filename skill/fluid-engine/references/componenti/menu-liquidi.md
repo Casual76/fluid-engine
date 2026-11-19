@@ -190,9 +190,8 @@ FluidBarAction(
 | **sottomenu** | la voce coi `children` ha il gallone; scelta (col dito, anche quello che ha aperto, o con TalkBack) fa `Tap` e il menu **diventa** il sottomenu: in cima la voce madre in grassetto col gallone girato in giù, sotto i figli con le loro sezioni. Il vetro cambia forma restando dov'era (stesso centro orizzontale, stesso bordo da cui il menu era cresciuto) con la molla d'andata del menu (0,72 / 500); le voci di prima se ne vanno sfocandosi e quelle nuove arrivano sfocate e si mettono a fuoco nel tempo di un cambio di contenuto (T = 300 ms: due strati che si incrociano a ≈0,47 T con l'opacità complessiva ≈0,7, chi esce sparito a 0,66 T, chi entra nitido a T e pieno a 1,15 T): il vetro non resta mai vuoto. Sotto API 31, senza sfocatura, i due strati si passano il posto senza sovrapporsi. L'intestazione, o il **back**, torna indietro allo stesso modo; il secondo back congeda. Uno scrim toccato congeda tutto, e un congedo dentro il sottomenu riporta a casa la sagoma del sottomenu |
 | **chiusura** | `keepsMenuOpen`: `Tap`, `onClick`, il menu resta; la goccia si posa e se ne va come dopo ogni rilascio |
 
-**Dove vale.** Nei menu dell'host dei modali: l'azione della barra, l'azione della barra dichiarata, il contestuale. Il menu di
-`FluidMorphMenuHost` legge `FluidMenuActions` come una lista e basta: una riga per voce, niente fila, sottomenu né capovolgimento (la
-scelta di una voce madre chiama il suo `onClick`).
+**Dove vale.** Nei menu dell'host dei modali (azione della barra e contestuale) e in `FluidMorphMenuHost`.
+La stessa dichiarazione porta la fila, l'ordine e il sottomenu anche al tasto che si trasforma.
 
 **Non così**: un sottomenu dentro un sottomenu (Apple ne vuole uno: oltre, un menu a parte o un foglio); la fila per voci senza
 simbolo (si vedrebbe l'etichetta stretta nella tessera); `keepsMenuOpen` su una `listOf(…)` fotografata, se la voce deve cambiare
@@ -221,11 +220,12 @@ ms dal primo fotogramma: inchiostro pieno verso ≈195 ms, la piega si spegne fr
 più a lungo), nitide a 270 ms. Le voci sono ritagliate sulla sagoma del vetro finché la goccia non si è posata. Il layout, le celle e
 la scelta col dito usano sempre i riquadri del pannello a riposo: il dito che ha aperto può scegliere durante il viaggio.
 
-**I tempi** (banco del movimento, tracce `tools/glassbench/traces/f5a-2/scelta-*` e `f5a-5/`, 60 Hz): dal tasto la sagoma è a
-riposo a vista verso 367 ms, dal gruppo verso 350 ms (Apple, B1: 330–370 ms sul telefono); il superamento della larghezza è del 5–6%
-verso 233 ms. La **chiusura** usa la molla rapida scelta da Alessio (rigidezza 900, smorzamento 0,72): la sagoma rientra entro l'1%
-in circa 233 ms dal tasto e 217 ms dal gruppo, le voci se ne vanno in 185 ms. Il confronto fase per fase con Apple, con quello che
-ancora manca, è nel rapporto di F5A.5 (`sessioni/f5a-5/`).
+**I tempi.** Il superamento raggiunge il picco attorno a 158 ms. Il bordo verticale lontano dal tasto
+si sposta fino al 6% dell'altezza e la larghezza cresce fino al 3,4% nei margini disponibili.
+Al congedo da fermo il bordo lontano cede nei primi 67 ms. Poi il corpo si raccoglie in una bolla
+sulla colonna del tasto e si posa in circa 233 ms. La sfocatura delle voci ha una curva di 100 ms,
+l'inchiostro si spegne in 90 ms. Le icone del gruppo tornano durante la posa della bolla.
+Le tracce del banco sono in `tools/glassbench/traces/f5a-corr/`.
 
 **Un congedo a metà apertura torna indietro da dove si trova**, con la sua velocità (`retarget` la legge *prima* che la molla vecchia
 venga cancellata: un `Animatable` cancellato azzera la sua velocità), e la goccia continua dal contorno che sta già seguendo. Le
@@ -517,9 +517,10 @@ Box(
   pannelli (22 dp).
 - **Il menu nasce da una goccia** di 28 dp appesa al bordo della card che guarda il pannello, sotto il dito (o al centro), che entra
   nella card di 4 dp; il punto d'origine è fermato all'apertura. Il pannello sta **accanto, mai sopra** (`BesideAnchor`): sotto la card
-  se ci sta o se sotto c'è più spazio, altrimenti sopra, a 12 dp, centrato e dentro i margini. Le voci arrivano fra il 40% e il 75% del
-  viaggio, ritagliate dentro il vetro finché la goccia non si è posata, e il ritorno usa la molla lenta (≈0,5 s): il contestuale non ha
-  il viaggio in tre tempi né la lente, che sono del menu che nasce da un tasto.
+  se ci sta o se sotto c'è più spazio, altrimenti sopra, a 12 dp, centrato e dentro i margini. Con il campo Liquid, il seme si
+  raccoglie sul bordo dell'elemento, si sposta verso il centro del menu e si apre. Le voci sono dentro la prima goccia visibile,
+  piccole e sfocate, e si mettono a fuoco come quelle del gruppo. Al ritorno il materiale dell'anteprima cede il bordo all'elemento
+  registrato durante lo scambio dei contenuti.
 - **Il colore** di chi ha alzato il menu (`tint`, che `FluidVividCard` passa da sola) va sulla card sollevata, **non** sul pannello: il
   menu è chrome, e la chrome non prende il colore di ciò che l'ha chiamata.
 - `open()` ritorna `false` senza host, con un menu già aperto o con zero voci: chi chiama suona `Open` **solo se ritorna vero**
@@ -550,20 +551,20 @@ azioni della barra con `FluidBarAction(actions)` **non passano di qui** e non ca
 
 Un progresso geometrico per i due versi (0 = l'ancora, 1 = il pannello, può superare 1) che guida la finestra di Fluid-physics con
 `driveExternally`. Col campo del vetro il menu dal tasto segue un contorno che ha curve distinte per larghezza, altezza, centro e
-raggio (`fluidMenuButtonTravel`; dal gruppo `fluidMenuJourneySeed`, che parte dalla capsula raccolta); il contestuale e il viaggio
-senza campo interpolano fra il seme e il pannello.
+raggio (`fluidMenuButtonTravel`; dal gruppo `fluidMenuJourneySeed`, che parte dalla capsula raccolta). Il
+contestuale Liquid fa partire lo stesso contorno dal seme sotto il dito. Il viaggio senza campo interpola fra seme e pannello.
 
 | cosa | valore |
 |---|---|
 | andata | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 |
-| ritorno col campo (menu dal tasto e dal gruppo) | smorzamento 0,72, rigidezza 900: ≈233 ms di sagoma |
-| ritorno senza campo, e del contestuale | `FluidMotion.dropClose()`: smorzamento 0,72, rigidezza 158, ≈0,5 s |
+| ritorno col campo da fermo | `fluidMenuReturnSlab`: bordo lontano, bolla sulla sorgente, posa in 233 ms |
+| ritorno senza campo | `FluidMotion.dropClose()`, smorzamento 0,72, rigidezza 158, ≈0,5 s |
 | raccolta del gruppo | al 60% della larghezza (`MenuGroupGatherWidth`) |
-| voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, uscita in 185 ms; ingrandimento dal tasto fino a 1,42× |
+| voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, curva di sfocatura d'uscita in 100 ms e inchiostro a zero in 90 ms, ingrandimento dal tasto fino a 1,42× |
 | voci senza lente | fra 0,4 e 0,75 del viaggio (`LiquidContentOpenFrom/To`), all'uscita fra 0,94 e 0,62; scala `0,86 + 0,14·opacità` |
 | la faccia del tasto | piena alla partenza, spenta entro 0,35 (`MenuFaceTo`) |
 | il materiale | dal tasto al pannello con uno smoothstep fino al 60%: niente scalino di luminosità quando il viaggio si posa |
-| oltrepasso | gonfiore attorno al centro del pannello, 0,55 per unità (`DropInflationGain`), tenuto a 6 dp dai fianchi |
+| oltrepasso Liquid | accento al bordo verticale lontano, larghezza limitata a 6 dp dai fianchi |
 | scrim del layer | entra in 110 ms, esce in 280 ms (`MenuFadeOutMillis`) |
 | movimento ridotto | `snapTo`: arriva senza viaggiare |
 

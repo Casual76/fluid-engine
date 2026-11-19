@@ -118,7 +118,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdropState?) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val liquidMenu = backdrop != null && entry.presentation == FluidGlassModalPresentation.Expand && fluidMenuUsesField()
+  val liquidMenu = backdrop != null && fluidMenuUsesField()
   val journey = remember { FluidMenuJourney() }
   val fade = remember { Animatable(0f, 0.001f) }
   val physics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
@@ -309,7 +309,7 @@ private fun FluidMenuLayerContent(
     panelTint.copy(overlay = panelTint.overlay.compositeOver(scrimLook.color(dark)))
   }
   val progress: () -> Float = { journey.progress.value }
-  val liquidMenu = withLens && anchor != null
+  val liquidMenu = withLens
   val pointOfLight = LocalFluidMenuPointOfLight.current
 
   Box(
@@ -487,8 +487,8 @@ private fun FluidMenuLayerContent(
       val windowAmount: () -> Float = if (anchor != null) ({ 1f }) else ({ fade() * fluidMenuDropPresence(progress()) })
       // F2.3b: il menu possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono.
       val menuInk = rememberGlassInk()
-      Box(
-        modifier = Modifier
+      FluidMenuReturnSurface(journey.controlledReturn) {
+        Modifier
           .fillMaxSize()
           .drawWithContent { if (windowAmount() > 0.004f) drawContent() }
           .fluidPhysicsSurfaceInked(
@@ -510,8 +510,8 @@ private fun FluidMenuLayerContent(
           )
           .then(if (liquidMenu && pointOfLight && android.os.Build.VERSION.SDK_INT >= 33) {
             Modifier.glassMenuPointOfLight(journey, physics)
-          } else Modifier),
-      )
+          } else Modifier)
+      }
 
       if (anchor != null && anchor.groupBounds == null) {
         val rest = anchor.restBounds
@@ -523,7 +523,7 @@ private fun FluidMenuLayerContent(
               height = with(density) { rest.height.toDp() },
             )
             .graphicsLayer {
-              alpha = fluidMenuFaceAlpha(progress()) * fluidMenuAnchorInkAlpha(anchor)
+              alpha = fluidMenuFaceAlpha(journey.faceProgress) * fluidMenuAnchorInkAlpha(anchor)
               val map = fluidMenuContentMap(target = rest, current = physics.contentBoundsNow())
               translationX = map.translation.x
               translationY = map.translation.y
@@ -544,7 +544,7 @@ private fun FluidMenuLayerContent(
       val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
       // L'opacita' del contenuto prima del cambio di livello: il viaggio (o la lente) e l'inchiostro.
       val baseAlpha: () -> Float = {
-        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value else
+        val alpha = if (lens != null) fluidMenuLensAlpha(journey.focus.value) * journey.contentVisibility.value * windowAmount() else
           fluidMenuContentAlpha(progress(), journey.closing)
         alpha * (menuInk.state?.inkAlpha() ?: 1f)
       }
@@ -963,7 +963,7 @@ private fun FluidAlertLayerContent(
   }
   val current by androidx.compose.runtime.rememberUpdatedState(spec)
   val progress = { sourceJourney?.clock?.value ?: geometry() }
-  val materialAlpha: () -> Float = { sourceJourney?.bodyAlpha(progress()) ?: fade() }
+  val materialAlpha: () -> Float = { sourceJourney?.bodyAlpha(progress(), physics) ?: fade() }
 
   val pick: (Int) -> Unit = remember(entry, haptics) {
     { index ->
@@ -1015,8 +1015,8 @@ private fun FluidAlertLayerContent(
     if (!inline) {
       FluidPresentationScrim(entry, backdrop, scrimGlass, fade, plain = sourceJourney != null)
     }
-    Box(
-      modifier = Modifier
+    FluidMenuReturnSurface(sourceJourney?.controlledReturn == true) {
+      Modifier
         .fillMaxSize()
         .drawWithContent { if (materialAlpha() > 0.004f) drawContent() }
         .fluidPhysicsSurfaceInked(
@@ -1029,8 +1029,8 @@ private fun FluidAlertLayerContent(
           tier = if (backdrop == null) FluidPhysicsTier.Lite else null,
           intensity = materialAlpha,
           exports = if (backdrop != null) alertGlass else null,
-        ),
-    )
+        )
+    }
     sourceJourney?.SourceFace(physics, progress)
 
     Layout(

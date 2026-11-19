@@ -23,7 +23,7 @@ import org.junit.Test
  * Niente si scrive senza `GLASS_TRACE_DIR`.
  */
 internal object F5a5MenuTraces {
-  const val Phase = "f5a-5"
+  const val Phase = "f5a-corr"
 
   /** Il fotogramma di Apple che vale t = 0, dalle tabelle di R4 (B1). */
   const val AppleOpenT0 = 9148
@@ -140,12 +140,12 @@ internal object F5a5MenuTraces {
 
   private fun menu(variant: MenuTraceVariant, name: String) = buildMenuTrace(
     OggiMenuApertura.scene(density = 1.5f), dress = TraceDress.Liquid, name = name,
-    phase = Phase, unified = true, variant = variant,
+    phase = Phase, unified = true, variant = variant.copy(corrected = true),
   )
 
   /** Le sei tracce, con i fatti che il test controlla. */
   fun build(): List<Pair<GlassTrace, MenuBuilt?>> {
-    val source = "F5A.5, chiusura di F5A: il menu di oggi (le scelte di F5A.2, la struttura di F5A.3), numeri dalle funzioni " +
+    val source = "F5A correzione: il menu Liquid dopo il giro di correzione, numeri dalle funzioni " +
       "dell'engine, orologio e assemblaggio ricostruiti nel test (OggiMenuApertura.kt). Senza bordo, ombra di oggi, banda fra " +
       "le sezioni e scrim della pagina."
     val opening = menu(MenuTraceVariant(pointOfLight = true), "menu-apertura")
@@ -153,7 +153,10 @@ internal object F5a5MenuTraces {
     val closing = menu(MenuTraceVariant(closingAtMs = 700, alignToClose = true), "menu-chiusura")
     val closingGroup = menu(MenuTraceVariant(grouped = true, closingAtMs = 700, alignToClose = true), "menu-chiusura-gruppo")
     val interrupted = menu(MenuTraceVariant(closingAtMs = InterruptMs, pointOfLight = true), "menu-interrotto")
-    val context = F5a4ContextTraces.build(FluidContextScrimLevel.B, dark = false).opens
+    val contextScenes = FluidContextScrimLevel.entries.associateWith {
+      F5a4ContextTraces.build(it, dark = false, corrected = true)
+    }
+    val context = contextScenes.getValue(FluidContextScrimLevel.B).opens
 
     @Suppress("UNCHECKED_CAST")
     val openEvents = opening.trace.head["events"] as List<Map<String, Any?>>
@@ -198,7 +201,7 @@ internal object F5a5MenuTraces {
       ) to interrupted,
       retitled(
         context, "contestuale-apre",
-        "F5A.5: il menu contestuale di una riga col livello di sfondo di serie (B), dal codice di F5A.4 e della correzione dopo S9 " +
+        "F5A correzione: il menu contestuale di una riga col livello di sfondo di serie (B) e l'inchiostro nella lente, " +
           "(F5a4ContextTraces.kt). Senza luce del dito ne' banda fra le sezioni.",
         listOf(
           linkedMapOf(
@@ -211,7 +214,13 @@ internal object F5a5MenuTraces {
           ),
         ),
       ) to null,
-    )
+    ) + contextScenes.map { (level, built) ->
+      retitled(
+        built.closes, "contestuale-chiude-${level.name.lowercase()}",
+        "F5A correzione: nel ritorno della riga il materiale cede il bordo alla registrazione.",
+        listOf(PhoneClose + ("note" to "Menu dal tasto di R4 B1 (a), riferimento affine per l'inchiostro.")),
+      ) to null
+    }
   }
 }
 
@@ -220,7 +229,8 @@ class F5a5MenuTraceTest {
   fun theMotionProofsOfF5aCarryAppleAlignedOnR4AndWriteWhenAsked() {
     val traces = F5a5MenuTraces.build()
     assertEquals(
-      listOf("menu-apertura", "menu-apertura-gruppo", "menu-chiusura", "menu-chiusura-gruppo", "menu-interrotto", "contestuale-apre"),
+      listOf("menu-apertura", "menu-apertura-gruppo", "menu-chiusura", "menu-chiusura-gruppo", "menu-interrotto", "contestuale-apre",
+        "contestuale-chiude-a", "contestuale-chiude-b", "contestuale-chiude-c"),
       traces.map { it.first.name },
     )
     for ((trace, built) in traces) {
@@ -242,6 +252,23 @@ class F5a5MenuTraceTest {
       val first = requireNotNull(byName[name]).frames.first { it.tMs >= 0.0 }.elements.first { it["name"] == "menu" }
       val content = (first["content"] as List<*>).filterIsInstance<Map<*, *>>()
       assertTrue("$name: inchiostro e lente al primo fotogramma", content.any { it["name"] == "voci" && it["effect"] != null && (it["alpha"] as Float) > 0f })
+    }
+    val contextMenu = requireNotNull(byName["contestuale-apre"]).frames
+      .firstNotNullOf { frame -> frame.elements.firstOrNull { it["name"] == "menu" } }
+    assertTrue((contextMenu["content"] as List<*>).filterIsInstance<Map<*, *>>().any {
+      it["name"] == "voci" && it["effect"] != null && (it["alpha"] as Float) > 0f
+    })
+    for (name in listOf("menu-chiusura", "menu-chiusura-gruppo")) {
+      for (frame in requireNotNull(byName[name]).frames.filter { it.tMs >= 0.0 }) {
+        val window = frame.elements.first { it["name"] == "menu" }
+        val layers = (window["content"] as? List<*>).orEmpty().filterIsInstance<Map<*, *>>()
+        val ink = layers.firstOrNull { it["name"] == "voci" }
+        if (frame.tMs in 33.0..34.0) assertTrue((ink?.get("blurDp") as? Float ?: 0f) > 2f)
+        if (frame.tMs >= 90.0) assertTrue(ink == null)
+        if (ink != null) assertTrue(layers.filter {
+          it["name"] == "faccia" || (it["name"] as? String)?.startsWith("tasto-") == true
+        }.none { (it["alpha"] as? Float ?: 0f) > 0f })
+      }
     }
     fun t0(name: String, ripresa: String) = (requireNotNull(byName[name]).head["apple"] as List<*>)
       .filterIsInstance<Map<*, *>>().first { it["name"] == ripresa }["t0Frame"]

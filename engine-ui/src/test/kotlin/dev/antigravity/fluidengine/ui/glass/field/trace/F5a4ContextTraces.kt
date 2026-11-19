@@ -35,15 +35,22 @@ import dev.antigravity.fluidengine.ui.fluid.fluidContextAnchorScale
 import dev.antigravity.fluidengine.ui.fluid.fluidContextLiftTarget
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidLiftContentMap
+import dev.antigravity.fluidengine.ui.fluid.fluidLiftMaterialPresence
 import dev.antigravity.fluidengine.ui.fluid.fluidLiftProgress
 import dev.antigravity.fluidengine.ui.fluid.fluidLiftStartFraction
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuDropPresence
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuDropSeed
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelWidth
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuRowHeight
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnFocusSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnInkSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnSpec
 import dev.antigravity.fluidengine.ui.fluid.sanitized
 import dev.antigravity.fluidengine.ui.fluid.solveFluidMenuPanel
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
@@ -180,7 +187,7 @@ internal object F5a4ContextTraces {
 
   private fun Rect.px() = Rect(left * D, top * D, right * D, bottom * D)
 
-  fun build(level: FluidContextScrimLevel, dark: Boolean): ContextBuilt {
+  fun build(level: FluidContextScrimLevel, dark: Boolean, corrected: Boolean = false): ContextBuilt {
     val look: FluidScrimLook = level.look
     val palette = TodayPalette(dark)
     val host = Size(HostDp.width * D, HostDp.height * D)
@@ -258,7 +265,9 @@ internal object F5a4ContextTraces {
         overlapPx = FluidMenuDropSeedOverlap.value * D,
       ),
       freshStart = true,
+      liquidMenu = corrected,
     )
+    if (corrected) journey.retarget(1f)
     journey.install(menuPhysics)
 
     val cardDriver = TodayLiquidDriver(cardPhysics, D)
@@ -273,6 +282,8 @@ internal object F5a4ContextTraces {
     val windowTint = panelTint.copy(overlay = panelTint.overlay.compositeOver(look.color(dark)))
 
     val openSpring = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
+    val exitFocus = TodaySpring(fluidMenuReturnFocusSpec(1f), 1f, 0f)
+    val exitInk = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
     val fadeIn = TodaySpring(FluidMotion.fadeIn(FluidMenuLayerFadeInMillis), 0f, 1f)
     val dismissNanos = (DismissAtMs * 1_000_000.0).toLong()
     var closeSpring: TodaySpring? = null
@@ -304,15 +315,21 @@ internal object F5a4ContextTraces {
       if (closing && closeSpring == null) {
         // Il congedo: la molla del ritorno da dove il menu e' fermo, la dissolvenza d'uscita; a dito alzato la partenza
         // della card torna viva (scala 1, frazione zero).
-        closeSpring = TodaySpring(FluidMotion.dropClose(), p, 0f)
+        val spec = if (corrected) fluidMenuReturnSpec() else FluidMotion.dropClose<Float>()
+        closeSpring = TodaySpring(spec, p, 0f)
+        if (corrected) journey.retarget(0f)
         fadeOut = TodaySpring(FluidMotion.fadeOut(FluidMotion.MenuFadeOutMillis), 1f, 0f)
         cardStart = fluidLiftStartFraction(row, lifted, 1f)
       }
       val since = nanos - dismissNanos
       p = if (closing) closeSpring!!.value(since) else openSpring.value(nanos)
       val fade = if (closing) fadeOut!!.value(since) else fadeIn.value(nanos)
-      runBlocking { journey.progress.snapTo(p) }
+      runBlocking {
+        journey.progress.snapTo(p)
+        if (corrected) journey.openingAge.snapTo((tMs / FluidMotion.MenuOvershootEndMillis).toFloat().coerceIn(0f, 1f))
+      }
       cardDriver.frame(nanos)
+      if (corrected) menuPhysics.liquidAllowed = !journey.controlledReturn
       menuDriver.frame(nanos)
       val cardPlan = cardPhysics.ensurePlan()
       val menuPlan = menuPhysics.ensurePlan()
@@ -338,19 +355,26 @@ internal object F5a4ContextTraces {
 
       val elements = ArrayList<Map<String, Any?>>()
       if (fade > 0.004f) elements += scrim(look, dark, fade)
-      if (fade > 0.004f) {
-        elements += cardDress.element("card", cardPhysics, cardPlan, origin, CanvasWidthDp, CanvasHeightDp, rowContent(palette, cardBounds, origin), panelTint, fade, tMs)
+      val cardPresence = if (corrected) fluidLiftMaterialPresence(fade, fluidLiftProgress(p.coerceAtLeast(0f), cardStart), closing) else fade
+      if (cardPresence > 0.004f) {
+        elements += cardDress.element("card", cardPhysics, cardPlan, origin, CanvasWidthDp, CanvasHeightDp, rowContent(palette, cardBounds, origin), panelTint, cardPresence, tMs)
       } else {
         // Il materiale e' spento: resta l'immagine della riga, mai sfumata, sulla sagoma.
         elements += textOnly("card", rowContent(palette, cardBounds, origin))
       }
       val windowAmount = fade * fluidMenuDropPresence(p)
       if (windowAmount > 0.004f) {
-        elements += menuDress.element(
+        val focus = if (!corrected) null else if (closing) exitFocus.value(since)
+          else (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceIn(0f, 1f)
+        val visibility = windowAmount * if (closing) exitInk.value(since) else 1f
+        val raw = menuContent(palette, layout, panel, panelBox, menuPhysics, p, closing, origin, focus, visibility)
+        val clip = raw.singleOrNull()?.takeIf { it["effect"] != null }?.get("clip")
+        val element = menuDress.element(
           "menu", menuPhysics, menuPlan, origin, CanvasWidthDp, CanvasHeightDp,
-          menuContent(palette, layout, panel, panelBox, menuPhysics, p, closing, origin),
+          if (clip == null) raw else raw.map { it - "clip" },
           windowTint, windowAmount, tMs,
         )
+        elements += if (clip == null) element else element + ("contentClip" to listOf(clip))
       }
       val frame = GlassTraceFrame(tMs, elements)
       if (!closing) opens += frame
@@ -631,11 +655,18 @@ internal object F5a4ContextTraces {
     p: Float,
     closing: Boolean,
     origin: Offset,
+    focus: Float? = null,
+    visibility: Float = 1f,
   ): List<Map<String, Any?>> {
-    val alpha = fluidMenuContentAlpha(p, closing = closing)
+    val alpha = if (focus == null) fluidMenuContentAlpha(p, closing = closing) else fluidMenuLensAlpha(focus) * visibility
     if (alpha <= 0f) return emptyList()
-    val map = fluidMenuLiquidContentMap(target = panel, current = physics.contentBoundsNow(), alpha = alpha)
     val clip = physics.travelClipIn(panelBox, p)
+    val map = if (focus == null) {
+      fluidMenuLiquidContentMap(target = panel, current = physics.contentBoundsNow(), alpha = alpha)
+    } else {
+      val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
+      fluidMenuLensMap(panelBox, visible)
+    }
     val cx = panelBox.width / 2f
     val cy = panelBox.height / 2f
     fun mapX(x: Float) = panelBox.left + cx + (x - cx) * map.scale + map.translation.x - origin.x
@@ -664,6 +695,10 @@ internal object F5a4ContextTraces {
       "name" to "voci", "x" to 0, "y" to 0, "w" to CanvasWidthDp, "h" to CanvasHeightDp,
       "items" to items, "alpha" to alpha,
     )
+    if (focus != null && focus < 1f) {
+      layer["blurDp"] = fluidMenuLensBlurDp(focus) * map.scale
+      menuTraceContentLens(physics.ensurePlan(), origin, D, focus)?.let { layer["effect"] = it }
+    }
     if (clip != null) {
       val onCanvas = clip.translate(Offset(panelBox.left - origin.x, panelBox.top - origin.y))
       layer["clip"] = linkedMapOf(

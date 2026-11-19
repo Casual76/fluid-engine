@@ -1,0 +1,4888 @@
+{
+  "schema": 1,
+  "name": "contestuale-chiude-c",
+  "phase": "f5a-corr",
+  "fps": 60,
+  "durationMs": 400,
+  "density": 3,
+  "theme": "light",
+  "size": [411, 520],
+  "_": "F5A correzione: nel ritorno della riga il materiale cede il bordo alla registrazione.",
+  "palette": "engine",
+  "corner": "engine",
+  "background": {
+    "kind": "color",
+    "color": "#F2F2F7"
+  },
+  "page": [
+    {
+      "kind": "background",
+      "x": 16,
+      "y": 16,
+      "w": 379,
+      "h": 120,
+      "radius": 12,
+      "background": {
+        "kind": "synthetic",
+        "scaleDp": 46,
+        "detail": 0.5,
+        "palette": ["#E9A23B", "#3A7BD5", "#2F5D34", "#F2994A", "#8E54E9", "#D2D2D2"]
+      }
+    },
+    {
+      "kind": "rect",
+      "x": 16,
+      "y": 152,
+      "w": 379,
+      "h": 256,
+      "color": "#FFFFFF",
+      "radius": 12
+    },
+    {
+      "kind": "text",
+      "text": "Nota della riunione",
+      "x": 32,
+      "y": 180,
+      "sizeDp": 16,
+      "color": "#121214FF"
+    },
+    {
+      "kind": "text",
+      "text": "Tieni premuto, trascina, rilascia",
+      "x": 32,
+      "y": 201,
+      "sizeDp": 14,
+      "color": "#1212149E"
+    },
+    {
+      "kind": "rect",
+      "x": 32,
+      "y": 216,
+      "w": 363,
+      "h": 0.34,
+      "color": "#E0E0E3"
+    },
+    {
+      "kind": "rect",
+      "x": 32,
+      "y": 280,
+      "w": 363,
+      "h": 0.34,
+      "color": "#E0E0E3"
+    },
+    {
+      "kind": "text",
+      "text": "Idee per il viaggio",
+      "x": 32,
+      "y": 308,
+      "sizeDp": 16,
+      "color": "#121214FF"
+    },
+    {
+      "kind": "text",
+      "text": "Tre giorni a Lisbona",
+      "x": 32,
+      "y": 329,
+      "sizeDp": 14,
+      "color": "#1212149E"
+    },
+    {
+      "kind": "rect",
+      "x": 32,
+      "y": 344,
+      "w": 363,
+      "h": 0.34,
+      "color": "#E0E0E3"
+    },
+    {
+      "kind": "text",
+      "text": "Bollette",
+      "x": 32,
+      "y": 372,
+      "sizeDp": 16,
+      "color": "#121214FF"
+    },
+    {
+      "kind": "text",
+      "text": "Scadono il 30",
+      "x": 32,
+      "y": 393,
+      "sizeDp": 14,
+      "color": "#1212149E"
+    }
+  ],
+  "events": [
+    {
+      "t": 0,
+      "kind": "mark",
+      "label": "click lungo"
+    }
+  ],
+  "probes": [
+    {
+      "name": "larghezza-card",
+      "kind": "width",
+      "line": "h:248.0:0:411.0",
+      "label": "la larghezza della card sollevata, dai pixel"
+    },
+    {
+      "name": "luce-pagina",
+      "kind": "luma",
+      "rect": [40, 36, 120, 60],
+      "label": "la foto in cima alla pagina: quanto scurisce lo sfondo"
+    },
+    {
+      "name": "bordo-alto-menu",
+      "kind": "edge",
+      "line": "v:205.5:262.96:520.0",
+      "which": "first",
+      "label": "il bordo alto del vetro del menu sotto la card"
+    }
+  ],
+  "apple": [
+    {
+      "name": "telefono",
+      "video": "wwdc2025-219_hd",
+      "t0Frame": 9187,
+      "crop": [559, 280, 570, 481],
+      "collage": "artifacts/liquid-glass/riferimenti/collage/B1_menu_telefono_chiusura_f9185-9200.jpg",
+      "note": "Menu dal tasto di R4 B1 (a), riferimento affine per l'inchiostro."
+    }
+  ],
+  "frames": [
+    {
+      "t": -50,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 1
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500378,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "195.185dp", "32.96dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.821dp",
+              "refraction": "-14.239dp",
+              "dome": 0.355789,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "390.37dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 26.795,
+                  "y": 243.88,
+                  "sizeDp": 16.48,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 26.795,
+                  "y": 265.51,
+                  "sizeDp": 14.42,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.886526,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "398.96dp", "128.25dp", "106dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "398.96dp"],
+              "glowRadius": "256.5dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.939dp"],
+              "shadowRadii": ["0dp", "40.286dp"],
+              "shadowAlphas": [0, 0.101092],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 93.333,
+                  "y": 329,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 306.75,
+                  "y": 323,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 93.333,
+                  "y": 377,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 306.75,
+                  "y": 371,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 93.333,
+                  "y": 425,
+                  "sizeDp": 17,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 306.75,
+                  "y": 419,
+                  "sizeDp": 22,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 93.333,
+                  "y": 481,
+                  "sizeDp": 17,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 306.75,
+                  "y": 475,
+                  "sizeDp": 22,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 1
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500378,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "195.185dp", "32.96dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.821dp",
+              "refraction": "-14.239dp",
+              "dome": 0.355789,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "390.37dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 26.795,
+                  "y": 243.88,
+                  "sizeDp": 16.48,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 26.795,
+                  "y": 265.51,
+                  "sizeDp": 14.42,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.886526,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "398.96dp", "128.25dp", "106dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "398.96dp"],
+              "glowRadius": "256.5dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.939dp"],
+              "shadowRadii": ["0dp", "40.286dp"],
+              "shadowAlphas": [0, 0.101092],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 93.333,
+                  "y": 329,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 306.75,
+                  "y": 323,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 93.333,
+                  "y": 377,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 306.75,
+                  "y": 371,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 93.333,
+                  "y": 425,
+                  "sizeDp": 17,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 306.75,
+                  "y": 419,
+                  "sizeDp": 22,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 93.333,
+                  "y": 481,
+                  "sizeDp": 17,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 306.75,
+                  "y": 475,
+                  "sizeDp": 22,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 1
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500378,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "195.185dp", "32.96dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.821dp",
+              "refraction": "-14.239dp",
+              "dome": 0.355789,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "390.37dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 26.795,
+                  "y": 243.88,
+                  "sizeDp": 16.48,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 26.795,
+                  "y": 265.51,
+                  "sizeDp": 14.42,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.886526,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "398.96dp", "128.25dp", "106dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "398.96dp"],
+              "glowRadius": "256.5dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.939dp"],
+              "shadowRadii": ["0dp", "40.286dp"],
+              "shadowAlphas": [0, 0.101092],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 93.333,
+                  "y": 329,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 306.75,
+                  "y": 323,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 93.333,
+                  "y": 377,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 306.75,
+                  "y": 371,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 93.333,
+                  "y": 425,
+                  "sizeDp": 17,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 306.75,
+                  "y": 419,
+                  "sizeDp": 22,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 93.333,
+                  "y": 481,
+                  "sizeDp": 17,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 306.75,
+                  "y": 475,
+                  "sizeDp": 22,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 1
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.500378,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "195.185dp", "32.96dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.821dp",
+              "refraction": "-14.239dp",
+              "dome": 0.355789,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "390.37dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.002dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 26.795,
+                  "y": 243.88,
+                  "sizeDp": 16.48,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 26.795,
+                  "y": 265.51,
+                  "sizeDp": 14.42,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 5.886526,
+            "w": 0,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "398.96dp", "128.25dp", "106dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "398.96dp"],
+              "glowRadius": "256.5dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.939dp"],
+              "shadowRadii": ["0dp", "40.286dp"],
+              "shadowAlphas": [0, 0.101092],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 93.333,
+                  "y": 329,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 306.75,
+                  "y": 323,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 93.333,
+                  "y": 377,
+                  "sizeDp": 17,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 306.75,
+                  "y": 371,
+                  "sizeDp": 22,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 93.333,
+                  "y": 425,
+                  "sizeDp": 17,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 306.75,
+                  "y": 419,
+                  "sizeDp": 22,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 93.333,
+                  "y": 481,
+                  "sizeDp": 17,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 306.75,
+                  "y": 475,
+                  "sizeDp": 22,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.993
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.496585,
+            "blurDp": 4.500326,
+            "w": 0.006829,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "194.778dp", "32.891dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.788dp",
+              "refraction": "-14.209dp",
+              "dome": 0.356693,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.993171,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "389.557dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090003],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 27.167,
+                  "y": 243.889,
+                  "sizeDp": 16.446,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 27.167,
+                  "y": 265.474,
+                  "sizeDp": 14.39,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.496585,
+            "blurDp": 5.869627,
+            "w": 0.006829,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "398.042dp", "127.456dp", "105.344dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.993171,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "398.042dp"],
+              "glowRadius": "254.913dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.924dp"],
+              "shadowRadii": ["0dp", "40.209dp"],
+              "shadowAlphas": [0, 0.100957],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 93.965,
+                  "y": 328.482,
+                  "sizeDp": 16.898,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 306.101,
+                  "y": 322.518,
+                  "sizeDp": 21.868,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 93.965,
+                  "y": 376.194,
+                  "sizeDp": 16.898,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 306.101,
+                  "y": 370.23,
+                  "sizeDp": 21.868,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 93.965,
+                  "y": 423.906,
+                  "sizeDp": 16.898,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 306.101,
+                  "y": 417.942,
+                  "sizeDp": 21.868,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 93.965,
+                  "y": 479.57,
+                  "sizeDp": 16.898,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 306.101,
+                  "y": 473.606,
+                  "sizeDp": 21.868,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.56622,
+              "blurDp": 0.882127,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "9.213dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "658.042dp", "127.456dp", "105.344dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 78.044,
+              "y": 292.698,
+              "w": 254.913,
+              "h": 210.688,
+              "radius": [22, 22, 22, 22]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.975
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.487256,
+            "blurDp": 4.500278,
+            "w": 0.025488,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "248dp", "194.372dp", "32.823dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "15.755dp",
+              "refraction": "-14.179dp",
+              "dome": 0.357596,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.974512,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "388.743dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090002],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 27.54,
+                  "y": 243.897,
+                  "sizeDp": 16.411,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 27.54,
+                  "y": 265.437,
+                  "sizeDp": 14.36,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.487256,
+            "blurDp": 5.818631,
+            "w": 0.025488,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "395.287dp", "125.076dp", "103.376dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.974512,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "395.287dp"],
+              "glowRadius": "250.151dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.878dp"],
+              "shadowRadii": ["0dp", "39.978dp"],
+              "shadowAlphas": [0, 0.100549],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 96.048,
+                  "y": 327.026,
+                  "sizeDp": 16.582,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 304.222,
+                  "y": 321.173,
+                  "sizeDp": 21.46,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 96.048,
+                  "y": 373.847,
+                  "sizeDp": 16.582,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 304.222,
+                  "y": 367.994,
+                  "sizeDp": 21.46,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 96.048,
+                  "y": 420.668,
+                  "sizeDp": 16.582,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 304.222,
+                  "y": 414.815,
+                  "sizeDp": 21.46,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 96.048,
+                  "y": 475.292,
+                  "sizeDp": 16.582,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 304.222,
+                  "y": 469.439,
+                  "sizeDp": 21.46,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.22264,
+              "blurDp": 2.415165,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "655.287dp", "125.076dp", "103.376dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 80.424,
+              "y": 291.91,
+              "w": 250.151,
+              "h": 206.753,
+              "radius": [22, 22, 22, 22]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.946
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.473068,
+            "blurDp": 4.500233,
+            "w": 0.053864,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.204dp"], ["220.919dp", "215.203dp"], ["236.341dp", "215.201dp"], ["251.765dp", "215.198dp"], ["267.191dp", "215.196dp"], ["282.62dp", "215.193dp"], ["298.05dp", "215.191dp"], ["313.481dp", "215.19dp"], ["328.913dp", "215.188dp"], ["344.346dp", "215.187dp"], ["359.779dp", "215.186dp"], ["375.213dp", "215.182dp"], ["379.424dp", "215.363dp"], ["382.84dp", "215.908dp"], ["385.921dp", "216.812dp"], ["388.716dp", "218.067dp"], ["391.23dp", "219.659dp"], ["393.451dp", "221.575dp"], ["395.366dp", "223.798dp"], ["396.957dp", "226.313dp"], ["398.211dp", "229.109dp"], ["399.115dp", "232.189dp"], ["399.659dp", "235.605dp"], ["399.839dp", "239.815dp"], ["399.839dp", "256.185dp"], ["399.659dp", "260.396dp"], ["399.115dp", "263.81dp"], ["398.211dp", "266.891dp"], ["396.957dp", "269.687dp"], ["395.366dp", "272.202dp"], ["393.451dp", "274.425dp"], ["391.23dp", "276.341dp"], ["388.716dp", "277.933dp"], ["385.921dp", "279.188dp"], ["382.84dp", "280.092dp"], ["379.424dp", "280.637dp"], ["375.213dp", "280.818dp"], ["361.065dp", "280.814dp"], ["346.918dp", "280.814dp"], ["332.771dp", "280.812dp"], ["318.625dp", "280.811dp"], ["304.48dp", "280.809dp"], ["290.335dp", "280.808dp"], ["276.191dp", "280.806dp"], ["262.049dp", "280.803dp"], ["247.908dp", "280.801dp"], ["233.77dp", "280.799dp"], ["219.634dp", "280.797dp"], ["205.5dp", "280.796dp"], ["191.366dp", "280.797dp"], ["177.23dp", "280.799dp"], ["163.091dp", "280.801dp"], ["148.951dp", "280.803dp"], ["134.808dp", "280.806dp"], ["120.665dp", "280.808dp"], ["106.52dp", "280.809dp"], ["92.375dp", "280.811dp"], ["78.228dp", "280.812dp"], ["64.082dp", "280.814dp"], ["49.935dp", "280.814dp"], ["35.787dp", "280.818dp"], ["31.576dp", "280.637dp"], ["28.16dp", "280.092dp"], ["25.079dp", "279.188dp"], ["22.284dp", "277.933dp"], ["19.77dp", "276.341dp"], ["17.549dp", "274.425dp"], ["15.634dp", "272.201dp"], ["14.043dp", "269.687dp"], ["12.789dp", "266.891dp"], ["11.885dp", "263.81dp"], ["11.341dp", "260.395dp"], ["11.161dp", "256.185dp"], ["11.161dp", "239.814dp"], ["11.341dp", "235.605dp"], ["11.885dp", "232.19dp"], ["12.789dp", "229.109dp"], ["14.043dp", "226.313dp"], ["15.634dp", "223.799dp"], ["17.549dp", "221.575dp"], ["19.77dp", "219.659dp"], ["22.284dp", "218.067dp"], ["25.079dp", "216.812dp"], ["28.16dp", "215.908dp"], ["31.576dp", "215.363dp"], ["35.787dp", "215.182dp"], ["51.221dp", "215.186dp"], ["66.654dp", "215.187dp"], ["82.087dp", "215.188dp"], ["97.519dp", "215.19dp"], ["112.95dp", "215.191dp"], ["128.38dp", "215.193dp"], ["143.808dp", "215.196dp"], ["159.235dp", "215.198dp"], ["174.659dp", "215.201dp"], ["190.081dp", "215.203dp"]],
+              "bbox": ["10.411dp", "214.432dp", "400.589dp", "281.568dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["193.965dp", "32.754dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.818384,
+              "dropReach": "0.796dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.722dp",
+              "refraction": "-14.15dp",
+              "dome": 0.358501,
+              "dispersion": 0.000001,
+              "magnify": 0,
+              "materialize": 0.946136,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.36dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "388.678dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090002],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 27.912,
+                  "y": 243.906,
+                  "sizeDp": 16.377,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 27.912,
+                  "y": 265.401,
+                  "sizeDp": 14.33,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.473068,
+            "blurDp": 5.73287,
+            "w": 0.053864,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "390.695dp", "121.108dp", "100.097dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.946136,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "390.695dp"],
+              "glowRadius": "242.215dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.801dp"],
+              "shadowRadii": ["0dp", "39.589dp"],
+              "shadowAlphas": [0, 0.099863],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 99.521,
+                  "y": 324.6,
+                  "sizeDp": 16.056,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 301.09,
+                  "y": 318.933,
+                  "sizeDp": 20.779,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 99.521,
+                  "y": 369.936,
+                  "sizeDp": 16.056,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 301.09,
+                  "y": 364.269,
+                  "sizeDp": 20.779,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 99.521,
+                  "y": 415.271,
+                  "sizeDp": 16.056,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 301.09,
+                  "y": 409.604,
+                  "sizeDp": 20.779,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 99.521,
+                  "y": 468.162,
+                  "sizeDp": 16.056,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 301.09,
+                  "y": 462.495,
+                  "sizeDp": 20.779,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.075691,
+              "blurDp": 3.615613,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "650.695dp", "121.108dp", "100.097dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 84.392,
+              "y": 290.599,
+              "w": 242.215,
+              "h": 200.193,
+              "radius": [22, 22, 22, 22]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.91
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.454783,
+            "blurDp": 4.500193,
+            "w": 0.090436,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.26dp"], ["220.893dp", "215.257dp"], ["236.292dp", "215.252dp"], ["251.698dp", "215.245dp"], ["267.112dp", "215.238dp"], ["282.53dp", "215.231dp"], ["297.954dp", "215.225dp"], ["313.38dp", "215.22dp"], ["328.81dp", "215.216dp"], ["344.241dp", "215.212dp"], ["359.673dp", "215.208dp"], ["375.109dp", "215.201dp"], ["379.305dp", "215.381dp"], ["382.719dp", "215.925dp"], ["385.801dp", "216.83dp"], ["388.599dp", "218.086dp"], ["391.115dp", "219.682dp"], ["393.34dp", "221.601dp"], ["395.258dp", "223.828dp"], ["396.852dp", "226.346dp"], ["398.108dp", "229.143dp"], ["399.012dp", "232.223dp"], ["399.556dp", "235.635dp"], ["399.734dp", "239.828dp"], ["399.734dp", "256.172dp"], ["399.556dp", "260.365dp"], ["399.012dp", "263.777dp"], ["398.108dp", "266.857dp"], ["396.852dp", "269.654dp"], ["395.258dp", "272.172dp"], ["393.34dp", "274.399dp"], ["391.115dp", "276.318dp"], ["388.599dp", "277.914dp"], ["385.801dp", "279.17dp"], ["382.719dp", "280.075dp"], ["379.305dp", "280.619dp"], ["375.109dp", "280.799dp"], ["360.959dp", "280.792dp"], ["346.813dp", "280.789dp"], ["332.667dp", "280.785dp"], ["318.523dp", "280.781dp"], ["304.381dp", "280.777dp"], ["290.242dp", "280.772dp"], ["276.105dp", "280.766dp"], ["261.973dp", "280.76dp"], ["247.846dp", "280.754dp"], ["233.725dp", "280.747dp"], ["219.61dp", "280.742dp"], ["205.5dp", "280.74dp"], ["191.39dp", "280.742dp"], ["177.275dp", "280.747dp"], ["163.154dp", "280.754dp"], ["149.027dp", "280.76dp"], ["134.895dp", "280.766dp"], ["120.758dp", "280.772dp"], ["106.619dp", "280.777dp"], ["92.477dp", "280.781dp"], ["78.333dp", "280.785dp"], ["64.187dp", "280.789dp"], ["50.041dp", "280.792dp"], ["35.891dp", "280.799dp"], ["31.695dp", "280.619dp"], ["28.281dp", "280.075dp"], ["25.199dp", "279.17dp"], ["22.401dp", "277.914dp"], ["19.884dp", "276.318dp"], ["17.66dp", "274.399dp"], ["15.742dp", "272.172dp"], ["14.148dp", "269.654dp"], ["12.892dp", "266.857dp"], ["11.988dp", "263.777dp"], ["11.444dp", "260.365dp"], ["11.266dp", "256.172dp"], ["11.266dp", "239.828dp"], ["11.444dp", "235.635dp"], ["11.988dp", "232.223dp"], ["12.892dp", "229.143dp"], ["14.148dp", "226.346dp"], ["15.742dp", "223.828dp"], ["17.66dp", "221.601dp"], ["19.884dp", "219.682dp"], ["22.401dp", "218.086dp"], ["25.199dp", "216.83dp"], ["28.281dp", "215.925dp"], ["31.695dp", "215.381dp"], ["35.891dp", "215.201dp"], ["51.326dp", "215.208dp"], ["66.759dp", "215.212dp"], ["82.19dp", "215.216dp"], ["97.62dp", "215.22dp"], ["113.046dp", "215.225dp"], ["128.47dp", "215.231dp"], ["143.889dp", "215.238dp"], ["159.302dp", "215.245dp"], ["174.708dp", "215.252dp"], ["190.107dp", "215.257dp"]],
+              "bbox": ["10.516dp", "214.451dp", "400.484dp", "281.549dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["193.558dp", "32.685dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.562186,
+              "dropReach": "1.102dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.689dp",
+              "refraction": "-14.12dp",
+              "dome": 0.359406,
+              "dispersion": 0.000001,
+              "magnify": 0,
+              "materialize": 0.909566,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.247dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "388.469dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090002],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 28.284,
+                  "y": 243.914,
+                  "sizeDp": 16.343,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 28.284,
+                  "y": 265.364,
+                  "sizeDp": 14.3,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.454783,
+            "blurDp": 5.611952,
+            "w": 0.090434,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "384.267dp", "115.552dp", "95.505dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.909566,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.44dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "384.267dp"],
+              "glowRadius": "231.105dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.693dp"],
+              "shadowRadii": ["0dp", "39.041dp"],
+              "shadowAlphas": [0, 0.098896],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 104.382,
+                  "y": 321.204,
+                  "sizeDp": 15.32,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 296.705,
+                  "y": 315.797,
+                  "sizeDp": 19.826,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 104.382,
+                  "y": 364.46,
+                  "sizeDp": 15.32,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 296.705,
+                  "y": 359.053,
+                  "sizeDp": 19.826,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 104.382,
+                  "y": 407.715,
+                  "sizeDp": 15.32,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 296.705,
+                  "y": 402.309,
+                  "sizeDp": 19.826,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 104.382,
+                  "y": 458.181,
+                  "sizeDp": 15.32,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 296.705,
+                  "y": 452.774,
+                  "sizeDp": 19.826,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.019383,
+              "blurDp": 4.178226,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "644.267dp", "115.552dp", "95.505dp"],
+                  "pieceRadii": ["22dp", "22dp", "22dp", "22dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 89.948,
+              "y": 288.762,
+              "w": 231.105,
+              "h": 191.01,
+              "radius": [22, 22, 22, 22]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.866
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.432969,
+            "blurDp": 4.500156,
+            "w": 0.134062,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.33dp"], ["220.86dp", "215.326dp"], ["236.229dp", "215.317dp"], ["251.609dp", "215.306dp"], ["267.001dp", "215.295dp"], ["282.402dp", "215.284dp"], ["297.811dp", "215.275dp"], ["313.227dp", "215.266dp"], ["328.648dp", "215.258dp"], ["344.073dp", "215.251dp"], ["359.5dp", "215.245dp"], ["374.932dp", "215.234dp"], ["379.113dp", "215.413dp"], ["382.524dp", "215.957dp"], ["385.606dp", "216.863dp"], ["388.405dp", "218.12dp"], ["390.925dp", "219.718dp"], ["393.152dp", "221.64dp"], ["395.073dp", "223.868dp"], ["396.67dp", "226.387dp"], ["397.927dp", "229.185dp"], ["398.832dp", "232.263dp"], ["399.376dp", "235.67dp"], ["399.554dp", "239.846dp"], ["399.554dp", "256.154dp"], ["399.376dp", "260.33dp"], ["398.832dp", "263.737dp"], ["397.927dp", "266.815dp"], ["396.67dp", "269.613dp"], ["395.073dp", "272.132dp"], ["393.152dp", "274.36dp"], ["390.925dp", "276.282dp"], ["388.406dp", "277.88dp"], ["385.607dp", "279.137dp"], ["382.524dp", "280.043dp"], ["379.113dp", "280.587dp"], ["374.932dp", "280.766dp"], ["360.786dp", "280.756dp"], ["346.644dp", "280.75dp"], ["332.504dp", "280.744dp"], ["318.367dp", "280.737dp"], ["304.234dp", "280.729dp"], ["290.106dp", "280.721dp"], ["275.984dp", "280.711dp"], ["261.869dp", "280.701dp"], ["247.763dp", "280.691dp"], ["233.666dp", "280.681dp"], ["219.58dp", "280.674dp"], ["205.5dp", "280.67dp"], ["191.42dp", "280.674dp"], ["177.333dp", "280.681dp"], ["163.237dp", "280.691dp"], ["149.131dp", "280.701dp"], ["135.016dp", "280.711dp"], ["120.894dp", "280.721dp"], ["106.766dp", "280.729dp"], ["92.633dp", "280.737dp"], ["78.496dp", "280.744dp"], ["64.356dp", "280.75dp"], ["50.214dp", "280.756dp"], ["36.068dp", "280.766dp"], ["31.887dp", "280.587dp"], ["28.476dp", "280.043dp"], ["25.394dp", "279.137dp"], ["22.595dp", "277.88dp"], ["20.075dp", "276.282dp"], ["17.848dp", "274.361dp"], ["15.927dp", "272.132dp"], ["14.331dp", "269.613dp"], ["13.073dp", "266.815dp"], ["12.168dp", "263.737dp"], ["11.624dp", "260.33dp"], ["11.446dp", "256.154dp"], ["11.446dp", "239.846dp"], ["11.624dp", "235.67dp"], ["12.168dp", "232.263dp"], ["13.073dp", "229.185dp"], ["14.33dp", "226.387dp"], ["15.927dp", "223.868dp"], ["17.847dp", "221.64dp"], ["20.075dp", "219.718dp"], ["22.594dp", "218.121dp"], ["25.393dp", "216.863dp"], ["28.475dp", "215.957dp"], ["31.887dp", "215.413dp"], ["36.068dp", "215.234dp"], ["51.5dp", "215.245dp"], ["66.927dp", "215.251dp"], ["82.352dp", "215.258dp"], ["97.773dp", "215.266dp"], ["113.189dp", "215.275dp"], ["128.598dp", "215.284dp"], ["143.999dp", "215.295dp"], ["159.391dp", "215.306dp"], ["174.771dp", "215.317dp"], ["190.14dp", "215.326dp"]],
+              "bbox": ["10.696dp", "214.484dp", "400.304dp", "281.516dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["193.152dp", "32.617dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.437667,
+              "dropReach": "1.329dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.656dp",
+              "refraction": "-14.09dp",
+              "dome": 0.360309,
+              "dispersion": 0.000001,
+              "magnify": 0,
+              "materialize": 0.865939,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.193dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "388.108dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 28.657,
+                  "y": 243.923,
+                  "sizeDp": 16.308,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 28.657,
+                  "y": 265.328,
+                  "sizeDp": 14.27,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.432969,
+            "blurDp": 5.410487,
+            "w": 0.134061,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "375.339dp", "105.824dp", "87.82dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["21.828dp", "21.828dp", "21.828dp", "21.828dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.865939,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.437dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "375.339dp"],
+              "glowRadius": "211.647dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.513dp"],
+              "shadowRadii": ["0dp", "38.128dp"],
+              "shadowAlphas": [0, 0.097284],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "voci",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Condividi",
+                  "x": 112.883,
+                  "y": 317.577,
+                  "sizeDp": 14.032,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:share|share",
+                  "x": 289.038,
+                  "y": 312.625,
+                  "sizeDp": 18.159,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Aggiungi ai preferiti",
+                  "x": 112.883,
+                  "y": 357.196,
+                  "sizeDp": 14.032,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:star.fill|circle",
+                  "x": 289.038,
+                  "y": 352.244,
+                  "sizeDp": 18.159,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Modifica (spenta)",
+                  "x": 112.883,
+                  "y": 396.816,
+                  "sizeDp": 14.032,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:edit|circle",
+                  "x": 289.038,
+                  "y": 391.863,
+                  "sizeDp": 18.159,
+                  "color": "#12121461"
+                },
+                {
+                  "kind": "text",
+                  "text": "Elimina",
+                  "x": 112.883,
+                  "y": 443.038,
+                  "sizeDp": 14.032,
+                  "color": "#D70015FF"
+                },
+                {
+                  "kind": "icon",
+                  "icon": "fluid:delete|close",
+                  "x": 289.038,
+                  "y": 438.086,
+                  "sizeDp": 18.159,
+                  "color": "#D70015FF"
+                }
+              ],
+              "alpha": 0.001352,
+              "blurDp": 4.088894,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "260dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["205.5dp", "635.339dp", "105.824dp", "87.82dp"],
+                  "pieceRadii": ["21.828dp", "21.828dp", "21.828dp", "21.828dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 99.676,
+              "y": 287.519,
+              "w": 211.647,
+              "h": 175.64,
+              "radius": [21.828, 21.828, 21.828, 21.828]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.816
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.408066,
+            "blurDp": 4.500124,
+            "w": 0.18387,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.405dp"], ["220.824dp", "215.4dp"], ["236.159dp", "215.39dp"], ["251.508dp", "215.376dp"], ["266.872dp", "215.362dp"], ["282.249dp", "215.348dp"], ["297.638dp", "215.335dp"], ["313.036dp", "215.322dp"], ["328.441dp", "215.311dp"], ["343.853dp", "215.301dp"], ["359.27dp", "215.292dp"], ["374.691dp", "215.279dp"], ["378.856dp", "215.458dp"], ["382.264dp", "216.003dp"], ["385.345dp", "216.909dp"], ["388.145dp", "218.167dp"], ["390.665dp", "219.766dp"], ["392.895dp", "221.689dp"], ["394.818dp", "223.918dp"], ["396.417dp", "226.437dp"], ["397.676dp", "229.234dp"], ["398.583dp", "232.31dp"], ["399.127dp", "235.71dp"], ["399.305dp", "239.868dp"], ["399.305dp", "256.132dp"], ["399.127dp", "260.29dp"], ["398.583dp", "263.69dp"], ["397.676dp", "266.766dp"], ["396.417dp", "269.563dp"], ["394.818dp", "272.082dp"], ["392.895dp", "274.311dp"], ["390.665dp", "276.234dp"], ["388.145dp", "277.833dp"], ["385.345dp", "279.091dp"], ["382.264dp", "279.997dp"], ["378.856dp", "280.542dp"], ["374.691dp", "280.721dp"], ["360.555dp", "280.708dp"], ["346.422dp", "280.7dp"], ["332.294dp", "280.691dp"], ["318.17dp", "280.681dp"], ["304.052dp", "280.671dp"], ["289.942dp", "280.659dp"], ["275.84dp", "280.646dp"], ["261.749dp", "280.633dp"], ["247.669dp", "280.62dp"], ["233.602dp", "280.608dp"], ["219.547dp", "280.599dp"], ["205.5dp", "280.595dp"], ["191.453dp", "280.599dp"], ["177.398dp", "280.608dp"], ["163.331dp", "280.62dp"], ["149.251dp", "280.633dp"], ["135.16dp", "280.646dp"], ["121.058dp", "280.659dp"], ["106.948dp", "280.671dp"], ["92.83dp", "280.681dp"], ["78.706dp", "280.691dp"], ["64.578dp", "280.7dp"], ["50.445dp", "280.709dp"], ["36.309dp", "280.721dp"], ["32.144dp", "280.542dp"], ["28.736dp", "279.997dp"], ["25.655dp", "279.091dp"], ["22.855dp", "277.833dp"], ["20.335dp", "276.234dp"], ["18.105dp", "274.311dp"], ["16.182dp", "272.082dp"], ["14.583dp", "269.563dp"], ["13.324dp", "266.766dp"], ["12.417dp", "263.69dp"], ["11.873dp", "260.29dp"], ["11.695dp", "256.133dp"], ["11.695dp", "239.868dp"], ["11.873dp", "235.711dp"], ["12.417dp", "232.31dp"], ["13.324dp", "229.234dp"], ["14.583dp", "226.437dp"], ["16.182dp", "223.918dp"], ["18.105dp", "221.689dp"], ["20.335dp", "219.766dp"], ["22.855dp", "218.167dp"], ["25.655dp", "216.909dp"], ["28.737dp", "216.003dp"], ["32.144dp", "215.458dp"], ["36.308dp", "215.279dp"], ["51.73dp", "215.292dp"], ["67.147dp", "215.301dp"], ["82.559dp", "215.311dp"], ["97.964dp", "215.322dp"], ["113.363dp", "215.335dp"], ["128.751dp", "215.348dp"], ["144.128dp", "215.362dp"], ["159.492dp", "215.376dp"], ["174.841dp", "215.39dp"], ["190.176dp", "215.4dp"]],
+              "bbox": ["10.945dp", "214.529dp", "400.055dp", "281.471dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["192.745dp", "32.548dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.368432,
+              "dropReach": "1.487dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.623dp",
+              "refraction": "-14.061dp",
+              "dome": 0.361213,
+              "dispersion": 0.000001,
+              "magnify": 0,
+              "materialize": 0.816131,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.162dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "387.611dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34.001dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 29.029,
+                  "y": 243.932,
+                  "sizeDp": 16.274,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 29.029,
+                  "y": 265.291,
+                  "sizeDp": 14.24,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.408066,
+            "blurDp": 4.960208,
+            "w": 0.183869,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "353.798dp", "82.271dp", "69.225dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["21.407dp", "21.407dp", "21.407dp", "21.407dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "33.228dp",
+              "refraction": "-29.905dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.816131,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.428dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "353.798dp"],
+              "glowRadius": "164.541dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.111dp"],
+              "shadowRadii": ["0dp", "36.086dp"],
+              "shadowAlphas": [0, 0.093682],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.761
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.380414,
+            "blurDp": 4.500094,
+            "w": 0.239174,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.481dp"], ["220.788dp", "215.476dp"], ["236.087dp", "215.464dp"], ["251.402dp", "215.449dp"], ["266.734dp", "215.433dp"], ["282.082dp", "215.417dp"], ["297.444dp", "215.401dp"], ["312.818dp", "215.387dp"], ["328.203dp", "215.373dp"], ["343.595dp", "215.361dp"], ["358.995dp", "215.349dp"], ["374.4dp", "215.335dp"], ["378.547dp", "215.514dp"], ["381.95dp", "216.059dp"], ["385.029dp", "216.965dp"], ["387.829dp", "218.224dp"], ["390.35dp", "219.823dp"], ["392.582dp", "221.746dp"], ["394.506dp", "223.976dp"], ["396.107dp", "226.494dp"], ["397.368dp", "229.289dp"], ["398.276dp", "232.361dp"], ["398.821dp", "235.755dp"], ["399dp", "239.893dp"], ["399dp", "256.107dp"], ["398.821dp", "260.245dp"], ["398.276dp", "263.639dp"], ["397.368dp", "266.711dp"], ["396.107dp", "269.506dp"], ["394.506dp", "272.024dp"], ["392.582dp", "274.254dp"], ["390.35dp", "276.177dp"], ["387.829dp", "277.776dp"], ["385.029dp", "279.035dp"], ["381.95dp", "279.941dp"], ["378.547dp", "280.486dp"], ["374.4dp", "280.665dp"], ["360.279dp", "280.652dp"], ["346.161dp", "280.641dp"], ["332.05dp", "280.63dp"], ["317.945dp", "280.618dp"], ["303.849dp", "280.605dp"], ["289.762dp", "280.591dp"], ["275.685dp", "280.577dp"], ["261.621dp", "280.562dp"], ["247.571dp", "280.547dp"], ["233.536dp", "280.533dp"], ["219.513dp", "280.523dp"], ["205.5dp", "280.519dp"], ["191.487dp", "280.523dp"], ["177.464dp", "280.533dp"], ["163.428dp", "280.547dp"], ["149.378dp", "280.562dp"], ["135.315dp", "280.577dp"], ["121.238dp", "280.591dp"], ["107.151dp", "280.605dp"], ["93.055dp", "280.618dp"], ["78.95dp", "280.63dp"], ["64.838dp", "280.641dp"], ["50.721dp", "280.652dp"], ["36.6dp", "280.665dp"], ["32.453dp", "280.486dp"], ["29.05dp", "279.941dp"], ["25.971dp", "279.035dp"], ["23.171dp", "277.776dp"], ["20.65dp", "276.177dp"], ["18.418dp", "274.254dp"], ["16.494dp", "272.024dp"], ["14.893dp", "269.506dp"], ["13.632dp", "266.711dp"], ["12.724dp", "263.639dp"], ["12.179dp", "260.245dp"], ["12dp", "256.107dp"], ["12dp", "239.893dp"], ["12.179dp", "235.755dp"], ["12.724dp", "232.361dp"], ["13.632dp", "229.289dp"], ["14.893dp", "226.494dp"], ["16.494dp", "223.976dp"], ["18.418dp", "221.746dp"], ["20.65dp", "219.823dp"], ["23.171dp", "218.224dp"], ["25.971dp", "216.965dp"], ["29.05dp", "216.059dp"], ["32.453dp", "215.514dp"], ["36.6dp", "215.335dp"], ["52.005dp", "215.349dp"], ["67.405dp", "215.361dp"], ["82.797dp", "215.373dp"], ["98.182dp", "215.387dp"], ["113.556dp", "215.401dp"], ["128.918dp", "215.417dp"], ["144.266dp", "215.433dp"], ["159.598dp", "215.449dp"], ["174.913dp", "215.464dp"], ["190.213dp", "215.476dp"]],
+              "bbox": ["11.25dp", "214.585dp", "399.75dp", "281.415dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["192.338dp", "32.479dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.329687,
+              "dropReach": "1.587dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.59dp",
+              "refraction": "-14.031dp",
+              "dome": 0.362117,
+              "dispersion": 0.000002,
+              "magnify": 0,
+              "materialize": 0.760828,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.145dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "387dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 29.401,
+                  "y": 243.94,
+                  "sizeDp": 16.24,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 29.401,
+                  "y": 265.255,
+                  "sizeDp": 14.21,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.380414,
+            "blurDp": 4.584466,
+            "w": 0.239172,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "327.945dp", "54.004dp", "46.909dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["20.902dp", "20.902dp", "20.902dp", "20.902dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "22.516dp",
+              "refraction": "-20.265dp",
+              "dome": 0.172249,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.760828,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.418dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "327.945dp"],
+              "glowRadius": "108.008dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.775dp"],
+              "shadowRadii": ["0dp", "34.383dp"],
+              "shadowAlphas": [0, 0.090676],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.701
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.330805,
+            "blurDp": 4.500069,
+            "w": 0.338391,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.555dp"], ["220.751dp", "215.55dp"], ["236.015dp", "215.538dp"], ["251.295dp", "215.523dp"], ["266.593dp", "215.506dp"], ["281.909dp", "215.488dp"], ["297.24dp", "215.471dp"], ["312.586dp", "215.455dp"], ["327.944dp", "215.44dp"], ["343.312dp", "215.425dp"], ["358.689dp", "215.412dp"], ["374.072dp", "215.397dp"], ["378.2dp", "215.576dp"], ["381.597dp", "216.122dp"], ["384.673dp", "217.028dp"], ["387.471dp", "218.288dp"], ["389.993dp", "219.887dp"], ["392.225dp", "221.81dp"], ["394.151dp", "224.039dp"], ["395.753dp", "226.556dp"], ["397.015dp", "229.348dp"], ["397.924dp", "232.416dp"], ["398.471dp", "235.802dp"], ["398.65dp", "239.92dp"], ["398.65dp", "256.08dp"], ["398.471dp", "260.198dp"], ["397.924dp", "263.584dp"], ["397.015dp", "266.652dp"], ["395.753dp", "269.444dp"], ["394.151dp", "271.961dp"], ["392.225dp", "274.19dp"], ["389.993dp", "276.112dp"], ["387.471dp", "277.712dp"], ["384.673dp", "278.972dp"], ["381.596dp", "279.878dp"], ["378.2dp", "280.424dp"], ["374.072dp", "280.603dp"], ["359.971dp", "280.589dp"], ["345.874dp", "280.577dp"], ["331.785dp", "280.564dp"], ["317.704dp", "280.55dp"], ["303.633dp", "280.536dp"], ["289.573dp", "280.52dp"], ["275.525dp", "280.505dp"], ["261.492dp", "280.489dp"], ["247.473dp", "280.473dp"], ["233.47dp", "280.459dp"], ["219.48dp", "280.449dp"], ["205.5dp", "280.445dp"], ["191.52dp", "280.449dp"], ["177.53dp", "280.459dp"], ["163.527dp", "280.473dp"], ["149.508dp", "280.489dp"], ["135.475dp", "280.505dp"], ["121.427dp", "280.52dp"], ["107.367dp", "280.536dp"], ["93.296dp", "280.55dp"], ["79.215dp", "280.564dp"], ["65.126dp", "280.577dp"], ["51.029dp", "280.589dp"], ["36.928dp", "280.603dp"], ["32.8dp", "280.424dp"], ["29.403dp", "279.878dp"], ["26.327dp", "278.972dp"], ["23.528dp", "277.712dp"], ["21.007dp", "276.113dp"], ["18.775dp", "274.19dp"], ["16.849dp", "271.961dp"], ["15.247dp", "269.444dp"], ["13.985dp", "266.652dp"], ["13.076dp", "263.584dp"], ["12.529dp", "260.198dp"], ["12.35dp", "256.08dp"], ["12.35dp", "239.92dp"], ["12.529dp", "235.802dp"], ["13.076dp", "232.416dp"], ["13.985dp", "229.348dp"], ["15.247dp", "226.556dp"], ["16.849dp", "224.039dp"], ["18.775dp", "221.81dp"], ["21.007dp", "219.887dp"], ["23.529dp", "218.288dp"], ["26.327dp", "217.028dp"], ["29.403dp", "216.122dp"], ["32.8dp", "215.576dp"], ["36.928dp", "215.397dp"], ["52.311dp", "215.412dp"], ["67.688dp", "215.425dp"], ["83.056dp", "215.44dp"], ["98.414dp", "215.455dp"], ["113.76dp", "215.471dp"], ["129.091dp", "215.488dp"], ["144.407dp", "215.506dp"], ["159.705dp", "215.523dp"], ["174.985dp", "215.538dp"], ["190.248dp", "215.55dp"]],
+              "bbox": ["11.6dp", "214.647dp", "399.4dp", "281.353dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["191.932dp", "32.411dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.309508,
+              "dropReach": "1.643dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.557dp",
+              "refraction": "-14.001dp",
+              "dome": 0.363022,
+              "dispersion": 0.000002,
+              "magnify": 0,
+              "materialize": 0.661611,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.136dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "386.301dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.090001],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 29.774,
+                  "y": 243.949,
+                  "sizeDp": 16.205,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 29.774,
+                  "y": 265.218,
+                  "sizeDp": 14.18,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.350286,
+            "blurDp": 4.5,
+            "w": 0.299427,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "306.235dp", "30.266dp", "28.168dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["16.792dp", "16.792dp", "16.792dp", "16.792dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "13.521dp",
+              "refraction": "-12.169dp",
+              "dome": 0.418837,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.700573,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "306.235dp"],
+              "glowRadius": "60.533dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.636
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.243372,
+            "blurDp": 4.500048,
+            "w": 0.513257,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.627dp"], ["220.716dp", "215.623dp"], ["235.944dp", "215.611dp"], ["251.189dp", "215.595dp"], ["266.452dp", "215.578dp"], ["281.734dp", "215.56dp"], ["297.032dp", "215.543dp"], ["312.346dp", "215.526dp"], ["327.673dp", "215.509dp"], ["343.012dp", "215.494dp"], ["358.362dp", "215.479dp"], ["373.718dp", "215.464dp"], ["377.827dp", "215.644dp"], ["381.216dp", "216.19dp"], ["384.289dp", "217.097dp"], ["387.086dp", "218.357dp"], ["389.607dp", "219.956dp"], ["391.839dp", "221.878dp"], ["393.765dp", "224.106dp"], ["395.368dp", "226.621dp"], ["396.632dp", "229.411dp"], ["397.542dp", "232.474dp"], ["398.089dp", "235.852dp"], ["398.27dp", "239.949dp"], ["398.27dp", "256.051dp"], ["398.089dp", "260.148dp"], ["397.542dp", "263.526dp"], ["396.632dp", "266.589dp"], ["395.368dp", "269.379dp"], ["393.765dp", "271.894dp"], ["391.839dp", "274.122dp"], ["389.606dp", "276.044dp"], ["387.085dp", "277.643dp"], ["384.289dp", "278.903dp"], ["381.216dp", "279.81dp"], ["377.827dp", "280.356dp"], ["373.718dp", "280.536dp"], ["359.641dp", "280.522dp"], ["345.57dp", "280.509dp"], ["331.507dp", "280.495dp"], ["317.453dp", "280.48dp"], ["303.411dp", "280.464dp"], ["289.381dp", "280.449dp"], ["275.364dp", "280.432dp"], ["261.363dp", "280.416dp"], ["247.376dp", "280.4dp"], ["233.405dp", "280.387dp"], ["219.448dp", "280.377dp"], ["205.5dp", "280.373dp"], ["191.552dp", "280.377dp"], ["177.595dp", "280.387dp"], ["163.624dp", "280.4dp"], ["149.637dp", "280.416dp"], ["135.636dp", "280.432dp"], ["121.619dp", "280.449dp"], ["107.589dp", "280.464dp"], ["93.547dp", "280.48dp"], ["79.493dp", "280.495dp"], ["65.43dp", "280.509dp"], ["51.359dp", "280.522dp"], ["37.282dp", "280.536dp"], ["33.173dp", "280.356dp"], ["29.784dp", "279.81dp"], ["26.711dp", "278.903dp"], ["23.914dp", "277.643dp"], ["21.393dp", "276.044dp"], ["19.161dp", "274.122dp"], ["17.235dp", "271.894dp"], ["15.632dp", "269.379dp"], ["14.368dp", "266.589dp"], ["13.458dp", "263.526dp"], ["12.911dp", "260.148dp"], ["12.73dp", "256.051dp"], ["12.73dp", "239.949dp"], ["12.911dp", "235.852dp"], ["13.458dp", "232.474dp"], ["14.368dp", "229.411dp"], ["15.632dp", "226.621dp"], ["17.235dp", "224.106dp"], ["19.161dp", "221.878dp"], ["21.393dp", "219.956dp"], ["23.915dp", "218.357dp"], ["26.711dp", "217.097dp"], ["29.784dp", "216.19dp"], ["33.173dp", "215.644dp"], ["37.282dp", "215.464dp"], ["52.638dp", "215.479dp"], ["67.988dp", "215.494dp"], ["83.327dp", "215.509dp"], ["98.654dp", "215.526dp"], ["113.968dp", "215.543dp"], ["129.266dp", "215.56dp"], ["144.548dp", "215.578dp"], ["159.811dp", "215.595dp"], ["175.056dp", "215.611dp"], ["190.284dp", "215.623dp"]],
+              "bbox": ["11.98dp", "214.714dp", "399.02dp", "281.286dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["191.525dp", "32.342dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.300998,
+              "dropReach": "1.667dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.524dp",
+              "refraction": "-13.972dp",
+              "dome": 0.363927,
+              "dispersion": 0.000002,
+              "magnify": 0.000001,
+              "materialize": 0.486744,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.132dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "385.539dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 30.146,
+                  "y": 243.957,
+                  "sizeDp": 16.171,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 30.146,
+                  "y": 265.182,
+                  "sizeDp": 14.15,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.317901,
+            "blurDp": 4.5,
+            "w": 0.364198,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "297.12dp", "20.3dp", "20.3dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["20.3dp", "20.3dp", "20.3dp", "20.3dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "9.744dp",
+              "refraction": "-8.77dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.635802,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "20.3dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.10895,
+              "reflexDepth": "6.496dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "297.12dp"],
+              "glowRadius": "40.6dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.182dp"],
+              "shadowRadii": ["0dp", "31.373dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.567
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.166299,
+            "blurDp": 4.500031,
+            "w": 0.667403,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.698dp"], ["220.682dp", "215.694dp"], ["235.875dp", "215.682dp"], ["251.085dp", "215.667dp"], ["266.313dp", "215.65dp"], ["281.559dp", "215.632dp"], ["296.822dp", "215.614dp"], ["312.102dp", "215.597dp"], ["327.397dp", "215.58dp"], ["342.704dp", "215.564dp"], ["358.023dp", "215.549dp"], ["373.348dp", "215.534dp"], ["377.437dp", "215.714dp"], ["380.819dp", "216.26dp"], ["383.887dp", "217.168dp"], ["386.681dp", "218.428dp"], ["389.201dp", "220.027dp"], ["391.433dp", "221.949dp"], ["393.36dp", "224.175dp"], ["394.963dp", "226.689dp"], ["396.228dp", "229.475dp"], ["397.138dp", "232.533dp"], ["397.687dp", "235.903dp"], ["397.868dp", "239.98dp"], ["397.868dp", "256.02dp"], ["397.687dp", "260.097dp"], ["397.138dp", "263.467dp"], ["396.228dp", "266.525dp"], ["394.963dp", "269.311dp"], ["393.36dp", "271.825dp"], ["391.433dp", "274.051dp"], ["389.201dp", "275.973dp"], ["386.681dp", "277.572dp"], ["383.887dp", "278.832dp"], ["380.819dp", "279.74dp"], ["377.437dp", "280.286dp"], ["373.348dp", "280.466dp"], ["359.3dp", "280.453dp"], ["345.256dp", "280.438dp"], ["331.222dp", "280.424dp"], ["317.199dp", "280.409dp"], ["303.187dp", "280.393dp"], ["289.189dp", "280.377dp"], ["275.204dp", "280.36dp"], ["261.235dp", "280.344dp"], ["247.281dp", "280.329dp"], ["233.342dp", "280.316dp"], ["219.416dp", "280.306dp"], ["205.5dp", "280.302dp"], ["191.584dp", "280.306dp"], ["177.658dp", "280.316dp"], ["163.719dp", "280.329dp"], ["149.765dp", "280.344dp"], ["135.796dp", "280.36dp"], ["121.811dp", "280.377dp"], ["107.813dp", "280.393dp"], ["93.801dp", "280.409dp"], ["79.778dp", "280.424dp"], ["65.744dp", "280.438dp"], ["51.7dp", "280.453dp"], ["37.652dp", "280.466dp"], ["33.563dp", "280.286dp"], ["30.181dp", "279.74dp"], ["27.113dp", "278.832dp"], ["24.319dp", "277.572dp"], ["21.799dp", "275.973dp"], ["19.567dp", "274.051dp"], ["17.64dp", "271.825dp"], ["16.037dp", "269.311dp"], ["14.772dp", "266.525dp"], ["13.861dp", "263.467dp"], ["13.313dp", "260.097dp"], ["13.132dp", "256.02dp"], ["13.132dp", "239.98dp"], ["13.313dp", "235.903dp"], ["13.861dp", "232.533dp"], ["14.772dp", "229.475dp"], ["16.037dp", "226.689dp"], ["17.64dp", "224.175dp"], ["19.567dp", "221.949dp"], ["21.799dp", "220.027dp"], ["24.319dp", "218.428dp"], ["27.113dp", "217.168dp"], ["30.182dp", "216.26dp"], ["33.563dp", "215.714dp"], ["37.653dp", "215.534dp"], ["52.977dp", "215.549dp"], ["68.296dp", "215.564dp"], ["83.604dp", "215.58dp"], ["98.898dp", "215.597dp"], ["114.177dp", "215.614dp"], ["129.441dp", "215.632dp"], ["144.687dp", "215.65dp"], ["159.915dp", "215.667dp"], ["175.125dp", "215.682dp"], ["190.318dp", "215.694dp"]],
+              "bbox": ["12.382dp", "214.784dp", "398.618dp", "281.216dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["191.118dp", "32.273dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.299708,
+              "dropReach": "1.67dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.491dp",
+              "refraction": "-13.942dp",
+              "dome": 0.36483,
+              "dispersion": 0.000002,
+              "magnify": 0.000001,
+              "materialize": 0.332597,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.132dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "384.736dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 30.518,
+                  "y": 243.966,
+                  "sizeDp": 16.137,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 30.518,
+                  "y": 265.145,
+                  "sizeDp": 14.12,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.283432,
+            "blurDp": 4.5,
+            "w": 0.433135,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "296.475dp", "19.64dp", "19.64dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["19.64dp", "19.64dp", "19.64dp", "19.64dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "9.427dp",
+              "refraction": "-8.484dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.566865,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "19.64dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.10466,
+              "reflexDepth": "6.285dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "296.475dp"],
+              "glowRadius": "39.28dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "5.981dp"],
+              "shadowRadii": ["0dp", "30.353dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.494
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.10076,
+            "blurDp": 4.500017,
+            "w": 0.798481,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.768dp"], ["220.648dp", "215.763dp"], ["235.807dp", "215.752dp"], ["250.982dp", "215.738dp"], ["266.175dp", "215.721dp"], ["281.386dp", "215.703dp"], ["296.614dp", "215.686dp"], ["311.859dp", "215.669dp"], ["327.118dp", "215.652dp"], ["342.392dp", "215.635dp"], ["357.677dp", "215.62dp"], ["372.969dp", "215.606dp"], ["377.038dp", "215.786dp"], ["380.412dp", "216.332dp"], ["383.475dp", "217.24dp"], ["386.267dp", "218.5dp"], ["388.785dp", "220.099dp"], ["391.017dp", "222.02dp"], ["392.943dp", "224.246dp"], ["394.547dp", "226.758dp"], ["395.812dp", "229.541dp"], ["396.723dp", "232.594dp"], ["397.272dp", "235.955dp"], ["397.454dp", "240.012dp"], ["397.454dp", "255.989dp"], ["397.272dp", "260.045dp"], ["396.723dp", "263.406dp"], ["395.812dp", "266.46dp"], ["394.547dp", "269.242dp"], ["392.943dp", "271.754dp"], ["391.017dp", "273.979dp"], ["388.785dp", "275.901dp"], ["386.267dp", "277.5dp"], ["383.475dp", "278.76dp"], ["380.412dp", "279.668dp"], ["377.038dp", "280.214dp"], ["372.969dp", "280.394dp"], ["358.951dp", "280.382dp"], ["344.938dp", "280.367dp"], ["330.935dp", "280.352dp"], ["316.943dp", "280.337dp"], ["302.964dp", "280.321dp"], ["288.998dp", "280.305dp"], ["275.045dp", "280.289dp"], ["261.108dp", "280.274dp"], ["247.186dp", "280.259dp"], ["233.279dp", "280.245dp"], ["219.385dp", "280.236dp"], ["205.5dp", "280.232dp"], ["191.615dp", "280.236dp"], ["177.721dp", "280.245dp"], ["163.814dp", "280.259dp"], ["149.892dp", "280.274dp"], ["135.954dp", "280.289dp"], ["122.002dp", "280.305dp"], ["108.036dp", "280.321dp"], ["94.057dp", "280.337dp"], ["80.065dp", "280.352dp"], ["66.062dp", "280.367dp"], ["52.049dp", "280.382dp"], ["38.031dp", "280.395dp"], ["33.962dp", "280.214dp"], ["30.589dp", "279.668dp"], ["27.525dp", "278.76dp"], ["24.733dp", "277.5dp"], ["22.215dp", "275.901dp"], ["19.983dp", "273.979dp"], ["18.057dp", "271.754dp"], ["16.453dp", "269.242dp"], ["15.188dp", "266.459dp"], ["14.277dp", "263.406dp"], ["13.728dp", "260.045dp"], ["13.546dp", "255.988dp"], ["13.546dp", "240.011dp"], ["13.728dp", "235.955dp"], ["14.277dp", "232.593dp"], ["15.188dp", "229.54dp"], ["16.453dp", "226.757dp"], ["18.057dp", "224.246dp"], ["19.983dp", "222.02dp"], ["22.215dp", "220.099dp"], ["24.733dp", "218.5dp"], ["27.525dp", "217.24dp"], ["30.589dp", "216.332dp"], ["33.962dp", "215.786dp"], ["38.031dp", "215.606dp"], ["53.323dp", "215.62dp"], ["68.608dp", "215.635dp"], ["83.882dp", "215.652dp"], ["99.142dp", "215.669dp"], ["114.386dp", "215.686dp"], ["129.615dp", "215.703dp"], ["144.825dp", "215.721dp"], ["160.018dp", "215.738dp"], ["175.193dp", "215.752dp"], ["190.352dp", "215.763dp"]],
+              "bbox": ["12.796dp", "214.856dp", "398.204dp", "281.145dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["190.712dp", "32.205dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.302515,
+              "dropReach": "1.662dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.458dp",
+              "refraction": "-13.913dp",
+              "dome": 0.365734,
+              "dispersion": 0.000002,
+              "magnify": 0.000001,
+              "materialize": 0.201519,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.133dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "383.908dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 30.891,
+                  "y": 243.974,
+                  "sizeDp": 16.102,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 30.891,
+                  "y": 265.109,
+                  "sizeDp": 14.09,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.247018,
+            "blurDp": 4.5,
+            "w": 0.505964,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "294.937dp", "18.068dp", "18.068dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["18.068dp", "18.068dp", "18.068dp", "18.068dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "8.673dp",
+              "refraction": "-7.805dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.494036,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "18.068dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.094441,
+              "reflexDepth": "5.782dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "294.937dp"],
+              "glowRadius": "36.136dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "5.502dp"],
+              "shadowRadii": ["0dp", "27.923dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.418
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.047823,
+            "blurDp": 4.500008,
+            "w": 0.904355,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.837dp"], ["220.614dp", "215.833dp"], ["235.739dp", "215.822dp"], ["250.88dp", "215.807dp"], ["266.038dp", "215.791dp"], ["281.214dp", "215.774dp"], ["296.407dp", "215.757dp"], ["311.616dp", "215.74dp"], ["326.84dp", "215.723dp"], ["342.079dp", "215.707dp"], ["357.329dp", "215.691dp"], ["372.586dp", "215.677dp"], ["376.635dp", "215.858dp"], ["380dp", "216.404dp"], ["383.059dp", "217.312dp"], ["385.848dp", "218.573dp"], ["388.365dp", "220.172dp"], ["390.595dp", "222.092dp"], ["392.522dp", "224.317dp"], ["394.125dp", "226.826dp"], ["395.391dp", "229.606dp"], ["396.302dp", "232.654dp"], ["396.852dp", "236.007dp"], ["397.034dp", "240.043dp"], ["397.034dp", "255.956dp"], ["396.852dp", "259.993dp"], ["396.302dp", "263.346dp"], ["395.391dp", "266.394dp"], ["394.125dp", "269.173dp"], ["392.522dp", "271.683dp"], ["390.595dp", "273.908dp"], ["388.365dp", "275.828dp"], ["385.848dp", "277.427dp"], ["383.059dp", "278.688dp"], ["380dp", "279.596dp"], ["376.635dp", "280.142dp"], ["372.586dp", "280.323dp"], ["358.601dp", "280.31dp"], ["344.62dp", "280.296dp"], ["330.649dp", "280.281dp"], ["316.689dp", "280.266dp"], ["302.742dp", "280.251dp"], ["288.808dp", "280.235dp"], ["274.888dp", "280.219dp"], ["260.983dp", "280.204dp"], ["247.093dp", "280.189dp"], ["233.217dp", "280.176dp"], ["219.354dp", "280.167dp"], ["205.5dp", "280.163dp"], ["191.646dp", "280.167dp"], ["177.783dp", "280.176dp"], ["163.907dp", "280.189dp"], ["150.017dp", "280.204dp"], ["136.112dp", "280.219dp"], ["122.192dp", "280.235dp"], ["108.258dp", "280.251dp"], ["94.311dp", "280.266dp"], ["80.351dp", "280.281dp"], ["66.38dp", "280.296dp"], ["52.399dp", "280.31dp"], ["38.414dp", "280.323dp"], ["34.365dp", "280.142dp"], ["31dp", "279.596dp"], ["27.941dp", "278.688dp"], ["25.152dp", "277.427dp"], ["22.635dp", "275.828dp"], ["20.405dp", "273.908dp"], ["18.478dp", "271.683dp"], ["16.875dp", "269.173dp"], ["15.609dp", "266.394dp"], ["14.698dp", "263.346dp"], ["14.148dp", "259.993dp"], ["13.966dp", "255.956dp"], ["13.966dp", "240.043dp"], ["14.148dp", "236.007dp"], ["14.698dp", "232.654dp"], ["15.609dp", "229.606dp"], ["16.875dp", "226.827dp"], ["18.478dp", "224.317dp"], ["20.405dp", "222.092dp"], ["22.635dp", "220.172dp"], ["25.152dp", "218.573dp"], ["27.941dp", "217.312dp"], ["31dp", "216.404dp"], ["34.365dp", "215.858dp"], ["38.414dp", "215.677dp"], ["53.671dp", "215.691dp"], ["68.921dp", "215.707dp"], ["84.16dp", "215.723dp"], ["99.384dp", "215.74dp"], ["114.594dp", "215.757dp"], ["129.787dp", "215.774dp"], ["144.962dp", "215.791dp"], ["160.12dp", "215.807dp"], ["175.261dp", "215.822dp"], ["190.386dp", "215.833dp"]],
+              "bbox": ["13.216dp", "214.927dp", "397.784dp", "281.073dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["190.305dp", "32.136dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.307422,
+              "dropReach": "1.648dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.425dp",
+              "refraction": "-13.883dp",
+              "dome": 0.366637,
+              "dispersion": 0.000002,
+              "magnify": 0.000001,
+              "materialize": 0.095645,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.135dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "383.067dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 31.263,
+                  "y": 243.983,
+                  "sizeDp": 16.068,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 31.263,
+                  "y": 265.072,
+                  "sizeDp": 14.059,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.206885,
+            "blurDp": 4.5,
+            "w": 0.586229,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "293.107dp", "16.196dp", "16.196dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["16.196dp", "16.196dp", "16.196dp", "16.196dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "7.774dp",
+              "refraction": "-6.997dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.413771,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "16.196dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.082272,
+              "reflexDepth": "5.183dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "293.107dp"],
+              "glowRadius": "32.392dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "4.932dp"],
+              "shadowRadii": ["0dp", "25.03dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.337
+        },
+        {
+          "kind": "material",
+          "name": "card",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.008479,
+            "blurDp": 4.500001,
+            "w": 0.983042,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBodyRingShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "vertCount": 96,
+              "verts": [["205.5dp", "215.906dp"], ["220.58dp", "215.901dp"], ["235.671dp", "215.891dp"], ["250.778dp", "215.876dp"], ["265.902dp", "215.86dp"], ["281.043dp", "215.844dp"], ["296.201dp", "215.827dp"], ["311.375dp", "215.81dp"], ["326.564dp", "215.794dp"], ["341.766dp", "215.778dp"], ["356.981dp", "215.763dp"], ["372.203dp", "215.749dp"], ["376.232dp", "215.93dp"], ["379.588dp", "216.476dp"], ["382.642dp", "217.384dp"], ["385.428dp", "218.645dp"], ["387.943dp", "220.244dp"], ["390.172dp", "222.164dp"], ["392.098dp", "224.388dp"], ["393.702dp", "226.895dp"], ["394.967dp", "229.672dp"], ["395.88dp", "232.715dp"], ["396.429dp", "236.06dp"], ["396.611dp", "240.076dp"], ["396.611dp", "255.924dp"], ["396.429dp", "259.94dp"], ["395.88dp", "263.285dp"], ["394.967dp", "266.328dp"], ["393.702dp", "269.104dp"], ["392.098dp", "271.612dp"], ["390.172dp", "273.836dp"], ["387.943dp", "275.756dp"], ["385.428dp", "277.355dp"], ["382.642dp", "278.615dp"], ["379.588dp", "279.524dp"], ["376.232dp", "280.07dp"], ["372.203dp", "280.251dp"], ["358.25dp", "280.239dp"], ["344.301dp", "280.225dp"], ["330.363dp", "280.21dp"], ["316.436dp", "280.195dp"], ["302.521dp", "280.18dp"], ["288.62dp", "280.165dp"], ["274.732dp", "280.149dp"], ["260.859dp", "280.134dp"], ["247dp", "280.12dp"], ["233.155dp", "280.107dp"], ["219.323dp", "280.098dp"], ["205.5dp", "280.094dp"], ["191.677dp", "280.098dp"], ["177.845dp", "280.107dp"], ["164dp", "280.12dp"], ["150.141dp", "280.134dp"], ["136.268dp", "280.149dp"], ["122.38dp", "280.165dp"], ["108.479dp", "280.18dp"], ["94.564dp", "280.195dp"], ["80.637dp", "280.21dp"], ["66.699dp", "280.225dp"], ["52.75dp", "280.239dp"], ["38.797dp", "280.251dp"], ["34.768dp", "280.07dp"], ["31.412dp", "279.524dp"], ["28.358dp", "278.616dp"], ["25.572dp", "277.355dp"], ["23.057dp", "275.756dp"], ["20.828dp", "273.836dp"], ["18.902dp", "271.613dp"], ["17.298dp", "269.105dp"], ["16.033dp", "266.328dp"], ["15.121dp", "263.285dp"], ["14.571dp", "259.94dp"], ["14.389dp", "255.924dp"], ["14.389dp", "240.076dp"], ["14.571dp", "236.06dp"], ["15.121dp", "232.715dp"], ["16.033dp", "229.672dp"], ["17.298dp", "226.896dp"], ["18.902dp", "224.388dp"], ["20.828dp", "222.164dp"], ["23.057dp", "220.244dp"], ["25.572dp", "218.645dp"], ["28.358dp", "217.385dp"], ["31.412dp", "216.476dp"], ["34.768dp", "215.93dp"], ["38.797dp", "215.749dp"], ["54.019dp", "215.763dp"], ["69.233dp", "215.778dp"], ["84.437dp", "215.794dp"], ["99.625dp", "215.81dp"], ["114.799dp", "215.827dp"], ["129.957dp", "215.844dp"], ["145.098dp", "215.86dp"], ["160.222dp", "215.876dp"], ["175.328dp", "215.891dp"], ["190.42dp", "215.901dp"]],
+              "bbox": ["13.639dp", "214.999dp", "397.361dp", "281.001dp"],
+              "normalSmooth": "16dp^2",
+              "soften": "0dp",
+              "fieldCenter": ["205.5dp", "248dp"],
+              "restCenter": ["205.5dp", "248dp"],
+              "restHalfSize": ["189.899dp", "32.067dp"],
+              "restRadii": ["22dp", "22dp", "22dp", "22dp"],
+              "restSmooth": 0.6,
+              "restBlend": 0.313089,
+              "dropReach": "1.632dp",
+              "ringBand": ["0.75dp", "22.75dp"],
+              "thickness": "15.392dp",
+              "refraction": "-13.853dp",
+              "dome": 0.36754,
+              "dispersion": 0.000002,
+              "magnify": 0,
+              "materialize": 0.016958,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.138dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "248dp"],
+              "glowRadius": "382.223dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 31.635,
+                  "y": 243.992,
+                  "sizeDp": 16.034,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 31.635,
+                  "y": 265.036,
+                  "sizeDp": 14.029,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "alpha"
+        },
+        {
+          "kind": "material",
+          "name": "menu",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.076113,
+            "blurDp": 4.5,
+            "w": 0.847774,
+            "paddingDp": 6.666667,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["205.5dp", "291.582dp", "14.636dp", "14.636dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["14.636dp", "14.636dp", "14.636dp", "14.636dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "7.025dp",
+              "refraction": "-6.323dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 0.152226,
+              "veilColor": "#F5F5F700",
+              "veilAdapt": 0,
+              "tintColor": "#C5C5C5B0",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "14.636dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.072133,
+              "reflexDepth": "4.683dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["205.5dp", "291.582dp"],
+              "glowRadius": "29.272dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "4.457dp"],
+              "shadowRadii": ["0dp", "22.619dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.254
+        },
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.167
+        },
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "shader",
+          "name": "scrim",
+          "source": "file:tools/glassbench/traces/f5a-4/velo-scrim.agsl",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "inputs": {
+            "content": {
+              "saturation": 1,
+              "blurDp": 6.5,
+              "edge": "clamp"
+            }
+          },
+          "uniforms": {
+            "dim": 0.32
+          },
+          "alpha": 0.076
+        },
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "shape",
+          "name": "riga",
+          "x": 0,
+          "y": 0,
+          "w": 411,
+          "h": 520,
+          "radius": 0,
+          "color": "#00000000",
+          "content": [
+            {
+              "name": "riga",
+              "x": 0,
+              "y": 0,
+              "w": 411,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Lista della spesa",
+                  "x": 32,
+                  "y": 244,
+                  "sizeDp": 16,
+                  "color": "#121214FF"
+                },
+                {
+                  "kind": "text",
+                  "text": "Rilascia fermo, poi tocca",
+                  "x": 32,
+                  "y": 265,
+                  "sizeDp": 14,
+                  "color": "#1212149E"
+                }
+              ]
+            }
+          ],
+          "contentClip": "none"
+        }
+      ]
+    }
+  ]
+}

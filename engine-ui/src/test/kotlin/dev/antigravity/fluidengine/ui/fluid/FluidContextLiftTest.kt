@@ -32,6 +32,31 @@ class FluidContextLiftTest {
   private val host = Size(411f * 3f, 891f * 3f)
   private val margin = 16f * 3f
 
+  @Test
+  fun theLiftedMaterialGivesItsEdgeBackBeforeTheSourceIsFullyVisible() {
+    for (level in FluidContextScrimLevel.entries) {
+      val presence = 1f - level.look.lightAlpha
+      assertEquals(presence, fluidLiftMaterialPresence(presence, 0f, closing = false), 0f)
+      assertEquals(0f, fluidLiftMaterialPresence(presence, FluidLiftSwapOutFrom, closing = true), 0f)
+      assertEquals(presence, fluidLiftMaterialPresence(presence, FluidLiftSwapOutTo, closing = true), 0f)
+    }
+  }
+
+  @Test
+  fun aWidescreenPreviewReturningToASquareKeepsItsMaterialInsideTheImage() {
+    val source = Rect(80f, 80f, 200f, 200f)
+    val preview = Rect(30f, 50f, 310f, 230f)
+    val mid = lerp(source, preview, 0.5f)
+    val outgoing = fluidLiftPaintedFrame(source, mid)
+    val incoming = fluidLiftPaintedFrame(preview, mid)
+    assertEquals(mid.center, outgoing.center)
+    assertEquals(mid.center, incoming.center)
+    assertEquals(mid.height, outgoing.height, eps)
+    assertTrue(outgoing.width < mid.width)
+    assertEquals(mid.width, incoming.width, eps)
+    assertTrue(incoming.height < mid.height)
+  }
+
   private fun assertRect(expected: Rect, actual: Rect, tolerance: Float = eps) {
     assertEquals("left", expected.left, actual.left, tolerance)
     assertEquals("top", expected.top, actual.top, tolerance)

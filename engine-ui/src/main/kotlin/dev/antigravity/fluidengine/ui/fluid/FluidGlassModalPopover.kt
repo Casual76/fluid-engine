@@ -68,7 +68,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.keyframes
@@ -143,7 +142,9 @@ internal fun fluidModalSourceSlab(
   start: FluidForm.Slab,
   end: FluidForm.Slab,
   progress: Float,
+  returning: Boolean = false,
 ): FluidForm.Slab {
+  if (returning) return fluidMenuReturnSlab(start, end, progress)
   val slab = fluidMenuButtonTravel(start.frame, end.frame, end.cornerRadii.topLeft, end.frame.center, progress)
   val t = (progress / FluidMotion.MenuButtonGatherEnd).coerceIn(0f, 1f)
   val radius = slab.cornerRadii.topLeft
@@ -160,11 +161,10 @@ internal enum class FluidModalSourceMotion { Popover, Confirmation, Alert }
 
 // WWDC25 323, Delete: la goccia resta sul comando fino al quarto intervallo video da 33 ms.
 private const val FluidModalGatherMillis = 133
-private const val FluidModalConfirmOpenMillis = 400
+private const val FluidModalDialogOpenMillis = 400
 private const val FluidPopoverLensHoldMillis = 100
 // WWDC25 284 e F5A.2: il ritorno entra nella posa a vista attorno a 233 ms, prima della fine della traiettoria.
 private const val FluidModalReturnMillis = 250
-private val FluidModalReturnEasing = CubicBezierEasing(0.42f, 0f, 0.58f, 1f)
 private val FluidModalLateFocusEasing = Easing {
   val cubic = it * it * it
   cubic * cubic
@@ -175,8 +175,8 @@ internal fun fluidModalGeometrySpec(
   opening: Boolean,
   from: Float,
 ): AnimationSpec<Float> = when {
-  opening && from == 0f && motion == FluidModalSourceMotion.Confirmation -> keyframes {
-    durationMillis = FluidModalConfirmOpenMillis
+  opening && from == 0f && motion != FluidModalSourceMotion.Popover -> keyframes {
+    durationMillis = FluidModalDialogOpenMillis
     FluidMotion.MenuButtonGatherEnd at 67
     FluidMotion.MenuButtonGatherEnd at FluidModalGatherMillis
     FluidMotion.MenuButtonFirstRise at 172
@@ -187,7 +187,7 @@ internal fun fluidModalGeometrySpec(
   opening -> FluidMotion.dropOpen()
   // Una chiusura a viaggio interrotto conserva valore e slancio correnti.
   from != 1f -> spring(FluidMotion.DropJourneyDamping, FluidMotion.MenuLiquidCloseStiffness)
-  else -> tween(FluidModalReturnMillis, easing = FluidModalReturnEasing)
+  else -> fluidMenuReturnSpec(FluidModalReturnMillis)
 }
 
 internal fun fluidModalFocusSpec(
@@ -196,6 +196,7 @@ internal fun fluidModalFocusSpec(
   from: Float,
   fresh: Boolean,
 ): AnimationSpec<Float> {
+  if (!opening) return fluidMenuReturnFocusSpec(from)
   val freshOpen = opening && fresh
   val late = freshOpen && motion != FluidModalSourceMotion.Popover
   // Nel popover la lente resta al massimo durante la crescita, poi percorre la curva del menu.
@@ -204,7 +205,7 @@ internal fun fluidModalFocusSpec(
     freshOpen -> FluidPopoverLensHoldMillis
     else -> 0
   }
-  val endAt = if (late) FluidModalConfirmOpenMillis else FluidMotion.MenuContentFocusMillis
+  val endAt = if (late) FluidModalDialogOpenMillis else FluidMotion.MenuContentFocusMillis
   return tween(
     durationMillis = ((endAt - delay) * abs((if (opening) 1f else 0f) - from)).roundToInt(),
     delayMillis = delay,
@@ -215,12 +216,24 @@ internal fun fluidModalFocusSpec(
 internal fun fluidModalInkExitSpec(from: Float): AnimationSpec<Float> =
   tween((FluidMotion.MenuContentExitMillis * from).roundToInt(), easing = LinearEasing)
 
-/** Nella conferma il glifo cede il posto prima della sosta della goccia. */
+/** Nei dialoghi il glifo cede il posto prima della sosta della goccia. */
 private fun FluidModalSourceMotion.faceEnd(): Float =
-  if (this == FluidModalSourceMotion.Confirmation) FluidMotion.MenuButtonGatherEnd else FluidMotion.MenuFaceTo
+  if (this != FluidModalSourceMotion.Popover) FluidMotion.MenuButtonGatherEnd else FluidMotion.MenuFaceTo
 
 internal fun fluidModalFaceAlpha(motion: FluidModalSourceMotion, p: Float): Float =
   fluidMenuFaceAlpha(p * FluidMotion.MenuFaceTo / motion.faceEnd())
+
+/** Il glifo rientra sul tasto quando tutti i lati della goccia sono arrivati alla sorgente. */
+internal fun fluidModalReturnFaceAlpha(progress: Float, current: Rect, source: Rect): Float {
+  if (current.isEmpty || source.isEmpty) return 0f
+  val tolerance = source.minDimension * 0.10f
+  val edgeGap = maxOf(
+    abs(current.left - source.left), abs(current.top - source.top),
+    abs(current.right - source.right), abs(current.bottom - source.bottom),
+  )
+  val arrival = (1f - edgeGap / tolerance).coerceIn(0f, 1f)
+  return arrival * fluidMenuFaceAlpha(fluidMenuReturnFaceProgress(progress))
+}
 
 internal fun fluidModalContentAlpha(motion: FluidModalSourceMotion, p: Float, focus: Float, visibility: Float): Float {
   // Le finestre si toccano al punto in cui il glifo è già spento. Poi risponde la lente del menu.
@@ -239,7 +252,7 @@ internal fun fluidModalContentMap(
   return fluidMenuLensMap(pane, visible, button = true, progress = progress, focus = focus)
 }
 
-/** La lente può ancora ingrandire l'inchiostro quando l'avviso ha già posato il vetro. */
+/** La lente usa il contorno in movimento fino alla messa a fuoco. */
 internal fun fluidModalTravelClip(physics: FluidPhysicsState, pane: Rect, progress: Float, focus: Float): RoundRect? =
   physics.travelClipIn(pane, if (focus < 1f) progress.coerceAtMost(0.999f) else progress)
 
@@ -278,6 +291,9 @@ internal class FluidModalSourceJourney(
   var target = 0f
     private set
   private var velocity = 0f
+  private var returningOnContour by mutableStateOf(false)
+  val controlledReturn: Boolean get() = returningOnContour
+  private val faceAtSource: Boolean get() = target == 0f || returningOnContour
   private var latest = initial
   var rootOrigin by mutableStateOf(Offset.Zero)
   val returned: Boolean get() = target == 0f && !clock.isRunning && clock.value <= 0.001f
@@ -287,7 +303,12 @@ internal class FluidModalSourceJourney(
     val next = if (visible) 1f else 0f
     if (target == next) return
     velocity = clock.velocity
-    if (!visible) lease.resolve(includeCoveredPage = true)?.let { latest = it }
+    if (!visible) {
+      if (!clock.isRunning && clock.value == 1f) returningOnContour = true
+      lease.resolve(includeCoveredPage = true)?.let { latest = it }
+    } else if (clock.value == 0f) {
+      returningOnContour = false
+    }
     target = next
   }
 
@@ -305,7 +326,7 @@ internal class FluidModalSourceJourney(
       launch { focus.animateTo(end, fluidModalFocusSpec(motion, opening, focus.value, fresh)) }
       launch {
         val spec = if (opening) fluidModalInkExitSpec(1f - contentVisibility.value)
-          else fluidModalInkExitSpec(contentVisibility.value)
+          else fluidMenuReturnInkSpec(contentVisibility.value)
         contentVisibility.animateTo(end, spec)
       }
       clock.animateTo(end, fluidModalGeometrySpec(motion, opening, clock.value), initialVelocity = velocity)
@@ -330,23 +351,28 @@ internal class FluidModalSourceJourney(
       overshootInflationX = inflation.x,
       overshootInflationY = inflation.y,
       startFrame = null,
-      travelSlab = { progress().takeIf { it < 1f }?.let { fluidModalSourceSlab(start, end, it) } },
+      travelSlab = { progress().takeIf { it < 1f }?.let { fluidModalSourceSlab(start, end, it, returningOnContour) } },
     )
   }
 
   fun contentAlpha(progress: Float): Float = fluidModalContentAlpha(motion, progress, focus.value, contentVisibility.value)
 
-  fun bodyAlpha(progress: Float): Float =
-    if (!lease.hasSeparateModalBody && lease.snapshot != null) 1f - fluidModalFaceAlpha(motion, progress) else 1f
+  fun bodyAlpha(progress: Float, physics: FluidPhysicsState): Float =
+    if (!lease.hasSeparateModalBody && lease.snapshot != null) 1f - sourceFaceAlpha(progress, physics) else 1f
+
+  private fun sourceFaceAlpha(progress: Float, physics: FluidPhysicsState): Float =
+    if (faceAtSource) fluidModalReturnFaceAlpha(progress, physics.contentBoundsNow(), bounds)
+    else fluidModalFaceAlpha(motion, progress)
 
   @Composable
   fun SourceFace(physics: FluidPhysicsState, progress: () -> Float) {
     val face = rememberGraphicsLayer()
     Box(Modifier.fillMaxSize().drawWithContent {
-      val alpha = fluidModalFaceAlpha(motion, progress())
       val snapshot = lease.snapshot ?: return@drawWithContent
-      val current = physics.contentBoundsNow()
-      if (alpha <= 0f || current.isEmpty || snapshot.size.isEmpty()) return@drawWithContent
+      val alpha = sourceFaceAlpha(progress(), physics)
+      if (alpha <= 0f || snapshot.size.isEmpty()) return@drawWithContent
+      val current = if (faceAtSource) bounds else physics.contentBoundsNow()
+      if (current.isEmpty) return@drawWithContent
       val scale = minOf(current.width / snapshot.size.width, current.height / snapshot.size.height)
       val pivot = Offset(snapshot.size.width / 2f, snapshot.size.height / 2f)
       // Il layer appartiene alla sorgente. Può essere già stato rilasciato se la riga è sparita.
@@ -520,7 +546,7 @@ internal fun FluidAnchoredPopover(
     // viaggio non c'entra: il materiale e' costante, cosi' quello che si vede attraverso il
     // vetro non pulsa ("il testo dietro non deve muoversi").
     val windowAmount: () -> Float = {
-      sourceJourney?.bodyAlpha(progress())
+      sourceJourney?.bodyAlpha(progress(), windowPhysics)
         ?: (presence() * (if (open()) 1f else minOf(growth(), growthCross()).coerceIn(0f, 1f)))
     }
     // La finestra: una superficie a tutto schermo la cui silhouette e' il lerp ancora->pannello
@@ -530,8 +556,8 @@ internal fun FluidAnchoredPopover(
     // NIENTE scala sul layer: scalare il nodo scala anche il fondale campionato dentro il vetro
     // — "il testo dietro si muove", ed era vero. L'oltrepasso vive nella GEOMETRIA della
     // silhouette (overshootInflation di driveExternally): un moto solo, su tutti i lati.
-    Box(
-      modifier = Modifier
+    FluidMenuReturnSurface(sourceJourney?.controlledReturn == true) {
+      Modifier
         .fillMaxSize()
         .drawWithContent {
           // Il cancello del fotogramma di confine: al primo e all'ultimo fotogramma di vita del
@@ -591,8 +617,8 @@ internal fun FluidAnchoredPopover(
           // scurisce sopra uno sfondo scuro cede alla ricetta adattiva, come il foglio. Sul tablet il corpo restava a
           // 136 sopra il nero col testo gia' bianco.
           restingFilmYields = true,
-        ),
-    )
+        )
+    }
     sourceJourney?.SourceFace(windowPhysics, progress)
     // L'immagine della riga, in viaggio: parte dalla sua posizione esatta, segue il centro della
     // silhouette e svanisce nel primo terzo — la riga vera ha smesso di disegnarsi nello stesso

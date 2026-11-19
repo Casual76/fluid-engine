@@ -50,7 +50,15 @@ import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassMenuPanel
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchor
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuJourney
-import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelLayout
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuCellKind
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuContentMap
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuElementSize
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuLevelClipCeiling
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuLevelPeakBlurDp
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuLevels
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuOutgoingLevel
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuStructure
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuStructureMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuSelection
@@ -69,23 +77,39 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuAnchorInkAlpha
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuAnchorFace
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuGeometryOf
 import dev.antigravity.fluidengine.ui.fluid.fluidDropInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuLens
+import dev.antigravity.fluidengine.ui.fluid.FluidMenuReturnSurface
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuUsesField
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMenuPointOfLight
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuMaterialBlend
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuElementSizeOf
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuEntries
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelEnterAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelEnterBlur
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelEnterScale
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelExitAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelExitBlur
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelExitScale
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuLevelWidth
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuOpensUpward
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuOrderOf
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReverses
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuSnapshot
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuStructure
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuSubmenuEntries
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuSubmenuPanel
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPointerRelay
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.fluidPressedBounds
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurface
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuPanelMetrics
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuLabelMeasure
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelWidth
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuStructureMetrics
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidMenuSubtitleMeasure
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.solveFluidMenuPanel
@@ -95,6 +119,10 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.fluid.glassControlSurfaceInked
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.CoroutineScope
+import kotlin.math.roundToInt
 
 /**
  * Il tasto che SI ESPANDE nel proprio menù contestuale — la prima integrazione vera di
@@ -126,8 +154,8 @@ class FluidMorphMenuState internal constructor() {
   internal var anchor by mutableStateOf<FluidMenuAnchor?>(null)
 
   /** Il pannello, in coordinate dell'host; e le sue celle. */
-  internal var panelFrame by mutableStateOf<Rect?>(null)
-  internal var panelLayout by mutableStateOf<FluidMenuPanelLayout?>(null)
+  internal var placement by mutableStateOf<MorphMenuPlacement?>(null)
+    private set
 
   /** Vero dal gesto d'apertura alla richiesta di congedo. */
   var isOpen by mutableStateOf(false)
@@ -140,6 +168,7 @@ class FluidMorphMenuState internal constructor() {
   internal val physics = FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f))
   internal val journey = FluidMenuJourney()
   internal val selection = FluidMenuSelection()
+  internal val levels = FluidMenuLevels()
 
   /**
    * Dove sta l'host e quanto e' grande, e le misure del pannello: le scrive l'host a ogni layout e a
@@ -154,6 +183,8 @@ class FluidMorphMenuState internal constructor() {
 
   /** La larghezza di un'etichetta nel tipo delle voci, e la densita': il pannello si allarga per le voci lunghe (3.0.1). */
   internal var labelWidth: ((String) -> Float)? = null
+  internal var subtitleWidth: ((String) -> Float)? = null
+  internal var structureMetrics: ((FluidMenuElementSize) -> FluidMenuStructureMetrics)? = null
   internal var density: Float = 1f
   internal var liquidMenu: Boolean = false
 
@@ -167,6 +198,10 @@ class FluidMorphMenuState internal constructor() {
     // Un congedo a dito giu' (il back durante il trascinamento): il dito non e' piu' del menu.
     anchor?.handOff?.sink = null
     selection.cancel()
+    if (levels.driving) {
+      journey.install(physics)
+      levels.driving = false
+    }
     journey.retarget(0f)
   }
 
@@ -202,50 +237,14 @@ class FluidMorphMenuState internal constructor() {
   internal fun openFrom(anchor: FluidMenuAnchor, items: List<FluidContextAction>, handOff: Boolean): Boolean {
     if (items.isEmpty() || isOpen) return false
     if (isOnScreen && this.anchor !== anchor) return false
-    val m = metrics ?: return false
-    val origin = hostOrigin ?: return false
-    val size = hostSize ?: return false
-    val layout = fluidMenuPanelLayout(items.map { it.startsSection }, m)
-    val anchorLocal = anchor.restBounds.translate(-origin.x, -origin.y)
-    val measure = labelWidth
-    val width = if (measure == null) {
-      m.widthPx
-    } else {
-      fluidMenuPanelWidth(
-        metrics = m,
-        labelWidthsPx = items.map { measure(it.label) },
-        hasIcon = items.any { it.icon != null },
-        hasCheck = items.any { it.selected },
-        density = density,
-        hostWidthPx = size.width,
-      )
-    }
-    val panel = solveFluidMenuPanel(
-      anchor = anchorLocal,
-      host = size,
-      width = width,
-      height = layout.height,
-      gapPx = m.gapPx,
-      marginPx = m.marginPx,
-      placement = FluidMenuPlacement.AboveOrBelow,
-    )
+    val list = fluidMenuSnapshot(items)
+    val placed = resolve(anchor, items, list, parent = -1, previous = -1, swapping = false) ?: return false
     val reopening = isOnScreen
     actions = items
-    panelLayout = layout
-    panelFrame = panel
+    levels.reset()
     this.anchor = anchor
-    journey.prepare(
-      anchor = anchor,
-      hostOrigin = origin,
-      panel = panel,
-      radius = m.radiusPx,
-      inflation = fluidDropInflation(panel.width, size.width, m.edgeMinPx),
-      freshStart = !reopening,
-      liquidMenu = liquidMenu,
-    )
-    journey.install(physics)
     selection.cancel()
-    selection.geometry = fluidMenuGeometryOf(layout, items.map { it.enabled }, panel.translate(origin.x, origin.y))
+    applyPlacement(placed, fresh = !reopening)
     anchor.consume(true)
     isOnScreen = true
     isOpen = true
@@ -254,14 +253,81 @@ class FluidMorphMenuState internal constructor() {
     return true
   }
 
-  /** Una scelta: un colpo solo (Tap), il congedo, l'azione. */
-  internal fun pick(index: Int, haptics: FluidHaptics) {
-    if (!isOpen) return
-    val action = actions.getOrNull(index) ?: return
-    if (!action.enabled) return
+  internal fun resolve(
+    anchor: FluidMenuAnchor,
+    items: List<FluidContextAction>,
+    list: List<FluidContextAction>,
+    parent: Int,
+    previous: Int,
+    swapping: Boolean,
+  ): MorphMenuPlacement? {
+    if (list.isEmpty()) return null
+    val m = metrics ?: return null
+    val origin = hostOrigin ?: return null
+    val host = hostSize ?: return null
+    val elementSize = fluidMenuElementSizeOf(items)
+    val sm = structureMetrics?.invoke(elementSize) ?: return null
+    val source = anchor.restBounds.translate(-origin.x, -origin.y)
+    fun width(cells: FluidMenuStructure): Float = fluidMenuLevelWidth(
+      cells.entries, m, labelWidth ?: { 0f }, subtitleWidth ?: { 0f }, density, host.width,
+    )
+    val written = fluidMenuStructure(fluidMenuEntries(list, elementSize, reversed = false), sm)
+    val rootFrame = solveFluidMenuPanel(
+      source, host, width(written), written.height, m.gapPx, m.marginPx, FluidMenuPlacement.AboveOrBelow,
+    )
+    val up = fluidMenuOpensUpward(source, rootFrame)
+    val reverse = fluidMenuReverses(fluidMenuOrderOf(items), up)
+    val root = if (reverse) fluidMenuStructure(fluidMenuEntries(list, elementSize, reversed = true), sm) else written
+    fun level(index: Int): MorphMenuLevel {
+      val action = list.getOrNull(index)?.takeIf { it.children.isNotEmpty() } ?: return MorphMenuLevel(root, rootFrame)
+      val cells = fluidMenuStructure(fluidMenuSubmenuEntries(action, reverse), sm)
+      return MorphMenuLevel(cells, fluidMenuSubmenuPanel(rootFrame, width(cells), cells.height, host, m.marginPx, up))
+    }
+    return MorphMenuPlacement(level(parent), if (swapping) level(previous) else null, elementSize)
+  }
+
+  internal fun applyPlacement(placed: MorphMenuPlacement, fresh: Boolean = false) {
+    val source = anchor ?: return
+    val origin = hostOrigin ?: return
+    val host = hostSize ?: return
+    val m = metrics ?: return
+    val (cells, panel) = placed.current
+    placement = placed
+    journey.prepare(
+      anchor = source, hostOrigin = origin, panel = panel, radius = m.radiusPx,
+      inflation = fluidDropInflation(panel.width, host.width, m.edgeMinPx),
+      freshStart = fresh, liquidMenu = liquidMenu,
+    )
+    val from = levels.fromPanel
+    if (levels.morphing && from != null) {
+      physics.driveExternally(
+        from = FluidForm.Slab(from, FluidCornerRadii.all(m.radiusPx)),
+        to = FluidForm.Slab(panel, FluidCornerRadii.all(m.radiusPx)),
+        progress = { levels.morph.value },
+      )
+      levels.driving = true
+    } else {
+      journey.install(physics)
+      levels.driving = false
+    }
+    selection.geometry = cells.geometry(panel.translate(origin.x, origin.y))
+  }
+
+  /** Le voci madri e l'intestazione cambiano livello nello stesso vetro. */
+  internal fun pick(index: Int, haptics: FluidHaptics, scope: CoroutineScope, reducedMotion: Boolean) {
+    val current = placement?.current ?: return
+    val cell = current.cells.entries.getOrNull(index) ?: return
+    if (!isOpen || levels.swapping || !cell.enabled) return
     haptics.play(FluidHapticEvent.Tap)
-    dismiss()
-    action.onClick()
+    when {
+      cell.kind == FluidMenuCellKind.Header -> levels.change(-1, current.frame, scope, reducedMotion)
+      cell.opensSubmenu -> levels.change(cell.source, current.frame, scope, reducedMotion)
+      cell.action.keepsMenuOpen -> cell.action.onClick()
+      else -> {
+        dismiss()
+        cell.action.onClick()
+      }
+    }
   }
 
   /** Il ritorno e' finito: il tasto torna a disegnarsi nello stesso istante in cui l'host smonta. */
@@ -269,12 +335,19 @@ class FluidMorphMenuState internal constructor() {
     if (isOpen) return
     anchor?.consume(false)
     anchor = null
-    panelFrame = null
-    panelLayout = null
+    placement = null
     isOnScreen = false
     journey.clearAnchor()
   }
 }
+
+internal data class MorphMenuLevel(val cells: FluidMenuStructure, val frame: Rect)
+
+internal data class MorphMenuPlacement(
+  val current: MorphMenuLevel,
+  val previous: MorphMenuLevel?,
+  val elementSize: FluidMenuElementSize,
+)
 
 @Composable
 fun rememberFluidMorphMenuState(): FluidMorphMenuState = remember { FluidMorphMenuState() }
@@ -433,16 +506,39 @@ fun FluidMorphMenuHost(
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val metrics = rememberFluidMenuPanelMetrics()
   val labelWidth = rememberFluidMenuLabelMeasure()
+  val subtitleWidth = rememberFluidMenuSubtitleMeasure()
+  val rowMetrics = rememberFluidMenuStructureMetrics(metrics, FluidMenuElementSize.Small)
+  val mediumMetrics = rememberFluidMenuStructureMetrics(metrics, FluidMenuElementSize.Medium)
+  val scope = rememberCoroutineScope()
+  val levels = state.levels
+  levels.subscribe()
   state.physics.reducedMotion = reducedMotion
   state.physics.density = density.density
 
   SideEffect {
     state.metrics = metrics
     state.labelWidth = labelWidth
+    state.subtitleWidth = subtitleWidth
+    state.structureMetrics = { if (it == FluidMenuElementSize.Medium) mediumMetrics else rowMetrics }
     state.density = density.density
     state.selection.touchSlop = touchSlop
     state.selection.onTick = { haptics.play(FluidHapticEvent.Tick) }
-    state.selection.onPick = { index -> state.pick(index, haptics) }
+    state.selection.onPick = { index -> state.pick(index, haptics, scope, reducedMotion) }
+  }
+  val currentAnchor = state.anchor
+  if (state.isOpen && currentAnchor != null) {
+    val source = state.actions
+    val list = fluidMenuSnapshot(source)
+    val parent = levels.openParent
+    val previous = levels.previousParent
+    val swapping = levels.swapping
+    val morphing = levels.morphing
+    val placed = remember(state, currentAnchor, source, list, parent, previous, swapping, morphing) {
+      state.resolve(currentAnchor, source, list, parent, previous, swapping)
+    }
+    SideEffect {
+      if (placed != null && state.placement !== placed) state.applyPlacement(placed)
+    }
   }
 
   // Il conducente del viaggio: un verso alla volta, dal valore e dalla velocita' di adesso. Il
@@ -465,7 +561,10 @@ fun FluidMorphMenuHost(
   // registrava una volta sola all'avvio e restava sotto di loro: il back toglieva la sottopagina e il
   // menu restava in scena. Ora fa come i modali, che compongono il loro gestore con la voce aperta. Il
   // congedo lo toglie: un secondo back, anche durante il ritorno, va alla pagina.
-  if (state.isOpen) BackHandler { state.dismiss() }
+  if (state.isOpen) BackHandler {
+    if (levels.openParent < 0) state.dismiss()
+    else if (!levels.swapping) levels.change(-1, state.placement?.current?.frame, scope, reducedMotion)
+  }
 
   // Un tocco fuori dal menu, OVUNQUE sullo schermo, lo chiude (3.0). L'acchiappa-tocco qui sotto
   // copre solo i limiti dell'host: montato in un palco (la galleria) o in una parte della pagina, un
@@ -505,10 +604,10 @@ fun FluidMorphMenuHost(
         },
     ) {
       val anchor = state.anchor
-      val panel = state.panelFrame
-      val layout = state.panelLayout
+      val placed = state.placement
       val origin = state.hostOrigin ?: Offset.Zero
-      if (state.isOnScreen && anchor != null && panel != null && layout != null) {
+      if (state.isOnScreen && anchor != null && placed != null) {
+        val (cells, panel) = placed.current
         val progress: () -> Float = { state.journey.progress.value }
 
         // L'acchiappa-tocco: la pagina resta a colori — è il bordo del vetro a separare, non un velo.
@@ -520,8 +619,8 @@ fun FluidMorphMenuHost(
           )
         }
 
-        Box(
-          modifier = Modifier
+        FluidMenuReturnSurface(state.journey.controlledReturn) {
+          Modifier
             .fillMaxSize()
             .fluidPhysicsSurfaceInked(
               ink = menuInk,
@@ -544,8 +643,8 @@ fun FluidMorphMenuHost(
             )
             .then(if (state.journey.liquidMenu && pointOfLight && android.os.Build.VERSION.SDK_INT >= 33) {
               Modifier.glassMenuPointOfLight(state.journey, state.physics)
-            } else Modifier),
-        )
+            } else Modifier)
+        }
 
         // La faccia del tasto: parte col viaggio d'andata, seguendo la sagoma, e torna con quello di
         // ritorno. Spenta dal 35% del viaggio: le voci arrivano dal 25%, mai leggibili insieme.
@@ -555,7 +654,7 @@ fun FluidMorphMenuHost(
             modifier = Modifier
               .fillMaxSize()
               .graphicsLayer {
-                alpha = fluidMenuFaceAlpha(progress()) * fluidMenuAnchorInkAlpha(anchor)
+                alpha = fluidMenuFaceAlpha(state.journey.faceProgress) * fluidMenuAnchorInkAlpha(anchor)
                 val map = fluidMenuContentMap(target = anchorLocal, current = state.physics.contentBoundsNow())
                 translationX = map.translation.x
                 translationY = map.translation.y
@@ -576,32 +675,55 @@ fun FluidMorphMenuHost(
             panel.top.toInt() - panel.top,
           )
           val lens = if (state.journey.liquidMenu) FluidMenuLens(state.journey, state.physics, panelInLayout) else null
+          val baseAlpha: () -> Float = {
+            val alpha = if (lens != null) fluidMenuLensAlpha(state.journey.focus.value) * state.journey.contentVisibility.value else
+              fluidMenuContentAlpha(progress(), closing = state.journey.closing)
+            alpha * (menuInk.state?.inkAlpha() ?: 1f)
+          }
+          val blurAvailable = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+          val tileLabels = placed.elementSize == FluidMenuElementSize.Medium
+          val outgoing = placed.previous?.let { (oldCells, oldFrame) ->
+            FluidMenuOutgoingLevel(
+              structure = oldCells,
+              offset = IntOffset(oldFrame.left.toInt() - panel.left.toInt(), oldFrame.top.toInt() - panel.top.toInt()),
+              size = IntSize(oldFrame.width.roundToInt(), oldFrame.height.roundToInt()),
+              tileLabels = tileLabels,
+              alpha = { baseAlpha() * fluidMenuLevelExitAlpha(levels.swap.value, blurAvailable) },
+              scale = { fluidMenuLevelExitScale(levels.swap.value) },
+              blurDp = { fluidMenuLevelExitBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp },
+            )
+          }
           FluidGlassMenuPanel(
-            actions = state.actions,
+            actions = cells.entries.map { it.action },
             selection = state.selection,
-            layout = layout,
+            layout = null,
             panelMaterial = menuGlass,
             pageBackdrop = backdrop,
             // F2.3b: con la dissolvenza dell'inchiostro attorno al passaggio di lato.
             contentAlpha = {
-              val alpha = if (lens != null) fluidMenuLensAlpha(state.journey.focus.value) * state.journey.contentVisibility.value else
-                fluidMenuContentAlpha(progress(), closing = state.journey.closing)
-              alpha * (menuInk.state?.inkAlpha() ?: 1f)
+              val levelAlpha = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
+              baseAlpha() * levelAlpha
             },
             contentMap = {
-              lens?.contentMap() ?: fluidMenuLiquidContentMap(
-                target = panel,
-                current = state.physics.contentBoundsNow(),
-                alpha = fluidMenuContentAlpha(progress(), closing = state.journey.closing) *
-                  (menuInk.state?.inkAlpha() ?: 1f),
-              )
+              if (levels.driving) {
+                FluidMenuContentMap(Offset.Zero, if (levels.swapping) fluidMenuLevelEnterScale(levels.swap.value) else 1f)
+              } else {
+                lens?.contentMap() ?: fluidMenuLiquidContentMap(panel, state.physics.contentBoundsNow(), baseAlpha())
+              }
             },
-            onPick = { index -> state.pick(index, haptics) },
+            onPick = { index -> state.pick(index, haptics, scope, reducedMotion) },
             modifier = Modifier.frame(panel),
             paneTitle = LocalFluidLabels.current.actions,
             lens = lens,
             // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
-            travelClip = { state.physics.travelClipIn(if (lens != null) panelInLayout else panel, progress()) },
+            travelClip = {
+              val clipProgress = if (levels.driving) levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling) else progress()
+              state.physics.travelClipIn(panelInLayout, clipProgress)
+            },
+            structure = cells,
+            tileLabels = tileLabels,
+            levelBlurDp = { if (levels.swapping) fluidMenuLevelEnterBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp else 0f },
+            outgoing = outgoing,
           )
         }
       }

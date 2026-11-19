@@ -37,7 +37,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidMenuOpensOn
 import dev.antigravity.fluidengine.ui.fluid.FluidMenuOrder
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.fluidContextMenu
+import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
+import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEngine
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent.Open
@@ -283,5 +287,58 @@ class FluidMenuStructureBehaviourTest {
     compose.onNodeWithContentDescription("Preferiti").performClick()
     compose.waitForIdle()
     assertEquals(listOf("Preferiti"), picked)
+  }
+
+  @Test
+  fun `il tasto morph legge la fila e la priorita e il back torna al primo livello`() {
+    compose.setContent {
+      Themed {
+        val backdrop = currentGlassBackdrop()
+        val state = rememberFluidMorphMenuState()
+        var starred by remember { mutableStateOf(false) }
+        Box(Modifier.fillMaxSize()) {
+          FluidMorphMenuButton(
+            state = state,
+            backdrop = backdrop,
+            actions = {
+              FluidMenuActions(order = FluidMenuOrder.Priority, elementSize = FluidMenuElementSize.Small) {
+                listOf(
+                  FluidContextAction(if (starred) "Aggiunto" else "Preferiti", Icons.Rounded.Star, keepsMenuOpen = true) {
+                    starred = true
+                  },
+                  FluidContextAction("Condividi", Icons.Rounded.Share) { picked += "Condividi" },
+                  FluidContextAction("Ordina", startsSection = true, children = listOf(
+                    FluidContextAction("Per nome") { picked += "Per nome" },
+                  )) { picked += "madre" },
+                  FluidContextAction("Elimina") { picked += "Elimina" },
+                )
+              }
+            },
+            onClick = {},
+            text = "Apri struttura",
+            opensOnTap = true,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
+          )
+          FluidMorphMenuHost(state, backdrop)
+        }
+      }
+    }
+    compose.onNodeWithText("Apri struttura").performClick()
+    compose.waitForIdle()
+    val share = compose.onNodeWithContentDescription("Condividi").fetchSemanticsNode().boundsInRoot
+    val star = compose.onNodeWithContentDescription("Preferiti").fetchSemanticsNode().boundsInRoot
+    assertEquals(share.top, star.top, 0.5f)
+    assertTrue(rowTop("Elimina") < rowTop("Ordina") && rowTop("Ordina") < star.top)
+    compose.onNodeWithContentDescription("Preferiti").performClick()
+    compose.onNodeWithContentDescription("Aggiunto").assertExists()
+    compose.onNodeWithText("Ordina").performClick()
+    compose.onNodeWithText("Per nome").assertExists()
+    compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+    compose.onNodeWithText("Per nome").assertDoesNotExist()
+    compose.onNodeWithContentDescription("Aggiunto").assertExists()
+    compose.onNodeWithText("Ordina").performClick()
+    compose.onNodeWithText("Per nome").performClick()
+    compose.waitForIdle()
+    assertEquals(listOf("Per nome"), picked)
   }
 }

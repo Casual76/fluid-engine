@@ -15,10 +15,12 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuInflation
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
 import dev.antigravity.fluidengine.ui.fluid.fluidModalAdaptsPopover
 import dev.antigravity.fluidengine.ui.fluid.fluidModalContentAlpha
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnInkSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidModalContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidModalFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidModalFocusSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidModalGeometrySpec
+import dev.antigravity.fluidengine.ui.fluid.fluidModalReturnFaceAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidModalInkExitSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidModalSourceSlab
 import dev.antigravity.fluidengine.ui.fluid.fluidModalTravelClip
@@ -72,19 +74,22 @@ class F5b1ModalTraceTest {
     }
   }
 
-  @Test fun confirmationHoldsTheSeedAndItsLensFocusesAfterThePopover() {
-    val confirmation = FluidModalSourceMotion.Confirmation
+  @Test fun dialogsHoldTheSeedAndTheirLensFocusesWithTheMovingContour() {
     val popover = FluidModalSourceMotion.Popover
-    val contour = TodaySpring(fluidModalGeometrySpec(confirmation, opening = true, from = 0f), 0f, 1f)
-    assertEquals(FluidMotion.MenuButtonGatherEnd, contour.value(133_000_000), 0.0001f)
-    assertTrue(contour.value(200_000_000) > FluidMotion.MenuButtonFirstRise)
-    assertEquals(0f, fluidModalFaceAlpha(confirmation, contour.value(133_000_000)), 0.0001f)
     val focus = TodaySpring(fluidModalFocusSpec(popover, opening = true, from = 0f, fresh = true), 0f, 1f)
     assertEquals(0f, focus.value(100_000_000), 0.0001f)
     assertTrue(fluidMenuLensBlurDp(focus.value(133_000_000)) > 3f)
     assertTrue(fluidMenuLensBlurDp(focus.value(200_000_000)) in 0.7f..1f)
     assertTrue(fluidMenuLensBlurDp(focus.value(267_000_000)) < 0.01f)
-    for (motion in listOf(confirmation, FluidModalSourceMotion.Alert)) {
+    for (motion in listOf(FluidModalSourceMotion.Confirmation, FluidModalSourceMotion.Alert)) {
+      val contour = TodaySpring(fluidModalGeometrySpec(motion, opening = true, from = 0f), 0f, 1f)
+      val held = contour.value(67_000_000)
+      assertEquals(FluidMotion.MenuButtonGatherEnd, held, 0.0001f)
+      assertEquals(held, contour.value(133_000_000), 0.0001f)
+      assertEquals(0f, fluidModalFaceAlpha(motion, held), 0.0001f)
+      assertTrue(contour.value(200_000_000) > FluidMotion.MenuButtonFirstRise)
+      assertTrue(contour.value(350_000_000) < contour.value(367_000_000))
+      assertTrue(contour.value(367_000_000) < contour.value(400_000_000))
       val late = TodaySpring(fluidModalFocusSpec(motion, opening = true, from = 0f, fresh = true), 0f, 1f)
       assertTrue(fluidMenuLensBlurDp(late.value(267_000_000)) > 3f)
       assertTrue(fluidMenuLensBlurDp(late.value(350_000_000)) > 2.4f)
@@ -92,7 +97,15 @@ class F5b1ModalTraceTest {
     }
   }
 
-  /** Le tre scene, sulla tela di 360 x 520 dp. Le riusano le prove di chiusura di F5B.4 (`F5b4PresentationTraceTest`). */
+  @Test fun anEarlyReturnProgressCannotShowTheFaceWhileTheDropIsInFlight() {
+    val anchor = Rect(42f, 376f, 86f, 420f)
+    assertEquals(0f, fluidModalReturnFaceAlpha(0.01f, anchor.translate(Offset(12f, -20f)), anchor), 0f)
+    assertEquals(0f, fluidModalReturnFaceAlpha(0.01f, anchor.inflate(5f), anchor), 0f)
+    assertTrue(fluidModalReturnFaceAlpha(0.01f, anchor.inflate(1f), anchor) in 0.01f..0.99f)
+    assertEquals(1f, fluidModalReturnFaceAlpha(0f, anchor, anchor), 0f)
+  }
+
+  /** Le tre scene sulla tela 360 x 520 dp, riusate da F5b4PresentationTraceTest. */
   internal val scenes: List<Scene> = run {
     val anchor = Rect(264f, 280f, 308f, 324f)
     listOf(
@@ -136,13 +149,13 @@ class F5b1ModalTraceTest {
     val to = 1f - from
     val travel = TodaySpring(fluidModalGeometrySpec(scene.motion, !closing, from), from, to)
     val focusClock = TodaySpring(fluidModalFocusSpec(scene.motion, !closing, from, fresh = !closing), from, to)
-    val visibility = TodaySpring(fluidModalInkExitSpec(1f), 1f, to)
+    val visibility = TodaySpring(if (closing) fluidMenuReturnInkSpec(1f) else fluidModalInkExitSpec(1f), 1f, to)
     val inflation = fluidMenuInflation(scene.target.width, scene.target.height, 360f, 6f, 240f, 0.6f, 0.15f)
     var p = from
     physics.driveExternally(
       from = start, to = end, progress = { p }, startFrame = null,
       overshootInflationX = inflation.x, overshootInflationY = inflation.y,
-      travelSlab = { if (p < 1f) fluidModalSourceSlab(start, end, p) else null },
+      travelSlab = { if (p < 1f) fluidModalSourceSlab(start, end, p, returning = closing) else null },
     )
     val frames = (0..36).map { index ->
       val time = glassTraceTimeMs(index)
@@ -152,7 +165,7 @@ class F5b1ModalTraceTest {
       val plan = physics.ensurePlan()
       val bounds = physics.contentBoundsNow()
       val focus = focusClock.value(nanos)
-      val face = fluidModalFaceAlpha(scene.motion, p)
+      val face = if (closing) fluidModalReturnFaceAlpha(p, bounds, scene.anchor) else fluidModalFaceAlpha(scene.motion, p)
       val alpha = fluidModalContentAlpha(scene.motion, p, focus, visibility.value(nanos))
       assertEquals("glifo e inchiostro a ${scene.name} / $time", 0f, face * alpha, 0f)
       var contentClip: Map<String, Any?>? = null
@@ -162,8 +175,9 @@ class F5b1ModalTraceTest {
           "avviso" -> "fluid:info|circle"
           else -> "fluid:more_horiz|dots"
         }
-        listOf(todayIconLayer("sorgente", bounds, icon, 22f, Color.Black, Offset.Zero, 1f,
-          alpha = face, scaleX = minOf(bounds.width, bounds.height) / scene.anchor.width))
+        val faceBounds = if (closing) scene.anchor else bounds
+        listOf(todayIconLayer("sorgente", faceBounds, icon, 22f, Color.Black, Offset.Zero, 1f,
+          alpha = face, scaleX = minOf(faceBounds.width, faceBounds.height) / scene.anchor.width))
       } else if (alpha > 0f) {
         val map = fluidModalContentMap(physics, scene.target, p, focus)
         val center = scene.target.center + map.translation

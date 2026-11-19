@@ -13,10 +13,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.translate
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -126,6 +131,11 @@ internal fun FluidLiftedPreview(
   val lift: () -> Float = {
     fluidLiftProgress(progress().coerceAtMost(if (swells) Float.MAX_VALUE else 1f).coerceAtLeast(0f), fluidLiftStartFraction(bounds, rest, startScale()))
   }
+  // Il velo e i contenuti usano lo stesso scambio. Con taglie di proporzioni diverse, il materiale
+  // non deve disegnare le bande che restano libere attorno alla foto scalata uniformemente (S10a).
+  val outgoing: () -> Float = { if (custom == null) 1f else 1f - liftRamp(lift(), FluidLiftSwapOutFrom, FluidLiftSwapOutTo) }
+  val incoming: () -> Float = { liftRamp(lift(), FluidLiftSwapInFrom, FluidLiftSwapInTo) }
+  val materialClip = remember { Path() }
 
   SideEffect {
     physics.driveExternally(
@@ -137,10 +147,27 @@ internal fun FluidLiftedPreview(
     )
   }
   val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
+  val materialPresence: () -> Float = { fluidLiftMaterialPresence(presence(), lift(), closing()) }
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .drawWithContent { if (presence() > 0.004f) drawContent() }
+      .drawWithContent {
+        if (materialPresence() <= 0.004f) return@drawWithContent
+        if (custom == null || !closing()) {
+          drawContent()
+        } else {
+          val natural = if (incoming() >= outgoing()) rest else bounds
+          val painted = fluidLiftPaintedFrame(natural, physics.contentBoundsNow())
+          if (painted.isEmpty) return@drawWithContent
+          materialClip.reset()
+          when (val outline = clipShape.createOutline(painted.size, layoutDirection, density)) {
+            is Outline.Rectangle -> materialClip.addRect(outline.rect.translate(painted.topLeft))
+            is Outline.Rounded -> materialClip.addRoundRect(outline.roundRect.translate(painted.topLeft))
+            is Outline.Generic -> materialClip.addPath(outline.path, painted.topLeft)
+          }
+          clipPath(materialClip) { this@drawWithContent.drawContent() }
+        }
+      }
       .then(
         if (backdrop != null) {
           Modifier.fluidPhysicsSurface(
@@ -151,11 +178,11 @@ internal fun FluidLiftedPreview(
             optics = GlassDefaults.panelOptics(),
             // Il materiale entra ed esce; l'immagine no. E' questa la transizione della chiusura: il
             // colore torna quello di prima e il bordo si spegne, invece di essere scambiati di colpo.
-            intensity = presence,
+            intensity = materialPresence,
           )
         } else {
           Modifier.drawBehind {
-            drawPath(physics.ensurePlan().silhouette, fallback.copy(alpha = fallback.alpha * presence().coerceIn(0f, 1f)))
+            drawPath(physics.ensurePlan().silhouette, fallback.copy(alpha = fallback.alpha * materialPresence()))
           }
         },
       ),
@@ -164,8 +191,6 @@ internal fun FluidLiftedPreview(
   // Lo scambio fra l'elemento e l'anteprima, attraverso la sfocatura: l'elemento se ne va nella prima meta'
   // del sollevamento, l'anteprima arriva dalla seconda. Senza anteprima l'elemento resta pieno e nitido.
   val swapBlurPx = with(density) { FluidLiftSwapBlur.toPx() }
-  val outgoing: () -> Float = { if (custom == null) 1f else 1f - liftRamp(lift(), FluidLiftSwapOutFrom, FluidLiftSwapOutTo) }
-  val incoming: () -> Float = { liftRamp(lift(), FluidLiftSwapInFrom, FluidLiftSwapInTo) }
 
   if (preview != null) {
     Box(
@@ -249,11 +274,23 @@ internal fun fluidLiftContentMap(target: Rect, current: Rect): FluidMenuContentM
   )
 }
 
+/** Riquadro effettivamente coperto dall'immagine, dopo la stessa scala uniforme della registrazione. */
+internal fun fluidLiftPaintedFrame(natural: Rect, current: Rect): Rect {
+  val map = fluidLiftContentMap(natural, current)
+  val half = Offset(natural.width, natural.height) * (map.scale / 2f)
+  val center = natural.center + map.translation
+  return Rect(center - half, center + half)
+}
+
 /** Una sfocatura per lo scambio, o niente sotto mezzo pixel (un `RenderEffect` a zero costa lo stesso). */
 private fun swapBlur(radiusPx: Float) =
   if (radiusPx < 0.5f) null else BlurEffect(radiusPx, radiusPx, TileMode.Decal)
 
 private fun liftRamp(p: Float, from: Float, to: Float): Float = ((p - from) / (to - from)).coerceIn(0f, 1f)
+
+/** Allo scambio con l'elemento registrato anche il filo del vetro lascia il posto al suo bordo. */
+internal fun fluidLiftMaterialPresence(presence: Float, lift: Float, closing: Boolean): Float =
+  presence.coerceIn(0f, 1f) * if (closing) liftRamp(lift, FluidLiftSwapOutFrom, FluidLiftSwapOutTo) else 1f
 
 /**
  * Lo scambio elemento → anteprima personalizzata, sul progresso della card: l'elemento se ne va fra

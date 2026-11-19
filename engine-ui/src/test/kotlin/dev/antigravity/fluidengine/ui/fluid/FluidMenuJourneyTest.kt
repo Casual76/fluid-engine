@@ -6,7 +6,9 @@ import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
+import dev.antigravity.fluidengine.ui.glass.field.trace.TodaySpring
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -70,6 +72,44 @@ class FluidMenuJourneyTest {
   private fun opened(anchor: FluidMenuAnchor = anchor()): FluidMenuJourney = FluidMenuJourney().apply {
     prepare(anchor, Offset.Zero, panel, radius = 22f, inflation = FluidMenuInflation(0.5f, 0.6f))
     retarget(1f)
+  }
+
+  @Test
+  fun theReturnHoldsThePanelAndLeavesABubbleOnTheSourceColumn() {
+    val source = FluidForm.Slab(Rect(42f, 510f, 86f, 554f), FluidCornerRadii.all(22f))
+    val destination = FluidForm.Slab(panel, FluidCornerRadii.all(24f))
+    fun at(millis: Int) = fluidMenuReturnSlab(source, destination, 1f - millis.toFloat() / FluidMotion.MenuReturnMillis)
+    assertEquals(destination, at(0))
+    assertEquals(panel.height * 0.03f, at(33).frame.top - panel.top, 0.5f)
+    assertEquals(panel.height * 0.12f, at(67).frame.top - panel.top, 0.5f)
+    for (ms in 0..200) assertTrue(at(ms).frame.width > 0 && at(ms).frame.height > 0)
+    assertEquals(source.frame.center.x, at(150).frame.center.x, 0.001f)
+    assertTrue(at(200).frame.height > source.frame.height)
+    assertEquals(source, at(233))
+  }
+
+  @Test
+  fun returnInkBlursBeforeTheSourceFaceComesBack() {
+    val focus = TodaySpring(fluidMenuReturnFocusSpec(1f), 1f, 0f)
+    val ink = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
+    assertTrue(fluidMenuLensBlurDp(focus.value(33_000_000)) > 2f)
+    assertTrue(ink.value(67_000_000) < 0.07f)
+    assertEquals(0f, ink.value(90_000_000), 0.001f)
+    for (ms in 0..233) {
+      val p = 1f - ms / 233f
+      assertEquals(0f, fluidMenuFaceAlpha(fluidMenuReturnFaceProgress(p)) * ink.value(ms * 1_000_000L), 0f)
+    }
+  }
+
+  @Test
+  fun openingOvershootGrowsTheFarEdgeAndLeavesTheNearEdgeInPlace() {
+    val from = Rect(42f, 510f, 86f, 554f)
+    val end = FluidForm.Slab(panel, FluidCornerRadii.all(24f))
+    val peak = fluidMenuOpeningOvershoot(end, panel, from, FluidMotion.MenuOvershootPeakMillis.toFloat(), 0.1f).frame
+    assertEquals(panel.bottom, peak.bottom, 0f)
+    assertEquals(panel.height * 0.06f, panel.top - peak.top, 0.001f)
+    assertEquals(panel.width * 0.034f, peak.width - panel.width, 0.001f)
+    assertEquals(end, fluidMenuOpeningOvershoot(end, panel, from, 350f, 0.1f))
   }
 
   @Test

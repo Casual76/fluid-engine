@@ -46,6 +46,9 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuMaterialBlend
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelLayout
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuPanelWidth
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuRowHeight
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnFocusSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnInkSpec
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuReturnSpec
 import dev.antigravity.fluidengine.ui.fluid.fluidPressTransform
 import dev.antigravity.fluidengine.ui.fluid.fluidPressedBounds
 import dev.antigravity.fluidengine.ui.fluid.sanitized
@@ -152,6 +155,7 @@ internal data class MenuTraceVariant(
   val inflationMultiplier: Float = 1f,
   val inflationHeightMultiplier: Float = inflationMultiplier,
   val pointOfLight: Boolean = false,
+  val corrected: Boolean = false,
 )
 
 /**
@@ -256,14 +260,20 @@ internal fun buildMenuTrace(
     freshStart = true,
     liquidMenu = variant?.threePhase == true,
   )
-  if (journey.usesButtonTravel) journey.retarget(1f)
+  if (variant?.threePhase == true) journey.retarget(1f)
   journey.install(physics)
   val progress = TodaySpring(FluidMotion.dropOpen(), 0f, 1f)
   val closeAt = variant?.closingAtMs?.let { it * 1_000_000L }
   val close = closeAt?.let {
     val stiffness = variant?.closeStiffness ?: FluidMotion.DropCloseStiffness
-    TodaySpring(spring(FluidMotion.DropJourneyDamping, stiffness), progress.value(it), 0f, progress.velocity(it))
+    val from = progress.value(it)
+    val spec = if (variant?.corrected == true && from == 1f) fluidMenuReturnSpec()
+      else spring(FluidMotion.DropJourneyDamping, stiffness)
+    TodaySpring(spec, from, 0f, progress.velocity(it))
   }
+  val focusAtClose = ((variant?.closingAtMs ?: 0).toFloat() / FluidMotion.MenuContentFocusMillis).coerceAtMost(1f)
+  val exitFocus = TodaySpring(fluidMenuReturnFocusSpec(focusAtClose), focusAtClose, 0f)
+  val exitInk = TodaySpring(fluidMenuReturnInkSpec(1f), 1f, 0f)
   val relax = TodaySpring(FluidMotion.snappy(), journey.anchorRelax.value, 1f)
   val driver = TodayLiquidDriver(physics, d)
   val material = PhysicsMaterialSource(GlassDefaults.buttonOptics().sanitized(), GlassDefaults.panelOptics(compact = true).sanitized())
@@ -320,11 +330,15 @@ internal fun buildMenuTrace(
     val playNanos = if (closing) nanos - requireNotNull(closeAt) else nanos
     val springNow = if (closing) requireNotNull(close) else progress
     val p = springNow.value(playNanos)
-    if (closing && journey.usesButtonTravel) journey.retarget(0f)
+    if (closing && variant?.threePhase == true) journey.retarget(0f)
     runBlocking {
       journey.progress.snapTo(p)
       journey.anchorRelax.snapTo(relax.value(nanos))
+      if (variant?.corrected == true) {
+        journey.openingAge.snapTo((tMs / FluidMotion.MenuOvershootEndMillis).toFloat().coerceIn(0f, 1f))
+      }
     }
+    if (variant?.corrected == true) physics.liquidAllowed = !journey.controlledReturn
     driver.frame(nanos)
     val plan = physics.ensurePlan()
     if (plan.mode == PlanModePoly) ringFrames++
@@ -345,7 +359,7 @@ internal fun buildMenuTrace(
     // La faccia del tasto: segue la sagoma e se ne va entro il 35% del viaggio.
     val faceMap = fluidMenuContentMap(target = rest, current = bounds)
     if (variant?.grouped == true) {
-      val u = p / FluidMotion.MenuGroupFaceProgressSpan
+      val u = journey.faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {
         listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
@@ -362,26 +376,29 @@ internal fun buildMenuTrace(
       color = palette.primary,
       origin = origin,
       density = d,
-      alpha = fluidMenuFaceAlpha(p),
+      alpha = fluidMenuFaceAlpha(journey.faceProgress),
       scaleX = faceMap.scale,
     )
 
     // Le voci: attaccate alla sagoma, scalate di poco, ritagliate dentro il corpo (`travelClipIn`). Lo strato
     // e' grande quanto la tela e le voci stanno dove la mappa del layer le porta; il ritaglio e' `clip`, sullo
     // schermo e non scalato con lo strato, come il `graphicsLayer` con la forma di `fluidMenuTravelClip`.
-    val focus = if (closing) {
-      val top = (requireNotNull(variant?.closingAtMs).toFloat() / FluidMotion.MenuContentFocusMillis).coerceAtMost(1f)
-      (top - playNanos / 1_000_000f / FluidMotion.MenuContentFocusMillis).coerceAtLeast(0f)
-    } else {
-      (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceAtMost(1f)
+    val focus = when {
+      closing && variant?.corrected == true -> exitFocus.value(playNanos)
+      closing -> (focusAtClose - playNanos / 1_000_000f / FluidMotion.MenuContentFocusMillis).coerceAtLeast(0f)
+      else -> (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceAtMost(1f)
     }
     val lens = variant?.threePhase == true
-    val visibility = if (closing) (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f) else 1f
+    val visibility = when {
+      closing && variant?.corrected == true -> exitInk.value(playNanos)
+      closing -> (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f)
+      else -> 1f
+    }
     val alpha = if (lens) fluidMenuLensAlpha(focus) * visibility else fluidMenuContentAlpha(p, closing)
     if (alpha > 0f) {
       val clip = physics.travelClipIn(panelBox, p)
       val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
-      val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.usesButtonTravel, p, focus) else
+      val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.magnifiesInk, p, focus) else
         fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
       val glyphDp = if (variant != null) FluidMenuRowGlyph.value else OggiMenuGlyphDp
       val cx = panelBox.width / 2f

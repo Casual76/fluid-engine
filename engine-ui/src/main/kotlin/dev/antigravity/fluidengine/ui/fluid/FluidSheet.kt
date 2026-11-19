@@ -364,6 +364,21 @@ fun FluidAlert(
   actions: List<FluidAlertAction>,
   inHost: Boolean = true,
   content: (@Composable ColumnScope.() -> Unit)? = null,
+) = FluidAlert(
+  onDismissRequest, title, modifier, message, actions, inHost, source = null, content = content,
+)
+
+/** Un avviso che prende il posto di [source] mentre chiede una decisione e vi rientra al congedo. */
+@Composable
+fun FluidAlert(
+  onDismissRequest: () -> Unit,
+  title: String,
+  modifier: Modifier = Modifier,
+  message: String? = null,
+  actions: List<FluidAlertAction>,
+  inHost: Boolean = true,
+  source: FluidTransitionSource?,
+  content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
   val host = LocalFluidGlassModalHostState.current
   if (inHost && host != null) {
@@ -377,10 +392,39 @@ fun FluidAlert(
         content = content,
         modifier = modifier,
       ),
+      source = source,
     )
     return
   }
   FluidAlertDialog(onDismissRequest, title, modifier, message, actions, content)
+}
+
+/** L'avviso compare quando [item] è presente. Il dato mostrato resta disponibile durante l'uscita. */
+@Composable
+fun <T : Any> FluidAlert(
+  item: T?,
+  onDismissRequest: () -> Unit,
+  title: (T) -> String,
+  modifier: Modifier = Modifier,
+  message: ((T) -> String?)? = null,
+  actions: (T) -> List<FluidAlertAction>,
+  inHost: Boolean = true,
+  source: FluidTransitionSource? = null,
+  content: (@Composable ColumnScope.(T) -> Unit)? = null,
+) {
+  var lastItem by remember { mutableStateOf(item) }
+  if (item != null) lastItem = item
+  val shown = lastItem ?: return
+  val spec = FluidAlertSpec(
+    title(shown), message?.invoke(shown), actions(shown),
+    content?.let { body -> { body(shown) } }, modifier,
+  )
+  val host = LocalFluidGlassModalHostState.current
+  if (inHost && host != null) {
+    FluidAlertInHost(host, onDismissRequest, spec, source, visible = item != null)
+  } else if (item != null) {
+    FluidAlertDialog(onDismissRequest, spec.title, modifier, spec.message, spec.actions, spec.content)
+  }
 }
 
 /**
@@ -388,34 +432,47 @@ fun FluidAlert(
  * piu' — al `onDispose` si ritira (`retire`) invece di sparire, e la toglie il layer a uscita finita.
  */
 @Composable
-private fun FluidAlertInHost(
+internal fun FluidAlertInHost(
   host: FluidGlassModalHostState,
   onDismissRequest: () -> Unit,
   spec: FluidAlertSpec,
+  source: FluidTransitionSource? = null,
+  /** Null: il chiamante governa l'avviso montando e smontando il composable. */
+  visible: Boolean? = null,
 ) {
   val entry = remember { FluidGlassModalEntry() }
   SideEffect {
-    entry.alert = spec
+    if (visible != false) {
+      entry.alert = spec
+      entry.paneTitle = spec.title
+      entry.source = source
+    }
     entry.onDismissRequest = onDismissRequest
-    entry.paneTitle = spec.title
+    if (visible != null) {
+      if (visible && !entry.visible) entry.openedAt = host.nextSequence()
+      entry.visible = visible
+    }
   }
   DisposableEffect(host, entry) {
     // Prima della registrazione, non dopo: il layer sceglie che cosa disegnare da `alert`, e una voce
     // registrata senza sarebbe per un fotogramma un pop-up vuoto.
     entry.alert = spec
+    entry.source = source
     entry.presentation = FluidGlassModalPresentation.Popover
     entry.onDismissRequest = onDismissRequest
     entry.paneTitle = spec.title
     entry.retiring = false
-    entry.openedAt = host.nextSequence()
-    entry.visible = true
+    if (visible == null) {
+      entry.openedAt = host.nextSequence()
+      entry.visible = true
+    }
     host.register(entry)
     onDispose { host.retire(entry) }
   }
 }
 
 @Composable
-private fun FluidAlertDialog(
+internal fun FluidAlertDialog(
   onDismissRequest: () -> Unit,
   title: String,
   modifier: Modifier,

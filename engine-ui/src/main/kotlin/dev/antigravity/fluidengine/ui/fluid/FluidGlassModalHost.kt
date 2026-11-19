@@ -31,18 +31,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.PointerInputModifierNode
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
@@ -103,6 +113,8 @@ class FluidGlassModalHostState internal constructor() {
 
   /** Whether anything is currently open. An app can use it to obscure the page behind. */
   val isPresenting: Boolean get() = entries.any { it.visible }
+
+  internal val blocksPage: Boolean get() = entries.any { it.visible && it.blocksPage }
 
   /**
    * Whether anything still has pixels on screen, the exit animation included.
@@ -187,6 +199,13 @@ internal class FluidGlassModalEntry {
   var onDismissRequest: () -> Unit by mutableStateOf({})
   var origin: () -> Rect? by mutableStateOf({ null })
   var presentation by mutableStateOf(FluidGlassModalPresentation.Popover)
+  var source: FluidTransitionSource? by mutableStateOf(null)
+  var mode: FluidPresentationMode? by mutableStateOf(null)
+  var inlineConfirmation by mutableStateOf(false)
+  val sheetBackground = FluidSheetBackground()
+  val outsideTapArea = FluidModalHitArea()
+  val blocksPage: Boolean get() =
+    mode != FluidPresentationMode.Parallel && !inlineConfirmation && !sheetBackground.undimmed
   var paneTitle: String? by mutableStateOf(null)
   var paneTint: Color? by mutableStateOf(null)
 
@@ -244,7 +263,7 @@ internal class FluidGlassModalEntry {
 @Composable
 fun Modifier.fluidGlassModalObscured(): Modifier {
   val host = LocalFluidGlassModalHostState.current ?: return this
-  if (!host.isPresenting) return this
+  if (!host.blocksPage) return this
   return this.semantics { hideFromAccessibility() }
 }
 
@@ -268,7 +287,12 @@ fun FluidGlassModalHost(
   // Taglia, stile e larghezza dei tasti tornano quelli di serie (F6.4): in iOS 27 un foglio o un popover non eredita
   // `controlSize` e `buttonSizing` di chi lo apre, e un host messo dentro una barra di tasti `Compact` non li passa.
   CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, *fluidGlassButtonDefaults()) {
-    Box(modifier = modifier.fillMaxSize()) {
+    val parallel = state.topEntry()?.takeIf { !it.blocksPage && !fluidModalSlidesUp(it.presentation) }
+    val sharedTap = if (parallel != null) {
+      val slop = androidx.compose.ui.platform.LocalViewConfiguration.current.touchSlop
+      FluidParallelModalTapElement(parallel.outsideTapArea, slop, parallel.onDismissRequest)
+    } else Modifier
+    Box(modifier = modifier.fillMaxSize().then(sharedTap)) {
       // Every registered entry, in the order they were opened, so a menu raised from inside a modal
       // sits over it instead of replacing it. An entry that is closed and finished animating draws
       // nothing at all and costs one float animation.
@@ -340,11 +364,21 @@ private fun FluidGlassModalLayer(
   // Tre famiglie, un host (3.0, fase 7): l'avviso, i menu (contestuale ed Expand con azioni: il
   // pannello unico, il viaggio unico, la goccia) e i pannelli di contenuto di sempre.
   val alert = entry.alert
+  val hasActions = fluidModalShowsActions(entry.presentation, entry.actions.isNotEmpty())
+  val sourceJourney = rememberFluidModalSourceJourney(
+    entry, enabled = !hasActions && !fluidModalSlidesUp(entry.presentation) &&
+      entry.presentation != FluidGlassModalPresentation.ContextMenu,
+    motion = when {
+      alert?.confirmationCancel != null -> FluidModalSourceMotion.Confirmation
+      alert != null -> FluidModalSourceMotion.Alert
+      else -> FluidModalSourceMotion.Popover
+    },
+  )
   when {
-    alert != null -> FluidAlertLayer(entry = entry, spec = alert, backdrop = backdrop, host = host)
-    fluidModalShowsActions(entry.presentation, entry.actions.isNotEmpty()) ->
+    alert != null -> FluidAlertLayer(entry, alert, backdrop, host, sourceJourney)
+    hasActions ->
       FluidMenuLayer(entry = entry, backdrop = backdrop)
-    else -> FluidGlassModalPaneLayer(entry = entry, backdrop = backdrop, host = host)
+    else -> FluidGlassModalPaneLayer(entry, backdrop, host, sourceJourney)
   }
 }
 
@@ -353,6 +387,7 @@ private fun FluidGlassModalPaneLayer(
   entry: FluidGlassModalEntry,
   backdrop: GlassBackdropState?,
   host: FluidGlassModalHostState,
+  sourceJourney: FluidModalSourceJourney?,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   // 0 = at the anchor's size, 1 = at its own. What "0" actually means in pixels is solved by the
@@ -478,7 +513,7 @@ private fun FluidGlassModalPaneLayer(
   // pannello": la riga smette di disegnarsi nello stesso fotogramma in cui la finestra appare
   // sulla sua sagoma, e la sua immagine registrata parte col viaggio.
   var anchorNode by remember { mutableStateOf<FluidExpandAnchorNode?>(null) }
-  if (entry.visible && journeyMode && entry.presentation != FluidGlassModalPresentation.ContextMenu) {
+  if (entry.visible && sourceJourney == null && journeyMode && entry.presentation != FluidGlassModalPresentation.ContextMenu) {
     val origin = lastOrigin
     if (origin != null && anchorNode == null) {
       anchorNode = host.expandAnchors.firstOrNull { node ->
@@ -495,10 +530,11 @@ private fun FluidGlassModalPaneLayer(
 
   // The fade is short and the springs are not, and a sheet slides out on the springs. Dropping
   // the layer the moment the alpha reached zero cut every exit in half.
-  if (!entry.visible && exitFinished) {
+  if (!entry.visible && (sourceJourney?.returned ?: exitFinished)) {
     // Whatever was lifted out of the page is handed back to it here, and not one frame earlier.
     SideEffect {
       entry.lifted = false
+      entry.sheetBackground.undimmed = false
       anchorNode?.hidden = false
       anchorNode = null
     }
@@ -507,7 +543,7 @@ private fun FluidGlassModalPaneLayer(
 
   val focusRequester = remember { FocusRequester() }
   LaunchedEffect(entry.visible) {
-    if (entry.visible) runCatching { focusRequester.requestFocus() }
+    if (entry.visible && entry.blocksPage) runCatching { focusRequester.requestFocus() }
   }
 
   // Predictive back drives the same retreat the drag does, so letting go halfway puts the modal
@@ -539,14 +575,12 @@ private fun FluidGlassModalPaneLayer(
       .semantics { isTraversalGroup = true }
       .focusGroup(),
   ) {
-    FluidGlassModalScrim(
+    FluidPresentationScrim(
+      entry = entry,
       backdrop = backdrop,
       exports = scrimGlass,
       intensity = { presence() * (1f - backProgress * 0.6f) },
-      // A congedo richiesto lo scrim smette di mangiare i tocchi: la pagina sotto e' gia' sua
-      // — si puo' scorrere mentre la chiusura finisce di sfumare.
-      interactive = entry.visible,
-      onDismiss = entry.onDismissRequest,
+      plain = entry.mode != null,
     )
 
     // An invisible focus target inside the overlay: without one, the first D-pad or keyboard move
@@ -574,6 +608,7 @@ private fun FluidGlassModalPaneLayer(
         onDismiss = entry.onDismissRequest,
         footer = lastFooter,
         content = lastContent,
+        sheetBackground = entry.sheetBackground,
       )
       return@Box
     }
@@ -615,8 +650,90 @@ private fun FluidGlassModalPaneLayer(
       growth = { scaleX.value },
       growthCross = { scaleY.value },
       retreat = { backProgress },
+      sourceJourney = sourceJourney,
+      modal = entry.blocksPage,
+      parallelHitArea = entry.outsideTapArea.takeIf { !entry.blocksPage },
     ) {
       lastContent()
     }
   }
+}
+
+/** Sotto un foglio la sorgente dello scrim è un colore, campionato dal vetro alla forza del fotogramma. */
+@Composable
+internal fun FluidPresentationScrim(
+  entry: FluidGlassModalEntry,
+  backdrop: GlassBackdropState?,
+  exports: GlassBackdropState,
+  intensity: () -> Float,
+  plain: Boolean,
+) {
+  if (!plain) {
+    if (entry.blocksPage) FluidGlassModalScrim(backdrop, exports, intensity, entry.visible, entry.onDismissRequest)
+    return
+  }
+  if (entry.mode == FluidPresentationMode.Parallel || entry.inlineConfirmation) return
+  val tint = GlassPaintedScrim.color(GlassDefaults.isDarkSurface())
+  Box(
+    Modifier.fillMaxSize()
+      .then(if (entry.visible && entry.blocksPage) Modifier.pointerInput(entry) {
+        detectTapGestures { entry.onDismissRequest() }
+      } else Modifier)
+      .glassMaterialSource(exports)
+      .drawBehind {
+        if (entry.blocksPage) drawRect(tint.copy(alpha = tint.alpha * intensity().coerceIn(0f, 1f)))
+      },
+  )
+}
+
+internal class FluidModalHitArea {
+  var bounds: Rect = Rect.Zero
+}
+
+/** Riserva i tap sulla superficie al pannello anche nei punti privi di azioni. */
+internal fun Modifier.fluidParallelModalPanel(): Modifier =
+  pointerInput(Unit) { detectTapGestures { } }
+
+/** Va sulla radice dell'host perché Compose cerca la condivisione sul fratello diretto della pagina. */
+private data class FluidParallelModalTapElement(
+  val area: FluidModalHitArea,
+  val slop: Float,
+  val onDismiss: () -> Unit,
+) : ModifierNodeElement<FluidParallelModalTapNode>() {
+  override fun create() = FluidParallelModalTapNode(area, slop, onDismiss)
+  override fun update(node: FluidParallelModalTapNode) {
+    node.area = area
+    node.slop = slop
+    node.onDismiss = onDismiss
+  }
+  override fun InspectorInfo.inspectableProperties() { name = "fluidParallelModalOutsideTap" }
+}
+
+private class FluidParallelModalTapNode(
+  var area: FluidModalHitArea,
+  var slop: Float,
+  var onDismiss: () -> Unit,
+) : Modifier.Node(), PointerInputModifierNode {
+  private var pointer: PointerId? = null
+  private var origin = Offset.Zero
+
+  override fun sharePointerInputWithSiblings(): Boolean = true
+
+  override fun onPointerEvent(pointerEvent: PointerEvent, pass: PointerEventPass, bounds: IntSize) {
+    if (pass != PointerEventPass.Initial) return
+    val change = pointerEvent.changes.singleOrNull() ?: run { onCancelPointerInput(); return }
+    val position = change.position
+    if (!change.previousPressed && change.pressed) {
+      pointer = change.id.takeIf { !area.bounds.contains(position) }
+      origin = position
+    } else if (pointer == change.id) {
+      if ((position - origin).getDistance() > slop) onCancelPointerInput()
+      if (!change.pressed && pointer != null) {
+        onCancelPointerInput()
+        if (!area.bounds.contains(position)) onDismiss()
+      }
+    }
+  }
+
+  override fun onCancelPointerInput() { pointer = null }
 }

@@ -37,11 +37,13 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | un menu su un elemento che gestisce già i suoi click | `rememberFluidContextMenu` + `Modifier.fluidContextMenuAnchor` + `open()` dal suo click lungo |
 | un menu contestuale che solleva un'**anteprima diversa** dall'elemento, o con una **forma** sua | `preview = { … }` e `previewShape = …` di `Modifier.fluidContextMenu` o di `rememberFluidContextMenu` (4.0) → [menu-liquidi.md](menu-liquidi.md) |
 | un pannello di **contenuto** che nasce da una riga o da un tasto | `FluidGlassModalPortal(origin = …)` + `Modifier.fluidExpandOrigin` |
+| un popover che prende il posto del tasto e vi rientra | `FluidGlassModalPortal(source = …)` |
 | un pop-up di contenuto senza origine | `FluidGlassModalPortal` con `origin` nullo (si apre al centro) |
 | un foglio dal basso con testata, corpo che scorre e tasti fermi | `FluidGlassModalPortal(presentation = Sheet)` con dentro `FluidSheetScaffold` |
 | un foglio con **altezze di riposo** (a metà, in cima), che il dito porta su e giù e che in cima diventa una pagina | `FluidGlassSheet(visible, onDismissRequest, detents = setOf(Medium, Large))` (4.0, sezione «Il foglio di vetro con i detent») |
 | un foglio che **nasce dal tasto** che lo apre (della barra, o una card) e ci rientra | `FluidGlassSheet(…, source = rememberFluidToolbarTransitionSource("id"))` o `source = FluidTransitionSource(id, ns)` (4.0, «Il foglio che nasce dal tasto») |
 | una conferma («Eliminare?», «Usare i dati mobili?») | `FluidConfirmSheet` |
+| una conferma compatta sopra l'azione che l'ha aperta | `FluidConfirmationDialog(source = …)` |
 | un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
 | far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
 | un avviso breve con due o tre pulsanti (UIKit) | `FluidAlert` con `FluidAlertAction` |
@@ -79,14 +81,36 @@ resta viva sotto la nuova pagina.
 Per l'andata leggi la geometria prima di cambiare lo stato che toglie la sorgente. Al ritorno usa una nuova lettura
 per tenere conto dello scorrimento, della misura e della pagina corrente. Per lo zoom di ritorno,
 `resolve(includeCoveredPage = true)` può trovare una vista ancora posata nella pagina sotto. Il risultato `null`
-permette al componente che presenta di usare il proprio ripiego. F5A.1 fornisce la geometria. Il collegamento è previsto in
-F5A.2, F5B.1 e F5B.3. Per i comandi dichiarati vedi [la toolbar](toolbar.md#le-sorgenti-delle-transizioni-f5a1).
+permette al componente che presenta di usare il proprio ripiego.
+Per i comandi dichiarati vedi [la toolbar](toolbar.md#le-sorgenti-delle-transizioni-f5a1).
 
 **La sorgente consumata (4.0, F5B.3).** Una pagina o un foglio aperti con lo zoom da una sorgente la **nascondono** finché
 sono in scena e la restituiscono nel fotogramma in cui la loro sagoma ci rientra: le due cose non si vedono mai insieme.
 Il modificatore nasconde ciò che gli sta **dopo** nella catena, quindi va messo in testa (prima di `clip`, fondo e
 contenuto). A riposo non disegna e non misura niente di suo. I collegamenti di F5B.3: le pagine (`FluidPageTransition.Expand`
 con `zoomSource`, [pagine.md](pagine.md)) e il foglio (`FluidGlassSheet(source = …)`, sotto).
+
+### Popover, avvisi e conferme dalla sorgente
+
+`FluidGlassModalPortal(source = …)`, `FluidAlert(source = …)` e `FluidConfirmationDialog(source = …)` usano la
+traiettoria del menu dal tasto. La sorgente si raccoglie sul posto. La goccia va verso il centro di arrivo mentre
+il pannello si apre. Al congedo la forma rientra nella sorgente e questa riprende a disegnarsi. Un tasto singolo
+della toolbar cede anche il vetro del piano. Le voci adiacenti in una capsula condivisa conservano il proprio fondo.
+
+- Il popover occupa lo spazio accanto alla sorgente. Su una finestra sotto 600 dp prende la forma di un foglio.
+  `compactAdaptation = FluidCompactAdaptation.Popover` conserva il popover. Di serie il popover lascia attiva la
+  pagina e il foglio adattato è modale. `mode` permette di dichiarare il comportamento del compito.
+- L'avviso interrompe il compito ed è centrato. Con una sorgente parte dalla sua forma. Fuori dall'host usa
+  il dialogo di piattaforma.
+- La conferma con una sorgente si posa sopra il comando, lascia la pagina attiva e si congeda con un tocco
+  all'esterno. Al centro offre Annulla. Le azioni usano `FluidAlertAction` e la scelta chiude il pannello
+  prima di chiamare l'azione.
+- I sovraccarichi `item` aprono il pannello quando il dato è presente e tengono il dato mostrato mentre il
+  pannello esce. `source` identifica il controllo di partenza.
+
+Il foglio di vetro scurisce la pagina con un velo uniforme e mantiene nitido lo sfondo visibile oltre il foglio.
+Con `undimmedUpTo = FluidSheetDetent.Medium`, a metà altezza e durante i movimenti sotto quella quota
+la pagina resta attiva. Sopra la soglia il velo e la modalità seguono la posizione corrente del foglio.
 
 ## Regola trasversale: un portale dichiara, un host disegna
 

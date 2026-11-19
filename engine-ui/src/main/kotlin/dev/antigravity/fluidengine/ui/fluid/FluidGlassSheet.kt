@@ -116,14 +116,38 @@ fun FluidGlassSheet(
   paneTint: Color? = null,
   source: FluidTransitionSource? = null,
   content: @Composable ColumnScope.() -> Unit,
+) = FluidGlassSheet(
+  visible, onDismissRequest, detents, selectedDetent, onSelectedDetentChange, dragIndicator,
+  transition, paneTitle, paneTint, source, undimmedUpTo = null, content = content,
+)
+
+/**
+ * Lascia la pagina attiva fino a [undimmedUpTo], incluso. Sopra quella quota la pagina
+ * si scurisce e il foglio diventa modale. Usalo per un lavoro che può accompagnare la pagina.
+ */
+@Composable
+fun FluidGlassSheet(
+  visible: Boolean,
+  onDismissRequest: () -> Unit,
+  detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large),
+  selectedDetent: FluidSheetDetent? = null,
+  onSelectedDetentChange: (FluidSheetDetent) -> Unit = {},
+  dragIndicator: Boolean = true,
+  transition: FluidSheetTransition = FluidSheetTransition.Slide,
+  paneTitle: String? = null,
+  paneTint: Color? = null,
+  source: FluidTransitionSource? = null,
+  undimmedUpTo: FluidSheetDetent?,
+  content: @Composable ColumnScope.() -> Unit,
 ) {
-  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source)
+  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source, undimmedUpTo)
   FluidGlassModalPortal(
     visible = visible,
     onDismissRequest = onDismissRequest,
     presentation = FluidGlassModalPresentation.Sheet,
     paneTitle = paneTitle,
     paneTint = paneTint,
+    mode = FluidPresentationMode.Modal,
   ) {
     FluidSheetDeclaration(spec, onSelectedDetentChange)
     FluidSheetBody(content)
@@ -147,14 +171,35 @@ fun <T : Any> FluidGlassSheet(
   paneTint: Color? = null,
   source: FluidTransitionSource? = null,
   content: @Composable ColumnScope.(T) -> Unit,
+) = FluidGlassSheet(
+  item, onDismissRequest, detents, selectedDetent, onSelectedDetentChange, dragIndicator,
+  transition, paneTitle, paneTint, source, undimmedUpTo = null, content = content,
+)
+
+/** Foglio aperto da un dato, con la pagina attiva fino a [undimmedUpTo]. */
+@Composable
+fun <T : Any> FluidGlassSheet(
+  item: T?,
+  onDismissRequest: () -> Unit,
+  detents: Set<FluidSheetDetent> = setOf(FluidSheetDetent.Large),
+  selectedDetent: FluidSheetDetent? = null,
+  onSelectedDetentChange: (FluidSheetDetent) -> Unit = {},
+  dragIndicator: Boolean = true,
+  transition: FluidSheetTransition = FluidSheetTransition.Slide,
+  paneTitle: String? = null,
+  paneTint: Color? = null,
+  source: FluidTransitionSource? = null,
+  undimmedUpTo: FluidSheetDetent?,
+  content: @Composable ColumnScope.(T) -> Unit,
 ) {
-  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source)
+  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source, undimmedUpTo)
   FluidGlassModalPortal(
     item = item,
     onDismissRequest = onDismissRequest,
     presentation = FluidGlassModalPresentation.Sheet,
     paneTitle = paneTitle,
     paneTint = paneTint,
+    mode = FluidPresentationMode.Modal,
   ) { shown ->
     FluidSheetDeclaration(spec, onSelectedDetentChange)
     FluidSheetBody { content(shown) }
@@ -190,7 +235,16 @@ internal data class FluidSheetSpec(
   val transition: FluidSheetTransition,
   /** La sorgente dello zoom (F5B.3), o null. Va ricordata da chi la crea: è parte dell'uguaglianza della dichiarazione. */
   val source: FluidTransitionSource? = null,
+  val undimmedUpTo: FluidSheetDetent? = null,
 )
+
+@Stable
+internal class FluidSheetBackground {
+  var undimmed by mutableStateOf(false)
+}
+
+internal fun fluidSheetIsUndimmed(positionPx: Float, limitPx: Float?): Boolean =
+  limitPx != null && positionPx <= limitPx + 0.5f
 
 /**
  * Il canale fra il contenuto di un foglio e il foglio che lo disegna (`FluidGlassModalSheet`).

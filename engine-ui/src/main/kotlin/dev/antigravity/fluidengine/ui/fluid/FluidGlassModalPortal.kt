@@ -20,6 +20,13 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+
+/** Presentazione di un popover richiesto su una finestra compatta. */
+enum class FluidCompactAdaptation { Sheet, Popover }
+
+/** Un compito modale oscura e blocca la pagina. Un compito parallelo lascia la pagina attiva. */
+enum class FluidPresentationMode { Modal, Parallel }
 
 // Il lato di chi dichiara un modale: le presentazioni, `FluidContextAction`, il portale (due overload) e
 // `fluidExpandOrigin`. Non disegna niente: scrive nella voce dell'host (`FluidGlassModalHost.kt`).
@@ -217,6 +224,66 @@ fun FluidGlassModalPortal(
    */
   pageColor: Color? = null,
   content: @Composable ColumnScope.() -> Unit,
+) = FluidGlassModalPortalEntry(
+  visible, onDismissRequest, origin, presentation, paneTitle, paneTint, footer, pageColor,
+  source = null, mode = null, content = content,
+)
+
+/**
+ * Presenta un contenuto dalla [source]. Il popover prende in prestito la sorgente per tutta
+ * la corsa, ritorno compreso. In larghezza compatta si presenta come foglio di contenuto.
+ * Il popover è parallelo di serie; il foglio adattato è modale. [mode] permette di dichiarare
+ * come il compito si integra con la pagina. Un [origin] geometrico può fare da ripiego.
+ */
+@Composable
+fun FluidGlassModalPortal(
+  visible: Boolean,
+  onDismissRequest: () -> Unit,
+  origin: () -> Rect? = { null },
+  presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
+  paneTitle: String? = null,
+  paneTint: Color? = null,
+  footer: (@Composable ColumnScope.() -> Unit)? = null,
+  pageColor: Color? = null,
+  source: FluidTransitionSource? = null,
+  compactAdaptation: FluidCompactAdaptation = FluidCompactAdaptation.Sheet,
+  mode: FluidPresentationMode? = null,
+  content: @Composable ColumnScope.() -> Unit,
+) {
+  val compact = LocalConfiguration.current.screenWidthDp in 1 until FluidModalCompactWidth
+  val adapted = if (presentation == FluidGlassModalPresentation.Popover &&
+    fluidModalAdaptsPopover(compact, compactAdaptation)
+  ) FluidGlassModalPresentation.Sheet else presentation
+  FluidGlassModalPortalEntry(
+    visible, onDismissRequest, origin, adapted, paneTitle, paneTint, footer, pageColor,
+    source = source,
+    mode = mode ?: if (adapted == FluidGlassModalPresentation.Popover) {
+      FluidPresentationMode.Parallel
+    } else {
+      FluidPresentationMode.Modal
+    },
+    content = content,
+  )
+}
+
+private const val FluidModalCompactWidth = 600
+
+internal fun fluidModalAdaptsPopover(compact: Boolean, adaptation: FluidCompactAdaptation): Boolean =
+  compact && adaptation == FluidCompactAdaptation.Sheet
+
+@Composable
+private fun FluidGlassModalPortalEntry(
+  visible: Boolean,
+  onDismissRequest: () -> Unit,
+  origin: () -> Rect?,
+  presentation: FluidGlassModalPresentation,
+  paneTitle: String?,
+  paneTint: Color?,
+  footer: (@Composable ColumnScope.() -> Unit)?,
+  pageColor: Color?,
+  source: FluidTransitionSource?,
+  mode: FluidPresentationMode?,
+  content: @Composable ColumnScope.() -> Unit,
 ) {
   val host = LocalFluidGlassModalHostState.current ?: return
   val entry = remember { FluidGlassModalEntry() }
@@ -225,22 +292,62 @@ fun FluidGlassModalPortal(
   // recomposition of the feature, so whatever it captured is never more than one frame old — and
   // what it *reads* is snapshot state, which the host subscribes to directly when it runs it.
   SideEffect {
-    if (visible && !entry.visible) entry.openedAt = host.nextSequence()
+    val opening = visible && !entry.visible
+    if (opening) entry.openedAt = host.nextSequence()
     entry.visible = visible
     entry.onDismissRequest = onDismissRequest
     entry.origin = origin
-    entry.presentation = presentation
     entry.paneTitle = paneTitle
     entry.paneTint = paneTint
     entry.pageColor = pageColor
     entry.footer = footer
     entry.content = content
+    // Il popover sceglie l'adattamento all'apertura. Un cambio di larghezza durante la corsa
+    // non sposta il contenuto in un altro layer e non restituisce il tasto in anticipo.
+    if (mode == null || opening || (!visible && !entry.lifted)) {
+      entry.presentation = presentation
+      entry.source = source
+      entry.mode = mode
+    }
   }
 
   DisposableEffect(host, entry) {
     host.register(entry)
     onDispose { host.unregister(entry) }
   }
+}
+
+/** Il popover da [source] aperto da un dato, conservato per il viaggio di ritorno. */
+@Composable
+fun <T : Any> FluidGlassModalPortal(
+  item: T?,
+  onDismissRequest: () -> Unit,
+  origin: () -> Rect? = { null },
+  presentation: FluidGlassModalPresentation = FluidGlassModalPresentation.Popover,
+  paneTitle: String? = null,
+  paneTint: Color? = null,
+  footer: (@Composable ColumnScope.(T) -> Unit)? = null,
+  pageColor: Color? = null,
+  source: FluidTransitionSource? = null,
+  compactAdaptation: FluidCompactAdaptation = FluidCompactAdaptation.Sheet,
+  mode: FluidPresentationMode? = null,
+  content: @Composable ColumnScope.(T) -> Unit,
+) {
+  var lastItem by remember { mutableStateOf(item) }
+  if (item != null) lastItem = item
+  FluidGlassModalPortal(
+    visible = item != null,
+    onDismissRequest = onDismissRequest,
+    origin = origin,
+    presentation = presentation,
+    paneTitle = paneTitle,
+    paneTint = paneTint,
+    footer = footer?.let { footer -> { lastItem?.let { footer(it) } } },
+    pageColor = pageColor,
+    source = source,
+    compactAdaptation = compactAdaptation,
+    mode = mode,
+  ) { lastItem?.let { content(it) } }
 }
 
 /**

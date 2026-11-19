@@ -99,6 +99,28 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
 
   /** Vero se qualcuno tiene nascosta questa identità: è ciò che legge il disegno delle viste. */
   internal val isHidden: Boolean get() = key in consumedSources
+
+  /** Una presa per presentazione, anche quando due chiamanti condividono lo stesso riferimento. */
+  internal fun acquireForModal(): FluidTransitionSource? {
+    val node = transitionSources[key]?.firstOrNull { it.resolve(includeCoveredPage = false) != null }
+      ?: return null
+    val handoff = node.modalHandoff
+    return FluidTransitionSource(key).also {
+      it.modalHandoff = handoff
+      handoff?.invoke(true)
+      it.consume(snapshot = true)
+    }
+  }
+
+  internal val hasSeparateModalBody: Boolean get() = modalHandoff != null
+
+  private var modalHandoff: ((Boolean) -> Unit)? = null
+
+  internal fun releaseFromModal() {
+    modalHandoff?.invoke(false)
+    modalHandoff = null
+    release()
+  }
 }
 
 /**
@@ -137,13 +159,18 @@ fun rememberFluidToolbarTransitionSource(id: Any): FluidTransitionSource {
 private fun fluidToolbarTransitionSourceOwner(): Any = LocalFluidPageBar.current ?: LocalView.current
 
 @Composable
-internal fun Modifier.fluidToolbarTransitionSource(id: Any, glassId: FluidGlassQualifiedId): Modifier =
+internal fun Modifier.fluidToolbarTransitionSource(
+  id: Any,
+  glassId: FluidGlassQualifiedId,
+  modalHandoff: ((Boolean) -> Unit)? = null,
+): Modifier =
   this then FluidTransitionSourceElement(
     key = FluidTransitionSourceKey(fluidToolbarTransitionSourceOwner(), id),
     shape = FluidCapsuleShape,
     toolbar = FluidToolbarTransitionGeometry(
       currentFluidGlassContainer(FluidCapsuleShape), glassId, LocalFluidToolbarMinimize.current,
     ),
+    modalHandoff = modalHandoff,
   )
 
 internal data class FluidTransitionSourceKey(val owner: Any, val id: Any)
@@ -166,6 +193,7 @@ private data class FluidTransitionSourceElement(
   val key: FluidTransitionSourceKey,
   val shape: Shape,
   val toolbar: FluidToolbarTransitionGeometry? = null,
+  val modalHandoff: ((Boolean) -> Unit)? = null,
 ) : ModifierNodeElement<FluidTransitionSourceNode>() {
   override fun create() = FluidTransitionSourceNode(this)
   override fun update(node: FluidTransitionSourceNode) = node.update(this)
@@ -178,6 +206,7 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
   private var placedBounds by mutableStateOf<Rect?>(null)
 
   private var snapshotLayer: GraphicsLayer? = null
+  val modalHandoff: ((Boolean) -> Unit)? get() = source.modalHandoff
 
   // Consumata, la vista non disegna: la sua sagoma è in viaggio come pagina o foglio (F5B.3). A riposo passa e basta.
   // Se chi presenta ne vuole la fotografia (la variante con la dissolvenza), la vista si registra in un layer suo.

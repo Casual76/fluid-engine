@@ -28,25 +28,36 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.ui.fluid.FluidAmbient
+import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidAlert
+import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
 import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
 import dev.antigravity.fluidengine.ui.fluid.FluidConfirmSheet
+import dev.antigravity.fluidengine.ui.fluid.FluidConfirmationDialog
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroMotif
 import dev.antigravity.fluidengine.ui.fluid.FluidHeroTone
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidPromptAlert
 import dev.antigravity.fluidengine.ui.fluid.FluidPromptValidation
+import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetTransition
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.fluidAppearanceSection
 import dev.antigravity.fluidengine.ui.fluid.fluidPromptNotBlank
+import dev.antigravity.fluidengine.ui.fluid.fluidTransitionSource
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidToolbarTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.icons.Delete
 import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.icons.Notifications
 import dev.antigravity.fluidengine.ui.fluid.icons.Speed
 import dev.antigravity.fluidengine.ui.fluid.icons.Sync
@@ -58,7 +69,12 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 
 /** Quale foglio o avviso della demo e' aperto: uno solo alla volta, come in una schermata vera. */
-private enum class DemoOverlay { Confirm, Destroy, Rename, Calibrate, GlassSheet, SmallSheet, FadeSheet }
+private enum class DemoOverlay {
+  Confirm, Destroy, Rename, Calibrate, GlassSheet, SmallSheet, FadeSheet,
+  Popover, InlineConfirmation, AnchoredAlert, CenteredAlert,
+}
+
+private const val PopoverButton = "presentations-popover-button"
 
 /**
  * Le righe e i fogli della fase 12b, in una pagina: quello che cinque app si erano scritto da sole.
@@ -88,6 +104,11 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
   var overlay by remember { mutableStateOf<DemoOverlay?>(null) }
   var lastResult by remember { mutableStateOf("Nessuna azione ancora") }
   var name by remember { mutableStateOf("Cucina") }
+  val namespace = rememberFluidGlassNamespace()
+  val popoverSource = rememberFluidToolbarTransitionSource(PopoverButton)
+  val deleteSource = remember(namespace) { FluidTransitionSource("delete", namespace) }
+  val alertSource = remember(namespace) { FluidTransitionSource("alert", namespace) }
+  val close = { overlay = null }
 
   // Il tema annidato: la sezione scrive in `settings`, e questo e' cio' che la fa vedere. Senza barre
   // di sistema (`systemBars = false`): e' una pagina dentro la galleria, non la finestra.
@@ -101,9 +122,33 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         } else Modifier,
         subtitle = "Interruttori, scelte, aspetto, conferme e avvisi con un campo.",
         onBack = onBack,
+        toolbar = {
+          button(PopoverButton, FluidIcons.MoreHoriz, "Opzioni della galleria", onClick = { overlay = DemoOverlay.Popover })
+        },
         extraBottomPadding = bottomInset,
         ambient = remember { FluidAmbient(tone = FluidHeroTone.Primary, motif = FluidHeroMotif.Cards) },
       ) {
+        item(key = "presentations-header") { FluidSectionHeader(title = "Presentazioni") }
+        item(key = "presentations") {
+          val shape = ContinuousCornerShape(FluidRadius.Control)
+          FluidListGroup(glass = glassOn) {
+            FluidListRow(
+              title = "Elimina",
+              subtitle = "",
+              modifier = Modifier.fluidTransitionSource("delete", namespace, shape),
+              onClick = { overlay = DemoOverlay.InlineConfirmation },
+            )
+            FluidListDivider()
+            FluidListRow(
+              title = "Avviso dal tasto",
+              subtitle = "",
+              modifier = Modifier.fluidTransitionSource("alert", namespace, shape),
+              onClick = { overlay = DemoOverlay.AnchoredAlert },
+            )
+            FluidListDivider()
+            FluidListRow(title = "Avviso al centro", subtitle = "", onClick = { overlay = DemoOverlay.CenteredAlert })
+          }
+        }
         item(key = "rows-header") { FluidSectionHeader(title = "Interruttori") }
         item(key = "rows-toggles") {
           FluidListGroup(glass = glassOn) {
@@ -221,6 +266,40 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         item(key = "sheets-result") { FluidSectionFootnote(text = "Ultimo esito: $lastResult") }
       }
 
+      FluidGlassModalPortal(
+        visible = overlay == DemoOverlay.Popover,
+        onDismissRequest = close,
+        source = popoverSource,
+        paneTitle = "Opzioni della galleria",
+      ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("Ordina per", style = MaterialTheme.typography.titleMedium)
+          for (order in DemoSort.entries) {
+            FluidChoiceRow(title = order.label, selected = sort == order, onSelect = {
+              sort = order
+              close()
+            })
+          }
+        }
+      }
+      FluidConfirmationDialog(
+        item = name.takeIf { overlay == DemoOverlay.InlineConfirmation },
+        onDismissRequest = close,
+        source = deleteSource,
+        title = { "Eliminare «$it»?" },
+        actions = { shown ->
+          listOf(FluidAlertAction("Elimina", { lastResult = "Eliminata «$shown»" }, FluidAlertAction.Emphasis.Destructive))
+        },
+      )
+      FluidAlert(
+        item = overlay?.takeIf { it == DemoOverlay.AnchoredAlert || it == DemoOverlay.CenteredAlert },
+        onDismissRequest = close,
+        title = { "Modifiche non salvate" },
+        message = { "Vuoi continuare a modificare questa voce?" },
+        source = alertSource.takeIf { overlay == DemoOverlay.AnchoredAlert },
+        actions = { listOf(FluidAlertAction("Continua", close, FluidAlertAction.Emphasis.Preferred)) },
+      )
+
       FluidConfirmSheet(
         visible = overlay == DemoOverlay.Confirm,
         onDismissRequest = {
@@ -279,6 +358,7 @@ fun RowsAndSheetsDemo(bottomInset: Dp = 0.dp, onBack: (() -> Unit)? = null) {
         visible = overlay == DemoOverlay.GlassSheet,
         onDismissRequest = sheetClosed,
         detents = remember { setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large) },
+        undimmedUpTo = FluidSheetDetent.Medium,
         onSelectedDetentChange = sheetRested,
         paneTitle = "Luoghi",
       ) {

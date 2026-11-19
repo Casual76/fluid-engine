@@ -59,6 +59,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -66,6 +68,7 @@ import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
@@ -837,12 +840,13 @@ internal class FluidToolbarMenu(private val host: FluidGlassModalHostState?) {
 
 /** Quello che un [FluidAlert] nell'host deve mostrare, anche dopo che il chiamante l'ha tolto. */
 @Immutable
-internal class FluidAlertSpec(
+internal data class FluidAlertSpec(
   val title: String,
   val message: String?,
   val actions: List<FluidAlertAction>,
   val content: (@Composable ColumnScope.() -> Unit)?,
   val modifier: Modifier,
+  val confirmationCancel: FluidAlertAction? = null,
 )
 
 /**
@@ -866,6 +870,7 @@ internal fun FluidAlertLayer(
   spec: FluidAlertSpec,
   backdrop: GlassBackdropState?,
   host: FluidGlassModalHostState,
+  sourceJourney: FluidModalSourceJourney?,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val geometry = remember { Animatable(0f, 0.001f) }
@@ -896,17 +901,32 @@ internal fun FluidAlertLayer(
     }
   }
 
-  if (!entry.visible && exitFinished) {
-    SideEffect { if (entry.retiring) host.finishExit(entry) }
+  if (!entry.visible && (sourceJourney?.returned ?: exitFinished)) {
+    SideEffect {
+      entry.lifted = false
+      entry.inlineConfirmation = false
+      host.finishExit(entry)
+    }
     return
+  }
+  val inline = spec.confirmationCancel != null && sourceJourney != null
+  SideEffect {
+    if (sourceJourney != null) entry.lifted = true
+    entry.inlineConfirmation = inline
+  }
+  val shownSpec = remember(spec, inline) {
+    val cancel = spec.confirmationCancel
+    if (cancel != null && !inline) spec.copy(actions = spec.actions + cancel) else spec
   }
 
   FluidAlertLayerContent(
     entry = entry,
-    spec = spec,
+    spec = shownSpec,
     backdrop = backdrop,
     geometry = { geometry.value },
     fade = { fade.value },
+    sourceJourney = sourceJourney,
+    inline = inline,
   )
 }
 
@@ -922,6 +942,8 @@ private fun FluidAlertLayerContent(
   backdrop: GlassBackdropState?,
   geometry: () -> Float,
   fade: () -> Float,
+  sourceJourney: FluidModalSourceJourney?,
+  inline: Boolean,
 ) {
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -935,10 +957,13 @@ private fun FluidAlertLayerContent(
   val noBackdrop = rememberEmptyGlassBackdrop()
   val dark = GlassDefaults.isDarkSurface()
   val panelTint = GlassDefaults.panelTint()
-  val windowTint = remember(panelTint, dark) {
-    panelTint.copy(overlay = panelTint.overlay.compositeOver(Color.Black.copy(alpha = if (dark) 0.20f else 0.12f)))
+  val windowTint = remember(panelTint, dark, inline) {
+    if (inline) panelTint else
+      panelTint.copy(overlay = panelTint.overlay.compositeOver(Color.Black.copy(alpha = if (dark) 0.20f else 0.12f)))
   }
   val current by androidx.compose.runtime.rememberUpdatedState(spec)
+  val progress = { sourceJourney?.clock?.value ?: geometry() }
+  val materialAlpha: () -> Float = { sourceJourney?.bodyAlpha(progress()) ?: fade() }
 
   val pick: (Int) -> Unit = remember(entry, haptics) {
     { index ->
@@ -974,10 +999,12 @@ private fun FluidAlertLayerContent(
   val marginPx = with(density) { FluidAlertMargin.toPx() }
   val maxWidthPx = with(density) { FluidAlertWidth.toPx() }
   val contentMap: () -> FluidMenuContentMap = {
-    fluidMenuContentMap(target = pane.rect, current = physics.contentBoundsNow(), minScale = 0.9f, maxScale = 1.1f)
+    if (sourceJourney != null) fluidModalContentMap(physics, pane.rect, progress(), sourceJourney.focus.value)
+    else fluidMenuContentMap(target = pane.rect, current = physics.contentBoundsNow(), minScale = 0.9f, maxScale = 1.1f)
   }
   // F2.3b: l'avviso possiede il suo testo e i suoi pulsanti e scurisce in continuo (un grande, `Modal`).
   val alertInk = rememberGlassInk()
+  val lens = rememberFluidModalLens(sourceJourney != null)
 
   Box(
     modifier = Modifier
@@ -985,17 +1012,13 @@ private fun FluidAlertLayerContent(
       .semantics { isTraversalGroup = true }
       .focusGroup(),
   ) {
-    FluidGlassModalScrim(
-      backdrop = backdrop,
-      exports = scrimGlass,
-      intensity = fade,
-      interactive = entry.visible,
-      onDismiss = entry.onDismissRequest,
-    )
+    if (!inline) {
+      FluidPresentationScrim(entry, backdrop, scrimGlass, fade, plain = sourceJourney != null)
+    }
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .drawWithContent { if (fade() > 0.004f) drawContent() }
+        .drawWithContent { if (materialAlpha() > 0.004f) drawContent() }
         .fluidPhysicsSurfaceInked(
           ink = alertInk,
           state = physics,
@@ -1004,15 +1027,20 @@ private fun FluidAlertLayerContent(
           role = GlassRole.Modal,
           optics = GlassDefaults.panelOptics(),
           tier = if (backdrop == null) FluidPhysicsTier.Lite else null,
-          intensity = fade,
+          intensity = materialAlpha,
           exports = if (backdrop != null) alertGlass else null,
         ),
     )
+    sourceJourney?.SourceFace(physics, progress)
 
     Layout(
       // Sopra la tastiera: un avviso con un campo (il prompt) non deve finirle sotto. Solo in basso,
       // quindi l'origine resta quella dell'host e la sagoma e la card parlano le stesse coordinate.
-      modifier = Modifier.fillMaxSize().imePadding(),
+      modifier = Modifier.fillMaxSize()
+        .then(if (sourceJourney == null) Modifier else Modifier.onGloballyPositioned {
+          sourceJourney.rootOrigin = it.positionInRoot()
+        })
+        .imePadding(),
       content = {
         GlassInkContent(alertInk, LocalContentColor.current) {
           FluidAlertCard(
@@ -1023,9 +1051,23 @@ private fun FluidAlertLayerContent(
             material = if (backdrop != null) alertGlass else null,
             backdrop = backdrop,
             // F2.3b: la dissolvenza dell'inchiostro attorno al passaggio di lato.
-            fade = { fade() * (alertInk.state?.inkAlpha() ?: 1f) },
+            fade = {
+              val alpha = sourceJourney?.contentAlpha(progress()) ?: fade()
+              alpha * (alertInk.state?.inkAlpha() ?: 1f)
+            },
             contentMap = contentMap,
+            contentEffect = sourceJourney?.let { journey ->
+              { map -> fluidModalLensEffect(lens, physics, pane.rect, map, journey.focus.value) }
+            },
             onPick = pick,
+            travelClip = sourceJourney?.let { journey ->
+              Modifier.graphicsLayer {
+                val round = fluidModalTravelClip(physics, pane.rect, progress(), journey.focus.value)
+                if (round != null) shape = FluidPopoverTravelClipShape(round)
+                clip = round != null
+              }
+            } ?: Modifier,
+            inline = inline,
           )
         }
       },
@@ -1033,19 +1075,29 @@ private fun FluidAlertLayerContent(
       val w = min(maxWidthPx, constraints.maxWidth - marginPx * 2f).roundToInt().coerceAtLeast(1)
       val maxH = (constraints.maxHeight * FluidAlertMaxHeightFraction).roundToInt().coerceAtLeast(1)
       val placeable = measurables.first().measure(Constraints(minWidth = w, maxWidth = w, minHeight = 0, maxHeight = maxH))
-      val x = (constraints.maxWidth - placeable.width) / 2f
-      val y = (constraints.maxHeight - placeable.height) / 2f
-      val rect = Rect(x, y, x + placeable.width, y + placeable.height)
-      pane.rect = rect
-      val seedScale = if (exiting) FluidAlertExitScale else FluidAlertEnterScale
-      val seed = fluidMenuSeedFrame(rect, rect.center, seedScale)
-      physics.driveExternally(
-        from = FluidForm.Slab(seed, FluidCornerRadii.all(radiusPx * seedScale)),
-        to = FluidForm.Slab(rect, FluidCornerRadii.all(radiusPx)),
-        progress = geometry,
+      val anchor = sourceJourney?.bounds?.takeIf { inline }
+      val rect = fluidConfirmationFrame(
+        anchor, Size(placeable.width.toFloat(), placeable.height.toFloat()),
+        Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat()),
+        marginPx, FluidMenuAnchorGap.toPx(),
       )
+      pane.rect = if (sourceJourney != null) {
+        rect.translate(rect.left.roundToInt() - rect.left, rect.top.roundToInt() - rect.top)
+      } else rect
+      entry.outsideTapArea.bounds = rect
+      if (sourceJourney != null) {
+        sourceJourney.drive(physics, rect, radiusPx, constraints.maxWidth.toFloat(), this, layoutDirection, progress)
+      } else {
+        val seedScale = if (exiting) FluidAlertExitScale else FluidAlertEnterScale
+        val seed = fluidMenuSeedFrame(rect, rect.center, seedScale)
+        physics.driveExternally(
+          from = FluidForm.Slab(seed, FluidCornerRadii.all(radiusPx * seedScale)),
+          to = FluidForm.Slab(rect, FluidCornerRadii.all(radiusPx)),
+          progress = geometry,
+        )
+      }
       layout(constraints.maxWidth, constraints.maxHeight) {
-        placeable.place(x.roundToInt(), y.roundToInt())
+        placeable.place(rect.left.roundToInt(), rect.top.roundToInt())
       }
     }
   }
@@ -1067,11 +1119,14 @@ private fun FluidAlertCard(
   backdrop: GlassBackdropState?,
   fade: () -> Float,
   contentMap: () -> FluidMenuContentMap,
+  contentEffect: (GraphicsLayerScope.(FluidMenuContentMap) -> RenderEffect?)?,
   onPick: (Int) -> Unit,
+  travelClip: Modifier,
+  inline: Boolean,
 ) {
   val scheme = MaterialTheme.colorScheme
   val count = spec.actions.size
-  val side = count == 2
+  val side = count == 2 && spec.confirmationCancel == null
   val drop = rememberFluidMenuDropState(selection, count)
   val card = remember { FluidMenuCoordinates() }
   val buttons = remember(count) { arrayOfNulls<LayoutCoordinates>(count) }
@@ -1096,7 +1151,10 @@ private fun FluidAlertCard(
     if (size != dropCell) dropCell = size
   }
 
-  Box(modifier = if (material != null) Modifier.glassContainer(material) else Modifier) {
+  Box(modifier = travelClip
+    .then(if (inline) Modifier.fluidParallelModalPanel() else Modifier)
+    .then(if (material != null) Modifier.glassContainer(material) else Modifier),
+  ) {
     if (backdrop != null && count > 0) {
       Box(modifier = Modifier.matchParentSize()) {
         FluidMenuDrop(
@@ -1119,6 +1177,7 @@ private fun FluidAlertCard(
           translationY = map.translation.y
           scaleX = map.scale
           scaleY = map.scale
+          renderEffect = contentEffect?.invoke(this, map)
         }
         // Il fondo lo disegna la superficie sotto (senza fondale, il suo ripiego opaco): qui solo il
         // contenuto.
@@ -1127,13 +1186,13 @@ private fun FluidAlertCard(
           card.value = it
           refresh()
         }
-        .semantics { paneTitle = spec.title }
+        .semantics { if (spec.title.isNotBlank()) paneTitle = spec.title }
         .focusRequester(focusRequester)
         .focusGroup(),
     ) {
       // Il messaggio scorre nello spazio che i pulsanti lasciano: i pulsanti sono l'unica uscita di
       // un avviso e non devono mai finire fuori dallo schermo.
-      Column(
+      if (spec.confirmationCancel == null || spec.title.isNotBlank()) Column(
         modifier = Modifier
           .fillMaxWidth()
           .weight(1f, fill = false)

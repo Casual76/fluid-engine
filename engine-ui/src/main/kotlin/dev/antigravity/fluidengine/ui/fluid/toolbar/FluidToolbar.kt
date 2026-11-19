@@ -1304,11 +1304,21 @@ private fun FluidToolbarGroupPiece(
 
 private class FluidToolbarMenuSource {
   private var leased by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
+  private var modalLeases by mutableStateOf(emptyMap<FluidToolbarGlassId, FluidMenuAnchor>())
   var instant by mutableStateOf(false)
   var handoff by mutableStateOf(0)
     private set
 
-  fun anchor(glass: FluidToolbarGlassId): FluidMenuAnchor? = leased?.takeIf { it.first == glass }?.second
+  fun anchor(glass: FluidToolbarGlassId): FluidMenuAnchor? =
+    leased?.takeIf { it.first == glass }?.second ?: modalLeases[glass]
+
+  fun transferModal(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
+    if (consumed) modalLeases = modalLeases + (glass to anchor)
+    else if (modalLeases[glass] === anchor) modalLeases = modalLeases - glass
+    else return
+    instant = true
+    handoff++
+  }
 
   fun transfer(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
     if (consumed) leased = glass to anchor
@@ -1423,6 +1433,19 @@ private fun FluidToolbarSlot(
   val active = menuSource.anchor(glass)
   val groupInMenu = active?.groupBounds != null
   val menuHidden = declaredMenu?.anchor?.hidden == true
+  // Il piano possiede il vetro del tasto singolo. Lo cede con lo stesso passaggio istantaneo
+  // del menu; su una capsula condivisa il singolo slot cede solo la propria faccia.
+  val modalHandoff: ((Boolean) -> Unit)? = if (interactive && groupShared && groupCount == 1) {
+    remember(menuSource, glass) {
+      val anchor = FluidMenuAnchor()
+      var leases = 0
+      val handoff: (Boolean) -> Unit = { consume ->
+        if (consume && ++leases == 1) menuSource.transferModal(glass, anchor, true)
+        if (!consume && --leases == 0) menuSource.transferModal(glass, anchor, false)
+      }
+      handoff
+    }
+  } else null
   val effects = if (groupInMenu) {
     val density = LocalDensity.current.density
     remember(density) { FluidToolbarEffects(density) }
@@ -1459,7 +1482,9 @@ private fun FluidToolbarSlot(
     Modifier
       .width(width)
       .height(resolved.metrics.buttonWidthDp.dp)
-      .then(if (interactive) Modifier.fluidToolbarTransitionSource(item.id, FluidGlassQualifiedId(namespace, glass)) else Modifier)
+      .then(if (interactive) Modifier.fluidToolbarTransitionSource(
+        item.id, FluidGlassQualifiedId(namespace, glass), modalHandoff,
+      ) else Modifier)
       .then(if (declaredMenu != null) Modifier
         .fluidMenuPointerRelay(declaredMenu.anchor.handOff)
         .onGloballyPositioned { declaredMenu.anchor.restBounds = it.boundsInRoot() } else Modifier)

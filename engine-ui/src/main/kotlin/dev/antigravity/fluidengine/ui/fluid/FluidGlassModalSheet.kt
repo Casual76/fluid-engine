@@ -150,6 +150,7 @@ internal fun FluidGlassModalSheet(
   onDismiss: () -> Unit,
   footer: (@Composable ColumnScope.() -> Unit)?,
   content: @Composable ColumnScope.() -> Unit,
+  sheetBackground: FluidSheetBackground,
 ) {
   if (fullScreen) {
     FluidFullScreenPane(
@@ -174,6 +175,7 @@ internal fun FluidGlassModalSheet(
       onDismiss = onDismiss,
       footer = footer,
       content = content,
+      sheetBackground = sheetBackground,
     )
   }
 }
@@ -454,6 +456,7 @@ private fun FluidSheetPane(
   onDismiss: () -> Unit,
   footer: (@Composable ColumnScope.() -> Unit)?,
   content: @Composable ColumnScope.() -> Unit,
+  sheetBackground: FluidSheetBackground,
 ) {
   val density = LocalDensity.current
   val view = LocalView.current
@@ -893,7 +896,10 @@ private fun FluidSheetPane(
         }
       motion.detented = true
       if (!motion.detentedLook) motion.detentedLook = true
-      val visible = fluidSheetVisibleHeight(motion.position(stops, spec.selected), stops, windowHeight)
+      val position = motion.position(stops, spec.selected)
+      val backgroundLimit = spec.undimmedUpTo?.let { fluidSheetDetentHeightPx(it, windowHeight, large, scale) }
+      sheetBackground.undimmed = fluidSheetIsUndimmed(position, backgroundLimit)
+      val visible = fluidSheetVisibleHeight(position, stops, windowHeight)
       val largeness = fluidSheetLargeness(visible, stops, large)
       val inset = fluidSheetInsetPx(largeness, scale)
       val width = min(windowWidth - 2f * inset, maxWidth).coerceAtLeast(0f).roundToInt()
@@ -944,6 +950,7 @@ private fun FluidSheetPane(
       motion.stops = FluidSheetStops(FluidSheetContentDetents, floatArrayOf(placeable.height.toFloat()))
       motion.stopsKey = null
       motion.detented = false
+      sheetBackground.undimmed = false
       motion.zoomActive = false
       if (motion.detentedLook) motion.detentedLook = false
       layout(constraints.maxWidth, constraints.maxHeight) {

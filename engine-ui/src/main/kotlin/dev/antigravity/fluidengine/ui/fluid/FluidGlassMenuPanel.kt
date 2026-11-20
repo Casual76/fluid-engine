@@ -270,6 +270,9 @@ internal fun rememberFluidMenuDropState(selection: FluidMenuSelection, count: In
  * @param tileLabels le tessere della fila mostrano l'etichetta sotto il simbolo ([FluidMenuElementSize.Medium]).
  * @param levelBlurDp la sfocatura del cambio di livello (aprire o chiudere un sottomenu), letta in disegno.
  * @param outgoing il livello che se ne va durante un cambio di livello, disegnato sotto quello nuovo.
+ * @param interactive il pannello prende il dito e i clic delle voci. Falso mentre il menu si chiude (S4i): un menu che si posa
+ *   sul suo tasto (`FluidMenuPlacement.OverAnchor`) lo copriva fino alla fine dell'uscita, e il tocco sul tasto per riaprirlo
+ *   finiva sul pannello che se ne andava.
  */
 @Composable
 internal fun FluidGlassMenuPanel(
@@ -289,6 +292,7 @@ internal fun FluidGlassMenuPanel(
   tileLabels: Boolean = false,
   levelBlurDp: (() -> Float)? = null,
   outgoing: FluidMenuOutgoingLevel? = null,
+  interactive: Boolean = true,
 ) {
   val density = LocalDensity.current
   val coordinates = remember { FluidMenuCoordinates() }
@@ -329,7 +333,8 @@ internal fun FluidGlassMenuPanel(
           selection.geometry = cells.geometry(panel)
         }
       }
-      .fluidMenuPointerArea(selection, coordinates)
+      // In chiusura il dito passa sotto, alla pagina e al tasto che l'ha aperto (S4i).
+      .then(if (interactive) Modifier.fluidMenuPointerArea(selection, coordinates) else Modifier)
       .semantics {
         paneTitle?.let { this.paneTitle = it }
         isTraversalGroup = true
@@ -376,7 +381,7 @@ internal fun FluidGlassMenuPanel(
             drawMenuSeparators(outgoing.structure, { 0f }, separator, band, insetPx, tileInsetPx, hairlinePx)
           },
       ) {
-        FluidMenuCells(outgoing.structure, plain = false, tileLabels = outgoing.tileLabels, weight = { 0f }, onPick = {})
+        FluidMenuCells(outgoing.structure, plain = false, tileLabels = outgoing.tileLabels, weight = { 0f }, onPick = {}, interactive = interactive)
       }
     }
 
@@ -471,7 +476,7 @@ internal fun FluidGlassMenuPanel(
             drawMenuSeparators(cells, { drop.weight(it) }, separator, band, insetPx, tileInsetPx, hairlinePx)
           },
       ) {
-        FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick)
+        FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick, interactive = interactive)
       }
     }
   }
@@ -579,6 +584,7 @@ private fun FluidMenuCells(
   tileLabels: Boolean,
   weight: (Int) -> Float,
   onPick: (Int) -> Unit,
+  interactive: Boolean = true,
 ) {
   val density = LocalDensity.current
   for (index in 0 until cells.size) {
@@ -591,6 +597,7 @@ private fun FluidMenuCells(
         weight = { weight(index) },
         onClick = { onPick(index) },
         modifier = Modifier.fluidMenuTileCell(cells, index),
+        interactive = interactive,
       )
     } else {
       FluidGlassMenuRow(
@@ -605,6 +612,7 @@ private fun FluidMenuCells(
         subtitle = if (plain || entry.kind == FluidMenuCellKind.Header) null else entry.action.subtitle,
         submenu = !plain && entry.opensSubmenu,
         header = entry.kind == FluidMenuCellKind.Header,
+        interactive = interactive,
       )
     }
   }
@@ -773,20 +781,21 @@ private fun FluidGlassMenuRow(
   subtitle: String? = null,
   submenu: Boolean = false,
   header: Boolean = false,
+  interactive: Boolean = true,
 ) {
   val base = if (action.destructive && !header) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
   val tone = if (action.enabled || header) base else base.copy(alpha = base.alpha * 0.38f)
   Row(
     modifier = modifier
       // Per TalkBack e tastiera: il ruolo, l'azione, lo stato spento. Dal dito non scatta mai — il
-      // pannello consuma il down prima di lui — e la scelta la fa la selezione.
-      .clickable(
+      // pannello consuma il down prima di lui — e la scelta la fa la selezione. In chiusura niente: il dito passa sotto (S4i).
+      .then(if (!interactive) Modifier else Modifier.clickable(
         interactionSource = null,
         indication = null,
         enabled = action.enabled || header,
         role = Role.Button,
         onClick = onClick,
-      )
+      ))
       .semantics { if (action.selected && !header) selected = true }
       .drawWithContent {
         // La voce sotto la goccia si fa avanti di un 5%, dal bordo d'attacco: e' la goccia che la
@@ -866,19 +875,20 @@ private fun FluidGlassMenuTile(
   weight: () -> Float,
   onClick: () -> Unit,
   modifier: Modifier,
+  interactive: Boolean = true,
 ) {
   val action = entry.action
   val base = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
   val tone = if (action.enabled) base else base.copy(alpha = base.alpha * 0.38f)
   Column(
     modifier = modifier
-      .clickable(
+      .then(if (!interactive) Modifier else Modifier.clickable(
         interactionSource = null,
         indication = null,
         enabled = action.enabled,
         role = Role.Button,
         onClick = onClick,
-      )
+      ))
       .semantics {
         // L'etichetta che non si vede si legge lo stesso; quella che si vede la legge gia' il suo testo.
         if (!labeled && action.icon != null) contentDescription = action.label

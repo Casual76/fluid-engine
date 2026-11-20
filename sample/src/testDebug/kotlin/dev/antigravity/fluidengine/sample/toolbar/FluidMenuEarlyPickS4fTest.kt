@@ -392,6 +392,41 @@ class FluidMenuEarlyPickS4fTest {
 
   @Test fun `il tondo segue il dito con l'Indietro predittivo`() = predictive("tondo")
 
+  /**
+   * S4i, voto S4h: nelle prese di «Altro» un tocco sul tasto a 123–140 ms dall'inizio della chiusura non riapriva il menu; il
+   * tocco dopo, ~745 ms piu' tardi, si'. Il pannello di «Altro» si posa sul suo tasto (`FluidMenuPlacement.OverAnchor`) e restava
+   * nell'albero fino alla fine dell'uscita, col suo raccoglitore del dito sopra il tasto: il tocco finiva li'. Qui il gesto del
+   * tablet: il menu aperto, un tocco fuori, e a ~128 ms un tocco sul tasto. Il menu si riapre da dove era e torna a riposo.
+   */
+  @Test fun `Altro, un tocco sul tasto mentre si chiude lo riapre`() {
+    scene()
+    val at = compose.onNodeWithTag("early-altro").rect().center
+    compose.onRoot().performTouchInput { down(at); up() }
+    advance(1_400)
+    assertTrue("«Altro» aperto", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isNotEmpty())
+    // Il congedo: un tocco fuori, sul velo.
+    compose.onRoot().performTouchInput { down(Offset(20f, 20f)); up() }
+    repeat(8) { step(16) }
+    val closing = requireNotNull(frames.lastOrNull()) { "nessun fotogramma" }
+    println("TAVOLA riapre congedo a ~128 ms: visibile=${closing.visible} chiusura=${closing.closing} p=${closing.progress}")
+    assertTrue("si sta chiudendo: $closing", !closing.visible && closing.closing && closing.progress > 0.02f)
+    // Il tocco sul tasto, sotto il pannello che se ne va.
+    compose.onRoot().performTouchInput { down(at); up() }
+    repeat(4) { step(16) }
+    val reopening = requireNotNull(frames.lastOrNull())
+    println("TAVOLA riapre dopo il tocco: visibile=${reopening.visible} chiusura=${reopening.closing} p=${reopening.progress}")
+    assertTrue("il tocco riapre il menu: $reopening", reopening.visible && !reopening.closing)
+    advance(1_400)
+    val rest = requireNotNull(frames.lastOrNull())
+    println("TAVOLA riapre a riposo: visibile=${rest.visible} p=${rest.progress} vetro=${rest.drawn}")
+    assertTrue("di nuovo a riposo: $rest", rest.visible && !rest.closing && kotlin.math.abs(rest.progress - 1f) < 0.01f)
+    assertTrue("le voci ci sono", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isNotEmpty())
+    // E si chiude ancora col tocco fuori.
+    compose.onRoot().performTouchInput { down(Offset(20f, 20f)); up() }
+    advance(1_400)
+    assertTrue("si richiude", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isEmpty())
+  }
+
   @Test fun `la foto segue il dito con l'Indietro predittivo`() = predictive("foto")
 
   @Test fun `nel contestuale il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("contestuale")

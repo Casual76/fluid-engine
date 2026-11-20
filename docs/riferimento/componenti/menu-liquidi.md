@@ -272,7 +272,13 @@ barra le lascia piene. Sul Tab S9, coi marcatori `menu.group`, `menu.ink`, `menu
 barra non si ricalcola durante il ritorno (solo all'apertura, a fase 0 e opacità 1), e fino a S4g-ter l'host le disegnava così
 com'erano appena la fase scendeva sotto lo span: icone piene sopra voci ancora vive (S4g-ter, chiaro f0129, scuro f0119), che al
 banco, dove la curva della barra si ricalcolava a ogni fotogramma, non c'era. A gruppo consegnato (la capsula tolta all'ancora) le
-voci sono zero, non l'inchiostro grezzo.
+voci sono zero, non l'inchiostro grezzo. **Da fermo le icone non aspettano il progresso** (`fluidMenuGroupFacePhase`, S4i): quando le
+voci sono quasi spente (inchiostro fino a `FluidMenuGroupInkLow`, 0,2) e il vetro avvolge già la capsula (copertura da
+`FluidMenuGroupCoverReady`, 0,4), la fase è quella del vetro (`fluidMenuGroupCoverPhase`). E il vetro porta le icone a piene già a
+copertura `FluidMenuGroupCoverFull` (0,6), non a 1. Sul Tab S9 il vetro avvolgeva la capsula già a ~150 ms con le voci al 7–16%, ma
+l'ultimo tratto del progresso teneva le icone spente fino a ~200 ms: la capsula restava quasi vuota per due campioni, ~22–23 ms (voto
+S4h, chiaro f0090–f0091, scuro f0077–f0078). Rigiocati i fotogrammi veri di sedici ritorni del tablet, nessuno ha più il vetro
+capsula con voci e icone tutte e due sotto 0,3.
 In S4g le icone entravano col quadrato dell'inchiostro uscito, ma la curva d'uscita le dava già quasi piene a metà, e sul Tab S9
 restavano voci sfocate dietro le tre icone piene (S4g-bis, chiaro f0361 e f0391–f0392). Fino a S4f tornavano col
 progresso, ritagliate dalla bolla che si allargava (in scuro f0236 la stella sola, i glifi ai lati a metà), e nell'annullo a metà
@@ -801,6 +807,13 @@ il tiro era il ritorno stesso fino a 0,32 del cammino, che parte col quadrato de
 gesto del Tab S9 (~0,4) il bordo lontano saliva del 5–6%, e sui pannelli corti del tondo e della foto di 10–16 px, a vista fermi. Con il movimento ridotto viaggio
 e goccia sono `snapTo` e la riga tenuta premuta non si gonfia.
 
+**Un menu che si chiude si riapre** con un tocco sulla sua sorgente: il viaggio riparte da dove si trova (`retarget`), come vuole
+il principio delle interfacce fluide di Apple, interrompibili e reindirizzabili (WWDC18 «Designing Fluid Interfaces»). Per questo in
+chiusura il pannello non prende il dito (`FluidGlassMenuPanel(interactive = entry.visible)`): il raccoglitore del dito e i clic delle
+voci si tolgono, e il tocco passa alla pagina e al tasto. Fino a S4h «Altro», che si posa sul suo tasto (`OverAnchor`), lo copriva
+fino alla fine dell'uscita: un tocco a 123–140 ms dal congedo non lo riapriva. Il menu del gruppo della barra resta escluso finché
+la capsula non è consegnata (`FluidToolbarMenu.open` rifiuta un'ancora ancora nascosta).
+
 ### Costi
 
 A riposo niente: l'host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali non compone voci chiuse,
@@ -902,6 +915,9 @@ Puri, in `engine-ui` (JVM):
   delle voci non sono mai sopra zero alla stessa fase), `IndietroPredittivoMenuTest`
   (con le sorgenti e i pannelli misurati sul Tab S9, al gesto del tablet il tondo e la foto cedono come la riga, e seguono il dito
   da subito), `FluidMenuEarlyPickS4fTest` (l'Indietro vero dal dispatcher sul tondo e sulla foto: il vetro si accorcia col gesto).
+- Le correzioni S4i: `GruppoRitornoIconeTest` (i fotogrammi veri del congedo da fermo sul Tab S9 rigiocati: con la regola di prima
+  la capsula quasi vuota per più fotogrammi, con quella di adesso mai, e mai voci e icone insieme; nei ritorni del banco mai la
+  capsula quasi vuota), `FluidMenuEarlyPickS4fTest` (un tocco su «Altro» mentre si chiude lo riapre).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello

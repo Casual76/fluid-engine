@@ -400,6 +400,14 @@ internal fun buildMenuTrace(
     if (variant?.corrected == true) physics.liquidAllowed = !journey.controlledReturn
     driver.frame(nanos)
     val plan = physics.ensurePlan()
+    // L'inchiostro delle voci di questo fotogramma: sul dispositivo il viaggio lo anima prima del disegno, e la nota del vetro lo
+    // legge (S4i, d).
+    val visibility = when {
+      closing && variant?.corrected == true -> exitInk.value(playNanos)
+      closing -> (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f)
+      else -> 1f
+    }
+    runBlocking { journey.contentVisibility.snapTo(visibility) }
     // La superficie dell'host: il vetro di questo fotogramma scrive la fase delle icone del gruppo al ritorno (S4g-quater, d).
     journey.noteGroupGlass()
     if (plan.mode == PlanModePoly) ringFrames++
@@ -462,11 +470,6 @@ internal fun buildMenuTrace(
       else -> (tMs / FluidMotion.MenuContentFocusMillis).toFloat().coerceAtMost(1f)
     }
     val lens = variant?.threePhase == true
-    val visibility = when {
-      closing && variant?.corrected == true -> exitInk.value(playNanos)
-      closing -> (1f - playNanos / 1_000_000f / FluidMotion.MenuContentExitMillis).coerceAtLeast(0f)
-      else -> 1f
-    }
     // L'opacita' delle voci come la calcola l'engine (`FluidMenuJourney.lensInkAlpha`): nella nascita le voci entrano nella
     // goccia quando in Apple (subito nel tasto, da 67 ms nel gruppo), e al congedo restano piene finche' c'e' l'inchiostro.
     runBlocking {

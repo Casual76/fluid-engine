@@ -207,7 +207,99 @@ class GruppoRitornoIconeTest {
     println("TAVOLA $name con la barra un fotogramma indietro: insieme $overlapShown, voci che sfumano $fading, capsula vuota $emptyShown")
     assertEquals("$name: icone della barra e voci insieme", 0, overlapShown)
     assertTrue("$name: capsula vuota con la barra un fotogramma indietro per $emptyShown fotogrammi", emptyShown <= 1)
-    if (name == "annullo") assertTrue("$name: le voci non sfumano prima delle icone", fading >= 1)
+    // Le voci sfumano prima delle icone solo se un fotogramma cade mentre il vetro comincia ad avvolgere la capsula: col vetro che
+    // la avvolge in fretta (S4i, copertura piena a 0,6) lo scambio e' di un fotogramma. Qui si stampa e basta.
+    // S4i (d): mai la capsula quasi vuota. Col vetro gia' attorno alla capsula (copertura da 0,5) e le voci spente, le icone sono
+    // almeno a 0,3: sul Tab S9 da fermo la capsula restava quasi vuota per 2-3 fotogrammi (voto S4h, ~22-23 ms).
+    val nearEmpty = frames.count {
+      fluidMenuGroupFaceCover(it.drawn, capsule) >= FluidMenuGroupCoverReady && it.ink <= 0.01f && iconAlpha(it.phase) < 0.3f
+    }
+    println("TAVOLA $name capsula quasi vuota (vetro capsula, voci spente, icone sotto 0,3): $nearEmpty")
+    assertEquals("$name: capsula quasi vuota", 0, nearEmpty)
+  }
+
+  /** Un fotogramma del Tab S9: i ms dal congedo, il progresso, l'inchiostro delle voci e il vetro disegnato. */
+  private class DeviceFrame(val ms: Float, val progress: Float, val ink: Float, val drawn: Rect)
+
+  /**
+   * Il congedo da fermo del gruppo sul Tab S9 (sessione s4q2, chiaro), letto dai marcatori `menu.birth` (progresso e vetro) e
+   * `menu.group` (inchiostro): il vetro avvolge la capsula gia' a 155 ms, con le voci al 7,7%.
+   */
+  private val tabletRest = listOf(
+    DeviceFrame(61.9f, 0.785f, 1.000f, Rect(73f, 1833f, 579f, 2258f)),
+    DeviceFrame(76.1f, 0.714f, 1.000f, Rect(81f, 1829f, 563f, 2235f)),
+    DeviceFrame(82.0f, 0.678f, 0.982f, Rect(80f, 1829f, 559f, 2228f)),
+    DeviceFrame(92.3f, 0.642f, 0.929f, Rect(78f, 1830f, 547f, 2209f)),
+    DeviceFrame(107.0f, 0.571f, 0.745f, Rect(71f, 1832f, 508f, 2148f)),
+    DeviceFrame(118.9f, 0.535f, 0.629f, Rect(68f, 1833f, 485f, 2111f)),
+    DeviceFrame(139.4f, 0.428f, 0.264f, Rect(57f, 1837f, 422f, 2011f)),
+    DeviceFrame(155.3f, 0.356f, 0.077f, Rect(54f, 1837f, 406f, 1985f)),
+    DeviceFrame(170.8f, 0.320f, 0.021f, Rect(55f, 1838f, 405f, 1984f)),
+    DeviceFrame(179.2f, 0.285f, 0.000f, Rect(56f, 1838f, 404f, 1981f)),
+    DeviceFrame(187.7f, 0.213f, 0.000f, Rect(62f, 1838f, 398f, 1969f)),
+    DeviceFrame(196.0f, 0.177f, 0.000f, Rect(66f, 1838f, 394f, 1963f)),
+    DeviceFrame(204.9f, 0.142f, 0.000f, Rect(69f, 1838f, 391f, 1956f)),
+    DeviceFrame(215.1f, 0.106f, 0.000f, Rect(72f, 1838f, 388f, 1950f)),
+    DeviceFrame(226.0f, 0.070f, 0.000f, Rect(75f, 1838f, 385f, 1945f)),
+    DeviceFrame(239.6f, 0.000f, 0.000f, Rect(77f, 1838f, 383f, 1940f)),
+  )
+
+  /** La capsula del gruppo come la disegna il vetro a riposo nello stesso posto (s4q2). */
+  private val tabletCapsule = Rect(77f, 1838f, 383f, 1940f)
+
+  /**
+   * S4i (d), voto S4h: nel congedo da fermo, in chiaro f0090–f0091 e in scuro f0077–f0078, la capsula restava quasi vuota per due
+   * campioni (~22-23 ms) prima che le icone salissero. I fotogrammi veri del Tab S9, rigiocati con la regola di S4g-quater
+   * ([fluidMenuGroupFaceReturn]) e con quella di adesso ([fluidMenuGroupFacePhase]): col vetro che avvolge la capsula, mai voci e
+   * icone entrambe sotto 0,3, e mai tutte e due sopra 0,01.
+   */
+  @Test fun onTheTabletTheRestingReturnNeverLeavesTheCapsuleAlmostEmpty() {
+    fun replay(name: String, rule: (DeviceFrame, Float) -> Float): Pair<Int, Int> {
+      var latch = 1f
+      var empty = 0
+      var both = 0
+      for (f in tabletRest) {
+        val cover = fluidMenuGroupFaceCover(f.drawn, tabletCapsule)
+        latch = minOf(latch, rule(f, cover))
+        val items = fluidMenuGroupReturnInk(f.ink, latch)
+        val faces = iconAlpha(latch)
+        val dim = cover >= FluidMenuGroupCoverReady && items < 0.3f && faces < 0.3f
+        if (dim) empty++
+        if (items > 0.01f && faces > 0.01f) both++
+        println(
+          "TAVOLA tablet $name ${"%.1f".format(f.ms)} ms p=${"%.3f".format(f.progress)} copertura=${"%.2f".format(cover)} " +
+            "fase=${"%.3f".format(latch)} voci=${"%.3f".format(items)} icone=${"%.3f".format(faces)}${if (dim) " QUASI VUOTA" else ""}",
+        )
+      }
+      println("TAVOLA tablet $name: quasi vuota $empty, insieme $both")
+      return empty to both
+    }
+    // La regola di S4g-quater: il progresso, o `1 - copertura`.
+    val before = replay("S4g-quater") { f, cover ->
+      maxOf((f.progress / FluidMenuGroupFaceReturnShare).coerceIn(0f, 1f), 1f - cover.coerceIn(0f, 1f))
+    }
+    val now = replay("S4i") { f, cover -> fluidMenuGroupFacePhase(f.progress, cover, f.ink) }
+    // La regola di prima rifa' il difetto del tablet: piu' fotogrammi di fila con la capsula quasi vuota.
+    assertTrue("S4g-quater: ${before.first} fotogrammi quasi vuoti", before.first >= 2)
+    assertEquals("S4i: fotogrammi quasi vuoti", 0, now.first)
+    assertEquals("S4i: voci e icone insieme", 0, now.second)
+    // Le icone arrivano subito dopo le voci a 0,26 (139 ms): gia' a 155 ms sopra 0,5.
+    val at155 = fluidMenuGroupFacePhase(0.356f, fluidMenuGroupFaceCover(tabletRest[7].drawn, tabletCapsule), 0.077f)
+    assertTrue("a 155 ms le icone a ${iconAlpha(at155)}", iconAlpha(at155) > 0.5f)
+  }
+
+  /** La regola: con le voci quasi spente e il vetro gia' capsula conta il vetro; altrimenti quella di prima. */
+  @Test fun theFacesFollowTheGlassOnceTheItemsAreGone() {
+    // Voci ancora piene (l'annullo): la regola di sempre.
+    assertEquals(fluidMenuGroupFaceReturn(0.3f, 0.8f), fluidMenuGroupFacePhase(0.3f, 0.8f, 0.6f), 0f)
+    // Vetro non ancora capsula: la regola di sempre.
+    assertEquals(fluidMenuGroupFaceReturn(0.3f, 0.3f), fluidMenuGroupFacePhase(0.3f, 0.3f, 0f), 0f)
+    // Voci spente e vetro capsula: il vetro, e mai piu' in alto della regola di prima.
+    assertEquals(1f - 0.48f / FluidMenuGroupCoverFull, fluidMenuGroupFacePhase(0.3f, 0.48f, 0.05f), 1e-5f)
+    assertEquals(0f, fluidMenuGroupFacePhase(0.3f, 0.8f, 0.05f), 0f)
+    for (p in listOf(0f, 0.2f, 0.5f, 1f)) for (c in listOf(0f, 0.5f, 0.9f, 1f)) for (ink in listOf(0f, 0.1f, 0.5f, 1f)) {
+      assertTrue(fluidMenuGroupFacePhase(p, c, ink) <= fluidMenuGroupFaceReturn(p, c) + 1e-6f)
+    }
   }
 
   /** L'opacita' delle icone a questa fase, come le disegna l'host al ritorno ([fluidMenuGroupFacesAlpha]). */

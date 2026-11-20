@@ -753,6 +753,8 @@ private fun FluidMenuLayerContent(
         tileLabels = elementSize == FluidMenuElementSize.Medium,
         levelBlurDp = { if (levels.swapping) fluidMenuLevelEnterBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp else 0f },
         outgoing = outgoing,
+        // In chiusura il pannello non prende il dito: un tocco sul tasto lo riapre (S4i).
+        interactive = entry.visible,
       )
       }
     }

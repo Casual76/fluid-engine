@@ -948,11 +948,54 @@ internal class FluidMenuAnchor {
  * col solo progresso le icone tornavano mentre la bolla si allargava, ritagliate dal vetro ancora stretto (in scuro f0236 la
  * stella leggibile, il glifo a sinistra a meta' e quello a destra un filo), e nell'annullo a meta' nascita, dove il progresso
  * e' gia' basso al congedo, comparivano sopra l'uovo con le righe (f0193–f0195).
+ *
+ * La copertura porta la fase a zero gia' a [FluidMenuGroupCoverFull] ([fluidMenuGroupCoverPhase], S4i): con `1 - cover` le
+ * icone erano ancora sotto 0,3 col vetro gia' una pillola attorno alla capsula (copertura 0,4–0,5 sul Tab S9).
  */
 internal fun fluidMenuGroupFaceReturn(progress: Float, cover: Float = 1f): Float {
   val byProgress = (progress / FluidMenuGroupFaceReturnShare).coerceIn(0f, 1f)
-  return max(byProgress, 1f - cover.coerceIn(0f, 1f))
+  return max(byProgress, fluidMenuGroupCoverPhase(cover))
 }
+
+/** La fase delle icone che da' il vetro da solo: 1 senza copertura, 0 da [FluidMenuGroupCoverFull] in su, lineare in mezzo. */
+internal fun fluidMenuGroupCoverPhase(cover: Float): Float = 1f - (cover / FluidMenuGroupCoverFull).coerceIn(0f, 1f)
+
+/**
+ * La copertura a cui il vetro e' gia' la capsula per le icone: le icone dentro con ~3 dp di margine e il vetro non piu' di ~1,7
+ * volte la capsula. Sul Tab S9 il vetro passa da 0,46 a 0,71 in un fotogramma nel congedo da fermo, e a 0,98 in quello dopo.
+ */
+internal const val FluidMenuGroupCoverFull: Float = 0.6f
+
+/**
+ * La fase delle icone del gruppo in un fotogramma del ritorno: [fluidMenuGroupFaceReturn], ma se le voci sono gia' quasi
+ * spente ([ink] fino a [FluidMenuGroupInkLow]) e il vetro avvolge gia' la capsula ([cover] da [FluidMenuGroupCoverReady]),
+ * le icone non aspettano l'ultimo tratto del progresso: la fase e' quella del vetro ([fluidMenuGroupCoverPhase]).
+ *
+ * S4i (d): nel congedo da fermo, sul Tab S9 (voto S4h, f0090–f0091 in chiaro, f0077–f0078 in scuro), il vetro avvolgeva la
+ * capsula gia' a ~150 ms con le voci al 7–16%, ma il progresso teneva la fase a 1 fino a ~170 ms, e la curva d'uscita accendeva
+ * le icone sopra 0,3 solo a ~200 ms: per ~22–25 ms la capsula restava quasi vuota. Rigiocati i fotogrammi veri di sedici
+ * ritorni (s4q, s4q2, s4i in chiaro e in scuro), con questa regola nessuno ha il vetro capsula (copertura da 0,4) con voci e
+ * icone tutte e due sotto 0,3, e nessuno le ha tutte e due sopra 0,01. Nell'annullo le voci ci sono ancora quando il vetro
+ * avvolge la capsula, e conta la regola di sempre.
+ */
+internal fun fluidMenuGroupFacePhase(progress: Float, cover: Float, ink: Float): Float =
+  if (ink <= FluidMenuGroupInkLow && cover >= FluidMenuGroupCoverReady) {
+    fluidMenuGroupCoverPhase(cover)
+  } else {
+    fluidMenuGroupFaceReturn(progress, cover)
+  }
+
+/**
+ * Sotto questo inchiostro le voci del gruppo al ritorno sono quasi spente ([fluidMenuGroupFacePhase]): sul Tab S9 l'ultimo
+ * fotogramma con le voci nel congedo da fermo le ha al 16%, col vetro gia' una pillola attorno alla capsula.
+ */
+internal const val FluidMenuGroupInkLow: Float = 0.2f
+
+/**
+ * Da questa copertura il vetro avvolge gia' la capsula ([fluidMenuGroupFacePhase], [fluidMenuGroupFaceCover]): le icone dentro
+ * con ~2 dp di margine, e il vetro non piu' di ~1,8 volte la capsula. Sul Tab S9 quel fotogramma ha 0,46–0,47.
+ */
+internal const val FluidMenuGroupCoverReady: Float = 0.4f
 
 /**
  * Quanto il vetro disegnato [drawn] avvolge le icone della capsula [capsule] del gruppo: 0 finche' non le contiene tutte e tre,
@@ -1589,12 +1632,15 @@ internal class FluidMenuJourney {
    */
   fun noteGroupGlass() {
     if (!closing || !groupMenu || anchor?.groupBounds == null) return
-    val phase = fluidMenuGroupFaceReturn(progress.value, groupCover())
+    val cover = groupCover()
+    val ink = contentVisibility.value
+    // Le icone non aspettano il progresso quando le voci sono gia' spente e il vetro e' gia' la capsula (S4i, d).
+    val phase = fluidMenuGroupFacePhase(progress.value, cover, ink)
     androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation {
       val was = returnGroupFace.floatValue
       if (phase < was) returnGroupFace.floatValue = phase
       GlassFrameDiagnostics.event("menu.group", this) {
-        "phase=$phase latch=${min(was, phase)} progress=${progress.value} ink=${contentVisibility.value}"
+        "phase=$phase latch=${min(was, phase)} progress=${progress.value} ink=$ink cover=$cover"
       }
     }
   }

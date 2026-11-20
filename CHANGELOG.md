@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Riscaldamento del vetro all'avvio (F7.4, leva 6) spento di serie: sul Tab S9 l'apertura mediana dopo un'installazione
+  peggiorava di 13–15 ms (S5c). Si accende per una prova con `log.tag.FluidF74EarlyWarm`.
 - Menu contestuale (F7.3c). Il bagliore della pressione riusa la registrazione della riga e il vetro della card sollevata campiona la zona del suo viaggio.
 
 - Liquid Glass (F7.6). Tetti di nodi, layer e catture per componente e in viaggio, più bilanci prima/dopo sul Tab S9.

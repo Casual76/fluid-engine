@@ -625,8 +625,9 @@ e mai nel percorso dell'avvio**, che è già il fotogramma più lungo che un'app
   RenderThread, che compila mentre il principale misura, dispone e registra la prima schermata. Il principale non aspetta
   mai il RenderThread, quindi il primo fotogramma non parte più tardi. Solo la lastra, e solo quando c'è una lastra
   `Liquid`: un programma che il primo fotogramma non disegna occuperebbe il RenderThread quando la finestra gli chiede il
-  primo fotogramma. Gruppi, striscia e menu restano al giro qui sotto. Il ramo si spegne per le misure con
-  `adb shell setprop log.tag.FluidF74NoEarlyWarm VERBOSE`; logcat (tag `FluidGlass`) scrive per ogni ramo quando è
+  primo fotogramma. Gruppi, striscia e menu restano al giro qui sotto. **Il ramo è spento di serie**: sul Tab S9 (S5c)
+  dopo un'installazione l'apertura mediana peggiorava di 13–15 ms. Per una prova si accende con
+  `adb shell setprop log.tag.FluidF74EarlyWarm VERBOSE`; logcat (tag `FluidGlass`) scrive per ogni ramo quando è
   partito rispetto all'avvio del processo e quanto è durato.
 - **Come aspetta.** La finestra deve aver disegnato almeno una volta, non ridisegnare da 120 ms, essere visibile, e la
   coda del filo principale dev'essere vuota. Poi si disegna **un programma per volta**, fuori schermo (un
@@ -1590,7 +1591,7 @@ Le misure delle fence situano il grosso dei ritardi del gruppo dopo la consegna 
 
 **F7.4. Riscaldamento, sonda e bordo dello scorrimento.** Tre leve senza cambi a vista, ognuna con un interruttore per il
 lotto A/B (`adb shell setprop log.tag.<nome> VERBOSE`, letto all'avvio del processo):
-- *riscaldamento all'avvio* (`FluidF74NoEarlyWarm` lo spegne): vedi «Il riscaldamento»;
+- *riscaldamento all'avvio* (**spento di serie** dopo la misura sul Tab S9, S5c: dopo un'installazione l'apertura mediana peggiorava di 13–15 ms; `FluidF74EarlyWarm` lo accende per una prova): vedi «Il riscaldamento»;
 - *la sonda che riposa* (`FluidF74NoProbeRest`): quando la pagina si ridisegna per qualcosa che sta altrove (un
   indicatore che gira, una card animata), ogni vetro radice riceveva una revisione a ogni fotogramma e rileggeva ogni
   120 ms. Ora, dopo due letture uguali di fila, lo spazio fra due letture raddoppia fino a 480 ms (in 10 s: 23 letture

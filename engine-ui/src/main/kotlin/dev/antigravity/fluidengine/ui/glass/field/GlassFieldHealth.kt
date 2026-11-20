@@ -368,10 +368,13 @@ internal object GlassFieldLevers {
   /**
    * Leva 6: il riscaldamento della lastra parte **prima** del primo disegno della finestra, fuori schermo, quando nel primo
    * fotogramma c'è una lastra `Liquid` (`GlassWarmUp`). Spento: il riscaldamento di F1A.7 e basta (dopo il primo
-   * fotogramma, a finestra ferma). `log.tag.FluidF74NoEarlyWarm`.
+   * fotogramma, a finestra ferma).
+   *
+   * **Spenta di serie** dopo la misura sul Tab S9 (S5c, 2026-11-20): dopo un'installazione l'apertura mediana peggiorava
+   * di 13 ms in chiaro e 15 in scuro. Si accende per una prova con `log.tag.FluidF74EarlyWarm`.
    */
   @Volatile
-  var earlyWarmUp: Boolean = !flag("FluidF74NoEarlyWarm")
+  var earlyWarmUp: Boolean = flag("FluidF74EarlyWarm")
 
   /**
    * Leva 7: la sonda rallenta da sola quando le sue letture tornano uguali mentre la pagina si ridisegna altrove
@@ -402,9 +405,9 @@ internal object GlassFieldLevers {
   @Volatile
   var edgeHalf: Boolean = flag("FluidF74EdgeHalf")
 
-  /** Solo per i test: le leve come le dà un dispositivo senza proprietà (le quattro senza resa accese, la metà spenta). */
+  /** Solo per i test: le leve come le dà un dispositivo senza proprietà (sonda e bordo accesi, avvio e metà spenti). */
   fun resetForTesting() {
-    earlyWarmUp = true
+    earlyWarmUp = false
     probeRest = true
     edgeHold = true
     edgeLean = true

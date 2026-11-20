@@ -295,7 +295,7 @@ class GlassWarmUpTest {
   fun onlyTheSlabMayStartBeforeTheFirstFrame() {
     assertEquals(listOf(GlassWarmFamily.Slab), GlassWarmFamily.entries.filter { it.earlyEligible })
     GlassFieldLevers.resetForTesting()
-    assertTrue("di serie la leva è accesa", GlassFieldLevers.earlyWarmUp)
+    assertFalse("di serie la leva è spenta: sul Tab S9 peggiorava l'apertura (S5c)", GlassFieldLevers.earlyWarmUp)
   }
 
   @Test

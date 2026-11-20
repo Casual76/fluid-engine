@@ -22,15 +22,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalGraphicsContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
@@ -38,6 +42,7 @@ import dev.antigravity.fluidengine.sample.measure.MeasureScenario
 import dev.antigravity.fluidengine.sample.measure.ScenarioActions
 import dev.antigravity.fluidengine.sample.measure.ScenarioScene
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidContextMenuController
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
@@ -57,6 +62,8 @@ import dev.antigravity.fluidengine.ui.fluid.glassSurface
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidChromeController
+import dev.antigravity.fluidengine.ui.fluid.recordContextPreview
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
@@ -292,6 +299,81 @@ class GlassNodeCountTest {
   @Test fun menuDalTasto() = checkScenario(MeasureScenario.MenuButton, menuText = "Condividi")
   @Test fun menuDalGruppo() = checkScenario(MeasureScenario.MenuGroup, menuText = "Aggiungi ai preferiti")
   @Test fun menuContestuale() = checkScenario(MeasureScenario.ContextMenu, menuText = "Condividi")
+
+  @Test fun laRegistrazioneDellaRigaSegueIlContenutoDuranteLaPressione() {
+    compose.mainClock.autoAdvance = false
+    val outer = mutableStateOf(Color.White)
+    val inner = mutableStateOf(Color.Red)
+    val width = mutableStateOf(80.dp)
+    val display = RenderNode("F7.3c")
+    lateinit var controller: FluidContextMenuController
+    var lastInk: Color? = null
+    var outerDraws = 0
+    compose.setContent {
+      controller = rememberFluidContextMenu(actions = { emptyList() })
+      Box(Modifier.layout { measurable, _ ->
+        val row = measurable.measure(Constraints.fixed(width.value.roundToPx(), 48.dp.roundToPx()))
+        layout(row.width, row.height) { row.place(0, 0) }
+      }.drawWithContent {
+        drawRect(outer.value)
+        outerDraws++
+        drawContent()
+      }.recordContextPreview(controller).drawBehind {
+        lastInk = inner.value
+        drawRect(inner.value)
+      })
+    }
+    // Cambiare il disegno esterno simula il bagliore senza dipendere dalla durata della sua molla.
+    fun frame(): Int {
+      Snapshot.sendApplyNotifications()
+      val start = ShadowLog.getLogsForTag(FrameTag).size
+      val view = compose.activity.window.decorView
+      display.setPosition(0, 0, view.width, view.height)
+      val canvas = display.beginRecording()
+      try {
+        check(canvas.isHardwareAccelerated)
+        view.draw(canvas)
+      } finally {
+        display.endRecording()
+      }
+      return ShadowLog.getLogsForTag(FrameTag).drop(start).count { " kind=menu.preview.record " in it.msg }
+    }
+    try {
+      compose.waitForIdle()
+      // Un solo canvas hardware per fotogramma: il looper di Robolectric può anche chiedere
+      // traversate software. Il disegno esterno deve avvenire davvero in tutti i dodici passi.
+      compose.runOnUiThread {
+        assertEquals(0, frame())
+        controller.arm(true)
+        assertEquals(1, frame())
+        repeat(12) { i ->
+          val before = outerDraws
+          outer.value = if (i % 2 == 0) Color.Black else Color.White
+          assertEquals("solo bagliore, frame $i", 0, frame())
+          assertTrue(outerDraws > before)
+        }
+        inner.value = Color.Blue
+        assertEquals("cambio del contenuto", 1, frame())
+        assertEquals(Color.Blue, lastInk)
+        width.value = 96.dp
+        assertEquals("cambio di misura", 1, frame())
+        assertEquals(IntSize(96, 48), controller.layer.size)
+        controller.entry.lifted = true
+        inner.value = Color.Green
+        assertEquals("la card rigioca la registrazione", 0, frame())
+        assertEquals(Color.Blue, lastInk)
+        controller.arm(false)
+        controller.entry.lifted = false
+        assertEquals(0, frame())
+        assertEquals(Color.Green, lastInk)
+        controller.arm(true)
+        assertEquals("nuova pressione", 1, frame())
+      }
+    } finally {
+      display.discardDisplayList()
+    }
+  }
+
   @Test fun foglio() = checkScenario(MeasureScenario.SheetDrag)
   @Test fun ottoLastre() = checkScenario(MeasureScenario.EightSlabs)
 
@@ -454,7 +536,7 @@ class GlassNodeCountTest {
 
   private data class Capture(val size: IntSize, val windowed: Boolean, val fromMenu: Boolean)
 
-  /** La card sollevata e il velo del contestuale hanno lavoro proprio a piena finestra. */
+  /** I marker distinguono la finitura del menu dalle catture della card e del velo. */
   private fun captureRecords(logs: List<ShadowLog.LogItem>): List<Capture> = buildList {
     var drawingMenu = false
     for (entry in logs) {
@@ -607,9 +689,9 @@ class GlassNodeCountTest {
       menu-gruppo/dopo-chiude      1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    800/110
       contestuale/monta            1/3/0   3/3/0/0   2/1     800/1280   0/0/0/0         3      6/0    0/0
       contestuale/fermo            0/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      4/0    0/0
-      contestuale/apre             3/5/1   5/5/0/1   4/1     812/1292   1/812/1292/1    64     8/1    800/1280
+      contestuale/apre             3/5/1   5/5/0/1   4/1     812/1292   1/812/1292/0    64     8/1    800/1280
       contestuale/dopo-apre        3/5/1   5/5/0/1   0/0     0/0        0/0/0/0         0      6/1    800/1280
-      contestuale/chiude           3/5/1   5/5/0/1   3/1     812/1292   2/812/1292/1    20     8/1    800/1280
+      contestuale/chiude           3/5/1   5/5/0/1   3/1     812/1292   2/812/1292/0    20     8/1    800/1280
       contestuale/dopo-chiude      0/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      4/0    760/72
       foglio-trascinato/monta      1/2/1   2/2/0/1   2/0     800/486    0/0/0/0         25     6/0    0/0
       foglio-trascinato/fermo      1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    0/0

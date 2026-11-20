@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidDropWarp
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
@@ -312,6 +314,24 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
     // sitting wherever the finger happened to be on the frame the press was recognised.
     .then(highlight.modifier)
     .then(highlight.gestureModifier)
+    .recordContextPreview(controller)
+}
+
+internal fun Modifier.recordContextPreview(controller: FluidContextMenuController): Modifier =
+  this
+    // Il bagliore ridisegna a ogni passo della pressione. Isoliamo la registrazione durante
+    // l'armamento: Compose la invalida ancora se cambiano contenuto o misura della riga.
+    // È una display list senza effetto né alpha. Al sollevamento resta solo il layer registrato.
+    .layout { measurable, constraints ->
+      val row = measurable.measure(constraints)
+      layout(row.width, row.height) {
+        if (controller.recording && !controller.entry.lifted) {
+          row.placeWithLayer(0, 0)
+        } else {
+          row.place(0, 0)
+        }
+      }
+    }
     .drawWithContent {
       // Lifted: the row is *in the overlay now*, and drawing it here as well is what made the
       // menu look broken. The copy in front is a pane of glass, so the row still sitting in the
@@ -321,12 +341,12 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
       if (controller.entry.lifted) return@drawWithContent
       if (controller.recording) {
         controller.layer.record { this@drawWithContent.drawContent() }
+        GlassFrameDiagnostics.event("menu.preview.record", controller.layer)
         drawLayer(controller.layer)
       } else {
         drawContent()
       }
     }
-}
 
 /**
  * Long-press this element to raise a menu of actions anchored to it.

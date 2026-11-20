@@ -1557,6 +1557,15 @@ alla GPU restano alte. Lo mostrano `sessioni/f7-ab/rapporto.md` e `sessioni/f7-g
 
 **F7.3b. Menu in viaggio.** La capsula o il seme e il pannello definiscono il rettangolo di cattura. Il margine comprende oltrepasso, coda, ombra, rifrazione e sfocatura. Il campione dimezzato e la finitura si allineano alla griglia della finestra. Il campo, il clip delle voci e la sonda mantengono le coordinate del palco. Il velo del menu modale conserva blur e tinta in una texture alla risoluzione del display. Durante la dissolvenza l'alpha agisce sul risultato composto. La texture occupa spazio per tutta la vita del velo e si aggiorna quando il materiale cambia. Il confronto delle fence GPU sul tablet misura il guadagno.
 
+**F7.3c. Riga sollevata del contestuale.** Durante la pressione il bagliore cambia fuori dalla registrazione della riga.
+Una display list temporanea isola il contenuto: un cambio di testo o di misura aggiorna la registrazione, il solo
+bagliore la riusa. La card ridisegna quel layer e il suo materiale Liquid usa la finestra del viaggio fra riga e posa,
+con i margini ottici di F7.3b. La foto personalizzata segue un percorso separato.
+
+Nello scenario «Note» su Tab S9, F7.3b conta 19,00 upload per frame in chiaro e 19,04 in scuro. Circa 14 hanno le
+dimensioni dei titoli, sottotitoli, frecce e divisori delle cinque righe dietro quella premuta. Si vedono già prima
+dell'apertura. Il conteggio di un upload HWUI e quello di una registrazione Compose misurano operazioni diverse.
+
 Una lastra ferma in disegno hardware riusa la display list della luce finché geometria, colore, forze e direzione
 coincidono. I due disegni conservano l'ordine additivo e poi SrcOver. Una pressione con flessione disegna direttamente.
 Nella stessa finestra le lastre con identiche geometria, densità, tinta e ricetta dell'ombra condividono un layer per

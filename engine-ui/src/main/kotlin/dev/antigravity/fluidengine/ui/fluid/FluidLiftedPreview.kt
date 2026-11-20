@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
-import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurface
+import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
 import kotlin.math.roundToInt
 
 // La riga sollevata del menu contestuale, trasformata in una card dello stesso materiale del menu. Un file
@@ -140,12 +140,17 @@ internal fun FluidLiftedPreview(
   Box(
     modifier = Modifier
       .fillMaxSize()
+      .menuDrawMarker("preview.material")
       .drawWithContent {
         if (materialPresence() > 0.004f) drawContent()
       }
       .then(
         if (backdrop != null) {
-          Modifier.fluidPhysicsSurface(
+          Modifier.fluidPhysicsSurfaceInked(
+            // La card e il menu viaggiano su due superfici indipendenti. Anche per la card
+            // bastano i capi del suo viaggio con i margini ottici della finitura F7.3b.
+            menuSource = bounds,
+            ink = null,
             state = physics,
             backdrop = backdrop,
             tint = GlassDefaults.panelTint(paneTint),

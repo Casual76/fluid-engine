@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Menu contestuale (F7.3c). Il bagliore della pressione riusa la registrazione della riga e il vetro della card sollevata campiona la zona del suo viaggio.
+
 - Liquid Glass (F7.6). Tetti di nodi, layer e catture per componente e in viaggio, più bilanci prima/dopo sul Tab S9.
 
 - Il cursore con più tacche si posa su quella più vicina al rilascio, anche dopo una passata veloce, e consegna il valore della tacca prima di concludere il gesto.

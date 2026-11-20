@@ -60,7 +60,7 @@ class MenuCaptureWindowTest {
   }
 
   /** La ricetta esportata dal clock del gruppo a 166,67 ms, inclusi i 96 vertici, la lente e l'ombra. */
-  private fun travellingBody(): RenderEffect {
+  private fun travellingBody(outerBandPx: Float? = null): RenderEffect {
     val relative = "tools/glassbench/traces/tasto/apre-gruppo/trace.json"
     val file = generateSequence(File(".").canonicalFile) { it.parentFile }.map { it.resolve(relative) }.first { it.isFile }
     val trace = JSONObject(file.readText())
@@ -86,6 +86,14 @@ class MenuCaptureWindowTest {
           body.setColorUniform(key, Color.parseColor("#" + value.takeLast(2) + value.substring(1, 7)))
         else -> body.setFloatUniform(key, numbers(value).toFloatArray())
       }
+    }
+    if (outerBandPx != null) {
+      // Stesso anello e stessa ombra. Si sposta soltanto la soglia di uscita dal ciclo geometrico.
+      val band = numbers(uniforms.get("ringBand"))
+      val box = numbers(uniforms.get("bbox"))
+      val grow = outerBandPx - band[0]
+      body.setFloatUniform("ringBand", outerBandPx, band[1])
+      body.setFloatUniform("bbox", box[0] - grow, box[1] - grow, box[2] + grow, box[3] + grow)
     }
     return RenderEffect.createRuntimeShaderEffect(body, "content")
   }
@@ -120,6 +128,32 @@ class MenuCaptureWindowTest {
       dir.resolve("$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
     assertTrue("anello e ombra, ogni pixel della finestra", before.sameAs(after))
+  }
+
+  @Test fun ambientShadowDoesNotRevealTheRingsEarlyExitBounds() {
+    fun frame(band: Float?): Bitmap {
+      val finish = node("finitura", window) { drawColor(Color.WHITE) }
+      finish.setRenderEffect(travellingBody(band))
+      return bitmap(node("velo con goccia", window) {
+        drawColor(0xffb0b0b0.toInt())
+        drawRenderNode(finish)
+      })
+    }
+    val narrow = frame(null)
+    val wide = frame(160f)
+    val rowA = IntArray(window.width)
+    val rowB = IntArray(window.width)
+    var maxDelta = 0
+    for (y in 0 until window.height) {
+      narrow.getPixels(rowA, 0, window.width, 0, y, window.width, 1)
+      wide.getPixels(rowB, 0, window.width, 0, y, window.width, 1)
+      for (x in rowA.indices) {
+        maxDelta = maxOf(maxDelta, kotlin.math.abs(Color.red(rowA[x]) - Color.red(rowB[x])))
+      }
+    }
+    // Sotto l'uovo deve esserci ancora l'ombra; cambiare la banda non può dipingere un rettangolo.
+    assertTrue("ombra sotto la sagoma", Color.red(narrow.getPixel(360, 368)) < 176)
+    assertTrue("gradino dovuto alla banda geometrica: $maxDelta/255", maxDelta <= 1)
   }
 
   @Test fun scrimFadesOneCachedMaterialUnderThePanel() {

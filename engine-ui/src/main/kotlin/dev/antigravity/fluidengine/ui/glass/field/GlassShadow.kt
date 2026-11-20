@@ -638,20 +638,64 @@ float glassShadowMask(float2 q, float sigma, out float seen) {
  * sostituto** (il riquadro della sagoma, cioè `bbox` senza il margine `soften + ringBand.x`, coi raggi della goccia
  * a riposo tenuti dentro mezzo lato; angoli vivi per una sagoma libera), corretta col rapporto fra la caduta della
  * sagoma vera e quella del sostituto nel punto. Quando la goccia si posa sulla sua lastra le due sagome coincidono
- * e la maschera è quella della lastra; mentre si deforma, l'ombra la segue.
+ * e la maschera è quella della lastra. Per l’ambiente della goccia la distanza viene da un contorno di al più
+ * 24 segmenti: la sfocatura è larga e il suo profilo deve continuare anche oltre il riquadro del corpo.
  */
 @Language("AGSL")
 internal const val GlassShadowMaskRing = """
+void glassShadowRingEdge(float2 p, float2 a, float2 b, inout float nearest2, inout float winding) {
+    float2 edge = b - a;
+    float2 rel = p - a;
+    float along = clamp(dot(rel, edge) / max(dot(edge, edge), 0.000001), 0.0, 1.0);
+    float2 delta = rel - along * edge;
+    nearest2 = min(nearest2, dot(delta, delta));
+    bool above = p.y >= a.y;
+    bool below = p.y < b.y;
+    bool left = edge.x * rel.y > edge.y * rel.x;
+    if ((above && below && left) || (!above && !below && !left)) winding = -winding;
+}
+
+// Distanza continua della sola ombra ambiente. I limiti economici di glassField sono adatti
+// al ritaglio e al contatto; usati come distanze ottiche colorerebbero anche gli angoli di bbox.
+float glassShadowRingDistance(float2 q) {
+    int count = int(vertCount);
+    int stride = count <= 24 ? 1 : (count <= 48 ? 2 : 4);
+    float2 first = verts[0];
+    float2 prev = first;
+    float nearest2 = 1.0e20;
+    float winding = 1.0;
+    for (int i = 1; i < 24; ++i) {
+        if (i * stride >= count) break;
+        // AGSL richiede indici costanti dopo lo srotolamento del ciclo.
+        float2 v = stride == 1 ? verts[i] : (stride == 2 ? verts[2 * i] : verts[4 * i]);
+        glassShadowRingEdge(q, prev, v, nearest2, winding);
+        prev = v;
+    }
+    glassShadowRingEdge(q, prev, first, nearest2, winding);
+    float d = winding * sqrt(nearest2) - soften;
+    if (restBlend > 0.0) {
+        float settled = glassSlab(q - restCenter, restHalfSize, restRadii, restSmooth).x;
+        d = mix(d, settled, clamp(restBlend, 0.0, 1.0));
+    }
+    return d;
+}
+
 float glassShadowMask(float2 q, float sigma, out float seen) {
-    float2 normal;
-    float2 center;
-    seen = glassField(q, normal, center);
+    // Una sagoma libera può avere punte tra due campioni. Conserva il suo campo originale.
+    bool drop = dropReach >= 0.0;
+    seen = 0.0;
+    if (!drop || shadowAlphas.x > 0.0) {
+        float2 normal;
+        float2 center;
+        seen = glassField(q, normal, center);
+    }
+    float ambientD = drop ? glassShadowRingDistance(q) : seen;
     float margin = soften + ringBand.x;
     float2 halfSize = max((bbox.zw - bbox.xy) * 0.5 - float2(margin), float2(0.0));
     float4 radii = dropReach >= 0.0 ? min(max(restRadii, float4(0.0)), float4(min(halfSize.x, halfSize.y))) : float4(0.0);
     float stand = glassShadowPiece(q - fieldCenter, halfSize, radii, 0.0, sigma);
     float standD = glassSlab(q - fieldCenter, halfSize, radii, 0.0).x;
-    float ratio = glassShadowFall(seen, sigma) / max(glassShadowFall(standD, sigma), 0.000001);
+    float ratio = glassShadowFall(ambientD, sigma) / max(glassShadowFall(standD, sigma), 0.000001);
     return clamp(stand * ratio, 0.0, 1.0);
 }"""
 

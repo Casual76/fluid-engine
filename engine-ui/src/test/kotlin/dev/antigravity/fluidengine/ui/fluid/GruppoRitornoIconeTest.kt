@@ -62,7 +62,16 @@ class GruppoRitornoIconeTest {
   /** Le icone: 24 dp al centro di ogni tasto, quindi 10 dp dentro la capsula a sinistra, a destra, sopra e sotto. */
   private val icons = Rect(capsule.left + 10f * d, capsule.top + 10f * d, capsule.right - 10f * d, capsule.bottom - 10f * d)
 
-  private class Frame(val t: Long, val drawn: Rect, val progress: Float, val phase: Float, val phaseBefore: Float)
+  private class Frame(
+    val t: Long,
+    val drawn: Rect,
+    val progress: Float,
+    val phase: Float,
+    val phaseBefore: Float,
+    /** L'inchiostro del congedo ([FluidMenuJourney.contentVisibility]) e le voci come le disegna l'host (`lensInkAlpha`). */
+    val visibility: Float,
+    val ink: Float,
+  )
 
   private fun TestScope.ritorno(dismissMs: Long): List<Frame> {
     val job = SupervisorJob()
@@ -106,7 +115,10 @@ class GruppoRitornoIconeTest {
       }
       driver.frame(t * 1_000_000L)
       if (closed) {
-        out += Frame(t, physics.ensurePlan().bounds, journey.progress.value, anchor.groupProgress(), fluidMenuGroupFaceReturn(journey.progress.value))
+        out += Frame(
+          t, physics.ensurePlan().bounds, journey.progress.value, anchor.groupProgress(), fluidMenuGroupFaceReturn(journey.progress.value),
+          journey.contentVisibility.value, journey.lensInkAlpha(),
+        )
       }
       t = GroupFrames.frameAfter(t)
     }
@@ -147,7 +159,32 @@ class GruppoRitornoIconeTest {
     val step = frames.zipWithNext().maxOf { (a, b) -> a.phase - b.phase }
     println("TAVOLA $name pillola vuota piu' stretta delle icone: $narrow fotogrammi; passo piu' grande delle icone ${"%.2f".format(step)}")
     assertEquals("$name: pillola vuota stretta", 0, narrow)
+    // S4g-bis (d): in chiaro a f0361 e a f0391–f0392 voci sfocate dietro le tre icone piene. Le icone si vedono con la curva
+    // d'uscita della barra; con la regola di S4g (il quadrato dell'inchiostro uscito) erano gia' quasi piene sopra le voci.
+    var latch = 1f
+    var overlapBefore = 0
+    var overlapAfter = 0
+    for (f in frames) {
+      val cover = fluidMenuGroupFaceCover(f.drawn, capsule)
+      val gone = 1f - f.visibility
+      latch = minOf(latch, fluidMenuGroupFaceReturn(f.progress, cover * gone * gone))
+      val iconsBefore = iconAlpha(latch)
+      val iconsAfter = iconAlpha(f.phase)
+      if (iconsBefore > 0.01f && f.visibility > 0.01f) overlapBefore++
+      if (iconsAfter > 0.01f && f.ink > 0.01f) overlapAfter++
+      println(
+        "TAVOLA $name t=${f.t} icone ${"%.2f".format(iconsAfter)} voci ${"%.2f".format(f.ink)} " +
+          "(S4g: icone ${"%.2f".format(iconsBefore)} voci ${"%.2f".format(f.visibility)})",
+      )
+    }
+    println("TAVOLA $name fotogrammi con icone e voci insieme: S4g $overlapBefore, ora $overlapAfter")
+    assertEquals("$name: icone e voci insieme", 0, overlapAfter)
   }
+
+  /** L'opacita' delle icone della barra a questa fase (`FluidToolbar`: la curva d'uscita, con la sfocatura). */
+  private fun iconAlpha(phase: Float): Float =
+    if (phase >= FluidMotion.MenuGroupFaceProgressSpan) 0f else
+      GlassContentCurves.alpha(GlassContentRole.Exit, phase / FluidMotion.MenuGroupFaceProgressSpan, blurAvailable = true)
 
   @Test fun theIconsComeBackTogetherWithTheCapsuleFromARestingMenu() = runTest { check("fermo", ritorno(dismissMs = 1_200L)) }
 

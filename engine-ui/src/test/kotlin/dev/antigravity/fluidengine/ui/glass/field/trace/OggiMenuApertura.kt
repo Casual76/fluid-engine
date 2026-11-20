@@ -38,7 +38,6 @@ import dev.antigravity.fluidengine.ui.fluid.fluidMenuBirthProgress
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuContentMap
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuFaceAlpha
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceReturn
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLiquidContentMap
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuLensBlurDp
@@ -64,7 +63,6 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensOverflow
-import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceAfterInk
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceCover
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -292,6 +290,8 @@ internal fun buildMenuTrace(
   )
   if (variant?.threePhase == true) journey.retarget(1f)
   journey.install(physics)
+  // Come l'host (`FluidMenuLayer`): la copertura della capsula dalla sagoma disegnata.
+  journey.groupCover = { anchor.groupBounds?.let { fluidMenuGroupFaceCover(physics.ensurePlan().bounds, it) } ?: 1f }
   val born = journey.born
   val group = variant?.grouped == true
   // L'orologio della nascita (`FluidMenuJourney.openBirth`): il progresso sul profilo di Apple, la messa a fuoco del tasto
@@ -425,12 +425,9 @@ internal fun buildMenuTrace(
       // Al ritorno le icone tornano con la capsula, nell'ultimo tratto, disegnate dall'host sopra il vetro (S4b, NO 4:
       // `FluidMenuAnchor.groupFacesAbove`); prima restavano spente fino alla consegna.
       // Dopo S4f (NO 3) solo quando il vetro disegnato e' gia' la capsula, tutte e tre insieme.
-      val capsule = journey.anchor?.groupBounds
-      // Dopo S4g (NO 3) anche dopo le voci che se ne vanno, come `FluidMenuJourney.groupProgress`.
-      val cover = if (capsule != null) {
-        fluidMenuGroupFaceAfterInk(fluidMenuGroupFaceCover(plan.bounds, capsule), journey.contentVisibility.value)
-      } else 1f
-      val faceProgress = if (variant.corrected && closing && !showRest) fluidMenuGroupFaceReturn(p, cover) else journey.faceProgress
+      // Dopo S4g-bis (d) la fase dell'engine (`FluidMenuAnchor.groupProgress`, che tiene le icone tornate): le icone tornano
+      // col vetro che e' la capsula, e le voci se ne vanno nello stesso fotogramma (`FluidMenuJourney.lensInkAlpha`).
+      val faceProgress = if (variant.corrected && closing && !showRest) requireNotNull(journey.anchor).groupProgress() else journey.faceProgress
       val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {

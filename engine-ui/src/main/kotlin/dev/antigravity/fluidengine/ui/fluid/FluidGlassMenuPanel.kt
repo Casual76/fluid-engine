@@ -39,12 +39,16 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Constraints
@@ -64,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
@@ -307,6 +312,8 @@ internal fun FluidGlassMenuPanel(
       null
     }
   }
+  // Lo strato che porta le voci alla lente, dentro la finestra (S4g-bis, b): un layer esplicito, l'effetto che prima stava sul nodo.
+  val inkLens = rememberGraphicsLayer()
 
   Box(
     modifier = modifier
@@ -384,14 +391,23 @@ internal fun FluidGlassMenuPanel(
           val inShader = lensEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && lensEffect.clips(plan)
           drawInMenuSilhouette(lens, travelClip, inShader)
         } else Modifier)
+        // La mappa del viaggio sul nodo: e' quella del dito (il `clickable` delle righe) e della semantica.
         .graphicsLayer {
-          alpha = contentAlpha().coerceIn(0f, 1f)
           val map = contentMap()
           translationX = map.translation.x
           translationY = map.translation.y
           scaleX = map.scale
           scaleY = map.scale
-          renderEffect = if (lens != null && lensEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        }
+        // L'opacita' e la lente su uno strato a parte (S4g-bis, b). Ingrandite e portate verso il tasto, le voci di «Altro»
+        // uscivano dalla finestra: sotto un `RenderEffect` Skia rende nello strato solo la parte che si vede, e la lente, che
+        // prende le icone a destra da li', le trovava tagliate al bordo dello schermo (chiaro f0010–f0012, scuro f0085–f0086).
+        // Lo strato si sposta dentro la finestra e lo shader lo riporta al suo posto (`inkShift`); il dito resta dov'era.
+        .drawWithContent {
+          val map = contentMap()
+          var shift = Offset.Zero
+          var bounds: Rect? = null
+          val effect = if (lens != null && lensEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val focus = lens.journey.focus.value
             val blur = fluidMenuLensBlurDp(focus)
             val strength = fluidMenuLensStrength(focus)
@@ -401,16 +417,24 @@ internal fun FluidGlassMenuPanel(
               val padding = Offset(size.width, size.height) * ((1f - map.scale) / 2f)
               val plan = lens.physics.ensurePlan()
               val origin = lens.panelTopLeft + map.translation + padding
+              val blurDp = max(blur, levelBlurDp?.invoke() ?: 0f)
+              if (lensEffect.shades(plan, strength, clipInk)) {
+                fluidMenuInkFrame(coordinates.value, size, map, fluidMenuInkHaloPx(blurDp * this.density, map.scale))?.let {
+                  shift = it.shift
+                  bounds = it.bounds
+                }
+              }
               lensEffect.effect(
                 plan = plan,
                 origin = origin,
                 scale = map.scale,
                 density = this.density,
-                blurDp = max(blur, levelBlurDp?.invoke() ?: 0f),
+                blurDp = blurDp,
                 strength = strength,
                 clipInk = clipInk,
                 // Le voci che la lente ingrandisce oltre il vetro entrano schiacciate nel bordo, mai tagliate (S4f, NO 2).
                 overflow = if (clipInk) glassMenuLensOverflow(plan.bounds, origin, size, map.scale) else null,
+                inkShift = shift,
               )
             } else {
               fluidMenuLevelBlurEffect(levelBlurDp, this.density)
@@ -418,15 +442,116 @@ internal fun FluidGlassMenuPanel(
           } else {
             fluidMenuLevelBlurEffect(levelBlurDp, this.density)
           }
-        }
-        .drawBehind {
-          drawMenuSeparators(cells, { drop.weight(it) }, separator, band, insetPx, tileInsetPx, hairlinePx)
+          inkLens.alpha = contentAlpha().coerceIn(0f, 1f)
+          inkLens.renderEffect = effect
+          inkLens.translationX = shift.x
+          inkLens.translationY = shift.y
+          // Le celle hanno il loro layer: qui si registra solo quello, e le righe non si ridisegnano a ogni fotogramma.
+          inkLens.record { this@drawWithContent.drawContent() }
+          // Il limite della lente (S4g-ter): senza, lo shader della lente, che puo' colorare anche il trasparente, faceva allocare
+          // a Skia un intermedio grande quanto la finestra divisa per la scala delle voci (2048×3072 a 0,19), e sul Tab S9 il
+          // driver ci metteva fino a ~1 s alla prima apertura del gruppo. Il limite e' lo strato delle voci, intero e spostato
+          // nella finestra, piu' la sfocatura: la lente riceve tutte le voci e l'intermedio resta della misura del pannello.
+          val limit = bounds
+          if (limit != null) {
+            FluidMenuInkProbe.onBounds?.invoke(FluidMenuInkReport(limit, size, map.scale))
+            clipRect(limit.left, limit.top, limit.right, limit.bottom) { drawLayer(inkLens) }
+          } else {
+            drawLayer(inkLens)
+          }
         },
     ) {
-      FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick)
+      // Le celle in un nodo col suo layer: il nodo di sopra si ridisegna a ogni fotogramma del viaggio, loro solo quando
+      // cambiano (la riga premuta, la goccia), come prima.
+      Box(
+        Modifier
+          .matchParentSize()
+          .graphicsLayer { }
+          .drawBehind {
+            drawMenuSeparators(cells, { drop.weight(it) }, separator, band, insetPx, tileInsetPx, hairlinePx)
+          },
+      ) {
+        FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick)
+      }
     }
   }
 }
+
+/**
+ * Di quanto spostare le voci, in pixel della finestra, perche' il rettangolo [ink] in cui si disegnano stia tutto nella finestra
+ * [window]: zero se ci sta gia', il minimo verso l'interno se esce da un lato, al centro se e' piu' grande di lei.
+ *
+ * S4g-bis sul Tab S9 (b): nella nascita di «Altro» la lente ingrandisce le voci fino a 1,42× e le porta verso il tasto, vicino
+ * al bordo destro dello schermo. Lo strato delle voci usciva dalla finestra fino a ~300 px, e sotto un `RenderEffect` Skia rende
+ * nello strato del filtro solo la parte dentro lo schermo (lo shader della lente non dichiara quanto lontano legge): la lente,
+ * che porta nel bordo del vetro le voci di fuori (il tiro dei lati di S4f), trovava le icone di condivisione e della stella
+ * tagliate al bordo dello schermo (chiaro f0010–f0012, scuro f0085–f0086). In RTL lo stesso menu sta a sinistra, e lo
+ * spostamento dell'inchiostro verso destra lo teneva nella finestra: le icone entravano intere. Al banco lo strato e' sempre
+ * intero, ed era verde.
+ */
+internal fun fluidMenuInkOnScreen(ink: Rect, window: Rect): Offset {
+  fun axis(lo: Float, hi: Float, min: Float, max: Float): Float = when {
+    hi - lo > max - min -> (min + max - lo - hi) / 2f
+    hi > max -> max - hi
+    lo < min -> min - lo
+    else -> 0f
+  }
+  return Offset(axis(ink.left, ink.right, window.left, window.right), axis(ink.top, ink.bottom, window.top, window.bottom))
+}
+
+/**
+ * Lo strato della lente delle voci in questo fotogramma, nelle unita' del nodo che porta la mappa del viaggio (prima della sua
+ * scala): di quanto si sposta per stare nella finestra ([shift], [fluidMenuInkOnScreen]) e il rettangolo in cui si disegna
+ * ([bounds], [fluidMenuInkLimit]).
+ */
+internal class FluidMenuInkFrame(val shift: Offset, val bounds: Rect)
+
+/**
+ * Lo spostamento e il limite dello strato delle voci per il nodo grande [size], dentro il pannello [panel], con la mappa [map]
+ * e il margine [haloPx] (pixel della finestra, [fluidMenuInkHaloPx]). Null senza coordinate (prima della prima misura).
+ */
+internal fun fluidMenuInkFrame(panel: LayoutCoordinates?, size: Size, map: FluidMenuContentMap, haloPx: Float): FluidMenuInkFrame? {
+  if (panel == null || !panel.isAttached || !(map.scale > 0.0001f)) return null
+  val s = map.scale
+  val center = Offset(size.width / 2f, size.height / 2f)
+  val ink = Rect(panel.localToRoot(center + map.translation - center * s), panel.localToRoot(center + map.translation + center * s))
+  val window = Rect(Offset.Zero, panel.findRootCoordinates().size.toSize())
+  val shift = fluidMenuInkOnScreen(ink, window)
+  val limit = fluidMenuInkLimit(ink, window, shift, haloPx)
+  // Dalla finestra al nodo: il centro del nodo cade dove la mappa porta il centro del pannello.
+  val at = panel.localToRoot(center + map.translation)
+  fun local(p: Offset) = center + (p - at) / s
+  return FluidMenuInkFrame(Offset(shift.x / s, shift.y / s), Rect(local(limit.topLeft), local(limit.bottomRight)))
+}
+
+/**
+ * Il limite dello strato della lente delle voci, in pixel della finestra (S4g-ter): lo strato [ink] spostato di [shift] dentro
+ * la finestra [window], allargato di [haloPx] e tagliato alla finestra.
+ *
+ * Lo shader della lente puo' colorare anche il trasparente, e senza un limite Skia alloca per il filtro un intermedio grande
+ * quanto la finestra, nello spazio dello strato: la finestra divisa per la scala delle voci (2048×3072 a 0,19 sul banco). Sul
+ * Tab S9 l'allocazione dentro il driver Adreno ha portato la prima apertura del gruppo a 862 ms in chiaro e 1.061 in scuro
+ * (S4g contro S4f, bisezione F7.3k). Prima di S4g il limite era il ritaglio della sagoma, che pero' toglieva alla lente le voci
+ * di fuori dal vetro (il NO 1 di S4g). Questo le tiene tutte: la lente tira le voci verso l'esterno, quindi quello che disegna
+ * sta dentro lo strato delle voci, e il vetro piu' grande delle voci (il seme) fuori da loro e' trasparente. L'intermedio e'
+ * quello del pannello piu' il margine, a ogni scala.
+ */
+internal fun fluidMenuInkLimit(ink: Rect, window: Rect, shift: Offset, haloPx: Float): Rect =
+  ink.translate(shift).inflate(haloPx).intersect(window)
+
+/**
+ * Il margine del limite delle voci in pixel della finestra: la sfocatura prima della lente ([blurPx], in pixel dello strato,
+ * fino a tre volte il suo raggio) alla scala [scale], e qualche pixel per l'antialias e l'arrotondamento dei limiti.
+ */
+internal fun fluidMenuInkHaloPx(blurPx: Float, scale: Float): Float = (3f * blurPx + 2f) * scale + 4f
+
+/** Solo nei test (S4g-ter): il limite dello strato della lente delle voci a ogni fotogramma in cui c'e'. Null altrove. */
+internal object FluidMenuInkProbe {
+  @Volatile var onBounds: ((FluidMenuInkReport) -> Unit)? = null
+}
+
+/** Il limite [bounds] (unita' del nodo delle voci, grande [node]) alla scala [scale] delle voci. */
+internal class FluidMenuInkReport(val bounds: Rect, val node: Size, val scale: Float)
 
 /**
  * Disegna dentro la sagoma del vetro dell'ancora mentre si forma o torna (la goccia, o il ritaglio del viaggio), in coordinate

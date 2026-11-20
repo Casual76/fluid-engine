@@ -30,12 +30,14 @@ import org.intellij.lang.annotations.Language
 
 // Si valuta il campo della finestra in pixel dell'host. Si torna poi nello spazio
 // della texture delle voci. Una sola lettura, anche fuori dal bordo della lente.
+// `inkShift`: di quanto lo strato e' spostato per stare nella finestra ([fluidMenuInkOnScreen]); zero di serie.
 private const val GlassContentLensBlock = """
 uniform float2 menuOrigin;
 uniform float menuScale;
 uniform float lensDepth;
 uniform float lensPull;
 uniform float clipInk;
+uniform float2 inkShift;
 
 half4 glassMenuContent(float2 xy) {
     float2 normal, center;
@@ -51,7 +53,7 @@ internal const val GlassContentLensSlabShaderString = """
 uniform shader content;
 $GlassFieldKernel1
 $GlassContentLensBlock
-half4 main(float2 xy) { return glassMenuContent(xy); }
+half4 main(float2 xy) { return glassMenuContent(xy + inkShift); }
 """
 
 @Language("AGSL")
@@ -59,7 +61,7 @@ internal const val GlassContentLensRingShaderString = """
 uniform shader content;
 $GlassFieldKernelRing
 $GlassContentLensBlock
-half4 main(float2 xy) { return glassMenuContent(xy); }
+half4 main(float2 xy) { return glassMenuContent(xy + inkShift); }
 """
 
 // La lente col tiro dei lati (S4f, NO 2): `lensOverflow` (sinistra, alto, destra, basso, nello spazio delle voci) e' quanto
@@ -73,6 +75,7 @@ uniform float lensDepth;
 uniform float lensPull;
 uniform float4 lensOverflow;
 uniform float clipInk;
+uniform float2 inkShift;
 
 half4 glassMenuContent(float2 xy) {
     float2 normal, center;
@@ -91,7 +94,7 @@ internal const val GlassContentLensSlabOverflowShaderString = """
 uniform shader content;
 $GlassFieldKernel1
 $GlassContentLensOverflowBlock
-half4 main(float2 xy) { return glassMenuContent(xy); }
+half4 main(float2 xy) { return glassMenuContent(xy + inkShift); }
 """
 
 @Language("AGSL")
@@ -99,7 +102,7 @@ internal const val GlassContentLensRingOverflowShaderString = """
 uniform shader content;
 $GlassFieldKernelRing
 $GlassContentLensOverflowBlock
-half4 main(float2 xy) { return glassMenuContent(xy); }
+half4 main(float2 xy) { return glassMenuContent(xy + inkShift); }
 """
 
 /**
@@ -137,6 +140,17 @@ internal class GlassContentLensEffect {
     else -> false
   }
 
+  /**
+   * L'effetto che [effect] da' con questi argomenti e' la lente (uno shader), non la sola sfocatura: solo allora lo strato delle
+   * voci si puo' spostare nella finestra ([fluidMenuInkOnScreen]), perche' lo shader lo riporta al suo posto (`inkShift`).
+   */
+  fun shades(plan: PhysicsRenderPlan, strength: Float, clipInk: Boolean): Boolean = when {
+    strength <= 0f && !clipInk -> false
+    plan.mode == PlanModePoly && plan.vertCount > 2 -> ring != null
+    plan.mode == PlanModeSlabs && plan.pieceCount == 1 -> slab != null
+    else -> false
+  }
+
   fun effect(
     plan: PhysicsRenderPlan,
     origin: Offset,
@@ -147,6 +161,11 @@ internal class GlassContentLensEffect {
     clipInk: Boolean = false,
     /** Quanto le voci escono dal vetro da ogni lato ([glassMenuLensOverflow]), o null: niente. */
     overflow: FloatArray? = null,
+    /**
+     * Di quanto lo strato delle voci e' spostato per stare nella finestra, nelle sue unita' ([fluidMenuInkOnScreen]): l'uscita
+     * in `xy` e' quella che senza spostamento stava in `xy + inkShift`. Zero di serie: la lente di sempre.
+     */
+    inkShift: Offset = Offset.Zero,
   ): androidx.compose.ui.graphics.RenderEffect? {
     val radius = blurDp * density
     val blur = if (radius >= 0.5f) {
@@ -186,6 +205,7 @@ internal class GlassContentLensEffect {
     shader.setFloatUniform("menuOrigin", origin.x, origin.y)
     shader.setFloatUniform("menuScale", scale)
     shader.setFloatUniform("clipInk", if (clipInk) 1f else 0f)
+    shader.setFloatUniform("inkShift", inkShift.x, inkShift.y)
     shader.setFloatUniform("lensDepth", depth)
     shader.setFloatUniform("lensPull", glassMenuLensPullPx(depth, strength) / scale)
     // Le varianti col tiro dei lati, a ogni fotogramma (lo shader e' riusato).

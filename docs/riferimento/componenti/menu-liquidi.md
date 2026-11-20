@@ -255,13 +255,16 @@ margine su ogni lato (`fluidMenuReturnSlab(wrapSource = true)`), e il vetro ci s
 (f9191–f9194). Per un tasto quadrato è il tondo di sempre; per la capsula del gruppo una pillola più larga di lei. Fino a S4g era un
 tondo sul lato corto, più stretto delle icone: il ritorno passava da una pillola stretta e vuota alla capsula larga coi glifi in un
 passo (scuro f0131 → f0132, chiaro f0058 → f0059). Le icone del gruppo restano spente mentre il vetro torna verso la capsula e si
-riaccendono nell'ultimo tratto (`fluidMenuGroupFaceReturn`), mentre le voci del menu se ne vanno (`fluidMenuGroupFaceAfterInk`: col
-quadrato di quanto sono uscite), e solo quando il
+riaccendono nell'ultimo tratto (`fluidMenuGroupFaceReturn`), e solo quando il
 vetro le tiene già tutte e tre e non è più il menu: la copertura (`fluidMenuGroupFaceCover`) è zero finché il vetro non contiene
 le icone, cresce col margine che ha attorno a loro ed è piena a 5 dp, due fotogrammi a 120 Hz dopo; è zero anche se il vetro
 è più di 1,5–2 volte la capsula. Le icone si accendono intere e tutte e tre insieme (al ritorno la barra le registra senza il
 ritaglio della goccia): mai a pezzi, mai la capsula vuota. Una prima regola di S4f, la capsula a 0,8 di intersezione su unione,
-le teneva spente ~66 ms col vetro già attorno a loro nell'annullo. Fino a S4f tornavano col
+le teneva spente ~66 ms col vetro già attorno a loro nell'annullo. **Icone e voci non stanno mai insieme**: le voci se ne vanno
+nel fotogramma in cui le icone si accendono (`fluidMenuGroupReturnInk`, dalla fase `FluidMenuGroupFaceVisiblePhase`, dove la curva
+d'uscita della barra le rende visibili). Da fermo a quel punto sono già quasi spente; nell'annullo è lo scambio di un fotogramma.
+In S4g le icone entravano col quadrato dell'inchiostro uscito, ma la curva d'uscita le dava già quasi piene a metà, e sul Tab S9
+restavano voci sfocate dietro le tre icone piene (S4g-bis, chiaro f0361 e f0391–f0392). Fino a S4f tornavano col
 progresso, ritagliate dalla bolla che si allargava (in scuro f0236 la stella sola, i glifi ai lati a metà), e nell'annullo a metà
 nascita, col progresso già basso, comparivano sopra l'uovo e le righe (f0193–f0195). Le disegna l'host
 **sopra** il suo vetro (`FluidMenuAnchor.groupFaces`, `groupFacesAbove`), e alla consegna sono già quelle della barra, che le legge
@@ -282,7 +285,17 @@ strato dentro il ritaglio (uno shader della lente non dichiara quanto lontano le
 trovava il bordo dello strato ripetuto o niente. Sul Tab S9 «Condividi» diventava un codice a barre al bordo alto ed «Elimina»
 restava tagliata da una linea netta (S4g, chiaro f0008), mentre al banco lo strato era intero. La sagoma ritaglia per conto suo la
 goccia della scelta e il livello che se ne va (`drawInMenuSilhouette`); le voci solo dove lo shader non c'è
-(`GlassContentLensEffect.clips`). Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
+(`GlassContentLensEffect.clips`). Per lo stesso motivo **lo strato delle voci sta sempre nella finestra**: ingrandite fino a 1,42× e
+portate verso il tasto, le voci di «Altro» vicino al bordo destro dello schermo ne uscivano, e Skia dava alla lente solo la parte
+dentro lo schermo: le icone di condivisione e della stella entravano tagliate (S4g-bis, chiaro f0010–f0012, scuro f0085–f0086; in
+RTL, dove lo spostamento dell'inchiostro va verso l'interno, entravano intere). Il nodo delle voci porta la mappa del viaggio, per il
+dito e la semantica; le celle hanno il loro layer, e l'opacità e la lente stanno su uno strato esplicito (`inkLens`) che si sposta
+dentro la finestra (`fluidMenuInkOnScreen`, `fluidMenuInkFrame`) e che lo shader riporta al suo posto (l'uniform `inkShift`, zero
+quando lo strato ci sta). **Lo strato della lente ha un limite** (`fluidMenuInkLimit`): le voci intere, spostate nella finestra, più
+la sfocatura (`fluidMenuInkHaloPx`). Lo shader della lente può colorare anche il trasparente, e senza limite Skia alloca per il filtro
+un intermedio grande quanto la finestra divisa per la scala delle voci: sul Tab S9 la prima apertura del gruppo arrivava a ~1 s
+(S4g contro S4f, bisezione F7.3k; il costo era l'allocazione nel driver Adreno). La lente tira le voci verso l'esterno, quindi
+quello che disegna sta dentro lo strato delle voci: il limite non toglie niente, e l'intermedio resta della misura del pannello. Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
 voci stanno col corpo (staccate dalla sorgente, rimpicciolite nella goccia: nel gruppo e nel contestuale fino a ~23 dp dal loro
 riquadro a 300 ms, ~45–50 dp a 200 ms, sotto i 5 dp da ~500 ms), e la selezione riporta il punto del dito attraverso la stessa
 mappa con cui si disegnano (`FluidMenuSelection.pointerMap`, `fluidMenuPointerAtRest`: spostamento e scala, non la piega della
@@ -862,6 +875,15 @@ Puri, in `engine-ui` (JVM):
   `FluidMenuEarlyPickS4fTest` (la scelta durante la crescita sul tondo e sulla foto, l'Indietro col dito che torna verso il bordo) e,
   al banco, `test_menu_lens_clip_input.py` (lo strato delle voci intero contro quello limitato al ritaglio, come lo dava Skia sul
   dispositivo).
+- Le correzioni dopo S4g-bis: `VociDentroLaFinestraTest` (la nascita vera di «Altro» vicino al bordo destro del Tab S9: lo strato
+  delle voci esce dalla finestra, spostato ci sta e copre ancora il vetro; in RTL esce meno), `GruppoRitornoIconeTest` (icone e voci
+  mai insieme, da fermo e nell'annullo), `NascitaDopoLoStalloTest` (dopo un fotogramma da 93 ms la nascita riprende con la stessa
+  curva) e, al banco, `test_menu_lens_window_input.py` (lo strato limitato alla finestra perde il ramo destro dell'icona; spostato e
+  riportato dallo shader è come quello intero).
+- Le correzioni S4g-ter: `VociDentroLaFinestraTest` (il limite della lente tiene tutte le voci e resta della misura del pannello
+  nello spazio dello strato, in «Altro» e nel gruppo), `LenteVociLimiteTest` (PixelCopy: col limite gli stessi pixel che col limite
+  allargato, a ogni scala da 0,04 a 1,35, e che senza limite da 0,72; il pannello delle voci vero, a metà nascita, disegna la
+  lente nel limite, della misura del nodo).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello

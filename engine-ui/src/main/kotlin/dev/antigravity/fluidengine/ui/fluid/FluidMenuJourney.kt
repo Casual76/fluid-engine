@@ -938,14 +938,22 @@ internal fun fluidMenuGroupFaceCover(drawn: Rect, capsule: Rect): Float {
 }
 
 /**
- * La copertura delle icone del gruppo ([fluidMenuGroupFaceCover]) con le voci del menu che se ne vanno ([ink], l'inchiostro
- * del congedo, 1 = ancora tutte): le icone entrano mentre le voci escono, col quadrato di quanto sono uscite. Nell'annullo
- * sul Tab S9 (prova s4h, chiaro n85) con la sola copertura per un fotogramma le icone erano gia' piene sopra l'ombra delle righe.
+ * Le voci del menu al ritorno del gruppo: l'inchiostro del congedo ([ink]) finche' le icone della capsula sono spente, zero dal
+ * fotogramma in cui la loro fase ([phase], [FluidMenuAnchor.groupProgress]) le accende. Le due cose non stanno mai insieme
+ * (S4g-bis sul Tab S9, d): con la regola di S4g le icone entravano col quadrato dell'inchiostro uscito, ma la curva d'uscita
+ * le dava gia' quasi piene a meta' (0,85 con le voci al 10%), e in chiaro a f0361 e a f0391–f0392 restavano voci sfocate dietro
+ * le tre icone piene. Ora tornano col vetro che e' la capsula, come in S4f, e le voci se ne vanno nello stesso fotogramma: da
+ * fermo sono gia' quasi spente, nell'annullo e' lo scambio di un fotogramma.
  */
-internal fun fluidMenuGroupFaceAfterInk(cover: Float, ink: Float): Float {
-  val gone = 1f - ink.coerceIn(0f, 1f)
-  return cover * gone * gone
-}
+internal fun fluidMenuGroupReturnInk(ink: Float, phase: Float): Float =
+  if (phase < FluidMenuGroupFaceVisiblePhase) 0f else ink
+
+/**
+ * La fase sotto cui le icone del gruppo si vedono: la loro opacita' e' la curva d'uscita di [GlassContentCurves] a
+ * `fase / MenuGroupFaceProgressSpan`, zero da [GlassContentDefaults.ExitEnd] in su. Le voci se ne vanno qui, non prima: alla
+ * soglia del disegno (0,98) le icone sono ancora trasparenti.
+ */
+internal const val FluidMenuGroupFaceVisiblePhase: Float = FluidMotion.MenuGroupFaceProgressSpan * GlassContentDefaults.ExitEnd
 
 /** Dove stanno le icone del gruppo nella capsula, in frazioni della sua altezza dai bordi: 10 dp su 44. */
 internal const val FluidMenuGroupFaceIconInset: Float = 0.227f
@@ -1107,7 +1115,13 @@ internal class FluidMenuJourney {
    * e la messa a fuoco che torna in 100 ms le avrebbe gia' spente a 0,3 verso 67 ms.
    */
   fun lensInkAlpha(): Float =
-    if (born && closing) contentVisibility.value else fluidMenuLensAlpha(focus.value) * contentVisibility.value * birthInk()
+    if (born && closing) {
+      // Dal gruppo, via nel fotogramma in cui tornano le icone ([fluidMenuGroupReturnInk]).
+      val a = anchor
+      if (a?.groupBounds != null) fluidMenuGroupReturnInk(contentVisibility.value, a.groupProgress()) else contentVisibility.value
+    } else {
+      fluidMenuLensAlpha(focus.value) * contentVisibility.value * birthInk()
+    }
 
   /** Il congedo di un menu nato come Apple: la lente del tasto ingrandisce le voci che se ne vanno (vedi [fluidMenuLensMap]). */
   val bornReturn: Boolean get() = born && closing
@@ -1487,10 +1501,8 @@ internal class FluidMenuJourney {
   // capsula, tutte e tre insieme (S4f, NO 3).
   private val progressBlockForGroup: () -> Float = {
     if (closing) {
-      // E dopo le voci (S4g, NO 3): la pillola del ritorno avvolge la capsula mentre le righe se ne vanno, e le icone entrano
-      // mentre loro escono, come il glifo nella goccia di B1 (a) a f9192.
-      val cover = if (born) fluidMenuGroupFaceAfterInk(groupCover(), contentVisibility.value) else groupCover()
-      returnGroupFace = min(returnGroupFace, fluidMenuGroupFaceReturn(progress.value, cover))
+      // Le voci se ne vanno nel fotogramma in cui le icone tornano ([fluidMenuGroupReturnInk], S4g-bis, d): mai insieme.
+      returnGroupFace = min(returnGroupFace, fluidMenuGroupFaceReturn(progress.value, groupCover()))
       returnGroupFace
     } else {
       returnGroupFace = 1f

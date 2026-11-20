@@ -97,6 +97,12 @@ internal const val GlassScrollEdgeGrain: Float = 0.5f
  */
 internal const val GlassEdgeBlurMaxRadiusPx: Float = 38.5f
 
+/** La finitura senza sfocatura è trasparente oltre fadeTo. Quattro pixel proteggono i quad al bordo. */
+internal const val GlassEdgeTransparentGuard = """
+    if (finish >= 0.5 && blurShare == 0.0 && fadeRamp.y > fadeRamp.x &&
+        d >= fadeRamp.y + 4.0 / max(edgeLine.z, 0.0001)) return half4(0.0);
+"""
+
 /**
  * Lo shader della striscia, **una sorgente per le due passate** (piano 3.4: una variante, direzione come uniform).
  *
@@ -229,6 +235,7 @@ float veilWeight(float d, float a) {
 
 half4 main(float2 coord) {
     float d = edgeDepth(coord);
+$GlassEdgeTransparentGuard
     float a = amountAt(coord.x);
     float s = blurWeight(d, a);
     float4 center = float4(content.eval(clampToBounds(coord)));

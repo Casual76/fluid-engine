@@ -567,6 +567,16 @@ half4 main(float2 coord) {
     return glassBody(coord);
 }"""
 
+/** Oltre entrambi i campi più la portata massima dell'ombra, glassBody restituisce RGBA zero. */
+internal const val GlassRingTransparentGuard = """
+    float2 p = glassFieldPoint(coord);
+    float margin = max(aa, 0.0) + length(shadowOffset) + $GlassShadowReachSigmas *
+        max(glassShadowSigma(shadowRadii.x), glassShadowSigma(shadowRadii.y)) + 4.0;
+    float2 lower = min(bbox.xy, restCenter - restHalfSize) - margin;
+    float2 upper = max(bbox.zw, restCenter + restHalfSize) + margin;
+    if (any(lessThan(p, lower)) || any(greaterThan(p, upper))) return half4(0.0);
+"""
+
 /**
  * Il corpo di una **sagoma ad anello** (F1B.1): la goccia in viaggio e le sagome libere di Fluid-physics
  * (`FluidForm.Poly`), cioè ciò che non è un'unione di rettangoli arrotondati. Lo stesso [GlassBodyBlock] dei due
@@ -596,5 +606,6 @@ half4 glassSurfaceFilm(float2 p, half4 seen, half4 veiled, half luma, half amoun
 $GlassBodyBlock
 
 half4 main(float2 coord) {
+$GlassRingTransparentGuard
     return glassBody(coord);
 }"""

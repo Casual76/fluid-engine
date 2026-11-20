@@ -15,8 +15,16 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.unit.IntRect
+import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader as BackdropShader
+import dev.antigravity.fluidengine.ui.glass.backdrop.asAndroidRuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.captureRegion
 import dev.antigravity.fluidengine.ui.glass.backdrop.windowedEffect
+import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
+import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurSource
+import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeTransparentGuard
+import dev.antigravity.fluidengine.ui.glass.field.GlassRingTransparentGuard
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeProfile
+import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeUniforms
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import java.io.File
 import org.json.JSONArray
@@ -60,14 +68,14 @@ class MenuCaptureWindowTest {
   }
 
   /** La ricetta esportata dal clock del gruppo a 166,67 ms, inclusi i 96 vertici, la lente e l'ombra. */
-  private fun travellingBody(outerBandPx: Float? = null): RenderEffect {
+  private fun travellingBody(outerBandPx: Float? = null, source: String = GlassShaderSources.BodyRing.text): RenderEffect {
     val relative = "tools/glassbench/traces/tasto/apre-gruppo/trace.json"
     val file = generateSequence(File(".").canonicalFile) { it.parentFile }.map { it.resolve(relative) }.first { it.isFile }
     val trace = JSONObject(file.readText())
     val density = trace.getDouble("density").toFloat()
     val material = trace.getJSONArray("frames").getJSONObject(10).getJSONArray("elements").getJSONObject(0)
     val uniforms = material.getJSONObject("body").getJSONObject("uniforms")
-    val body = RuntimeShader(GlassShaderSources.BodyRing.text)
+    val body = RuntimeShader(source)
     fun numbers(value: Any): List<Float> = when (value) {
       is JSONArray -> (0 until value.length()).flatMap { numbers(value.get(it)) }
       is Number -> listOf(value.toFloat())
@@ -128,6 +136,47 @@ class MenuCaptureWindowTest {
       dir.resolve("$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
     assertTrue("anello e ombra, ogni pixel della finestra", before.sameAs(after))
+  }
+
+  @Test fun ringGuardPreservesTheWholeFrameIncludingTheShadow() {
+    val shader = GlassShaderSources.BodyRing.text
+    val reference = shader.replace(GlassRingTransparentGuard, "")
+    assertNotEquals(shader, reference)
+    fun image(source: String): Bitmap {
+      val finish = node("anello", window) { page() }.apply { setRenderEffect(travellingBody(source = source)) }
+      return bitmap(node("pagina e anello", window) { page(); drawRenderNode(finish) })
+    }
+    val before = image(reference)
+    assertFalse(before.sameAs(bitmap(node("solo pagina", window) { page() })))
+    assertTrue(before.sameAs(image(shader)))
+  }
+
+  @Test fun scrollEdgeGuardPreservesBothPassesAndTheEndOfTheFade() {
+    val source = GlassEdgeBlurSource.text
+    val reference = source.replace(GlassEdgeTransparentGuard, "")
+    assertNotEquals(source, reference)
+    for (profile in listOf(GlassScrollEdgeProfile.FadeOnly, GlassScrollEdgeProfile.Soft)) {
+      for (pass in 0..1) {
+        fun image(text: String): Bitmap {
+          val shader = BackdropShader(text)
+          val unit = 43.25f
+          GlassScrollEdgeUniforms().apply {
+            fill(profile, false, window.width.toFloat(), window.height.toFloat(), 56.5f, unit,
+              androidx.compose.ui.graphics.Color.White, 0.4f, 1f,
+              GlassEdgeBlurKernel.forSigma(GlassScrollEdgeUniforms.sigmaFor(profile, unit)))
+            applyTo(shader, pass)
+          }
+          val edge = node("bordo della pagina", window) { page() }.apply {
+            setRenderEffect(RenderEffect.createRuntimeShaderEffect(shader.asAndroidRuntimeShader(), "content"))
+          }
+          return bitmap(node("striscia su blu", window) { drawColor(Color.BLUE); drawRenderNode(edge) })
+        }
+        val before = image(reference)
+        assertNotEquals(Color.BLUE, before.getPixel(75, window.height - 12))
+        if (pass == 1) assertEquals(Color.BLUE, before.getPixel(75, window.height / 2))
+        assertTrue("blurShare=${profile.blurShare}, passata=$pass", before.sameAs(image(source)))
+      }
+    }
   }
 
   @Test fun ambientShadowDoesNotRevealTheRingsEarlyExitBounds() {

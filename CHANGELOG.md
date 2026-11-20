@@ -8,6 +8,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- F7.3i — Il vetro in viaggio e la striscia inferiore esportata delimitano l’uscita dei filtri. Nel contestuale del Tab S9 il ritaglio ha ridotto di 13–14 ms il p90 della CPU del RenderThread.
 - F7.3e — Il corpo ad anello del vetro e la striscia di scorrimento senza sfocatura restituiscono subito trasparente fuori dalla zona che possono colorare: stesse superfici, stessi pixel, meno lavoro sui frammenti (Tab S9: GPU del contestuale col menu da 21 a 17,5 ms al p90).
 - F7.3d — La dissolvenza dei menu applica l'opacità al velo già composto. La registrazione del velo segue i passaggi della soglia di visibilità.
 - F7.3c3 — La lista conserva il ritaglio degli angoli anche sotto la card del contestuale, fino alla riconsegna della riga.

@@ -8,6 +8,10 @@ import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
 import android.view.View
+import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.BottomEdgeBackdropEffects
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCanvasBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ScrollState
@@ -36,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -78,6 +83,30 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], qualifiers = "w480dp-h640dp-mdpi")
 class GlassListGroupPressTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+  @Test fun ilRitaglioSegueIlBordoEPoiSiDisattivaSulloStessoNodo() {
+    val cropped = mutableStateOf(false)
+    val top = mutableStateOf(128f)
+    compose.setContent {
+      val page = rememberCanvasBackdrop { drawRect(Color.Red) }
+      val identity = remember { android.graphics.RenderEffect.createOffsetEffect(0f, 0f).asComposeRenderEffect() }
+      val full: BackdropEffectScope.() -> Unit = remember { { renderEffect = identity } }
+      val edge = remember(full) { BottomEdgeBackdropEffects(top = { top.value }, effects = full) }
+      Box(Modifier.fillMaxSize().background(Color.Blue).drawPlainBackdrop(
+        backdrop = page, shape = { RectangleShape }, effects = if (cropped.value) edge else full,
+      ))
+    }
+    val before = windowBitmap()
+    assertEquals(Color.Red.toArgb(), before.getPixel(32, 48))
+    compose.runOnIdle { cropped.value = true }
+    val cut = windowBitmap()
+    assertEquals(Color.Blue.toArgb(), cut.getPixel(32, 48))
+    assertEquals(Color.Red.toArgb(), cut.getPixel(32, 192))
+    compose.runOnIdle { top.value = 32f }
+    assertEquals(Color.Red.toArgb(), windowBitmap().getPixel(32, 48))
+    compose.runOnIdle { cropped.value = false }
+    assertTrue("il layer deve tornare al rettangolo intero", before.sameAs(windowBitmap()))
+  }
 
   @Test fun stessiPixelAncheDoveIlBaglioreToccaGliAngoli() {
     val optimized = mutableStateOf(false)

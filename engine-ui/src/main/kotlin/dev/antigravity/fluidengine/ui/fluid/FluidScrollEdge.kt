@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.BottomEdgeBackdropEffects
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
@@ -41,6 +42,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeUniforms
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
+import kotlin.math.floor
 import kotlin.math.max
 
 /**
@@ -311,7 +313,15 @@ internal fun FluidScrollEdgeStrip(
       .drawPlainBackdrop(
         backdrop = backdrop.backdrop,
         shape = { RectangleShape },
-        effects = effects,
+        effects = if (!top && exports != null && scale == 1f && profile.blurShare == 0f) {
+          remember(effects) {
+            BottomEdgeBackdropEffects(top = {
+              val u = state.uniforms
+              // Oltre la fine della dissolvenza il filtro è trasparente. Due pixel coprono il bordo campionato.
+              floor(u.edgeLine[0] - u.edgeLine[2] * u.fadeRamp[1]) - 2f
+            }, effects = effects)
+          }
+        } else effects,
         exportedBackdrop = exports?.layerBackdrop,
         backdropScale = scale,
       ),

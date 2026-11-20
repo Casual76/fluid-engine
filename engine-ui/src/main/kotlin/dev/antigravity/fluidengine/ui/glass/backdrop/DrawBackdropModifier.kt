@@ -368,6 +368,12 @@ fun Modifier.drawBackdrop(
         )
 }
 
+/** Primo pixel utile della striscia inferiore esportata, letto dopo l'aggiornamento degli uniform. */
+internal class BottomEdgeBackdropEffects(
+    val top: () -> Float,
+    effects: BackdropEffectScope.() -> Unit,
+) : (BackdropEffectScope) -> Unit by effects
+
 /** La fisica e gli shader continuano a lavorare nel sistema di coordinate dell'intera finestra. */
 internal class WindowedBackdropEffects(
     private val screenDensity: Float,
@@ -1404,6 +1410,21 @@ private class DrawBackdropNode(
         graphicsLayer?.let { layer ->
             val effect = effectScope.renderEffect
             if (layer.renderEffect !== effect) layer.renderEffect = effect
+            // Il clip delimita l'uscita del filtro HWUI, anche quando il layer viene rigiocato nel velo.
+            // Senza questo limite Skia può allocare un intermedio grande quanto l'intera finestra.
+            val size = effectScope.size
+            val edge = (effects as? BottomEdgeBackdropEffects)?.takeIf {
+                effect != null && size.isSpecified && effectiveScale == 1f && effectScope.padding == 0f
+            }
+            val crop = edge != null || (effect != null && (effects as? WindowedBackdropEffects)?.region != null)
+            if (edge != null) {
+                val y = edge.top().coerceIn(0f, size.height)
+                layer.setRectOutline(Offset(0f, y), Size(size.width, size.height - y))
+            } else if (layer.clip || crop) {
+                // Ripristina l'intero rettangolo del layer anche nel passaggio da striscia a finestra.
+                layer.setRectOutline()
+            }
+            if (layer.clip != crop) layer.clip = crop
         }
         GlassFrameDiagnostics.event("installed", this) { "effect=${System.identityHashCode(effectScope.renderEffect)}" }
         val newPadding = effectScope.padding

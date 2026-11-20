@@ -262,6 +262,13 @@ internal class FluidMenuSelection(
   /** Il dito passato ha gia' superato lo slop: da qui in poi un rilascio puo' scegliere. */
   private var armed = false
 
+  /**
+   * Dove stava il dito quando ha acceso la voce evidenziata ([hovered]), sullo schermo. Mentre il menu si muove (la nascita:
+   * le voci stanno col corpo che cresce) la voce accesa resta quella finche' il dito non si sposta oltre lo slop da qui, e al
+   * rilascio si sceglie lei (S4f, NO 4).
+   */
+  private var hoverAt: Offset? = null
+
   /** Un movimento arrivato prima della geometria, da rigiocare quando c'e'. */
   private var pending: PendingMove? = null
 
@@ -342,10 +349,16 @@ internal class FluidMenuSelection(
   }
 
   private fun applyHover(g: FluidMenuGeometry, root: Offset, onDown: Boolean) {
-    val cell = fluidMenuCellAt(g, atRest(root))
+    val atRest = atRest(root)
+    // S4f sul Tab S9 (NO 4): il dito arriva su «Condividi» mentre il menu nasce e resta fermo; la voce, col corpo che cresce,
+    // gli scivola via da sotto. La voce accesa resta quella che il dito ha scelto finche' non si sposta lui: mentre il menu si
+    // muove contano i movimenti del dito, non quelli delle voci. A menu fermo (la mappa e' l'identita') come sempre.
+    if (!onDown && fluidMenuHoverHolds(hovered, hoverAt, root, touchSlop, moving = atRest != root)) return
+    val cell = fluidMenuCellAt(g, atRest)
     val enabled = g.isEnabled(cell)
     val tick = fluidMenuHoverTicks(previous = hovered, next = cell, onDown = onDown, enabled = enabled)
     hovered = if (enabled) cell else -1
+    hoverAt = root
     if (tick) onTick()
   }
 
@@ -363,7 +376,7 @@ internal class FluidMenuSelection(
       // Senza geometria non si sa dove il dito sia caduto: nessuna scelta, il menu resta aperto.
       FluidMenuRelease.StayOpen
     } else {
-      val cell = fluidMenuCellAt(g, atRest(root))
+      val cell = fluidMenuReleaseCell(g, hovered, hoverAt, root, atRest(root), touchSlop)
       fluidMenuRelease(owner, armed, cell, g.isEnabled(cell))
     }
     // Lo stato prima della callback: una scelta che chiude il menu non deve ritrovarsi un dito
@@ -377,7 +390,39 @@ internal class FluidMenuSelection(
     armed = false
     pending = null
     hovered = -1
+    hoverAt = null
   }
+}
+
+/**
+ * La voce accesa [hovered] resta accesa? Si', se il menu si muove sotto il dito ([moving]: la mappa delle voci non e'
+ * l'identita') e il dito e' ancora entro lo slop dal punto [hoverAt] in cui l'ha accesa. Il tremolio di un dito fermo, o un
+ * iniettore che ripete lo stesso punto, non la spostano su un'altra voce che il corpo che cresce gli porta sotto.
+ */
+internal fun fluidMenuHoverHolds(hovered: Int, hoverAt: Offset?, root: Offset, touchSlop: Float, moving: Boolean): Boolean =
+  moving && hovered >= 0 && hoverAt != null && (root - hoverAt).getDistance() <= touchSlop
+
+/**
+ * La cella del rilascio (S4f sul Tab S9, NO 4: la voce evidenziata durante la nascita, il dito fermo, il menu che restava
+ * aperto). In ordine:
+ * 1. la voce evidenziata [hovered], se il dito e' ancora entro lo slop da dove l'ha accesa ([hoverAt]): si sceglie quella che
+ *    si vede accesa, anche se nel frattempo il corpo che cresce l'ha portata un poco piu' in la';
+ * 2. la voce che si vede sotto il dito ([atRest], il punto riportato alla posa dalla mappa delle voci);
+ * 3. se li' non si vede niente (il menu e' ancora piccolo), la voce della posa sotto il dito ([root]): quella che sta
+ *    arrivando li'. Il dito che ha mirato al posto della voce non resta senza scelta perche' il menu nasce ancora.
+ */
+internal fun fluidMenuReleaseCell(
+  g: FluidMenuGeometry,
+  hovered: Int,
+  hoverAt: Offset?,
+  root: Offset,
+  atRest: Offset,
+  touchSlop: Float,
+): Int {
+  if (hovered >= 0 && hoverAt != null && (root - hoverAt).getDistance() <= touchSlop && g.isEnabled(hovered)) return hovered
+  val seen = fluidMenuCellAt(g, atRest)
+  if (seen >= 0 || atRest == root) return seen
+  return fluidMenuCellAt(g, root)
 }
 
 /** Lo slop del tocco di Android a ~3x di densita', per chi non ha una `ViewConfiguration` in mano. */

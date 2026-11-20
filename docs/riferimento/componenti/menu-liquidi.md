@@ -218,6 +218,13 @@ stessa nascita del contestuale. Il tasto singolo è più rapido perché Apple lo
 3. **Le voci subito, ingrandite.** Entrano nei primi 33 ms (a 33 ms in Apple si legge già «Wis»), piegate e ingrandite dalla lente
    fino a 1,42×, e si mettono a fuoco in 270 ms (Apple: a fuoco a ~267 ms).
 
+**I primi fotogrammi.** Il velo non va mai avanti alla goccia: nella nascita dal tasto e dal gruppo è la sua dissolvenza letta
+sull'orologio della nascita, se questa è più indietro (`fluidMenuBirthFade`); l'animazione del velo parte infatti un fotogramma prima
+dell'orologio della nascita. Velo e nascita corrono poi su un orologio costante (`FluidSteadyFrameClock`): un fotogramma lungo avanza
+al più di 1/30 s, come la goccia («uno stallo non è un moto»). Fino a S4f il velo andava un fotogramma avanti e i primi fotogrammi
+di un menu, i più cari e a 30 Hz a schermo fermo, facevano correre la nascita di nascosto. Sul Tab S9 «Altro» passava così dal quadrato stondato al pannello quasi pieno in 33,7 ms
+(f0004 → f0005), dove B1 (a) cresce per ~133 ms.
+
 **Dal gruppo** (un'azione con `menu` dentro un gruppo con lo sfondo condiviso di una barra dichiarata; B1 b, la graffetta):
 
 1. **Le icone si sfocano ed escono** (sfocate al massimo a ~41 ms, via a ~54 ms, con le curve del cambio di contenuto della barra),
@@ -233,14 +240,24 @@ premuto: `fluidGroupBirthSlab` raccoglie la capsula nella goccia e poi chiama `f
 `fluidContextBirthWarp` con la coda sul tasto.
 
 **Al ritorno capsula e icone tornano insieme.** Le icone del gruppo restano spente mentre il vetro torna verso la capsula e si
-riaccendono nell'ultimo tratto, quello in cui la bolla si allarga nella capsula (`fluidMenuGroupFaceReturn`). Le disegna l'host
+riaccendono nell'ultimo tratto, quello in cui la bolla si allarga nella capsula (`fluidMenuGroupFaceReturn`), e solo quando il
+vetro le tiene già tutte e tre e non è più il menu: la copertura (`fluidMenuGroupFaceCover`) è zero finché il vetro non contiene
+le icone, cresce col margine che ha attorno a loro ed è piena a 5 dp, due fotogrammi a 120 Hz dopo; è zero anche se il vetro
+è più di 1,5–2 volte la capsula. Le icone si accendono intere e tutte e tre insieme (al ritorno la barra le registra senza il
+ritaglio della goccia): mai a pezzi, mai la capsula vuota. Una prima regola di S4f, la capsula a 0,8 di intersezione su unione,
+le teneva spente ~66 ms col vetro già attorno a loro nell'annullo. Fino a S4f tornavano col
+progresso, ritagliate dalla bolla che si allargava (in scuro f0236 la stella sola, i glifi ai lati a metà), e nell'annullo a metà
+nascita, col progresso già basso, comparivano sopra l'uovo e le righe (f0193–f0195). Le disegna l'host
 **sopra** il suo vetro (`FluidMenuAnchor.groupFaces`, `groupFacesAbove`), e alla consegna sono già quelle della barra, che le legge
 dallo stato vivo nel disegno. Fino a S4b le disegnava la barra, sotto il vetro del menu che era già capsula: 2–3 fotogrammi di
 capsula vuota sul Tab S9.
 
 **Le voci stanno nella lente**, sfocate (fino a 5 dp) e piegate dallo stesso campo che disegna la sagoma (la lente del contenuto,
 `GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci); lo stesso campo ritaglia l'inchiostro anche sui fianchi
-concavi. Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
+concavi. Quello che la lente ingrandisce oltre il vetro **entra schiacciato nel suo bordo**, mai tagliato: il tiro di ogni lato è
+quanto le voci ne escono (`glassMenuLensOverflow`, l'uniform `lensOverflow`), così il bordo delle voci cade sul bordo del vetro, come
+«Recents» e «Tracking» in B1 (a) a f9151–f9152. Fino a S4f il ritaglio della goccia tagliava a metà «Condividi» ed «Elimina» nella
+nascita di «Altro» (f0007) e le icone a destra (f0009). A tiro zero la lente è quella di prima, al bit. Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
 voci stanno col corpo (staccate dalla sorgente, rimpicciolite nella goccia: nel gruppo e nel contestuale fino a ~23 dp dal loro
 riquadro a 300 ms, ~45–50 dp a 200 ms, sotto i 5 dp da ~500 ms), e la selezione riporta il punto del dito attraverso la stessa
 mappa con cui si disegnano (`FluidMenuSelection.pointerMap`, `fluidMenuPointerAtRest`: spostamento e scala, non la piega della
@@ -698,6 +715,12 @@ Interni, ma sono la regola dei menu: un proprietario del dito alla volta.
 | **Panel**: un dito sceso sul pannello | il pannello consuma il down nell'Initial | sceglie se si solleva su una voce abilitata |
 | nessuno | | il menu resta com'è |
 
+**Il dito fermo mentre il menu nasce** (S4f, NO 4). Le voci stanno col corpo che cresce e scivolano sotto un dito fermo: la voce
+accesa resta quella che il dito ha acceso finché non si sposta lui oltre lo slop (`fluidMenuHoverHolds`), e al rilascio si sceglie
+lei. Se sotto il dito non si vede nessuna voce (il menu è ancora piccolo), si sceglie la voce della posa che sta arrivando lì
+(`fluidMenuReleaseCell`). A menu fermo non cambia niente. Fino a S4f la voce restava accesa e il rilascio cercava la cella con la mappa
+nuova: il menu restava aperto (sul Tab S9 la riga in scuro, f0214–f0224) o sceglieva la voce accanto.
+
 Un rilascio **fuori dalle voci, nel padding, su un separatore o su una voce spenta** lascia il menu aperto. Un rilascio veloce, lontano
 dall'ultimo movimento, conta come mosso. Un puntatore che sparisce dall'evento senza un sollevamento è un annullo. Un secondo
 proprietario non scavalca né annulla il primo. Se il dito si muove prima che il pannello abbia scritto la sua geometria, l'ultimo
@@ -720,7 +743,11 @@ congedo**. Sui tasti resta il `PressDown` al contatto: è del tasto, non del men
 Ogni voce è un `clickable(role = Button)` per TalkBack e tastiera (dal dito il click non scatta mai: il pannello consuma il down prima,
 e la scelta la fa la selezione, una volta sola); la voce `selected` dice «selezionato», la voce spenta lo dice, una tessera della fila
 dice la sua etichetta. Il pannello è un `isTraversalGroup` con `paneTitle` = il tuo, o `LocalFluidLabels.current.actions` («Azioni»).
-Il **back** dentro un sottomenu torna al menu di prima, al primo livello congeda (col gesto predittivo). Con il movimento ridotto viaggio
+Il **back** dentro un sottomenu torna al menu di prima, al primo livello congeda (col gesto predittivo). Durante il gesto **il vetro
+segue il dito** verso la sua sorgente lungo il ritorno dei menu (`FluidMenuJourney.backPull`, fino a `FluidMenuBackReach`, 0,32 del
+ritorno: il bordo lontano cede e il corpo si accorcia verso il tasto, la capsula o la riga); al rilascio il congedo parte dalla
+sagoma tirata (`backHome`), a gesto annullato il vetro torna al pannello con la molla del menu. Fino a S4f si muoveva solo lo scrim
+(sul Tab S9 «Altro» fermo da f0084 a f0156). Con il movimento ridotto viaggio
 e goccia sono `snapTo` e la riga tenuta premuta non si gonfia.
 
 ### Costi
@@ -800,6 +827,10 @@ Puri, in `engine-ui` (JVM):
   il vetro che dietro un'anteprima personalizzata non traspare: sotto l'11% nello scambio, sotto il 5% con la tessera davanti), i
   tre livelli dello sfondo (più scuri dei menu, in ordine, sotto il tetto della sfocatura), la manopola `ctxscrim`.
 - `DropPlanTest`: con la molla vera del menu, nei fotogrammi oltre l'1 a goccia non posata il ritaglio c'è e sta dentro la goccia.
+- Le correzioni dopo S4f: `AltroNascitaPassoLungoTest` (la nascita vera di «Altro» sui fotogrammi del Tab S9, col passo lungo
+  iniziale: prima e dopo l'orologio costante), `GruppoRitornoIconeTest` (le icone del gruppo al ritorno da fermo e nell'annullo:
+  mai fuori dal vetro), `IndietroPredittivoMenuTest` (il vetro che segue il gesto, il congedo dalla sagoma tirata, il gesto
+  annullato, il contestuale), `FluidMenuS4fRulesTest` (la voce accesa che tiene, la cella del rilascio, il tiro della lente).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello
@@ -820,6 +851,10 @@ Nel `sample` (Robolectric, aptica registrata):
 - `FluidTransitionSourceTest`: la capsula del gruppo come sorgente, il gruppo che si consuma e ritorna, la scelta di una voce.
 - `FluidMenuBirthPickTest`: il dito che tiene premuto e rilascia a metà nascita (~200 e ~300 ms) sopra una voce visibile sceglie
   quella voce, nel menu del gruppo e nel contestuale.
+- `FluidMenuEarlyPickS4fTest` (S4f): il dito che arriva su «Condividi» durante la nascita e resta fermo la sceglie al rilascio, nel
+  gruppo e nel contestuale, arrivando sulla voce che si vede, sul suo posto a riposo o con eventi ripetuti nello stesso punto; il
+  velo e la nascita di «Altro» partono nello stesso fotogramma; l'Indietro predittivo vero (dal dispatcher dell'attività) tira il
+  vetro col dito, chiude dalla sagoma tirata e, annullato, torna al pannello.
 - `FluidContextMenuS4cTest`: i tre menu della pagina «Menù liquidi» montati come nella galleria (chrome, schermata, host che
   rifrange il fondale eletto). In RTL le voci di «Altro», del gruppo e del contestuale stanno dentro la sagoma che il menu
   disegna e sullo schermo, e il dito le sceglie. Dopo «Condividi», a menu fermo e durante la nascita (da 304 a 864 ms), il

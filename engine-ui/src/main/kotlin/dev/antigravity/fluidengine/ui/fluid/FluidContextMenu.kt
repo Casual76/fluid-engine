@@ -1088,7 +1088,8 @@ internal class FluidContextBirth {
     if (!journey.closing) return fluidContextBirthSlab(seed, panel, radius, clock.value)
     if (!closeFrozen) freeze(journey)
     val source = FluidForm.Slab(seed, FluidCornerRadii.all(seed.minDimension / 2f))
-    val home = frozen ?: FluidForm.Slab(panel, FluidCornerRadii.all(radius))
+    // Dopo il gesto Indietro il ritorno parte dalla sagoma tirata (S4f, NO 5).
+    val home = journey.backHome ?: frozen ?: FluidForm.Slab(panel, FluidCornerRadii.all(radius))
     val q = (journey.progress.value / frozenProgress.coerceAtLeast(0.001f)).coerceIn(0f, 1f)
     return fluidMenuReturnSlab(source, home, q)
   }

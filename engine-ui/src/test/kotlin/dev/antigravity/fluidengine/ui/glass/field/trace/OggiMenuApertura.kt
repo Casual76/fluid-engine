@@ -63,6 +63,8 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
+import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensOverflow
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceCover
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlinx.coroutines.runBlocking
@@ -421,7 +423,10 @@ internal fun buildMenuTrace(
       val showRest = closing && springNow.finished(playNanos) && physics.liquid.quiet
       // Al ritorno le icone tornano con la capsula, nell'ultimo tratto, disegnate dall'host sopra il vetro (S4b, NO 4:
       // `FluidMenuAnchor.groupFacesAbove`); prima restavano spente fino alla consegna.
-      val faceProgress = if (variant.corrected && closing && !showRest) fluidMenuGroupFaceReturn(p) else journey.faceProgress
+      // Dopo S4f (NO 3) solo quando il vetro disegnato e' gia' la capsula, tutte e tre insieme.
+      val capsule = journey.anchor?.groupBounds
+      val cover = if (capsule != null) fluidMenuGroupFaceCover(plan.bounds, capsule) else 1f
+      val faceProgress = if (variant.corrected && closing && !showRest) fluidMenuGroupFaceReturn(p, cover) else journey.faceProgress
       val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
       if (alpha > 0f) {
@@ -520,7 +525,16 @@ internal fun buildMenuTrace(
       val mask = variant?.corrected == true && (plan.dropRest != null || clip != null)
       if (lens && (focus < 1f || mask)) {
         layer["blurDp"] = fluidMenuLensBlurDp(focus) * map.scale
-        menuTraceContentLens(plan, origin, d, focus, clipInk = mask)?.let { layer["effect"] = it }
+        // Le voci schiacciate nel bordo invece che tagliate (S4f, NO 2): lo strato della traccia e' gia' posato, scala 1.
+        val overflow = if (mask) {
+          glassMenuLensOverflow(
+            plan.bounds,
+            Offset(mapX(0f) + origin.x, mapY(0f) + origin.y),
+            Size(panelBox.width * map.scale, panelBox.height * map.scale),
+            1f,
+          )
+        } else null
+        menuTraceContentLens(plan, origin, d, focus, clipInk = mask, overflow = overflow)?.let { layer["effect"] = it }
       }
       if (clip != null && !mask) {
         val onCanvas = clip.translate(Offset(panelBox.left - origin.x, panelBox.top - origin.y))

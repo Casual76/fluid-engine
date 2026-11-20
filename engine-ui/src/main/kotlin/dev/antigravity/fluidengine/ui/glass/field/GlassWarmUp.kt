@@ -124,9 +124,11 @@ internal enum class GlassWarmStep {
   /** La striscia del bordo dello scorrimento (F2.4): le due passate in catena, come le costruisce il suo nodo. */
   EdgeBlur,
 
-  /** Il campo del vetro applicato alla texture delle voci del menu. */
+  /** Il campo del vetro applicato alla texture delle voci del menu, e le sue varianti col tiro dei lati (S4f, NO 2). */
   MenuContentSlab,
-  MenuContentRing;
+  MenuContentRing,
+  MenuContentSlabOverflow,
+  MenuContentRingOverflow;
 
   /** La sorgente del programma che questo passo compila. */
   val source: GlassShaderSource
@@ -140,6 +142,8 @@ internal enum class GlassWarmStep {
       EdgeBlur -> GlassShaderSources.EdgeBlur
       MenuContentSlab -> GlassShaderSources.MenuContentSlab
       MenuContentRing -> GlassShaderSources.MenuContentRing
+      MenuContentSlabOverflow -> GlassShaderSources.MenuContentSlabOverflow
+      MenuContentRingOverflow -> GlassShaderSources.MenuContentRingOverflow
     }
 
   val family: GlassWarmFamily get() = GlassWarmFamily.entries.first { this in it.steps }
@@ -174,7 +178,14 @@ internal enum class GlassWarmFamily(val steps: List<GlassWarmStep>, val earlyEli
   ScrollEdge(listOf(GlassWarmStep.EdgeBlur)),
 
   /** I programmi delle voci in viaggio, scaldati quando compare il controllo che le può aprire. */
-  MenuContent(listOf(GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing));
+  MenuContent(
+    listOf(
+      GlassWarmStep.MenuContentSlab,
+      GlassWarmStep.MenuContentRing,
+      GlassWarmStep.MenuContentSlabOverflow,
+      GlassWarmStep.MenuContentRingOverflow,
+    ),
+  );
 
   val sources: List<GlassShaderSource> get() = steps.map { it.source }
 }
@@ -985,7 +996,8 @@ internal object GlassOffscreenWarmer {
         0f,
         1f,
       )
-      GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing -> {
+      GlassWarmStep.MenuContentSlab, GlassWarmStep.MenuContentRing,
+      GlassWarmStep.MenuContentSlabOverflow, GlassWarmStep.MenuContentRingOverflow -> {
         val shader = RuntimeShaderCacheImpl().obtainEngineShader(step.source.name, step.source)
           ?: error("${step.source.name} non è disponibile")
         shader.setFloatUniform("menuScale", 1f)

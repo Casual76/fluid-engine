@@ -106,6 +106,12 @@ internal object GlassShaderSources {
   val MenuContentSlab = GlassShaderSource("GlassContentLensSlabShaderString", GlassContentLensSlabShaderString)
   val MenuContentRing = GlassShaderSource("GlassContentLensRingShaderString", GlassContentLensRingShaderString)
 
+  // La lente delle voci col tiro dei lati (S4f, NO 2): le voci che escono dal vetro entrano schiacciate nel bordo.
+  val MenuContentSlabOverflow =
+    GlassShaderSource("GlassContentLensSlabOverflowShaderString", GlassContentLensSlabOverflowShaderString)
+  val MenuContentRingOverflow =
+    GlassShaderSource("GlassContentLensRingOverflowShaderString", GlassContentLensRingOverflowShaderString)
+
   /** Il vetro di oggi e Fluid-physics: ciò che c'era prima della 4.0.0. Nessuno di questi si scalda. */
   val today: List<GlassShaderSource> = listOf(
     RoundedRectRefraction,
@@ -125,7 +131,10 @@ internal object GlassShaderSources {
    * nuova non sta né qui né in [today], o se sta qui senza una famiglia o in più d'una. È così che la striscia del bordo (F2.4) è entrata nel riscaldamento il giorno in cui si è registrata.
    */
   val liquid: List<GlassShaderSource> =
-    listOf(Body1, Body8, BodyFilms8, BodyRing, Light1, Light8, EdgeBlur, MenuContentSlab, MenuContentRing)
+    listOf(
+      Body1, Body8, BodyFilms8, BodyRing, Light1, Light8, EdgeBlur, MenuContentSlab, MenuContentRing, MenuContentSlabOverflow,
+      MenuContentRingOverflow,
+    )
 
   /**
    * Ciò che serve a una superficie di Fluid-physics per disegnarsi col materiale nuovo (F1B.1): il corpo a otto

@@ -35,6 +35,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -358,6 +359,13 @@ internal fun fluidMenuLensMap(
   val inset = Offset(target.width * FluidMotion.MenuButtonLensInkPivot * extra, 0f)
   return FluidMenuContentMap(content.center - target.center + inset, fitted + extra)
 }
+
+/**
+ * Fin dove il gesto Indietro tira il menu verso la sorgente, in frazioni del suo ritorno (S4f, NO 5): il primo tratto del
+ * congedo, quello in cui il bordo lontano cede (0,29 del ritorno) e poco piu'. Le voci restano leggibili; al rilascio il menu
+ * si chiude da li', a gesto annullato torna al pannello.
+ */
+internal const val FluidMenuBackReach = 0.32f
 
 /**
  * Dove cresce l'ingrandimento delle voci al congedo del menu dal tasto nato come Apple, in frazioni del ritorno (233 ms):
@@ -885,9 +893,49 @@ internal class FluidMenuAnchor {
  * spente finche' il vetro torna verso la capsula, e di nuovo piene nell'ultimo tratto, quello in cui la bolla si allarga
  * nella capsula ([FluidMotion.MenuReturnBubble] in poi, cioe' il progresso sotto [FluidMenuGroupFaceReturnShare]). Alla
  * consegna sono gia' quelle del pezzo vero: capsula e icone tornano nello stesso fotogramma (S4b, NO 4).
+ *
+ * E solo quando il vetro disegnato e' gia' la capsula ([cover], [fluidMenuGroupFaceCover]), tutte e tre insieme (S4f, NO 3):
+ * col solo progresso le icone tornavano mentre la bolla si allargava, ritagliate dal vetro ancora stretto (in scuro f0236 la
+ * stella leggibile, il glifo a sinistra a meta' e quello a destra un filo), e nell'annullo a meta' nascita, dove il progresso
+ * e' gia' basso al congedo, comparivano sopra l'uovo con le righe (f0193–f0195).
  */
-internal fun fluidMenuGroupFaceReturn(progress: Float): Float =
-  (progress / FluidMenuGroupFaceReturnShare).coerceIn(0f, 1f)
+internal fun fluidMenuGroupFaceReturn(progress: Float, cover: Float = 1f): Float {
+  val byProgress = (progress / FluidMenuGroupFaceReturnShare).coerceIn(0f, 1f)
+  return max(byProgress, 1f - cover.coerceIn(0f, 1f))
+}
+
+/**
+ * Quanto il vetro disegnato [drawn] avvolge le icone della capsula [capsule] del gruppo: 0 finche' non le contiene tutte e tre,
+ * 1 quando attorno a loro ha [FluidMenuGroupFaceWrap] di margine. Le icone stanno nella capsula a [FluidMenuGroupFaceIconInset]
+ * della sua altezza dai bordi (24 dp in un tasto da 44). La bolla sul tasto e l'uovo di una nascita interrotta sono piu' stretti
+ * e non le contengono; il pannello che si stringe le contiene ma e' molto piu' grande ([FluidMenuGroupFaceMaxArea]).
+ *
+ * Una prima regola (intersezione su unione con la capsula, fra 0,8 e 0,95) le teneva spente per ~66 ms col vetro gia' attorno
+ * a loro, nell'annullo: la capsula vuota di S4b.
+ */
+internal fun fluidMenuGroupFaceCover(drawn: Rect, capsule: Rect): Float {
+  if (drawn.width <= 0f || drawn.height <= 0f || capsule.width <= 0f || capsule.height <= 0f) return 0f
+  val inset = capsule.height * FluidMenuGroupFaceIconInset
+  val icons = Rect(capsule.left + inset, capsule.top + inset, capsule.right - inset, capsule.bottom - inset)
+  if (icons.width <= 0f || icons.height <= 0f) return 0f
+  val margin = minOf(min(icons.left - drawn.left, drawn.right - icons.right), min(icons.top - drawn.top, drawn.bottom - icons.bottom))
+  val wrap = (margin / (capsule.height * FluidMenuGroupFaceWrap)).coerceIn(0f, 1f)
+  val area = drawn.width * drawn.height / (capsule.width * capsule.height)
+  return wrap * (1f - unitRamp(area, FluidMenuGroupFaceMaxArea, FluidMenuGroupFaceMaxArea + 0.5f))
+}
+
+/** Dove stanno le icone del gruppo nella capsula, in frazioni della sua altezza dai bordi: 10 dp su 44. */
+internal const val FluidMenuGroupFaceIconInset: Float = 0.227f
+
+/**
+ * Il margine attorno alle icone, in frazioni dell'altezza della capsula, a cui sono di nuovo piene: 5 dp su 44, due fotogrammi
+ * a 120 Hz dopo che il vetro le ha raggiunte. Con 6 dp, nell'annullo, il bordo basso del vetro che si assesta a ~5 dp dalle icone
+ * le faceva tornare indietro di un filo.
+ */
+internal const val FluidMenuGroupFaceWrap: Float = 0.114f
+
+/** Oltre questo rapporto d'area con la capsula il vetro e' ancora il menu, non la capsula. */
+internal const val FluidMenuGroupFaceMaxArea: Float = 1.5f
 
 /** Il tratto finale del ritorno, in progresso: dalla bolla alla capsula. */
 internal const val FluidMenuGroupFaceReturnShare: Float = 1f - FluidMotion.MenuReturnBubble
@@ -961,6 +1009,41 @@ internal class FluidMenuJourney {
   /** I millisecondi della nascita, in disegno: ricreato a un'apertura nuova, come [openingAge]. */
   var birthClock = Animatable(BirthDoneMillis, 0.5f)
     private set
+
+  /**
+   * Il gesto Indietro predittivo, 0..1 (S4f, NO 5): il menu segue il dito verso la sorgente sul percorso del suo ritorno
+   * ([backPulled]). Lo scrive l'host dal gesto e lo riporta a 0 se il gesto e' annullato. Sul Tab S9 il gesto chiudeva il
+   * menu, ma durante il trascinamento il vetro restava fermo (in «Altro» scuro f0084–f0156).
+   */
+  var backPull = Animatable(0f, ProgressThreshold)
+    private set
+
+  /**
+   * La sagoma tirata dal gesto al congedo ([noteBackHome]): il ritorno parte da li', non dal pannello pieno. Null senza gesto.
+   */
+  var backHome: FluidForm.Slab? = null
+    private set
+
+  /**
+   * La sagoma [slab] di questo istante (null: il pannello fermo) tirata dal gesto Indietro verso la sorgente: lungo il ritorno
+   * dei menu ([fluidMenuReturnSlab]) fino a [FluidMenuBackReach] del cammino, con una curva che rallenta verso la fine del
+   * gesto. Il bordo lontano cede e il corpo si accorcia verso il tasto, la riga o la capsula, come nel primo tratto del
+   * congedo. In chiusura, o senza gesto, e' [slab].
+   */
+  fun backPulled(slab: FluidForm.Slab?): FluidForm.Slab? {
+    val pull = backPull.value
+    if (!(pull > 0f) || closing) return slab
+    val home = slab ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
+    val start = if (anchor != null) startFrame() else seed ?: return slab
+    val source = FluidForm.Slab(start, FluidCornerRadii.all(start.minDimension / 2f))
+    val eased = 1f - (1f - pull.coerceIn(0f, 1f)).let { it * it }
+    return fluidMenuReturnSlab(source, home, 1f - FluidMenuBackReach * eased)
+  }
+
+  /** Il congedo dopo il gesto: il ritorno parte da [pulled], la sagoma che la superficie stava seguendo (vedi [backHome]). */
+  fun noteBackHome(pulled: FluidForm.Slab?) {
+    backHome = pulled
+  }
 
   /** La sagoma al congedo, se la nascita non era finita: il ritorno parte da li'. Null: dal pannello. */
   private var frozen: FluidForm.Slab? = null
@@ -1068,7 +1151,7 @@ internal class FluidMenuJourney {
     val source = startFrame()
     val from = FluidForm.Slab(source, FluidCornerRadii.all(source.minDimension / 2f))
     when {
-      returningOnContour -> fluidMenuReturnSlab(from, panel, p)
+      returningOnContour -> fluidMenuReturnSlab(from, backHome ?: panel, p)
       p < 0f -> null
       else -> {
         val age = openingAge.value * FluidMotion.MenuOvershootEndMillis
@@ -1133,7 +1216,7 @@ internal class FluidMenuJourney {
     if (!closing) return birthSlabAt(birthClock.value)
     val source = startFrame()
     val from = FluidForm.Slab(source, FluidCornerRadii.all(source.minDimension / 2f))
-    val home = frozen ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
+    val home = backHome ?: frozen ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
     val q = (progress.value / frozenProgress.coerceAtLeast(ProgressThreshold)).coerceIn(0f, 1f)
     return fluidMenuReturnSlab(from, home, q)
   }
@@ -1265,6 +1348,10 @@ internal class FluidMenuJourney {
       // qualunque coroutine.
       anchorRelax = Animatable(if (anchor.pressedBounds == anchor.restBounds) 1f else 0f, ProgressThreshold)
     }
+    if (freshStart) {
+      backPull = Animatable(0f, ProgressThreshold)
+      backHome = null
+    }
     if (liquidMenu && freshStart) {
       contentVisibility = Animatable(1f, ProgressThreshold)
       openingAge = Animatable(0f, ProgressThreshold)
@@ -1290,9 +1377,18 @@ internal class FluidMenuJourney {
     anchor?.groupFacesAbove = groupFacesAboveBlock
   }
 
+  /**
+   * Quanto il vetro disegnato e' gia' la capsula del gruppo ([fluidMenuGroupFaceCover]): lo scrive l'host, che ha la superficie.
+   * Di serie 1: senza l'host conta solo il progresso, come prima.
+   */
+  var groupCover: () -> Float = { 1f }
+
   // Il ritorno lascia il gruppo spento finche' il vetro non torna capsula, e lo riaccende con lei (S4b, NO 4): le icone le
-  // disegna l'host sopra il vetro ([groupFacesAboveBlock]), e alla consegna sono gia' piene.
-  private val progressBlockForGroup: () -> Float = { if (closing) fluidMenuGroupFaceReturn(progress.value) else faceProgress }
+  // disegna l'host sopra il vetro ([groupFacesAboveBlock]), e alla consegna sono gia' piene. Tornano quando il vetro e' la
+  // capsula, tutte e tre insieme (S4f, NO 3).
+  private val progressBlockForGroup: () -> Float = {
+    if (closing) fluidMenuGroupFaceReturn(progress.value, groupCover()) else faceProgress
+  }
   private val groupFacesAboveBlock: () -> Boolean = { closing }
 
   /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
@@ -1325,10 +1421,13 @@ internal class FluidMenuJourney {
       overshootInflationX = if (liquidMenu) 0f else inflation.x,
       overshootInflationY = if (liquidMenu) 0f else inflation.y,
       startFrame = if (a != null) startFrameBlock else null,
-      travelSlab = travelBlock.takeIf { liquidMenu },
+      travelSlab = pulledTravelBlock.takeIf { liquidMenu },
       travelWarp = warpBlock.takeIf { born },
     )
   }
+
+  /** La sagoma del viaggio tirata dal gesto Indietro ([backPulled]). */
+  private val pulledTravelBlock: () -> FluidForm.Slab? = { backPulled(travelBlock()) }
 
   /**
    * Cambia verso. Chiamata nel momento in cui si decide (il gesto, il congedo, o la composizione che
@@ -1352,8 +1451,16 @@ internal class FluidMenuJourney {
     target = t
   }
 
-  /** Corre verso [target]. Sospende finche' non arriva; cancellabile (un [retarget] la sostituisce). */
+  /**
+   * Corre verso [target]. Sospende finche' non arriva; cancellabile (un [retarget] la sostituisce). Sull'orologio costante
+   * dei menu ([FluidSteadyFrameClock]): un fotogramma lungo, come i primi a 30 Hz sul Tab S9, avanza al piu' di 1/30 s
+   * (S4f, NO 1).
+   */
   suspend fun run(reducedMotion: Boolean, withLens: Boolean = liquidMenu) {
+    withContext(fluidSteadyFrames(kotlin.coroutines.coroutineContext)) { runSteady(reducedMotion, withLens) }
+  }
+
+  private suspend fun runSteady(reducedMotion: Boolean, withLens: Boolean) {
     val t = target
     val v = seedVelocity
     seedVelocity = 0f

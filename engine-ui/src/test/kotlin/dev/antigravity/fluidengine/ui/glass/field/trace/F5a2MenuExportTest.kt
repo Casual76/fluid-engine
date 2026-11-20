@@ -11,6 +11,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.physicsRingField
 import dev.antigravity.fluidengine.ui.glass.field.GlassRingField
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensDepthPx
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensPullPx
+import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensPulls
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,6 +21,8 @@ internal fun menuTraceContentLens(
   density: Float,
   focus: Float,
   clipInk: Boolean = false,
+  /** Quanto le voci escono dal vetro da ogni lato, in px (`glassMenuLensOverflow` a scala 1), o null. */
+  overflow: FloatArray? = null,
 ): Map<String, Any?>? {
   val strength = fluidMenuLensStrength(focus)
   if (strength <= 0f && !clipInk) return null
@@ -34,6 +37,9 @@ internal fun menuTraceContentLens(
     "lensDepth" to dp(depth), "lensPull" to dp(glassMenuLensPullPx(depth, strength)),
   )
   if (clipInk) u["clipInk"] = 1
+  // Le varianti col tiro dei lati solo quando le voci escono dal vetro (S4f, NO 2): le altre tracce restano al bit.
+  val pulls = glassMenuLensPulls(overflow)
+  if (pulls) u["lensOverflow"] = requireNotNull(overflow).map(::dp)
   val kernel = if (plan.mode == PlanModePoly) {
     val f = physicsRingField(plan, 1f, d, depth, depth, GlassRingField())
     u["vertCount"] = f.count
@@ -49,14 +55,14 @@ internal fun menuTraceContentLens(
     u["restBlend"] = f.restBlend
     u["dropReach"] = dp(f.dropReach)
     u["ringBand"] = coords(f.bandOuter, f.bandInner)
-    "GlassContentLensRingShaderString"
+    if (pulls) "GlassContentLensRingOverflowShaderString" else "GlassContentLensRingShaderString"
   } else {
     u["pieceCount"] = 1
     u["pieceRect"] = plan.pieceRects.take(4).map(::dp)
     u["pieceRadii"] = plan.fieldRadii.take(4).map(::dp)
     u["pieceBlend"] = listOf(0)
     u["pieceSmooth"] = plan.fieldSmooth.take(1)
-    "GlassContentLensSlabShaderString"
+    if (pulls) "GlassContentLensSlabOverflowShaderString" else "GlassContentLensSlabShaderString"
   }
   return linkedMapOf("source" to "kotlin:$kernel", "uniforms" to u)
 }

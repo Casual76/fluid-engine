@@ -69,6 +69,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.field.GlassContentLensEffect
+import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensOverflow
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropFaces
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
@@ -399,14 +400,18 @@ internal fun FluidGlassMenuPanel(
               (lens.physics.ensurePlan().dropRest != null || travelClip?.invoke() != null)
             if (blur > 0f || strength > 0f || clipInk) {
               val padding = Offset(size.width, size.height) * ((1f - map.scale) / 2f)
+              val plan = lens.physics.ensurePlan()
+              val origin = lens.panelTopLeft + map.translation + padding
               lensEffect.effect(
-                plan = lens.physics.ensurePlan(),
-                origin = lens.panelTopLeft + map.translation + padding,
+                plan = plan,
+                origin = origin,
                 scale = map.scale,
                 density = this.density,
                 blurDp = max(blur, levelBlurDp?.invoke() ?: 0f),
                 strength = strength,
                 clipInk = clipInk,
+                // Le voci che la lente ingrandisce oltre il vetro entrano schiacciate nel bordo, mai tagliate (S4f, NO 2).
+                overflow = if (clipInk) glassMenuLensOverflow(plan.bounds, origin, size, map.scale) else null,
               )
             } else {
               fluidMenuLevelBlurEffect(levelBlurDp, this.density)

@@ -97,6 +97,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -178,25 +179,35 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
   if (bornLiquid && !entry.visible && !journey.closing) {
     birth.noteDrawnAtDismiss(androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { physics.ensurePlan().bounds })
   }
+  // Un congedo dal gesto Indietro parte dalla sagoma che il gesto stava tirando (S4f, NO 5), non dal pannello pieno.
+  if (!entry.visible && !journey.closing) {
+    androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation {
+      if (journey.backPull.value > 0f) journey.noteBackHome(physics.dropRestSlabNow())
+    }
+  }
   journey.retarget(if (entry.visible) 1f else 0f, onContour = bornLiquid)
 
   LaunchedEffect(entry.visible, reducedMotion) {
-    if (entry.visible) {
-      launch {
-        if (reducedMotion) fade.snapTo(1f) else fade.animateTo(1f, FluidMotion.fadeIn(FluidMenuLayerFadeInMillis))
+    // Il velo, la nascita e il congedo sull'orologio costante dei menu (S4f, NO 1): i primi fotogrammi di un menu, a 30 Hz e
+    // i piu' cari, non fanno correre la nascita di nascosto. Lo stesso istante per tutti, e per la goccia (1/30 s al piu').
+    withContext(fluidSteadyFrames(coroutineContext)) {
+      if (entry.visible) {
+        launch {
+          if (reducedMotion) fade.snapTo(1f) else fade.animateTo(1f, FluidMotion.fadeIn(FluidMenuLayerFadeInMillis))
+        }
+      } else {
+        // Congedo: nessuna scelta in corso, e il dito (se e' ancora giu') non e' piu' del menu.
+        selection.cancel()
+        entry.menuHandOff?.sink = null
+        launch {
+          if (reducedMotion) fade.snapTo(0f) else fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.MenuFadeOutMillis))
+        }
       }
-    } else {
-      // Congedo: nessuna scelta in corso, e il dito (se e' ancora giu') non e' piu' del menu.
-      selection.cancel()
-      entry.menuHandOff?.sink = null
-      launch {
-        if (reducedMotion) fade.snapTo(0f) else fade.animateTo(0f, FluidMotion.fadeOut(FluidMotion.MenuFadeOutMillis))
+      when {
+        !bornLiquid -> journey.run(reducedMotion, withLens = liquidMenu)
+        entry.visible -> birth.open(journey)
+        else -> birth.close(journey, reducedMotion)
       }
-    }
-    when {
-      !bornLiquid -> journey.run(reducedMotion, withLens = liquidMenu)
-      entry.visible -> birth.open(journey)
-      else -> birth.close(journey, reducedMotion)
     }
   }
 
@@ -217,7 +228,14 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     backdrop = backdrop,
     journey = journey,
     physics = physics,
-    fade = { fade.value },
+    // S4f, NO 1: nella nascita dal tasto e dal gruppo il velo non va mai avanti alla goccia. L'animazione del velo parte un
+    // fotogramma prima dell'orologio della nascita (lo dice la sonda: in Robolectric il velo al 63% con la nascita a 16 ms), e
+    // sul Tab S9 a 30 Hz un fotogramma sono 33 ms: il velo al 60% con la goccia ancora sul tasto (f0004). Qui il velo e' la sua
+    // dissolvenza letta sull'orologio della nascita, se e' piu' indietro; a nascita finita, o in chiusura, quella di sempre.
+    fade = {
+      val f = fade.value
+      if (journey.born && !journey.closing) min(f, fluidMenuBirthFade(journey.birthClock.value)) else f
+    },
     actions = lastActions,
     origin = lastOrigin,
     preview = lastPreview,
@@ -305,16 +323,24 @@ private fun FluidMenuLayerContent(
     if (entry.visible) runCatching { focusRequester.requestFocus() }
   }
 
-  // Il back predittivo arretra lo scrim; completato, congeda — e il viaggio torna indietro da dove si
-  // trova, non dal pannello pieno.
+  // Il back predittivo arretra lo scrim e tira il vetro verso la sorgente col dito (S4f, NO 5: sul Tab S9 il vetro restava
+  // fermo fino al rilascio); completato, congeda, e il viaggio torna indietro dalla sagoma tirata. Annullato, torna al
+  // pannello con la molla del menu. Lo scrim resta dov'e' al congedo: la dissolvenza parte da li'.
   var backProgress by remember { mutableFloatStateOf(0f) }
+  LaunchedEffect(entry.visible) { if (entry.visible) backProgress = 0f }
   PredictiveBackHandler(enabled = entry.visible) { events ->
     try {
-      events.collect { backProgress = it.progress.coerceIn(0f, 1f) }
-      backProgress = 0f
+      events.collect { event ->
+        val p = event.progress.coerceIn(0f, 1f)
+        backProgress = p
+        if (!reducedMotion) journey.backPull.snapTo(p)
+      }
       entry.onDismissRequest()
     } catch (_: CancellationException) {
-      backProgress = 0f
+      scope.launch {
+        launch { journey.backPull.animateTo(0f, FluidMotion.dropOpen()) }
+        androidx.compose.animation.core.animate(backProgress, 0f, animationSpec = FluidMotion.dropOpen()) { v, _ -> backProgress = v }
+      }
     }
   }
   // Il back dentro un sottomenu torna al menu di prima (F5A.3); al primo livello resta quello predittivo, che congeda.
@@ -485,7 +511,10 @@ private fun FluidMenuLayerContent(
           levels.driving = false
         }
         if (anchor?.groupBounds != null) {
-          anchor.groupClip = { anchor.groupBounds?.let { physics.travelClipIn(it, progress()) } }
+          // Al ritorno le icone sono intere (S4f, NO 3): tornano quando il vetro e' la capsula, non ritagliate dalla bolla che
+          // si allarga. All'andata il ritaglio della goccia le porta via con la capsula che si stringe.
+          anchor.groupClip = { if (journey.closing) null else anchor.groupBounds?.let { physics.travelClipIn(it, progress()) } }
+          journey.groupCover = { anchor.groupBounds?.let { fluidMenuGroupFaceCover(physics.ensurePlan().bounds, it) } ?: 1f }
         }
         if (birth != null) {
           birth.radius = metrics.radiusPx
@@ -645,6 +674,11 @@ private fun FluidMenuLayerContent(
                   contentScale = contentMapNow().scale,
                   inkAlpha = baseAlpha(),
                   backdrop = backdrop,
+                  fade = fade(),
+                  journeyBirth = journey.birthClock.value,
+                  born = journey.born,
+                  birthRunning = journey.birthClock.isRunning,
+                  progressRunning = journey.progress.isRunning,
                 ),
               )
             }
@@ -750,7 +784,7 @@ private fun installMenuTravel(journey: FluidMenuJourney, physics: FluidPhysicsSt
     to = FluidForm.Slab(journey.to, FluidCornerRadii.all(journey.toRadius)),
     progress = { journey.progress.value },
     startFrame = null,
-    travelSlab = { birth.travel(journey) },
+    travelSlab = { journey.backPulled(birth.travel(journey)) },
     travelWarp = { birth.warp(journey) },
   )
 }
@@ -1450,6 +1484,11 @@ private fun FluidAlertButton(
 
 /** L'arrivo dello scrim e del materiale dei menu dell'host; interna per la traccia del contestuale (F5A.4). */
 internal const val FluidMenuLayerFadeInMillis = 110
+
+/** Il velo che entra ([FluidMenuLayerFadeInMillis], EaseOut) letto a [birthMillis] dalla nascita del menu (S4f, NO 1). */
+internal fun fluidMenuBirthFade(birthMillis: Float): Float =
+  androidx.compose.animation.core.EaseOut.transform((birthMillis / FluidMenuLayerFadeInMillis).coerceIn(0f, 1f))
+
 private const val FluidAlertFadeInMillis = 140
 private const val FluidAlertExitMillis = 160
 private const val FluidAlertEnterScale = 1.08f
@@ -1483,4 +1522,10 @@ internal data class FluidMenuProbeFrame(
   val contentScale: Float,
   val inkAlpha: Float,
   val backdrop: GlassBackdropState?,
+  /** Il velo e l'orologio della nascita dal tasto e dal gruppo (S4f, NO 1). */
+  val fade: Float = 0f,
+  val journeyBirth: Float = 0f,
+  val born: Boolean = false,
+  val birthRunning: Boolean = false,
+  val progressRunning: Boolean = false,
 )

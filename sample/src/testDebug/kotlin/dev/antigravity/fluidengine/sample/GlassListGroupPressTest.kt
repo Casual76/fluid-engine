@@ -39,6 +39,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidListContextPress
 import dev.antigravity.fluidengine.ui.fluid.FluidContextMenuController
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.contextMenuAnchor
@@ -211,6 +212,51 @@ class GlassListGroupPressTest {
     assertEquals(88 * 40, area(Color.Green))
     compose.runOnIdle { controller.arm(true); assertTrue(controller.open()) }
     assertEquals("seconda apertura", 88 * 40, area(Color.Green))
+  }
+
+  @Test fun ilGruppoConservaGliAngoliFinoAllaRiconsegna() {
+    val group = FluidListContextPress()
+    val nativeClip = mutableStateOf(false)
+    val shape = ContinuousCornerShape(24.dp)
+    lateinit var controller: FluidContextMenuController
+    compose.setContent {
+      CompositionLocalProvider(LocalFluidGlassModalHostState provides rememberFluidGlassModalHostState()) {
+        controller = rememberFluidContextMenu(actions = { listOf(FluidContextAction("Apri") {}) })
+        Box(Modifier.fillMaxSize().background(Color.DarkGray), contentAlignment = Alignment.Center) {
+          val clip = if (group.active && !nativeClip.value) Modifier.clipListCorners(shape, 24.dp) else Modifier.clip(shape)
+          Column(Modifier.size(320.dp, 160.dp).then(clip).background(Color.White)) {
+            Box(Modifier.size(320.dp, 80.dp).contextMenuAnchor(controller, listRow = true, group = group)
+              .background(Color.Red))
+            Box(Modifier.size(320.dp, 80.dp).background(Color.Blue))
+          }
+        }
+      }
+    }
+    val rest = windowBitmap()
+    compose.runOnIdle {
+      assertTrue(!group.active)
+      group.press(controller)
+      assertTrue(controller.open())
+    }
+    compose.runOnIdle { group.release(controller) }
+    val lifted = windowBitmap()
+    compose.runOnIdle {
+      assertTrue("il dito è alzato e la sorgente è ancora sollevata", group.active)
+      assertTrue(!rest.sameAs(lifted))
+      nativeClip.value = true
+    }
+    assertTrue("angoli della lista sotto la card", lifted.sameAs(windowBitmap()))
+    compose.runOnIdle {
+      nativeClip.value = false
+      controller.dismiss()
+    }
+    compose.runOnIdle {
+      assertTrue("il ritorno è ancora in corso", group.active)
+      controller.entry.lifted = false
+    }
+    compose.waitForIdle()
+    compose.runOnIdle { assertTrue("ritaglio ordinario alla riconsegna", !group.active) }
+    assertTrue("la riga e gli angoli tornano identici", rest.sameAs(windowBitmap()))
   }
 
   private fun colors(bitmap: Bitmap) = IntArray(bitmap.width * bitmap.height).also {

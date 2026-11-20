@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -275,6 +276,14 @@ internal fun Modifier.contextMenuAnchor(
   listRow: Boolean,
   group: FluidListContextPress?,
 ): Modifier {
+  // La riga sollevata lascia il suo posto vuoto. La pagina sottostante continua a essere campionata
+  // anche dopo il rilascio del dito, fino alla riconsegna o alla rimozione dell’ancora.
+  if (group != null && controller.entry.lifted) {
+    DisposableEffect(group, controller) {
+      group.retainLift()
+      onDispose { group.releaseLift() }
+    }
+  }
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   // The same specular hotspot the glass controls carry, for the same reason: a row that is about to
@@ -357,11 +366,15 @@ internal fun Modifier.contextMenuAnchor(
     .then(if (listRow) Modifier.drawListPreview(controller) else Modifier.recordContextPreview(controller))
 }
 
-/** Una pressione appartiene a un solo gruppo. Lo scorrimento, il distacco e la rimozione della riga la terminano. */
+/** Il dito e le righe ancora sollevate tengono il ritaglio del gruppo per la propria durata. */
 @Stable
 internal class FluidListContextPress {
   private var owner by mutableStateOf<FluidContextMenuController?>(null)
-  val active: Boolean get() = owner?.entry?.lifted == false
+  private var liftedRows by mutableIntStateOf(0)
+  val active: Boolean get() = owner != null || liftedRows > 0
+
+  fun retainLift() { liftedRows++ }
+  fun releaseLift() { liftedRows-- }
 
   fun press(controller: FluidContextMenuController) { owner = controller }
   fun release(controller: FluidContextMenuController) { if (owner === controller) owner = null }

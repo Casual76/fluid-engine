@@ -1558,6 +1558,11 @@ alla GPU restano alte. Lo mostrano `sessioni/f7-ab/rapporto.md` e `sessioni/f7-g
 
 **F7.3b. Menu in viaggio.** La capsula o il seme e il pannello definiscono il rettangolo di cattura. Il margine comprende oltrepasso, coda, ombra, rifrazione e sfocatura. Il campione dimezzato e la finitura si allineano alla griglia della finestra. Il campo, il clip delle voci e la sonda mantengono le coordinate del palco. Il velo del menu modale conserva blur e tinta in una texture alla risoluzione del display. Durante la dissolvenza l'alpha agisce sul risultato composto. La texture occupa spazio per tutta la vita del velo e si aggiorna quando il materiale cambia. Il confronto delle fence GPU sul tablet misura il guadagno.
 
+**F7.3c3. Sorelle dietro la card.** Al distacco il fondale campiona ancora la lista. Su Tab S9 il vecchio
+ritaglio del gruppo fa riapparire nel flush cinque serie di maschere di testo e frecce. Il gruppo mantiene il
+ritaglio dei soli angoli finché la sorgente è sollevata, anche dopo il rilascio del dito e durante il ritorno.
+La riconsegna o la rimozione dell’ancora termina questo percorso.
+
 **F7.3c2. Pressione su una riga di lista.** Il testo, la tinta di pressione e il fuoco restano vivi fino al distacco.
 Nella lista il layer dell'anteprima si registra al distacco, con la tinta di quel fotogramma. Durante il gesto il gruppo
 rigioca il centro con clip rettangolari e gli angoli con il contorno nativo. Questo evita le maschere Ganesh per testi e

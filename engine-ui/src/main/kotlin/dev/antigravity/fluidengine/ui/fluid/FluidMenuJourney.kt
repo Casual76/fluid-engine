@@ -36,6 +36,7 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -128,11 +129,17 @@ internal fun fluidMenuReturnInkSpec(from: Float) =
 /**
  * R4 B1 (a): il margine lontano cede per primo, la parte vicina resta sopra la sorgente e raccoglie
  * la bolla. La bolla conserva volume fin quasi all'arrivo, anche quando torna una capsula larga.
+ *
+ * Con [wrapSource] la bolla e' la sorgente gonfiata dello stesso margine su tutti i lati, e non un tondo sul suo lato corto: per
+ * un tasto quadrato e' lo stesso tondo, per la capsula del gruppo una pillola che la avvolge, e il vetro ci si posa sopra come
+ * la goccia di B1 (a) sul tasto (f9191–f9194). Col tondo la capsula tornava da una pillola piu' stretta delle sue icone, vuota,
+ * e poi in un passo la capsula larga con i glifi (S4g, NO 3: scuro f0131 → f0132, chiaro f0058 → f0059).
  */
 internal fun fluidMenuReturnSlab(
   source: FluidForm.Slab,
   panel: FluidForm.Slab,
   progress: Float,
+  wrapSource: Boolean = false,
 ): FluidForm.Slab {
   if (progress >= 1f) return panel
   if (progress <= 0f) return source
@@ -149,10 +156,16 @@ internal fun fluidMenuReturnSlab(
   val diameter = home.minDimension * FluidMotion.MenuReturnBubbleSize
   val lift = home.minDimension * FluidMotion.MenuReturnBubbleLift * if (up) -1f else 1f
   val center = home.center + Offset(0f, lift)
-  val bubble = FluidForm.Slab(
-    Rect(center - Offset(diameter / 2f, diameter / 2f), Size(diameter, diameter)),
-    FluidCornerRadii.all(diameter / 2f),
-  )
+  val bubble = if (wrapSource && abs(home.width - home.height) > 0.5f) {
+    val grow = diameter - home.minDimension
+    val size = Size(home.width + grow, home.height + grow)
+    FluidForm.Slab(Rect(center - Offset(size.width / 2f, size.height / 2f), size), FluidCornerRadii.all(size.minDimension / 2f))
+  } else {
+    FluidForm.Slab(
+      Rect(center - Offset(diameter / 2f, diameter / 2f), Size(diameter, diameter)),
+      FluidCornerRadii.all(diameter / 2f),
+    )
+  }
   val shoulder = panel.copy(frame = held)
   return when {
     t < FluidMotion.MenuReturnHold -> {
@@ -924,6 +937,16 @@ internal fun fluidMenuGroupFaceCover(drawn: Rect, capsule: Rect): Float {
   return wrap * (1f - unitRamp(area, FluidMenuGroupFaceMaxArea, FluidMenuGroupFaceMaxArea + 0.5f))
 }
 
+/**
+ * La copertura delle icone del gruppo ([fluidMenuGroupFaceCover]) con le voci del menu che se ne vanno ([ink], l'inchiostro
+ * del congedo, 1 = ancora tutte): le icone entrano mentre le voci escono, col quadrato di quanto sono uscite. Nell'annullo
+ * sul Tab S9 (prova s4h, chiaro n85) con la sola copertura per un fotogramma le icone erano gia' piene sopra l'ombra delle righe.
+ */
+internal fun fluidMenuGroupFaceAfterInk(cover: Float, ink: Float): Float {
+  val gone = 1f - ink.coerceIn(0f, 1f)
+  return cover * gone * gone
+}
+
 /** Dove stanno le icone del gruppo nella capsula, in frazioni della sua altezza dai bordi: 10 dp su 44. */
 internal const val FluidMenuGroupFaceIconInset: Float = 0.227f
 
@@ -936,6 +959,15 @@ internal const val FluidMenuGroupFaceWrap: Float = 0.114f
 
 /** Oltre questo rapporto d'area con la capsula il vetro e' ancora il menu, non la capsula. */
 internal const val FluidMenuGroupFaceMaxArea: Float = 1.5f
+
+/**
+ * Quando la goccia prende il primo campione al banco, in ms di nascita: al secondo fotogramma a 60 Hz. L'anticipo della nascita
+ * e' tarato cosi'; una goccia che parte piu' tardi sconta il ritardo in piu' (vedi `FluidMenuJourney.birthLeadAge`).
+ */
+internal const val FluidMenuDropOnTimeMillis: Float = 33.4f
+
+/** Sotto questo progresso il ritorno ha consegnato il tasto: il glifo c'e' anche se la goccia oscilla ancora (S4g, NO 4). */
+internal const val FluidMenuReturnFaceDelivered: Float = 0.03f
 
 /** Il tratto finale del ritorno, in progresso: dalla bolla alla capsula. */
 internal const val FluidMenuGroupFaceReturnShare: Float = 1f - FluidMotion.MenuReturnBubble
@@ -1037,7 +1069,7 @@ internal class FluidMenuJourney {
     val start = if (anchor != null) startFrame() else seed ?: return slab
     val source = FluidForm.Slab(start, FluidCornerRadii.all(start.minDimension / 2f))
     val eased = 1f - (1f - pull.coerceIn(0f, 1f)).let { it * it }
-    return fluidMenuReturnSlab(source, home, 1f - FluidMenuBackReach * eased)
+    return fluidMenuReturnSlab(source, home, 1f - FluidMenuBackReach * eased, wrapSource = anchor != null)
   }
 
   /** Il congedo dopo il gesto: il ritorno parte da [pulled], la sagoma che la superficie stava seguendo (vedi [backHome]). */
@@ -1080,10 +1112,34 @@ internal class FluidMenuJourney {
   /** Il congedo di un menu nato come Apple: la lente del tasto ingrandisce le voci che se ne vanno (vedi [fluidMenuLensMap]). */
   val bornReturn: Boolean get() = born && closing
 
+  /**
+   * Il glifo del tasto al ritorno: quando la sagoma disegnata arriva sul tasto ([fluidModalReturnFaceAlpha]), e da li' non
+   * torna indietro. Nell'annullo di «Altro» la goccia arriva con la velocita' della nascita e oscilla attorno al tasto: i
+   * puntini comparivano per un campione, li copriva la goccia piu' piccola del tasto, e tornavano alla consegna (S4g, NO 4:
+   * chiaro f0023–f0028, scuro f0213–f0219). Una volta arrivato il glifo resta, e la goccia lo porta (`fluidMenuContentMap`).
+   * E a ritorno consegnato ([FluidMenuReturnFaceDelivered]) arriva comunque: sul Tab S9 la goccia che oscilla non stava mai sul
+   * tasto, e restava vuota per ~60 ms prima della consegna (prova s4h). Come in B1 (a) f9192–f9194, il glifo e' nella goccia.
+   */
   fun faceAlpha(physics: FluidPhysicsState): Float =
     if (closing && liquidMenu && !controlledReturn && anchor != null) {
-      fluidModalReturnFaceAlpha(progress.value, physics.ensurePlan().bounds, startFrame())
-    } else fluidMenuFaceAlpha(faceProgress)
+      val p = progress.value
+      val now = if (p <= FluidMenuReturnFaceDelivered) {
+        fluidMenuFaceAlpha(fluidMenuReturnFaceProgress(p))
+      } else {
+        fluidModalReturnFaceAlpha(p, physics.ensurePlan().bounds, startFrame())
+      }
+      returnFace = max(returnFace, now)
+      returnFace
+    } else {
+      returnFace = 0f
+      fluidMenuFaceAlpha(faceProgress)
+    }
+
+  /** Il massimo del glifo in questo ritorno ([faceAlpha]); zero fuori dalla chiusura. Letto e scritto in disegno. */
+  private var returnFace = 0f
+
+  /** Le icone del gruppo in questo ritorno ([progressBlockForGroup]): come il glifo, una volta tornate restano. */
+  private var returnGroupFace = 1f
 
   /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
   var anchorRelax = Animatable(1f, ProgressThreshold)
@@ -1151,7 +1207,7 @@ internal class FluidMenuJourney {
     val source = startFrame()
     val from = FluidForm.Slab(source, FluidCornerRadii.all(source.minDimension / 2f))
     when {
-      returningOnContour -> fluidMenuReturnSlab(from, backHome ?: panel, p)
+      returningOnContour -> fluidMenuReturnSlab(from, backHome ?: panel, p, wrapSource = anchor != null)
       p < 0f -> null
       else -> {
         val age = openingAge.value * FluidMotion.MenuOvershootEndMillis
@@ -1200,12 +1256,43 @@ internal class FluidMenuJourney {
   private fun birthSlabAt(ms: Float, lead: Boolean = true): FluidForm.Slab? {
     val a = anchor ?: return null
     val group = a.groupBounds
+    val age = if (lead) birthLeadAge(ms) else ms
     return if (group != null) {
-      fluidGroupBirthSlab(group.translate(-hostOrigin.x, -hostOrigin.y), birthTrigger(), to, toRadius, ms, lead)
+      fluidGroupBirthSlab(group.translate(-hostOrigin.x, -hostOrigin.y), birthTrigger(), to, toRadius, ms, lead, age)
     } else {
-      fluidButtonBirthSlab(startFrame(), to, toRadius, ms, lead)
+      fluidButtonBirthSlab(startFrame(), to, toRadius, ms, lead, age)
     }
   }
+
+  /**
+   * L'istante dell'orologio a cui leggere l'anticipo della sagoma chiesta alla goccia ([FluidButtonBirthProfile.FarLead]),
+   * all'istante [ms] (S4g, NO 2). L'anticipo compensa il ritardo che la goccia accumula, ed e' tarato al banco, dove la goccia
+   * prende il primo campione al secondo fotogramma a 60 Hz ([FluidMenuDropOnTimeMillis]): vede la sagoma cambiare al primo,
+   * campiona al secondo (`runLiquid`, `TodayLiquidDriver`), e fino ad allora si disegna la sagoma chiesta.
+   *
+   * Sul Tab S9 la goccia puo' partire piu' tardi (i primi fotogrammi sono lenti, e c'e' uno stallo al suo primo disegno): con
+   * l'anticipo letto sull'orologio la sagoma disegnata nell'attesa, e quella su cui la goccia si posa, correvano avanti ad
+   * Apple, poi la goccia partiva ferma dietro di lei. Il ritardo oltre quello del banco si sconta: nell'attesa l'anticipo resta
+   * quello del banco, e dal primo campione conta dall'orologio meno il ritardo in piu'. Al banco nulla cambia. Simulato coi due
+   * bordi della goccia (`strumenti/anticipo_tasto.py`): con la goccia al quarto fotogramma lo scarto da Apple da 67 ms scende
+   * da 0,124 a 0,060, al banco resta 0,030.
+   */
+  private fun birthLeadAge(ms: Float): Float {
+    if (dropLateMs >= 0f) return ms - dropLateMs
+    if (dropPhysics?.liquid?.sampling == true) {
+      dropLateMs = (dropPendingMs - FluidMenuDropOnTimeMillis).coerceAtLeast(0f)
+      return ms - dropLateMs
+    }
+    dropPendingMs = ms
+    return min(ms, FluidMenuDropOnTimeMillis)
+  }
+
+  /** La superficie di questo viaggio ([install]): per sapere quando la sua goccia parte ([birthLeadAge]). */
+  private var dropPhysics: FluidPhysicsState? = null
+
+  /** Il ritardo della goccia oltre quello del banco, deciso al suo primo campione, o -1 prima; l'ultimo istante senza. */
+  private var dropLateMs = -1f
+  private var dropPendingMs = 0f
 
   /**
    * La sagoma di questo istante con la nascita accesa: in apertura quella di Apple all'istante dell'orologio; in chiusura
@@ -1218,7 +1305,7 @@ internal class FluidMenuJourney {
     val from = FluidForm.Slab(source, FluidCornerRadii.all(source.minDimension / 2f))
     val home = backHome ?: frozen ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
     val q = (progress.value / frozenProgress.coerceAtLeast(ProgressThreshold)).coerceIn(0f, 1f)
-    return fluidMenuReturnSlab(from, home, q)
+    return fluidMenuReturnSlab(from, home, q, wrapSource = true)
   }
 
   /**
@@ -1267,6 +1354,14 @@ internal class FluidMenuJourney {
     frozen = null
     frozenProgress = 1f
     frozenMillis = -1f
+    // Un menu riaperto a meta' chiusura: la goccia insegue gia', l'anticipo e' quello dell'orologio. Un'apertura nuova lo
+    // decide al primo campione della goccia ([birthLeadAge]).
+    if (from > ProgressThreshold) {
+      dropLateMs = 0f
+    } else {
+      dropLateMs = -1f
+      dropPendingMs = start
+    }
     val remaining = (end - start).coerceAtLeast(1f)
     val millis = ceil(remaining).toInt()
     launch { birthClock.animateTo(end, tween(millis, easing = LinearEasing)) }
@@ -1351,6 +1446,8 @@ internal class FluidMenuJourney {
     if (freshStart) {
       backPull = Animatable(0f, ProgressThreshold)
       backHome = null
+      returnFace = 0f
+      returnGroupFace = 1f
     }
     if (liquidMenu && freshStart) {
       contentVisibility = Animatable(1f, ProgressThreshold)
@@ -1362,6 +1459,8 @@ internal class FluidMenuJourney {
         frozen = null
         frozenProgress = 1f
         frozenMillis = -1f
+        dropLateMs = -1f
+        dropPendingMs = 0f
       }
     }
     this.appleBirth = appleBirth
@@ -1387,13 +1486,23 @@ internal class FluidMenuJourney {
   // disegna l'host sopra il vetro ([groupFacesAboveBlock]), e alla consegna sono gia' piene. Tornano quando il vetro e' la
   // capsula, tutte e tre insieme (S4f, NO 3).
   private val progressBlockForGroup: () -> Float = {
-    if (closing) fluidMenuGroupFaceReturn(progress.value, groupCover()) else faceProgress
+    if (closing) {
+      // E dopo le voci (S4g, NO 3): la pillola del ritorno avvolge la capsula mentre le righe se ne vanno, e le icone entrano
+      // mentre loro escono, come il glifo nella goccia di B1 (a) a f9192.
+      val cover = if (born) fluidMenuGroupFaceAfterInk(groupCover(), contentVisibility.value) else groupCover()
+      returnGroupFace = min(returnGroupFace, fluidMenuGroupFaceReturn(progress.value, cover))
+      returnGroupFace
+    } else {
+      returnGroupFace = 1f
+      faceProgress
+    }
   }
   private val groupFacesAboveBlock: () -> Boolean = { closing }
 
   /** Mette la finestra di [physics] al servizio di questo viaggio. Gratis se gli estremi non cambiano. */
   fun install(physics: FluidPhysicsState) {
     val a = anchor
+    dropPhysics = physics
     physics.useSampledDropFrame = liquidMenu && a != null
     // La goccia del tasto singolo e' piu' tesa (B1 a: una sagoma netta e rapidissima); le altre quella di serie.
     physics.dropAnchorReachDp = if (born && !fromGroup) FluidButtonBirthProfile.DropReachDp else FluidMotion.DropAnchorReachDp

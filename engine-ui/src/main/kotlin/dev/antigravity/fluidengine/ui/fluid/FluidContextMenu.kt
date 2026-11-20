@@ -859,6 +859,13 @@ internal fun fluidContextBirthSlab(
    * quella che si vede sia Apple. Senza: la sagoma di Apple stessa (per le prove e per chi non ha la goccia).
    */
   leadForDrop: Boolean = true,
+  /**
+   * Da quanti ms la goccia insegue questa nascita (S4g, NO 2). L'anticipo compensa il ritardo che la goccia accumula da quando
+   * parte, e lo si misura da li', non dall'orologio della nascita: una goccia che parte tardi, dopo i primi fotogrammi lenti del
+   * dispositivo, non ha ancora ritardo, e finche' non parte la sagoma disegnata e' quella chiesta. Di serie quanto [ms]: la goccia
+   * parte con la nascita, come al banco.
+   */
+  leadAge: Float = ms,
 ): FluidForm.Slab? {
   if (ms >= FluidContextBirthProfile.EndMillis) return null
   if (panel.width <= 0f || panel.height <= 0f) return null
@@ -866,9 +873,10 @@ internal fun fluidContextBirthSlab(
   val p = FluidContextBirthProfile
   val e = birthStep(t, 0f, p.BlendMillis)
   fun over(v: Float) = if (leadForDrop && v > 1f) 1f + (v - 1f) * p.OvershootShare else v
-  val tNear = if (leadForDrop) t + p.NearLead.at(t) else t
-  val tFar = if (leadForDrop) t + p.FarLead.at(t) else t
-  val tWidth = if (leadForDrop) t + p.WidthLead.at(t) else t
+  val age = leadAge.coerceIn(0f, t)
+  val tNear = if (leadForDrop) t + p.NearLead.at(age) else t
+  val tFar = if (leadForDrop) t + p.FarLead.at(age) else t
+  val tWidth = if (leadForDrop) t + p.WidthLead.at(age) else t
   val down = panel.center.y >= seed.center.y
   val h = panel.height
   // Il seme nel sistema del pannello: dove stanno i suoi due bordi lungo l'asse della crescita.

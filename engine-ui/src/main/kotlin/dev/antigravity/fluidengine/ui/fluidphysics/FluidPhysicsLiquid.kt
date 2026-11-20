@@ -128,6 +128,9 @@ internal class LiquidDrop(val points: Int = FluidMotion.DropPoints) {
   private var lastTimeNanos = 0L
   private var lensRaw = 0f
 
+  /** La goccia ha un campione: si muove dietro alla sagoma che insegue, non e' ancora quella sagoma ferma. */
+  internal val sampling: Boolean get() = hasSample
+
   /** Dimentica il tempo dell'ultimo campione: il prossimo riparte da li' (la forma resta dov'e'). */
   fun forgetHistory() {
     hasSample = false

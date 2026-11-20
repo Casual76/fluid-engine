@@ -127,6 +127,16 @@ internal class GlassContentLensEffect {
   private fun menuShader(source: GlassShaderSource): RuntimeShader? =
     runCatching { shaderCache.obtainEngineShader(source.name, source) }.getOrNull()
 
+  /**
+   * Lo shader di questa sagoma ritaglia da se' le voci col `clipInk` (S4g, NO 1): allora il pannello non mette un ritaglio
+   * sopra il loro strato. Falso dove [effect] non ha uno shader (piu' pezzi, nessuna sagoma) o il compilatore l'ha rifiutato.
+   */
+  fun clips(plan: PhysicsRenderPlan): Boolean = when {
+    plan.mode == PlanModePoly && plan.vertCount > 2 -> ring != null
+    plan.mode == PlanModeSlabs && plan.pieceCount == 1 -> slab != null
+    else -> false
+  }
+
   fun effect(
     plan: PhysicsRenderPlan,
     origin: Offset,

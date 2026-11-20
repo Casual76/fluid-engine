@@ -5,7 +5,15 @@ package dev.antigravity.fluidengine.sample.toolbar
 import android.os.Looper
 import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import dev.antigravity.fluidengine.ui.fluid.fluidContextMenu
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -162,9 +170,12 @@ class FluidMenuEarlyPickS4fTest {
     return waited
   }
 
-  private fun source(menu: String): Offset =
-    if (menu == "gruppo") compose.onNodeWithContentDescription("Menu del gruppo").rect().center
-    else compose.onNodeWithTag("early-row").rect().center
+  private fun source(menu: String): Offset = when (menu) {
+    "gruppo" -> compose.onNodeWithContentDescription("Menu del gruppo").rect().center
+    "tondo" -> compose.onNodeWithTag("early-circle").rect().center
+    "foto" -> compose.onNodeWithTag("early-photo").rect().center
+    else -> compose.onNodeWithTag("early-row").rect().center
+  }
 
   /** «Condividi» a menu fermo: il dito tiene premuto, aspetta la posa, si legge il riquadro e si sceglie. */
   private fun restTarget(menu: String): Offset {
@@ -229,7 +240,12 @@ class FluidMenuEarlyPickS4fTest {
 
   private fun menu(menu: String) {
     scene()
-    if (menu != "gruppo") compose.onNodeWithTag("early-row").performScrollTo()
+    when (menu) {
+      "gruppo" -> Unit
+      "tondo" -> compose.onNodeWithTag("early-circle").performScrollTo()
+      "foto" -> compose.onNodeWithTag("early-photo").performScrollTo()
+      else -> compose.onNodeWithTag("early-row").performScrollTo()
+    }
     advance(160)
     val rest = restTarget(menu)
     val log = ArrayList<String>()
@@ -334,6 +350,45 @@ class FluidMenuEarlyPickS4fTest {
 
   @Test fun `nel contestuale il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("contestuale")
 
+  /** S4g (NV): la scelta durante la crescita sul tondo, che si solleva tondo. */
+  @Test fun `sul tondo il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("tondo")
+
+  /** S4g (NV): la scelta durante la crescita sulla foto, che diventa la sua anteprima e apre il menu accanto. */
+  @Test fun `sulla foto il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("foto")
+
+  /**
+   * S4g (NV): l'Indietro predittivo con l'inversione del dito. Il gesto parte dal bordo, tira il vetro, poi il dito torna verso
+   * il bordo e si alza li': il sistema annulla il gesto. Il vetro torna indietro col dito, e il menu resta aperto al suo posto.
+   */
+  @Test fun `Altro, l'Indietro col dito che torna verso il bordo lascia il menu aperto`() {
+    scene()
+    val at = compose.onNodeWithTag("early-altro").rect().center
+    val dispatcher = compose.activity.onBackPressedDispatcher
+    compose.onRoot().performTouchInput { down(at); up() }
+    advance(1_400)
+    val rest = requireNotNull(frames.lastOrNull { it.visible && !it.closing }).drawn
+    compose.runOnUiThread { dispatcher.dispatchOnBackStarted(BackEventCompat(2f, 1160f, 0f, BackEventCompat.EDGE_LEFT)) }
+    step(16)
+    val path = listOf(0.1f, 0.3f, 0.6f, 0.3f, 0.1f, 0f)
+    val heights = path.map { p ->
+      compose.runOnUiThread { dispatcher.dispatchOnBackProgressed(BackEventCompat(2f + 520f * p, 1160f, p, BackEventCompat.EDGE_LEFT)) }
+      repeat(4) { step(16) }
+      frames.last().drawn.height
+    }
+    path.zip(heights).forEach { (p, h) -> println("TAVOLA indietro-inverso gesto=$p vetro=${h.toInt()} riposo=${rest.height.toInt()}") }
+    compose.runOnUiThread { dispatcher.dispatchOnBackCancelled() }
+    advance(800)
+    val again = requireNotNull(frames.lastOrNull { it.visible && !it.closing }).drawn
+    println("TAVOLA indietro-inverso annullato poi=${again.height.toInt()} riposo=${rest.height.toInt()}")
+    // Andando il vetro si accorcia, tornando ricresce: alla stessa distanza dal bordo la stessa sagoma.
+    assertTrue("il vetro si accorcia: $heights", heights[2] < heights[0])
+    assertTrue("il vetro ricresce col dito: $heights", heights[4] > heights[2] && heights[5] >= heights[4] - 1f)
+    assertTrue("alla stessa distanza la stessa sagoma: $heights", kotlin.math.abs(heights[4] - heights[0]) < rest.height * 0.02f)
+    assertTrue("il menu resta aperto", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isNotEmpty())
+    assertTrue("torna al suo posto: ${again.height} contro ${rest.height}", kotlin.math.abs(again.height - rest.height) < 2f)
+    assertTrue("e nello stesso punto: $again contro $rest", kotlin.math.abs(again.top - rest.top) < 2f && kotlin.math.abs(again.left - rest.left) < 2f)
+  }
+
   @Test fun `nel gruppo il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("gruppo")
 }
 
@@ -379,6 +434,31 @@ private fun EarlyPickScene(pick: (String) -> Unit) {
           onClick = {},
           contextActions = { earlyActions(pick) },
           modifier = Modifier.testTag("early-row"),
+        )
+      }
+    }
+    // S4g (NV): il tondo e la foto, come nella galleria (MenusDemo, «Anteprima e forma»).
+    item {
+      Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(16.dp)) {
+        Box(
+          modifier = Modifier
+            .size(96.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
+            .drawBehind { drawRect(Color(0xFF8E6E53)) }
+            .fluidContextMenu(
+              actions = { earlyActions(pick) },
+              previewShape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+              preview = { Box(Modifier.size(width = 280.dp, height = 180.dp).drawBehind { drawRect(Color(0xFF8E6E53)) }) },
+            )
+            .testTag("early-photo"),
+        )
+        Box(
+          modifier = Modifier
+            .size(64.dp)
+            .clip(CircleShape)
+            .drawBehind { drawRect(Color(0xFF34C759)) }
+            .fluidContextMenu(actions = { earlyActions(pick) }, previewShape = CircleShape)
+            .testTag("early-circle"),
         )
       }
     }

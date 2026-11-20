@@ -573,6 +573,7 @@ private fun FluidMenuLayerContent(
         Modifier
           .fillMaxSize()
           .menuDrawMarker("surface")
+          .menuBirthMarker(journey, physics)
           .drawWithContent { if (windowAmount() > 0.004f) drawContent() }
           .fluidPhysicsSurfaceInked(
             menuSource = anchor?.groupBounds ?: anchor?.pressedBounds ?: journey.seed,
@@ -747,6 +748,24 @@ private fun FluidMenuLayerContent(
     }
   }
 }
+
+/**
+ * La nascita e il ritorno sul dispositivo, a ogni fotogramma disegnato (S4g, NO 2): l'orologio della nascita, il progresso, la
+ * sagoma disegnata e quella che la goccia insegue. Con `setprop log.tag.FluidGlassFrame VERBOSE`, come gli altri marcatori.
+ */
+internal fun Modifier.menuBirthMarker(journey: FluidMenuJourney, physics: FluidPhysicsState): Modifier =
+  if (GlassFrameDiagnostics.enabled) {
+    drawWithContent {
+      GlassFrameDiagnostics.event("menu.birth", journey) {
+        val plan = physics.ensurePlan()
+        val b = plan.bounds
+        val r = plan.dropRest?.frame
+        "clock=${journey.birthClock.value} born=${journey.born} closing=${journey.closing} progress=${journey.progress.value} " +
+          "drawn=${b.left},${b.top},${b.right},${b.bottom} rest=${r?.left},${r?.top},${r?.right},${r?.bottom}"
+      }
+      drawContent()
+    }
+  } else this
 
 /** Marcatori per distinguere il velo, la finestra fisica e le voci nel rilievo sul dispositivo. */
 internal fun Modifier.menuDrawMarker(name: String): Modifier = if (GlassFrameDiagnostics.enabled) {

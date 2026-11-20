@@ -489,6 +489,10 @@ class FluidMenuJourneyTest {
     journey.retarget(0f)
     assertTrue("al ritorno le disegna l'host sopra il vetro", a.groupFacesAbove())
     val span = FluidMotion.MenuGroupFaceProgressSpan
+    // Con le voci ancora nel vetro le icone non tornano (S4g, NO 3): entrano mentre l'inchiostro del menu se ne va.
+    journey.progress.snapTo(FluidMenuGroupFaceReturnShare / 2f)
+    assertTrue("con le voci ancora nel vetro restano spente", a.groupProgress() >= span)
+    journey.contentVisibility.snapTo(0f)
     for (p in listOf(1f, 0.8f, 0.5f, FluidMenuGroupFaceReturnShare + 0.01f)) {
       journey.progress.snapTo(p)
       assertTrue("spente a $p mentre il vetro torna", a.groupProgress() >= span)
@@ -511,6 +515,8 @@ class FluidMenuJourneyTest {
     journey.install(physics)
     // La goccia del tasto singolo e' piu' tesa (B1 a); senza la nascita torna quella di serie.
     assertEquals(FluidButtonBirthProfile.DropReachDp, physics.dropAnchorReachDp, 0f)
+    // La goccia parte con la nascita, come al banco: l'anticipo conta da li' (S4g, NO 2).
+    physics.stepDrop(requireNotNull(physics.dropRestSlabNow()), 1_000_000L)
     journey.birthClock.snapTo(80f)
     journey.progress.snapTo(fluidButtonBirthProgress(80f))
     assertEquals(fluidButtonBirthSlab(journey.startFrame(), panel, 22f, 80f), physics.dropRestSlabNow())

@@ -225,6 +225,17 @@ al più di 1/30 s, come la goccia («uno stallo non è un moto»). Fino a S4f il
 di un menu, i più cari e a 30 Hz a schermo fermo, facevano correre la nascita di nascosto. Sul Tab S9 «Altro» passava così dal quadrato stondato al pannello quasi pieno in 33,7 ms
 (f0004 → f0005), dove B1 (a) cresce per ~133 ms.
 
+**L'anticipo e la goccia in ritardo.** La sagoma chiesta alla goccia è quella di Apple qualche ms dopo (`FarLead`, `WidthLead`,
+`NearLead`), perché la goccia la segue in ritardo; finché la goccia non ha un campione il vetro disegnato è proprio la sagoma
+chiesta. L'anticipo è tarato al banco, dove la goccia campiona al secondo fotogramma a 60 Hz (`FluidMenuDropOnTimeMillis`, 33,4 ms):
+sul dispositivo può partire più tardi (i primi fotogrammi lenti, uno stallo al suo primo disegno), e con l'anticipo letto
+sull'orologio la sagoma disegnata nell'attesa, e quella su cui la goccia si posa, correvano avanti ad Apple, poi la goccia partiva
+ferma dietro di lei. Il ritardo oltre quello del banco si sconta (`FluidMenuJourney.birthLeadAge`, `leadAge`,
+`LiquidDrop.sampling`): nell'attesa l'anticipo resta quello del banco, dal primo campione conta dall'orologio meno il ritardo in
+più. Al banco nulla cambia; con la goccia due fotogrammi in ritardo lo scarto da Apple da 67 ms scende da 0,12 a 0,06 (simulato
+coi due bordi della goccia). Del superamento di Apple se ne chiede metà (`OvershootShare`): la goccia, anche tesa, ne aggiunge un
+altro 2–3%, e chiesto tutto la larghezza arrivava a 1,06 contro 1,036 di B1 (a), al banco e sul Tab S9.
+
 **Dal gruppo** (un'azione con `menu` dentro un gruppo con lo sfondo condiviso di una barra dichiarata; B1 b, la graffetta):
 
 1. **Le icone si sfocano ed escono** (sfocate al massimo a ~41 ms, via a ~54 ms, con le curve del cambio di contenuto della barra),
@@ -239,8 +250,13 @@ di un menu, i più cari e a 30 Hz a schermo fermo, facevano correre la nascita d
 premuto: `fluidGroupBirthSlab` raccoglie la capsula nella goccia e poi chiama `fluidContextBirthSlab`; il contorno è
 `fluidContextBirthWarp` con la coda sul tasto.
 
-**Al ritorno capsula e icone tornano insieme.** Le icone del gruppo restano spente mentre il vetro torna verso la capsula e si
-riaccendono nell'ultimo tratto, quello in cui la bolla si allarga nella capsula (`fluidMenuGroupFaceReturn`), e solo quando il
+**Al ritorno capsula e icone tornano insieme.** La bolla del ritorno avvolge la capsula: è la sorgente gonfiata dello stesso
+margine su ogni lato (`fluidMenuReturnSlab(wrapSource = true)`), e il vetro ci si posa sopra come la goccia di B1 (a) sul tasto
+(f9191–f9194). Per un tasto quadrato è il tondo di sempre; per la capsula del gruppo una pillola più larga di lei. Fino a S4g era un
+tondo sul lato corto, più stretto delle icone: il ritorno passava da una pillola stretta e vuota alla capsula larga coi glifi in un
+passo (scuro f0131 → f0132, chiaro f0058 → f0059). Le icone del gruppo restano spente mentre il vetro torna verso la capsula e si
+riaccendono nell'ultimo tratto (`fluidMenuGroupFaceReturn`), mentre le voci del menu se ne vanno (`fluidMenuGroupFaceAfterInk`: col
+quadrato di quanto sono uscite), e solo quando il
 vetro le tiene già tutte e tre e non è più il menu: la copertura (`fluidMenuGroupFaceCover`) è zero finché il vetro non contiene
 le icone, cresce col margine che ha attorno a loro ed è piena a 5 dp, due fotogrammi a 120 Hz dopo; è zero anche se il vetro
 è più di 1,5–2 volte la capsula. Le icone si accendono intere e tutte e tre insieme (al ritorno la barra le registra senza il
@@ -250,14 +266,23 @@ progresso, ritagliate dalla bolla che si allargava (in scuro f0236 la stella sol
 nascita, col progresso già basso, comparivano sopra l'uovo e le righe (f0193–f0195). Le disegna l'host
 **sopra** il suo vetro (`FluidMenuAnchor.groupFaces`, `groupFacesAbove`), e alla consegna sono già quelle della barra, che le legge
 dallo stato vivo nel disegno. Fino a S4b le disegnava la barra, sotto il vetro del menu che era già capsula: 2–3 fotogrammi di
-capsula vuota sul Tab S9.
+capsula vuota sul Tab S9. Una volta tornate, le icone non si spengono più in quel ritorno; nemmeno il glifo del tasto
+(`FluidMenuJourney.faceAlpha`): nell'annullo la goccia arriva con la velocità della nascita e oscilla attorno al tasto, e i
+puntini comparivano per un campione, sparivano sotto la goccia più piccola del tasto e tornavano (S4g, chiaro f0023–f0028). A
+ritorno consegnato (`FluidMenuReturnFaceDelivered`) il glifo c'è anche se la goccia oscilla ancora, scalato su di lei.
 
 **Le voci stanno nella lente**, sfocate (fino a 5 dp) e piegate dallo stesso campo che disegna la sagoma (la lente del contenuto,
 `GlassContentLensShader.kt`: un `RenderEffect` sul solo layer delle voci); lo stesso campo ritaglia l'inchiostro anche sui fianchi
 concavi. Quello che la lente ingrandisce oltre il vetro **entra schiacciato nel suo bordo**, mai tagliato: il tiro di ogni lato è
 quanto le voci ne escono (`glassMenuLensOverflow`, l'uniform `lensOverflow`), così il bordo delle voci cade sul bordo del vetro, come
 «Recents» e «Tracking» in B1 (a) a f9151–f9152. Fino a S4f il ritaglio della goccia tagliava a metà «Condividi» ed «Elimina» nella
-nascita di «Altro» (f0007) e le icone a destra (f0009). A tiro zero la lente è quella di prima, al bit. Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
+nascita di «Altro» (f0007) e le icone a destra (f0009). A tiro zero la lente è quella di prima, al bit. **Le voci le ritaglia lo
+shader** (`clipInk`), non un ritaglio sopra il loro strato: sotto un `clipPath` Skia rende per un `RenderEffect` solo la parte dello
+strato dentro il ritaglio (uno shader della lente non dichiara quanto lontano legge), e la lente che prende le voci da fuori il vetro
+trovava il bordo dello strato ripetuto o niente. Sul Tab S9 «Condividi» diventava un codice a barre al bordo alto ed «Elimina»
+restava tagliata da una linea netta (S4g, chiaro f0008), mentre al banco lo strato era intero. La sagoma ritaglia per conto suo la
+goccia della scelta e il livello che se ne va (`drawInMenuSilhouette`); le voci solo dove lo shader non c'è
+(`GlassContentLensEffect.clips`). Il layout e le celle sono quelli del pannello a riposo, ma **il dito sceglie la voce che vede**: mentre il menu nasce le
 voci stanno col corpo (staccate dalla sorgente, rimpicciolite nella goccia: nel gruppo e nel contestuale fino a ~23 dp dal loro
 riquadro a 300 ms, ~45–50 dp a 200 ms, sotto i 5 dp da ~500 ms), e la selezione riporta il punto del dito attraverso la stessa
 mappa con cui si disegnano (`FluidMenuSelection.pointerMap`, `fluidMenuPointerAtRest`: spostamento e scala, non la piega della
@@ -647,7 +672,7 @@ menu dal tasto segue `fluidMenuButtonTravel` e quello dal gruppo `fluidMenuJourn
 | modelli | il tasto: B1 (a), f9148 → f9160, contorni letti sul video HD (±6 px, la posa sui bordi di f9156–f9170); il gruppo: B1 (b), la graffetta, i profili del contestuale |
 | orologio | lineare, 0 → 400,4 ms dal tasto (`FluidButtonBirthProfile.EndMillis`), 0 → 867,5 ms dal gruppo; 1 esatto alla fine |
 | tasto: profili | bordo vicino, lontano, larghezza (`Near`, `Far`, `Width`); dal nostro tasto ad Apple in 67 ms (`BlendMillis`); angoli dal 31% al 12% del lato corto (`Corner`), al raggio del pannello fra 200 e 334 ms |
-| tasto: la goccia | più tesa: l'ancora arriva a 300 dp invece di 110 (`DropReachDp`, `FluidPhysicsState.dropAnchorReachDp`), perché B1 (a) cresce del 22% del menu in un fotogramma e con la goccia di serie l'angolo lontano restava indietro di 60–70 ms; anticipo del lontano 11–30 ms, della larghezza 12–30 ms, del vicino 12–15 ms (`FarLead`, `WidthLead`, `NearLead`); superamento chiesto tutto |
+| tasto: la goccia | più tesa: l'ancora arriva a 300 dp invece di 110 (`DropReachDp`, `FluidPhysicsState.dropAnchorReachDp`), perché B1 (a) cresce del 22% del menu in un fotogramma e con la goccia di serie l'angolo lontano restava indietro di 60–70 ms; anticipo del lontano 11–30 ms, della larghezza 12–30 ms, del vicino 12–15 ms (`FarLead`, `WidthLead`, `NearLead`), tarato con la goccia che campiona a 33,4 ms (`FluidMenuDropOnTimeMillis`): il ritardo in più si sconta (`leadAge`); superamento chiesto a metà (`OvershootShare`) |
 | gruppo: raccolta | la capsula nella goccia sul tasto premuto in 67 ms (`FluidGroupGatherMillis`, `fluidGroupBirthDrop`), poi `fluidContextBirthSlab` col seme lì |
 | gruppo: contorno | `fluidGroupBirthWarp`: quello del contestuale con la coda sul tasto; mentre la capsula si raccoglie solo la lente |
 | facce | via col tempo della nascita (`fluidMenuBirthFaceProgress`, 83 ms): la faccia del tasto a ~29 ms, le icone del gruppo a ~54 ms; al ritorno le icone del gruppo tornano nell'ultimo 36% del progresso (`fluidMenuGroupFaceReturn`), sopra il vetro |
@@ -659,7 +684,7 @@ menu dal tasto segue `fluidMenuButtonTravel` e quello dal gruppo `fluidMenuJourn
 | cosa | valore |
 |---|---|
 | andata senza la nascita | molla `FluidMotion.dropOpen()`: smorzamento 0,72, rigidezza 500 |
-| ritorno col campo da fermo | `fluidMenuReturnSlab`: bordo lontano, bolla sulla sorgente, posa in 233 ms |
+| ritorno col campo da fermo | `fluidMenuReturnSlab`: bordo lontano, bolla sulla sorgente (nei menu dal tasto e dal gruppo la sorgente gonfiata, `wrapSource`), posa in 233 ms |
 | ritorno senza campo | `FluidMotion.dropClose()`, smorzamento 0,72, rigidezza 158, ≈0,5 s |
 | raccolta del gruppo | al 60% della larghezza (`MenuGroupGatherWidth`) |
 | voci nella lente | alfa iniziale 0,28, sfocatura fino a 5 dp, messa a fuoco in 270 ms, curva di sfocatura d'uscita in 100 ms, ingrandimento dal tasto fino a 1,42×; inchiostro d'uscita di Apple con la nascita (pieno fino a 67 ms, via entro 167), in 90 ms senza |
@@ -831,6 +856,12 @@ Puri, in `engine-ui` (JVM):
   iniziale: prima e dopo l'orologio costante), `GruppoRitornoIconeTest` (le icone del gruppo al ritorno da fermo e nell'annullo:
   mai fuori dal vetro), `IndietroPredittivoMenuTest` (il vetro che segue il gesto, il congedo dalla sagoma tirata, il gesto
   annullato, il contestuale), `FluidMenuS4fRulesTest` (la voce accesa che tiene, la cella del rilascio, il tiro della lente).
+- Le correzioni dopo S4g: `AltroGocciaInRitardoTest` (la nascita di «Altro» con la goccia che parte tardi, come sul Tab S9:
+  fino al primo campione l'anticipo del banco, poi nessun salto oltre quello di Apple, il picco vicino al suo), `AnnulloAltroGlifoTest` (il glifo del tasto nel congedo anticipato: torna
+  una volta sola e c'è sulla goccia consegnata), `GruppoRitornoIconeTest` (mai la pillola vuota più stretta delle icone),
+  `FluidMenuEarlyPickS4fTest` (la scelta durante la crescita sul tondo e sulla foto, l'Indietro col dito che torna verso il bordo) e,
+  al banco, `test_menu_lens_clip_input.py` (lo strato delle voci intero contro quello limitato al ritaglio, come lo dava Skia sul
+  dispositivo).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello

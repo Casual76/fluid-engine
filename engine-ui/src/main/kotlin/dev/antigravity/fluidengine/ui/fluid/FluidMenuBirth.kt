@@ -112,8 +112,12 @@ internal object FluidButtonBirthProfile {
   val WidthLead = FluidMeasuredCurve(LeadMs, floatArrayOf(0f, 12f, 28f, 29f, 29f, 30f, 30f))
   val NearLead = FluidMeasuredCurve(LeadMs, floatArrayOf(0f, 15f, 15f, 12f, 12f, 12f, 12f))
 
-  /** Quanto del superamento di Apple si chiede alla sagoma a riposo: tutto (la goccia tesa non ne aggiunge). */
-  const val OvershootShare = 1f
+  /**
+   * Quanto del superamento di Apple si chiede alla sagoma a riposo: la meta'. La goccia, anche tesa, ne aggiunge un altro 2-3%:
+   * chiedendolo tutto la larghezza arrivava a 1,06 (al banco 1,062, sul Tab S9 1,061 nella prova s4h) e il bordo lontano a 1,10,
+   * contro 1,036 e 1,076 di B1 (a) (S4g, NO 2: «superamento 3,5%»).
+   */
+  const val OvershootShare = 0.5f
 
   /** Le voci entrano nella goccia subito: a 33 ms in Apple si legge gia' «Wis», sfocata e ingrandita. */
   const val InkInFrom = 0f
@@ -137,6 +141,8 @@ internal fun fluidButtonBirthSlab(
   ms: Float,
   /** Con l'anticipo della goccia (vedi [fluidContextBirthSlab]); senza, la sagoma di Apple stessa. */
   leadForDrop: Boolean = true,
+  /** Da quanti ms la goccia insegue questa nascita: l'anticipo cresce con lei (vedi [fluidContextBirthSlab]). */
+  leadAge: Float = ms,
 ): FluidForm.Slab? {
   val p = FluidButtonBirthProfile
   if (ms >= p.EndMillis) return null
@@ -144,9 +150,10 @@ internal fun fluidButtonBirthSlab(
   val t = ms.coerceAtLeast(0f)
   val e = menuBirthStep(t, 0f, p.BlendMillis)
   fun over(v: Float) = if (leadForDrop && v > 1f) 1f + (v - 1f) * p.OvershootShare else v
-  val tNear = if (leadForDrop) t + p.NearLead.at(t) else t
-  val tFar = if (leadForDrop) t + p.FarLead.at(t) else t
-  val tWidth = if (leadForDrop) t + p.WidthLead.at(t) else t
+  val age = leadAge.coerceIn(0f, t)
+  val tNear = if (leadForDrop) t + p.NearLead.at(age) else t
+  val tFar = if (leadForDrop) t + p.FarLead.at(age) else t
+  val tWidth = if (leadForDrop) t + p.WidthLead.at(age) else t
   val down = panel.center.y >= seed.center.y
   val h = panel.height
   val nearRest = if (down) panel.top else panel.bottom
@@ -218,8 +225,9 @@ internal fun fluidGroupBirthSlab(
   panelRadius: Float,
   ms: Float,
   leadForDrop: Boolean = true,
+  leadAge: Float = ms,
 ): FluidForm.Slab? {
-  val birth = fluidContextBirthSlab(fluidGroupBirthDrop(trigger), panel, panelRadius, ms, leadForDrop) ?: return null
+  val birth = fluidContextBirthSlab(fluidGroupBirthDrop(trigger), panel, panelRadius, ms, leadForDrop, leadAge) ?: return null
   val gather = menuBirthStep(ms, 0f, FluidGroupGatherMillis)
   if (gather >= 1f) return birth
   val from = FluidCornerRadii.all(capsule.minDimension / 2f)

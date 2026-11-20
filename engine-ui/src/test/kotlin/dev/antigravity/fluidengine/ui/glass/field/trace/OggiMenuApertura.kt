@@ -64,6 +64,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsMaterialSource
 import dev.antigravity.fluidengine.ui.fluidphysics.PlanModePoly
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuLensOverflow
+import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceAfterInk
 import dev.antigravity.fluidengine.ui.fluid.fluidMenuGroupFaceCover
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -425,7 +426,10 @@ internal fun buildMenuTrace(
       // `FluidMenuAnchor.groupFacesAbove`); prima restavano spente fino alla consegna.
       // Dopo S4f (NO 3) solo quando il vetro disegnato e' gia' la capsula, tutte e tre insieme.
       val capsule = journey.anchor?.groupBounds
-      val cover = if (capsule != null) fluidMenuGroupFaceCover(plan.bounds, capsule) else 1f
+      // Dopo S4g (NO 3) anche dopo le voci che se ne vanno, come `FluidMenuJourney.groupProgress`.
+      val cover = if (capsule != null) {
+        fluidMenuGroupFaceAfterInk(fluidMenuGroupFaceCover(plan.bounds, capsule), journey.contentVisibility.value)
+      } else 1f
       val faceProgress = if (variant.corrected && closing && !showRest) fluidMenuGroupFaceReturn(p, cover) else journey.faceProgress
       val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)

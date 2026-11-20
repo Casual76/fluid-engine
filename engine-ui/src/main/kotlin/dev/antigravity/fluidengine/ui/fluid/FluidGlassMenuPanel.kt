@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -298,6 +299,7 @@ internal fun FluidGlassMenuPanel(
   val insetPx = with(density) { FluidMenuSeparatorInset.toPx() }
   val tileInsetPx = with(density) { FluidMenuTileSeparatorInset.toPx() }
   val hairlinePx = with(density) { 0.5.dp.toPx() }
+  val anchored = lens?.journey?.anchor != null
   val lensEffect = remember(lens != null) {
     if (lens != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       GlassContentLensEffect()
@@ -325,44 +327,33 @@ internal fun FluidGlassMenuPanel(
         paneTitle?.let { this.paneTitle = it }
         isTraversalGroup = true
       }
-      .then(when {
-        lens?.journey?.anchor != null -> Modifier.drawWithContent {
-          val plan = lens.physics.ensurePlan()
-          if (plan.dropRest == null && travelClip?.invoke() == null) {
-            drawContent()
-          } else {
-            val origin = lens.panelTopLeft
-            translate(-origin.x, -origin.y) {
-              clipPath(plan.silhouette) {
-                translate(origin.x, origin.y) { this@drawWithContent.drawContent() }
-              }
-            }
-          }
-        }
-        travelClip != null -> Modifier.fluidMenuTravelClip(travelClip)
-        else -> Modifier
-      }),
+      // Col vetro dell'ancora la sagoma ritaglia ogni figlio per conto suo, e le voci nello shader della lente (S4g, NO 1).
+      .then(if (anchored || travelClip == null) Modifier else Modifier.fluidMenuTravelClip(travelClip)),
   ) {
     if (pageBackdrop != null && cells.size > 0) {
-      FluidMenuDrop(
-        state = drop,
-        selection = selection,
-        backdrop = pageBackdrop,
-        // Una fila di tessere o righe di altezze diverse: la goccia prende la misura della cella su cui sta,
-        // scivolando fra le due quando passa dall'una all'altra.
-        cellSize = { panel: Size ->
-          if (uniform) Size(panel.width, cells.heights[0]) else fluidMenuDropCellSize(cells, panel.width, drop.drag.value)
-        },
-        vertical = true,
-        contentAlpha = contentAlpha,
-        contentMap = contentMap,
-      )
+      Box(if (anchored) Modifier.matchParentSize().drawWithContent { drawInMenuSilhouette(lens!!, travelClip) } else Modifier.matchParentSize()) {
+        FluidMenuDrop(
+          state = drop,
+          selection = selection,
+          backdrop = pageBackdrop,
+          // Una fila di tessere o righe di altezze diverse: la goccia prende la misura della cella su cui sta,
+          // scivolando fra le due quando passa dall'una all'altra.
+          cellSize = { panel: Size ->
+            if (uniform) Size(panel.width, cells.heights[0]) else fluidMenuDropCellSize(cells, panel.width, drop.drag.value)
+          },
+          vertical = true,
+          contentAlpha = contentAlpha,
+          contentMap = contentMap,
+        )
+      }
     }
 
     // Il livello che se ne va durante un cambio di livello (F5A.3): posato dov'era, sotto quello che arriva, senza
     // goccia e senza semantica (non si sceglie piu'), con la sua opacita', la sua scala e la sua sfocatura. Il ritaglio
     // del pannello vale anche per lui: le voci restano dentro il vetro che cambia forma.
-    if (outgoing != null) {
+    if (outgoing != null) Box(
+      if (anchored) Modifier.matchParentSize().drawWithContent { drawInMenuSilhouette(lens!!, travelClip) } else Modifier.matchParentSize(),
+    ) {
       Box(
         modifier = Modifier
           .fluidMenuOutgoingPlacement(outgoing.offset, outgoing.size)
@@ -385,6 +376,14 @@ internal fun FluidGlassMenuPanel(
     Box(
       modifier = Modifier
         .fillMaxSize()
+        // Le voci le ritaglia lo shader della lente (`clipInk`), non un ritaglio sopra il loro strato: sotto un ritaglio Skia
+        // da' all'effetto solo lo strato dentro il ritaglio, e la lente che prende le voci da fuori il vetro trovava il bordo
+        // dello strato ripetuto (le strisce di «Condividi») o tagliato netto («Elimina» a meta'), solo sul dispositivo (S4g, NO 1).
+        .then(if (anchored) Modifier.drawWithContent {
+          val plan = lens!!.physics.ensurePlan()
+          val inShader = lensEffect != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && lensEffect.clips(plan)
+          drawInMenuSilhouette(lens, travelClip, inShader)
+        } else Modifier)
         .graphicsLayer {
           alpha = contentAlpha().coerceIn(0f, 1f)
           val map = contentMap()
@@ -425,6 +424,24 @@ internal fun FluidGlassMenuPanel(
         },
     ) {
       FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick)
+    }
+  }
+}
+
+/**
+ * Disegna dentro la sagoma del vetro dell'ancora mentre si forma o torna (la goccia, o il ritaglio del viaggio), in coordinate
+ * del pannello; a riposo, o quando la ritaglia gia' lo shader ([inShader]), senza ritaglio.
+ */
+private fun ContentDrawScope.drawInMenuSilhouette(lens: FluidMenuLens, travelClip: (() -> RoundRect?)?, inShader: Boolean = false) {
+  val plan = lens.physics.ensurePlan()
+  if (inShader || (plan.dropRest == null && travelClip?.invoke() == null)) {
+    drawContent()
+  } else {
+    val origin = lens.panelTopLeft
+    translate(-origin.x, -origin.y) {
+      clipPath(plan.silhouette) {
+        translate(origin.x, origin.y) { this@drawInMenuSilhouette.drawContent() }
+      }
     }
   }
 }

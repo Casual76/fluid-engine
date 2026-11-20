@@ -139,6 +139,14 @@ class GruppoRitornoIconeTest {
     println("TAVOLA $name fotogrammi col vetro che tiene le icone e le icone spente: $empty")
     assertTrue("$name: capsula vuota per $empty fotogrammi", empty <= 1)
     assertEquals("$name: piene alla consegna", 0f, frames.last().phase, 0.02f)
+    // S4g (NO 3): mai la pillola vuota piu' stretta delle icone vicino alla capsula (scuro f0131, chiaro f0058), da cui la
+    // capsula larga coi glifi arrivava in un passo. Col tondo del ritorno erano i fotogrammi in cui la bolla si allargava.
+    val narrow = frames.count {
+      it.phase >= span && it.drawn.height <= capsule.height * 1.6f && it.drawn.width < icons.width && it.progress < 0.5f
+    }
+    val step = frames.zipWithNext().maxOf { (a, b) -> a.phase - b.phase }
+    println("TAVOLA $name pillola vuota piu' stretta delle icone: $narrow fotogrammi; passo piu' grande delle icone ${"%.2f".format(step)}")
+    assertEquals("$name: pillola vuota stretta", 0, narrow)
   }
 
   @Test fun theIconsComeBackTogetherWithTheCapsuleFromARestingMenu() = runTest { check("fermo", ritorno(dismissMs = 1_200L)) }

@@ -8,6 +8,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- F7.3d — La dissolvenza dei menu applica l'opacità al velo già composto. La registrazione del velo segue i passaggi della soglia di visibilità.
 - F7.3c3 — La lista conserva il ritaglio degli angoli anche sotto la card del contestuale, fino alla riconsegna della riga.
 - Riscaldamento del vetro all'avvio (F7.4, leva 6) spento di serie: sul Tab S9 l'apertura mediana dopo un'installazione
   peggiorava di 13–15 ms (S5c). Si accende per una prova con `log.tag.FluidF74EarlyWarm`.

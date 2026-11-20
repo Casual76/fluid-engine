@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -193,26 +195,18 @@ internal fun FluidGlassModalScrim(
 
   val base = Modifier
     .fillMaxSize()
-    // The arrival is an alpha on the finished pane, **not** the material's own `intensity`.
-    //
-    // `intensity` scales the blur radius, and a changing blur radius changes the padding the layer
-    // needs, and a changing padding is the one thing that genuinely invalidates a capture. Ramping
-    // it therefore re-records the whole screen and re-runs the entire effect chain on every frame of
-    // the fade — on the largest surface in the system, at the exact moment something is trying to
-    // animate. Fading the result instead costs one composited layer and looks identical.
-    .graphicsLayer {
-      alpha = intensity().coerceIn(0f, 1f)
-      if (menu) compositingStrategy = CompositingStrategy.ModulateAlpha
-    }
-    // Il cancello del fotogramma di confine: al primo e all'ultimo fotogramma di vita del nodo
-    // il layer qui sopra puo' disegnare con l'alpha di default (1) — e' il lampo scuro+blur di
-    // un fotogramma misurato nel video dell'apertura E della chiusura. Con l'alpha a zero non
-    // si registra niente, e una displaylist vuota non ha lampi da rigiocare.
-    .then(if (menu) Modifier.menuDrawMarker("scrim") else Modifier)
-    .drawWithContent { if (intensity() > 0.004f) drawContent() }
-    // Il gate e la dissolvenza stanno fuori dalla texture. Se cambia solo l'alpha,
-    // HWUI riusa blur e tinta già composti alla risoluzione del display.
-    .then(if (menu && backdrop != null) MenuScrimMaterialLayer else Modifier)
+    // The arrival is an alpha on the finished pane, **not** the material's own `intensity`:
+    // a changing blur radius changes the layer padding and re-records the whole screen on every
+    // frame of the fade. Fading the result costs one composited layer and looks identical.
+    // Il cancello del fotogramma di confine: con l'alpha a zero non si registra niente, cosi' il
+    // primo e l'ultimo fotogramma di vita del nodo non rigiocano il lampo scuro+blur.
+    .then(if (menu && backdrop != null) menuScrimFade(intensity) else Modifier
+      .graphicsLayer {
+        alpha = intensity().coerceIn(0f, 1f)
+        if (menu) compositingStrategy = CompositingStrategy.ModulateAlpha
+      }
+      .then(if (menu) Modifier.menuDrawMarker("scrim") else Modifier)
+      .drawWithContent { if (intensity() > 0.004f) drawContent() })
     .then(
       if (interactive) {
         Modifier.pointerInput(onDismiss) { detectTapGestures { onDismiss() } }
@@ -241,5 +235,15 @@ internal fun FluidGlassModalScrim(
   }
 }
 
-/** Conserva i due disegni originali del materiale fra i cambi della sola opacità. */
-private val MenuScrimMaterialLayer = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+/** L'opacità si applica a sfocatura e tinta già composte. Il cancello cambia solo ai due estremi. */
+@Composable
+internal fun menuScrimFade(intensity: () -> Float): Modifier {
+  val visible = remember(intensity) { derivedStateOf(structuralEqualityPolicy()) { intensity() > 0.004f } }
+  return Modifier
+    .graphicsLayer {
+      alpha = intensity().coerceIn(0f, 1f)
+      compositingStrategy = CompositingStrategy.Offscreen
+    }
+    .menuDrawMarker("scrim")
+    .drawWithContent { if (visible.value) drawContent() }
+}

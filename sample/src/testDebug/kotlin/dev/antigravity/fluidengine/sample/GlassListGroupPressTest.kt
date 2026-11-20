@@ -27,6 +27,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -37,6 +41,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.menuScrimFade
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidListContextPress
@@ -257,6 +262,77 @@ class GlassListGroupPressTest {
     compose.waitForIdle()
     compose.runOnIdle { assertTrue("ritaglio ordinario alla riconsegna", !group.active) }
     assertTrue("la riga e gli angoli tornano identici", rest.sameAs(windowBitmap()))
+  }
+
+  @Test fun ilVeloConservaOgniPixelERidisegnaSoloAlPassaggioDellaSoglia() {
+    val optimized = mutableStateOf(false)
+    val opacity = mutableStateOf(0f)
+    val shift = mutableStateOf(0f)
+    val ink = mutableStateOf(Color.Black.copy(alpha = 0.32f))
+    val extent = mutableStateOf(240.dp)
+    var visits = 0
+    compose.setContent {
+      val intensity = remember { { opacity.value } }
+      val counted = Modifier.drawWithContent { visits++; drawContent() }
+      val fade = if (optimized.value) {
+        menuScrimFade(intensity).then(counted)
+      } else {
+        Modifier.graphicsLayer {
+          alpha = intensity()
+          compositingStrategy = CompositingStrategy.ModulateAlpha
+        }.drawWithContent {
+          if (intensity() > 0.004f) { visits++; drawContent() }
+        }.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+      }
+      val blur = remember {
+        android.graphics.RenderEffect.createBlurEffect(6.5f, 6.5f,
+          android.graphics.Shader.TileMode.CLAMP).asComposeRenderEffect()
+      }
+      Box(Modifier.fillMaxSize().background(Color(0xff456789)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(extent.value, 160.dp).then(fade)) {
+          Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blur }) {
+            Box(Modifier.fillMaxSize().background(Color(0xffdfedd2)))
+            Box(Modifier.size(80.dp).graphicsLayer { translationX = shift.value }.background(Color.Magenta))
+          }
+          Box(Modifier.fillMaxSize().drawBehind { drawRect(ink.value) })
+        }
+      }
+    }
+    fun frame(alpha: Float): Bitmap {
+      compose.runOnIdle { opacity.value = alpha }
+      return windowBitmap()
+    }
+    fun run(candidate: Boolean): List<Bitmap> {
+      compose.runOnIdle {
+        optimized.value = candidate
+        opacity.value = 0f
+        shift.value = 0f
+        extent.value = 240.dp
+        ink.value = Color.Black.copy(alpha = 0.32f)
+      }
+      val frames = mutableListOf(frame(0f), frame(0.004f), frame(0.005f))
+      val first = visits
+      for (alpha in listOf(0.10f, 0.25f, 0.53f, 0.8f, 1f)) frames += frame(alpha)
+      val redraws = visits - first
+      if (candidate) assertEquals("registrazioni del velo per la sola dissolvenza", 0, redraws)
+      else assertTrue("il riferimento deve registrarsi a ogni passo della dissolvenza", redraws >= 5)
+      compose.runOnIdle { shift.value = 75f }
+      frames += frame(1f)
+      compose.runOnIdle { ink.value = Color.Black.copy(alpha = 0.48f); extent.value = 196.dp }
+      frames += frame(1f)
+      frames += frame(0.53f)
+      frames += frame(0.004f)
+      frames += frame(0f)
+      frames += frame(0.65f)
+      return frames
+    }
+    val before = run(false)
+    val after = run(true)
+    assertTrue("sotto soglia", before[0].sameAs(before[1]))
+    assertTrue("il velo deve essere visibile", !before[0].sameAs(before[7]))
+    assertTrue("la sorgente deve seguire la traslazione del solo layer", !before[7].sameAs(before[8]))
+    assertTrue("tinta scura e nuova misura devono essere visibili", !before[8].sameAs(before[9]))
+    before.indices.forEach { pose -> assertTrue("PixelCopy del velo, posa $pose", before[pose].sameAs(after[pose])) }
   }
 
   private fun colors(bitmap: Bitmap) = IntArray(bitmap.width * bitmap.height).also {

@@ -140,11 +140,12 @@ import kotlin.math.min
  *    se va prima in verticale e' della pagina, cosi' uno slider a tutta larghezza non diventa una
  *    fascia dello schermo da cui non si scorre. Sollevato senza essersi mosso e' un tocco.
  *
- * **Tacche.** Con [snapValues] il valore *si attacca*: entro [snapThreshold] (una frazione
- * dell'intervallo, mai un numero nelle unita' del valore) dal piu' vicino dei valori dati, il
- * valore e' esattamente quello e la maniglia ci resta, fuori e' libero. Sotto la pista un
- * puntino segna ognuno, e ogni volta che il valore ci si posa c'e' un solo tocco aptico. Con
- * `snapThreshold = 1f` ogni posizione cade sul valore piu' vicino: uno slider a gradini.
+ * **Tacche.** Durante il trascinamento, entro [snapThreshold] (una frazione dell'intervallo) il
+ * valore si attacca alla tacca piu' vicina. Con due o piu' [snapValues] il rilascio e il tocco
+ * sulla pista scelgono sempre la tacca piu' vicina. Una tacca sola resta un magnete locale, ad
+ * esempio per il valore neutro di una regolazione continua. Sotto la pista un puntino segna
+ * ogni tacca e un tocco aptico ne segnala l'arrivo. Con `snapThreshold = 1f` il valore va a
+ * gradini anche mentre si trascina.
  * Senza tacche il tocco aptico e' una tacca ogni ventesimo dell'intervallo e un colpo piu'
  * deciso alle estremita', passando da `FluidHapticDetents`: a un dito veloce toccano molti piu'
  * gradini di quanti un motore ne sappia rispondere, e chiederli tutti da' un ronzio.
@@ -153,8 +154,8 @@ import kotlin.math.min
  * pista piena: lo stesso slider senza l'unica cosa che non puo' avere.
  *
  * @param snapValues i valori a cui il valore si attacca, dentro [valueRange]. Vuoto: nessuna tacca.
- * @param snapThreshold quanto lontano, come frazione dell'intervallo (0..1), un valore viene
- *   ancora attaccato alla sua tacca.
+ * @param snapThreshold portata del magnete come frazione dell'intervallo (0..1), durante il
+ *   trascinamento, per le azioni di accessibilita' e per il tocco e rilascio con una sola tacca.
  * @param onValueChangeFinished alla fine di un trascinamento o di un tocco sulla pista: il momento
  *   di salvare, non a ogni passo.
  * @param contentDescription il nome dello slider per TalkBack.
@@ -270,14 +271,21 @@ fun FluidSlider(
 
       /**
        * Il dito a [rawFraction] della pista: dove cade il valore, cosa si sente, cosa si comunica.
-       * Restituisce la frazione su cui il valore si posa, che con le tacche non e' quella del dito.
-       * Con [travel] la maniglia ci viaggia, dal tocco alla posizione, prima di comunicarla.
+       * [travel] avvia il viaggio dalla pista. Al rilascio di una maniglia gia' presa, la molla
+       * segue il nuovo valore del chiamante, come durante il trascinamento.
        */
-      fun report(rawFraction: Float, uptimeMillis: Long, travel: Boolean, lastReported: FloatArray): Float {
+      fun report(
+        rawFraction: Float,
+        uptimeMillis: Long,
+        lastReported: FloatArray,
+        travel: Boolean = false,
+        settling: Boolean = false,
+      ) {
         val range = currentRange
         val stops = currentStops
         val rawValue = fluidSliderValue(rawFraction, range)
-        val stop = fluidSliderStopIndex(rawValue, stops, range, currentThreshold)
+        val threshold = if ((travel || settling) && stops.size > 1) 1f else currentThreshold
+        val stop = fluidSliderStopIndex(rawValue, stops, range, threshold)
         val next = if (stop >= 0) stops[stop].fastCoerceIn(range.start, range.endInclusive) else rawValue
         val nextFraction = fluidSliderFraction(next, range)
 
@@ -287,7 +295,7 @@ fun FluidSlider(
         }
 
         val detent = detents.step(nextFraction, SliderTickSteps, uptimeMillis)
-        val landed = notches.land(stop, uptimeMillis)
+        val landed = notches.land(stop, uptimeMillis, settling)
         when {
           // L'estremita' passa sempre, e se e' anche una tacca non suona due volte.
           detent == FluidDetent.Edge -> currentHaptics.play(FluidHapticEvent.Threshold)
@@ -299,7 +307,6 @@ fun FluidSlider(
           lastReported[0] = next
           currentOnValueChange(next)
         }
-        return nextFraction
       }
 
       awaitEachGesture {
@@ -320,6 +327,7 @@ fun FluidSlider(
         var anchorFraction = dragAnimation.targetValue
         var claimedFromTrack = false
         var uptime = down.uptimeMillis
+        fun fractionAt(x: Float) = anchorFraction + (startX(x) - anchorX) / trackPx
 
         if (onThumb) {
           // Il dito ha la maniglia, e un gesto che ha la maniglia non e' di nessun altro.
@@ -339,8 +347,8 @@ fun FluidSlider(
               report(
                 fluidSliderFractionAt(startX(down.position.x), edge, trackPx),
                 change.uptimeMillis,
-                travel = true,
                 lastReported,
+                travel = true,
               )
               currentFinished?.invoke()
               return@awaitEachGesture
@@ -368,7 +376,7 @@ fun FluidSlider(
         var pointer = down.id
         try {
           // Preso dalla pista, la maniglia viene al dito adesso, non al prossimo movimento.
-          if (claimedFromTrack) report(anchorFraction, uptime, travel = false, lastReported)
+          if (claimedFromTrack) report(anchorFraction, uptime, lastReported)
           while (true) {
             val event = awaitPointerEvent()
             val change = event.changes.fastFirstOrNull { it.id == pointer }
@@ -380,15 +388,17 @@ fun FluidSlider(
               }
               ?: break
             if (!change.pressed) {
+              // Compose consegna l'annullamento come un sollevamento gia' consumato.
+              if (!change.isConsumed && currentStops.size > 1) {
+                report(fractionAt(change.position.x), change.uptimeMillis, lastReported, settling = true)
+              }
               change.consume()
               break
             }
-            uptime = change.uptimeMillis
             if (change.positionChanged()) {
               // Non limitata: un dito che sborda oltre l'estremita' e torna indietro non muove la
               // maniglia finche' non ripassa dal punto da cui e' uscito, come se la tenesse.
-              val raw = anchorFraction + (startX(change.position.x) - anchorX) / trackPx
-              report(raw.fastCoerceIn(0f, 1f), uptime, travel = false, lastReported)
+              report(fractionAt(change.position.x), change.uptimeMillis, lastReported)
             }
             // I due assi, ogni cambiamento, fino al rilascio: la pagina sotto uno slider che si
             // trascina non si muove, qualunque sia la deriva del dito.
@@ -577,7 +587,8 @@ internal const val SliderClaimSlopFraction = 0.5f
  *
  * Una tacca suona quando il valore *si posa* su di lei, non finche' ci sta, e al piu' una ogni 55 ms
  * come le altre tacche di un gesto: passando veloci sopra cinque tacche se ne sentono alcune, non
- * un ronzio. Afferrare la maniglia ferma su una tacca non suona.
+ * un ronzio. Al rilascio una nuova tacca suona anche in quell'intervallo. Afferrare la maniglia
+ * ferma su una tacca non suona.
  */
 internal class FluidSliderNotchGate(
   private val minGapMillis: Long = FluidHapticDetents.DETENT_MIN_GAP_MILLIS,
@@ -591,11 +602,11 @@ internal class FluidSliderNotchGate(
   }
 
   /** Il valore sta ora sulla tacca [index] (-1: fra due tacche). Vero se merita un tocco. */
-  fun land(index: Int, nowMillis: Long): Boolean {
+  fun land(index: Int, nowMillis: Long, settling: Boolean = false): Boolean {
     val changed = index != last
     last = index
     if (!changed || index < 0) return false
-    if (nowMillis - lastAt < minGapMillis) return false
+    if (!settling && nowMillis - lastAt < minGapMillis) return false
     lastAt = nowMillis
     return true
   }

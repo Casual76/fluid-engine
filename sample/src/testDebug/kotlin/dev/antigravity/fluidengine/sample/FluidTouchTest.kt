@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -272,6 +273,134 @@ class FluidTouchTest {
 
   /** Le tacche di un quarto: 0, 0.25, 0.5, 0.75, 1. */
   private val quarters = listOf(0f, 0.25f, 0.5f, 0.75f, 1f)
+
+  private class SliderReleaseLog {
+    var value by mutableFloatStateOf(0.5f)
+    val finished = mutableListOf<Float>()
+  }
+
+  private fun showReleaseSlider(
+    log: SliderReleaseLog,
+    modifier: Modifier = Modifier,
+    stops: List<Float> = quarters,
+  ) {
+    compose.setContent {
+      Themed {
+        FluidSlider(
+          value = log.value,
+          onValueChange = { log.value = it },
+          onValueChangeFinished = { log.finished += log.value },
+          modifier = modifier.testTag("slider"),
+          snapValues = stops,
+        )
+      }
+    }
+  }
+
+  @Test
+  @Config(qualifiers = "w753dp-h1205dp-340dpi")
+  fun cursoreS5bRiposaAl75Percento() {
+    val log = SliderReleaseLog()
+    showReleaseSlider(log, Modifier.width(680.5.dp))
+
+    val slider = compose.onNodeWithTag("slider")
+    slider.performTouchInput {
+      // Rettangolo S5b (77,1577,1446,102), gesto (800,1628) -> (1198,1628).
+      assertEquals(1446, width)
+      assertEquals(102, height)
+      val start = Offset(723f, 51f)
+      down(start)
+      repeat(62) { sample ->
+        moveTo(start + Offset(398f * (sample + 1) / 62, 0f), delayMillis = 10L)
+      }
+    }
+    compose.runOnIdle {
+      assertEquals(0.5f + 398f / 1403.5f, log.value, 1e-5f)
+      assertTrue(log.finished.isEmpty())
+    }
+    slider.performTouchInput { up() }
+    compose.runOnIdle {
+      assertEquals("posa dopo il rilascio S5b", 0.75f, log.value, 0f)
+      assertEquals(listOf(0.75f), log.finished)
+    }
+  }
+
+  @Test
+  fun `il cursore si posa nei due versi dopo passate lente e veloci anche ai bordi`() {
+    val log = SliderReleaseLog()
+    showReleaseSlider(log)
+    val slider = compose.onNodeWithTag("slider")
+    val landings = listOf(0.04f to 0f, 0.34f to 0.25f, 0.66f to 0.75f, 0.96f to 1f)
+    for (delayMillis in listOf(8L, 62L)) {
+      for ((raw, stop) in landings) {
+        compose.runOnIdle {
+          log.value = 0.5f
+          log.finished.clear()
+        }
+        slider.performTouchInput {
+          val delta = (raw - 0.5f) * (width - 40f) // 10 dp per lato, densita' 2.
+          down(center)
+          repeat(10) { sample ->
+            moveTo(center + Offset(delta * (sample + 1) / 10, 0f), delayMillis = delayMillis)
+          }
+        }
+        val beforeUp = compose.runOnIdle {
+          assertEquals("prima del rilascio", raw, log.value, 1e-5f)
+          haptics.played.size
+        }
+        slider.performTouchInput { up() }
+        compose.runOnIdle {
+          val expected = if (stop == 0f || stop == 1f) FluidHapticEvent.Threshold else FluidHapticEvent.Tick
+          assertEquals("posa da $raw in ${10 * delayMillis} ms", stop, log.value, 0f)
+          assertEquals(listOf(stop), log.finished)
+          assertEquals(listOf(expected), haptics.played.drop(beforeUp))
+        }
+      }
+    }
+  }
+
+  @Test
+  fun `un tocco sulla pista si posa sulla tacca piu vicina anche fuori soglia`() {
+    val log = SliderReleaseLog()
+    showReleaseSlider(log)
+    compose.onNodeWithTag("slider").performTouchInput {
+      click(center + Offset(0.16f * (width - 40f), 0f))
+    }
+    compose.runOnIdle {
+      assertEquals(listOf(0.75f), log.finished)
+      assertEquals(listOf(FluidHapticEvent.Tick), haptics.played)
+    }
+  }
+
+  @Test
+  fun `un gesto annullato non sceglie una tacca di rilascio`() {
+    val log = SliderReleaseLog()
+    showReleaseSlider(log)
+    compose.onNodeWithTag("slider").performTouchInput {
+      down(center)
+      moveBy(Offset(0.16f * (width - 40f), 0f))
+      cancel()
+    }
+    compose.runOnIdle {
+      assertEquals(0.66f, log.value, 1e-5f)
+      assertTrue(haptics.played.isEmpty())
+    }
+  }
+
+  @Test
+  fun `la tacca neutra singola permette ancora regolazioni continue`() {
+    val log = SliderReleaseLog()
+    showReleaseSlider(log, stops = listOf(0.5f))
+    compose.onNodeWithTag("slider").performTouchInput {
+      down(center)
+      moveBy(Offset(0.16f * (width - 40f), 0f))
+      up()
+    }
+    compose.runOnIdle {
+      assertEquals(0.66f, log.finished.single(), 1e-5f)
+      assertTrue(haptics.played.isEmpty())
+    }
+  }
 
   @Test
   fun `con le tacche il valore si attacca alla tacca vicina e suona una volta sola`() {

@@ -10,6 +10,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 - Liquid Glass (F7.6). Tetti di nodi, layer e catture per componente e in viaggio, più bilanci prima/dopo sul Tab S9.
 
+- Il cursore con più tacche si posa su quella più vicina al rilascio, anche dopo una passata veloce, e consegna il valore della tacca prima di concludere il gesto.
+
 - Menu contestuale con anteprima personalizzata. La tessera e l’anteprima condividono un contorno durante la dissolvenza e percorrono in entrambi i versi il tragitto fra il dito e la posa nei margini sicuri.
 
 - Menu Liquid dal tasto, dal gruppo e contestuale. La finitura segue il rettangolo del viaggio. Il ritorno del velo modula il materiale già composto.

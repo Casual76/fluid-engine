@@ -87,6 +87,16 @@ class FluidSliderSnapTest {
   }
 
   @Test
+  fun `il rilascio su una nuova tacca suona subito senza ripetere quella corrente`() {
+    val gate = FluidSliderNotchGate(minGapMillis = 55L)
+    assertTrue(gate.land(2, 0L))
+    assertFalse(gate.land(2, 10L, settling = true))
+    assertFalse(gate.land(-1, 20L))
+    assertTrue(gate.land(3, 30L, settling = true))
+    assertFalse(gate.land(3, 40L, settling = true))
+  }
+
+  @Test
   fun `afferrare la maniglia ferma su una tacca non suona`() {
     val gate = FluidSliderNotchGate(minGapMillis = 55L)
     gate.restart(3)

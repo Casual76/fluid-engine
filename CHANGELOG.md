@@ -8,6 +8,8 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- Menu contestuale con anteprima personalizzata. La tessera e l’anteprima condividono un contorno durante la dissolvenza e percorrono in entrambi i versi il tragitto fra il dito e la posa nei margini sicuri.
+
 - Menu Liquid dal tasto, dal gruppo e contestuale. La finitura segue il rettangolo del viaggio. Il ritorno del velo modula il materiale già composto.
 
 - Correzioni dopo S4c sul Tab S9. In RTL i menu dal tasto, dal gruppo e il contestuale posano le voci dentro il vetro: il contenitore del livello dei menu (e l'host del menu che si trasforma) posa in alto a sinistra anche in RTL, dove prima l'allineamento d'inizio spostava voci e card sollevata verso destra, fuori dal vetro e dallo schermo. Lo scambio fra un elemento e la sua anteprima personalizzata ha un contorno solo, quello della card: le due immagini la riempiono e un ritaglio comune taglia quello che sporge (prima ognuna aveva la sua cornice, e una tessera quadrata e una foto larga si vedevano una dentro l'altra). Il congedo del contestuale torna sempre sul contorno, con la goccia spenta, dalla sagoma che si vedeva: scelta una voce a metà nascita, il ritorno liquido faceva oscillare la goccia, che diventava piccola e poi tornava al pannello all'80%. Una `FluidScreen` il cui fondale cambia resta davanti nella chrome e al suo posto nell'elezione, invece di registrarsi di nuovo.

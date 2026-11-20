@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -264,10 +266,12 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
   // was even received — and half a second of nothing is how long it takes to decide a control
   // is broken and lift your finger off it.
   val onDark = GlassDefaults.isDarkSurface()
-  val highlight = remember(scope, reducedMotion, onDark) {
+  val highlight = remember(scope, reducedMotion, onDark, controller) {
     GlassTouchHighlight(
       animationScope = scope,
-      strength = { if (reducedMotion) 0f else 1f },
+      // Il bagliore è esterno alla registrazione: durante lo scambio altrimenti disegna ancora
+      // la tessera ferma sotto lo scrim, anche quando il suo drawContent è già nascosto.
+      strength = { if (reducedMotion || (controller.entry.lifted && controller.lift.preview != null)) 0f else 1f },
       onDarkSurface = onDark,
     )
   }
@@ -402,11 +406,36 @@ internal fun fluidLiftedFrame(source: Rect, scale: Float = FluidLiftedPreviewSca
  * chi la misura ([fluidContextPreviewMaxSize]).
  */
 internal fun fluidContextPreviewFrame(source: Rect, size: Size, host: Size, marginPx: Float): Rect {
-  val w = size.width.coerceIn(1f, (host.width - marginPx * 2f).coerceAtLeast(1f))
-  val h = size.height.coerceIn(1f, (host.height - marginPx * 2f).coerceAtLeast(1f))
-  val left = (source.center.x - w / 2f).coerceIn(marginPx, (host.width - marginPx - w).coerceAtLeast(marginPx))
-  val top = (source.center.y - h / 2f).coerceIn(marginPx, (host.height - marginPx - h).coerceAtLeast(marginPx))
-  return Rect(left, top, left + w, top + h)
+  return fluidPreviewFit(source.center, size, fluidPreviewMargins(Rect(Offset.Zero, host), marginPx))
+}
+
+/** Il margine si riduce nelle finestre minuscole, conservando almeno un pixel se disponibile. */
+internal fun fluidPreviewMargins(viewport: Rect, margin: Float): Rect {
+  val x = margin.coerceIn(0f, ((viewport.width - 1f) / 2f).coerceAtLeast(0f))
+  val y = margin.coerceIn(0f, ((viewport.height - 1f) / 2f).coerceAtLeast(0f))
+  return Rect(viewport.left + x, viewport.top + y, viewport.right - x, viewport.bottom - y)
+}
+
+internal fun fluidPreviewFit(center: Offset, size: Size, area: Rect): Rect {
+  val w = size.width.coerceIn(0f, area.width.coerceAtLeast(0f))
+  val h = size.height.coerceIn(0f, area.height.coerceAtLeast(0f))
+  val x = (center.x - w / 2f).coerceIn(area.left, (area.right - w).coerceAtLeast(area.left))
+  val y = (center.y - h / 2f).coerceIn(area.top, (area.bottom - h).coerceAtLeast(area.top))
+  return Rect(x, y, x + w, y + h)
+}
+
+/** I quattro bordi viaggiano insieme fino alla posa misurata. Anche al picco il fianco ha spazio. */
+internal fun fluidCustomPreviewFrame(
+  source: Rect, pressedScale: Float, destination: Rect, viewport: Rect, margins: Rect, progress: Float,
+): Rect {
+  if (progress <= 1f) {
+    val pressed = fluidPreviewFit(source.center, source.size * pressedScale, viewport)
+    return lerp(pressed, destination, progress.coerceAtLeast(0f))
+  }
+  val swell = progress - 1f
+  val size = Size(destination.width * (1f + swell * FluidMotion.LiftedSwellX),
+    destination.height * (1f + swell * FluidMotion.LiftedSwellY))
+  return fluidPreviewFit(destination.center, size, margins)
 }
 
 /**

@@ -27,6 +27,32 @@ import org.junit.Test
  */
 class FluidContextLiftTest {
 
+  @Test fun customPreviewTravelsInsideAsymmetricInsetsOnEveryEdgeInBothDirections() {
+    val viewport = Rect(39f, 75f, 621f, 901f)
+    val margins = fluidPreviewMargins(viewport, 34f)
+    for (x in listOf(39f, 300f, 565f)) for (y in listOf(75f, 460f, 838f)) {
+      val source = Rect(x, y, x + 56, y + 63)
+      for (size in listOf(Size(410f, 220f), Size(22f, 29f), Size(6000f, 3900f))) {
+        val target = fluidPreviewFit(source.center, size, margins)
+        for (k in (0..110) + (110 downTo 0)) {
+          val frame = fluidCustomPreviewFrame(source, 1f, target, viewport, margins, k / 100f)
+          assertTrue("inside $viewport at $k: $frame", frame.left >= viewport.left && frame.top >= viewport.top &&
+            frame.right <= viewport.right && frame.bottom <= viewport.bottom)
+          when (k) {
+            0 -> assertRect(source, frame)
+            50 -> assertRect(lerp(source, target, 0.5f), frame)
+            100 -> assertRect(target, frame)
+          }
+          for (image in listOf(source, target)) {
+            val paint = fluidLiftPaintedFrame(image, frame, fill = true)
+            assertTrue(paint.left <= frame.left + eps && paint.right >= frame.right - eps &&
+              paint.top <= frame.top + eps && paint.bottom >= frame.bottom - eps)
+          }
+        }
+      }
+    }
+  }
+
   private val eps = 1e-3f
 
   /** Una riga di lista a densita' 3: 360 x 56 dp a 30 dp dal bordo sinistro. */

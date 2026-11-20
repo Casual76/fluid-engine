@@ -8,21 +8,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.AbsoluteAlignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.translate
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -30,10 +32,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
@@ -66,8 +66,6 @@ import kotlin.math.roundToInt
  *  - L'immagine **segue la sagoma del vetro** (la stessa mappa del contenuto dei menu: traslazione e una scala
  *    sola, presa dalla larghezza), non una scala calcolata a parte: col gonfiore dell'arrivo e la goccia che
  *    si posa, vetro e contenuto restano un oggetto solo.
- *  - Con un'anteprima personalizzata ([custom]) la card va dall'elemento all'anteprima, e i due contenuti si
- *    scambiano **attraverso la sfocatura** (R7: cio' che cambia identita' entra sfocato e si mette a fuoco).
  *  - La forma ([shape]) e' la sagoma del vetro e il ritaglio del contenuto insieme.
  *
  * Mai sfumata, l'immagine dell'elemento: la riga vera e' nascosta finche' il layer non smonta, e a vita finita
@@ -103,15 +101,9 @@ internal fun FluidLiftedPreview(
   anchorScale: () -> Float = { 1f },
   /** La forma della card e del ritaglio; null: il raggio dei pannelli. */
   shape: Shape? = null,
-  /** L'anteprima personalizzata, o null: la card e' l'elemento registrato. */
-  custom: (@Composable () -> Unit)? = null,
-  /** Il tetto della taglia di [custom] ([fluidContextPreviewMaxSize]). */
-  customMaxSize: Size? = null,
-  /** La taglia di [custom] appena misurata: decide [target] e il posto del menu. */
-  onCustomMeasured: (IntSize) -> Unit = {},
 ) {
   if (bounds == null || bounds.width <= 0f || bounds.height <= 0f) return
-  if (preview == null && custom == null) return
+  if (preview == null) return
   val density = LocalDensity.current
   val layoutDirection = LocalLayoutDirection.current
   val radiusPx = with(density) { FluidPopoverRadius.toPx() }
@@ -134,12 +126,6 @@ internal fun FluidLiftedPreview(
   val lift: () -> Float = {
     fluidLiftProgress(progress().coerceAtMost(if (swells) Float.MAX_VALUE else 1f).coerceAtLeast(0f), fluidLiftStartFraction(bounds, rest, startScale()))
   }
-  // Il velo e i contenuti usano lo stesso scambio. Con taglie di proporzioni diverse, il materiale
-  // non deve disegnare le bande che restano libere attorno alla foto scalata uniformemente (S10a).
-  val outgoing: () -> Float = { if (custom == null) 1f else 1f - liftRamp(lift(), FluidLiftSwapOutFrom, FluidLiftSwapOutTo) }
-  val incoming: () -> Float = { liftRamp(lift(), FluidLiftSwapInFrom, FluidLiftSwapInTo) }
-  val materialClip = remember { Path() }
-
   SideEffect {
     physics.driveExternally(
       from = FluidForm.Slab(bounds, fluidContextPreviewRadii(shape, bounds.size, density, layoutDirection, radiusPx)),
@@ -150,20 +136,12 @@ internal fun FluidLiftedPreview(
     )
   }
   val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
-  val materialPresence: () -> Float = { fluidLiftMaterialPresence(presence(), lift(), closing(), custom = custom != null) }
+  val materialPresence: () -> Float = { fluidLiftMaterialPresence(presence(), lift(), closing()) }
   Box(
     modifier = Modifier
       .fillMaxSize()
       .drawWithContent {
-        if (materialPresence() <= 0.004f) return@drawWithContent
-        val painted = fluidLiftMaterialFrame(custom != null, physics.contentBoundsNow())
-        if (painted == null) {
-          drawContent()
-        } else {
-          if (painted.isEmpty) return@drawWithContent
-          materialClip.setLiftOutline(clipShape, painted, layoutDirection, density)
-          clipPath(materialClip) { this@drawWithContent.drawContent() }
-        }
+        if (materialPresence() > 0.004f) drawContent()
       }
       .then(
         if (backdrop != null) {
@@ -185,111 +163,113 @@ internal fun FluidLiftedPreview(
       ),
   )
 
-  // Lo scambio fra l'elemento e l'anteprima, attraverso la sfocatura: l'elemento se ne va nella prima meta'
-  // del sollevamento, l'anteprima arriva dalla seconda. Senza anteprima l'elemento resta pieno e nitido.
-  val swapBlurPx = with(density) { FluidLiftSwapBlur.toPx() }
-
-  // L'immagine dell'elemento registrato. Senza anteprima personalizzata e' la card stessa, ritagliata sulla sua forma e
-  // portata sulla sagoma con la scala che la contiene; nello scambio ([fill]) riempie il corpo, e il ritaglio e' quello
-  // del corpo, lo stesso dell'anteprima (S4c).
-  val recording: @Composable (fill: Boolean) -> Unit = { fill ->
-    if (preview != null) {
-      Box(
-        modifier = Modifier
-          .absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
-          .size(
-            width = with(density) { bounds.width.toDp() },
-            height = with(density) { bounds.height.toDp() },
-          )
-          .graphicsLayer {
-            // L'immagine, non il vetro: scalarla e' lecito. Sulla sagoma di questo istante, con una scala sola
-            // (un'immagine stirata e' un testo schiacciato).
-            val map = fluidLiftContentMap(target = bounds, current = physics.contentBoundsNow(), fill = fill)
-            translationX = map.translation.x
-            translationY = map.translation.y
-            scaleX = map.scale
-            scaleY = map.scale
-            val a = outgoing().coerceIn(0f, 1f)
-            alpha = a
-            renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
-            clip = !fill
-            this.shape = clipShape
-          }
-          .drawWithContent {
-            if (outgoing() <= 0.004f) return@drawWithContent
-            // Replaying a released layer is a crash, and the list underneath can dispose a row while
-            // the menu is up. Nothing here is worth a crash: if the recording is gone, the pane simply
-            // comes up empty and the menu keeps its actions.
-            runCatching { drawLayer(preview) }
-          },
-      )
-    }
-  }
-
-  if (custom == null) {
-    recording(false)
-    return
-  }
-
-  // Con un'anteprima personalizzata le due immagini dello scambio (l'elemento che se ne va e l'anteprima che arriva) hanno
-  // proporzioni diverse: ognuna ritagliata sulla sua cornice, nello scambio si vedevano due contorni, la tessera quadrata
-  // e la foto larga, coi bordi blu della tessera nel tema scuro (S4c sul Tab S9, ripresa 22: A f0271, B f0707, C f1143).
-  // Come la piattaforma di Apple: un ritaglio solo, la sagoma del corpo, e le due immagini la riempiono.
-  val swapClip = remember { Path() }
-  val max = customMaxSize
   Box(
     modifier = Modifier
-      .fillMaxSize()
-      .drawWithContent {
-        val current = physics.contentBoundsNow()
-        if (current.isEmpty) return@drawWithContent
-        swapClip.setLiftOutline(clipShape, current, layoutDirection, density)
-        clipPath(swapClip) { this@drawWithContent.drawContent() }
-      },
-    // In coordinate dell'host anche in RTL, come il vetro.
-    contentAlignment = AbsoluteAlignment.TopLeft,
+      .absoluteOffset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+      .size(with(density) { bounds.width.toDp() }, with(density) { bounds.height.toDp() })
+      .graphicsLayer {
+        val map = fluidLiftContentMap(bounds, physics.contentBoundsNow())
+        translationX = map.translation.x
+        translationY = map.translation.y
+        scaleX = map.scale
+        scaleY = map.scale
+        clip = true
+        this.shape = clipShape
+      }
+      .drawBehind { if (!preview.isReleased) drawLayer(preview) },
+  )
+}
+
+/** Misura una sola istanza dello slot prima del disegno. Il vetro e le due immagini sono figli
+ * dello stesso ritaglio, in coordinate locali. Solo la molla della card ne muove i quattro bordi. */
+@Composable
+internal fun FluidCustomLiftedPreview(
+  source: Rect,
+  recording: GraphicsLayer?,
+  custom: @Composable () -> Unit,
+  shape: Shape?,
+  viewport: Rect,
+  margins: Rect,
+  progress: () -> Float,
+  anchorScale: () -> Float,
+  presence: () -> Float,
+  paneTint: Color?,
+  backdrop: GlassBackdropState?,
+  onMeasured: (IntSize) -> Unit,
+) {
+  if (source.isEmpty || margins.isEmpty) return
+  val clipShape = shape ?: ContinuousCornerShape(FluidPopoverRadius)
+  val blurPx = with(LocalDensity.current) { FluidLiftSwapBlur.toPx() }
+  val fallback = MaterialTheme.colorScheme.surfaceContainerHigh
+  var destination by remember { mutableStateOf(source) }
+  fun frame() = fluidCustomPreviewFrame(source, anchorScale(), destination, viewport, margins, progress())
+  fun mix() = if (recording == null || recording.isReleased || recording.size == IntSize.Zero) 1f
+    else fluidPreviewMix(progress())
+  val materialPresence = { fluidLiftMaterialPresence(presence(), progress(), closing = false, custom = true) }
+
+  Box(
+    Modifier.absoluteOffset {
+      val rect = frame()
+      IntOffset(rect.left.roundToInt(), rect.top.roundToInt())
+    }.clip(clipShape),
+    contentAlignment = androidx.compose.ui.AbsoluteAlignment.TopLeft,
   ) {
-    recording(true)
+    // Il vetro resta in coordinate dello schermo. La sua misura ? quella del contenitore:
+    // nessun secondo contorno elastico che insegua la foto e traspaia attraverso di lei.
+    Box(Modifier.matchParentSize().drawWithContent {
+      if (materialPresence() > 0.004f) drawContent()
+    }.then(
+      if (backdrop != null) Modifier.glassSurface(
+        state = backdrop, shape = clipShape, tint = GlassDefaults.panelTint(paneTint),
+        optics = GlassDefaults.panelOptics(), role = GlassRole.Modal, intensity = materialPresence,
+      ) else Modifier.drawBehind { drawRect(fallback.copy(alpha = fallback.alpha * materialPresence())) },
+    ))
     Layout(
-      modifier = Modifier.fillMaxSize(),
-      content = {
-        Box(
-          modifier = Modifier.graphicsLayer {
-            // L'anteprima e' posata alla sua taglia dove si posera' la card ([rest]): da li' segue la sagoma.
-            val natural = Rect(rest.left.roundToInt().toFloat(), rest.top.roundToInt().toFloat(), rest.left.roundToInt() + size.width, rest.top.roundToInt() + size.height)
-            val map = fluidLiftContentMap(target = natural, current = physics.contentBoundsNow(), fill = true)
-            translationX = map.translation.x
-            translationY = map.translation.y
-            scaleX = map.scale
-            scaleY = map.scale
-            val a = incoming().coerceIn(0f, 1f)
-            alpha = a
-            renderEffect = fluidLiftSwapBlur((1f - a) * swapBlurPx)
-          },
-        ) { custom() }
+      modifier = Modifier.graphicsLayer {
+        // Plus somma le due immagini premoltiplicate su trasparente. Il buffer ha la taglia
+        // della card e serve solo nell'incrocio. Anche due slot traslucidi conservano il loro alfa.
+        val i = mix()
+        compositingStrategy = if (i > 0f && i < 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
       },
-    ) { measurables, constraints ->
-      val cap = max ?: Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
-      val placeable = measurables.first().measure(
-        Constraints(maxWidth = cap.width.roundToInt().coerceAtLeast(1), maxHeight = cap.height.roundToInt().coerceAtLeast(1)),
-      )
-      onCustomMeasured(IntSize(placeable.width, placeable.height))
-      layout(constraints.maxWidth, constraints.maxHeight) {
-        placeable.place(rest.left.roundToInt(), rest.top.roundToInt())
+      content = {
+        Box(Modifier.drawBehind { if (recording != null && !recording.isReleased) drawLayer(recording) })
+        Box { custom() }
+      },
+    ) { children, _ ->
+      val cap = fluidContextPreviewMaxSize(margins.size, 0f)
+      val incoming = children[1].measure(Constraints(maxWidth = cap.width.roundToInt(), maxHeight = cap.height.roundToInt()))
+      val measured = IntSize(incoming.width, incoming.height)
+      destination = fluidPreviewFit(source.center, Size(measured.width.toFloat(), measured.height.toFloat()), margins)
+      onMeasured(measured)
+      val natural = recording?.size?.takeUnless { it == IntSize.Zero }
+      val outgoing = children[0].measure(Constraints.fixed(natural?.width ?: 0, natural?.height ?: 0))
+      val rect = frame()
+      val w = (rect.right.roundToInt() - rect.left.roundToInt()).coerceAtLeast(0)
+      val h = (rect.bottom.roundToInt() - rect.top.roundToInt()).coerceAtLeast(0)
+      layout(w, h) {
+        val i = mix()
+        fun place(image: androidx.compose.ui.layout.Placeable, weight: Float, add: Boolean) {
+          if (weight <= 0f || image.width == 0 || image.height == 0) return
+          val cover = maxOf(w.toFloat() / image.width, h.toFloat() / image.height)
+          image.placeWithLayer(0, 0) {
+            transformOrigin = TransformOrigin(0f, 0f)
+            scaleX = cover
+            scaleY = cover
+            translationX = (w - image.width * cover) * 0.5f
+            translationY = (h - image.height * cover) * 0.5f
+            alpha = weight
+            blendMode = if (add) BlendMode.Plus else BlendMode.SrcOver
+            renderEffect = fluidLiftSwapBlur((1f - weight) * blurPx)
+          }
+        }
+        place(outgoing, 1f - i, false)
+        place(incoming, i, i < 1f)
       }
     }
   }
 }
 
-/** Il contorno di [shape] posato su [frame], in coordinate dell'host: il ritaglio del vetro e delle immagini della card. */
-private fun Path.setLiftOutline(shape: Shape, frame: Rect, layoutDirection: LayoutDirection, density: Density) {
-  reset()
-  when (val outline = shape.createOutline(frame.size, layoutDirection, density)) {
-    is Outline.Rectangle -> addRect(outline.rect.translate(frame.topLeft))
-    is Outline.Rounded -> addRoundRect(outline.roundRect.translate(frame.topLeft))
-    is Outline.Generic -> addPath(outline.path, frame.topLeft)
-  }
-}
+internal fun fluidPreviewMix(progress: Float): Float = liftRamp(progress, FluidLiftSwapInFrom, FluidLiftSwapInTo)
 
 /**
  * Dove sta il contenuto della card (l'immagine dell'elemento, o l'anteprima) sulla sagoma di questo istante: centrato

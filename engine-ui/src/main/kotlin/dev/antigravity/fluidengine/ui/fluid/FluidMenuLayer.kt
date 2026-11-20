@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,6 +69,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLayoutDirection
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import androidx.compose.ui.layout.Layout
@@ -387,16 +390,20 @@ private fun FluidMenuLayerContent(
       // F5A.4: il contestuale si apre accanto alla card SOLLEVATA (o all'anteprima personalizzata, alla sua
       // taglia misurata), non accanto alla riga a riposo: la card cresce attorno al centro, e un'anteprima
       // piu' grande dell'elemento lo coprirebbe.
+      val customPreview = lift?.preview
+      val viewport = if (customPreview != null) {
+        val insets = WindowInsets.safeDrawing
+        val direction = LocalLayoutDirection.current
+        Rect(insets.getLeft(density, direction).toFloat(), insets.getTop(density).toFloat(),
+          host.width - insets.getRight(density, direction), host.height - insets.getBottom(density))
+      } else Rect(Offset.Zero, host)
+      val previewMargins = fluidPreviewMargins(viewport, metrics.marginPx)
       val liftTarget = if (anchor == null && origin != null) {
-        fluidContextLiftTarget(
-          source = origin,
-          previewSize = lift?.takeIf { it.preview != null }?.previewSize?.let { Size(it.width.toFloat(), it.height.toFloat()) },
-          host = host,
-          marginPx = metrics.marginPx,
-        )
-      } else {
-        null
-      }
+        val measured = lift?.previewSize
+        if (customPreview != null && measured != null) {
+          fluidPreviewFit(origin.center, Size(measured.width.toFloat(), measured.height.toFloat()), previewMargins)
+        } else fluidLiftedFrame(origin)
+      } else null
       val anchorRect = anchor?.restBounds ?: liftTarget ?: origin ?: Rect(host.width / 2f, host.height / 2f, host.width / 2f, host.height / 2f)
       val rootPanel = solveFluidMenuPanel(
         anchor = anchorRect,
@@ -496,7 +503,15 @@ private fun FluidMenuLayerContent(
         levels.driving = false
       }
 
-      if (anchor == null) {
+      if (anchor == null && customPreview != null && previewBounds != null) {
+        FluidCustomLiftedPreview(
+          source = previewBounds, recording = preview, custom = customPreview, shape = lift.previewShape,
+          viewport = viewport, margins = previewMargins,
+          progress = if (birth != null) ({ birth.card.value }) else progress,
+          anchorScale = lift.anchorScale, presence = fade, paneTint = paneTint, backdrop = backdrop,
+          onMeasured = { if (lift.previewSize != it) lift.previewSize = it },
+        )
+      } else if (anchor == null) {
         FluidLiftedPreview(
           preview = preview,
           bounds = previewBounds,
@@ -511,9 +526,6 @@ private fun FluidMenuLayerContent(
           closing = { !entry.visible },
           anchorScale = lift?.anchorScale ?: { 1f },
           shape = lift?.previewShape,
-          custom = lift?.preview,
-          customMaxSize = fluidContextPreviewMaxSize(host, metrics.marginPx),
-          onCustomMeasured = { measured -> if (lift != null && lift.previewSize != measured) lift.previewSize = measured },
         )
       }
 

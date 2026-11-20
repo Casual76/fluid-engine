@@ -1541,14 +1541,19 @@ Per una registrazione grezza con `Modifier.layerBackdrop` e un `GraphicsLayer` l
 
 Nel pinch e nello scorrimento della griglia di MyCloud Gallery sull'S25 (13 ottobre 2026) il RenderThread impiegava 7–10 ms per fotogramma. Le 47 passate GPU comprendevano i fondali
 a tutta pagina e le sfocature. Nei picchi da 20–36 ms comparivano `vkAllocateMemory` da 3–5 ms dopo decine di `vkFreeMemory`. In quell'app limitare il fondale di radice alla vita
-dei pop-up aveva ridotto i picchi. Il confronto degli APK F7.5 sul Tab S9 è preparato in `sessioni/f7-5/riprese.md`.
+dei pop-up aveva ridotto i picchi. Il lotto isolato sul Tab S9 in `sessioni/f7-ab/rapporto.md` misura il foglio che sale
+(p90 23 → 24 ms), il foglio trascinato (46 → 53 ms, jank 28,43 → 29,75%) e il push/pop (23 → 22 ms,
+jank 4,54 → 4,74%). Le due serie di scorrimento isolate restano da completare. Il risparmio della prova JVM
+scatta quando la sorgente perde l’ultimo lettore. Durante il trascinamento il foglio continua a leggere pagina e velo.
 
 **F7.3. Campione e finitura durante un viaggio fisico.** Il campo legge le sorgenti una volta. Mentre la
 forma cambia, un layer a metà lato registra il campione e applica saturazione, sfocatura e mescola. Il nodo che lo
 ridisegna alla scala di uscita applica rifrazione, copertura, ombra, luce e filo. Le geometrie e il materiale esportato
 usano lo stesso sistema di coordinate. Il limite massimo di texture vale anche per la finitura. Al termine il layer di
 viaggio viene restituito. Il foglio con detent usa il vetro ordinario e continua a campionare la scena pagina–scrim.
-Il guadagno in millisecondi dei due scenari si misura sul dispositivo.
+Sul Tab S9 F7.3 isolata porta il p90 del gruppo da 65 a 69 ms (jank 59,21 → 59,9%). Il campione scende
+a 814 × 1294 px, mentre la finitura da 1628 × 2588 px resta nei medesimi frame. Le attese dopo l’invio
+alla GPU restano alte. Lo mostrano `sessioni/f7-ab/rapporto.md` e `sessioni/f7-gpu/rapporto.md`.
 
 **F7.3b. Menu in viaggio.** La capsula o il seme e il pannello definiscono il rettangolo di cattura. Il margine comprende oltrepasso, coda, ombra, rifrazione e sfocatura. Il campione dimezzato e la finitura si allineano alla griglia della finestra. Il campo, il clip delle voci e la sonda mantengono le coordinate del palco. Il velo del menu modale conserva blur e tinta in una texture alla risoluzione del display. Durante la dissolvenza l'alpha agisce sul risultato composto. La texture occupa spazio per tutta la vita del velo e si aggiorna quando il materiale cambia. Il confronto delle fence GPU sul tablet misura il guadagno.
 
@@ -1565,7 +1570,11 @@ colore al Gaussian. Cambiare la quota nitida ricostruisce la mescola. A raggio z
 il percorso salta la sfocatura. Ogni lastra conserva anche la fotografia del proprio shader del corpo. Se cambiano
 tinta, forma o altri uniform attivi, riscrive tutti gli ingressi sul programma condiviso prima di fotografarlo.
 Un cambio del solo filtro a monte riusa la fotografia e sostituisce la concatenazione. In viaggio il campione
-riceve il filtro a metà lato e la finitura resta sul layer di uscita.
+riceve il filtro a metà lato e la finitura resta sul layer di uscita. Sul tablet, F7.2b isolata riusa i filtri
+senza un guadagno di fluidità coerente. Il p90 del gruppo va da 65 a 69 ms, quello del contestuale da 93 a 101 ms,
+quello del foglio trascinato resta a 48 ms, con jank da 31,64 a 29,69%. La cache riduce le ricostruzioni CPU.
+Le misure delle fence situano il grosso dei ritardi del gruppo dopo la consegna alla GPU
+(`sessioni/f7-ab/rapporto.md`, `sessioni/f7-gpu/rapporto.md`).
 
 **F7.4. Riscaldamento, sonda e bordo dello scorrimento.** Tre leve senza cambi a vista, ognuna con un interruttore per il
 lotto A/B (`adb shell setprop log.tag.<nome> VERBOSE`, letto all'avvio del processo):
@@ -1584,13 +1593,40 @@ lotto A/B (`adb shell setprop log.tag.<nome> VERBOSE`, letto all'avvio del proce
   scene) e la striscia muta (8 scene); la cattura tenuta è uguale al bit in alto, in basso sposta la grana del velo di
   1–2 livelli solo durante la piega. La metà risoluzione della striscia cambia la resa (testo appena sotto i tasti più
   morbido, fino a 54 livelli sul banco) ed è **spenta** finché Alessio non la sceglie (`FluidF74EdgeHalf` la accende).
-Il guadagno in millisecondi si misura sul Tab S9 (`sessioni/f7-4/riprese.md`).
+Il costo isolato sul Tab S9 è NV nel lotto integrato. Le misure con interruttori e primo avvio sono in
+`sessioni/f7-4/riprese.md`.
 
 **6. «Livello più basso».** Due usi della parola, entrambi sul sorgente:
 - il vetro **di livello più basso** è `glassSurface` rispetto ai componenti che lo avvolgono: `FluidCard(sampleOnce, resampleIntervalMillis)` (3.0.4) espone le stesse due manopole «come il vetro di livello più
   basso», di serie `true` e `0`. Se la card sta su uno sfondo che si muove, si abbassa la frequenza lì, non si riscrive la card;
 - «mettere il materiale **un livello troppo in basso**» è l'errore della regola 1 (vetro sulla riga invece che sul contenitore).
 Un terzo significato, `FluidGlassQuality.level`, è la qualità adattiva della sezione precedente: «livello» lì è sempre quel numero 0..1.
+
+### Bilanci F7
+
+I tetti strutturali vivono in `GlassNodeCountTest`. La finestra di prova è 800 × 1280 px a densità 1. Il
+censimento distingue montaggio, posa, viaggio e assestamento. Conta i nodi e le ombre vivi, i layer, le
+registrazioni valide e la taglia di cattura e finitura. Al montaggio le otto lastre uguali tengono otto catture,
+otto pose e un solo layer d’ombra condiviso. Nei tre menu la finitura in viaggio deve restare più piccola della
+finestra. Il velo e la card sollevata del contestuale hanno layer propri, con tetti distinti dalla finestra del menu.
+
+Le misure sotto sono p90 dell’intera corsa del Tab S9. `sessioni/F7-bilanci.md` contiene anche p50, jank,
+provenienza di ogni dato e soglie da riprendere in S6. I due A/B dei menu usano controlli diversi.
+
+| Componente o scena | Prima → dopo sul Tab S9 |
+|---|---|
+| Tasto e menu dal tasto | A/B integrato 40 → 34 ms in chiaro e 24 → 28 ms in scuro. Lotto F7.3b 25 → 19 e 19 → 16 ms. Tasto da solo NV in S6. |
+| Capsula in pressione | F7.3 isolata in chiaro 17 → 17 ms, jank 0,67 → 0,54%. S6 deve misurare il lotto integrato in entrambi i temi. |
+| Gruppo e menu dal gruppo | Integrato 73 → 53 e 93 → 77 ms. F7.3b 48 → 40 e 53 → 42 ms, jank 56,38 → 31,77% e 62,93 → 40,34%. Il campione del gruppo misura 502 × 470 px e la finitura 1004 × 940 px. La finitura ritagliata e il velo composto insieme riducono il lavoro GPU al ritorno. |
+| Menu contestuale | Integrato 105 → 77 e 89 → 77 ms, con jank in aumento. F7.3b 69 → 73 e 69 → 77 ms, con jank in calo. La finitura del menu è 1340 × 1276 px. |
+| Foglio | Salita integrata 40 → 34 e 42 → 34 ms. Trascinamento integrato 61 → 40 e 57 → 40 ms. F7.2 isolata sul trascinamento in chiaro 65 → 53 ms, jank 33,79 → 31,97%, con risoluzione a isteresi e riuso della sfocatura. |
+| Popover | Bilancio fisico NV in S6. |
+| Tab bar | Piega con lettore, benchmark S5 a processo appena lanciato 30 → 29 ms da S9 a F7.1, 23 → 23 ms dopo il riscaldamento. Cambio di contesto della barra 16 ms in chiaro su bench F7.1. A/B integrato NV in S6. |
+| Otto lastre | F7.3 isolata in chiaro 21 → 21 ms, jank 3,07 → 3,21%. S6 deve misurare il lotto integrato in entrambi i temi. |
+
+Il quadro viene da `sessioni/s5-f6/rapporto.md`, `sessioni/f7-ab/rapporto.md` e
+`sessioni/f7-3b/rapporto-tablet.md`. A 120 Hz ogni intervallo dura 8,33 ms. I menu richiedono ancora
+una verifica delle scadenze effettive durante il viaggio. Il lotto S25 resta NV per S6.
 
 **Misurare.** `FluidGlassDiagnostics.enabled = true` in una build di debug: `totalCaptures` (ricatture dei pannelli) e `totalExports` (materiali pubblicati) devono **smettere di muoversi a schermo fermo**. La galleria
 lo registra su `adb logcat -s FluidGlassDiag` una riga ogni volta che i numeri cambiano. Spento costa una lettura volatile per cattura.

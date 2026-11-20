@@ -5,6 +5,9 @@ package dev.antigravity.fluidengine.sample
 import android.graphics.RenderNode
 import android.os.Looper
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.platform.LocalGraphicsContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -38,6 +44,10 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.material.MaterialFinger
+import dev.antigravity.fluidengine.sample.material.MaterialTarget
+import dev.antigravity.fluidengine.sample.material.trackBounds
+import dev.antigravity.fluidengine.sample.measure.rememberScenarioFinger
 import dev.antigravity.fluidengine.sample.measure.MeasureScenario
 import dev.antigravity.fluidengine.sample.measure.ScenarioActions
 import dev.antigravity.fluidengine.sample.measure.ScenarioScene
@@ -75,6 +85,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.SharedRuntimeShaders
 import dev.antigravity.fluidengine.ui.glass.field.GlassCostLevers
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
+import dev.antigravity.fluidengine.ui.theme.FluidListDivider
+import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.time.Duration
 import java.util.IdentityHashMap
@@ -300,6 +313,21 @@ class GlassNodeCountTest {
   @Test fun menuDalGruppo() = checkScenario(MeasureScenario.MenuGroup, menuText = "Aggiungi ai preferiti")
   @Test fun menuContestuale() = checkScenario(MeasureScenario.ContextMenu, menuText = "Condividi")
 
+  @Test fun menuContestualeConPressioneDa555Ms() {
+    val scenario = MeasureScenario.ContextMenu
+    val timeout = 555L
+    val phases = scenario.phases.map { it.name to it.journeyMillis }
+    checkComponent(scenario.key, phases, menuText = "Condividi", expectedLiftMillis = timeout) { actions, _ ->
+      val platform = LocalViewConfiguration.current
+      val tablet = remember(platform) {
+        object : ViewConfiguration by platform {
+          override val longPressTimeoutMillis = timeout
+        }
+      }
+      CompositionLocalProvider(LocalViewConfiguration provides tablet) { ScenarioScene(scenario, actions, 0.dp) }
+    }
+  }
+
   @Test fun laRegistrazioneDellaRigaSegueIlContenutoDuranteLaPressione() {
     compose.mainClock.autoAdvance = false
     val outer = mutableStateOf(Color.White)
@@ -374,6 +402,83 @@ class GlassNodeCountTest {
     }
   }
 
+  @Test fun sorelleDelGruppoDurantePressioneERipresaDelloScroll() {
+    val target = MaterialTarget()
+    val draws = IntArray(5)
+    val display = RenderNode("lista")
+    lateinit var finger: MaterialFinger
+    lateinit var scroll: ScrollState
+    compose.mainClock.autoAdvance = false
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        finger = rememberScenarioFinger()
+        scroll = rememberScrollState()
+        Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+          FluidListGroup {
+            FluidListRow("Nota della riunione", "Tieni premuto", modifier = Modifier.trackBounds(target),
+              onClick = {}, contextActions = { emptyList() })
+            repeat(5) { i ->
+              FluidListDivider()
+              FluidListRow("Nota ${i + 2}", "Una riga della lista", modifier = Modifier.drawWithContent {
+                draws[i]++
+                drawContent()
+              }, onClick = {})
+            }
+          }
+          Box(Modifier.size(100.dp, 1800.dp))
+        }
+      }
+    }
+    fun groupRecords(): Int = ShadowLog.getLogsForTag(FrameTag).count { " kind=menu.group.record " in it.msg }
+    fun frame() {
+      compose.mainClock.advanceTimeByFrame()
+      shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(FrameMillis))
+      Snapshot.sendApplyNotifications()
+      compose.runOnUiThread {
+        val view = compose.activity.window.decorView
+        display.setPosition(0, 0, view.width, view.height)
+        val c = display.beginRecording()
+        try { view.draw(c) } finally { display.endRecording() }
+      }
+    }
+    try {
+      repeat(6) { frame() }
+      val idle = groupRecords()
+      repeat(6) { frame() }
+      val before = draws.copyOf()
+      assertEquals("nessuna cache del gruppo a riposo", idle, groupRecords())
+      val down = checkNotNull(target.bounds).center
+      compose.runOnUiThread { finger.down(down) }
+      repeat(35) { frame() }
+      val delta = draws.indices.map { draws[it] - before[it] }
+      val group = groupRecords() - idle
+      println("Sorelle durante la pressione: $delta. Registrazioni gruppo: $group")
+      assertTrue("pressione realmente disegnata nel gruppo", group > 0)
+      assertTrue("ridisegni delle sorelle: $delta", delta.all { it <= 2 })
+      compose.runOnUiThread { finger.up(down) }
+      repeat(8) { frame() }
+      val released = groupRecords()
+      repeat(5) { frame() }
+      assertEquals("il gruppo è tornato a riposo", released, groupRecords())
+      compose.runOnUiThread { finger.down(down) }
+      frame()
+      compose.runOnUiThread { finger.move(down - Offset(0f, 40f)) }
+      repeat(3) { frame() }
+      val scrolling = groupRecords()
+      repeat(5) { i ->
+        compose.runOnUiThread { finger.move(down - Offset(0f, 48f + i * 8f)) }
+        frame()
+      }
+      assertTrue("la lista si deve spostare", scroll.value > 0)
+      assertEquals("la cache del gruppo termina allo scroll", scrolling, groupRecords())
+      compose.runOnUiThread { finger.up(down - Offset(0f, 80f)) }
+      repeat(5) { frame() }
+      assertEquals("nessuna cache nel rilascio o nel fling", scrolling, groupRecords())
+    } finally {
+      display.discardDisplayList()
+    }
+  }
+
   @Test fun foglio() = checkScenario(MeasureScenario.SheetDrag)
   @Test fun ottoLastre() = checkScenario(MeasureScenario.EightSlabs)
 
@@ -406,6 +511,7 @@ class GlassNodeCountTest {
     label: String,
     journeys: List<Pair<String, Long>> = emptyList(),
     menuText: String? = null,
+    expectedLiftMillis: Long? = null,
     content: @Composable (ScenarioActions, GlassBackdropState) -> Unit,
   ) {
     val actions = ScenarioActions()
@@ -415,6 +521,7 @@ class GlassNodeCountTest {
     lateinit var scope: CoroutineScope
     lateinit var layers: TrackedLayers
     var logIndex = 0
+    var extraHoldMillis = 0L
     FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
     GlassCostLevers.onCapture = { sample, finish ->
       val extent = IntSize(finish.width.toInt(), finish.height.toInt())
@@ -448,6 +555,9 @@ class GlassNodeCountTest {
       compose.setContent {
         FluidTheme(settings = remember { EngineSettings() }) {
           scope = rememberCoroutineScope()
+          if (expectedLiftMillis != null) {
+            extraHoldMillis = expectedLiftMillis - LocalViewConfiguration.current.longPressTimeoutMillis
+          }
           val graphics = LocalGraphicsContext.current
           layers = remember(graphics) { TrackedLayers(graphics) }
           val chrome = rememberFluidChromeController()
@@ -468,7 +578,7 @@ class GlassNodeCountTest {
           }
         }
       }
-      fun frames(count: Int): Peak {
+      fun frames(count: Int, preview: MutableList<Int>? = null): Peak {
         val peak = Peak()
         repeat(count) {
           val before = FluidGlassDiagnostics.totalCaptures
@@ -483,7 +593,9 @@ class GlassNodeCountTest {
             val canvas = display.beginRecording()
             try { view.draw(canvas) } finally { display.endRecording() }
             val logs = ShadowLog.getLogsForTag(FrameTag)
-            val captures = captureRecords(logs.subList(logIndex, logs.size))
+            val events = logs.subList(logIndex, logs.size)
+            preview?.add(events.count { " kind=menu.preview.record " in it.msg })
+            val captures = captureRecords(events)
             logIndex = logs.size
             peak.observe(window, captures, finishes, layers.sizes(), FluidGlassDiagnostics.totalCaptures - before)
             finishes.clear()
@@ -498,7 +610,21 @@ class GlassNodeCountTest {
       checkPeak("$label/fermo", frames(RestFrames))
       for ((phase, millis) in journeys) {
         compose.runOnUiThread { scope.launch { checkNotNull(actions.action(phase)) { "$label/$phase" }.invoke() } }
-        val travel = frames(((millis + FrameMillis - 1) / FrameMillis).toInt())
+        val preview = if (label == MeasureScenario.ContextMenu.key) mutableListOf<Int>() else null
+        // Allineiamo l'inizio dei venti frame di riposo al distacco effettivo, anche a 555 ms.
+        val journeyMillis = if (phase == "apre") millis + extraHoldMillis else millis
+        val travel = frames(((journeyMillis + FrameMillis - 1) / FrameMillis).toInt(), preview)
+        if (preview != null) {
+          val total = preview.sum()
+          println("Contestuale/$phase (soglia ${expectedLiftMillis ?: "sistema"} ms) record=$total per frame da ${FrameMillis}ms: $preview")
+          if (phase == "apre" && expectedLiftMillis != null) {
+            val firstCopyMillis = (preview.indexOfFirst { it > 0 } + 1) * FrameMillis
+            assertTrue("la copia deve avvenire al distacco: $firstCopyMillis ms",
+              firstCopyMillis in expectedLiftMillis - FrameMillis..expectedLiftMillis + FrameMillis)
+          }
+          if (phase == "apre") assertTrue("pressione reale, registrazioni=$total", total in 1..2)
+          else assertEquals("ritorno della riga", 0, total)
+        }
         checkPeak("$label/$phase", travel)
         checkPeak("$label/dopo-$phase", frames(RestFrames))
         if (menuText != null) {

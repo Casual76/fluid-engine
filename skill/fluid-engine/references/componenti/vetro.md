@@ -1558,6 +1558,13 @@ alla GPU restano alte. Lo mostrano `sessioni/f7-ab/rapporto.md` e `sessioni/f7-g
 
 **F7.3b. Menu in viaggio.** La capsula o il seme e il pannello definiscono il rettangolo di cattura. Il margine comprende oltrepasso, coda, ombra, rifrazione e sfocatura. Il campione dimezzato e la finitura si allineano alla griglia della finestra. Il campo, il clip delle voci e la sonda mantengono le coordinate del palco. Il velo del menu modale conserva blur e tinta in una texture alla risoluzione del display. Durante la dissolvenza l'alpha agisce sul risultato composto. La texture occupa spazio per tutta la vita del velo e si aggiorna quando il materiale cambia. Il confronto delle fence GPU sul tablet misura il guadagno.
 
+**F7.3c2. Pressione su una riga di lista.** Il testo, la tinta di pressione e il fuoco restano vivi fino al distacco.
+Nella lista il layer dell'anteprima si registra al distacco, con la tinta di quel fotogramma. Durante il gesto il gruppo
+rigioca il centro con clip rettangolari e gli angoli con il contorno nativo. Questo evita le maschere Ganesh per testi e
+divisori interamente interni al contorno. La pressione aggiunge due display list al gruppo, senza un target offscreen
+forzato. Il rilascio, il distacco o lo scroll ripristinano la catena ordinaria. La sonda verbosa `menu.group.sibling`
+conta i disegni delle righe senza menu del copione Note; `Texture upload` appartiene al RenderThread.
+
 **F7.3c. Riga sollevata del contestuale.** Durante la pressione il bagliore cambia fuori dalla registrazione della riga.
 Una display list temporanea isola il contenuto: un cambio di testo o di misura aggiorna la registrazione, il solo
 bagliore la riusa. La card ridisegna quel layer e il suo materiale Liquid usa la finestra del viaggio fra riga e posa,

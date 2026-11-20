@@ -80,6 +80,10 @@ class FluidContextMenuController internal constructor(
 ) {
   internal var actionsProvider: () -> List<FluidContextAction> = { emptyList() }
 
+  // Per le righe di lista l'inchiostro è vivo fino al distacco. L'ultima copia conserva anche la tinta del dito.
+  internal var copyRowOnLift = false
+    private set
+
   /** Whether the element is currently painting itself into [layer] for the overlay to replay. */
   internal var recording by mutableStateOf(false)
 
@@ -115,6 +119,7 @@ class FluidContextMenuController internal constructor(
     entry.actions = list
     entry.preview = layer
     entry.openedAt = resolvedHost.nextSequence()
+    if (!entry.lifted) copyRowOnLift = true
     entry.visible = true
     entry.lifted = true
     recording = true
@@ -122,6 +127,8 @@ class FluidContextMenuController internal constructor(
     handOff.attach(entry.selection)
     return true
   }
+
+  internal fun rowCopied() { copyRowOnLift = false }
 
   fun dismiss() {
     entry.visible = false
@@ -259,7 +266,15 @@ fun rememberFluidContextMenu(
  * Recording only runs between touch-down and touch-up, so a list of these costs nothing at rest.
  */
 @Composable
-fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier {
+fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Modifier =
+  contextMenuAnchor(controller, listRow = false, group = null)
+
+@Composable
+internal fun Modifier.contextMenuAnchor(
+  controller: FluidContextMenuController,
+  listRow: Boolean,
+  group: FluidListContextPress?,
+): Modifier {
   val scope = rememberCoroutineScope()
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   // The same specular hotspot the glass controls carry, for the same reason: a row that is about to
@@ -292,12 +307,37 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
     // scelto al down, l'unico che vede i movimenti dopo che il menu e' comparso sopra. Mentre il menu
     // ha il dito, consuma: la lista attorno resta ferma.
     .fluidMenuPointerRelay(controller.handOff)
-    .pointerInput(controller) {
-      awaitPointerEventScope {
-        while (true) {
-          val event = awaitPointerEvent(PointerEventPass.Initial)
-          controller.arm(event.changes.any { it.pressed })
+    .pointerInput(controller, group) {
+      try {
+        awaitPointerEventScope {
+          var down: Offset? = null
+          while (true) {
+            val changes = awaitPointerEvent(PointerEventPass.Initial).changes
+            val held = changes.any { it.pressed }
+            controller.arm(held)
+            if (group == null) continue
+            if (!held) {
+              group.release(controller)
+              down = null
+            } else {
+              val change = changes.first()
+              val origin = down
+              if (origin == null) {
+                down = change.position
+                group.press(controller)
+              }
+              // Alla prima passata consumata dallo scroll la lista riprende la catena ordinaria.
+              val final = awaitPointerEvent(PointerEventPass.Final).changes
+              if (changes.size > 1 || (origin != null && (change.position - origin).getDistance() > viewConfiguration.touchSlop) ||
+                final.any { it.isConsumed && it.position != it.previousPosition }) {
+                group.release(controller)
+              }
+            }
+          }
         }
+      } finally {
+        group?.release(controller)
+        controller.arm(false)
       }
     }
     .graphicsLayer {
@@ -314,7 +354,29 @@ fun Modifier.fluidContextMenuAnchor(controller: FluidContextMenuController): Mod
     // sitting wherever the finger happened to be on the frame the press was recognised.
     .then(highlight.modifier)
     .then(highlight.gestureModifier)
-    .recordContextPreview(controller)
+    .then(if (listRow) Modifier.drawListPreview(controller) else Modifier.recordContextPreview(controller))
+}
+
+/** Una pressione appartiene a un solo gruppo. Lo scorrimento, il distacco e la rimozione della riga la terminano. */
+@Stable
+internal class FluidListContextPress {
+  private var owner by mutableStateOf<FluidContextMenuController?>(null)
+  val active: Boolean get() = owner?.entry?.lifted == false
+
+  fun press(controller: FluidContextMenuController) { owner = controller }
+  fun release(controller: FluidContextMenuController) { if (owner === controller) owner = null }
+}
+
+private fun Modifier.drawListPreview(controller: FluidContextMenuController): Modifier = drawWithContent {
+  if (!controller.entry.lifted) {
+    drawContent()
+  } else if (controller.copyRowOnLift) {
+    // La tinta animata di fluidRowPressable resta nel disegno normale. Al distacco il layer contiene
+    // testo, selezione e tinta di questo fotogramma; la sorgente ora lascia il suo posto alla card.
+    controller.layer.record { this@drawWithContent.drawContent() }
+    controller.rowCopied()
+    GlassFrameDiagnostics.event("menu.preview.record", controller.layer)
+  }
 }
 
 internal fun Modifier.recordContextPreview(controller: FluidContextMenuController): Modifier =

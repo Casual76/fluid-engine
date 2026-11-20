@@ -81,7 +81,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSheet
-import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.contextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.FluidListContextPress
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowBack
 import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
@@ -112,6 +114,13 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.layer.setOutline
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -1231,6 +1240,9 @@ fun FluidListGroup(
   val openBottom = segment == FluidGroupSegment.Middle || segment == FluidGroupSegment.First
   val trimPx = with(LocalDensity.current) { FluidGroupOpenEdge.toPx() }
   val onGlass = contentGlassAvailable(glass)
+  val contextPress = remember { FluidListContextPress() }
+  val fill = if (onGlass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow
+  val cornerClip = segment != FluidGroupSegment.Middle && contextPress.active && fill != MaterialTheme.colorScheme.surface
   val parentSwipeGroup = LocalFluidSwipeGroup.current
   val swipeGroup = parentSwipeGroup ?: remember { FluidSwipeGroup() }
   Surface(
@@ -1251,14 +1263,16 @@ fun FluidListGroup(
           }
         },
       )
-      .fluidContentGlass(glass, shape),
-    shape = shape,
-    color = if (onGlass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
+      .fluidContentGlass(glass, shape)
+      .then(if (cornerClip) Modifier.background(fill, shape).clipListCorners(shape, radius) else Modifier),
+    shape = if (cornerClip) RectangleShape else shape,
+    color = if (cornerClip) Color.Transparent else fill,
     contentColor = MaterialTheme.colorScheme.onSurface,
   ) {
     // Le righe dicono dove comincia il loro testo, i separatori del gruppo lo leggono (F6.6).
     val textInsets = remember { FluidListTextInsets() }
     CompositionLocalProvider(
+      LocalListContextPress provides contextPress,
       LocalFluidListTextInsets provides textInsets,
       LocalFluidSwipeGroup provides swipeGroup,
     ) {
@@ -1269,6 +1283,65 @@ fun FluidListGroup(
         content = content,
       )
     }
+  }
+}
+
+/**
+ * Nel centro della lista la clip continua copre ogni pixel, ma Ganesh può comunque calcolare una
+ * maschera per ciascun titolo e divisore. Il centro e gli angoli usano la stessa display list;
+ * solo negli angoli serve rigiocarla sotto la clip nativa originale. Le regioni rettangolari
+ * sono disgiunte, quindi anche la luce additiva si compone una volta sul fondale originale.
+ */
+internal fun Modifier.clipListCorners(shape: ContinuousCornerShape, radius: Dp): Modifier = drawWithCache {
+  val outline = shape.createOutline(size, layoutDirection, this)
+  val ink = obtainGraphicsLayer()
+  val clipped = obtainGraphicsLayer().apply {
+    setOutline(outline)
+    clip = true
+  }
+  // Il raccordo continuo occupa al massimo (1 + smoothing) raggi su ciascun lato.
+  // Includiamo l'antialias nel tratto nativo ed evitiamo regioni sovrapposte nei gruppi bassi.
+  val extent = kotlin.math.ceil(radius.toPx() * (1f + shape.smoothing)) + 2f
+  val w = size.width
+  val h = size.height
+  val partition = outline is Outline.Generic && w > extent * 2 && h > extent * 2
+  // A metà dei due lati il segmento fra gli estremi del raccordo è già dentro il contorno convesso.
+  val half = kotlin.math.ceil(extent / 2) + 1f
+  val rim = if (partition) buildList {
+    for ((width, height) in listOf(extent to half, half to extent)) {
+      for (x in listOf(0f, w - width)) for (y in listOf(0f, h - height)) {
+        add(Rect(x, y, x + width, y + height))
+      }
+    }
+  } else emptyList()
+  var rimRecorded = false
+  onDrawWithContent {
+    ink.record { this@onDrawWithContent.drawContent() }
+    GlassFrameDiagnostics.event("menu.group.record", ink)
+    if (!rimRecorded) {
+      clipped.record {
+        if (partition) {
+          val canvas = drawContext.canvas
+          canvas.clipRect(Rect(0f, extent, w, h - extent), ClipOp.Difference)
+          canvas.clipRect(Rect(extent, 0f, w - extent, h), ClipOp.Difference)
+          canvas.clipRect(Rect(half, half, w - half, h - half), ClipOp.Difference)
+        }
+        drawLayer(ink)
+      }
+      rimRecorded = true
+    }
+    if (partition) {
+      val canvas = drawContext.canvas
+      canvas.save()
+      try {
+        canvas.clipRect(Rect(Offset.Zero, size))
+        for (box in rim) canvas.clipRect(box, ClipOp.Difference)
+        drawLayer(ink)
+      } finally {
+        canvas.restore()
+      }
+    }
+    drawLayer(clipped)
   }
 }
 
@@ -1332,7 +1405,9 @@ internal class FluidListTextInsets {
   }
 }
 
-/** I rientri del gruppo in cui sta una riga: [FluidListGroup] e ogni riga di `fluidGroupedItems` ne danno uno. */
+private val LocalListContextPress = staticCompositionLocalOf<FluidListContextPress?> { null }
+
+/** I rientri del gruppo in cui sta una riga. */
 internal val LocalFluidListTextInsets = staticCompositionLocalOf<FluidListTextInsets?> { null }
 
 
@@ -1480,6 +1555,9 @@ fun FluidListRow(
   // to a `combinedClickable` never fires — the click handler consumes the gesture first — which is
   // why the controller and the gesture are two things in the engine rather than one modifier.
   val contextMenu = contextActions?.let { rememberFluidContextMenu(it) }
+  val group = LocalListContextPress.current
+  // La sonda identifica i disegni Compose delle sorelle quando è attiva la diagnostica verbosa. Nel copione Note sono cinque.
+  val measuredSibling = if (GlassFrameDiagnostics.enabled && group != null && contextMenu == null) remember { Any() } else null
   val haptics = LocalFluidHaptics.current
   // **Un nodo solo, per costruzione.** Il modificatore della riga (il clic, il ruolo, lo stato, la tinta) sta sul
   // `ListItem` stesso e non su un contenitore sopra di lui. Il `ListItem` di Material fonde da sé la propria
@@ -1498,9 +1576,12 @@ fun FluidListRow(
         },
       )
       .then(
-        if (contextMenu != null) Modifier.fluidContextMenuAnchor(contextMenu) else Modifier,
+        if (contextMenu != null) Modifier.contextMenuAnchor(contextMenu, listRow = true, group = group) else Modifier,
       )
-      .drawBehind { if (selectionWash.alpha > 0f) drawRect(selectionWash) }
+      .drawBehind {
+        if (measuredSibling != null) GlassFrameDiagnostics.event("menu.group.sibling", measuredSibling)
+        if (selectionWash.alpha > 0f) drawRect(selectionWash)
+      }
       .semantics { if (selected) this.selected = true }
       .fluidAccessibilityActions(customActions)
       // A row inside a grouped list tints instead of scaling: shrinking one row of a stack breaks

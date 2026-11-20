@@ -53,6 +53,9 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntRect
+import dev.antigravity.fluidengine.ui.glass.backdrop.captureRegion
 import dev.antigravity.fluidengine.ui.fluid.GlassInk
 import dev.antigravity.fluidengine.ui.fluid.GlassAdaptiveState
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
@@ -231,6 +234,7 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
   planeJourney: Boolean = false,
   fieldPressed: (() -> Boolean)? = null,
   menuSource: Rect? = null,
+  limitMissingJourney: Boolean = menuSource != null,
 ): Modifier {
   val resolved = remember(optics) { optics.sanitized() }
   val resolvedFrom = remember(opticsFrom) { opticsFrom?.sanitized() }
@@ -393,22 +397,16 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       if (capture == null) original else object : Backdrop by original {}
     }
     val finish = capture?.effects ?: surface.effects
-    val windowed = if (menuSource != null || state.useSampledDropFrame) {
-      remember(state, menuSource, finish, surface, resolved, resolvedFrom, screenDensity) {
+    val useRoute = menuSource != null || state.useSampledDropFrame
+    val windowed = if (limitMissingJourney || useRoute) {
+      remember(state, menuSource, finish, surface, resolved, resolvedFrom, screenDensity, useRoute, limitMissingJourney) {
         val shadow = maxOf(glassTravelShadowReachDp(resolved), resolvedFrom?.let { glassTravelShadowReachDp(it) } ?: 0f)
         // Tre sigma per il Gaussian, spazio di lettura per lente/frangia e supporto esterno dell'ombra.
         val lens = maxOf(resolved.refractionAmount.value, resolvedFrom?.refractionAmount?.value ?: 0f)
         val opticsMargin = (shadow + 3f * surface.paddingDp + lens * 2f) * screenDensity + 2f
-        WindowedBackdropEffects(screenDensity, bounds = {
-          val from = state.journeyOriginNow()?.frame
-          val to = state.journeyTargetNow()?.frame
-          if (from == null || to == null) null else {
-            val endpoints = from.enclosing(to).let { if (menuSource == null) it else it.enclosing(menuSource) }
-            // Il profilo B1 supera dell'8% e il ritorno può essere interrotto. Il piano vivo
-            // protegge anche una posa eccezionale durante il cambio di livello.
-            val route = endpoints.inflate(endpoints.maxDimension * 0.20f)
-            route.enclosing(state.ensurePlan().bounds).inflate(opticsMargin)
-          }
+        WindowedBackdropEffects(screenDensity, unmeasuredRegion = if (limitMissingJourney) IntRect.Zero else null, resolveRegion = { size, scale ->
+          journeyCaptureRegion(state.journeyOriginNow()?.frame, state.journeyTargetNow()?.frame, menuSource,
+            opticsMargin, size, scale, useRoute, limitMissingJourney) { state.ensurePlan().bounds }
         }, build = finish)
       }
     } else finish
@@ -643,6 +641,23 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       backdropScaleFactor = qualityFactor,
     )
     .then(glow)
+}
+
+/** Se manca un estremo, card e pannello leggono solo il supporto ottico della posa corrente. */
+internal inline fun journeyCaptureRegion(
+  from: Rect?, to: Rect?, source: Rect?, opticsMargin: Float, size: Size, scale: Float,
+  useRoute: Boolean, limitMissingJourney: Boolean, liveBounds: () -> Rect,
+): IntRect? {
+  if (from == null || to == null || (limitMissingJourney && (from.isEmpty || to.isEmpty))) {
+    if (!limitMissingJourney) return null
+    val live = liveBounds()
+    return if (live.isEmpty) IntRect.Zero else captureRegion(live.inflate(opticsMargin), size, scale, explicit = true)
+  }
+  if (!useRoute) return null
+  val ends = from.enclosing(to).let { if (source == null) it else it.enclosing(source) }
+  // La riserva comprende l'oltrepasso e la sagoma viva nei ritorni interrotti.
+  val route = ends.inflate(ends.maxDimension * 0.20f).enclosing(liveBounds()).inflate(opticsMargin)
+  return captureRegion(route, size, scale)
 }
 
 private fun Rect.enclosing(other: Rect) = Rect(

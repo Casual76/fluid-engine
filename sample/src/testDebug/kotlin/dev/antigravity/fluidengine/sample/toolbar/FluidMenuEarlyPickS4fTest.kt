@@ -348,6 +348,52 @@ class FluidMenuEarlyPickS4fTest {
     assertTrue("annullato, torna al pannello: ${again.height} contro ${rest.height}", kotlin.math.abs(again.height - rest.height) < 2f)
   }
 
+  /**
+   * S4g-quater (f): sul Tab S9 il tondo e la foto si chiudevano al rilascio del gesto Indietro, ma durante il trascinamento il
+   * pannello restava quasi fermo (scuro tondo f0533–f0563, foto f0493–f0526): il bordo lontano saliva di ~10 e ~16 px, contro i
+   * ~22 della riga e i ~27 di «Altro». Qui il gesto vero dal dispatcher, come per «Altro»: il menu aperto tenendo premuta la
+   * sorgente, il dito che si alza su di lei, e il vetro che si accorcia verso la sorgente col gesto.
+   */
+  private fun predictive(menu: String) {
+    scene()
+    compose.onNodeWithTag(if (menu == "tondo") "early-circle" else "early-photo").performScrollTo()
+    advance(160)
+    val at = source(menu)
+    compose.onRoot().performTouchInput { down(at) }
+    waitForMenu()
+    advance(1_400)
+    compose.onRoot().performTouchInput { up() }
+    advance(600)
+    assertTrue("$menu: il menu resta aperto", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isNotEmpty())
+    val rest = requireNotNull(frames.lastOrNull { it.visible && !it.closing }) { "$menu: nessun fotogramma" }.drawn
+    val dispatcher = compose.activity.onBackPressedDispatcher
+    compose.runOnUiThread { dispatcher.dispatchOnBackStarted(BackEventCompat(2f, 1160f, 0f, BackEventCompat.EDGE_LEFT)) }
+    step(16)
+    val steps = listOf(0.1f, 0.25f, 0.4f, 0.6f, 1f)
+    val gives = steps.map { p ->
+      compose.runOnUiThread { dispatcher.dispatchOnBackProgressed(BackEventCompat(2f + 520f * p, 1160f, p, BackEventCompat.EDGE_LEFT)) }
+      repeat(4) { step(16) }
+      val now = frames.last().drawn
+      // Il bordo lontano: quello che cede verso la sorgente, sopra o sotto a seconda di dove si e' aperto il menu.
+      val give = maxOf(rest.bottom - now.bottom, now.top - rest.top)
+      println("TAVOLA indietro $menu gesto=$p vetro=${now.left.toInt()},${now.top.toInt()},${now.right.toInt()},${now.bottom.toInt()} " +
+        "riposo=${rest.left.toInt()},${rest.top.toInt()},${rest.right.toInt()},${rest.bottom.toInt()} bordo=${"%.1f".format(give)}")
+      give
+    }
+    compose.runOnUiThread { dispatcher.onBackPressed() }
+    advance(1_200)
+    assertTrue("$menu: il menu si chiude", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isEmpty())
+    for (i in 1 until gives.size) assertTrue("$menu: il vetro segue il dito, $gives", gives[i] >= gives[i - 1] - 0.5f)
+    // Al gesto del tablet (~0,4, 0,64 addolcito) il bordo lontano cede almeno di 24 dp di corsa piena: ~31 px qui (xhdpi).
+    val density = compose.activity.resources.displayMetrics.density
+    val least = dev.antigravity.fluidengine.ui.fluid.FluidMenuBackPullMinFarDp * density * 0.64f * 0.8f
+    assertTrue("$menu: al gesto del tablet il bordo cede ${gives[2]} px, almeno $least", gives[2] >= least)
+  }
+
+  @Test fun `il tondo segue il dito con l'Indietro predittivo`() = predictive("tondo")
+
+  @Test fun `la foto segue il dito con l'Indietro predittivo`() = predictive("foto")
+
   @Test fun `nel contestuale il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("contestuale")
 
   /** S4g (NV): la scelta durante la crescita sul tondo, che si solleva tondo. */

@@ -31,6 +31,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidForm
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidPhysicsLiquid
 import dev.antigravity.fluidengine.ui.fluidphysics.dropRestSlab
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmFamily
 import dev.antigravity.fluidengine.ui.glass.field.GlassWarmUp
 import kotlinx.coroutines.coroutineScope
@@ -374,11 +375,47 @@ internal fun fluidMenuLensMap(
 }
 
 /**
- * Fin dove il gesto Indietro tira il menu verso la sorgente, in frazioni del suo ritorno (S4f, NO 5): il primo tratto del
- * congedo, quello in cui il bordo lontano cede (0,29 del ritorno) e poco piu'. Le voci restano leggibili; al rilascio il menu
- * si chiude da li', a gesto annullato torna al pannello.
+ * Il menu tirato dal gesto Indietro ([pull], 0..1) verso la sorgente [source] (S4f, NO 5; S4g-quater, f): la sagoma del primo
+ * tratto del congedo ([fluidMenuReturnSlab]: il bordo lontano cede, il vicino resta sulla sorgente, i fianchi stringono verso
+ * di lei), proporzionale al gesto addolcito. Le voci restano leggibili; al rilascio il menu si chiude da li', a gesto annullato
+ * torna al pannello.
+ *
+ * Il bordo lontano cede di [FluidMenuBackPullFarEdge] dell'altezza, ma almeno di [minFarPx] ([FluidMenuBackPullMinFarDp]) e al
+ * piu' di [FluidMenuBackPullMaxFar]. Fino a S4g-ter il tiro era il ritorno stesso fino a 0,32 del cammino: la prima parte del
+ * congedo, che parte col quadrato del tempo, e un bordo in proporzione all'altezza. Sul Tab S9 il gesto dal bordo di 397 px
+ * arriva a ~0,4: il bordo lontano saliva del 5-6% (22 px sulla riga, 27 su «Altro»), e sui pannelli corti del tondo (229 px) e
+ * della foto di ~10 px, a vista fermi (S4g-ter, prova 34).
  */
-internal const val FluidMenuBackReach = 0.32f
+internal fun fluidMenuBackPullSlab(source: Rect, panel: FluidForm.Slab, pull: Float, minFarPx: Float = 0f): FluidForm.Slab {
+  val p = pull.coerceIn(0f, 1f)
+  if (p <= 0f) return panel
+  val eased = 1f - (1f - p) * (1f - p)
+  val frame = panel.frame
+  val up = source.center.y >= frame.center.y
+  val far = min(max(frame.height * FluidMenuBackPullFarEdge, minFarPx), frame.height * FluidMenuBackPullMaxFar) * eased
+  val near = frame.height * FluidMotion.MenuReturnNearEdge * eased
+  val side = FluidMotion.MenuReturnWidthHold * eased
+  return panel.copy(
+    frame = Rect(
+      left = frame.left + (source.center.x - frame.left) * side,
+      top = if (up) frame.top + far else frame.top - near,
+      right = frame.right + (source.center.x - frame.right) * side,
+      bottom = if (up) frame.bottom + near else frame.bottom - far,
+    ),
+  )
+}
+
+/** Di quanto cede il bordo lontano a gesto pieno, in frazioni dell'altezza: quanto nel primo tratto del congedo e poco piu'. */
+internal const val FluidMenuBackPullFarEdge = 0.13f
+
+/**
+ * Il minimo di cui cede il bordo lontano a gesto pieno, in dp: sul Tab S9 il gesto arriva a ~0,4 (0,64 addolcito), e 24 dp
+ * danno ~33 px al tondo, vicino ai ~37 della riga e di «Altro», che hanno un pannello alto il doppio.
+ */
+internal const val FluidMenuBackPullMinFarDp = 24f
+
+/** Al piu' questa parte dell'altezza: un pannello di due voci resta un menu. */
+internal const val FluidMenuBackPullMaxFar = 0.3f
 
 /**
  * Dove cresce l'ingrandimento delle voci al congedo del menu dal tasto nato come Apple, in frazioni del ritorno (233 ms):
@@ -938,15 +975,42 @@ internal fun fluidMenuGroupFaceCover(drawn: Rect, capsule: Rect): Float {
 }
 
 /**
- * Le voci del menu al ritorno del gruppo: l'inchiostro del congedo ([ink]) finche' le icone della capsula sono spente, zero dal
- * fotogramma in cui la loro fase ([phase], [FluidMenuAnchor.groupProgress]) le accende. Le due cose non stanno mai insieme
- * (S4g-bis sul Tab S9, d): con la regola di S4g le icone entravano col quadrato dell'inchiostro uscito, ma la curva d'uscita
- * le dava gia' quasi piene a meta' (0,85 con le voci al 10%), e in chiaro a f0361 e a f0391–f0392 restavano voci sfocate dietro
- * le tre icone piene. Ora tornano col vetro che e' la capsula, come in S4f, e le voci se ne vanno nello stesso fotogramma: da
- * fermo sono gia' quasi spente, nell'annullo e' lo scambio di un fotogramma.
+ * Le voci del menu al ritorno del gruppo: l'inchiostro del congedo ([ink]) finche' il vetro non comincia ad avvolgere la capsula,
+ * poi sfumano mentre la fase delle icone ([phase], [FluidMenuAnchor.groupProgress]) scende da 1 a
+ * [FluidMenuGroupFaceVisiblePhase] ([fluidMenuGroupItemsGate]), e sono zero da li' in giu', dove le icone cominciano a vedersi.
+ * Le due cose non stanno mai insieme (S4g-bis sul Tab S9, d): con la regola di S4g le icone entravano col quadrato
+ * dell'inchiostro uscito, ma la curva d'uscita le dava gia' quasi piene a meta' (0,85 con le voci al 10%), e in chiaro a f0361 e
+ * a f0391–f0392 restavano voci sfocate dietro le tre icone piene.
+ *
+ * S4g-quater (d): con lo scambio secco di S4g-bis, sul Tab S9 restava un fotogramma con le voci sfocate sotto le tre icone piene
+ * (chiaro f0129, scuro f0119), mentre al banco no. Ora le voci sfumano nei fotogrammi in cui il vetro comincia ad avvolgere la
+ * capsula (la copertura da 0 a ~0,35), e le icone arrivano dopo; e la fase la scrive un punto solo, la superficie che ha appena
+ * disegnato il vetro ([FluidMenuJourney.noteGroupGlass]).
  */
-internal fun fluidMenuGroupReturnInk(ink: Float, phase: Float): Float =
-  if (phase < FluidMenuGroupFaceVisiblePhase) 0f else ink
+internal fun fluidMenuGroupReturnInk(ink: Float, phase: Float): Float = ink * fluidMenuGroupItemsGate(phase)
+
+/**
+ * L'opacita' delle icone del gruppo alla fase [phase] del ritorno: la curva d'uscita della barra ([GlassContentCurves.alpha],
+ * [GlassContentRole.Exit]) a `fase / MenuGroupFaceProgressSpan`, zero da [FluidMenuGroupFaceVisiblePhase] in su. La applica
+ * l'host disegnando le facce ([FluidMenuAnchor.groupFaces]), dalla stessa fase che spegne le voci ([fluidMenuGroupItemsGate]):
+ * le due non sono mai sopra zero insieme (S4g-quater, d).
+ */
+internal fun fluidMenuGroupFacesAlpha(phase: Float, blurAvailable: Boolean = true): Float =
+  if (phase >= FluidMotion.MenuGroupFaceProgressSpan) {
+    0f
+  } else {
+    GlassContentCurves.alpha(GlassContentRole.Exit, (phase / FluidMotion.MenuGroupFaceProgressSpan).coerceAtLeast(0f), blurAvailable)
+  }
+
+/**
+ * Quanto delle voci resta alla fase [phase] delle icone del gruppo: 1 a fase piena (icone spente, vetro che non avvolge la
+ * capsula), 0 da [FluidMenuGroupFaceVisiblePhase] in giu', in mezzo una rampa morbida. Le icone a quella soglia sono ancora
+ * trasparenti, quindi voci e icone non hanno mai un fotogramma in comune.
+ */
+internal fun fluidMenuGroupItemsGate(phase: Float): Float {
+  val x = ((phase - FluidMenuGroupFaceVisiblePhase) / (1f - FluidMenuGroupFaceVisiblePhase)).coerceIn(0f, 1f)
+  return x * x * (3f - 2f * x)
+}
 
 /**
  * La fase sotto cui le icone del gruppo si vedono: la loro opacita' e' la curva d'uscita di [GlassContentCurves] a
@@ -1064,20 +1128,20 @@ internal class FluidMenuJourney {
   var backHome: FluidForm.Slab? = null
     private set
 
+  /** Il minimo del tiro del gesto Indietro sul bordo lontano, in px ([FluidMenuBackPullMinFarDp]): lo scrive l'host. */
+  var backPullMinPx: Float = 0f
+
   /**
-   * La sagoma [slab] di questo istante (null: il pannello fermo) tirata dal gesto Indietro verso la sorgente: lungo il ritorno
-   * dei menu ([fluidMenuReturnSlab]) fino a [FluidMenuBackReach] del cammino, con una curva che rallenta verso la fine del
-   * gesto. Il bordo lontano cede e il corpo si accorcia verso il tasto, la riga o la capsula, come nel primo tratto del
-   * congedo. In chiusura, o senza gesto, e' [slab].
+   * La sagoma [slab] di questo istante (null: il pannello fermo) tirata dal gesto Indietro verso la sorgente
+   * ([fluidMenuBackPullSlab]): il bordo lontano cede e il corpo si accorcia verso il tasto, la riga o la capsula, come nel
+   * primo tratto del congedo, col dito. In chiusura, o senza gesto, e' [slab].
    */
   fun backPulled(slab: FluidForm.Slab?): FluidForm.Slab? {
     val pull = backPull.value
     if (!(pull > 0f) || closing) return slab
     val home = slab ?: FluidForm.Slab(to, FluidCornerRadii.all(toRadius))
     val start = if (anchor != null) startFrame() else seed ?: return slab
-    val source = FluidForm.Slab(start, FluidCornerRadii.all(start.minDimension / 2f))
-    val eased = 1f - (1f - pull.coerceIn(0f, 1f)).let { it * it }
-    return fluidMenuReturnSlab(source, home, 1f - FluidMenuBackReach * eased, wrapSource = anchor != null)
+    return fluidMenuBackPullSlab(start, home, pull, backPullMinPx)
   }
 
   /** Il congedo dopo il gesto: il ritorno parte da [pulled], la sagoma che la superficie stava seguendo (vedi [backHome]). */
@@ -1116,9 +1180,14 @@ internal class FluidMenuJourney {
    */
   fun lensInkAlpha(): Float =
     if (born && closing) {
-      // Dal gruppo, via nel fotogramma in cui tornano le icone ([fluidMenuGroupReturnInk]).
+      // Dal gruppo, via mentre il vetro avvolge la capsula, prima delle icone ([fluidMenuGroupReturnInk]). A gruppo consegnato
+      // (la capsula tolta all'ancora) le icone sono della barra, piene: le voci, se il pannello disegna ancora, niente.
       val a = anchor
-      if (a?.groupBounds != null) fluidMenuGroupReturnInk(contentVisibility.value, a.groupProgress()) else contentVisibility.value
+      when {
+        !groupMenu -> contentVisibility.value
+        a?.groupBounds == null -> 0f
+        else -> fluidMenuGroupReturnInk(contentVisibility.value, a.groupProgress())
+      }
     } else {
       fluidMenuLensAlpha(focus.value) * contentVisibility.value * birthInk()
     }
@@ -1152,8 +1221,14 @@ internal class FluidMenuJourney {
   /** Il massimo del glifo in questo ritorno ([faceAlpha]); zero fuori dalla chiusura. Letto e scritto in disegno. */
   private var returnFace = 0f
 
-  /** Le icone del gruppo in questo ritorno ([progressBlockForGroup]): come il glifo, una volta tornate restano. */
-  private var returnGroupFace = 1f
+  /**
+   * Le icone del gruppo in questo ritorno ([progressBlockForGroup]): come il glifo, una volta tornate restano. Uno stato con uno
+   * scrittore solo, [noteGroupGlass], che lo aggiorna dal vetro appena disegnato: la barra, l'host e le voci lo leggono e basta.
+   */
+  private val returnGroupFace = mutableFloatStateOf(1f)
+
+  /** Il menu e' nato da un gruppo: fissato all'apertura, regge anche se la consegna toglie la capsula all'ancora. */
+  private var groupMenu = false
 
   /** 0 = il fotogramma di partenza e' il tasto premuto, 1 = a riposo. Nuovo a ogni apertura. */
   var anchorRelax = Animatable(1f, ProgressThreshold)
@@ -1461,7 +1536,7 @@ internal class FluidMenuJourney {
       backPull = Animatable(0f, ProgressThreshold)
       backHome = null
       returnFace = 0f
-      returnGroupFace = 1f
+      returnGroupFace.floatValue = 1f
     }
     if (liquidMenu && freshStart) {
       contentVisibility = Animatable(1f, ProgressThreshold)
@@ -1478,6 +1553,7 @@ internal class FluidMenuJourney {
       }
     }
     this.appleBirth = appleBirth
+    groupMenu = anchor?.groupBounds != null
     this.anchor = anchor
     this.hostOrigin = hostOrigin
     this.to = panel
@@ -1498,15 +1574,28 @@ internal class FluidMenuJourney {
 
   // Il ritorno lascia il gruppo spento finche' il vetro non torna capsula, e lo riaccende con lei (S4b, NO 4): le icone le
   // disegna l'host sopra il vetro ([groupFacesAboveBlock]), e alla consegna sono gia' piene. Tornano quando il vetro e' la
-  // capsula, tutte e tre insieme (S4f, NO 3).
+  // capsula, tutte e tre insieme (S4f, NO 3). In chiusura la fase si legge soltanto: la scrive [noteGroupGlass].
   private val progressBlockForGroup: () -> Float = {
-    if (closing) {
-      // Le voci se ne vanno nel fotogramma in cui le icone tornano ([fluidMenuGroupReturnInk], S4g-bis, d): mai insieme.
-      returnGroupFace = min(returnGroupFace, fluidMenuGroupFaceReturn(progress.value, groupCover()))
-      returnGroupFace
-    } else {
-      returnGroupFace = 1f
-      faceProgress
+    if (closing) returnGroupFace.floatValue else faceProgress
+  }
+
+  /**
+   * La superficie del menu ha appena disegnato il vetro: al ritorno dal gruppo la fase delle icone scende con lui
+   * ([fluidMenuGroupFaceReturn], [groupCover]) e non risale. E' l'unico scrittore della fase (S4g-quater, d): fino a S4g-ter la
+   * aggiornava chi la leggeva per primo (la barra nel suo strato, l'host, le voci nel disegno), e sul Tab S9 un fotogramma
+   * mostrava le tre icone piene sopra le voci ancora vive (chiaro f0129, scuro f0119), che al banco non c'era. Ora la barra legge
+   * la fase del vetro gia' disegnato (al piu' un fotogramma dopo), le voci quella di questo fotogramma: le icone non possono
+   * essere avanti alle voci. Fase di disegno, prima del vetro.
+   */
+  fun noteGroupGlass() {
+    if (!closing || !groupMenu || anchor?.groupBounds == null) return
+    val phase = fluidMenuGroupFaceReturn(progress.value, groupCover())
+    androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation {
+      val was = returnGroupFace.floatValue
+      if (phase < was) returnGroupFace.floatValue = phase
+      GlassFrameDiagnostics.event("menu.group", this) {
+        "phase=$phase latch=${min(was, phase)} progress=${progress.value} ink=${contentVisibility.value}"
+      }
     }
   }
   private val groupFacesAboveBlock: () -> Boolean = { closing }
@@ -1568,6 +1657,8 @@ internal class FluidMenuJourney {
     }
     // La sagoma della nascita si ferma ADESSO: dal prossimo fotogramma la chiusura parte da lei, non dal pannello pieno.
     if (born && t == 0f) freezeBirth()
+    // Un ritorno nuovo parte con le icone del gruppo spente: le riaccende il vetro che torna capsula ([noteGroupGlass]).
+    if (t == 0f) returnGroupFace.floatValue = 1f
     seedVelocity = progress.velocity
     target = t
   }

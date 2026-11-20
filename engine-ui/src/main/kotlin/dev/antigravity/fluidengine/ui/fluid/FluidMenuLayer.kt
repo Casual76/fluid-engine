@@ -496,6 +496,7 @@ private fun FluidMenuLayerContent(
           // Il menu dal tasto e dal gruppo nasce come quelli di Apple (B1 a e la graffetta B1 b): sessione contestuale.
           appleBirth = liquidMenu && anchor != null,
         )
+        journey.backPullMinPx = FluidMenuBackPullMinFarDp * densityValue
         // Mentre il vetro passa da un livello all'altro (F5A.3) lo guida il cambio di livello, da dove stava al
         // pannello nuovo, con la molla d'andata del menu; finito, torna al viaggio, che a quel punto sta proprio li'.
         val from = levels.fromPanel
@@ -574,9 +575,14 @@ private fun FluidMenuLayerContent(
           .fillMaxSize()
           .menuDrawMarker("surface")
           .menuBirthMarker(journey, physics)
-          .drawWithContent { if (windowAmount() > 0.004f) drawContent() }
+          .drawWithContent {
+            // Il vetro di questo fotogramma decide le icone del gruppo al ritorno (S4g-quater, d): prima di lui, una volta sola.
+            journey.noteGroupGlass()
+            if (windowAmount() > 0.004f) drawContent()
+          }
           .fluidPhysicsSurfaceInked(
             menuSource = anchor?.groupBounds ?: anchor?.pressedBounds ?: journey.seed,
+            limitMissingJourney = true,
             ink = menuInk,
             state = physics,
             backdrop = backdrop ?: noBackdrop,
@@ -716,7 +722,11 @@ private fun FluidMenuLayerContent(
         // F5A.3: e, durante un cambio di livello, quella del livello che arriva.
         contentAlpha = {
           val level = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
-          baseAlpha() * level
+          val alpha = baseAlpha() * level
+          GlassFrameDiagnostics.event("menu.ink", journey) {
+            "alpha=$alpha closing=${journey.closing} phase=${anchor?.groupProgress()} group=${anchor?.groupBounds != null}"
+          }
+          alpha
         },
         contentMap = contentMapNow,
         onPick = pick,
@@ -778,19 +788,43 @@ internal fun Modifier.menuDrawMarker(name: String): Modifier = if (GlassFrameDia
 } else this
 
 /**
- * La sagoma del menu al servizio del suo viaggio: quello dei menu ([FluidMenuJourney.install]) o, per il contestuale col
- * vetro liquido, la nascita di B1 (b) ([FluidContextBirth.travel]) fra la goccia appesa alla card e il pannello, col suo
- * contorno deformato ([FluidContextBirth.warp]: goccia, fagiolo, uovo con la coda verso la card). Gratis se gli estremi
- * non cambiano, come `install`.
+ * Le icone del gruppo al ritorno, sopra il vetro che torna capsula (S4b, NO 4): le registra la barra ([FluidMenuAnchor.groupFaces]),
+ * qui si disegnano con l'opacita' della loro fase ([fluidMenuGroupFacesAlpha]), la stessa che spegne le voci.
+ *
+ * S4g-quater (d), coi marcatori sul Tab S9: durante il ritorno lo strato delle icone della barra non si ricalcola mai (l'ultima
+ * volta all'apertura, a fase 0 e opacita' 1), e fino a S4g-ter qui si disegnavano cosi' com'erano appena la fase scendeva sotto
+ * [FluidMotion.MenuGroupFaceProgressSpan]: icone piene mentre le voci vivevano fino a [FluidMenuGroupFaceVisiblePhase] (chiaro
+ * f0129, scuro f0119). Ora l'opacita' la mette l'host, nel suo disegno, e la barra durante il ritorno le lascia piene.
  */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.fluidMenuDrawGroupFaces(anchor: FluidMenuAnchor) {
   if (!anchor.groupFacesAbove()) return
   val faces = anchor.groupFaces ?: return
   val at = anchor.groupBounds ?: return
-  if (faces.isReleased || anchor.groupProgress() >= FluidMotion.MenuGroupFaceProgressSpan) return
-  translate(at.left, at.top) { drawLayer(faces) }
+  val phase = anchor.groupProgress()
+  if (faces.isReleased || phase >= FluidMotion.MenuGroupFaceProgressSpan) return
+  val alpha = fluidMenuGroupFacesAlpha(phase, blurAvailable = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+  GlassFrameDiagnostics.event("menu.faces", anchor) { "phase=$phase alpha=$alpha" }
+  if (alpha <= 0.004f) return
+  translate(at.left, at.top) {
+    if (alpha >= 0.996f) {
+      drawLayer(faces)
+    } else {
+      // Uno strato grande quanto la capsula (piu' un margine per le icone che ne escono), solo nei fotogrammi in cui entrano.
+      val pad = at.height * 0.25f
+      val bounds = androidx.compose.ui.geometry.Rect(-pad, -pad, faces.size.width + pad, faces.size.height + pad)
+      drawContext.canvas.saveLayer(bounds, androidx.compose.ui.graphics.Paint().apply { this.alpha = alpha })
+      drawLayer(faces)
+      drawContext.canvas.restore()
+    }
+  }
 }
 
+/**
+ * La sagoma del menu al servizio del suo viaggio: quello dei menu ([FluidMenuJourney.install]) o, per il contestuale col
+ * vetro liquido, la nascita di B1 (b) ([FluidContextBirth.travel]) fra la goccia appesa alla card e il pannello, col suo
+ * contorno deformato ([FluidContextBirth.warp]: goccia, fagiolo, uovo con la coda verso la card). Gratis se gli estremi
+ * non cambiano, come `install`.
+ */
 private fun installMenuTravel(journey: FluidMenuJourney, physics: FluidPhysicsState, birth: FluidContextBirth?) {
   val seed = journey.seed
   if (birth == null || seed == null) {

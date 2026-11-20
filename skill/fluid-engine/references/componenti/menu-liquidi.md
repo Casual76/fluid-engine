@@ -257,9 +257,19 @@ vetro le tiene già tutte e tre e non è più il menu: la copertura (`fluidMenuG
 le icone, cresce col margine che ha attorno a loro ed è piena a 5 dp, due fotogrammi a 120 Hz dopo; è zero anche se il vetro
 è più di 1,5–2 volte la capsula. Le icone si accendono intere e tutte e tre insieme (al ritorno la barra le registra senza il
 ritaglio della goccia): mai a pezzi, mai la capsula vuota. Una prima regola di S4f, la capsula a 0,8 di intersezione su unione,
-le teneva spente ~66 ms col vetro già attorno a loro nell'annullo. **Icone e voci non stanno mai insieme**: le voci se ne vanno
-nel fotogramma in cui le icone si accendono (`fluidMenuGroupReturnInk`, dalla fase `FluidMenuGroupFaceVisiblePhase`, dove la curva
-d'uscita della barra le rende visibili). Da fermo a quel punto sono già quasi spente; nell'annullo è lo scambio di un fotogramma.
+le teneva spente ~66 ms col vetro già attorno a loro nell'annullo. **Icone e voci non stanno mai insieme**: le voci sfumano mentre
+il vetro comincia ad avvolgere la capsula, finché la fase delle icone scende da 1 a `FluidMenuGroupFaceVisiblePhase`
+(`fluidMenuGroupReturnInk`, `fluidMenuGroupItemsGate`), e sono zero da lì, dove la curva d'uscita della barra comincia a rendere
+visibili le icone. Da fermo a quel punto sono già quasi spente; nell'annullo sfumano in uno o due fotogrammi e le icone arrivano
+dopo. La fase la scrive **un punto solo**, la superficie del menu che ha appena disegnato il vetro (`FluidMenuJourney.noteGroupGlass`,
+nel suo disegno, prima del vetro): la barra, l'host e le voci la leggono e basta. La barra la vede al più un fotogramma dopo, le
+voci in quello stesso, quindi le icone non sono mai avanti alle voci. E l'opacità delle icone la mette **l'host**, disegnando le
+facce registrate dalla barra (`fluidMenuGroupFacesAlpha`, la curva d'uscita della barra sulla stessa fase); durante il ritorno la
+barra le lascia piene. Sul Tab S9, coi marcatori `menu.group`, `menu.ink`, `menu.faces` e `toolbar.face`, lo strato delle icone della
+barra non si ricalcola durante il ritorno (solo all'apertura, a fase 0 e opacità 1), e fino a S4g-ter l'host le disegnava così
+com'erano appena la fase scendeva sotto lo span: icone piene sopra voci ancora vive (S4g-ter, chiaro f0129, scuro f0119), che al
+banco, dove la curva della barra si ricalcolava a ogni fotogramma, non c'era. A gruppo consegnato (la capsula tolta all'ancora) le
+voci sono zero, non l'inchiostro grezzo.
 In S4g le icone entravano col quadrato dell'inchiostro uscito, ma la curva d'uscita le dava già quasi piene a metà, e sul Tab S9
 restavano voci sfocate dietro le tre icone piene (S4g-bis, chiaro f0361 e f0391–f0392). Fino a S4f tornavano col
 progresso, ritagliate dalla bolla che si allargava (in scuro f0236 la stella sola, i glifi ai lati a metà), e nell'annullo a metà
@@ -779,10 +789,13 @@ Ogni voce è un `clickable(role = Button)` per TalkBack e tastiera (dal dito il 
 e la scelta la fa la selezione, una volta sola); la voce `selected` dice «selezionato», la voce spenta lo dice, una tessera della fila
 dice la sua etichetta. Il pannello è un `isTraversalGroup` con `paneTitle` = il tuo, o `LocalFluidLabels.current.actions` («Azioni»).
 Il **back** dentro un sottomenu torna al menu di prima, al primo livello congeda (col gesto predittivo). Durante il gesto **il vetro
-segue il dito** verso la sua sorgente lungo il ritorno dei menu (`FluidMenuJourney.backPull`, fino a `FluidMenuBackReach`, 0,32 del
-ritorno: il bordo lontano cede e il corpo si accorcia verso il tasto, la capsula o la riga); al rilascio il congedo parte dalla
-sagoma tirata (`backHome`), a gesto annullato il vetro torna al pannello con la molla del menu. Fino a S4f si muoveva solo lo scrim
-(sul Tab S9 «Altro» fermo da f0084 a f0156). Con il movimento ridotto viaggio
+segue il dito** verso la sua sorgente (`FluidMenuJourney.backPull`, `fluidMenuBackPullSlab`): la sagoma del primo tratto del congedo,
+proporzionale al gesto addolcito, col bordo lontano che cede di `FluidMenuBackPullFarEdge` (0,13) dell'altezza ma almeno di
+`FluidMenuBackPullMinFarDp` (24 dp) e al più di `FluidMenuBackPullMaxFar` (0,3), il bordo vicino fermo sulla sorgente e i fianchi
+che stringono verso di lei; al rilascio il congedo parte dalla sagoma tirata (`backHome`), a gesto annullato il vetro torna al
+pannello con la molla del menu. Fino a S4f si muoveva solo lo scrim (sul Tab S9 «Altro» fermo da f0084 a f0156). Fino a S4g-ter
+il tiro era il ritorno stesso fino a 0,32 del cammino, che parte col quadrato del tempo e cede in proporzione all'altezza: al
+gesto del Tab S9 (~0,4) il bordo lontano saliva del 5–6%, e sui pannelli corti del tondo e della foto di 10–16 px, a vista fermi. Con il movimento ridotto viaggio
 e goccia sono `snapTo` e la riga tenuta premuta non si gonfia.
 
 ### Costi
@@ -881,6 +894,11 @@ Puri, in `engine-ui` (JVM):
   nello spazio dello strato, in «Altro» e nel gruppo), `LenteVociLimiteTest` (PixelCopy: col limite gli stessi pixel che col limite
   allargato, a ogni scala da 0,04 a 1,35, e che senza limite da 0,72; il pannello delle voci vero, a metà nascita, disegna la
   lente nel limite, della misura del nodo).
+- Le correzioni S4g-quater: `GruppoRitornoIconeTest` (con la barra un fotogramma indietro, come sul Tab S9, icone e voci mai
+  insieme e la capsula vuota al più un fotogramma; nell'annullo le voci sfumano prima delle icone; l'opacità delle facce e quella
+  delle voci non sono mai sopra zero alla stessa fase), `IndietroPredittivoMenuTest`
+  (con le sorgenti e i pannelli misurati sul Tab S9, al gesto del tablet il tondo e la foto cedono come la riga, e seguono il dito
+  da subito), `FluidMenuEarlyPickS4fTest` (l'Indietro vero dal dispatcher sul tondo e sulla foto: il vetro si accorcia col gesto).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello

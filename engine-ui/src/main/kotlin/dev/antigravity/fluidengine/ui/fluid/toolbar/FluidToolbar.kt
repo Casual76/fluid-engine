@@ -1649,7 +1649,9 @@ private fun FluidToolbarSlot(
           // alla ricomposizione dopo, che le lasciava spente per 2-3 fotogrammi sopra la capsula vuota.
           val live = menuSource.anchor(glass)
           val liveGroup = live?.groupBounds != null
-          val phase = live?.groupProgress?.invoke() ?: 0f
+          // Al ritorno le facce le disegna l'host, con l'opacita' della fase (S4g-quater, d): qui restano piene, una volta sola.
+          val returning = liveGroup && live?.groupFacesAbove?.invoke() == true
+          val phase = if (returning) 0f else live?.groupProgress?.invoke() ?: 0f
           val u = phase / FluidMotion.MenuGroupFaceProgressSpan
           val role = GlassContentRole.Exit
           alpha = when {
@@ -1657,10 +1659,15 @@ private fun FluidToolbarSlot(
             declaredMenu?.anchor?.hidden == true -> 0f
             else -> dim
           }
+          if (live != null) {
+            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", live) {
+              "phase=$phase alpha=$alpha group=$liveGroup"
+            }
+          }
           val s = if (liveGroup) GlassContentCurves.scale(role, u) else 1f
           scaleX = s
           scaleY = s
-          renderEffect = if (!liveGroup) null else effects?.let {
+          renderEffect = if (!liveGroup || returning) null else effects?.let {
             val sigma = glassContentSigmaPx(GlassContentCurves.blur(role, u) * GlassContentDefaults.PeakBlur,
               FluidMetrics.BarIconSize.toPx())
             it.at(glassContentBlurRadiusPx(sigma))

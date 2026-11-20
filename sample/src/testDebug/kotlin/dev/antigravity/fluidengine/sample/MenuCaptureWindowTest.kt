@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.unit.IntRect
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader as BackdropShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.asAndroidRuntimeShader
+import dev.antigravity.fluidengine.ui.fluidphysics.journeyCaptureRegion
 import dev.antigravity.fluidengine.ui.glass.backdrop.captureRegion
 import dev.antigravity.fluidengine.ui.glass.backdrop.windowedEffect
 import dev.antigravity.fluidengine.ui.glass.field.GlassEdgeBlurKernel
@@ -43,6 +44,34 @@ class MenuCaptureWindowTest {
   private val window = IntRect(0, 0, 673, 553)
   private val crop = requireNotNull(captureRegion(Rect(97.3f, 73.5f, 548.25f, 468.8f),
     Size(window.width.toFloat(), window.height.toFloat()), 1f))
+
+  @Test fun cardEPannelloUsanoLaPosaSoloQuandoMancaIlViaggio() {
+    val live = Rect(84f, 130f, 144f, 177f)
+    val first = Rect(0f, 0f, 24f, 24f)
+    val last = Rect(290f, 450f, 320f, 480f)
+    for (scale in listOf(1f, 0.5f)) {
+      val extent = Size(320f * scale, 480f * scale)
+      val expected = if (scale == 1f) IntRect(64, 112, 160, 192) else IntRect(32, 48, 80, 96)
+      fun fallback(from: Rect?, to: Rect?, pose: Rect) =
+        journeyCaptureRegion(from, to, null, 12f, extent, scale, useRoute = false, limitMissingJourney = true) { pose }
+      for ((from, to) in listOf(null to null, first to null, null to last, Rect.Zero to last, first to Rect.Zero)) {
+        assertEquals(expected, fallback(from, to, live))
+      }
+      assertEquals(IntRect.Zero, fallback(null, null, Rect.Zero))
+      assertEquals(IntRect.Zero, fallback(null, last, Rect(400f, 600f, 415f, 630f)))
+      assertEquals(IntRect.Zero, journeyCaptureRegion(null, last, null, 0f, Size(319f, 479f), 1f,
+        true, true) { Rect(319.5f, 20f, 324f, 40f) })
+      assertEquals(IntRect(0, 0, extent.width.toInt(), extent.height.toInt()),
+        fallback(first, null, Rect(0f, 0f, 320f, 480f)))
+
+      // Viaggio completo: stessa riserva di 5aefe1d, anche quando la proiezione copre l'host.
+      assertNull(journeyCaptureRegion(first, last, null, 12f, extent, scale, true, true) { live })
+      val old = captureRegion(live.inflate(live.maxDimension * 0.20f).inflate(12f), extent, scale)
+      assertEquals(old, journeyCaptureRegion(live, live, null, 12f, extent, scale, true, true) { live })
+      assertNull(journeyCaptureRegion(first, last, null, 12f, extent, scale, false, true) { error("posa inutile") })
+      assertNull(journeyCaptureRegion(null, last, null, 12f, extent, scale, true, false) { error("posa inutile") })
+    }
+  }
 
   private fun node(name: String, rect: IntRect, record: Canvas.() -> Unit): RenderNode =
     RenderNode(name).apply {

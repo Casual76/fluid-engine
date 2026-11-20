@@ -400,6 +400,8 @@ internal fun buildMenuTrace(
     if (variant?.corrected == true) physics.liquidAllowed = !journey.controlledReturn
     driver.frame(nanos)
     val plan = physics.ensurePlan()
+    // La superficie dell'host: il vetro di questo fotogramma scrive la fase delle icone del gruppo al ritorno (S4g-quater, d).
+    journey.noteGroupGlass()
     if (plan.mode == PlanModePoly) ringFrames++
     if (born) {
       if (closing) closeBounds += (tMs - requireNotNull(closeAt) / 1_000_000.0) to plan.bounds else openBounds += tMs to plan.bounds

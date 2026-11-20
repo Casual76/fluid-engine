@@ -71,6 +71,11 @@ class GruppoRitornoIconeTest {
     /** L'inchiostro del congedo ([FluidMenuJourney.contentVisibility]) e le voci come le disegna l'host (`lensInkAlpha`). */
     val visibility: Float,
     val ink: Float,
+    /**
+     * La fase che la barra mostra in questo fotogramma: quella scritta dal vetro del fotogramma prima (lo strato delle icone si
+     * aggiorna dopo il disegno, S4g-quater). Le voci leggono [phase], scritta dal vetro di questo.
+     */
+    val phaseShown: Float = phase,
   )
 
   private fun TestScope.ritorno(dismissMs: Long): List<Frame> {
@@ -115,9 +120,13 @@ class GruppoRitornoIconeTest {
       }
       driver.frame(t * 1_000_000L)
       if (closed) {
+        // L'ordine del Tab S9: la barra ha la fase del fotogramma prima, poi la superficie disegna il vetro e la scrive
+        // ([FluidMenuJourney.noteGroupGlass]), poi l'host disegna le icone e le voci.
+        val shown = anchor.groupProgress()
+        journey.noteGroupGlass()
         out += Frame(
           t, physics.ensurePlan().bounds, journey.progress.value, anchor.groupProgress(), fluidMenuGroupFaceReturn(journey.progress.value),
-          journey.contentVisibility.value, journey.lensInkAlpha(),
+          journey.contentVisibility.value, journey.lensInkAlpha(), phaseShown = shown,
         )
       }
       t = GroupFrames.frameAfter(t)
@@ -179,12 +188,52 @@ class GruppoRitornoIconeTest {
     }
     println("TAVOLA $name fotogrammi con icone e voci insieme: S4g $overlapBefore, ora $overlapAfter")
     assertEquals("$name: icone e voci insieme", 0, overlapAfter)
+    // S4g-quater (d): sul Tab S9 restava un fotogramma con le voci sotto le tre icone piene (chiaro f0129, scuro f0119). Con le
+    // icone della barra un fotogramma indietro (la fase del vetro di prima) e le voci di adesso, mai insieme; la capsula vuota
+    // al piu' un fotogramma; e le voci sfumano mentre il vetro avvolge la capsula, prima delle icone (la via di mezzo).
+    var overlapShown = 0
+    var fading = 0
+    var emptyShown = 0
+    for (f in frames) {
+      val icons = iconAlpha(f.phaseShown)
+      if (icons > 0.01f && f.ink > 0.01f) overlapShown++
+      if (f.ink > 0.01f && f.ink < f.visibility * 0.95f) fading++
+      if (holds(f.drawn) && f.progress <= 0.02f && f.phaseShown >= span) emptyShown++
+      println(
+        "TAVOLA $name t=${f.t} barra ${"%.2f".format(icons)} (fase ${"%.2f".format(f.phaseShown)}) voci ${"%.2f".format(f.ink)} " +
+          "di ${"%.2f".format(f.visibility)}",
+      )
+    }
+    println("TAVOLA $name con la barra un fotogramma indietro: insieme $overlapShown, voci che sfumano $fading, capsula vuota $emptyShown")
+    assertEquals("$name: icone della barra e voci insieme", 0, overlapShown)
+    assertTrue("$name: capsula vuota con la barra un fotogramma indietro per $emptyShown fotogrammi", emptyShown <= 1)
+    if (name == "annullo") assertTrue("$name: le voci non sfumano prima delle icone", fading >= 1)
   }
 
-  /** L'opacita' delle icone della barra a questa fase (`FluidToolbar`: la curva d'uscita, con la sfocatura). */
-  private fun iconAlpha(phase: Float): Float =
-    if (phase >= FluidMotion.MenuGroupFaceProgressSpan) 0f else
-      GlassContentCurves.alpha(GlassContentRole.Exit, phase / FluidMotion.MenuGroupFaceProgressSpan, blurAvailable = true)
+  /** L'opacita' delle icone a questa fase, come le disegna l'host al ritorno ([fluidMenuGroupFacesAlpha]). */
+  private fun iconAlpha(phase: Float): Float = fluidMenuGroupFacesAlpha(phase, blurAvailable = true)
+
+  /**
+   * S4g-quater (d), coi marcatori sul Tab S9: durante il ritorno lo strato delle icone della barra non si ricalcolava, e l'host
+   * le disegnava piene appena la fase scendeva sotto lo span, con le voci vive fino a 0,647. Ora l'opacita' delle facce e quella
+   * delle voci vengono dalla stessa fase: a nessuna fase sono sopra zero insieme, con e senza sfocatura.
+   */
+  @Test fun theFacesAndTheItemsNeverShareAPhase() {
+    var both = 0
+    for (k in 0..1000) {
+      val phase = k / 1000f
+      for (blur in listOf(true, false)) {
+        val faces = fluidMenuGroupFacesAlpha(phase, blur)
+        val items = fluidMenuGroupItemsGate(phase)
+        if (faces > 0.01f && items > 0.01f) both++
+      }
+    }
+    assertEquals("fasi con facce e voci insieme", 0, both)
+    // Piene alla consegna, spente finche' il vetro non avvolge la capsula, e le voci piene a fase piena.
+    assertEquals(1f, fluidMenuGroupFacesAlpha(0f), 1e-4f)
+    assertEquals(0f, fluidMenuGroupFacesAlpha(FluidMotion.MenuGroupFaceProgressSpan), 0f)
+    assertEquals(1f, fluidMenuGroupItemsGate(1f), 0f)
+  }
 
   @Test fun theIconsComeBackTogetherWithTheCapsuleFromARestingMenu() = runTest { check("fermo", ritorno(dismissMs = 1_200L)) }
 

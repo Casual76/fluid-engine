@@ -489,17 +489,23 @@ class FluidMenuJourneyTest {
     journey.retarget(0f)
     assertTrue("al ritorno le disegna l'host sopra il vetro", a.groupFacesAbove())
     val span = FluidMotion.MenuGroupFaceProgressSpan
-    // Le voci ci sono finche' le icone restano spente, e se ne vanno nel fotogramma in cui tornano (S4g-bis, d): mai insieme.
+    // Le voci ci sono finche' le icone restano spente, e se ne vanno prima che tornino (S4g-bis e S4g-quater, d): mai insieme.
+    // A ogni passo il vetro disegnato scrive la fase ([FluidMenuJourney.noteGroupGlass]), come la superficie nell'host.
     for (p in listOf(1f, 0.8f, 0.5f, FluidMenuGroupFaceReturnShare + 0.01f)) {
       journey.progress.snapTo(p)
+      journey.noteGroupGlass()
       assertTrue("spente a $p mentre il vetro torna", a.groupProgress() >= span)
       assertEquals("le voci a $p", journey.contentVisibility.value, journey.lensInkAlpha(), 0f)
     }
     journey.progress.snapTo(FluidMenuGroupFaceReturnShare / 2f)
+    // Senza il vetro disegnato la fase non si muove: chi la legge non la scrive.
+    assertTrue("prima del vetro ancora spente", a.groupProgress() >= span)
+    journey.noteGroupGlass()
     assertTrue("a meta' dell'ultimo tratto si vedono", a.groupProgress() in 0.3f..0.7f)
     assertTrue("con l'inchiostro ancora pieno", journey.contentVisibility.value > 0.99f)
     assertEquals("e le voci se ne sono andate", 0f, journey.lensInkAlpha(), 0f)
     journey.progress.snapTo(0f)
+    journey.noteGroupGlass()
     assertEquals("piene alla consegna", 0f, a.groupProgress(), 0f)
     // La consegna scioglie tutto: la barra riprende icone e capsula.
     a.consume(false)

@@ -90,7 +90,6 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriter
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriters
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriterKey
-import androidx.compose.ui.node.findNearestAncestor
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.LocalView
@@ -377,10 +376,11 @@ internal class BottomEdgeBackdropEffects(
 /** La fisica e gli shader continuano a lavorare nel sistema di coordinate dell'intera finestra. */
 internal class WindowedBackdropEffects(
     private val screenDensity: Float,
-    private val bounds: () -> Rect?,
+    private val unmeasuredRegion: IntRect?,
+    private val resolveRegion: (Size, Float) -> IntRect?,
     private val build: BackdropEffectScope.() -> Unit,
 ) : (BackdropEffectScope) -> Unit {
-    var region: IntRect? = null
+    var region: IntRect? = unmeasuredRegion
         private set
     private var previousEffect: RenderEffect? = null
     private var previousOrigin = IntOffset.Zero
@@ -390,7 +390,7 @@ internal class WindowedBackdropEffects(
     override fun invoke(scope: BackdropEffectScope) {
         scope.build()
         val size = scope.size
-        region = if (size.isSpecified) bounds()?.let { captureRegion(it, size, scope.density / screenDensity) } else null
+        region = if (size.isSpecified) resolveRegion(size, scope.density / screenDensity) else unmeasuredRegion
         val origin = region?.topLeft ?: IntOffset.Zero
         val effect = scope.renderEffect ?: return
         if (origin == IntOffset.Zero) return
@@ -404,12 +404,15 @@ internal class WindowedBackdropEffects(
 }
 
 /** Arrotonda verso l'esterno sulla griglia del campione e dei sottolivelli del Gaussian. */
-internal fun captureRegion(bounds: Rect, size: Size, scale: Float): IntRect? {
+internal fun captureRegion(bounds: Rect, size: Size, scale: Float, explicit: Boolean = false): IntRect? {
     val width = size.width.toInt()
     val height = size.height.toInt()
+    if (explicit && (bounds.left * scale >= width || bounds.top * scale >= height ||
+        bounds.right * scale <= 0f || bounds.bottom * scale <= 0f)) return IntRect.Zero
     fun start(v: Float, limit: Int) = (floor(v * scale / 16f).toInt() * 16).coerceIn(0, limit)
     fun end(v: Float, limit: Int) = (ceil(v * scale / 16f).toInt() * 16).coerceIn(0, limit)
     val rect = IntRect(start(bounds.left, width), start(bounds.top, height), end(bounds.right, width), end(bounds.bottom, height))
+    if (explicit) return if (rect.width > 0 && rect.height > 0) rect else IntRect.Zero
     return rect.takeIf { it.width > 0 && it.height > 0 && (it.width < width || it.height < height) }
 }
 
@@ -1033,7 +1036,8 @@ private class DrawBackdropNode(
     private var recordedRegion: IntRect? = null
     private var originalExtent = Size.Zero
 
-    private val recordBackdropBlock: (DrawScope.() -> Unit) = {
+    private val recordBackdropBlock: (DrawScope.() -> Unit) = record@ {
+        if (recordedRegion == IntRect.Zero) return@record
         val canvas = drawContext.canvas
         val padding = padding
         val scale = effectiveScale
@@ -1088,7 +1092,7 @@ private class DrawBackdropNode(
             val fullWidth = (size.width * contentScale).toInt()
             val fullHeight = (size.height * contentScale).toInt()
             val border = padding.toInt() * 2
-            val recordSize = IntSize(
+            val recordSize = if (region == IntRect.Zero) IntSize(1, 1) else IntSize(
                 ((region?.width ?: fullWidth) + border).coerceAtLeast(1),
                 ((region?.height ?: fullHeight) + border).coerceAtLeast(1),
             )
@@ -1416,10 +1420,13 @@ private class DrawBackdropNode(
             val edge = (effects as? BottomEdgeBackdropEffects)?.takeIf {
                 effect != null && size.isSpecified && effectiveScale == 1f && effectScope.padding == 0f
             }
-            val crop = edge != null || (effect != null && (effects as? WindowedBackdropEffects)?.region != null)
+            val window = effects as? WindowedBackdropEffects
+            val crop = edge != null || (effect != null && window?.region != null) || window?.region == IntRect.Zero
             if (edge != null) {
                 val y = edge.top().coerceIn(0f, size.height)
                 layer.setRectOutline(Offset(0f, y), Size(size.width, size.height - y))
+            } else if (window?.region == IntRect.Zero) {
+                layer.setRectOutline(Offset.Zero, Size.Zero)
             } else if (layer.clip || crop) {
                 // Ripristina l'intero rettangolo del layer anche nel passaggio da striscia a finestra.
                 layer.setRectOutline()

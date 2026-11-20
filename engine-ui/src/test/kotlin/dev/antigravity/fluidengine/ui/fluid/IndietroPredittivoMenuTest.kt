@@ -134,4 +134,78 @@ class IndietroPredittivoMenuTest {
     journey.retarget(0f, onContour = true)
     assertEquals("il ritorno del contestuale parte dalla sagoma tirata", pulled, physics.dropRestSlabNow())
   }
+
+  /** Un menu del Tab S9 a riposo (S4g-ter, prova 34, scuro): la sorgente da cui e' nato e il pannello. */
+  private class Menu(val name: String, val source: Rect, val panel: Rect)
+
+  /** Le sorgenti misurate sul Tab S9: il tasto di «Altro», e la goccia del contestuale sotto il dito sulla riga, sul tondo e sulla foto. */
+  private fun tabletMenus(): List<Menu> {
+    val seed = FluidMenuDropSeedDiameter.value * d
+    val overlap = FluidMenuDropSeedOverlap.value * d
+    fun drop(row: Rect, panel: Rect, x: Float) = fluidMenuDropSeed(row, panel, x, seed, overlap)
+    val rowPanel = Rect(532f, 1340f, 1068f, 1788f)
+    val roundPanel = Rect(80f, 993f, 616f, 1222f)
+    val photoPanel = Rect(64f, 1120f, 600f, 1462f)
+    return listOf(
+      Menu("altro", button, panel),
+      Menu("riga", drop(Rect(20f, 1160f, 1580f, 1308f), rowPanel, 700f), rowPanel),
+      Menu("tondo", drop(Rect(280f, 828f, 420f, 964f), roundPanel, 348f), roundPanel),
+      Menu("foto", drop(Rect(32f, 708f, 628f, 1088f), photoPanel, 145f), photoPanel),
+    )
+  }
+
+  /** Di quanto il bordo lontano (quello opposto alla sorgente) e' venuto verso di lei. */
+  private fun farGive(m: Menu, now: Rect): Float =
+    if (m.source.center.y >= m.panel.center.y) now.top - m.panel.top else m.panel.bottom - now.bottom
+
+  /** Il tiro fino a S4g-ter: il ritorno dei menu fino a 0,32 del cammino. */
+  private fun before(m: Menu, pull: Float): Rect {
+    val eased = 1f - (1f - pull) * (1f - pull)
+    val source = FluidForm.Slab(m.source, FluidCornerRadii.all(m.source.minDimension / 2f))
+    return fluidMenuReturnSlab(source, FluidForm.Slab(m.panel, FluidCornerRadii.all(radius)), 1f - 0.32f * eased,
+      wrapSource = m.name == "altro").frame
+  }
+
+  /**
+   * S4g-ter sul Tab S9 (prova 34): col gesto completo i cinque menu si chiudono, ma durante il trascinamento il tondo e la foto
+   * restavano quasi fermi (scuro tondo f0533–f0563, foto f0493–f0526), mentre la riga, il gruppo e «Altro» seguivano il dito.
+   * Il gesto del tablet (397 px dal bordo, ~0,4): nelle riprese il bordo lontano saliva di ~10 px nel tondo, ~16 nella foto, ~22
+   * nella riga e ~27 in «Altro». Il tiro era proporzionale all'altezza del pannello e partiva col quadrato del gesto: sui
+   * pannelli corti si vedeva appena. Ora tutti seguono il dito di una misura simile.
+   */
+  @Test
+  fun theRoundAndThePhotoFollowTheFingerLikeTheOthers() {
+    val minPx = FluidMenuBackPullMinFarDp * d
+    val tablet = 0.4f
+    val gives = HashMap<String, Float>()
+    for (m in tabletMenus()) {
+      val slab = FluidForm.Slab(m.panel, FluidCornerRadii.all(radius))
+      var last = 0f
+      for (p in listOf(0.1f, 0.25f, tablet, 0.6f, 1f)) {
+        val now = fluidMenuBackPullSlab(m.source, slab, p, minPx).frame
+        val give = farGive(m, now)
+        println(
+          "TAVOLA tiro ${m.name} gesto=$p bordo lontano ${"%.1f".format(give)} px (prima ${"%.1f".format(farGive(m, before(m, p)))}) " +
+            "sagoma=${now.left.toInt()},${now.top.toInt()},${now.right.toInt()},${now.bottom.toInt()}",
+        )
+        assertTrue("${m.name} al $p il bordo lontano segue il dito: $give dopo $last", give > last)
+        // Il bordo vicino resta sulla sorgente, e il pannello resta un menu.
+        val near = if (m.source.center.y >= m.panel.center.y) now.bottom - m.panel.bottom else m.panel.top - now.top
+        assertTrue("${m.name} al $p il bordo vicino: $near", near >= 0f && near <= m.panel.height * 0.03f)
+        assertTrue("${m.name} al $p ancora un menu: ${now.height}", now.height > m.panel.height * 0.65f)
+        if (p == tablet) gives[m.name] = give
+        last = give
+      }
+      // Dal primo tratto del gesto: col quadrato del ritorno, a 0,1 il bordo si muoveva del 4% della sua corsa.
+      val first = farGive(m, fluidMenuBackPullSlab(m.source, slab, 0.1f, minPx).frame)
+      assertTrue("${m.name} segue il dito da subito: $first su $last", first >= last * 0.15f)
+    }
+    println("TAVOLA tiro al gesto del tablet: $gives")
+    val riga = requireNotNull(gives["riga"])
+    for (name in listOf("tondo", "foto")) {
+      val give = requireNotNull(gives[name])
+      assertTrue("$name: $give px al gesto del tablet", give >= 30f)
+      assertTrue("$name come la riga: $give contro $riga", give >= riga * 0.8f)
+    }
+  }
 }

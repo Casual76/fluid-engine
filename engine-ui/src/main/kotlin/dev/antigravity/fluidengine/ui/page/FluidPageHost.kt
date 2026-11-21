@@ -29,6 +29,19 @@ package dev.antigravity.fluidengine.ui.page
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState.PageRole
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.unit.Constraints
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
+import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.GlassRole
+import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
+import dev.antigravity.fluidengine.ui.fluid.glassContentBlurEffect
+import dev.antigravity.fluidengine.ui.fluid.glassSurface
+import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.LocalContentColor
@@ -72,8 +85,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.luminance
@@ -410,10 +421,16 @@ internal fun <K : Any> FluidPageHostImpl(
   ) {
     // L'ordine e' quello del disegno: sotto, poi sopra. Le chiavi tengono la composizione di una
     // pagina quando passa da sopra a sotto o viceversa.
+    val glass = state.growing
+    val backdrop = if (glass != null) rememberGlassBackdrop() else null
     for (page in listOfNotNull(lower, upper, prepared)) {
+      if (page == upper && glass != null && backdrop != null) {
+        GrowingPageSurface(state, backdrop, glass)
+      }
       key(pageKey(page)) {
         PageLayer(
           page = page,
+          growingBackground = backdrop.takeIf { page == lower },
           isUpper = page == upper,
           preparedOnly = page == prepared,
           entering = entering != null,
@@ -431,6 +448,7 @@ internal fun <K : Any> FluidPageHostImpl(
         )
       }
     }
+    if (state.zoom != null) SharedPageOverlay(state, Modifier.matchParentSize())
     // Sopra le pagine, sotto la chrome dell'app: una barra per host, ferma mentre le pagine passano.
     FluidAnchoredBar(state = state, registry = barRegistry,
       lowerKey = if (entering == null) lower else state.lower,
@@ -441,6 +459,7 @@ internal fun <K : Any> FluidPageHostImpl(
 @Composable
 private fun <K : Any> PageLayer(
   page: K,
+  growingBackground: GlassBackdropState?,
   isUpper: Boolean,
   preparedOnly: Boolean,
   entering: Boolean,
@@ -456,6 +475,7 @@ private fun <K : Any> PageLayer(
   barRegistry: FluidPageBarRegistry,
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
+  val sharedSpace = remember(state, page) { SharedPageSpace(state, page) }
   val barSlot = remember(page, barRegistry) { FluidPageBarSlot(page, barRegistry) }
   val covered = preparedOnly || (!isUpper && !entering && state.kind == FluidPageMove.None)
   // La pagina che riappare sotto il dito è una previsione finché il gesto non viene confermato.
@@ -497,7 +517,9 @@ private fun <K : Any> PageLayer(
           }
         } else Modifier,
       )
+      .then(if (growingBackground != null) Modifier.growingBackdrop(state, growingBackground) else Modifier)
       .pageLayer(state, page, shadowColor, elevationPx, signals)
+      .onPlaced { sharedSpace.coordinates = it }
       .zoomCrossfade(state, page, pageColor)
       .then(if (pageColor.isSpecified) Modifier.background(pageColor) else Modifier)
       .pageInputGate(state, page)
@@ -508,6 +530,7 @@ private fun <K : Any> PageLayer(
       }),
   ) {
     CompositionLocalProvider(
+      LocalSharedPage provides sharedSpace,
       LocalFluidPagePreparing provides (preparedOnly || LocalFluidPagePreparing.current),
       LocalFluidRouteFront provides front,
       LocalFluidPageTransition provides state,
@@ -540,49 +563,65 @@ private class PageScopeImpl(
   override val isFront: Boolean get() = front.value
 }
 
-/**
- * La dissolvenza dello zoom (F5B.3; di serie dal 19 novembre 2026, scelta di Alessio: [FluidPageHostState.zoomCrossfade]).
- * Dentro il layer della pagina sopra, quindi già in scala e ritagliato dalla sagoma: il fondo della pagina resta pieno, il
- * contenuto sbiadisce, e sopra compare la fotografia della sorgente, larga quanto la sagoma e in alto
- * ([FluidZoom.snapshotRect]). All'arrivo la sagoma è la sorgente e la fotografia la copre tutta: la sorgente che rinasce è
- * la stessa immagine. All'apertura è lo stesso al contrario: la card sbiadisce mentre la pagina compare.
- *
- * Nel fotogramma in cui la sorgente si nasconde la sua fotografia può non essere ancora registrata (la registra il disegno
- * della sorgente, che può arrivare al fotogramma dopo): lì la pagina, fondo compreso, si disegna con l'opacità che le
- * spetta, così all'apertura non compare per un fotogramma la miniatura piena della pagina prima della card. Fuori dallo
- * zoom, o senza dissolvenza, disegna la pagina e basta.
- *
- * L'opacità del contenuto (`1 − alfa`) è [FluidPageHostState.zoomContentAlpha]: la legge anche la barra ancorata per il
- * titolo grande, che è contenuto della pagina ma sta sopra le pagine (corr-s4-zoom).
- */
-private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier = drawWithContent {
-  val alpha = if (state.roleOf(page) == PageRole.Upper) state.zoomCrossfadeAlpha() else 0f
-  if (alpha <= 0f) {
+/** Registra il fondo dopo la sfocatura e il velo: anche la lente vede la pagina sottostante già attenuata. */
+private fun Modifier.growingBackdrop(state: FluidPageHostState, backdrop: GlassBackdropState): Modifier =
+  glassBackdropSource(backdrop).drawWithContent {
     drawContent()
-    return@drawWithContent
+    val amount = FluidZoom.atmosphere(state.fractionToward { it == state.upper })
+    drawRect(Color.Black, alpha = FluidPageMotion.GrowDim * amount)
+  }.graphicsLayer {
+    val amount = FluidZoom.atmosphere(state.fractionToward { it == state.upper })
+    renderEffect = if (isRenderEffectSupported()) glassContentBlurEffect(
+      amount * FluidPageMotion.GrowBlurDp * density, tileMode = TileMode.Clamp) else null
   }
-  val snapshot = state.zoomSnapshot()
-  val zoomed = if (snapshot != null) state.zoomShape() else null
-  if (snapshot == null || zoomed == null || snapshot.size.width <= 0f) {
-    val target = Rect(0f, 0f, size.width, size.height)
-    drawContext.canvas.saveLayer(target, Paint().apply { this.alpha = 1f - alpha })
-    drawContent()
-    drawContext.canvas.restore()
-    return@drawWithContent
-  }
-  val target = Rect(0f, 0f, size.width, size.height)
-  val clip = FluidZoom.contentClip(zoomed, target, FluidZoom.content(zoomed, target)).bounds
-  if (pageColor.isSpecified && pageColor.alpha > 0f) drawRect(pageColor)
-  val canvas = drawContext.canvas
-  canvas.saveLayer(target, Paint().apply { this.alpha = 1f - alpha })
-  drawContent()
-  canvas.restore()
-  val rect = FluidZoom.snapshotRect(clip, snapshot.size)
-  val k = rect.width / snapshot.size.width
-  translate(rect.left, rect.top) {
-    scale(k, k, pivot = Offset.Zero) {
-      snapshot.layer.alpha = alpha
-      drawLayer(snapshot.layer)
+
+@Composable
+private fun GrowingPageSurface(state: FluidPageHostState, backdrop: GlassBackdropState, glass: GrowingPageGlass) {
+  // A riquadro ormai fermo cambia ancora il contorno: anche lente e filo devono ricevere la nuova forma.
+  val corners by remember(state) { derivedStateOf { state.zoomShape()?.corners ?: FluidPageCorners.Zero } }
+  val shape = remember(corners) { AbsoluteRoundedCornerShape(corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft) }
+  Box(Modifier.layout { measurable, constraints ->
+    val bounds = state.zoomShape()?.bounds ?: Rect.Zero
+    val child = measurable.measure(Constraints.fixed(bounds.width.roundToInt().coerceAtLeast(0),
+      bounds.height.roundToInt().coerceAtLeast(0)))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+      if (!bounds.isEmpty) child.place(bounds.left.roundToInt(), bounds.top.roundToInt())
+    }
+  }.glassSurface(backdrop, glass.tint ?: GlassDefaults.controlTint(), shape,
+    role = GlassRole.Interactive, optics = glass.optics, nestInContainer = false))
+}
+
+/** Le due facce non condividono una finestra leggibile. L'immagine condivisa è su un altro layer
+ * e rimane nitida anche quando tutta la chrome si sfoca. */
+@Composable
+private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier {
+  if (state.zoom == null || state.upper != page || !state.zoomCrossfade) return this
+  val face = rememberGraphicsLayer()
+  val sourceFace = rememberGraphicsLayer()
+  return drawWithContent {
+    val zoom = state.zoomShape()
+    if (zoom == null || state.roleOf(page) != PageRole.Upper) {
+      drawContent()
+      return@drawWithContent
+    }
+    val target = Rect(Offset.Zero, size)
+    val clip = FluidZoom.contentClip(zoom, target, FluidZoom.content(zoom, target)).bounds
+    val look = state.zoomFaces()
+    val grow = state.growing != null
+    if (!grow && pageColor.isSpecified) drawRect(pageColor)
+    // Anche quando l'alfa è zero, i figli marcati possono registrarsi per il disegno dell'host.
+    face.record { this@drawWithContent.drawContent() }
+    face.alpha = if (grow) state.solidOpacity else look.pageAlpha
+    if (face.alpha > 0f) {
+      face.renderEffect = if (grow) null else look.pageBlurEffect(density)
+      translate(top = if (grow) 0f else look.riseDp * density) { drawLayer(face) }
+    }
+    val snapshot = state.zoomSnapshot()
+    if (snapshot != null && look.sourceAlpha > 0f && snapshot.size.width > 0f) {
+      sourceFace.record(size = snapshot.layer.size) { drawLayer(snapshot.layer) }
+      sourceFace.alpha = look.sourceAlpha
+      sourceFace.renderEffect = zoomFaceEffect(look.sourceBlur, density)
+      drawPageInk(sourceFace, FluidZoom.snapshotRect(clip, snapshot.size))
     }
   }
 }
@@ -655,7 +694,8 @@ private fun Modifier.pageLayer(
       val clipped = FluidZoom.contentClip(zoomed, target, FluidZoom.content(zoomed, target))
       shape = FluidZoomClipShape(clipped.toRoundRect())
       clip = true
-      shadowElevation = elevationPx * (1f - state.upperExitFraction()).coerceIn(0f, 1f)
+      // Cresce ha già l'ombra del materiale. Una carta trasparente sopra la lastra la disegnerebbe due volte.
+      shadowElevation = if (state.growing != null) 0f else elevationPx * (1f - state.upperExitFraction()).coerceIn(0f, 1f)
       ambientShadowColor = shadowColor
       spotShadowColor = shadowColor
       signals.markMoving()

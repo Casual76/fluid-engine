@@ -21,6 +21,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.ceil
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -634,25 +637,6 @@ private inline fun DrawScope.clipZoom(zoom: FluidZoomShape, inside: Boolean, blo
 internal fun barTitleZoomClip(zoom: FluidZoomShape, origin: Offset): FluidZoomShape =
   if (origin == Offset.Zero) zoom else zoom.translate(-origin)
 
-/**
- * Il titolo della pagina sopra con l'opacità della sua pagina nello zoom ([alpha], da
- * [FluidPageHostState.zoomContentAlpha]): in un `saveLayer` grande quanto la sagoma, come il contenuto della pagina in
- * `FluidPageHost.zoomCrossfade`. Non nell'`alpha` del layer della barra: sotto 1 quello passa per un buffer grande quanto
- * il suo nodo, la riga dei controlli alta 46 dp, e il titolo grande, che sta più in basso, sparirebbe tutto al primo
- * fotogramma della dissolvenza (corr-s4-zoom, visto nei fotogrammi del primo tentativo). La sagoma contiene tutto ciò che
- * del titolo si vede.
- */
-private inline fun DrawScope.barTitleZoomFade(shape: FluidZoomShape, alpha: Float, paint: Paint, block: DrawScope.() -> Unit) {
-  if (alpha >= 1f) {
-    block()
-    return
-  }
-  paint.alpha = alpha
-  drawContext.canvas.saveLayer(shape.bounds, paint)
-  block()
-  drawContext.canvas.restore()
-}
-
 /** Dove sta il riquadro [box] nell'host di [state], o zero se uno dei due non è (più) nell'albero. */
 private fun barTitleOrigin(state: FluidPageHostState, box: LayoutCoordinates?): Offset {
   val host = state.hostCoordinates?.takeIf { it.isAttached } ?: return Offset.Zero
@@ -733,7 +717,9 @@ private fun BoxScope.BarTitle(
   val glyphPx = with(LocalDensity.current) { spec.compactStyle.fontSize.toPx() }
   // Il riquadro del titolo, per riportarci la sagoma dello zoom (che è nelle coordinate dell'host): vedi [barTitleZoomClip].
   val box = remember { arrayOfNulls<LayoutCoordinates>(1) }
-  val fade = remember { Paint() }
+  // Il titolo grande cade sotto la riga alta 46 dp. Il filtro richiede un layer grande
+  // quanto la sagoma, nelle sue coordinate, altrimenti il RenderEffect taglia il titolo.
+  val zoomLayer = if (state.zoom != null && state.upper == page && state.zoomCrossfade) rememberGraphicsLayer() else null
   CompositionLocalProvider(spec.context) {
     // Il titolo segue il lato della striscia della barra anche col contesto della pagina (dal seguito di F2.5).
     CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
@@ -763,12 +749,23 @@ private fun BoxScope.BarTitle(
           when (state.roleOf(page)) {
             PageRole.Gone -> Unit
             // Nello zoom (F5B.3) il titolo grande della pagina sopra si vede solo dentro la sua sagoma, e se ne va con la
-            // sua pagina, sulla stessa curva (corr-s4-zoom): vedi [barTitleZoomFade].
+            // sua pagina, sulla stessa curva (corr-s4-zoom e F6B.5b).
             PageRole.Upper -> state.zoomShape()?.let { zoom ->
               val shape = barTitleZoomClip(zoom, barTitleOrigin(state, box[0]))
-              val alpha = state.zoomContentAlpha(PageRole.Upper)
-              if (alpha > 0f) clipZoom(shape, inside = true) {
-                barTitleZoomFade(shape, alpha, fade) { this@drawWithContent.drawContent() }
+              val look = if (zoomLayer != null) state.zoomFaces() else null
+              clipZoom(shape, inside = true) {
+                if (zoomLayer == null || look == null || look.pageAlpha >= 1f) {
+                  this@drawWithContent.drawContent()
+                } else if (look.pageAlpha > 0f) {
+                  val bounds = shape.bounds
+                  val scaledDensity = density * state.pageScale(PageRole.Upper)
+                  zoomLayer.record(size = IntSize(ceil(bounds.width).toInt(), ceil(bounds.height).toInt())) {
+                    translate(-bounds.left, -bounds.top) { this@drawWithContent.drawContent() }
+                  }
+                  zoomLayer.alpha = look.pageAlpha
+                  zoomLayer.renderEffect = look.pageBlurEffect(scaledDensity)
+                  translate(bounds.left, bounds.top + look.riseDp * scaledDensity) { drawLayer(zoomLayer) }
+                }
               }
             } ?: drawContent()
             // Il titolo grande della pagina sotto e' suo contenuto: dove la pagina sopra la copre, lo copre anche

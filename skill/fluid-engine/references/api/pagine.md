@@ -146,6 +146,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class FluidOpenDirection` — Verso del trascinamento che apre una pagina dalla sorgente.
 - `enum class FluidPageDismiss` — Gesto verticale facoltativo della destinazione, indipendente dal bordo orizzontale.
 
+## `engine-ui/ui/page/FluidSharedElement.kt`
+
+- `fun FluidTransitionSource.growingGlass(tint: GlassTint? = null, optics: GlassOptics = GlassDefaults.buttonOptics()): FluidTransitionSource` — Fa viaggiare il vetro della pillola fino alla posa. Usare la stessa tinta e le stesse ottiche della pillola. La destinazione può avere un fondo opaco proprio.
+- `@Composable fun FluidGrowingPagePill(id: Any, ns: FluidGlassNamespace, backdrop: GlassBackdropState, modifier: Modifier = Modifier, shape: Shape = FluidCapsuleShape, tint: GlassTint = GlassDefaults.controlTint(), optics: GlassOptics = GlassDefaults.buttonOptics(), content: @Composable BoxScope.() -> Unit)` — La pillola d'origine di «Cresce». La fotografia presta soltanto la faccia: il vetro, già al primo fotogramma, viene disegnato alla misura del viaggio. Passare la stessa [tint] e le stesse [optics] a [growingGlass] nella dichiarazione della destinazione.
+- `fun Modifier.fluidSharedElement(key: Any, ns: FluidGlassNamespace): Modifier` — La stessa immagine in due sedi. Mettere il modifier prima del disegno in entrambe le pagine. La prima immagine nella sorgente presta la propria identità a un solo viaggio.
+- `fun Modifier.fluidGrowingPageChrome(): Modifier` — I comandi in primo piano di una pagina «Cresce». Posarli insieme su un contenitore trasparente: arrivano dopo il 70% mentre il fondo, anche quando la pagina ne dipinge uno suo, resta vetro.
+
 ## `engine-ui/ui/page/FluidZoom.kt`
 
 - `data class FluidZoomShape(val bounds: Rect, val corners: FluidPageCorners = FluidPageCorners.Zero)` — Una sagoma dello zoom: il riquadro, in pixel nelle coordinate di chi disegna, e i raggi dei quattro angoli (circolari, assoluti). È la cosa che viaggia: parte dalla sorgente, arriva alla pagina o al foglio, e torna.

@@ -52,6 +52,12 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
       ?: if (includeCoveredPage) nodes.firstNotNullOfOrNull { it.resolve(includeCoveredPage = true) } else null
   }
 
+  internal var growingGlass: dev.antigravity.fluidengine.ui.page.GrowingPageGlass? = null
+    private set
+
+  internal fun withGrowingGlass(material: dev.antigravity.fluidengine.ui.page.GrowingPageGlass) =
+    FluidTransitionSource(key).also { it.growingGlass = material }
+
   // F5B.3: la sorgente «consumata». Una presentazione nata da qui (lo zoom di una pagina o di un foglio) la nasconde
   // finché è aperta e la restituisce al ritorno, nello stesso fotogramma in cui la sagoma ci rientra: la sorgente e
   // l'arrivo non si vedono mai insieme. Un contatore per identità, perché due presentazioni possono tenere la stessa.

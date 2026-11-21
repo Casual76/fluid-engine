@@ -195,6 +195,27 @@ object FluidPageMotion {
   fun zoom(): SpringSpec<Float> =
     spring(FluidMotion.DampingChrome, ResponseZoom, VisibilityThresholdPx)
 
+  /** F6B.5b, a occhio, scelta di Alessio del 21 novembre 2026. La faccia lascia il centro al 30%,
+   * i comandi salgono dopo il 70%. Lo scambio usa le curve di blur e opacità misurate in R7. */
+  internal const val SourceFaceEnd = 0.30f
+  internal const val PageChromeStart = 0.70f
+  internal const val PageChromeRiseDp = 12f
+
+  /** Cresce, a occhio, scelta di Alessio del 21 novembre 2026. Molla critica rapida al tocco,
+   * poi solidificazione a geometria ferma. Il ritorno scioglie il materiale nel primo 8% del gesto. */
+  internal val growTap = spring<Float>(FluidMotion.DampingChrome, FluidMotion.stiffnessForResponse(0.245), VisibilityThresholdPx)
+  internal const val GrowSolidMillis = 125
+  internal const val GrowMeltStart = 0.92f
+
+  /** Angoli all’arrivo, a occhio, scelta di Alessio del 21 novembre 2026. Cresce usa solo la seconda
+   * metà della solidificazione. Zoom e Sale dedicano lo stesso tempo al solo bordo. */
+  internal const val GrowCornerStart = 0.5f
+  internal const val ZoomCornerMillis = GrowSolidMillis / 2
+
+  /** Sfondo di Cresce, a occhio, scelta di Alessio del 21 novembre 2026. Valori massimi dopo la curva a S. */
+  internal const val GrowDim = 0.18f
+  internal const val GrowBlurDp = 10f
+
   // --- La corsa --------------------------------------------------------------------------------
 
   /** Quanta corsa serve perche' la pagina sopra sia del tutto fuori. */

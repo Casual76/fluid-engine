@@ -9,9 +9,19 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RenderEffect
+import dev.antigravity.fluidengine.ui.fluid.GlassContentCurves
+import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
+import dev.antigravity.fluidengine.ui.fluid.glassContentBlurEffect
+import dev.antigravity.fluidengine.ui.fluid.glassContentSigmaPx
+import dev.antigravity.fluidengine.ui.fluid.glassContentSmoothstep
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidRadius
+import dev.antigravity.fluidengine.ui.fluid.concentricCornerRadii
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSourceGeometry
 import kotlin.math.max
 import kotlin.math.min
@@ -66,6 +76,15 @@ data class FluidZoomContent(val scale: Float, val translation: Offset) {
   }
 }
 
+internal data class ZoomFaces(val sourceAlpha: Float, val pageAlpha: Float, val sourceBlur: Float, val pageBlur: Float, val riseDp: Float) {
+  fun pageBlurEffect(density: Float) = zoomFaceEffect(pageBlur, density)
+}
+
+internal fun zoomFaceEffect(blur: Float, density: Float): RenderEffect? =
+  if (blur > 0f && isRenderEffectSupported()) {
+    glassContentBlurEffect(glassContentSigmaPx(blur, GlassContentDefaults.BlurReference.value * density))
+  } else null
+
 /**
  * Lo zoom: «una sagoma e un dito» (R8, idea 12). Funzioni pure, senza tempo: l'orologio è di chi le chiama.
  *
@@ -79,6 +98,61 @@ data class FluidZoomContent(val scale: Float, val translation: Offset) {
  *   alto al centro); [contentClip] dà la sagoma nelle coordinate della pagina non scalata, per ritagliarla.
  */
 object FluidZoom {
+
+  /** Segue anche lo spostamento della sagoma quando il dito la porta fuori dalla traiettoria rettilinea. */
+  internal fun sharedBounds(from: Rect, to: Rect, p: Float, shape: FluidZoomShape, source: FluidZoomShape, full: FluidZoomShape): Rect {
+    val base = lerp(source, full, p).bounds
+    val image = androidx.compose.ui.geometry.lerp(from, to, p)
+    if (base.isEmpty || base == shape.bounds) return image
+    fun project(point: Offset) = shape.bounds.topLeft + Offset(
+      (point.x - base.left) / base.width * shape.bounds.width,
+      (point.y - base.top) / base.height * shape.bounds.height,
+    )
+    return Rect(project(image.topLeft), project(image.bottomRight))
+  }
+
+  /** Una pagina in viaggio prende la stondatura di un foglio. La correzione per il display è
+   * concentrica e indipendente ai quattro angoli. Solo [docked] avvicina il bordo a quello finale. */
+  internal fun pageCorners(
+    bounds: Rect, source: FluidZoomShape, full: FluidZoomShape, density: Float, docked: Float,
+  ): FluidPageCorners {
+    val display = full.corners
+    if (docked >= 1f) return display
+    val sheetRadius = ContinuousCornerShape.roundedEquivalent(FluidRadius.Sheet.value * density, full.bounds.size).x
+    val flight = concentricCornerRadii(
+      FluidCornerRadii(display.topLeft, display.topRight, display.bottomRight, display.bottomLeft),
+      full.bounds.size, bounds.translate(-full.bounds.topLeft), sheetRadius,
+    )
+    // Entro un lato corto della sorgente si passa dal suo profilo (anche asimmetrico) al foglio.
+    val blendDistance = min(source.bounds.size.minDimension, distance(source, full))
+    val moved = distance(bounds, source.bounds)
+    val grown = if (blendDistance > 0f) glassContentSmoothstep(0f, blendDistance, moved) else 0f
+    fun radius(start: Float, rounded: Float, end: Float): Float {
+      val traveling = androidx.compose.ui.util.lerp(start, rounded, grown)
+      return androidx.compose.ui.util.lerp(traveling, end, docked)
+    }
+    val start = source.corners
+    return FluidPageCorners(radius(start.topLeft, flight.topLeft, display.topLeft),
+      radius(start.topRight, flight.topRight, display.topRight), radius(start.bottomRight, flight.bottomRight, display.bottomRight),
+      radius(start.bottomLeft, flight.bottomLeft, display.bottomLeft))
+  }
+
+  internal fun faces(progress: Float): ZoomFaces {
+    val p = progress.coerceIn(0f, 1f)
+    val exit = (p / FluidPageMotion.SourceFaceEnd).coerceIn(0f, 1f) * GlassContentDefaults.ExitEnd
+    val enter = ((p - FluidPageMotion.PageChromeStart) / (1f - FluidPageMotion.PageChromeStart)).coerceIn(0f, 1f)
+    val focus = GlassContentDefaults.PeakAt + enter * (GlassContentDefaults.EnterEnd - GlassContentDefaults.PeakAt)
+    return ZoomFaces(
+      GlassContentCurves.exitAlpha.at(exit),
+      GlassContentCurves.enterAlpha.at(GlassContentDefaults.EnterAt + enter * (GlassContentDefaults.EnterEnd - GlassContentDefaults.EnterAt)),
+      GlassContentCurves.blurRise(exit) * GlassContentDefaults.PeakBlur,
+      GlassContentCurves.blurFall(focus) * GlassContentDefaults.PeakBlur,
+      (1f - glassContentSmoothstep(0f, 1f, enter)) * FluidPageMotion.PageChromeRiseDp,
+    )
+  }
+
+  internal fun atmosphere(p: Float) = glassContentSmoothstep(0f, 1f, p)
+
 
   /**
    * Quanto si rimpicciolisce al massimo la pagina sotto il dito, in frazione: 0,4 (fino al 60% a una larghezza
@@ -130,11 +204,11 @@ object FluidZoom {
   }
 
   /** Quanto sono lontane due sagome: lo spostamento del bordo che si sposta di più, in px. */
-  fun distance(a: FluidZoomShape, b: FluidZoomShape): Float = maxOf(
-    kotlin.math.abs(a.bounds.left - b.bounds.left),
-    kotlin.math.abs(a.bounds.top - b.bounds.top),
-    kotlin.math.abs(a.bounds.right - b.bounds.right),
-    kotlin.math.abs(a.bounds.bottom - b.bounds.bottom),
+  fun distance(a: FluidZoomShape, b: FluidZoomShape): Float = distance(a.bounds, b.bounds)
+
+  private fun distance(a: Rect, b: Rect): Float = maxOf(
+    kotlin.math.abs(a.left - b.left), kotlin.math.abs(a.top - b.top),
+    kotlin.math.abs(a.right - b.right), kotlin.math.abs(a.bottom - b.bottom),
   )
 
   /**

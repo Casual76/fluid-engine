@@ -66,6 +66,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -82,6 +84,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -104,6 +107,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
@@ -118,6 +122,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -128,6 +133,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.lerp as lerpRect
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -154,6 +161,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -168,6 +176,15 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarElement
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarOverflowId
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarResolved
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSelectionSlots
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarMetrics
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarModelOf
+import dev.antigravity.fluidengine.ui.fluid.toolbar.resolveFluidToolbar
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
@@ -379,6 +396,16 @@ fun FluidFloatingTabBar(
     // allocations for a few tabs, and it makes that whole class of bug
     // unrepresentable.
     val scope = FluidFloatingTabBarScopeImpl().apply(content)
+    val chrome = LocalFluidChromeController.current
+    val hasTabs = scope.tabs.isNotEmpty() || scope.standaloneTab != null
+    DisposableEffect(chrome, hasTabs) {
+        val owner = Any()
+        if (hasTabs) chrome?.claimBottomReplacement(owner, true)
+        onDispose { chrome?.claimBottomReplacement(owner, false) }
+    }
+    val replacement = chrome?.bottomReplacement?.value?.takeIf { hasTabs && it.replacesTabBar }
+    val declaration = replacement?.declaration
+    val selecting = declaration != null
     val selectedGroup = scope.tabs.firstOrNull { it.key == selectedTabKey && it.role != FluidTabRole.Search }
     var previousGroupKey by remember { mutableStateOf<Any?>(null) }
     if (selectedGroup != null) SideEffect { previousGroupKey = selectedGroup.key }
@@ -391,7 +418,7 @@ fun FluidFloatingTabBar(
     val destination = scope.destination(selectedTabKey)
     if (destination != null && destination.role != FluidTabRole.Search) SideEffect { previousDestinationKey = destination.key }
     val returnTab = scope.destination(previousDestinationKey) ?: scope.tabs.firstOrNull { it.role != FluidTabRole.Search }
-    if (activateSearch && returnTab != null) BackHandler {
+    if (activateSearch && !selecting && returnTab != null) BackHandler {
         keyboard?.hide()
         returnTab.onClick()
     }
@@ -494,7 +521,17 @@ fun FluidFloatingTabBar(
         label = "gooeyProgress"
     ) { _ -> 0f }
 
-    TabBarFieldHost(modifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor) {
+    val clock = remember { Animatable(if (selecting) 1f else 0f) }
+    LaunchedEffect(selecting, reducedMotion) {
+        val end = if (selecting) 1f else 0f
+        if (reducedMotion) clock.snapTo(end)
+        else clock.animateTo(end, tween((FluidMotion.PlaneResizeMillis * abs(end - clock.value)).roundToInt(), easing = LinearEasing))
+    }
+    val inFlight by remember { derivedStateOf { clock.value > 0f } }
+    val replacing = selecting || inFlight
+    TabBarFieldHost(modifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor, replacing) {
+    TabBarSelectionHost(chrome, declaration, replacement?.context, replacing, clock.asState(), sizes,
+        group = scope.tabs.isNotEmpty(), standalone = scope.standaloneTab != null) {
     SharedTransitionLayout {
         val field = LocalTabBarField.current
         // Wrapping AnimatedContent itself (not SharedTransitionLayout's own
@@ -653,6 +690,7 @@ fun FluidFloatingTabBar(
         }
         }
         }
+    }
     }
     }
 }
@@ -1370,7 +1408,163 @@ internal fun tabBarGap(sizes: FluidFloatingTabBarSizes, role: FluidTabRole?): Dp
 
 private val TabBarOccupiedHeight = HorizontalAlignmentLine(::maxOf)
 
-private enum class TabBarPiece { Group, Standalone, Accessory, Search }
+internal enum class TabBarPiece { Group, Standalone, Accessory, Search }
+
+/** R4 B2 per analogia (535 ms), F3.4/R7 per il cambio di faccia. La geometria e l'inchiostro
+ * leggono la stessa fase anche quando «Fine» inverte il viaggio prima che sia arrivato. */
+internal fun tabSelectionRect(from: Rect, to: Rect, phase: Float): Rect =
+    lerpRect(from, to, FluidMotion.EaseInOut.transform(phase.coerceIn(0f, 1f)))
+
+internal fun tabSelectionLook(phase: Float, actions: Boolean): GlassContentLook {
+    val role = if (actions) GlassContentRole.Enter else GlassContentRole.Exit
+    // Il cambio di mano senza sovrapposizione di F3.4 vale anche quando la GPU può sfocare.
+    return GlassContentLook(GlassContentCurves.alpha(role, phase, blurAvailable = false),
+        GlassContentCurves.scale(role, phase), GlassContentCurves.blur(role, phase) * GlassContentDefaults.PeakBlur)
+}
+
+private fun Modifier.selectionInk(clock: State<Float>, actions: Boolean) = graphicsLayer {
+    val look = tabSelectionLook(clock.value, actions)
+    alpha = look.alpha
+    scaleX = look.scale
+    scaleY = look.scale
+    renderEffect = if (android.os.Build.VERSION.SDK_INT >= 31 && alpha > 0f && look.blur > 0f)
+        glassContentBlurEffect(glassContentSigmaPx(look.blur, FluidMetrics.BarIconSize.toPx())) else null
+}
+
+/** Il risolutore decide quali comandi entrano. La pillola li ospita in ordine di lettura. */
+internal class TabSelectionSlots(resolved: FluidToolbarResolved, hasTwoPieces: Boolean) {
+    private val visible = resolved.elements.filterNot { it.inOverflow }
+    val more = visible.singleOrNull { it.item.id == FluidToolbarOverflowId }?.takeIf { hasTwoPieces && visible.size > 1 }
+    val main = visible.filterNot { it === more }
+    val mainWidth = main.sumOf { it.widthDp.toDouble() }.toFloat()
+}
+
+private class TabBarPaneMeasure {
+    var constraints = Constraints()
+    var natural = IntSize.Zero
+    var dx = 0
+    var dy = 0
+}
+
+internal class TabSelectionStage(val clock: State<Float>) {
+    val sources = mutableStateMapOf<TabBarPiece, Rect>()
+    var host by mutableStateOf(Rect.Zero)
+    var moving by mutableStateOf(false)
+    var main by mutableStateOf(TabBarPiece.Group)
+    var mainWidth by mutableStateOf(0f)
+    var moreWidth by mutableStateOf(0f)
+    var height by mutableStateOf(0f)
+    var gap by mutableStateOf(0f)
+    var rtl by mutableStateOf(false)
+
+    fun rect(piece: TabBarPiece): Rect? {
+        val from = sources[piece] ?: return null
+        if (host.isEmpty || mainWidth <= 0f) return from
+        val total = mainWidth + moreWidth + if (moreWidth > 0f) gap else 0f
+        val left = host.center.x - total / 2f
+        val mainLeft = if (rtl) left + total - mainWidth else left
+        val top = host.bottom - height
+        val target = when {
+            piece == main -> Rect(mainLeft, top, mainLeft + mainWidth, host.bottom)
+            piece == TabBarPiece.Standalone && moreWidth > 0f -> {
+                val x = if (rtl) left else left + total - moreWidth
+                Rect(x, top, x + moreWidth, host.bottom)
+            }
+            else -> {
+                // Il tondo senza «Altro» chiude il varco e confluisce sul bordo del vetro vicino.
+                val inset = minOf(height, mainWidth) / 2f
+                val x = if (rtl) mainLeft + inset else mainLeft + mainWidth - inset
+                val point = Offset(x, top + height / 2f)
+                Rect(point, point)
+            }
+        }
+        return tabSelectionRect(from, target, clock.value)
+    }
+}
+
+private val LocalTabBarSelection = staticCompositionLocalOf<TabSelectionStage?> { null }
+
+@Composable
+private fun TabBarSelectionHost(
+    chrome: FluidChromeController?, declaration: FluidToolbarDeclaration?, context: CompositionLocalContext?,
+    replacing: Boolean, clock: State<Float>, sizes: FluidFloatingTabBarSizes, group: Boolean, standalone: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (chrome == null) { content(); return }
+    val stage = remember(clock) { TabSelectionStage(clock) }
+    val last = remember { mutableStateOf<Pair<FluidToolbarDeclaration, CompositionLocalContext?>?>(null) }
+    val current = declaration?.let { it to context }
+    SideEffect {
+        if (current != null || !replacing) last.value = current
+        stage.moving = replacing
+    }
+    val shown = current ?: last.value
+    BoxWithConstraints(Modifier.onGloballyPositioned { stage.host = it.unclippedBoundsInRoot() }, propagateMinConstraints = true) {
+        val muted = if (replacing) Modifier.clearAndSetSemantics { } else Modifier
+        CompositionLocalProvider(LocalTabBarSelection provides stage) {
+            Box(muted, propagateMinConstraints = true) { content() }
+        }
+        if (replacing && shown != null) {
+            // Intercetta mouse e dito anche nello spazio fra i vetri. I comandi attuali sono sopra.
+            Box(Modifier.matchParentSize().pointerInput(Unit) {
+                awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
+            })
+            val available = if (constraints.hasBoundedWidth) maxWidth.value else stage.host.width / LocalDensity.current.density
+            val field = LocalTabBarField.current
+            val namespace = field?.namespace ?: rememberFluidGlassNamespace()
+            val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+            val seats: @Composable () -> Unit = {
+                val model = fluidToolbarModelOf(shown.first, null)
+                val metrics = fluidBottomBarMetrics()
+                val resolved = remember(model, available, metrics) {
+                    resolveFluidToolbar(model, available, metrics = metrics, bar = FluidToolbarBar.Bottom)
+                }
+                val slots = remember(resolved, group, standalone) { TabSelectionSlots(resolved, group && standalone) }
+                val density = LocalDensity.current
+                val primary = if (group) TabBarPiece.Group else TabBarPiece.Standalone
+                val visible by remember(clock) { derivedStateOf { tabSelectionLook(clock.value, true).alpha > 0f } }
+                SideEffect {
+                    stage.main = primary
+                    stage.mainWidth = slots.mainWidth * density.density
+                    stage.moreWidth = (slots.more?.widthDp ?: 0f) * density.density
+                    stage.gap = sizes.componentSpacing.value * density.density
+                    stage.height = metrics.buttonWidthDp * density.density
+                    stage.rtl = rtl
+                }
+                @Composable fun faces(piece: TabBarPiece, items: List<FluidToolbarElement>) {
+                    if (items.isEmpty()) return
+                    Box(Modifier.layout { child, constraints ->
+                        val r = stage.rect(piece)
+                        val w = r?.width?.roundToInt() ?: 0
+                        val h = r?.height?.roundToInt() ?: 0
+                        val face = child.measure(Constraints.fixed(w, h))
+                        layout(constraints.maxWidth, constraints.maxHeight) {
+                            if (r != null) face.place((r.left - stage.host.left).roundToInt(), (r.top - stage.host.top).roundToInt())
+                        }
+                    }.clip(FluidCapsuleShape), contentAlignment = Alignment.Center) {
+                        Row(Modifier.wrapContentWidth(Alignment.CenterHorizontally, unbounded = true)
+                            .selectionInk(clock, actions = true)) {
+                            FluidToolbarSelectionSlots(shown.first, resolved, items, FluidGlassQualifiedId(namespace, piece),
+                                interactive = declaration != null && visible)
+                        }
+                    }
+                }
+                faces(primary, slots.main)
+                slots.more?.let { faces(TabBarPiece.Standalone, listOf(it)) }
+            }
+            // matchParentSize: i bersagli non partecipano alla misura della barra di navigazione.
+            Box(Modifier.matchParentSize(), propagateMinConstraints = true) {
+                val page = shown.second
+                val onPlane: @Composable () -> Unit = {
+                    CompositionLocalProvider(LocalFluidGlassContainer provides field?.group,
+                        LocalContentColor provides floatingBarContentColor(LocalContentColor.current, MaterialTheme.colorScheme),
+                        content = seats)
+                }
+                if (page == null) onPlane() else CompositionLocalProvider(page, content = onPlane)
+            }
+        }
+    }
+}
 
 private class TabBarField(
     val backdrop: GlassBackdropState, val namespace: FluidGlassNamespace, val tint: GlassTint,
@@ -1516,6 +1710,7 @@ private fun TabBarFieldHost(
     scope: FluidFloatingTabBarScopeImpl,
     selected: Any?,
     accent: Color?,
+    replacing: Boolean,
     content: @Composable () -> Unit,
 ) {
     if (backdrop == null) {
@@ -1526,8 +1721,21 @@ private fun TabBarFieldHost(
     val tint = GlassDefaults.floatingTint()
     val searching = visual == FluidFloatingTabBarVisual.SEARCH_EXPANDED
     val motion = if (searching) FluidMotion.TabBarSearch else FluidMotion.FloatingTabFold
-    val animation = remember(motion) { FluidGlassAnimation.Custom(motion) }
-    val playerAnimation = remember { FluidGlassAnimation.Custom(FluidMotion.TabBarPlayer) }
+    var restoringPlanes by remember { mutableStateOf(false) }
+    LaunchedEffect(replacing) {
+        if (replacing) restoringPlanes = true
+        else if (restoringPlanes) {
+            // Il piano riceve i pezzi al layout e li misura nel fotogramma seguente.
+            // La restituzione del tondo è già compresa nei 535 ms: registrarne la posa a
+            // passo diretto evita che il piano lo faccia nascere una seconda volta per lente.
+            withFrameNanos {}
+            withFrameNanos {}
+            restoringPlanes = false
+        }
+    }
+    val direct = replacing || restoringPlanes
+    val animation = if (direct) FluidGlassAnimation.None else remember(motion) { FluidGlassAnimation.Custom(motion) }
+    val playerAnimation = if (direct) FluidGlassAnimation.None else remember { FluidGlassAnimation.Custom(FluidMotion.TabBarPlayer) }
     // Il lettore passa davanti ai due vetri durante l'incrocio; l'inchiostro in volo si posa sopra i corpi.
     FluidGlassContainer(
         modifier.layout { measurable, constraints ->
@@ -1545,7 +1753,8 @@ private fun TabBarFieldHost(
                 val field = remember(backdrop, namespace, tint, group, standalone, player, primary) {
                     TabBarField(backdrop, namespace, tint, group, standalone, player, primary)
                 }
-                CompositionLocalProvider(LocalTabBarField provides field, LocalFluidGlassContainer provides standalone) {
+                CompositionLocalProvider(LocalTabBarField provides field,
+                    LocalFluidGlassContainer provides if (replacing) group else standalone) {
                     Box(propagateMinConstraints = true) {
                         Box(Modifier.layout { measurable, constraints ->
                             val bar = measurable.measure(constraints)
@@ -1553,7 +1762,7 @@ private fun TabBarFieldHost(
                             val height = fieldHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
                             layout(bar.width, height, mapOf(TabBarOccupiedHeight to bar.height)) { bar.place(0, height - bar.height) }
                         }, propagateMinConstraints = true) { content() }
-                        TabBarFlightInk(field, scope, selected, searching, sizes, Modifier.matchParentSize())
+                        if (!replacing) TabBarFlightInk(field, scope, selected, searching, sizes, Modifier.matchParentSize())
                     }
                 }
             }
@@ -1566,16 +1775,42 @@ private fun Modifier.tabBarPane(
     piece: TabBarPiece, shape: Shape, elevation: Dp, background: Color, pane: Modifier, compact: Boolean = false,
 ): Modifier {
     val field = LocalTabBarField.current
-    return if (field != null) {
-        val measured = if (piece == TabBarPiece.Group) onSizeChanged {
-            if (compact) field.compactWidth = it.width else field.expandedWidth = it.width
-        } else this
-        val anchor = if (piece == TabBarPiece.Group && !compact) measured.onGloballyPositioned { field.expandedLayout = it } else measured
-        val glass = anchor.fluidGlassId(piece, field.namespace).fluidGlassPanel(field.backdrop, field.tint, shape)
-        if (piece == TabBarPiece.Group) glass.graphicsLayer { alpha = if (field.travellingBounds() == null) 1f else 0f } else glass
-    } else {
-        barShadow(shape, elevation, pane !== Modifier).background(background, shape).clip(shape).then(pane)
+    val stage = LocalTabBarSelection.current
+    val source = if (stage == null) this else onGloballyPositioned { stage.sources[piece] = it.unclippedBoundsInRoot() }
+    val bridge = if (stage?.moving == true) remember { TabBarPaneMeasure() } else null
+    val panel = if (bridge == null) source else source.layout { child, constraints ->
+        // La barra vendored misura sempre il suo contenuto naturale (anche testo grande o piega).
+        // Solo il pannello interno cambia misura e posizione. La pagina conserva il suo inset.
+        bridge.constraints = constraints
+        val shell = child.measure(Constraints())
+        layout(bridge.natural.width, bridge.natural.height) { shell.place(bridge.dx, bridge.dy) }
     }
+    val surface = if (field != null) {
+        val measured = if (piece == TabBarPiece.Group && bridge == null) panel.onSizeChanged {
+            if (compact) field.compactWidth = it.width else field.expandedWidth = it.width
+        } else panel
+        val anchor = if (piece == TabBarPiece.Group && !compact) measured.onGloballyPositioned { field.expandedLayout = it } else measured
+        val identity = anchor.fluidGlassId(piece, field.namespace)
+        val joined = if (bridge != null && stage?.moreWidth == 0f &&
+            (piece == TabBarPiece.Group || piece == TabBarPiece.Standalone))
+            identity.fluidGlassUnion(TabBarPiece.Group, field.namespace) else identity
+        val glass = joined.fluidGlassPanel(field.backdrop, field.tint, shape)
+        if (piece == TabBarPiece.Group && bridge == null) glass.graphicsLayer { alpha = if (field.travellingBounds() == null) 1f else 0f } else glass
+    } else {
+        panel.barShadow(shape, elevation, pane !== Modifier).background(background, shape).clip(shape).then(pane)
+    }
+    if (bridge == null || stage == null) return surface
+    return surface.clip(shape).layout { child, _ ->
+        val face = child.measure(bridge.constraints)
+        bridge.natural = IntSize(face.width, face.height)
+        val sourceRect = stage.sources[piece]
+        val rect = stage.rect(piece)
+        val w = rect?.width?.roundToInt() ?: face.width
+        val h = rect?.height?.roundToInt() ?: face.height
+        bridge.dx = if (rect != null && sourceRect != null) (rect.left - sourceRect.left).roundToInt() else 0
+        bridge.dy = if (rect != null && sourceRect != null) (rect.top - sourceRect.top).roundToInt() else 0
+        layout(w, h) { if (stage.clock.value < 1f) face.place((w - face.width) / 2, (h - face.height) / 2) }
+    }.selectionInk(stage.clock, actions = false)
 }
 
 /**
@@ -2601,7 +2836,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     }
                 }
             })
-            .then(if (field != null) Modifier.tabBarPane(
+            .then(if (field != null || LocalTabBarSelection.current?.moving == true) Modifier.tabBarPane(
                 TabBarPiece.Group, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier,
             ) else Modifier),
     ) {
@@ -2609,7 +2844,7 @@ private fun SharedTransitionScope.ExpandedTabs(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer { translationX = panelOffset }
-                .then(if (field == null) Modifier.tabBarPane(TabBarPiece.Group, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier) else Modifier)
+                .then(if (field == null && LocalTabBarSelection.current?.moving != true) Modifier.tabBarPane(TabBarPiece.Group, shapes.tabBarShape, elevations.expandedElevation, colors.backgroundColor, tabBarContentModifier) else Modifier)
                 .then(interactiveHighlight.modifier)
                 .padding(sizes.tabBarContentPadding)
                 // La lente legge i glifi fermi dalla riga visibile, anche a pressione zero.

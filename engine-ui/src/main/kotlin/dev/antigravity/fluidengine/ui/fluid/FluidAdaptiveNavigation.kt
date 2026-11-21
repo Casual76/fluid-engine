@@ -167,6 +167,9 @@ fun FluidAdaptiveNavigation(
   var sidebar by rememberSaveable { mutableStateOf(false) }
   val backdrop = rememberGlassBackdrop()
   val namespace = rememberFluidGlassNamespace()
+  // La navigazione adattiva è una shell: il pannello pubblica qui la sostituzione.
+  // Solo la forma Bottom monta una tab bar e la prende, anche in una galleria con una shell esterna.
+  val chrome = if (items.isEmpty()) LocalFluidChromeController.current else rememberFluidChromeController()
   BoxWithConstraints(modifier.fillMaxSize()) {
     val form = adaptiveForm(maxWidth, sidebar)
     val wide = form == AdaptiveForm.Top || form == AdaptiveForm.Sidebar
@@ -186,7 +189,7 @@ fun FluidAdaptiveNavigation(
       }
     }
     Box(Modifier.fillMaxSize().glassBackdropSource(backdrop)) {
-      CompositionLocalProvider(LocalBackgroundExtensionStart provides start) {
+      CompositionLocalProvider(LocalBackgroundExtensionStart provides start, LocalFluidChromeController provides chrome) {
         Box(Modifier.fillMaxSize().layout { measurable, constraints ->
           val dx = start().roundToPx().coerceIn(0, constraints.maxWidth)
           val page = measurable.measure(constraints.offset(horizontal = -dx))
@@ -201,10 +204,11 @@ fun FluidAdaptiveNavigation(
     }
     if (items.isEmpty()) return@BoxWithConstraints
     when (form) {
-      AdaptiveForm.Bottom -> FluidFloatingTabBar(items, selectedRoute, onSelect,
-        rememberFluidFloatingTabBarScrollConnection(), backdrop,
-        Modifier.align(Alignment.BottomCenter).padding(horizontal = FluidTabBarDefaults.HorizontalMargin)
-          .padding(bottom = FluidTabBarDefaults.BottomMargin), onReselect)
+      AdaptiveForm.Bottom -> CompositionLocalProvider(LocalFluidChromeController provides chrome) {
+        FluidFloatingTabBar(items, selectedRoute, onSelect, rememberFluidFloatingTabBarScrollConnection(), backdrop,
+          Modifier.align(Alignment.BottomCenter).padding(horizontal = FluidTabBarDefaults.HorizontalMargin)
+            .padding(bottom = FluidTabBarDefaults.BottomMargin), onReselect)
+      }
       AdaptiveForm.Rail -> FluidTabRail(items, selectedRoute, onSelect, backdrop,
         Modifier.padding(FluidSidebarDefaults.Margin), onReselect)
       else -> if (stage != null) {

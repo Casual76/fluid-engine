@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -1491,6 +1492,27 @@ private fun FluidToolbarGroupPiece(
   }
 }
 
+/** La tab bar possiede già il vetro. Qui riusa i veri slot, la loro semantica, i menu e i tipi registrati. */
+@Composable
+internal fun FluidToolbarSelectionSlots(
+  declaration: FluidToolbarDeclaration,
+  resolved: FluidToolbarResolved,
+  elements: List<FluidToolbarElement>,
+  pane: FluidGlassQualifiedId,
+  interactive: Boolean,
+) {
+  val memory = remember { FluidToolbarMemory() }
+  val menu = remember { FluidToolbarMenuSource() }
+  val glass = remember(elements) { FluidToolbarGlassId(FluidToolbarGroupId(elements.mapTo(linkedSetOf()) { it.item.id })) }
+  for (element in elements) key(element.item.id) {
+    val item = element.item
+    FluidToolbarSlot(item, element.widthDp, declaration.buttons[item.id], declaration, resolved,
+      onGlass = false, glass = glass, memory = memory, namespace = pane.namespace,
+      selection = rememberUpdatedState(if (item.selected) 1f else 0f), interactive = interactive,
+      entersBlurred = false, menuSource = menu, groupShared = false, groupCount = elements.size, pane = pane)
+  }
+}
+
 private class FluidToolbarMenuSource {
   private var leased by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
   val groupLease get() = leased?.takeIf { it.second.groupBounds != null }
@@ -1581,6 +1603,7 @@ private fun FluidToolbarSlot(
   menuSource: FluidToolbarMenuSource,
   groupShared: Boolean,
   groupCount: Int,
+  pane: FluidGlassQualifiedId = FluidGlassQualifiedId(namespace, glass),
 ) {
   val scheme = MaterialTheme.colorScheme
   val labels = LocalFluidLabels.current
@@ -1683,7 +1706,7 @@ private fun FluidToolbarSlot(
       .width(width)
       .height(resolved.metrics.buttonWidthDp.dp)
       .then(if (interactive) Modifier.fluidToolbarTransitionSource(
-        item.id, FluidGlassQualifiedId(namespace, glass), modalHandoff,
+        item.id, pane, modalHandoff,
       ) else Modifier)
       .then(if (declaredMenu != null) Modifier
         .fluidMenuPointerRelay(declaredMenu.anchor.handOff)

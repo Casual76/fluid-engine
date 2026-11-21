@@ -61,7 +61,10 @@ internal fun FluidBottomBar(
 ) {
   val chrome = LocalFluidChromeController.current
   val shellDraws = declaration?.bottomReplacesTabBar == true && chrome?.bottomReplacementClaimed == true
-  val present = declaration?.hasBottomBar == true && !shellDraws
+  // Anche il figlio uscente di AnimatedVisibility leggerebbe la dichiarazione nuova:
+  // una pagina con comandi in basso disegnerebbe la selezione una seconda volta.
+  if (shellDraws) return
+  val present = declaration?.hasBottomBar == true
   val visibility = remember { MutableTransitionState(present) }
   visibility.targetState = present
   if (!present && visibility.isIdle) return

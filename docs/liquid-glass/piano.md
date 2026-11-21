@@ -3643,6 +3643,23 @@ aggiunto parole sue ha preso l'opzione consigliata):
 - **Tasto diviso**: un vetro solo, con un filo sottile fra azione e freccia.
 - **Titolo che diventa selettore**: il titolo nudo con la freccia; la pillola di vetro è uno stile a scelta.
 
+**Dopo i video, 21 novembre 2026:**
+- **«Cresce»**: gli angoli restano arrotondati con il raggio degli altri elementi (quello di un foglio) fino all'arrivo e
+  si squadrano per ultimi; al ritorno si arrotondano per primi (F6B.5b). «Si squadra presto» era l'unico difetto.
+- **La tab bar che diventa le azioni**: va bene con l'attimo di vetro vuoto fra le due facce (F6B.2).
+- **«Salva» riuscito**: solo la spunta a taglia d'icona, niente disco pieno; il tasto resta di vetro (F6B.3b).
+- **Invia e Annulla: niente avviso grande di serie.** Parole sue sui video di F6B.4: «è troppo invasivo. Intanto dopo
+  l'invio la mail si deve chiudere, in quanto ciò che deve essere comunicato all'utente è che la mail sta essendo inviata,
+  e poi deve solo rimanere il tasto di invio che diventa il tasto annulla con il riempimento, meno invasivo di questo pop
+  up decisamente troppo grande». Quindi:
+  - dopo l'invio la pagina si chiude (lo fa l'app); **un tasto** diventa «Annulla» e **si riempie** col tempo che resta;
+  - **quale tasto lo decide l'app**: in Pampa Mail sarà il tasto «nuova mail», che fa da contatore finché il tempo non
+    finisce e poi torna il tasto «nuova mail»;
+  - a tempo scaduto il contatore **sparisce e basta** (il tasto torna com'era, oppure esce se era solo il contatore);
+  - «Annulla» riapre il compositore, e **l'app decide come**: una pagina che entra normale, di serie, oppure il tasto che
+    diventa la pagina;
+  - l'avviso che nasce dal tasto resta nell'engine, **non di serie**, per chi vuole un avviso con testo.
+
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
 ---

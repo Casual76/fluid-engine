@@ -180,6 +180,34 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
 - `@Composable fun rememberFluidActionRunner(preset: FluidActionPreset? = null, hold: FluidActionHold = FluidActionHold.Preset, minWorking: Duration = FluidActionDefaults.MinWorking): FluidActionRunner` — Un [FluidActionRunner] che vive con la composizione e si salva da sé: dopo una rotazione l'esito in mostra torna col tempo che gli restava. Il lavoro gira nell'ambito della composizione: se la composizione se ne va (la pagina chiusa, l'attività ricreata) il lavoro è annullato. Un lavoro che deve sopravvivere alla rotazione va in un ViewModel: `FluidActionRunner(viewModelScope, preset)`.
 
+## `engine-ui/ui/fluid/toolbar/FluidSelectionToolbar.kt`
+
+- `value class FluidSelectionBarPlacement private constructor(private val value: Int)` — Dove stanno le azioni di una selezione dichiarata con [selection].
+  - `companion object`
+    - `val ReplacingTabBar: FluidSelectionBarPlacement` — In basso, al posto della tab bar (la posizione di serie).
+    - `val AboveTabBar: FluidSelectionBarPlacement` — In basso, sopra la tab bar.
+    - `val Top: FluidSelectionBarPlacement` — Nella barra in alto.
+    - `val Floating: FluidSelectionBarPlacement` — In basso, in una capsula che galleggia sul contenuto.
+- `object FluidSelectionToolbarIds` — Le identità che la selezione dà ai suoi tasti. Contano fra due stati della barra: **lo stesso id è lo stesso vetro**. «Seleziona» ([selectButton]) e «Fine» hanno di serie [Toggle], così il vetro che diceva «Seleziona» si stringe e dice «Fine» (lo scambio sfocato di R7 dentro un vetro che cambia larghezza, R4 B2) invece di sparire e rinascere.
+  - `val Toggle: Any` — «Seleziona» e «Fine»: lo stesso tasto che cambia scritta.
+  - `val SelectAll: Any` — «Seleziona tutto» e «Deseleziona».
+  - `val Count: Any` — Il conteggio al centro della barra, al posto del titolo agganciato.
+  - `val Actions: Any` — Il gruppo delle azioni.
+- `data class FluidSelectionLabels(val select: String = "Seleziona", val done: String = "Fine", val selectAll: String = "Seleziona tutto", val deselectAll: String = "Deseleziona", val none: String = "0 selezionati", val count: (Int) -> String = { if (it == 1) "1 selezionato" else "$it selezi…, val all: String = "Tutti selezionati", val allBut: (Int) -> String = { "Tutti tranne $it" })` — Le parole della selezione, di serie in italiano. Un'app in un'altra lingua, o che vuole «3 note» invece di «3 selezionati», passa le sue.
+- `fun FluidToolbarScope.selectButton(onClick: () -> Unit, label: String = FluidSelectionDefaultLabels.select, id: Any = FluidSelectionToolbarIds.Toggle, placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic, enabled: Boolean = true)` — Il tasto che apre la selezione: una scritta, di serie «Seleziona». Ha di serie lo stesso id di «Fine» ([FluidSelectionToolbarIds.Toggle]): quando la pagina passa a [selection] è lo stesso vetro che cambia scritta.
+- `fun FluidToolbarScope.selection(state: FluidSelectionState<*>, count: Int?, onSelectAll: (() -> Unit)?, onDone: () -> Unit, placement: FluidSelectionBarPlacement = FluidSelectionBarPlacement.ReplacingTabBar, labels: FluidSelectionLabels = FluidSelectionDefaultLabels, doneId: Any = FluidSelectionToolbarIds.Toggle, actions: FluidToolbarScope.() -> Unit)` — La barra in selezione, in una riga (F6B.1). Si scrive al posto della barra di «sfoglia», con un `if`:
+- `val FluidToolbarScope.selectionHasItems: Boolean` — Se c'è almeno un elemento scelto nella selezione che si sta dichiarando: vero fuori da [selection]. Le azioni dei preset lo leggono per spegnersi a zero; un'azione su misura fa lo stesso con `enabled = selectionHasItems`.
+- `data class FluidSelectionActionLabels(val share: String = "Condividi", val delete: String = "Elimina", val move: String = "Sposta", val archive: String = "Archivia", val markRead: String = "Segna come letti", val favorite: String = "Preferiti", val addToAlbum: String = "Aggiungi all'album", val hide: String = "Nascondi", val duplicate: String = "Duplica", val compress: String = "Comprimi")` — Le parole delle azioni dei preset, di serie in italiano.
+- `object FluidSelectionActions` — I preset delle azioni di selezione (F6B.1): funzioni che ricevono le callback e scrivono azioni, priorità e trabocco per [selection]. Un'azione con la callback null non c'è. Si spengono da sole a zero elementi scelti.
+  - `fun mail(onDelete: () -> Unit, onArchive: (() -> Unit)? = null, onMove: (() -> Unit)? = null, onMarkRead: (() -> Unit)? = null, labels: FluidSelectionActionLabels = FluidSelectionActionLabels()): FluidToolbarScope.() -> Unit` — Mail: «Segna come letti» a sinistra; «Sposta» e «Archivia» insieme; «Elimina» col suo vetro, a destra.
+  - `fun gallery(onShare: () -> Unit, onDelete: () -> Unit, onFavorite: (() -> Unit)? = null, onAddToAlbum: (() -> Unit)? = null, onHide: (() -> Unit)? = null, onDuplicate: (() -> Unit)? = null, labels: FluidSelectionActionLabels = FluidSelectionActionLabels()): FluidToolbarScope.() -> Unit` — Gallery (Foto): «Condividi» a sinistra; «Preferiti», «Aggiungi all'album» ed «Elimina» insieme a destra; «Nascondi» e «Duplica» sempre in «Altro».
+  - `fun files(onShare: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit, onDuplicate: (() -> Unit)? = null, onCompress: (() -> Unit)? = null, labels: FluidSelectionActionLabels = FluidSelectionActionLabels()): FluidToolbarScope.() -> Unit` — File: «Condividi» e «Duplica» a sinistra; «Sposta» ed «Elimina» a destra; «Comprimi» sempre in «Altro».
+  - `fun deleteOnly(onDelete: () -> Unit, label: String = FluidSelectionActionLabels().delete): FluidToolbarScope.() -> Unit` — Solo «Elimina», a destra (una lista di cronologia, di bozze).
+- `object FluidSelectionLeadingDefaults` — Le misure del [FluidSelectionLeading].
+  - `val MarkSize: Dp` — Il segno: quello della selezione multipla, quanto l'icona di una riga.
+  - `val InsetWithoutContent: Dp` — Quanto spazio prende il segno in una riga che non ha niente nello spazio `leading`: il segno più 8 dp prima del testo. **A occhio** (F6B.1, 21 novembre 2026): Mail di iOS sposta il testo della riga di circa un tondo e mezzo.
+- `@Composable fun FluidSelectionLeading(selecting: Boolean, selected: Boolean, modifier: Modifier = Modifier, markSize: Dp = FluidSelectionLeadingDefaults.MarkSize, content: (@Composable () -> Unit)? = null)` — Lo spazio `leading` di una riga in una lista selezionabile (F6B.1): fuori selezione mostra [content] (la piastrella, l'avatar); in selezione il segno ([FluidSelectionMark]) prende **il suo posto, nella stessa misura**, così la riga non cambia altezza e la lista non salta.
+
 ## `engine-ui/ui/fluid/toolbar/FluidToolbar.kt`
 
 - `annotation class FluidToolbarDsl` — Tiene le chiamate di uno scope della barra dentro il loro blocco: un `button` di un gruppo non finisce fuori.

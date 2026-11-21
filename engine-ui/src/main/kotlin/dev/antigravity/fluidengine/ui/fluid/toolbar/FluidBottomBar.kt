@@ -14,6 +14,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsuleDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBarDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidBottomInset
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidChromeController
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidCanvasBackdrop
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -42,7 +43,15 @@ internal fun fluidBottomBarOffset(navigation: Dp): Dp =
 internal fun fluidBottomBarExtraInset(navigation: Dp): Dp =
   fluidBottomBarOffset(navigation) + FluidFloatingCapsuleDefaults.ActionSize - navigation
 
-/** Una sede per schermata o per host. Il modello, i viaggi e i bersagli sono quelli della barra dichiarata. */
+/**
+ * Una sede per schermata o per host. Il modello, i viaggi e i bersagli sono quelli della barra dichiarata.
+ *
+ * Senza tab bar (F6B.1) è questa barra a cambiare azioni quando la pagina entra in una selezione: la dichiarazione nuova
+ * è un cambio di stato dello stesso contenitore, con lo scambio sfocato e la larghezza che scorre della barra in alto
+ * che cambia contesto (R4 B2). Una selezione che prende il posto della tab bar
+ * ([FluidSelectionBarPlacement.ReplacingTabBar]) non si disegna qui quando la tab bar dice di disegnarla lei
+ * ([dev.antigravity.fluidengine.ui.fluid.FluidChromeController.claimBottomReplacement], F6B.2): un vetro solo.
+ */
 @Composable
 internal fun FluidBottomBar(
   declaration: FluidToolbarDeclaration?,
@@ -50,7 +59,9 @@ internal fun FluidBottomBar(
   minimize: FluidToolbarMinimizeProgress?,
   modifier: Modifier = Modifier,
 ) {
-  val present = declaration?.hasBottomBar == true
+  val chrome = LocalFluidChromeController.current
+  val shellDraws = declaration?.bottomReplacesTabBar == true && chrome?.bottomReplacementClaimed == true
+  val present = declaration?.hasBottomBar == true && !shellDraws
   val visibility = remember { MutableTransitionState(present) }
   visibility.targetState = present
   if (!present && visibility.isIdle) return

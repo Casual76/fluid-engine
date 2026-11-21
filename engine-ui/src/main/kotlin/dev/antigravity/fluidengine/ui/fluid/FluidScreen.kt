@@ -118,6 +118,15 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBarMinimizeDirection
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLayer
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchGlassProgress
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarSearchItem
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionAnnouncement
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionBackEffect
+import dev.antigravity.fluidengine.ui.fluid.toolbar.bottomReplacesTabBar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.bottomReservesSpace
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidScreenToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleHandoffLayer
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleHandoff
+import dev.antigravity.fluidengine.ui.fluid.toolbar.selection
+import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -184,6 +193,33 @@ import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
 internal fun <K> frontMostBackdropKey(order: List<K>, front: Set<K>): K? =
   order.lastOrNull { it in front } ?: order.lastOrNull()
 
+/**
+ * La barra in basso di una [FluidScreen] come la vede la shell (piano «iOS in Android», F6B.1): una per schermata, con
+ * la stessa identità per tutta la sua vita, eletta da [FluidChromeController.bottomReplacement].
+ *
+ * La schermata la scrive **in composizione** (come la barra dell'host delle pagine): la shell che si compone dopo le
+ * pagine la legge già nello stesso passaggio. I campi sono stati separati perché chi deve sapere solo se la tab bar va
+ * sostituita ([replacesTabBar], che cambia entrando e uscendo da una selezione) non ricomponga a ogni nuova
+ * dichiarazione della pagina ([declaration]).
+ */
+@Stable
+internal class FluidBottomReplacement {
+  /**
+   * La barra dichiarata della pagina, intera: le voci in basso sono quelle con `FluidToolbarPlacement.BottomBar`
+   * ([FluidToolbarDeclaration.hasBottomBar]), la selezione si legge con `declaration.selection`. Null senza barra.
+   */
+  var declaration: FluidToolbarDeclaration? by mutableStateOf(null)
+
+  /** La barra in basso della pagina chiede il posto della tab bar (una selezione `ReplacingTabBar` con delle azioni). */
+  var replacesTabBar: Boolean by mutableStateOf(false)
+
+  /**
+   * Il contesto della pagina (le sue parole, la sua aptica, lo spazio dei nomi delle sorgenti), per disegnare le sue voci
+   * fuori dalla pagina come fa l'host delle pagine con la barra in alto.
+   */
+  var context: CompositionLocalContext? = null
+}
+
 @Stable
 class FluidChromeController internal constructor(
   private val bottomBarVelocityThresholdPx: Float,
@@ -198,9 +234,71 @@ class FluidChromeController internal constructor(
   private val _bottomBarOffsetPx = mutableFloatStateOf(0f)
   private var bottomBarTravelPx = 0f
   private var pendingScrollPx = 0f
+  private val bottomBars = HashMap<Any, FluidBottomReplacement>()
+  private val replacementHolds = HashSet<Any>()
+  private var heldReplacementKey: Any? = null
+  private val _bottomReplacement = mutableStateOf<FluidBottomReplacement?>(null)
+  private val replacementClaims = HashSet<Any>()
+  private val _bottomReplacementClaimed = mutableStateOf(false)
 
   val activeBackdrop: State<GlassBackdropState?> = _activeBackdrop
   val bottomBarOffsetPx: State<Float> = _bottomBarOffsetPx
+
+  /**
+   * La barra in basso della pagina **davanti** (piano «iOS in Android», F6B.1): il canale da cui la tab bar legge se la
+   * pagina chiede il suo posto ([FluidBottomReplacement.replacesTabBar], una selezione in
+   * `FluidSelectionBarPlacement.ReplacingTabBar`) e che cosa mettere al suo posto ([FluidBottomReplacement.declaration]).
+   *
+   * **Si elegge come [activeBackdrop]** (l'ultima registrazione fra quelle davanti, [frontMostBackdropKey]), con una
+   * differenza che è la regola D1: **durante un gesto indietro non confermato l'elezione resta ferma** sulla pagina che
+   * c'era quando il gesto è cominciato ([holdBottomReplacement], che l'host delle pagine tiene finché la pila non cambia).
+   * Il «davanti» del vetro passa di mano a metà uscita, ed è giusto per il vetro, che rifrange quello che si vede; la
+   * barra delle azioni invece non deve cambiare finché il dito decide. Annullato il gesto, non è cambiato niente;
+   * confermato, la pila cambia e l'elezione riprende.
+   *
+   * L'oggetto eletto è uno per schermata e non cambia identità: chi legge [State.value] ricompone quando cambia la
+   * pagina davanti, chi legge i suoi campi quando cambia la dichiarazione. Null senza schermate registrate.
+   *
+   * Per F6B.2 (la tab bar che diventa la capsula delle azioni, un vetro solo): la tab bar legge questo canale e, quando
+   * la disegna lei, lo dice con [claimBottomReplacement]; da quel momento la schermata non disegna più la sua barra in
+   * basso per le selezioni che sostituiscono la tab bar, e la capsula è una sola.
+   */
+  internal val bottomReplacement: State<FluidBottomReplacement?> = _bottomReplacement
+
+  /** Qualcuno (la tab bar, F6B.2) disegna la sostituzione: le schermate non disegnano la loro. */
+  internal val bottomReplacementClaimed: Boolean get() = _bottomReplacementClaimed.value
+
+  /** La barra in basso di una schermata registrata sotto [key] (vedi [bottomReplacement]); null la toglie. */
+  internal fun setBottomReplacement(key: Any, replacement: FluidBottomReplacement?) {
+    if (replacement == null) bottomBars.remove(key) else bottomBars[key] = replacement
+    electBottomReplacement()
+  }
+
+  /**
+   * Tiene ferma l'elezione di [bottomReplacement] finché almeno un [owner] la tiene (D1): l'host delle pagine la tiene
+   * dall'inizio di un gesto indietro fino alla conferma (la pila cambia) o alla fine dell'annullo.
+   */
+  internal fun holdBottomReplacement(owner: Any, hold: Boolean) {
+    val was = replacementHolds.isNotEmpty()
+    if (hold) replacementHolds += owner else replacementHolds -= owner
+    val now = replacementHolds.isNotEmpty()
+    if (now == was) return
+    heldReplacementKey = if (now) frontMostBackdropKey(backdrops.keys.toList(), frontKeys) else null
+    electBottomReplacement()
+  }
+
+  /** Chi disegna [bottomReplacement] al posto della tab bar lo dice qui (F6B.2), e lo ritira quando smette. */
+  internal fun claimBottomReplacement(owner: Any, claimed: Boolean) {
+    if (claimed) replacementClaims += owner else replacementClaims -= owner
+    _bottomReplacementClaimed.value = replacementClaims.isNotEmpty()
+  }
+
+  private fun electBottomReplacement() {
+    val held = heldReplacementKey?.takeIf { replacementHolds.isNotEmpty() && it in backdrops }
+    val key = held ?: frontMostBackdropKey(backdrops.keys.toList(), frontKeys)
+    val elected = key?.let(bottomBars::get)
+    if (_bottomReplacement.value !== elected) _bottomReplacement.value = elected
+  }
 
   internal fun registerBackdrop(key: Any, backdrop: GlassBackdropState) {
     backdrops.remove(key)
@@ -241,6 +339,7 @@ class FluidChromeController internal constructor(
 
   internal fun unregisterBackdrop(key: Any) {
     refreshers.remove(key)
+    bottomBars.remove(key)
     backdrops.remove(key) ?: return
     frontKeys.remove(key)
     electActiveBackdrop()
@@ -255,6 +354,7 @@ class FluidChromeController internal constructor(
   private fun electActiveBackdrop() {
     val key = frontMostBackdropKey(backdrops.keys.toList(), frontKeys)
     _activeBackdrop.value = transitionBackdrop ?: key?.let(backdrops::get)
+    electBottomReplacement()
   }
 
   /**
@@ -420,6 +520,12 @@ internal fun bottomBarCommitThresholdPx(hidingTravel: Boolean, density: Float): 
   val dp = if (hidingTravel) BottomBarHideCommitDp else BottomBarRevealCommitDp
   return dp * density.coerceAtLeast(0f)
 }
+
+/**
+ * Quanta parte della larghezza prende l'area viva del conteggio di una selezione: il centro della barra, fra «Seleziona
+ * tutto» e «Fine». **A occhio** (F6B.1, 21 novembre 2026): conta solo che stia sul conteggio e non sui tasti.
+ */
+private const val FluidSelectionAnnouncementWidth = 0.4f
 
 private const val BottomBarVelocityThresholdDpPerSecond = 200f
 private const val BottomBarHideCommitDp = 36f
@@ -883,8 +989,9 @@ fun FluidScreen(
   barMinimizeAdjustsInsets: Boolean = true,
   content: LazyListScope.() -> Unit,
 ) {
-  // La barra si rilegge a ogni composizione, come il contenuto di un `if`: il modello che ne esce e' strutturale.
-  val declaration = toolbar?.let { buildFluidToolbar(onBack, it) }
+  // La barra si rilegge a ogni composizione, come il contenuto di un `if`: il modello che ne esce e' strutturale. In
+  // selezione (F6B.1) l'indietro della schermata non si aggiunge: il back esce dalla selezione.
+  val declaration = toolbar?.let { buildFluidScreenToolbar(onBack, it) }
   // La larghezza si legge qui, una volta, e diventa un margine: e' l'unica riga che distingue una
   // pagina da telefono allargata da una pagina da tablet. Tutto il resto della schermata non sa
   // di essere su un tablet, e non deve saperlo — salvo chi lo chiede con [metrics].
@@ -998,8 +1105,19 @@ private fun FluidScreenLayout(
   val expandedTitleStyle = MaterialTheme.typography.displayLarge
   val compactTitleStyle = rememberCompactTitleStyle(expandedTitleStyle)
 
+  // La selezione dichiarata (F6B.1): il back che ne esce, il conteggio annunciato, la barra in basso pubblicata alla shell.
+  val selection = toolbar?.selection
+  val bottomReplacement = remember { FluidBottomReplacement() }
+  bottomReplacement.declaration = toolbar
+  bottomReplacement.replacesTabBar = toolbar?.bottomReplacesTabBar == true
+  bottomReplacement.context = currentCompositionLocalContext
+  // Le azioni che la tab bar ha preso (F6B.2) stanno dove sta lei, e la lista le ha già lasciato il posto; una capsula
+  // che galleggia (`Floating`) non ne chiede.
+  val shellDrawsBottom = toolbar?.bottomReplacesTabBar == true && chromeController?.bottomReplacementClaimed == true
+  val reservesBottom = toolbar?.bottomReservesSpace == true && !shellDrawsBottom
+
   val topBarHeight = FluidScreenDefaults.topBarHeight()
-  val bottomExtra = if (toolbar?.hasBottomBar == true || floatingSearch?.atBottom == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
+  val bottomExtra = if (reservesBottom || floatingSearch?.atBottom == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
   val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding) + bottomExtra
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
   val titleTopPx = with(density) { (topBarHeight + FluidScreenDefaults.TitleTopSpacing).toPx() }
@@ -1056,9 +1174,17 @@ private fun FluidScreenLayout(
   // del fondale le faceva perdere il davanti, e l'elezione passava a un'altra pagina.
   DisposableEffect(chromeController, chromeRegistration) {
     chromeController?.registerBackdrop(chromeRegistration, chromeBackdrop)
+    // La barra in basso con la registrazione, e con lei se ne va (F6B.1).
+    chromeController?.setBottomReplacement(chromeRegistration, bottomReplacement)
     onDispose { chromeController?.unregisterBackdrop(chromeRegistration) }
   }
   SideEffect { chromeController?.updateBackdrop(chromeRegistration, chromeBackdrop) }
+
+  // Il back della selezione (F6B.1): composto quando la selezione si apre, così entra nella pila dei gestori sopra la
+  // pagina e l'host, e sotto i menu che si apriranno dopo. Una pagina solo preparata non ne ha.
+  if (selection != null && !LocalFluidPagePreparing.current) {
+    FluidSelectionBackEffect(enabled = true, onExit = selection.exit)
+  }
 
   // Chi e' davanti lo decide la transizione di rotta, non l'ordine di composizione: durante un back
   // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.
@@ -1390,6 +1516,19 @@ private fun FluidScreenLayout(
     } else {
       CompositionLocalProvider(LocalFluidToolbarMinimize provides minimize, LocalToolbarSearch provides floatingSearch,
         LocalPrincipalSearchActive provides (search.active && floatingSearch == null), content = topBar)
+    }
+
+    // Il conteggio della selezione per TalkBack (F6B.1): un'area viva al centro della barra, dove la barra lo mostra.
+    // Sta nella pagina e non nella barra, così vale anche quando la barra la disegna l'host delle pagine.
+    if (selection != null) {
+      FluidSelectionAnnouncement(
+        text = selection.title,
+        modifier = Modifier
+          .align(Alignment.TopCenter)
+          .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+          .height(FluidScreenDefaults.ControlRowHeight)
+          .fillMaxWidth(FluidSelectionAnnouncementWidth),
+      )
     }
 
     if (minimize != null) {
@@ -2441,9 +2580,17 @@ private fun BoxScope.FluidToolbarTopRow(
   controls: FluidTopBarControls,
   fade: () -> Float,
 ) {
-  val showsTitle = toolbar.titleMode != FluidToolbarTitleMode.None && !toolbar.hasPrincipal
-  if (showsTitle) {
-    Box(Modifier.matchParentSize().graphicsLayer { alpha = fade() }) {
+  val namesTitle = toolbar.titleMode != FluidToolbarTitleMode.None
+  val showsTitle = namesTitle && !toolbar.hasPrincipal
+  // F6B.1: quando il centro si occupa (il conteggio di una selezione) il titolo agganciato esce sfocandosi invece di
+  // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto.
+  val handoff = rememberFluidTitleHandoff(hidden = !showsTitle)
+  val titleGone by remember(handoff) { derivedStateOf { handoff.value >= 1f } }
+  if (namesTitle && (showsTitle || !titleGone)) {
+    Box(Modifier.matchParentSize().graphicsLayer {
+      alpha = fade()
+      fluidTitleHandoffLayer(handoff.value, if (compactStyle.fontSize.isSpecified) compactStyle.fontSize.toPx() else 0f)
+    }) {
       // Col sottotitolo il titolo agganciato sale: l'ancora del morph si misura dal posto, che sale con lui.
       Box(Modifier.fillMaxSize().padding(bottom = if (subtitle != null) FluidToolbarSubtitleLift else 0.dp)) {
         FluidTopBarTitle(

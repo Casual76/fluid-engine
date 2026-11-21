@@ -57,6 +57,12 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMetrics
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarModelOf
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarTint
 import dev.antigravity.fluidengine.ui.fluid.toolbar.resolveFluidToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionBackEffect
+import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidScreenToolbar
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleHandoffLayer
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleHandoff
+import dev.antigravity.fluidengine.ui.fluid.toolbar.selection
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -233,6 +239,19 @@ internal fun BoxScope.FluidAnchoredBar(
     )
   }
   FluidBarTitleClock(swap, policy.durationScale)
+  // F6B.1, D1: mentre un gesto indietro non è confermato la barra in basso che la shell legge
+  // (`FluidChromeController.bottomReplacement`) resta quella della pagina in cima, anche quando il «davanti» del vetro
+  // passa di mano a metà uscita. La tenuta finisce quando la pila cambia (conferma) o quando l'annullo si è posato.
+  val replacementChrome = LocalFluidChromeController.current
+  val replacementHold = remember { Any() }
+  LaunchedEffect(replacementChrome, state) {
+    val chrome = replacementChrome ?: return@LaunchedEffect
+    try {
+      snapshotFlow { fluidPageBackUnconfirmed(state) }.collect { chrome.holdBottomReplacement(replacementHold, it) }
+    } finally {
+      chrome.holdBottomReplacement(replacementHold, false)
+    }
+  }
   val density = LocalDensity.current
   val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val hasBar = upperSpec != null || lowerSpec != null
@@ -555,6 +574,17 @@ internal fun BoxScope.FluidAnchoredBar(
 }
 
 /**
+ * C'è un gesto indietro che il rilascio non ha ancora confermato (D1): il dito o il sistema tengono la pagina in cima, o
+ * l'annullo la sta riportando al suo posto. La conferma toglie la pagina dalla pila richiesta, e da lì non vale più.
+ * Legge stato dell'host, quindi va letta in un `snapshotFlow` o in disegno.
+ */
+internal fun fluidPageBackUnconfirmed(state: FluidPageHostState): Boolean {
+  if (state.kind != FluidPageMove.Back) return false
+  val top = state.interactionPage ?: return false
+  return top == state.upper
+}
+
+/**
  * Il taglio della striscia della barra fra due pagine che si muovono (dal seguito di F2.5): la pagina sopra copre da
  * [FluidPageHostState.upperCoverage], e lì vale la sua intensità; fuori quella della pagina sotto. Null se non c'è niente
  * da tagliare. Scrive in [into] (riusato a ogni fotogramma), o in uno nuovo.
@@ -680,7 +710,12 @@ private fun BoxScope.BarTitle(
   followsFinger: Boolean,
 ) {
   val toolbar = spec.toolbar
-  if (toolbar != null && (toolbar.titleMode == FluidToolbarTitleMode.None || toolbar.hasPrincipal)) return
+  // F6B.1: quando il centro si occupa (il conteggio di una selezione) il titolo agganciato esce sfocandosi invece di
+  // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto.
+  val principal = toolbar?.hasPrincipal == true
+  val handoff = rememberFluidTitleHandoff(hidden = principal)
+  val titleGone by remember(handoff) { derivedStateOf { handoff.value >= 1f } }
+  if (toolbar != null && (toolbar.titleMode == FluidToolbarTitleMode.None || (principal && titleGone))) return
   // Il moto legato alla corsa vale per le pagine di sempre e, nella variante delle prove, mentre il dito tiene la pagina.
   val byTravel: () -> Boolean = remember(state, swap, followsFinger) {
     { swap == null || (followsFinger && state.kind == FluidPageMove.Back) }
@@ -721,6 +756,8 @@ private fun BoxScope.BarTitle(
           } else {
             null
           }
+          // Il titolo che lascia il centro al conteggio (F6B.1); a riposo non tocca niente.
+          fluidTitleHandoffLayer(handoff.value, glyphPx)
         }
         .drawWithContent {
           when (state.roleOf(page)) {
@@ -1116,8 +1153,14 @@ fun FluidPageChrome(
   // la barra nel contesto che la pagina gli consegna (`currentCompositionLocalContext`), e una pagina che
   // non e' una `FluidScreen` non ha mai detto il colore del testo: fuori da una `Surface` vale nero, e il
   // titolo agganciato era nero sul tema scuro. Il fondo sotto la barra e' quello della pagina.
+  // F6B.1: in selezione la barra non aggiunge l'indietro della pagina, e il back esce dalla selezione.
+  val declaration = toolbar?.let { buildFluidScreenToolbar(onBack, it) }
+  val selection = declaration?.selection
+  if (selection != null && !LocalFluidPagePreparing.current) {
+    FluidSelectionBackEffect(enabled = true, onExit = selection.exit)
+  }
   CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-    FluidPageChromeContent(title, modifier, onBack, backdrop, barTint, toolbar?.let { buildFluidToolbar(onBack, it) }, actions)
+    FluidPageChromeContent(title, modifier, onBack, backdrop, barTint, declaration, actions)
   }
 }
 

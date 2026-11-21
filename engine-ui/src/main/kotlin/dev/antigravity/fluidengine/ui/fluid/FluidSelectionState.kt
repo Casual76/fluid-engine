@@ -1,6 +1,5 @@
 package dev.antigravity.fluidengine.ui.fluid
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -9,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionBackEffect
 
 /**
  * Cosa e' scelto, in una delle due forme che una selezione multipla puo' avere.
@@ -345,6 +345,10 @@ fun <K : Any> rememberFluidSelectionState(keySaver: Saver<K, out Any>? = null): 
  * pannello, poi selezione, poi pagina). Posato prima della pagina, il back chiude la pagina con la
  * selezione ancora accesa.
  *
+ * **Il gesto indietro predittivo (D1).** Mentre il dito decide non cambia niente: la selezione resta com'e' finche' il
+ * gesto non e' confermato, e un gesto annullato non la tocca. E' lo stesso gestore del back di `selection { }` della barra
+ * (F6B.1), provato col dispatcher vero da `FluidSelectionToolbarTest`.
+ *
  * @param enabled falso lo spegne senza toglierlo dall'albero (una pagina che non e' quella in primo piano).
  * @param onExit chiamato dopo aver svuotato la selezione (per riportare il titolo, nascondere la capsula).
  */
@@ -354,7 +358,7 @@ fun FluidSelectionBackHandler(
   enabled: Boolean = true,
   onExit: (() -> Unit)? = null,
 ) {
-  BackHandler(enabled = enabled && state.isActive) {
+  FluidSelectionBackEffect(enabled = enabled && state.isActive) {
     state.clear()
     onExit?.invoke()
   }

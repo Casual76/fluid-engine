@@ -15,6 +15,7 @@ import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
 import dev.antigravity.fluidengine.ui.page.FluidPageDismiss
 import dev.antigravity.fluidengine.ui.page.FluidPageScope
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
+import dev.antigravity.fluidengine.ui.page.FluidZoomStyle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
@@ -91,6 +92,10 @@ class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>() {
     /** La sorgente dello zoom di una voce (4.0, F5B.3): vedi `composable(zoomSource = …)`. Null: nessuna. */
     var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
       internal set
+
+    /** Il preset di «un elemento che diventa pagina» (F6B.5c): vedi `composable(zoom = …)`. Null: nessuno. */
+    var zoom: FluidZoomStyle? = null
+      internal set
   }
 
   companion object {
@@ -109,6 +114,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
   var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
   var dismiss: FluidPageDismiss = FluidPageDismiss.None
   var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
+  var zoom: FluidZoomStyle? = null
 
   constructor(
     navigator: FluidPageNavigator,
@@ -137,6 +143,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
     destination.backSwipe = backSwipe
     destination.dismiss = dismiss
     destination.zoomSource = zoomSource
+    destination.zoom = zoom
   }
 }
 
@@ -186,6 +193,38 @@ fun NavGraphBuilder.composable(
   )
 }
 
+/**
+ * Una pagina che nasce da un elemento con un preset (F6B.5c): `composable(route, zoomSource = …, zoom =
+ * FluidZoomStyle.Rise)`. Di serie [transition] è [FluidPageTransition.Expand] (lo zoom) e [dismiss] quella del preset
+ * ([FluidZoomStyle.dismiss]: trascinando in giù). [zoomSource] è la sorgente da cui la voce si apre, letta dalla voce;
+ * con [FluidZoomStyle.fromToolbar] non serve. È una rotta vera: back stack, [deepLinks] e stato salvato come le altre;
+ * aperta da un collegamento o ripristinata dopo la morte del processo è già aperta, e il ritorno cerca la sorgente o usa
+ * il ripiego.
+ */
+fun NavGraphBuilder.composable(
+  route: String,
+  arguments: List<NamedNavArgument> = emptyList(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Expand,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  zoom: FluidZoomStyle,
+  dismiss: FluidPageDismiss = zoom.dismiss,
+  content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) {
+  destination(
+    FluidPageDestinationBuilder(pageNavigator(), route, content).apply {
+      arguments.forEach { (argumentName, navArgument) -> argument(argumentName, navArgument) }
+      deepLinks.forEach { link -> deepLink(link) }
+      this.transition = transition
+      this.backSwipe = backSwipe
+      this.zoomSource = zoomSource
+      this.dismiss = dismiss
+      this.zoom = zoom
+    },
+  )
+}
+
 /** Una pagina Fluid nel grafo, per rotta tipizzata (la classe della rotta, serializzabile). */
 fun <T : Any> NavGraphBuilder.composable(
   route: KClass<T>,
@@ -219,6 +258,30 @@ fun <T : Any> NavGraphBuilder.composable(
   )
 }
 
+/** Variante tipizzata con un preset di «un elemento che diventa pagina» (F6B.5c). */
+fun <T : Any> NavGraphBuilder.composable(
+  route: KClass<T>,
+  typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Expand,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  zoom: FluidZoomStyle,
+  dismiss: FluidPageDismiss = zoom.dismiss,
+  content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) {
+  destination(
+    FluidPageDestinationBuilder(pageNavigator(), route, typeMap, content).apply {
+      deepLinks.forEach { link -> deepLink(link) }
+      this.transition = transition
+      this.backSwipe = backSwipe
+      this.zoomSource = zoomSource
+      this.dismiss = dismiss
+      this.zoom = zoom
+    },
+  )
+}
+
 /** Una pagina Fluid nel grafo, per rotta tipizzata: `composable<Dettaglio> { entry -> ... }`. */
 inline fun <reified T : Any> NavGraphBuilder.composable(
   typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
@@ -241,3 +304,15 @@ inline fun <reified T : Any> NavGraphBuilder.composable(
   dismiss: FluidPageDismiss,
   noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) = composable(T::class, typeMap, deepLinks, transition, backSwipe, zoomSource, dismiss, content)
+
+/** Variante reified con un preset di «un elemento che diventa pagina» (F6B.5c). */
+inline fun <reified T : Any> NavGraphBuilder.composable(
+  typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Expand,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  noinline zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  zoom: FluidZoomStyle,
+  dismiss: FluidPageDismiss = zoom.dismiss,
+  noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) = composable(T::class, typeMap, deepLinks, transition, backSwipe, zoomSource, zoom, dismiss, content)

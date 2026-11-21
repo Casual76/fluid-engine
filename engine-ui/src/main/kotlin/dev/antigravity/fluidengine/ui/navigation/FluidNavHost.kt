@@ -167,6 +167,8 @@ fun FluidNavHost(
     pageKey = { entry -> entry.id },
     // Lo zoom dalla sorgente (F5B.3), dichiarato sulla destinazione e letto dalla voce.
     zoomSource = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoomSource?.invoke(entry) },
+    // I preset di «un elemento che diventa pagina» (F6B.5c), dichiarati sulla destinazione.
+    zoom = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoom },
   ) { entry ->
     // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato
     // salvabile, come in NavHost.

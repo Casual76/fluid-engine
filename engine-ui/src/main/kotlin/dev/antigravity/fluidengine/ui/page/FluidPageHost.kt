@@ -264,6 +264,45 @@ fun <K : Any> FluidPageHost(
 }
 
 /**
+ * Con i preset di «un elemento che diventa pagina» (F6B.5c): [zoom] dà per ogni chiave il suo [FluidZoomStyle], null
+ * per le pagine che non ne hanno. Una chiave con un preset è di serie [FluidPageTransition.Expand] e si chiude anche
+ * trascinando in giù ([FluidZoomStyle.dismiss]); [transition] e [dismiss] possono dire altro. La sorgente è quella di
+ * [zoomSource], che il preset completa: il vetro che cresce per [FluidZoomStyle.Grow] e per i tasti della barra, e il
+ * tasto della barra della pagina sotto per [FluidZoomStyle.fromToolbar], che non chiede una [zoomSource].
+ *
+ * ```kotlin
+ * FluidPageHost(stack, onBack = { stack = stack.dropLast(1) },
+ *   zoom = { key -> if (key == "lettore") FluidZoomStyle.Rise else null },
+ *   zoomSource = { key -> if (key == "lettore") FluidTransitionSource("mini", ns) else null }) { key -> … }
+ * ```
+ */
+@Composable
+fun <K : Any> FluidPageHost(
+  stack: List<K>,
+  onBack: () -> Unit,
+  zoom: (K) -> FluidZoomStyle?,
+  modifier: Modifier = Modifier,
+  transition: (K) -> FluidPageTransition = { key ->
+    if (zoom(key) != null) FluidPageTransition.Expand else FluidPageTransition.Slide
+  },
+  backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly },
+  peer: FluidPeerMove<K>? = null,
+  onTransitionStart: (List<K>) -> Unit = {},
+  onSettled: () -> Unit = {},
+  leaving: Set<K>? = null,
+  state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
+  zoomSource: (K) -> FluidTransitionSource? = { null },
+  precomposePage: K? = null,
+  dismiss: (K) -> FluidPageDismiss = { key -> zoom(key)?.dismiss ?: FluidPageDismiss.None },
+  content: @Composable FluidPageScope.(K) -> Unit,
+) {
+  FluidPageHostImpl(stack, onBack, modifier, transition, backSwipe, peer, onTransitionStart, onSettled,
+    leaving, state, pageColor, ownOwners = true, pageKey = { it }, zoomSource = zoomSource,
+    precomposePage = precomposePage, dismiss = dismiss, zoom = zoom, content = content)
+}
+
+/**
  * [ownOwners]: l'host da' a ogni pagina il suo stato salvabile e il suo ciclo di vita. FluidNavHost
  * lo spegne, perche' quei due li da' gia' la voce del back stack.
  *
@@ -291,6 +330,7 @@ internal fun <K : Any> FluidPageHostImpl(
   zoomSource: (K) -> FluidTransitionSource? = { null },
   precomposePage: K? = null,
   dismiss: (K) -> FluidPageDismiss = { FluidPageDismiss.None },
+  zoom: (K) -> FluidZoomStyle? = { null },
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -306,6 +346,8 @@ internal fun <K : Any> FluidPageHostImpl(
   val savedKeys = remember { mutableSetOf<Any>() }
   // I posti delle barre delle pagine (3.0): ogni pagina descrive la sua, l'host ne disegna una.
   val barRegistry: FluidPageBarRegistry = remember { mutableStateMapOf() }
+  // Le sorgenti dei preset di «un elemento che diventa pagina» (F6B.5c).
+  val zoomSources = remember { FluidZoomSources() }
 
   // Il back di sistema: registrato qui, prima che le pagine compongano i loro BackHandler, cosi'
   // quelli (e un modale aperto dopo) passano davanti.
@@ -387,7 +429,12 @@ internal fun <K : Any> FluidPageHostImpl(
     state.dismissOf = { page -> dismiss(page as K) }
     state.peerOf = peer?.let { move -> { from: Any, to: Any -> move.direction(from as K, to as K) } }
     state.renderable = { page -> leaving == null || page in stack || page in leaving }
-    state.sourceOf = { page -> zoomSource(page as K) }
+    zoomSources.track(stack) { page -> page == state.upper || page == state.lower }
+    state.sourceOf = { page ->
+      val key = page as K
+      zoomSources.sourceOf(page, zoom(key), zoomSource(key)) { below -> barRegistry[below] }
+    }
+    state.resolveSource = zoomSources::resolve
     state.onStack(stack)
     state.resumeRotation { page -> pageKey(page as K) }
     state.backHandler?.isBackEnabled = stack.size > 1

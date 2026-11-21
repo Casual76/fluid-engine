@@ -31,6 +31,7 @@ Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../re
 | una pagina che «si chiude da sola» (si rimpicciolisce e scivola via) | `composable(route, transition = FluidPageTransition.ShrinkSlide)` |
 | una pagina che si apre dal punto toccato | `transition = FluidPageTransition.Expand` |
 | una card (o un elemento qualunque) che **diventa la pagina** e ci torna, anche col dito (lo zoom di iOS) | `Modifier.fluidTransitionSource(id, ns)` sulla card + `composable(route, transition = Expand, zoomSource = { entry -> FluidTransitionSource(id, ns) })` (4.0, sezione «Lo zoom dalla sorgente») |
+| un mini lettore, una miniatura, una pillola o un tasto della barra che **diventa la pagina** (Musica, Foto, Meteo, Mail) | un preset: `composable(route, zoomSource = …, zoom = FluidZoomStyle.Rise)` + `Modifier.fluidZoomSource(id, ns, FluidZoomStyle.Rise) { … }` (F6B.5c, sezione «Un elemento che diventa pagina») |
 | la pagina che si tira indietro da qualunque punto | `backSwipe = FluidBackSwipe.Anywhere` (di serie e' `EdgeOnly`) |
 | una pagina senza gesto indietro col dito | `backSwipe = FluidBackSwipe.Off` (il back di sistema e il tasto restano) |
 | una conferma «uscire senza salvare?» sul back | un `BackHandler` nella pagina: non serve spegnere il gesto |
@@ -430,6 +431,119 @@ preset di F6B (mini lettore, card, tasto) danno i loro orologi e le loro sagome 
 - `fluidTransitionSource` dopo `clip`/`background`: consumata, sparisce solo l'interno e resta la forma vuota.
 - Una sorgente che a riposo è coperta da un'altra cosa (una tab bar) torna lo stesso: la sagoma atterra sotto.
 
+## Un elemento che diventa pagina (F6B.5c)
+
+**Cos'è.** Lo zoom dalla sorgente nei quattro casi che le app ripetono, ognuno in una riga per parte: la sorgente dice
+con quale preset si apre, la rotta lo dichiara. Il movimento è tutto dell'host (lo zoom di F5B.3, il dito che apre e la
+chiusura in giù di F6B.5a, l'elemento condiviso e «Cresce» di F6B.5b): l'app non scrive una molla, una soglia o un
+`graphicsLayer`. I preset sono in `ui/page/FluidZoomPresets.kt`.
+
+| preset | il caso | la sorgente | la pagina |
+|---|---|---|---|
+| `FluidZoomStyle.Zoom` | una card o una miniatura diventa la pagina (Foto: la griglia e il visore) | `Modifier.fluidZoomSource(id, ns, FluidZoomStyle.Zoom, forma) { apri() }`, più `fluidSharedElement` sull'immagine | l'immagine marcata con la stessa chiave viaggia sul suo riquadro |
+| `FluidZoomStyle.Rise` | un accessorio in basso diventa la pagina intera (Musica: il mini lettore → «In riproduzione») | `fluidZoomSource(…, FluidZoomStyle.Rise, …)` sul **contenuto** dell'accessorio: si apre al tocco e tirandolo su | la copertina condivisa viaggia, i comandi arrivano dopo il 70% |
+| `FluidZoomStyle.Grow`, `FluidZoomStyle.grow(tint, optics)` | una pillola di vetro diventa pagina o pannello (Meteo: la pillola della località) | `FluidGrowingPagePill(id, ns, backdrop, Modifier.fluidZoomOpen(FluidZoomStyle.Grow) { apri() })` | vetro per tutta la corsa, opaca all'arrivo; i comandi in `Modifier.fluidGrowingPageChrome()` si vedono già sul vetro |
+| `FluidZoomStyle.fromToolbar(id)`, `FluidZoomStyle.FromToolbar` | un tasto della barra diventa la pagina (Mail: «Scrivi» → compositore) | il tasto della barra dichiarata, `button(id, …, onClick = { apri() })`: niente da marcare | una lastra di vetro nasce da sotto il tasto e cresce come in «Cresce» |
+
+```kotlin
+val ns = rememberFluidGlassNamespace()                       // sopra FluidNavHost, come per lo zoom
+FluidNavHost(nav, startDestination = "libreria") {
+  composable("libreria") {
+    FluidScreen("Libreria", overlay = { backdrop ->
+      FluidFloatingCapsule(Modifier.align(Alignment.BottomCenter), backdrop = backdrop, fillWidth = true) {
+        Row(Modifier.weight(1f).fluidZoomSource("mini", ns, FluidZoomStyle.Rise, FluidCapsuleShape) {
+          nav.navigate("lettore")
+        }) { Box(Modifier.size(36.dp).fluidSharedElement("copertina", ns).background(copertina)); Text("Il brano") }
+      }
+    }) { /* … */ }
+  }
+  composable("lettore", zoomSource = { FluidTransitionSource("mini", ns) }, zoom = FluidZoomStyle.Rise) {
+    Box(Modifier.fillMaxWidth().aspectRatio(1f).fluidSharedElement("copertina", ns).background(copertina))
+  }
+  composable("scrivi", zoom = FluidZoomStyle.fromToolbar("scrivi")) { Compositore() }   // il tasto «scrivi» della pagina sotto
+}
+```
+
+Con `FluidPageHost` gli stessi parametri valgono per chiave:
+`FluidPageHost(stack, onBack, zoom = { key -> if (key == "lettore") FluidZoomStyle.Rise else null }, zoomSource = { … })`.
+
+**Le firme.**
+
+```kotlin
+class FluidZoomStyle {                       // non un enum: si confronta con ==, un `when` ha sempre il suo else
+  val dismiss: FluidPageDismiss              // di serie per tutti: Down
+  val opensByDragging: Boolean               // Rise e Grow
+  companion object {
+    val Zoom; val Rise; val Grow; val FromToolbar
+    fun grow(tint: GlassTint? = null, optics: GlassOptics = GlassDefaults.buttonOptics()): FluidZoomStyle
+    fun fromToolbar(itemId: Any): FluidZoomStyle
+  }
+}
+@Composable fun Modifier.fluidZoomSource(id: Any, namespace: FluidGlassNamespace, style: FluidZoomStyle = Zoom,
+  shape: Shape = RectangleShape, state: FluidPageHostState? = null, openByDragging: Boolean = style.opensByDragging,
+  onOpen: () -> Unit): Modifier
+@Composable fun Modifier.fluidZoomOpen(style: FluidZoomStyle, state: FluidPageHostState? = null,
+  openByDragging: Boolean = style.opensByDragging, onOpen: () -> Unit): Modifier
+fun NavGraphBuilder.composable(route: String, arguments, deepLinks, transition = Expand, backSwipe = EdgeOnly,
+  zoomSource = null, zoom: FluidZoomStyle, dismiss = zoom.dismiss, content)   // anche KClass e reified
+@Composable fun <K : Any> FluidPageHost(stack, onBack, zoom: (K) -> FluidZoomStyle?, modifier,
+  transition = { Expand se ha un preset, altrimenti Slide }, …, zoomSource, precomposePage,
+  dismiss = { zoom(it)?.dismiss ?: None }, content)
+```
+
+**Cosa fa da solo l'engine.**
+- **Il viaggio d'oro.** La sorgente non si vede mentre la pagina è aperta e rinasce quando la sagoma ci rientra; la
+  faccia della sorgente esce sfocata entro il 30% della corsa e la chrome d'arrivo entra dopo il 70%. Sorgente e arrivo
+  non sono mai leggibili insieme.
+- **Il dito.** `Rise` e `Grow` si aprono tirando su la sorgente; tutti si chiudono tirando giù la pagina, con la lista
+  interna che cede il dito solo al bordo. Il dito si ferma, cambia verso e riprende ovunque, anche durante la molla.
+- **«Cresce», anche dai tasti della barra.** `Grow` e i preset della barra portano il vetro fino alla posa: la lastra
+  prende la misura della sagoma, lo sfondo si sfoca e si scurisce con la curva di F6B.5b, la pagina diventa opaca solo
+  all'arrivo.
+- **La sorgente della barra.** `fromToolbar(id)` usa il tasto `id` della barra dichiarata dalla **pagina sotto**, la
+  stessa identità di `rememberFluidToolbarTransitionSource(id)` in quella pagina. Al ritorno la barra dell'host si sta
+  ritrasformando nella barra della pagina sotto: se il tasto non è ancora al suo posto, la sagoma torna nel riquadro in
+  cui la pagina l'aveva trovato all'apertura.
+- **La rotta vera.** È un `composable` di `FluidNavHost` come gli altri: back stack, `deepLinks`, `ViewModel` e stato
+  salvato della voce. Aperta da un collegamento o ripristinata (rotazione, morte del processo) la pagina è **già aperta,
+  senza viaggio**; il ritorno cerca la sorgente nella pagina sotto (anche coperta) e, se non c'è, usa il ripiego.
+  Perché il collegamento ricostruisca la pagina della sorgente sotto la destinazione, la sorgente e la destinazione
+  stanno in un grafo annidato la cui partenza è la pagina della sorgente:
+  `navigation(startDestination = "foto", route = "foto-grafo") { composable("foto") {…}; composable("foto/{n}", …) }`.
+  Un collegamento con l'app aperta (`navigate(uri)`) mette la pagina sopra quella di adesso: senza la sorgente sotto,
+  si apre e torna col ripiego.
+- **Il ripiego senza salti.** Una sorgente uscita dallo scorrimento, una pagina ripristinata senza la sua sorgente, le
+  animazioni ridotte: vale l'`Expand` di sempre, dal punto toccato e «rimpicciolisce e scivola» al ritorno, senza salti.
+  Una sorgente sparita a metà ritorno: la sagoma atterra dove l'aveva trovata.
+
+**Cosa non fa.**
+- **Non marca la sorgente per l'app** fuori dalla barra: il mini lettore, la miniatura e la pillola li marca l'app (con
+  `fluidZoomSource`, `FluidGrowingPagePill`); la tab bar e i suoi accessori restano dell'app.
+- **Non sceglie l'immagine condivisa**: va marcata con `fluidSharedElement(chiave, ns)` nella sorgente e nella pagina.
+  Senza, la pagina viaggia intera dentro la sagoma, con la dissolvenza di F5B.3.
+- **Il tasto della barra resta della barra**: non si nasconde e non si stacca. La barra non entra nello zoom e si
+  trasforma nella barra della pagina d'arrivo con lo scambio sfocato di sempre; la lastra di «Cresce» nasce sotto il
+  tasto. Se la pagina d'arrivo tiene un tasto nello stesso posto (il compositore con «Invia» dove c'era «Scrivi»), il
+  vetro resta fermo e cambia solo l'icona. A differenza del foglio che nasce dal tasto (F5B.3), qui la faccia del tasto
+  non si nasconde: fra due pagine la barra cambia, e una faccia nascosta all'apertura e restituita all'arrivo sparirebbe
+  e ricomparirebbe in un fotogramma (lo mostravano i fotogrammi del banco, `elemento-dalla-barra`).
+- **Il collegamento non ricostruisce da solo la pagina della sorgente**: lo fa la struttura del grafo (sopra).
+- **Non migra le app**: i casi di Fluidify, Gallery, Weather e Mail sono scene della galleria, rifatte con l'engine
+  (`sample/…/dynamic/ElementToPage.kt`, `ElementToPageScenes.kt`). Le app le migra Alessio, a mano.
+
+**Trappole.**
+- `fluidZoomSource` va **in testa** alla catena dei modificatori, come `fluidTransitionSource`: consumata, la sorgente
+  non disegna ciò che le sta dopo.
+- Su `FluidGrowingPagePill` si usa `fluidZoomOpen`, non `fluidZoomSource`: la pillola si marca da sé, e due sorgenti con
+  la stessa identità sullo stesso elemento si contendono la fotografia.
+- Il namespace va ricordato fuori dal grafo, come per lo zoom: uno nuovo a ogni composizione non ritrova la sorgente.
+- Con un preset, `transition` è di serie `Expand`: una rotta che chiede `Slide` ignora la sorgente.
+- Il preset della barra cerca il tasto nella **pagina sotto**: un compositore aperto da un collegamento sopra un'altra
+  pagina non lo trova e torna col ripiego.
+
+**Versione.** Dalla 4.0 (F6B.5c). La scena della galleria è «Un elemento che diventa pagina» (`ElementToPagePage`); i
+collegamenti `fluidengine://elementi/lettore`, `…/foto/{n}`, `…/luoghi`, `…/scrivi`.
+
 ## Il passo fra schede: FluidPeerMove
 
 **Cos'e'.** `fun interface FluidPeerMove<in K> { fun direction(from: K, to: K): Int }`: l'ordine fra pari. Due destinazioni che sono schede non sono una dentro l'altra: non si aprono come pagine e non si chiudono col dito, fanno il passo laterale di sempre.
@@ -474,6 +588,7 @@ cosi' switch, chip e fogli di Material si muovono sulle stesse molle della chrom
 | `page/FluidPageTransition.kt` | `FluidPageTransition`, `FluidBackSwipe`, `FluidPeerMove`, `FluidPageMove` |
 | `page/FluidPageMotion.kt` | costanti e funzioni pure (corsa, rilascio, frame, parallasse, classificazione della pila, geometria della barra) |
 | `page/FluidZoom.kt` | la geometria dello zoom (4.0, F5B.3): `FluidZoomShape`, `FluidZoomContent`, `FluidZoom` (sagome, dito, contenuto, raggi della sorgente) |
+| `page/FluidZoomPresets.kt` | i preset di «un elemento che diventa pagina» (F6B.5c): `FluidZoomStyle`, `fluidZoomSource`, `fluidZoomOpen`, le sorgenti che l'host ne ricava |
 | `navigation/FluidNavHost.kt`, `FluidPageNavigator.kt`, `FluidPeerNavigation.kt` | l'host con navigation, il navigator e i builder `composable`, `navigateToPeer` |
 | `theme/RouteMotion.kt`, `theme/Motion.kt` | il vecchio (tabella sopra) e `FluidMotionScheme` |
 | il resto (input, barra, test) | [pagine-back-e-barra.md](pagine-back-e-barra.md) |

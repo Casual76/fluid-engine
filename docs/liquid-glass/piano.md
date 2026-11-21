@@ -3830,8 +3830,11 @@ F6C.2, F6C.3 e F6C.4 hanno perimetri disgiunti e possono scrivere insieme dopo F
 - **Barre durante un video**: si ritirano solo al tocco; nessun timer.
 - **Pannello info**: tirando su dal contenuto e dal tasto «i».
 - **Sfondo**: nero per foto e video, del tema per documenti e testo.
-- **Da chiedere dopo F6C.0**: i tipi della prima versione. La proposta: immagine (anche animata), video, audio, documento a
-  pagine (PDF), testo e codice, sconosciuto; fuori i documenti Office, gli archivi, gli ebook e il 3D.
+- **I tipi della prima versione** (dopo F6C.0, `ricerca/visori.md`, 21 novembre): **tutti e sei**, cioè immagine (anche
+  animata), video, audio, documento a pagine (PDF), testo e codice, sconosciuto, come nella §8 della ricerca. Fuori i
+  documenti Office, gli archivi, gli ebook e il 3D: per loro il visore offre «Apri con…».
+- **GIF e WebP animate le decodifica il modulo facoltativo** `engine-viewer` (da un file o un URI); `engine-ui` resta
+  senza decoder.
 
 ---
 

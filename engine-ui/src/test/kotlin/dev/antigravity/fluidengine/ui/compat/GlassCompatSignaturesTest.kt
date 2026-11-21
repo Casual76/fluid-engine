@@ -470,6 +470,38 @@ internal fun CapsuleActionCallsOfF6b3a(onClick: () -> Unit, state: FluidActionSt
     FluidPressGrip.HoldsFinger, null, FluidActionPreset.Save, FluidActionState.Working())
 }
 
+// --- FluidSearchSpec (F6B.6) ---------------------------------------------------------------------------------
+
+/**
+ * `FluidSearchSpec` come lo scrivono le app prima di F6B.6: per posizione con tutti e dodici i parametri, la forma minima
+ * e per nome. F6B.6 aggiunge `navigation`, `onSubmit`, `maxLines`, `icon`, `trailing` e `showsAtRest` **in coda**, con un
+ * valore di serie, e i preset nel companion: queste chiamate compilano e restano il campo di sempre.
+ */
+internal fun searchSpecsAsBefore(log: MutableList<String>): List<FluidSearchSpec> = listOf(
+  FluidSearchSpec("lago", { log += it }, FluidSearchPlacement.TopBar, FluidSearchBehavior.CollapseToButton, "Cerca",
+    { log += "cerca" }, null, null, FluidSearchPurpose.Search, FluidSearchExpansion.StayAtTop, true, { log += "aperta $it" }),
+  FluidSearchSpec("lago", { log += it }),
+  FluidSearchSpec(query = "", onQueryChange = { log += it }, placement = FluidSearchPlacement.BottomBar, prompt = "Messaggio",
+    purpose = FluidSearchPurpose.Input, onSearch = { log += "invia" }),
+)
+
+/** Le forme di F6B.6, **accanto** a quelle di sopra: i cinque preset, i campi nuovi per nome e tutti e diciotto per posizione. */
+internal fun searchSpecsOfF6b6(log: MutableList<String>): List<FluidSearchSpec> {
+  val navigation = FluidSearchNavigation(0, 3, { log += "su" }, { log += "giu" })
+  return listOf(
+    FluidSearchSpec.search("lago", { log += it }, onSearch = { log += "cerca" }),
+    FluidSearchSpec.message("", { log += it }, onSend = { log += "invia" }),
+    FluidSearchSpec.note("", { log += it }),
+    FluidSearchSpec.assistant("", { log += it }, onAsk = { log += "chiedi" }),
+    FluidSearchSpec.findInPage("lago", { log += it }, navigation, active = true, onActiveChange = { log += "trova $it" }),
+    FluidSearchSpec("lago", { log += it }, navigation = navigation, onSubmit = FluidSearchSubmit.StayOpen, maxLines = 3,
+      icon = Icons.Rounded.Delete, trailing = FluidSearchTrailing.Send, showsAtRest = false),
+    FluidSearchSpec("lago", { log += it }, FluidSearchPlacement.BottomBar, FluidSearchBehavior.AlwaysVisible, null, null,
+      null, null, FluidSearchPurpose.Search, FluidSearchExpansion.AboveKeyboard, false, null, navigation,
+      FluidSearchSubmit.Close, 1, null, FluidSearchTrailing.Clear, true),
+  )
+}
+
 class GlassCompatSignaturesTest {
 
   @Test fun workingAcceptsPreviousCallsAndAnAppControlledPause() {
@@ -608,5 +640,55 @@ class GlassCompatSignaturesTest {
     assertEquals(listOf("Uniform", "FadeDown"), GlassFalloff.entries.map { it.name })
     assertEquals(listOf("None", "Bottom", "Top"), GlassEdge.entries.map { it.name })
     assertEquals(GlassDefaults.optics(GlassRole.Floating), opticsReference(GlassRole.Floating))
+  }
+
+  @Test
+  fun theSearchSpecsOfBeforeKeepTheirMeaningAndTheNewFieldsTheirDefaults() {
+    val log = mutableListOf<String>()
+    for (spec in searchSpecsAsBefore(log)) {
+      assertNull(spec.navigation)
+      assertNull(spec.onSubmit)
+      assertEquals(1, spec.maxLines)
+      assertNull(spec.icon)
+      assertEquals(FluidSearchTrailing.Clear, spec.trailing)
+      assertTrue(spec.showsAtRest)
+    }
+    // Per posizione ogni argomento arriva dove arrivava: la dodicesima lambda è ancora l'apertura.
+    val positional = searchSpecsAsBefore(log).first()
+    assertEquals(FluidSearchPlacement.TopBar, positional.placement)
+    assertEquals(FluidSearchBehavior.CollapseToButton, positional.behavior)
+    assertEquals("Cerca", positional.prompt)
+    assertEquals(FluidSearchExpansion.StayAtTop, positional.expansion)
+    assertTrue(positional.active)
+    positional.onSearch!!.invoke()
+    positional.onActiveChange!!.invoke(false)
+    assertEquals(listOf("cerca", "aperta false"), log)
+    // La data class: `copy` per nome, la destrutturazione dei primi dodici, `equals` che conta i campi nuovi.
+    assertEquals("mare", positional.copy(query = "mare").query)
+    val (query, _, placement, _, _, _, _, _, _, _, active, _) = positional
+    assertEquals("lago", query)
+    assertEquals(FluidSearchPlacement.TopBar, placement)
+    assertTrue(active)
+    assertEquals(positional, positional.copy())
+    assertFalse(positional == positional.copy(maxLines = 2))
+  }
+
+  @Test
+  fun theSearchSpecsOfF6b6CarryTheirNewFields() {
+    val log = mutableListOf<String>()
+    val specs = searchSpecsOfF6b6(log)
+    assertEquals(FluidSearchSubmit.Close, specs[0].onSubmit)
+    assertEquals(FluidSearchTrailing.Send, specs[1].trailing)
+    assertEquals(FluidSearchSubmit.StayOpen, specs[1].onSubmit)
+    assertEquals(FluidSearchPurpose.Input, specs[2].purpose)
+    assertEquals(FluidSearchSubmit.StayOpen, specs[3].onSubmit)
+    assertFalse(specs[4].showsAtRest)
+    // L'invio di «trova» è la freccia in giù.
+    specs[4].onSearch!!.invoke()
+    assertEquals(listOf("giu"), log)
+    assertEquals(3, specs[5].maxLines)
+    assertFalse(specs[5].showsAtRest)
+    assertEquals(3, specs[6].navigation!!.total)
+    assertEquals(FluidSearchSubmit.Close, specs[6].onSubmit)
   }
 }

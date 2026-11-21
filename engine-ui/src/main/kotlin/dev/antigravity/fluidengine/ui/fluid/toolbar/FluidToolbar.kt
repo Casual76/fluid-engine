@@ -1130,7 +1130,9 @@ internal fun FluidToolbarBar(
       }
       return@BoxWithConstraints
     }
-    val active = search?.spec?.active ?: (LocalPrincipalSearchActive.current || declaration.search?.active == true)
+    // Un campo che a riposo non c'è («trova», F6B.6) non tocca questa barra: i suoi fissati restano dove sono.
+    val active = fluidToolbarSearchTouchesBar(search?.spec)
+      ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true)
     val resolved = remember(model, width, bar, active) { resolveFluidToolbar(model, width, active, metrics, bar) }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {

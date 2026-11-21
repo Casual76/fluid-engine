@@ -87,7 +87,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -133,12 +132,34 @@ import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.fluidSearchContentAlpha
 import dev.antigravity.fluidengine.ui.fluid.fluidSearchWidth
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
-import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
-import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassInk
 import dev.antigravity.fluidengine.ui.fluid.smoothStep
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.key
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassQualifiedId
+import dev.antigravity.fluidengine.ui.fluid.GlassContentCurves
+import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
+import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
+import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
+import dev.antigravity.fluidengine.ui.fluid.glassContentSigmaPx
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchTrailing
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchIcon
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchImeAction
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchSubmit
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchCanSend
+import dev.antigravity.fluidengine.ui.fluid.SearchCounter
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
+import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
+import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
 import kotlin.math.roundToInt
 
 /** Le sedi di Principal appartengono al contenuto. Le altre due sono sul piano della barra. */
@@ -243,6 +264,22 @@ internal data class ToolbarSearch(
 
   fun layout(model: FluidToolbarModel, width: Float, metrics: FluidToolbarMetrics): ToolbarSearchPose {
     val active = spec.active
+    if (!active && !spec.showsAtRest) {
+      // «Trova» a riposo (F6B.6): nessun campo e nessun posto tenuto, la riga è quella della pagina.
+      val margin = metrics.edgeMarginDp.coerceAtMost((width - FluidMetrics.GlassButtonLens.value).coerceAtLeast(0f) / 2)
+      return ToolbarSearchPose(resolveFluidToolbar(model, width, false, metrics, bar),
+        (width - margin - FluidMetrics.GlassButtonLens.value).coerceAtLeast(0f), FluidMetrics.GlassButtonLens.value,
+        compact = true, hidden = true)
+    }
+    if (active && !atBottom && spec.expansion != FluidSearchExpansion.AboveKeyboard) {
+      // Il campo che resta in cima inghiotte la riga (F6B.6, scelta di Alessio dell'11 novembre, caso (a) di F4B): i
+      // comandi si sfocano e rientrano nel campo, e tornano alla chiusura con il viaggio inverso. Niente «Altro» accanto:
+      // i vetri dei vicini confluiscono in quello del campo, che prende tutta la riga. Il campo che scende sopra la
+      // tastiera (caso (b)) porta con sé i comandi in «Altro», come in basso (F4B.2).
+      val lens = FluidMetrics.GlassButtonLens.value
+      val margin = metrics.edgeMarginDp.coerceAtMost((width - lens).coerceAtLeast(0f) / 2)
+      return ToolbarSearchPose(fluidToolbarSwallowed(model, width, metrics, bar), margin, (width - 2 * margin).coerceAtLeast(0f), false)
+    }
     val neighbours = resolveFluidToolbar(model, width, active, metrics, bar)
     val count = neighbours.elements.count { it.item.id != FluidToolbarOverflowId && !it.item.overflow }
     val compact = !active && when (spec.behavior) {
@@ -250,8 +287,9 @@ internal data class ToolbarSearch(
       FluidSearchBehavior.AlwaysVisible -> false
       FluidSearchBehavior.Automatic -> count > 2
     }
-    // Nella riga attiva tutti i comandi della stessa barra rimangono raggiungibili da Altro.
-    val others = if (active) FluidToolbarModel(model.items.map { it.copy(overflow = true) }) else model
+    // In basso, nella riga attiva tutti i comandi della stessa barra rimangono raggiungibili da Altro: il gruppo si
+    // raccoglie nel tondo, come in Foto e Salute (F4B.2). In alto il campo li inghiotte (sopra).
+    val others =if (active) FluidToolbarModel(model.items.map { it.copy(overflow = true) }) else model
     val lens = FluidMetrics.GlassButtonLens.value
     val margin = metrics.edgeMarginDp.coerceAtMost((width - lens).coerceAtLeast(0f) / 2)
     val inside = (width - 2 * margin).coerceAtLeast(0f)
@@ -284,14 +322,37 @@ internal data class ToolbarSearch(
   }
 }
 
+/**
+ * La riga in alto con il campo attivo che la inghiotte (F6B.6): tutti i comandi sono nel trabocco del modello, ma nessun
+ * gruppo resta, nemmeno «Altro». Il piano fa confluire i loro vetri in quello del campo, che copre i loro posti
+ * ([GlassPlaneChange.MergeIntoNeighbour][dev.antigravity.fluidengine.ui.glass.field.GlassPlaneChange]); la memoria della
+ * barra ne sfoca le icone sull'orologio della ricerca ([toolbarSearchInkAlpha]) e alla chiusura le fa rinascere dal campo.
+ */
+internal fun fluidToolbarSwallowed(
+  model: FluidToolbarModel, width: Float, metrics: FluidToolbarMetrics, bar: FluidToolbarBar,
+): FluidToolbarResolved {
+  val all = resolveFluidToolbar(FluidToolbarModel(model.items.map { it.copy(overflow = true) }), width, true, metrics, bar)
+  return all.copy(groups = emptyList(), elements = all.elements.filter { it.inOverflow }, requiredWidthDp = 0f, fits = true)
+}
+
+/** [hidden]: il campo non c'è (F6B.6, un campo che a riposo non si mostra). */
 internal data class ToolbarSearchPose(
   val neighbours: FluidToolbarResolved, val left: Float, val width: Float, val compact: Boolean,
+  val hidden: Boolean = false,
 ) {
   fun extent(density: Float): FluidToolbarExtent {
     val rest = fluidToolbarExtent(neighbours, density)
+    if (hidden) return rest
     return rest.copy(endPx = maxOf(rest.endPx, ((neighbours.widthDp - left) * density).roundToInt()))
   }
 }
+
+/**
+ * Se la ricerca attiva [spec] tocca i fissati di una barra che non è la sua (piano F4B.2: a ricerca attiva i fissati in
+ * fondo alla barra in alto passano nel trabocco): sì per un campo che sta in una barra o sotto il titolo; no per un campo
+ * che a riposo non c'è («trova», F6B.6), che lascia la barra in alto com'è. Null senza ricerca.
+ */
+internal fun fluidToolbarSearchTouchesBar(spec: FluidSearchSpec?): Boolean? = spec?.let { it.active && it.showsAtRest }
 
 /** Lo slot libero conserva i propri tasti e lascia al campo il bordo di fine riga. */
 internal fun fluidSearchLegacyActions(
@@ -376,13 +437,19 @@ internal fun FluidToolbarSearchOverlay(
       val available = constraints.maxHeight
       val page = declaration ?: SearchOnly
       val model = fluidToolbarModelOf(page, null)
-      val pose = remember(model, maxWidth, search.bar, search.hasDeclaration, active, search.spec.behavior) {
+      val pose = remember(model, maxWidth, search.bar, search.hasDeclaration, active, search.spec.behavior, search.spec.showsAtRest) {
         search.layout(model, maxWidth.value, metrics)
       }
+      // Il contenuto che esce (F6B.6): «trova» che se ne va, o il campo aperto che torna lente. Esce sfocato dal fantasma.
+      val leaving = remember { ToolbarSearchLeaving() }
+      leaving.track(pose, search.spec, animate = !reduced)
       Box(Modifier.fillMaxWidth().offset { IntOffset(0, toolbarSearchOffset(available, rowHeight.roundToPx(), position.value)) }
         .height(rowHeight).then(if (active) Modifier else Modifier.fluidToolbarMinimizeLayer(minimize, towardsBottom = search.atBottom))) {
         FluidToolbarGroups(page, pose.neighbours, reduced, interactive = true, searchActive = active) { namespace ->
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { ToolbarSearchField(search, pose, namespace, Modifier) }
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+            if (!pose.hidden) ToolbarSearchField(search, pose, namespace, Modifier)
+            leaving.ghost?.let { ghost -> key(ghost.serial) { ToolbarSearchGhost(ghost, namespace) { leaving.finish(ghost) } } }
+          }
         }
       }
       if (active && search.spec.suggestions != null) {
@@ -411,6 +478,41 @@ internal fun Modifier.fluidSearchReadingSurface(ink: Color, progress: () -> Floa
 
 private object ToolbarFieldId
 
+/** Il tasto a destra del campo aperto: la X che chiude o «Invia» (F6B.6), sulla stessa sagoma. */
+internal enum class ToolbarSearchTrailingFace { Close, Send }
+
+/** La faccia del tasto a destra: null a campo chiuso, «Invia» solo con il preset che invia e qualcosa da inviare. */
+internal fun toolbarSearchTrailingFace(spec: FluidSearchSpec): ToolbarSearchTrailingFace? = when {
+  !spec.active -> null
+  fluidSearchCanSend(spec) -> ToolbarSearchTrailingFace.Send
+  else -> ToolbarSearchTrailingFace.Close
+}
+
+/**
+ * Quali comandi stanno nel campo aperto largo [widthDp] (F6B.6): il contatore con le frecce di [FluidSearchSpec.navigation]
+ * e il cerchio che svuota. Prima di tutto restano la lente, un posto per il testo e il tasto a destra; poi le frecce, poi
+ * il cerchio. Il cerchio c'è solo col tasto a destra che cancella e con del testo.
+ */
+internal data class ToolbarSearchFieldParts(val navigation: Boolean, val clear: Boolean)
+
+/** Il posto del contatore «12/12» a cifre tabulari, con il suo margine: a occhio (F6B.6, 21 novembre 2026). */
+internal const val ToolbarSearchCounterRoomDp = 40f
+
+internal fun toolbarSearchFieldParts(spec: FluidSearchSpec, widthDp: Float): ToolbarSearchFieldParts {
+  val lens = FluidMetrics.GlassButtonLens.value
+  val action = FluidSearchFieldDefaults.ActionSize.value
+  // La lente, il testo (almeno un tasto di larghezza) e il tasto a destra: lo stesso conto di F4B.2 per il cerchio.
+  val base = lens + action * 2
+  val navigation = spec.active && spec.navigation != null && widthDp >= base + action * 2 + ToolbarSearchCounterRoomDp
+  val taken = base + if (navigation) action * 2 + ToolbarSearchCounterRoomDp else 0f
+  val clear = spec.active && spec.trailing == FluidSearchTrailing.Clear && spec.query.isNotEmpty() && widthDp >= taken + action
+  return ToolbarSearchFieldParts(navigation, clear)
+}
+
+/** Il disco di «Invia»: a occhio (F6B.6, 21 novembre 2026), il tasto pieno d'accento dentro il posto di un comando. */
+private val SearchSendDisc = 30.dp
+private val SearchSendGlyph = 18.dp
+
 @Composable
 private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, namespace: FluidGlassNamespace, modifier: Modifier) {
   val spec = search.spec
@@ -425,6 +527,8 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
   var wasActive by remember { mutableStateOf(active) }
   val close = { toggle(false) }
   val currentClose by rememberUpdatedState(close)
+  // Un campo che a riposo non c'è («trova») resta aperto quando la tastiera scende, e torna in fondo (WWDC25 231).
+  val closesWithKeyboard by rememberUpdatedState(spec.showsAtRest)
   val ime = WindowInsets.ime
   val density = LocalDensity.current
   val modals = LocalFluidGlassModalHostState.current
@@ -442,7 +546,7 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
             focus.requestFocus()
             keyboard?.show()
           }
-        } else if (hadIme && !visible) currentClose()
+        } else if (hadIme && !visible && closesWithKeyboard) currentClose()
         hadIme = visible
       }
     }
@@ -461,11 +565,30 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
   val lens = FluidMetrics.GlassButtonLens
   val targetHeight = if (pose.compact) lens else FluidTextFieldDefaults.MinHeight
   val nativePlane = LocalFluidGlassContainer.current?.renders == true
-  val fallback = if (LocalFluidMotionPolicy.current.reducedMotion) snap<Float>() else ToolbarSearchTiming
+  val motion = LocalFluidMotionPolicy.current
+  val fallback = if (motion.reducedMotion) snap<Float>() else ToolbarSearchTiming
   val height = if (nativePlane) targetHeight else animateFloatAsState(targetHeight.value, fallback, label = "search height").value.dp
   val x = if (nativePlane) pose.left else animateFloatAsState(pose.left, fallback, label = "search start").value
   val width = if (nativePlane) pose.width else animateFloatAsState(pose.width, fallback, label = "search width").value
   val reading = animateFloatAsState(if (pose.compact) 0f else 1f, fallback, label = "search reading veil")
+  // Il campo che nasce senza un tasto da cui allungarsi («trova», F6B.6) entra col contenuto sfocato e scalato, da 0,75
+  // (R7 A6, chi nasce senza predecessore), mentre il piano fa nascere il suo vetro per lente.
+  val born = remember { Animatable(if (spec.showsAtRest || motion.reducedMotion) GlassContentDefaults.EnterEnd else 0f) }
+  LaunchedEffect(born) {
+    if (born.value < GlassContentDefaults.EnterEnd) born.animateTo(GlassContentDefaults.EnterEnd,
+      tween((GlassContentDefaults.DurationMs * GlassContentDefaults.EnterEnd * motion.durationScale).roundToInt(), easing = LinearEasing))
+  }
+  val blurAvailable = Build.VERSION.SDK_INT >= 31
+  val bornLayer = if (spec.showsAtRest) Modifier else Modifier.graphicsLayer {
+    val u = born.value
+    alpha = GlassContentCurves.alpha(GlassContentRole.Born, u, blurAvailable)
+    scaleX = GlassContentCurves.scale(GlassContentRole.Born, u)
+    scaleY = scaleX
+    val radius = glassContentBlurRadiusPx(glassContentSigmaPx(GlassContentCurves.blur(GlassContentRole.Born, u) *
+      GlassContentDefaults.PeakBlur, FluidSearchFieldDefaults.IconSize.toPx()))
+    renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
+  }
+  val submit = { fluidSearchSubmit(spec, close) }
   val activate = Modifier.fluidPressable(onClick = { toggle(true) }, role = Role.Button,
     focusShape = FluidCapsuleShape, feedback = FluidPressFeedback.Expand, haptic = FluidHapticEvent.Open)
   val target = if (active) Modifier.pointerInput(focus, keyboard) {
@@ -477,51 +600,200 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
     Row(Modifier.fillMaxWidth().height(height).fluidGlassId(ToolbarFieldId, namespace)
       .fluidGlassContentAnchor(FluidGlassContentAnchor.Start).fluidGlass(FluidGlass.Regular)
       .fluidSearchReadingSurface(LocalContentColor.current) { reading.value }.clip(FluidCapsuleShape), verticalAlignment = Alignment.CenterVertically) {
-      Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
-        FluidIcon(if (purposeSearch) FluidIcons.Search else FluidIcons.Edit,
-          if (pose.compact) prompt else null, size = FluidSearchFieldDefaults.IconSize, tint = LocalContentColor.current)
-      }
       val ink = LocalContentColor.current
-      // L'editor ha un solo proprietario. Il segnaposto e le azioni possono sfocarsi indipendentemente dal cursore.
-      Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-        FluidGlassContentTransition(if (!pose.compact && spec.query.isEmpty()) prompt else null,
-          contentAlignment = Alignment.CenterStart) { hint ->
-          if (hint != null) Text(hint, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
-            overflow = TextOverflow.Ellipsis)
+      Row(Modifier.fillMaxSize().then(bornLayer), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
+          FluidIcon(fluidSearchIcon(spec), if (pose.compact) prompt else null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
         }
-        if (active) BasicTextField(
-          value = search.editor.value,
-          onValueChange = { next ->
-            val changed = next.text != search.editor.value.text
-            search.editor.value = next
-            if (changed) spec.onQueryChange(next.text)
-          },
-          singleLine = true,
-          textStyle = MaterialTheme.typography.bodyLarge.copy(color = ink),
-          cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-          keyboardOptions = KeyboardOptions(imeAction = if (purposeSearch) ImeAction.Search else ImeAction.Done),
-          keyboardActions = KeyboardActions(onSearch = { spec.onSearch?.invoke() ?: close() },
-            onDone = { spec.onSearch?.invoke() ?: close() }),
-          modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = prompt },
-        )
-        else if (!pose.compact && spec.query.isNotEmpty()) Text(spec.query, color = ink,
-          style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-      }
-      val actionSize = FluidSearchFieldDefaults.ActionSize
-      val showClear = active && spec.query.isNotEmpty() && pose.width.dp >= lens + actionSize * 3
-      val scopeBudget = (pose.width.dp - lens - actionSize * (if (showClear) 3 else 2)).coerceAtLeast(0.dp)
-      if (active && spec.scopes != null) {
-        Box(Modifier.widthIn(max = minOf((pose.width / 3f).dp, scopeBudget)).horizontalScroll(rememberScrollState())) { spec.scopes.invoke() }
-      }
-      if (showClear) Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
-        SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") }
-      }
-      FluidGlassContentTransition(if (active) true else null) { show ->
-        if (show == true) {
-          if (active) FluidCapsuleAction(FluidIcons.Close, closeLabel, close, size = FluidSearchFieldDefaults.ActionSize, tint = ink)
-          else Box(Modifier.size(FluidSearchFieldDefaults.ActionSize), contentAlignment = Alignment.Center) {
-            FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+        // L'editor ha un solo proprietario. Il segnaposto e le azioni possono sfocarsi indipendentemente dal cursore.
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+          // Il segnaposto entra ed esce sfocato con l'apertura, ma lascia il posto al testo subito, come in ogni campo:
+          // mai due scritte nello stesso posto (F6B.6). Svuotato il testo torna fermo, come in Apple.
+          if (spec.query.isEmpty()) FluidGlassContentTransition(if (!pose.compact) prompt else null,
+            contentAlignment = Alignment.CenterStart) { hint ->
+            if (hint != null) Text(hint, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
+              overflow = TextOverflow.Ellipsis)
           }
+          if (active) BasicTextField(
+            value = search.editor.value,
+            onValueChange = { next ->
+              val changed = next.text != search.editor.value.text
+              search.editor.value = next
+              if (changed) spec.onQueryChange(next.text)
+            },
+            // Con più righe il testo va a capo e scorre dentro il campo; il campo che cresce è del composer (F6B.7).
+            singleLine = spec.maxLines <= 1,
+            maxLines = spec.maxLines,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = ink),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(imeAction = fluidSearchImeAction(spec)),
+            keyboardActions = KeyboardActions(onSearch = { submit() }, onDone = { submit() }, onSend = { submit() }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = prompt },
+          )
+          else if (!pose.compact && spec.query.isNotEmpty()) Text(spec.query, color = ink,
+            style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        val actionSize = FluidSearchFieldDefaults.ActionSize
+        val parts = toolbarSearchFieldParts(spec, pose.width)
+        val scopeBudget = (pose.width.dp - lens - actionSize * (if (parts.clear) 3 else 2) -
+          if (parts.navigation) actionSize * 2 + ToolbarSearchCounterRoomDp.dp else 0.dp).coerceAtLeast(0.dp)
+        if (active && spec.scopes != null) {
+          Box(Modifier.widthIn(max = minOf((pose.width / 3f).dp, scopeBudget)).horizontalScroll(rememberScrollState())) { spec.scopes.invoke() }
+        }
+        if (parts.clear) Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+          SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") }
+        }
+        val navigation = spec.navigation
+        if (parts.navigation && navigation != null) {
+          // «3/12» e le frecce dentro il campo, come FluidSearchField; il contatore è un'area viva (F6B.6, «trova»).
+          SearchCounter(spec.query, navigation, SearchLabels, color = ink)
+          FluidCapsuleAction(FluidIcons.KeyboardArrowUp, SearchLabels.previous, navigation.onPrevious,
+            enabled = navigation.total > 0, tint = ink, size = actionSize)
+          FluidCapsuleAction(FluidIcons.KeyboardArrowDown, SearchLabels.next, navigation.onNext,
+            enabled = navigation.total > 0, tint = ink, size = actionSize)
+        }
+        // Un tasto solo: la X, o «Invia» appena c'è qualcosa da inviare; le due facce si scambiano sfocate (R7).
+        FluidGlassContentTransition(toolbarSearchTrailingFace(spec)) { face ->
+          when (face) {
+            ToolbarSearchTrailingFace.Close ->
+              if (active) FluidCapsuleAction(FluidIcons.Close, closeLabel, close, size = actionSize, tint = ink)
+              else Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+                FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+              }
+            ToolbarSearchTrailingFace.Send -> SearchSendButton(SearchLabels.send, if (active) submit else null)
+            null -> Unit
+          }
+        }
+      }
+    }
+  }
+}
+
+/** «Invia»: il disco d'accento con la freccia in su, dentro il posto di un comando. Senza [onClick] è solo la faccia. */
+@Composable
+private fun SearchSendButton(label: String, onClick: (() -> Unit)?) {
+  val scheme = MaterialTheme.colorScheme
+  val press = if (onClick == null) Modifier.clearAndSetSemantics { } else Modifier
+    .fluidPressable(onClick = onClick, role = Role.Button, focusShape = FluidCapsuleShape, feedback = FluidPressFeedback.Expand)
+    .semantics { contentDescription = label }
+  Box(Modifier.size(FluidSearchFieldDefaults.ActionSize).then(press), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(SearchSendDisc).background(scheme.primary, FluidCapsuleShape), contentAlignment = Alignment.Center) {
+      FluidIcon(FluidIcons.ArrowUpward, null, size = SearchSendGlyph, tint = scheme.onPrimary)
+    }
+  }
+}
+
+/**
+ * Il contenuto del campo che se ne va (F6B.6): la sua ultima posa aperta e la sua dichiarazione. [withLens] falso quando
+ * il campo resta e torna lente: la lente è ancora la sua, escono solo parola e tasti.
+ */
+internal class ToolbarSearchGhostState(
+  val serial: Int, val pose: ToolbarSearchPose, val spec: FluidSearchSpec, val withLens: Boolean = true,
+)
+
+/**
+ * Chi tiene il fantasma del contenuto del campo (F6B.6). Il piano registra il contenuto alla larghezza del layout, che
+ * salta subito all'arrivo: senza fantasma ciò che esce sparirebbe in un fotogramma. Due casi:
+ * - il campo che a riposo non c'è («trova») esce dalla composizione e il suo vetro svanisce per lente: tutto il
+ *   contenuto esce sfocato dal fantasma;
+ * - il campo aperto che si chiude in una lente: la lente resta nel campo, che si stringe, e parola, segnaposto e tasti
+ *   escono sfocati dove stavano, ritagliati sul vetro che si stringe (R7, chi esce).
+ * Si aggiorna in composizione, come la memoria della barra.
+ */
+@Stable
+internal class ToolbarSearchLeaving {
+  private var shown: ToolbarSearchGhostState? = null
+  private var serial = 0
+  var ghost by mutableStateOf<ToolbarSearchGhostState?>(null)
+    private set
+
+  fun track(pose: ToolbarSearchPose, spec: FluidSearchSpec, animate: Boolean) {
+    val last = shown
+    if (pose.hidden) {
+      shown = null
+      if (last != null && animate) ghost = ToolbarSearchGhostState(++serial, last.pose, last.spec)
+      return
+    }
+    shown = ToolbarSearchGhostState(0, pose, spec)
+    val current = ghost
+    when {
+      last != null && last.spec.active && !last.pose.compact && !spec.active && pose.compact ->
+        ghost = if (animate) ToolbarSearchGhostState(++serial, last.pose, last.spec, withLens = false) else null
+      // Riaperto mentre usciva: il campo vero riprende.
+      current != null && (current.withLens || !pose.compact) -> ghost = null
+    }
+  }
+
+  fun finish(done: ToolbarSearchGhostState) {
+    if (ghost === done) ghost = null
+  }
+}
+
+@Composable
+private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidGlassNamespace, finished: () -> Unit) {
+  val phase = remember { Animatable(0f) }
+  val scale = LocalFluidMotionPolicy.current.durationScale
+  LaunchedEffect(phase) {
+    phase.animateTo(GlassContentDefaults.ExitEnd,
+      tween((GlassContentDefaults.DurationMs * GlassContentDefaults.ExitEnd * scale).roundToInt(), easing = LinearEasing))
+    finished()
+  }
+  val spec = ghost.spec
+  val pose = ghost.pose
+  val plane = LocalFluidGlassContainer.current
+  val qualified = remember(namespace) { FluidGlassQualifiedId(namespace, ToolbarFieldId) }
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val ink = LocalContentColor.current
+  val blurAvailable = Build.VERSION.SDK_INT >= 31
+  val purposeSearch = spec.purpose == FluidSearchPurpose.Search
+  val prompt = spec.prompt ?: if (purposeSearch) SearchLabels.search else LocalFluidLabels.current.message
+  val lens = FluidMetrics.GlassButtonLens
+  val actionSize = FluidSearchFieldDefaults.ActionSize
+  Box(Modifier.offset(x = pose.left.dp).width(pose.width.dp).height(FluidMetrics.TouchTarget).clearAndSetSemantics { }
+    .drawWithContent {
+      // Il contenuto resta dentro il vetro che svanisce (la sagoma in volo del campo), come le facce della barra.
+      val bounds = if (rtl) null else plane?.flightOf(qualified)?.bounds
+      if (bounds == null) drawContent()
+      else {
+        val left = pose.left.dp.toPx()
+        clipRect(left = bounds.left - left, right = bounds.right - left) { this@drawWithContent.drawContent() }
+      }
+    }
+    .graphicsLayer {
+      val u = phase.value
+      alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable)
+      scaleX = GlassContentCurves.scale(GlassContentRole.Exit, u)
+      scaleY = scaleX
+      val radius = glassContentBlurRadiusPx(glassContentSigmaPx(GlassContentCurves.blur(GlassContentRole.Exit, u) *
+        GlassContentDefaults.PeakBlur, FluidSearchFieldDefaults.IconSize.toPx()))
+      renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
+    }, contentAlignment = Alignment.CenterStart) {
+    Row(Modifier.fillMaxWidth().height(FluidTextFieldDefaults.MinHeight), verticalAlignment = Alignment.CenterVertically) {
+      Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
+        if (ghost.withLens) FluidIcon(fluidSearchIcon(spec), null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+      }
+      Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+        Text(spec.query.ifEmpty { prompt }, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
+          overflow = TextOverflow.Ellipsis)
+      }
+      val parts = toolbarSearchFieldParts(spec, pose.width)
+      if (parts.clear) Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+        SearchClearButton(LocalFluidLabels.current.clear) { }
+      }
+      val navigation = spec.navigation
+      if (parts.navigation && navigation != null) {
+        SearchCounter(spec.query, navigation, SearchLabels, color = ink)
+        for (icon in listOf(FluidIcons.KeyboardArrowUp, FluidIcons.KeyboardArrowDown)) {
+          Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+            FluidIcon(icon, null, size = FluidSearchFieldDefaults.IconSize,
+              tint = if (navigation.total > 0) ink else ink.copy(alpha = ink.alpha * FluidToolbarDefaults.DisabledAlpha))
+          }
+        }
+      }
+      when (toolbarSearchTrailingFace(spec)) {
+        ToolbarSearchTrailingFace.Send -> SearchSendButton(SearchLabels.send, null)
+        else -> Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+          FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
         }
       }
     }
@@ -632,7 +904,7 @@ private fun FluidToolbarPrincipalSearch(
           verticalAlignment = Alignment.CenterVertically,
         ) {
           FluidIcon(
-            if (searching) FluidIcons.Search else FluidIcons.Edit,
+            fluidSearchIcon(spec),
             contentDescription = prompt.takeUnless { open },
             modifier = Modifier.padding(start = FluidSearchFieldDefaults.IconInset).size(FluidSearchFieldDefaults.IconSize),
             tint = colors.onSurfaceVariant,
@@ -644,11 +916,12 @@ private fun FluidToolbarPrincipalSearch(
               modifier = Modifier.weight(1f).focusRequester(request).onFocusChanged { if (it.isFocused && !active) toggle(true) }.padding(horizontal = 10.dp)
                 .graphicsLayer { alpha = fluidSearchContentAlpha(expansion.value) },
               textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
-              singleLine = true,
+              singleLine = spec.maxLines <= 1,
+              maxLines = spec.maxLines,
               cursorBrush = SolidColor(colors.primary),
-              keyboardOptions = KeyboardOptions(imeAction = if (searching) ImeAction.Search else ImeAction.Done),
-              keyboardActions = KeyboardActions(onSearch = { spec.onSearch?.invoke() ?: close() },
-                onDone = { spec.onSearch?.invoke() ?: close() }),
+              keyboardOptions = KeyboardOptions(imeAction = fluidSearchImeAction(spec)),
+              keyboardActions = KeyboardActions(onSearch = { fluidSearchSubmit(spec) { close() } },
+                onDone = { fluidSearchSubmit(spec) { close() } }, onSend = { fluidSearchSubmit(spec) { close() } }),
               decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {
                   if (spec.query.isEmpty()) Text(
@@ -663,12 +936,24 @@ private fun FluidToolbarPrincipalSearch(
               },
             )
             if (active) spec.scopes?.invoke()
-            if (open && spec.query.isNotEmpty()) Box(Modifier.size(FluidSearchFieldDefaults.ActionSize),
+            if (open && spec.query.isNotEmpty() && spec.trailing == FluidSearchTrailing.Clear) Box(Modifier.size(FluidSearchFieldDefaults.ActionSize),
               contentAlignment = Alignment.Center) { SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") } }
-            if (active) FluidCapsuleAction(
-              icon = FluidIcons.Close, contentDescription = SearchLabels.close, onClick = { close() },
-              size = FluidSearchFieldDefaults.ActionSize,
-            )
+            val navigation = spec.navigation
+            if (active && navigation != null) {
+              // «3/12» e le frecce (F6B.6), come nel campo della barra.
+              SearchCounter(spec.query, navigation, SearchLabels)
+              FluidCapsuleAction(FluidIcons.KeyboardArrowUp, SearchLabels.previous, navigation.onPrevious,
+                enabled = navigation.total > 0, size = FluidSearchFieldDefaults.ActionSize)
+              FluidCapsuleAction(FluidIcons.KeyboardArrowDown, SearchLabels.next, navigation.onNext,
+                enabled = navigation.total > 0, size = FluidSearchFieldDefaults.ActionSize)
+            }
+            if (active) {
+              if (fluidSearchCanSend(spec)) SearchSendButton(SearchLabels.send) { fluidSearchSubmit(spec) { close() } }
+              else FluidCapsuleAction(
+                icon = FluidIcons.Close, contentDescription = SearchLabels.close, onClick = { close() },
+                size = FluidSearchFieldDefaults.ActionSize,
+              )
+            }
           }
         }
       }

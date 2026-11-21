@@ -98,6 +98,11 @@ object FluidSearchFieldDefaults {
  *
  * @property counterSpoken cosa legge TalkBack al posto di «3/12»: «3 di 12». Riceve il numero della
  *   corrente da 1 e il totale.
+ * @property send (F6B.6) il nome del tasto «Invia» del campo con [FluidSearchTrailing.Send].
+ * @property message (F6B.6) il segnaposto di serie di [FluidSearchSpec.message].
+ * @property note (F6B.6) il segnaposto di serie di [FluidSearchSpec.note].
+ * @property assistant (F6B.6) il segnaposto di serie di [FluidSearchSpec.assistant].
+ * @property findInPage (F6B.6) il segnaposto di serie di [FluidSearchSpec.findInPage].
  */
 @Immutable
 data class FluidSearchLabels(
@@ -108,6 +113,11 @@ data class FluidSearchLabels(
   val next: String = "Risultato successivo",
   val noResults: String = "Nessun risultato",
   val counterSpoken: (current: Int, total: Int) -> String = { current, total -> "$current di $total" },
+  val send: String = "Invia",
+  val message: String = "Messaggio",
+  val note: String = "Nota",
+  val assistant: String = "Chiedi all'assistente",
+  val findInPage: String = "Trova nella pagina",
 )
 
 /**
@@ -435,26 +445,42 @@ private fun SearchTextField(
   )
 }
 
-/** «3/12», area viva: chi non vede la lista scorrere sente «3 di 12». */
-@Composable
-private fun SearchCounter(query: String, navigation: FluidSearchNavigation, labels: FluidSearchLabels) {
-  val text = fluidSearchCounter(query, navigation.current, navigation.total, labels.noResults) ?: return
+/**
+ * Cosa scrive e cosa dice il contatore (F6B.6 lo porta anche nel campo della barra): la scritta di [fluidSearchCounter],
+ * la frase per TalkBack e l'area viva, che fa leggere ogni cambio senza spostare il fuoco. Null: niente da contare.
+ */
+internal class FluidSearchCounterSpeech(val text: String, val spoken: String, val liveRegion: LiveRegionMode)
+
+internal fun fluidSearchCounterSpeech(query: String, navigation: FluidSearchNavigation, labels: FluidSearchLabels): FluidSearchCounterSpeech? {
+  val text = fluidSearchCounter(query, navigation.current, navigation.total, labels.noResults) ?: return null
   val spoken = if (navigation.total > 0) {
     labels.counterSpoken(navigation.current.coerceIn(0, navigation.total - 1) + 1, navigation.total)
   } else {
     text
   }
+  return FluidSearchCounterSpeech(text, spoken, LiveRegionMode.Polite)
+}
+
+/** «3/12», area viva: chi non vede la lista scorrere sente «3 di 12». */
+@Composable
+internal fun SearchCounter(
+  query: String,
+  navigation: FluidSearchNavigation,
+  labels: FluidSearchLabels,
+  color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+  val speech = fluidSearchCounterSpeech(query, navigation, labels) ?: return
   Text(
-    text = text,
+    text = speech.text,
     // Le cifre tabulari: «9/12» e «10/12» non fanno ballare i tasti accanto.
     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    color = color,
     maxLines = 1,
     modifier = Modifier
       .padding(horizontal = 4.dp)
       .semantics {
-        contentDescription = spoken
-        liveRegion = LiveRegionMode.Polite
+        contentDescription = speech.spoken
+        liveRegion = speech.liveRegion
       },
   )
 }

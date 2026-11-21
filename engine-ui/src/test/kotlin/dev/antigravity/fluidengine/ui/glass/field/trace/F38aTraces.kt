@@ -175,6 +175,8 @@ internal object F38aTraces {
     val labelAt: ((Any, Rect) -> Label?)? = null,
     /** Di quanti disegni il layout precede la misura del palco, all'inizio o durante un'inversione. */
     val layoutLeadFrames: Int = 0,
+    /** Il moto del piano (F6B.6: la ricerca usa la sua curva da 334 ms); di serie quello del contenitore. */
+    val motion: GlassPlaneMotion = GlassPlaneMotion(),
   )
 
   private val NeutralTint = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
@@ -210,7 +212,7 @@ internal object F38aTraces {
     val d = scene.density
     val spacingPx = scene.spacingDp * d
     val swellMaxPx = FluidMotion.PlaneSwellMaxDp * d
-    val motion = GlassPlaneMotion()
+    val motion = scene.motion
     val driver = FluidGlassPlaneDriver(character = { scene.journey })
     val contents = LinkedHashMap<Any, Content>()
     val tintJourney = FluidGlassTintJourney()

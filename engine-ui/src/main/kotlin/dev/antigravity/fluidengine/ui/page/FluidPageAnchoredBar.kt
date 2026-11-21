@@ -1162,7 +1162,7 @@ fun FluidPageChrome(
 }
 
 @Composable
-private fun FluidPageChromeContent(
+internal fun FluidPageChromeContent(
   title: String,
   modifier: Modifier,
   onBack: (() -> Unit)?,
@@ -1170,6 +1170,7 @@ private fun FluidPageChromeContent(
   barTint: GlassTint?,
   toolbar: FluidToolbarDeclaration?,
   actions: @Composable RowScope.() -> Unit,
+  minimize: FluidToolbarMinimizeProgress? = null,
 ) {
   val docked: State<Float> = remember { mutableFloatStateOf(1f) }
   val glass = remember { mutableFloatStateOf(0f) }
@@ -1199,6 +1200,7 @@ private fun FluidPageChromeContent(
         barTint = barTint,
         backdrop = backdrop,
         toolbar = toolbar,
+        minimize = minimize,
       ),
     )
     return

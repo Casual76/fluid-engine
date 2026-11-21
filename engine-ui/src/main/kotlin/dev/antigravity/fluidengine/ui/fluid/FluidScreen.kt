@@ -204,6 +204,9 @@ internal fun <K> frontMostBackdropKey(order: List<K>, front: Set<K>): K? =
  */
 @Stable
 internal class FluidBottomReplacement {
+  /** A full-screen route may withdraw the glass that the shell draws on its behalf. */
+  var minimize: dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress? = null
+
   /**
    * La barra dichiarata della pagina, intera: le voci in basso sono quelle con `FluidToolbarPlacement.BottomBar`
    * ([FluidToolbarDeclaration.hasBottomBar]), la selezione si legge con `declaration.selection`. Null senza barra.

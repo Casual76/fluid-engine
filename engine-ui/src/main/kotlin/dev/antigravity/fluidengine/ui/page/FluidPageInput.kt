@@ -140,7 +140,10 @@ internal fun Modifier.verticalPageInput(
         }
         while (true) {
           val pass = if (token == null) PointerEventPass.Main else PointerEventPass.Initial
-          val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == down.id } ?: break
+          val event = awaitPointerEvent(pass)
+          // Cancel a one-finger close if a second finger arrives, before consuming its motion.
+          if (open == null && event.changes.count { it.pressed } > 1) break
+          val change = event.changes.firstOrNull { it.id == down.id } ?: break
           tracker.addPointerInputChange(change)
           val speed = tracker.calculateVelocity().y
           if (!change.pressed) {

@@ -314,3 +314,43 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `fun from(start: Color, end: Color = start): FluidVividColors`
 - `enum class FluidVividEffect`
 - `@Composable fun FluidVividCard(colors: FluidVividColors, modifier: Modifier = Modifier, effect: FluidVividEffect = FluidVividEffect.None, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null, contextActions: (() -> List<FluidContextAction>)? = null, contentPadding: PaddingValues = PaddingValues(18.dp), content: @Composable ColumnScope.() -> Unit)` — A surface that is entirely its own colour: saturated gradient, on-colour content.
+
+## `engine-ui/ui/fluid/viewer/FluidFileViewer.kt`
+
+- `data class FluidViewerThumbnail(val id: Any, val namespace: FluidGlassNamespace)` — Put [fluidViewerThumbnail] before the thumbnail's drawing and clipping modifiers.
+- `fun Modifier.fluidViewerThumbnail(thumbnail: FluidViewerThumbnail, shape: Shape = RectangleShape): Modifier`
+- `fun NavGraphBuilder.fluidFileViewerRoute(route: String, arguments: List<NamedNavArgument> = emptyList(), deepLinks: List<NavDeepLink> = emptyList(), initial: (NavBackStackEntry) -> Int = { 0 }, thumbnail: (NavBackStackEntry, Int) -> FluidViewerThumbnail? = { _, _ -> null }, content: @Composable (NavBackStackEntry) -> Unit)` — Register the destination on a FluidNavHost. [initial] resolves the file requested by a deep link. Once a page settles, the entry remembers that page for both recreation and the return thumbnail. The source may disappear (for instance a filtered grid). Expand then uses its normal source-free exit.
+- `@Composable fun FluidFileViewer(count: Int, initial: Int = LocalViewerRoute.current?.initial ?: 0, content: (index: Int) -> FluidViewerContent, toolbar: FluidToolbarScope.(index: Int) -> Unit = {}, tools: FluidViewerToolsScope.() -> Unit = {}, info: (@Composable (index: Int) -> Unit)? = null, onBack: () -> Unit = viewerBackAction(), modifier: Modifier = Modifier, onPageChange: (Int) -> Unit = {}, strings: FluidViewerStrings = FluidViewerStrings(), renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, _ -> ViewerBody(file) })` — A full-screen file on a real route. Give the graph [fluidFileViewerRoute] for a zoom from the grid, downward dismissal and a restorable deep link. [onBack] defaults to the host's back dispatcher. [toolbar] uses the engine toolbar DSL. A tool owns the body and its own bottom actions until Done or Back. [renderContent] is the integration point for a preset or an app renderer (tiles, PDF, player, code).
+
+## `engine-ui/ui/fluid/viewer/FluidViewerChrome.kt`
+
+- `data class FluidViewerStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" }, val info: String = "Informazioni", val done: String = "Fine", val empty: String = "Nessun file", val showControls: String = "Mostra controlli", val hideControls: String = "Nascondi controlli")`
+- `class FluidViewerToolsScope internal constructor()`
+  - `fun tool(id: String, icon: ImageVector, label: String, actions: FluidToolbarScope.(index: Int) -> Unit = {}, content: @Composable (index: Int) -> Unit)` — Stable [id] restores the editor after recreation. Its actions share one capsule with Done.
+
+## `engine-ui/ui/fluid/viewer/FluidViewerContent.kt`
+
+- `data class FluidFileInfo(val name: String, val mimeType: String? = null, val sizeBytes: Long? = null, val kind: FluidFileKind = FluidFileKind.from(mimeType, name))` — Metadata supplied by the owner of the file. A null size is unknown, zero means empty.
+- `interface FluidMediaSession` — A player owned by the app. Publish changing properties as Compose state. Times are milliseconds.
+  - `val playing: Boolean`
+  - `val positionMillis: Long`
+  - `val durationMillis: Long?`
+  - `val canSeek: Boolean`
+  - `val error: String? get()`
+  - `fun play()`
+  - `fun pause()`
+  - `fun seekTo(positionMillis: Long)`
+- `interface FluidPageSource` — Zero-based pages. Both suspending operations must be safe to call on the main dispatcher.
+  - `val count: Int`
+  - `suspend fun size(index: Int): IntSize`
+  - `suspend fun render(index: Int, target: IntSize): ImageBitmap`
+- `interface FluidTextSource` — Read at most [count] lines from a zero-based offset. A short chunk marks the end of the file.
+  - `val language: String? get()`
+  - `val lineCount: Int? get()`
+  - `suspend fun readLines(start: Int, count: Int): List<String>`
+- `interface FluidViewerContent` — An open contract so applications and future presets may supply another representation. The frame owns geometry and gestures. A renderer can read the sources without owning their lifecycle.
+  - `class Image(val aspectRatio: Float? = null, val draw: @Composable () -> Unit) : FluidViewerContent`
+  - `class Media(val session: FluidMediaSession, val videoSurface: (@Composable () -> Unit)? = null, val artwork: (@Composable () -> Unit)? = null) : FluidViewerContent` — A non-null video surface identifies a video, even while it is buffering.
+  - `class Pages(val source: FluidPageSource) : FluidViewerContent`
+  - `class Text(val source: FluidTextSource) : FluidViewerContent`
+  - `class Unknown(val info: FluidFileInfo, val openWith: (() -> Unit)? = null, val share: (() -> Unit)? = null) : FluidViewerContent`

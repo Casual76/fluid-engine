@@ -309,6 +309,8 @@ class FluidPageHostState internal constructor() {
   }
   internal val canRetakeVertical: Boolean get() =
     vertical && phase == Phase.VerticalSettling && upper == interactionPage
+  /** An optional distance/velocity rule belonging to one composed destination. Coordinates are host pixels. */
+  internal val verticalDismissRelease = mutableMapOf<Any, (Float, Float) -> Boolean>()
   internal val canDismissDown: Boolean get() =
     canRetakeVertical || (canStartGesture() && interactionPage?.let(dismissOf) == FluidPageDismiss.Down)
   /**
@@ -965,7 +967,8 @@ class FluidPageHostState internal constructor() {
     if (fingerOpens) {
       val open = !cancelled && FluidPageMotion.backRelease(height - travelPx, -velocity, height, density)
       verticalEndpoint(open, speed)
-    } else if (!cancelled && FluidPageMotion.backRelease(travelPx, velocity, height, density)) {
+    } else if (!cancelled && (verticalDismissRelease[upper]?.invoke(travelPx, velocity)
+        ?: FluidPageMotion.backRelease(travelPx, velocity, height, density))) {
       confirmThroughDispatcher(speed)
     } else {
       verticalEndpoint(open = true, speed)
@@ -1290,8 +1293,11 @@ class FluidPageHostState internal constructor() {
   private fun touchPoint(): Offset = Offset(expandOrigin.pivotFractionX * width, expandOrigin.pivotFractionY * height)
 
   private fun consumeSource(page: Any) {
-    if (page in consumed) return
     val source = sourceOf(page) ?: return
+    val previous = consumed[page]
+    if (previous?.sameOrigin(source) == true) return
+    // A paged destination can return to a different thumbnail than the one which opened it.
+    previous?.release()
     // La fotografia serve solo alla dissolvenza: senza, nessun layer in più.
     source.consume(snapshot = zoomCrossfade && !reducedMotion)
     consumed[page] = source

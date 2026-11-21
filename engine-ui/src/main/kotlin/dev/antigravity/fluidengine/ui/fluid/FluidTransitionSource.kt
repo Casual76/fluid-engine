@@ -38,6 +38,8 @@ import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
  */
 @Stable
 class FluidTransitionSource internal constructor(private val key: FluidTransitionSourceKey) {
+  internal fun sameOrigin(other: FluidTransitionSource): Boolean = key == other.key
+
   /** Usa lo stesso [id] e lo stesso [namespace] del modificatore [fluidTransitionSource]. */
   constructor(id: Any, namespace: FluidGlassNamespace) : this(FluidTransitionSourceKey(namespace, id))
 

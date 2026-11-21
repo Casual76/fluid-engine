@@ -178,6 +178,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBack
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidToolbarMinimizeLayer
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarElement
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarOverflowId
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarResolved
@@ -529,7 +530,8 @@ fun FluidFloatingTabBar(
     }
     val inFlight by remember { derivedStateOf { clock.value > 0f } }
     val replacing = selecting || inFlight
-    TabBarFieldHost(modifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor, replacing) {
+    val shellModifier = modifier.fluidToolbarMinimizeLayer(replacement?.minimize, towardsBottom = true)
+    TabBarFieldHost(shellModifier, backdropState.takeIf { planeEnabled }, sizes, visual, scope, selectedTabKey, accentColor, replacing) {
     TabBarSelectionHost(chrome, declaration, replacement?.context, replacing, clock.asState(), sizes,
         group = scope.tabs.isNotEmpty(), standalone = scope.standaloneTab != null) {
     SharedTransitionLayout {

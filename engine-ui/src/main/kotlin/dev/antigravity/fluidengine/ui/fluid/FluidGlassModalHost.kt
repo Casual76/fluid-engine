@@ -388,7 +388,7 @@ private fun FluidGlassModalPaneLayer(
   entry: FluidGlassModalEntry,
   backdrop: GlassBackdropState?,
   host: FluidGlassModalHostState,
-  sourceJourney: FluidModalSourceJourney?,
+  sourceJourney: FluidSourceJourney?,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   // 0 = at the anchor's size, 1 = at its own. What "0" actually means in pixels is solved by the

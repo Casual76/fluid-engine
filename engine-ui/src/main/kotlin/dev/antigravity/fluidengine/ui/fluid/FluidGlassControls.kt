@@ -917,6 +917,7 @@ internal fun FluidGlassIconButtonCore(
   lens: Dp = size.lens,
   /** Lo stile (F6.4). Di serie il vetro dei tasti: l'ancora di un menu della barra non segue lo stile d'ambiente. */
   style: FluidGlassButtonStyle = FluidGlassButtonStyle.Glass,
+  lensWidth: Dp = lens,
   content: @Composable BoxScope.() -> Unit,
 ) {
   // F2.3: il contenuto del tasto segue l'inchiostro del lato del vetro, e solo cosi' il vetro gira con lo sfondo. Sul
@@ -930,7 +931,8 @@ internal fun FluidGlassIconButtonCore(
   Layout(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
-      .size(lens.coerceAtLeast(FluidGlassIconTouchTargetSize))
+      .size(lensWidth.coerceAtLeast(FluidGlassIconTouchTargetSize),
+        lens.coerceAtLeast(FluidGlassIconTouchTargetSize))
       .fluidPressable(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -944,7 +946,7 @@ internal fun FluidGlassIconButtonCore(
         grip = grip,
       ),
     content = {
-      val lensChain = Modifier.size(lens)
+      val lensChain = Modifier.size(lensWidth, lens)
         .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
         .then(lensModifier)
       Box(

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -41,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -390,6 +392,8 @@ fun FluidCapsuleAction(
   selected: Boolean? = null,
   action: FluidActionPreset? = null,
   state: FluidActionState = FluidActionState.Idle,
+  /** Per una finestra di Annulla nel posto di questa azione. */
+  undo: FluidUndoCountdown? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   // Il colore della scelta: quello del disco di un'azione accesa, e dell'icona quando e' accesa.
@@ -411,32 +415,42 @@ fun FluidCapsuleAction(
   )
   // Il tasto con esito (F6B.3a): lo stato di resa (avanzamento, scossa, aptica), e le parole sul bersaglio.
   val presentation = if (action != null) rememberFluidActionPresentation(action, state, live = true) else null
-  val actionSemantics = if (action != null && presentation != null) {
+  val undoSlot = rememberFluidUndoSlot(undo)
+  val pending = undoSlot?.active
+  val description = rememberFluidUndoDescription(pending)
+  val textStyle = MaterialTheme.typography.labelLarge
+  val width = if (pending == null) size else fluidUndoLabelWidth(pending.label, textStyle, 12.dp).coerceAtLeast(size)
+  val actionSemantics = if (description != null) {
+    Modifier.semantics { fluidUndoDescription(description) }
+  } else if (action != null && presentation != null) {
     val labels = LocalFluidActionLabels.current
     val spoken = rememberFluidActionSpokenProgress(action, state, presentation, labels)
     Modifier.semantics { fluidActionDescribe(this, action, state, labels, contentDescription, spoken) }
+  } else if (undoSlot != null) {
+    Modifier.semantics { this.contentDescription = contentDescription }
   } else {
     Modifier
   }
   Box(
     modifier = modifier
-      .size(size)
+      .size(width, size)
       .alpha(if (enabled) 1f else CapsuleActionDisabledAlpha)
       // Prima di tutto il resto: la crescita si applica solo a cio' che sta dopo (regola della pressione).
       .fluidPressable(
         // Anche il doppio tocco di TalkBack: un tasto con esito che lavora non riparte.
-        onClick = if (action == null) onClick else ({ if (state.acceptsTap) onClick() }),
-        onLongClick = onLongClick,
+        onClick = if (pending != null) pending::undo
+          else if (action == null) onClick else ({ if (state.acceptsTap) onClick() }),
+        onLongClick = onLongClick.takeIf { pending == null },
         // Un tasto con esito che lavora non risponde (e non cresce), ma non si vela: l'anello e' il suo riscontro.
-        enabled = enabled && (action == null || state.acceptsTap),
-        role = if (selected != null) Role.Switch else Role.Button,
+        enabled = enabled && (pending != null || action == null || state.acceptsTap),
+        role = if (selected != null && pending == null) Role.Switch else Role.Button,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
         grip = grip,
       )
       .then(actionSemantics)
       .then(
-        if (selected != null) {
+        if (selected != null && pending == null) {
           Modifier.semantics { toggleableState = ToggleableState(selected) }
         } else {
           Modifier
@@ -444,7 +458,7 @@ fun FluidCapsuleAction(
       )
       .then(
         // Il disco: dopo la pressione, cosi' cresce con l'icona, e dentro il bersaglio (3 dp d'aria).
-        if (discAlpha > 0f) {
+        if (discAlpha > 0f && pending == null) {
           Modifier
             .padding(CapsuleActionDiscInset)
             .clip(FluidCapsuleShape)
@@ -457,15 +471,31 @@ fun FluidCapsuleAction(
   ) {
     // La taglia dal posto: 28 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
     val iconSize = LocalFluidIconSize.current
-    if (action == null || presentation == null) {
-      FluidGlassContentTransition(icon, blurReference = iconSize,
-        modifier = Modifier.size(iconSize).semantics { this.contentDescription = contentDescription }) { shown ->
-        FluidIcon(shown, contentDescription = null, tint = color)
+    val rest: @Composable () -> Unit = {
+      if (action == null || presentation == null) {
+        val iconSemantics = if (undoSlot == null) {
+          Modifier.semantics { this.contentDescription = contentDescription }
+        } else {
+          Modifier
+        }
+        FluidGlassContentTransition(icon, blurReference = iconSize,
+          modifier = Modifier.size(iconSize).then(iconSemantics)) { shown ->
+          FluidIcon(shown, contentDescription = null, tint = color)
+        }
+      } else {
+        // Le facce del preset; l'anello sta attorno all'icona, dentro il bersaglio. Il fallimento ha la tinta d'errore.
+        FluidActionGlyphContent(action, state, presentation,
+          FluidActionLook(iconSize, color, scheme.error, reducedMotion))
       }
-    } else {
-      // Le facce del preset; l'anello sta attorno all'icona, dentro il bersaglio. Il fallimento ha la tinta d'errore.
-      FluidActionGlyphContent(action, state, presentation,
-        FluidActionLook(iconSize, color, scheme.error, reducedMotion))
+    }
+    if (undoSlot == null) rest() else FluidGlassContentTransition(undoSlot.face, key = { it?.label },
+      modifier = Modifier.clearAndSetSemantics { }) { shown ->
+      if (shown == null) rest() else {
+        val fill = rememberFluidUndoFill(shown.state)
+        Box(Modifier.size(width, size).fluidUndoFill(fill, accent), contentAlignment = Alignment.Center) {
+          Text(shown.label, style = textStyle, color = color, maxLines = 1)
+        }
+      }
     }
   }
 }

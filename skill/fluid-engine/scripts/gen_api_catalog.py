@@ -77,7 +77,7 @@ UI_FLUID_FILES = {
         "FluidGlassSheet",
         "FluidMenu", "FluidMenuJourney", "FluidMenuBirth", "FluidMenuLayer", "FluidSteadyFrameClock",
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
-        "FluidPromptAlert", "FluidNotification", "FluidDrawer", "FluidDateTimeSheet",
+        "FluidPromptAlert", "FluidNotification", "FluidNotificationSource", "FluidSourceJourney", "FluidUndoCountdown", "FluidDrawer", "FluidDateTimeSheet",
         "FluidDateTimeMath",
     ],
     # pressione, gesto, molle

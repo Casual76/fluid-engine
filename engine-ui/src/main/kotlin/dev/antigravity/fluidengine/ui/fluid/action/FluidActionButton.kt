@@ -4,10 +4,14 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,11 +51,23 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButtonCore
+import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
+import dev.antigravity.fluidengine.ui.fluid.FluidUndoCountdown
+import dev.antigravity.fluidengine.ui.fluid.fluidUndoDescription
+import dev.antigravity.fluidengine.ui.fluid.fluidUndoFill
+import dev.antigravity.fluidengine.ui.fluid.fluidUndoLabelWidth
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoDescription
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoFill
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoSlot
 import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
@@ -63,6 +79,8 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassSize
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidIconSize
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.buttonLeading
+import dev.antigravity.fluidengine.ui.fluid.buttonPadding
 import dev.antigravity.fluidengine.ui.fluid.currentGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarElementType
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarKind
@@ -426,23 +444,62 @@ fun FluidActionButton(
   style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,
   size: FluidGlassSize = LocalFluidGlassSize.current,
   backdrop: GlassBackdropState = currentGlassBackdrop(),
+  /** Per una finestra di Annulla nello stesso vetro. L'app gestisce azione e navigazione. */
+  undo: FluidUndoCountdown? = null,
 ) {
   val presentation = rememberFluidActionPresentation(preset, state, live = true)
   val labels = LocalFluidActionLabels.current
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val error = MaterialTheme.colorScheme.error
   val busy = !state.acceptsTap
+  val undoSlot = rememberFluidUndoSlot(undo)
+  val pending = undoSlot?.active
+  val undoDescription = rememberFluidUndoDescription(pending)
   val spokenProgress = rememberFluidActionSpokenProgress(preset, state, presentation, labels)
   // Un doppio tocco di TalkBack su un tasto che lavora non fa niente: il tasto è spento.
-  val tap = { if (state.acceptsTap) onClick() }
+  val tap: () -> Unit = {
+    if (pending != null) pending.undo() else if (state.acceptsTap) onClick()
+  }
   val semantics = Modifier.clearAndSetSemantics {
     role = Role.Button
-    if (enabled && !busy) this.onClick(action = { tap(); true })
-    fluidActionDescribe(this, preset, state, labels, label, spokenProgress)
+    if (enabled && (!busy || pending != null)) this.onClick(action = { tap(); true })
+    if (undoDescription != null) fluidUndoDescription(undoDescription)
+    else fluidActionDescribe(this, preset, state, labels, label, spokenProgress)
     if (!enabled) disabled()
   }
   Box(modifier, propagateMinConstraints = true) {
-    if (label == null) {
+    if (undoSlot != null) {
+      val labelStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+      val inkSize = if (label == null) size.lens else size.buttonHeight
+      val restWidth = if (label == null) size.lens else
+        fluidUndoLabelWidth(label, labelStyle, size.buttonPadding) + size.buttonLeading + 8.dp
+      val targetWidth = if (pending != null) fluidUndoLabelWidth(pending.label, labelStyle, size.buttonPadding)
+        .coerceAtLeast(inkSize) else restWidth
+      FluidGlassIconButtonCore(
+        onClick = tap, modifier = semantics, backdrop = backdrop, enabled = enabled, selected = false,
+        shape = FluidCapsuleShape, onLongClick = null, size = size,
+        haptic = if (busy && pending == null) null else FluidHapticEvent.Tap,
+        longClickHaptic = null, press = rememberFluidPressState(FluidPressFeedback.ExpandRound),
+        lens = inkSize, lensWidth = targetWidth, style = style,
+      ) {
+        val ink = LocalContentColor.current
+        FluidGlassContentTransition(undoSlot.face, key = { it?.label }) { shown ->
+          if (shown != null) {
+            val fill = rememberFluidUndoFill(shown.state)
+            Box(Modifier.size(targetWidth, inkSize).fluidUndoFill(fill, ink), contentAlignment = Alignment.Center) {
+              Text(shown.label, style = labelStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+          } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+              val iconSize = if (label == null) LocalFluidIconSize.current else size.buttonLeading
+              FluidActionGlyphContent(preset, state, presentation,
+                FluidActionLook(iconSize, ink, if (style.isProminent) ink else error, reduced))
+              if (label != null) Text(label, style = labelStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+          }
+        }
+      }
+    } else if (label == null) {
       FluidGlassIconButton(
         onClick = tap,
         modifier = semantics,
@@ -475,7 +532,7 @@ fun FluidActionButton(
       )
     }
     // Mentre lavora il tasto non cresce sotto il dito e non risponde: un velo senza disegno prende il tocco sopra di lui.
-    if (busy && enabled) {
+    if (busy && enabled && pending == null) {
       Box(Modifier.matchParentSize().pointerInput(Unit) {
         awaitPointerEventScope {
           while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }

@@ -35,6 +35,12 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TileMode
+import dev.antigravity.fluidengine.ui.fluid.FluidUndoCountdown
+import dev.antigravity.fluidengine.ui.fluid.TrackFluidUndoDeadline
+import dev.antigravity.fluidengine.ui.fluid.fluidUndoDescription
+import dev.antigravity.fluidengine.ui.fluid.fluidUndoFill
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoDescription
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoFill
 import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerState
 import androidx.compose.ui.draw.drawWithContent
@@ -308,11 +314,16 @@ class FluidToolbarScope internal constructor() {
     tint: Color = Color.Unspecified,
     action: FluidActionPreset? = null,
     state: FluidActionState = FluidActionState.Idle,
+    /** Finestra di annullamento temporanea, conservando ID, posto e azione a riposo. */
+    undo: FluidUndoCountdown? = null,
   ) {
+    val pending = undo?.takeIf { it.state.isActive }
     entries += FluidToolbarButtonEntry(
-      id = id, role = FluidToolbarRole.Primary, placement = FluidToolbarPlacement.PrimaryAction, icon = icon,
-      label = label, onClick = onClick, enabled = enabled, tint = tint, overflow = inOverflow,
-      type = fluidToolbarActionType(action, state),
+      id = id, role = FluidToolbarRole.Primary, placement = FluidToolbarPlacement.PrimaryAction,
+      icon = icon.takeIf { pending == null }, text = pending?.label,
+      label = pending?.accessibilityLabel ?: label, onClick = pending?.tap() ?: onClick,
+      enabled = enabled, tint = tint, overflow = inOverflow,
+      type = if (pending == null) fluidToolbarActionType(action, state) else null, undo = pending,
     )
   }
 
@@ -354,12 +365,33 @@ class FluidToolbarScope internal constructor() {
     sharedBackground: Boolean = true,
     action: FluidActionPreset? = null,
     state: FluidActionState = FluidActionState.Idle,
+    /** Finestra di annullamento temporanea, conservando ID, posto e azione a riposo. */
+    undo: FluidUndoCountdown? = null,
   ) {
+    val pending = undo?.takeIf { it.state.isActive }
     entries += FluidToolbarButtonEntry(
       id = id, role = role.toolbarRole(FluidToolbarRole.Action), placement = role.placementFor(placement),
-      priority = priority, icon = icon, label = label, onClick = onClick, tint = tint, selected = selected,
-      enabled = enabled, badgeCount = badge, badgeDot = badgeDot, sharedBackground = sharedBackground,
-      destructive = role == FluidButtonRole.Destructive, overflow = inOverflow, type = fluidToolbarActionType(action, state),
+      priority = priority, icon = icon.takeIf { pending == null }, text = pending?.label,
+      label = pending?.accessibilityLabel ?: label, onClick = pending?.tap() ?: onClick, tint = tint,
+      selected = selected && pending == null,
+      enabled = enabled, badgeCount = badge.takeIf { pending == null }, badgeDot = badgeDot && pending == null,
+      sharedBackground = sharedBackground, destructive = role == FluidButtonRole.Destructive, overflow = inOverflow,
+      type = if (pending == null) fluidToolbarActionType(action, state) else null, undo = pending,
+    )
+  }
+
+  /** Un contatore con un vetro proprio. Alla fine esce con la lente del piano. */
+  fun undoCountdown(
+    id: Any,
+    countdown: FluidUndoCountdown,
+    placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic,
+    priority: FluidToolbarPriority = FluidToolbarPriority.High,
+  ) {
+    if (!countdown.state.isActive) return
+    entries += FluidToolbarButtonEntry(
+      id = id, role = FluidToolbarRole.Text, placement = placement, priority = priority,
+      text = countdown.label, label = countdown.accessibilityLabel, onClick = countdown.tap(),
+      overflow = inOverflow, undo = countdown, transientUndo = true,
     )
   }
 
@@ -489,6 +521,8 @@ internal sealed interface FluidToolbarEntry {
   val id: Any
 }
 
+private fun FluidUndoCountdown.tap(): () -> Unit = { undo() }
+
 /** Un tasto (icona, scritta, elemento libero) e tutto ciò che serve a disegnarlo. */
 internal class FluidToolbarButtonEntry(
   override val id: Any,
@@ -513,6 +547,8 @@ internal class FluidToolbarButtonEntry(
   val menu: (() -> List<FluidContextAction>)? = null,
   /** Il tipo registrato (F6B.3a): vedi [FluidToolbarElementType]. Null: un tasto di sempre. */
   val type: FluidToolbarElementType? = null,
+  val undo: FluidUndoCountdown? = null,
+  val transientUndo: Boolean = false,
 ) : FluidToolbarEntry
 
 /**
@@ -691,6 +727,7 @@ internal fun fluidToolbarModel(
       // Un elemento libero cambia contenuto da sé: la sua identità è anche la chiave del contenuto.
       contentKey = if (entry.custom != null) FluidToolbarCustomContent(entry.id) else null,
       kind = entry.type?.kind,
+      transition = if (entry.transientUndo) FluidToolbarTransition.Materialize else FluidToolbarTransition.Automatic,
     )
   }
   return FluidToolbarModel(
@@ -1560,7 +1597,7 @@ internal fun fluidToolbarSlotShapeKey(group: FluidToolbarGroup, kept: FluidToolb
 
 /** Le uscite nascono per lente; se restano, l'identità continua a tenerle ferme. */
 internal fun fluidToolbarGlassTransition(group: FluidToolbarGroup): FluidGlassTransition =
-  if (group.items.any { it.role == FluidToolbarRole.Back || it.role == FluidToolbarRole.Close }) {
+  if (group.items.any { it.isExit || it.transition == FluidToolbarTransition.Materialize }) {
     FluidGlassTransition.MaterializeWhenAlone
   } else {
     FluidGlassTransition.MatchedGeometry
@@ -1577,6 +1614,9 @@ private data class FluidToolbarFace(
   val size: Dp = FluidMetrics.BarIconSize,
   /** La faccia di un tipo registrato ([FluidToolbarElementType]), con l'inchiostro del posto; prima dell'icona. */
   val typed: (@Composable (Color) -> Unit)? = null,
+  val countdown: FluidUndoCountdown? = null,
+  val width: Dp = 0.dp,
+  val height: Dp = 0.dp,
 )
 
 /** La taglia dell'icona di un tasto della barra: quella del chevron per l'indietro, quella della barra per gli altri. */
@@ -1620,6 +1660,9 @@ private fun FluidToolbarSlot(
   // cambia l'identità ([FluidToolbarItem.glassContent]), non lo stato.
   val iconSize = fluidToolbarIconSize(item.role)
   val typeSlot = entry?.type?.rememberSlot(live = true)
+  val countdown = entry?.undo
+  if (interactive && countdown != null) TrackFluidUndoDeadline(countdown.state)
+  val undoDescription = if (interactive) rememberFluidUndoDescription(countdown) else null
   val face = FluidToolbarFace(
     key = item.glassContent,
     icon = if (overflow) FluidIcons.MoreHoriz else entry?.icon,
@@ -1628,6 +1671,9 @@ private fun FluidToolbarSlot(
     custom = entry?.custom,
     size = iconSize,
     typed = if (typeSlot == null) null else ({ faceColor -> typeSlot.Face(faceColor, iconSize, onGlass) }),
+    countdown = countdown,
+    width = widthDp.dp,
+    height = resolved.metrics.buttonWidthDp.dp,
   )
   val label = when {
     overflow -> declaration.overflowLabel ?: labels.more
@@ -1831,6 +1877,7 @@ private fun FluidToolbarSlot(
           badge?.text?.let { stateDescription = it }
           // Il tipo registrato dice le sue parole (il tasto con esito: «Invio in corso…», «Inviato», con l'area viva).
           typeSlot?.describe(this, label)
+          if (undoDescription != null) fluidUndoDescription(undoDescription)
           if (hidden.isNotEmpty()) {
             customActions = hidden.map { it.contextAction(labels.back, labels.close, labels.confirm) }
               .filter { it.enabled }.map { action ->
@@ -1937,6 +1984,12 @@ private fun FluidToolbarFadingFace(
 @Composable
 private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle) {
   when {
+    face.countdown != null -> {
+      val fill = rememberFluidUndoFill(face.countdown.state)
+      Box(Modifier.size(face.width, face.height).fluidUndoFill(fill, face.color), contentAlignment = Alignment.Center) {
+        Text(face.countdown.label, style = textStyle, color = face.color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      }
+    }
     face.custom != null -> Box(Modifier.clearAndSetSemantics { }, contentAlignment = Alignment.Center) { face.custom.invoke() }
     face.typed != null -> face.typed.invoke(face.color)
     face.text != null -> Text(

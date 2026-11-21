@@ -98,8 +98,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidNotification.kt`
 
 - `enum class FluidNotificationTone`
-- `data class FluidNotificationAction(val label: String, val onClick: () -> Unit)` — Un'azione della notifica: in [FluidNotification.actions] compare all'apertura; in [FluidNotification.inlineActions] e' subito visibile.
-- `data class FluidNotification(val id: String, val title: String, val message: String, val tone: FluidNotificationTone = FluidNotificationTone.Info, val durationMillis: Long = 6_000L, val actions: List<FluidNotificationAction> = emptyList(), val inlineActions: List<FluidNotificationAction> = emptyList(), val replaceGroup: String? = null)` — Una notifica in-app.
+- `data class FluidNotificationAction(val label: String, val onClick: () -> Unit, val countdown: FluidNotificationCountdown? = null)` — Un'azione della notifica: in [FluidNotification.actions] compare all'apertura; in [FluidNotification.inlineActions] e' subito visibile.
+- `data class FluidNotification(val id: String, val title: String, val message: String, val tone: FluidNotificationTone = FluidNotificationTone.Info, val durationMillis: Long = 6_000L, val actions: List<FluidNotificationAction> = emptyList(), val inlineActions: List<FluidNotificationAction> = emptyList(), val replaceGroup: String? = null, val source: FluidTransitionSource? = null)` — Una notifica in-app.
+  - `companion object`
+    - `fun undo(title: String, seconds: Int, onUndo: () -> Unit, source: FluidTransitionSource? = null, group: String? = null, id: String = java.util.UUID.randomUUID().toString(), message: String = title, undoLabel: String = "Annulla"): FluidNotification` — Avviso con un solo Annulla in linea. [seconds] misura l'anello dalla creazione del preset; l'app decide la scadenza reale e può togliere l'azione con [FluidNotificationHostState.updateCurrent]. Il tempo di lettura include quello che serve per mostrare l'esito dopo la scadenza. Per «Annulla invio» in un tasto usare invece [FluidUndoCountdown]. Questo preset è per un avviso con testo che l'app sceglie di mostrare.
+    - `fun result(success: Boolean, title: String, message: String = title, source: FluidTransitionSource? = null, id: String = java.util.UUID.randomUUID().toString()): FluidNotification` — Esito positivo o negativo, con il tono corrispondente.
+    - `fun reminder(action: FluidNotificationAction, title: String, message: String = title, source: FluidTransitionSource? = null, id: String = java.util.UUID.randomUUID().toString()): FluidNotification` — Promemoria con l'azione disponibile a card chiusa.
 - `sealed interface FluidNotificationResult` — Esito UI, distinto dalla consegna: non autorizza ne' programma transazioni dell'app.
   - `data class ActionPerformed(val label: String) : FluidNotificationResult` — Il callback dell'azione e' stato accettato una volta sola.
   - `data object Dismissed : FluidNotificationResult` — Chiusura esplicita o rimozione di un host dopo la presentazione.
@@ -115,6 +119,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun rememberFluidNotificationHostState(): FluidNotificationHostState`
 - `val LocalFluidNotificationHostState: ProvidableCompositionLocal<FluidNotificationHostState?>` — Lets any feature publish into the single root host without owning or duplicating its UI.
 - `@Composable fun FluidNotificationHost(state: FluidNotificationHostState, modifier: Modifier = Modifier, backdrop: GlassBackdropState? = null)` — A top-of-app notice inspired by iOS banners, hosted outside navigation content.
+
+## `engine-ui/ui/fluid/FluidNotificationSource.kt`
+
+- `data class FluidNotificationCountdown(val durationMillis: Long, val startedAtElapsedRealtimeMillis: Long = SystemClock.elapsedRealtime())` — Finestra mostrata dall'anello, sullo stesso orologio monotono di [SystemClock.elapsedRealtime]. L'anello non cambia né il timeout di lettura, né la disponibilità dell'azione. L'app può togliere l'azione con [FluidNotificationHostState.updateCurrent] e deve verificare la scadenza nel callback.
 
 ## `engine-ui/ui/fluid/FluidPromptAlert.kt`
 
@@ -156,3 +164,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class FluidTransitionSourceGeometry(val bounds: Rect, val shape: Shape)` — La fotografia che basta a iniziare un viaggio. [bounds] è in pixel nella radice Compose della sorgente. [shape] va risolta alla taglia di [bounds], con la densità e il verso della sorgente.
 - `fun Modifier.fluidTransitionSource(id: Any, namespace: FluidGlassNamespace, shape: Shape = RectangleShape): Modifier` — Dà a una vista un'origine per menu, presentazioni e zoom senza aggiungere disegno o cambiare la misura. Applica il modificatore al riquadro che deve partire e dai la sua [shape] se ha un contorno proprio. L'identità è la coppia [namespace] e [id]. Se è ripetuta, vale la prima sorgente posata ancora disponibile.
 - `@Composable fun rememberFluidToolbarTransitionSource(id: Any): FluidTransitionSource` — L'origine di un elemento dichiarato nella barra, cercato per [id] nella pagina corrente (nella radice Compose fuori da un host). Chiamalo nel contesto della pagina che dichiara la barra.
+
+## `engine-ui/ui/fluid/FluidUndoCountdown.kt`
+
+- `class FluidUndoCountdownState internal constructor(val timing: FluidNotificationCountdown, private val clock: () -> Long, finished: Boolean = false)` — Una finestra di annullamento dell'app. Condividere lo stato fra più posti rende atomico il consumo sul thread UI. La fine del contatore cambia la faccia del controllo e non esegue operazioni dell'app.
+  - `val isActive: Boolean get()` — Si legge e si modifica sul thread UI, come l'azione del tasto.
+  - `fun undo(onUndo: () -> Unit): Boolean` — Accetta un solo tocco entro la finestra, anche se il disegno è rimasto un fotogramma indietro.
+- `@Composable fun rememberFluidUndoCountdownState(timing: FluidNotificationCountdown): FluidUndoCountdownState` — Ricorda il consumo. L'app conserva [timing], sul clock monotono, insieme all'operazione da annullare.
+- `data class FluidUndoCountdown(val state: FluidUndoCountdownState, val onUndo: () -> Unit, val label: String = "Annulla", val accessibilityLabel: String = label, val remainingLabel: (Long) -> String = { seconds -> if (seconds == 1L) "1 secondo" els…)` — La faccia temporanea di un tasto. Testo, lingua, azione e navigazione appartengono al chiamante.

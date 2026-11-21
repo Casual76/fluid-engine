@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -37,6 +38,7 @@ import dev.antigravity.fluidengine.sample.catalog.DrawerAndTabsDemo
 import dev.antigravity.fluidengine.sample.catalog.FileTileDemo
 import dev.antigravity.fluidengine.sample.catalog.IdentityDemo
 import dev.antigravity.fluidengine.sample.catalog.LongListsDemo
+import dev.antigravity.fluidengine.sample.catalog.NotificationSendDemo
 import dev.antigravity.fluidengine.sample.catalog.NotificationUndoDemo
 import dev.antigravity.fluidengine.sample.catalog.RichTextDemo
 import dev.antigravity.fluidengine.sample.catalog.RichTextDemoToolbars
@@ -211,9 +213,15 @@ internal fun NewComponentPage(
     GalleryPage.LongLists -> ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = true) {
       LongListsDemo(bottomInset = bottomInset, onBack = onBack)
     }
-    GalleryPage.NotificationUndo -> ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = false) {
-      // L'avviso della demo scende sotto la riga dei tasti: non la copre, e non e' coperto da lei.
-      NotificationUndoDemo(avoidTop = PageBarHeight)
+    GalleryPage.NotificationUndo -> {
+      var showSend by rememberSaveable { mutableStateOf(false) }
+      if (showSend) {
+        NotificationSendDemo(onBack = { showSend = false })
+      } else {
+        ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = false) {
+          NotificationUndoDemo(avoidTop = PageBarHeight, onOpenSend = { showSend = true })
+        }
+      }
     }
     GalleryPage.WebContent -> ScreenWithOverlay(snapshot, openPanel, backdrop, onBack, ownBack = false) {
       WebContentDemo()

@@ -48,6 +48,7 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +74,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
@@ -130,7 +132,11 @@ enum class FluidNotificationTone {
 data class FluidNotificationAction(
   val label: String,
   val onClick: () -> Unit,
-)
+  /** Finestra illustrata attorno a quest'azione quando è in linea. La scadenza resta dell'app. */
+  val countdown: FluidNotificationCountdown? = null,
+) {
+  constructor(label: String, onClick: () -> Unit) : this(label, onClick, null)
+}
 
 /**
  * Una notifica in-app.
@@ -161,8 +167,65 @@ data class FluidNotification(
   val inlineActions: List<FluidNotificationAction> = emptyList(),
   /** Opt-in: sostituisce le richieste dello stesso gruppo, anche durante l'uscita. */
   val replaceGroup: String? = null,
+  /** Punto di partenza letto da [FluidNotificationHostState] al momento della pubblicazione. */
+  val source: FluidTransitionSource? = null,
 ) {
   init { require(inlineActions.size <= 2) { "Al massimo due azioni inline" } }
+
+  companion object {
+    /**
+     * Avviso con un solo Annulla in linea. [seconds] misura l'anello dalla creazione del preset;
+     * l'app decide la scadenza reale e può togliere l'azione con [FluidNotificationHostState.updateCurrent].
+     * Il tempo di lettura include quello che serve per mostrare l'esito dopo la scadenza.
+     * Per «Annulla invio» in un tasto usare invece [FluidUndoCountdown]. Questo preset è per un
+     * avviso con testo che l'app sceglie di mostrare.
+     */
+    fun undo(
+      title: String,
+      seconds: Int,
+      onUndo: () -> Unit,
+      source: FluidTransitionSource? = null,
+      group: String? = null,
+      id: String = java.util.UUID.randomUUID().toString(),
+      message: String = title,
+      undoLabel: String = "Annulla",
+    ): FluidNotification {
+      val countdown = FluidNotificationCountdown(seconds * 1_000L)
+      return FluidNotification(
+        id = id,
+        title = if (title == message) "" else title,
+        message = message,
+        durationMillis = countdown.durationMillis + NotificationResumeFloorMillis,
+        inlineActions = listOf(FluidNotificationAction(undoLabel, onUndo, countdown)),
+        replaceGroup = group,
+        source = source,
+      )
+    }
+
+    /** Esito positivo o negativo, con il tono corrispondente. */
+    fun result(
+      success: Boolean,
+      title: String,
+      message: String = title,
+      source: FluidTransitionSource? = null,
+      id: String = java.util.UUID.randomUUID().toString(),
+    ): FluidNotification = FluidNotification(
+      id, if (title == message) "" else title, message,
+      tone = if (success) FluidNotificationTone.Success else FluidNotificationTone.Error,
+      source = source,
+    )
+
+    /** Promemoria con l'azione disponibile a card chiusa. */
+    fun reminder(
+      action: FluidNotificationAction,
+      title: String,
+      message: String = title,
+      source: FluidTransitionSource? = null,
+      id: String = java.util.UUID.randomUUID().toString(),
+    ): FluidNotification = FluidNotification(
+      id, if (title == message) "" else title, message, inlineActions = listOf(action), source = source,
+    )
+  }
 }
 
 /** Esito UI, distinto dalla consegna: non autorizza ne' programma transazioni dell'app. */
@@ -192,6 +255,7 @@ private enum class FluidNotificationRequestCompletion {
 
 private class FluidNotificationRequest(
   var notification: FluidNotification,
+  val source: FluidNotificationSource?,
 ) {
   val result = CompletableDeferred<FluidNotificationResult>()
   val replaced = CompletableDeferred<Unit>()
@@ -224,6 +288,7 @@ internal fun fluidNotificationResumeMillis(remainingMillis: Long): Long =
 internal data class FluidNotificationPresentation(
   val notification: FluidNotification? = null,
   val visible: Boolean = false,
+  val source: FluidNotificationSource? = null,
 )
 
 /**
@@ -280,9 +345,11 @@ class FluidNotificationHostState internal constructor() {
 
   private suspend fun enqueue(notification: FluidNotification): FluidNotificationRequest? {
     if (notification.id.isBlank() || notification.message.isBlank()) return null
+    // Prima di sospendere: dopo la pubblicazione il chiamante può togliere il compositore.
+    val source = notification.source?.let(FluidNotificationSource::capture)
     return queueMutex.withLock {
       pendingRequests[notification.id]?.let { return@withLock it }
-      val request = FluidNotificationRequest(notification)
+      val request = FluidNotificationRequest(notification, source)
       val group = notification.replaceGroup
       val replacesCurrent = group != null && currentRequest?.notification?.replaceGroup == group
       if (group != null) {
@@ -410,7 +477,7 @@ class FluidNotificationHostState internal constructor() {
       isExpanded = false
       // Payload and visibility change atomically, so the previous FIFO item cannot re-enter for
       // a frame while a LaunchedEffect catches up with the new notification.
-      presentation = FluidNotificationPresentation(notification = notification, visible = true)
+      presentation = FluidNotificationPresentation(notification = notification, visible = true, source = request.source)
       // markPresented is accepted only when the card has layout, the lifecycle is RESUMED and the
       // window owns focus. The reading budget below is then counted only during the same state.
       coroutineScope {
@@ -553,7 +620,8 @@ fun FluidNotificationHost(
   val isHostActive = lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && isWindowFocused
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val presentation = state.presentation
-  val visibilityState = remember(state) { MutableTransitionState(false) }
+  val sourced = presentation.source != null
+  val visibilityState = remember(state, sourced) { MutableTransitionState(false) }
   var laidOutNotificationId by remember(state) { mutableStateOf<String?>(null) }
   // La card lanciata via se ne e' gia' andata, dissolvendosi: la sua uscita di ordinanza sarebbe
   // una scena vuota che tiene in coda la notifica dopo.
@@ -572,17 +640,18 @@ fun FluidNotificationHost(
     presentation.notification?.id,
     presentation.visible,
     laidOutNotificationId,
+    sourced,
   ) {
     val notificationId = presentation.notification?.id
-    if (isHostActive && presentation.visible && laidOutNotificationId == notificationId) {
+    if (!sourced && isHostActive && presentation.visible && laidOutNotificationId == notificationId) {
       notificationId?.let(state::markPresented)
     }
     if (!presentation.visible) laidOutNotificationId = null
   }
 
-  LaunchedEffect(presentation.visible) {
+  LaunchedEffect(visibilityState, presentation.visible) {
     if (presentation.visible) thrownNotificationId = null
-    visibilityState.targetState = presentation.visible
+    visibilityState.targetState = !sourced && presentation.visible
   }
 
   LaunchedEffect(
@@ -591,10 +660,11 @@ fun FluidNotificationHost(
     visibilityState.currentState,
     visibilityState.targetState,
     visibilityState.isIdle,
+    sourced,
   ) {
     val notificationId = presentation.notification?.id
     if (
-      notificationId != null &&
+      !sourced && notificationId != null &&
       !presentation.visible &&
       visibilityState.isIdle &&
       !visibilityState.currentState &&
@@ -620,6 +690,27 @@ fun FluidNotificationHost(
   // Il colore del testo sulla card (3.0.1): la card lo dice gia' (`contentColor`), l'host lo dice per
   // tutto il resto che ci finisce sopra, fuori da una `Surface`.
   CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+    val source = presentation.source
+    val notification = presentation.notification
+    if (source != null && notification != null) {
+      key(source) {
+        FluidNotificationSourceCard(
+          source = source,
+          notification = notification,
+          visible = presentation.visible,
+          hostActive = isHostActive,
+          backdrop = backdrop,
+          modifier = modifier,
+          onPresented = { state.markPresented(notification.id) },
+          onExit = { state.markExitCompleted(notification.id) },
+          onDismiss = { if (state.currentNotification?.id == notification.id) state.dismissCurrent() },
+          onAction = { state.performAction(notification.id, it) },
+          onTouchChanged = { state.setTouched(notification.id, it) },
+          onExpandedChanged = { state.setExpanded(notification.id, it) },
+        )
+      }
+      return@CompositionLocalProvider
+    }
     Box(
       modifier = modifier
         .fillMaxWidth()
@@ -928,6 +1019,7 @@ internal class FluidNotificationDragState(private val scope: CoroutineScope) {
   private var onDismiss: () -> Unit = {}
   private var onExpandedChanged: (Boolean) -> Unit = {}
   private var onThrown: () -> Unit = {}
+  private var returnToSource: () -> Boolean = { false }
 
   private val dimensionPx: Float get() = NotificationPullDimensionDp * density
 
@@ -941,6 +1033,7 @@ internal class FluidNotificationDragState(private val scope: CoroutineScope) {
     onDismiss: () -> Unit,
     onExpandedChanged: (Boolean) -> Unit,
     onThrown: () -> Unit,
+    returnToSource: () -> Boolean = { false },
   ) {
     this.density = density
     this.haptics = haptics
@@ -948,6 +1041,7 @@ internal class FluidNotificationDragState(private val scope: CoroutineScope) {
     this.onDismiss = onDismiss
     this.onExpandedChanged = onExpandedChanged
     this.onThrown = onThrown
+    this.returnToSource = returnToSource
   }
 
   /**
@@ -1023,6 +1117,10 @@ internal class FluidNotificationDragState(private val scope: CoroutineScope) {
     thrown = true
     settle?.cancel()
     haptics.play(FluidHapticEvent.Threshold)
+    if (returnToSource()) {
+      onDismiss()
+      return
+    }
     onThrown()
     val upwardPx = -maxOf(-fingerVelocityPx, NotificationThrowMinVelocityDpPerSecond * density)
     settle = scope.launch {
@@ -1179,7 +1277,7 @@ private fun Modifier.fluidNotificationShape(shape: Shape, scale: () -> Float): M
     }
 
 @Composable
-private fun FluidNotificationCard(
+internal fun FluidNotificationCard(
   notification: FluidNotification,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
@@ -1189,6 +1287,8 @@ private fun FluidNotificationCard(
   onExpandedChanged: (Boolean) -> Unit = {},
   onThrown: () -> Unit = {},
   onAction: (FluidNotificationAction) -> Unit = {},
+  flight: FluidNotificationFlightContent? = null,
+  interactive: Boolean = true,
 ) {
   val iconColors = fluidNotificationIconColors(notification.tone, MaterialTheme.colorScheme)
   // Le parole per TalkBack vengono dall'app (3.0.1): erano scritte qui in italiano.
@@ -1200,31 +1300,24 @@ private fun FluidNotificationCard(
     FluidNotificationTone.Warning -> FluidIcons.Warning
     FluidNotificationTone.Error -> FluidIcons.Error
   }
-  val surface = lerp(
-    MaterialTheme.colorScheme.surfaceContainerHigh,
-    accent,
-    // Asked of the theme, not of a colour. `surface` in an app built on this design is a
-    // *translucent film* — white at a tenth over a dark page — and `luminance()` ignores alpha,
-    // so it answered "light" for the blackest configuration there is and this branch was dead.
-    if (GlassDefaults.isDarkSurface()) 0.09f else 0.045f,
-  )
+  val surface = fluidNotificationSurfaceColor(accent)
 
-  val shape = FluidGlassRoundedShape(20.dp)
+  val shape = FluidGlassRoundedShape(FluidNotificationRadius)
   // The card publishes its own material so the close button standing on it refracts the card and
   // not the page behind it — see LocalGlassBackdrop.
-  val cardGlass = rememberGlassBackdrop()
+  val cardGlass = flight?.exports ?: rememberGlassBackdrop()
   // Senza fondo la card e' piena (4.0.0, F1A.13): col materiale nuovo pubblica il proprio colore e fa da
   // contenitore, cosi' la chiusura e le azioni stanno sulla card come su un pannello di vetro (la regola
   // dell'annidato, il verde della card) invece di campionare il fondo vuoto. Col vetro di prima, null: com'era.
-  val panelGlass = if (backdrop == null) rememberGlassOpaquePanel() else null
+  val panelGlass = if (backdrop == null && flight == null) rememberGlassOpaquePanel() else null
   val controlBackdrop = if (backdrop != null) {
     rememberCombinedGlassBackdrop(backdrop, cardGlass)
   } else {
     panelGlass
   }
   // F2.3b: la notifica possiede il suo testo e scurisce in continuo (un grande, `Modal`); il testo la segue.
-  val notificationInk = rememberGlassInk()
-  val glassModifier = if (backdrop != null) {
+  val notificationInk = flight?.ink ?: rememberGlassInk()
+  val glassModifier = if (backdrop != null && flight == null) {
     Modifier.glassSurfaceInked(
       ink = notificationInk,
       state = backdrop,
@@ -1245,7 +1338,7 @@ private fun FluidNotificationCard(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val density = LocalDensity.current.density
   // Per notifica: un'altra card, un altro dito. Lo stato non passa da una all'altra.
-  val drag = remember(notification.id, scope) { FluidNotificationDragState(scope) }
+  val drag = flight?.drag ?: remember(notification.id, scope) { FluidNotificationDragState(scope) }
   SideEffect {
     drag.update(
       density = density,
@@ -1254,60 +1347,52 @@ private fun FluidNotificationCard(
       onDismiss = onDismiss,
       onExpandedChanged = onExpandedChanged,
       onThrown = onThrown,
+      returnToSource = flight?.returnToSource ?: { false },
     )
   }
   val expanded = drag.expanded
   val showActions = expanded && notification.actions.isNotEmpty()
 
-  Surface(
-    modifier = modifier
-      .fillMaxWidth()
-      .widthIn(max = 560.dp)
-      .fluidNotificationTouch(onTouchChanged)
-      // Il trascinamento sta *fuori* dal layer che muove la card, come nel foglio del modale: il
-      // riferimento del dito non si muove con l'oggetto che il dito sposta.
-      .draggable(
-        state = drag.draggableState,
-        orientation = Orientation.Vertical,
-        enabled = !drag.thrown,
-        onDragStarted = { drag.onDragStarted() },
-        onDragStopped = { velocity -> drag.onDragStopped(velocity) },
-      )
-      // Traslazione e opacita', mai scala: vedi "tre trappole del vetro in movimento".
-      .graphicsLayer {
-        translationY = drag.offsetPx
-        alpha = drag.alpha
-      }
-      // Il primo e l'ultimo fotogramma di vita di un nodo possono uscire con le proprieta' di
-      // default, cioe' opaco e al suo posto: una card lanciata via e appena tolta ricomparirebbe
-      // un istante, intera, dov'era. A opacita' quasi zero non si registra niente.
-      .drawWithContent { if (drag.alpha > NotificationGateAlpha) drawContent() }
-      .then(glassModifier)
-      .semantics {
-        paneTitle = labels.notification
-        liveRegion = LiveRegionMode.Polite
-        // Il trascinamento non e' per tutti: le stesse due cose si fanno anche da TalkBack.
-        customActions = buildList {
-          notification.inlineActions.forEach { action ->
-            add(CustomAccessibilityAction(action.label) { onAction(action); true })
-          }
-          if (!drag.expanded) add(CustomAccessibilityAction(labels.notificationExpand) { drag.expand(); true })
-          add(CustomAccessibilityAction(labels.notificationDismiss) { onDismiss(); true })
+  val cardModifier = modifier
+    .fillMaxWidth()
+    .widthIn(max = FluidNotificationMaxWidth)
+    .then(if (interactive) Modifier.fluidNotificationTouch(onTouchChanged) else Modifier)
+    // Il trascinamento sta *fuori* dal layer che muove la card, come nel foglio del modale: il
+    // riferimento del dito non si muove con l'oggetto che il dito sposta.
+    .draggable(
+      state = drag.draggableState,
+      orientation = Orientation.Vertical,
+      enabled = interactive && !drag.thrown,
+      onDragStarted = { drag.onDragStarted() },
+      onDragStopped = { velocity -> drag.onDragStopped(velocity) },
+    )
+    // Traslazione e opacita', mai scala: vedi "tre trappole del vetro in movimento".
+    .graphicsLayer {
+      translationY = drag.offsetPx
+      alpha = drag.alpha
+    }
+    // Il primo e l'ultimo fotogramma di vita di un nodo possono uscire con le proprieta' di
+    // default, cioe' opaco e al suo posto: una card lanciata via e appena tolta ricomparirebbe
+    // un istante, intera, dov'era. A opacita' quasi zero non si registra niente.
+    .drawWithContent { if (drag.alpha > NotificationGateAlpha) drawContent() }
+    .then(glassModifier)
+    .then(if (interactive) Modifier.semantics {
+      paneTitle = labels.notification
+      liveRegion = LiveRegionMode.Polite
+      // Il trascinamento non e' per tutti: le stesse due cose si fanno anche da TalkBack.
+      customActions = buildList {
+        notification.inlineActions.forEach { action ->
+          add(CustomAccessibilityAction(action.label) { onAction(action); true })
         }
-      },
-    shape = shape,
-    color = if (backdrop == null) surface else Color.Transparent,
-    contentColor = MaterialTheme.colorScheme.onSurface,
-    border = if (backdrop == null) BorderStroke(0.5.dp, accent.copy(alpha = 0.22f)) else null,
-    // Con il vetro l'ombra la disegna il vetro (`ShadowElement`). Quella di piattaforma, su una
-    // superficie trasparente, trapela dentro la sagoma: una fascia scura attorno a un rettangolo
-    // chiaro ad angoli vivi, che il testo e l'icona della card attraversano.
-    shadowElevation = if (backdrop == null) 12.dp else 0.dp,
-  ) {
+        if (!drag.expanded) add(CustomAccessibilityAction(labels.notificationExpand) { drag.expand(); true })
+        add(CustomAccessibilityAction(labels.notificationDismiss) { onDismiss(); true })
+      }
+    } else Modifier.clearAndSetSemantics { })
+  val content: @Composable () -> Unit = {
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop) {
       GlassInkContent(notificationInk, LocalContentColor.current) {
         Column(
-          modifier = Modifier
+          modifier = (flight?.contentModifier ?: Modifier)
             // La comparsa: la sagoma di questo fotogramma, per la colonna e quindi per la `Surface`, il vetro, il
             // ritaglio e l'ombra; il contenuto alla sua misura, ritagliato dalla stessa sagoma.
             .fluidNotificationShape(shape, shapeScale)
@@ -1361,21 +1446,28 @@ private fun FluidNotificationCard(
                 .padding(vertical = 5.dp),
               verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-              if (notification.title.isNotEmpty() || notification.inlineActions.isEmpty()) Text(
-                text = notification.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-              )
-              Text(
-                text = notification.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                // Chiusa: due righe, e il resto si apre tirando. Aperta: tutto.
-                maxLines = if (expanded) Int.MAX_VALUE else NotificationCollapsedLines,
-                overflow = TextOverflow.Ellipsis,
-              )
+              val text = notification.title to notification.message
+              val wording: @Composable (Pair<String, String>) -> Unit = { (title, message) ->
+                if (title.isNotEmpty() || notification.inlineActions.isEmpty()) Text(
+                  text = title,
+                  style = MaterialTheme.typography.titleSmall,
+                  fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                  text = message,
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  // Chiusa: due righe, e il resto si apre tirando. Aperta: tutto.
+                  maxLines = if (expanded) Int.MAX_VALUE else NotificationCollapsedLines,
+                  overflow = TextOverflow.Ellipsis,
+                )
+              }
+              if (flight == null) wording(text)
+              else FluidGlassContentTransition(text, contentAlignment = Alignment.TopStart) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { wording(it) }
+              }
             }
-            FluidGlassIconButton(onClick = onDismiss) {
+            FluidGlassIconButton(onClick = onDismiss, enabled = interactive) {
               FluidIcon(
                 imageVector = FluidIcons.Close,
                 contentDescription = labels.notificationClose,
@@ -1389,11 +1481,17 @@ private fun FluidNotificationCard(
               verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
               notification.inlineActions.forEach { action ->
-                FluidGlassButton(
-                  text = action.label,
-                  modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                  onClick = { onAction(action) },
-                )
+                val countdown = action.countdown
+                if (countdown == null) {
+                  FluidGlassButton(
+                    text = action.label,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    onClick = { onAction(action) },
+                    enabled = interactive,
+                  )
+                } else {
+                  FluidNotificationCountdownButton(action, countdown, interactive) { onAction(action) }
+                }
               }
             }
           }
@@ -1406,6 +1504,7 @@ private fun FluidNotificationCard(
               notification.actions.forEach { action ->
                 FluidGlassButton(
                   text = action.label,
+                  enabled = interactive,
                   onClick = {
                     onAction(action)
                   },
@@ -1417,7 +1516,32 @@ private fun FluidNotificationCard(
       }
     }
   }
+  if (flight != null) {
+    Box(cardModifier) { content() }
+  } else {
+    Surface(
+      modifier = cardModifier,
+      shape = shape,
+      color = if (backdrop == null) surface else Color.Transparent,
+      contentColor = MaterialTheme.colorScheme.onSurface,
+      border = if (backdrop == null) BorderStroke(0.5.dp, accent.copy(alpha = 0.22f)) else null,
+      // Su un vetro l'ombra di piattaforma trapela dalla sagoma. La dipinge il materiale.
+      shadowElevation = if (backdrop == null) 12.dp else 0.dp,
+      content = content,
+    )
+  }
 }
+
+@Composable
+internal fun fluidNotificationSurfaceColor(accent: Color): Color = lerp(
+  MaterialTheme.colorScheme.surfaceContainerHigh,
+  accent,
+  // Si chiede al tema: la luminanza della pellicola traslucida ignora l'alfa e inganna sul tema scuro.
+  if (GlassDefaults.isDarkSurface()) 0.09f else 0.045f,
+)
+
+internal val FluidNotificationRadius = 20.dp
+internal val FluidNotificationMaxWidth = 560.dp
 
 private fun highestContrastNotificationContent(background: Color): Color {
   val dark = Color(0xFF121214)
@@ -1430,7 +1554,7 @@ private fun highestContrastNotificationContent(background: Color): Color {
   return if (ratio(dark) >= ratio(light)) dark else light
 }
 
-private const val NotificationExitMillis = 180
+internal const val NotificationExitMillis = 180
 
 /** Le righe del messaggio a card chiusa. */
 private const val NotificationCollapsedLines = 2

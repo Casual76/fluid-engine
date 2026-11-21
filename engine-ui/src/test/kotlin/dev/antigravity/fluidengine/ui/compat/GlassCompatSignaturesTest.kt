@@ -482,6 +482,28 @@ class GlassCompatSignaturesTest {
   }
 
   @Test
+  fun notificationSourceIsOptionalAndComesAfterTheExistingPayload() {
+    val click = {}
+    val action = FluidNotificationAction("Annulla", click)
+    val trailing = FluidNotificationAction("Apri") { }
+    val historic = FluidNotification("a", "Titolo", "Testo", FluidNotificationTone.Info, 2_000L,
+      listOf(trailing), listOf(action), "gruppo")
+    assertNull(historic.source)
+    assertNull(action.countdown)
+    assertTrue(action.onClick === click)
+    assertEquals(historic, historic.copy())
+    val source = FluidTransitionSource("send", FluidGlassNamespace())
+    val updated = historic.copy(source = source)
+    val (_, _, _, _, _, actions, inline, group, capturedSource) = updated
+    assertEquals(listOf(trailing), actions)
+    assertEquals(listOf(action), inline)
+    assertEquals("gruppo", group)
+    assertTrue(capturedSource === source)
+    assertEquals(FluidNotificationTone.Success, FluidNotification.result(true, "Inviata").tone)
+    assertEquals(listOf(action), FluidNotification.reminder(action, "Promemoria").inlineActions)
+  }
+
+  @Test
   fun theNewContextActionFieldsDefaultToTheOldBehaviour() {
     val log = mutableListOf<String>()
     // Le forme della 3.x prendono i valori di serie dei campi nuovi, dal costruttore secondario o dal primario.

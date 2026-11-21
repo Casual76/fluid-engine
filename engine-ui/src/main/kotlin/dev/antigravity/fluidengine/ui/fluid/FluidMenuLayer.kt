@@ -1116,7 +1116,7 @@ internal fun FluidAlertLayer(
   spec: FluidAlertSpec,
   backdrop: GlassBackdropState?,
   host: FluidGlassModalHostState,
-  sourceJourney: FluidModalSourceJourney?,
+  sourceJourney: FluidSourceJourney?,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val geometry = remember { Animatable(0f, 0.001f) }
@@ -1188,7 +1188,7 @@ private fun FluidAlertLayerContent(
   backdrop: GlassBackdropState?,
   geometry: () -> Float,
   fade: () -> Float,
-  sourceJourney: FluidModalSourceJourney?,
+  sourceJourney: FluidSourceJourney?,
   inline: Boolean,
 ) {
   val density = LocalDensity.current

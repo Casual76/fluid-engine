@@ -325,6 +325,7 @@ internal fun Modifier.glassDrop(
           scaleX /= squash.xDivisor
           scaleY *= squash.yFactor
         }
+        glassDropLayerProbe?.invoke(motion.progress(), scaleX, scaleY)
       }
     }
   // Piena a riposo e sparita sotto il dito: e' questa faccia che la lente sostituisce. Per i pomelli e'
@@ -343,6 +344,13 @@ internal fun Modifier.glassDrop(
   }
   return glassDropKyant(backdrop, motion, lensSize, shape, layerBlock, onDrawSurface, shadowFade)
 }
+
+/**
+ * Per i test (F6-d): chi vuole leggere la goccia a ogni posa del suo layer, cioè pressione e le due scale che il layer
+ * ha appena ricevuto. Nullo in produzione: costa un confronto per posa, e con la sonda spenta non legge niente in più.
+ */
+@Volatile
+internal var glassDropLayerProbe: ((progress: Float, scaleX: Float, scaleY: Float) -> Unit)? = null
 
 /** La forza dell'ombra scura a una pressione: `1 − fade · p`, tenuta fra 0 e 1. */
 internal fun glassDropShadowAmount(fade: Float, progress: Float): Float =
@@ -791,7 +799,10 @@ internal fun rememberGlassDropRiseMotion(
         return@collectLatest
       }
       var last = -1L
-      model.reset(drag.progress * currentTravel())
+      // Da ferma la lente parte da dov'è. Se invece non si era ancora posata (il dito che inverte il verso o si ferma a
+      // metà gesto, e le molle della goccia che finiscono e ripartono) continua dallo stiramento che aveva: azzerarlo qui
+      // era uno scalino nella forma, nello stesso contatto (F6-d). Il primo passo, senza tempo, sposta solo la posizione.
+      if (model.isSettled) model.reset(drag.progress * currentTravel())
       while (true) {
         val now = withFrameNanos { it }
         val dt = if (last < 0L) 0f else (now - last) / 1e9f

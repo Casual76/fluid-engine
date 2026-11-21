@@ -1355,7 +1355,11 @@ rendono la pellicola più densa; le tinte di `GlassDefaults` lo fanno da sole, u
 ### Accessibilità del materiale Liquid
 
 - **Trasparenza ridotta.** `FluidTheme` osserva `Settings.Global.disable_window_blurs` da API 31 e la preferenza
-  `accessibility_reduce_transparency` su One UI, dove è leggibile. Un'app può chiedere lo stesso effetto con
+  `accessibility_reduce_transparency` su One UI («Riduci trasparenza e sfocatura»: su One UI 8 l'interruttore scrive
+  solo lei, e `framework.jar` la dichiara `@Readable`). Non c'è un'API pubblica, e `isCrossWindowBlurEnabled` su One UI
+  resta falso in tutti e due i casi. Il tema la rilegge anche quando l'Activity riprende e quando la finestra
+  ritrova il fuoco: l'interruttore sta nelle Impostazioni, e la notifica dell'osservatore a un'app in sottofondo
+  (congelata) può non arrivare. Un'app può chiedere lo stesso effetto con
   `CompositionLocalProvider(LocalFluidReduceTransparency provides true)`. Basta una delle due richieste. La
   ricetta porta la pellicola fissa, oppure il velo del profilo, almeno al 96% anche nella variante limpida.
   L'intensità delle transizioni continua a governare quanto materiale viene disegnato.

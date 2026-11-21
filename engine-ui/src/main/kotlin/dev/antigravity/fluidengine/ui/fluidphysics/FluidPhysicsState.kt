@@ -956,6 +956,14 @@ internal class PhysicsPlaneShape(
   /** Indice del donatore per un rilascio multiplo, l'indice del nato se il donatore è in un altro campo, -1 altrimenti. */
   val donorIndices: IntArray? = null,
   val slabFilms: List<GlassTint>? = null,
+  /**
+   * Il lato corto su cui la ricetta si sceglie, in pixel di layout; non finito (di serie) = quello delle lastre di
+   * adesso (`physicsRecipeShortPx`). Lo dà il grappolo fermo del contenitore mentre un suo pezzo è premuto (F6-c): è il
+   * lato corto **a riposo**, così la crescita del tasto premuto cambia la sua sagoma e non la ricetta di tutto il
+   * campo. Prima un tondo da 44 dp premuto arrivava a ~59 dp, passava la soglia dei grandi (48 dp) e il velo di tutti
+   * i pezzi si scuriva (S5d: il terzo tondo da 63,1 a 61,1 livelli mentre si teneva premuto il primo).
+   */
+  val recipeShortPx: Float = Float.NaN,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()

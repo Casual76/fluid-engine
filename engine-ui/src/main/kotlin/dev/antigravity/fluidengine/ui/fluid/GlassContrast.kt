@@ -203,18 +203,47 @@ internal val LocalGlassMultiWindow = compositionLocalOf { false }
 private const val DisableWindowBlurs = "disable_window_blurs"
 private const val SamsungReduceTransparency = "accessibility_reduce_transparency"
 
+/**
+ * Le chiavi di `Settings.Global` che dicono «trasparenza ridotta» su questo dispositivo (F6-e): quella AOSP da API 31 e,
+ * su Samsung, quella di Accessibilità → Ausili visivi → «Riduci trasparenza e sfocatura». Su One UI 8 (Tab S9, API
+ * 36) l'interruttore scrive solo `Settings.Global.accessibility_reduce_transparency`, e `framework.jar` la dichiara
+ * `SEM_ACCESSIBILITY_REDUCE_TRANSPARENCY` con `@Readable`: un'app la può leggere. Non c'è un'API pubblica: né
+ * `AccessibilityManager` né `UiModeManager` ne hanno una, e `WindowManager.isCrossWindowBlurEnabled` su One UI resta
+ * falso con l'interruttore acceso e spento.
+ */
+internal fun glassReduceTransparencyKeys(sdk: Int = Build.VERSION.SDK_INT, manufacturer: String? = Build.MANUFACTURER): List<String> =
+  buildList {
+    if (sdk >= 31) add(DisableWindowBlurs)
+    if (manufacturer.equals("samsung", ignoreCase = true)) add(SamsungReduceTransparency)
+  }
+
+/** Vero se almeno una delle [keys] vale 1. Una chiave che il sistema non lascia leggere conta come spenta, e si dice. */
+internal fun readGlassReduceTransparency(resolver: android.content.ContentResolver, keys: List<String>): Boolean =
+  keys.any { key ->
+    try {
+      Settings.Global.getInt(resolver, key, 0) == 1
+    } catch (e: RuntimeException) {
+      dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("a11y.transparency", key) {
+        "key=$key error=${e.javaClass.simpleName}"
+      }
+      false
+    }
+  }
+
+/**
+ * La trasparenza ridotta del sistema, **anche a caldo** (F6-e). Tre strade, perché una sola non basta:
+ * - l'osservatore di `Settings.Global`, per il cambio con l'app in primo piano;
+ * - la rilettura quando l'Activity riprende (`ON_START`, `ON_RESUME`): l'interruttore sta nelle Impostazioni, quindi
+ *   l'app è in sottofondo quando cambia, e su Samsung un'app in sottofondo viene congelata e la notifica
+ *   dell'osservatore può non arrivare (S5d: tornando a Foto, 0 pixel diversi);
+ * - la rilettura quando la finestra riprende il fuoco, per chi la cambia da un pannello sopra l'app.
+ * Leggere costa una chiamata al provider delle impostazioni, e si fa solo in questi momenti.
+ */
 @Composable
 internal fun rememberGlassSystemReduceTransparency(): Boolean {
   val resolver = LocalContext.current.contentResolver
-  val keys = remember {
-    buildList {
-      if (Build.VERSION.SDK_INT >= 31) add(DisableWindowBlurs)
-      if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) add(SamsungReduceTransparency)
-    }
-  }
-  fun read(): Boolean = keys.any { key ->
-    runCatching { Settings.Global.getInt(resolver, key, 0) == 1 }.getOrDefault(false)
-  }
+  val keys = remember { glassReduceTransparencyKeys() }
+  fun read(): Boolean = readGlassReduceTransparency(resolver, keys)
   var reduced by remember(resolver, keys) { mutableStateOf(read()) }
   DisposableEffect(resolver, keys) {
     val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -225,6 +254,20 @@ internal fun rememberGlassSystemReduceTransparency(): Boolean {
     }
     reduced = read()
     onDispose { if (keys.isNotEmpty()) resolver.unregisterContentObserver(observer) }
+  }
+  val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+  DisposableEffect(lifecycle, resolver, keys) {
+    val watcher = androidx.lifecycle.LifecycleEventObserver { _, event ->
+      if (event == androidx.lifecycle.Lifecycle.Event.ON_START || event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        reduced = read()
+      }
+    }
+    lifecycle.addObserver(watcher)
+    onDispose { lifecycle.removeObserver(watcher) }
+  }
+  val focused = LocalWindowInfo.current.isWindowFocused
+  androidx.compose.runtime.LaunchedEffect(focused, resolver, keys) {
+    if (focused) reduced = read()
   }
   return reduced
 }

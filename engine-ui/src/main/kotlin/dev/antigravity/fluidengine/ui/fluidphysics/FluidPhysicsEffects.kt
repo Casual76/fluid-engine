@@ -1320,7 +1320,10 @@ internal class PhysicsLiquidSurface(
     val press = pressState?.progress ?: 0f
     // Il piano flottante (F3.2c) porta nella sua forma il vetro in viaggio e la comparsa per lente.
     val planeShape = state.planeShapeNow()
-    val shortDp = physicsRecipeShortPx(plan) / screenDensity
+    // Il grappolo fermo con un pezzo premuto sceglie la ricetta sul lato corto a riposo (F6-c): la pressione è sagoma.
+    val restShort = planeShape?.recipeShortPx
+    val shortDp = (if (restShort != null && restShort.isFinite() && restShort > 0f) restShort else physicsRecipeShortPx(plan)) /
+      screenDensity
     val large = largeVeilWeight(glassLiquidLargeVeilGain(shortDp))
     largeVeilShown = large
     val access = accessibility()

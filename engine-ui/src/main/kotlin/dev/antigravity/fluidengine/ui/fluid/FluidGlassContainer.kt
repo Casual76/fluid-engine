@@ -101,6 +101,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneNeck
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneShape
 import dev.antigravity.fluidengine.ui.fluidphysics.PhysicsPlaneTouch
 import dev.antigravity.fluidengine.ui.fluidphysics.fluidPhysicsSurfaceInked
+import dev.antigravity.fluidengine.ui.fluidphysics.physicsFormShortPx
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneMotion
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
@@ -3264,6 +3265,8 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
     // distinte, una sagoma sola se sono della stessa unione (F3.2c). La stessa guida «a fotogramma» del palco, ferma.
     val plane = field.plane ?: PhysicsPlaneShape(field.slabs, nominalBlend = 0f, resting = true)
     val density = LocalDensity.current.density
+    // Il lato corto del grappolo a riposo (F6-c): la ricetta di tutto il campo resta questa mentre un pezzo è premuto.
+    val restShortPx = remember(plane) { physicsFormShortPx(plane.form()) }
     val current = remember(field, density, plane) {
       derivedStateOf {
         if (field.presses.none { it?.active == true }) plane else {
@@ -3273,7 +3276,7 @@ private fun FluidGlassRestSurface(field: FluidGlassRestField, carries: Boolean) 
             fluidGlassPressedSlab(slab, geometry.at(slab.frame.width, slab.frame.height, density))
           }
           PhysicsPlaneShape(slabs, plane.nominalBlend, plane.neck, plane.unions, resting = true,
-            slabFilms = plane.slabFilms)
+            slabFilms = plane.slabFilms, recipeShortPx = restShortPx)
         }
       }
     }

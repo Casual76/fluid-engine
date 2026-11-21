@@ -43,6 +43,8 @@ UI_FLUID_FILES = {
         "FluidSearchField", "FluidAdaptiveNavigation", "FluidBackgroundExtension",
         # il contratto della ricerca (F4A.1: solo dichiarazioni; F4A.2 la cabla, F4B.2 la riscrive)
         "FluidSearch",
+        # «trova nella pagina» (F6B.6)
+        "FluidFindInText",
     ],
     # righe, card, liste, testo ricco
     "contenuto": [

@@ -645,6 +645,14 @@ che le fasi devono rispettare; i nomi dei parametri secondari li fissa il pacche
 | simboli di sistema (`Image(systemName:)`, peso e scala dei simboli) | `object FluidIcons` (al tratto a peso 500; pieni per la tab bar) e `@Composable fun FluidIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current, size: Dp = Dp.Unspecified)`: senza `size` prende `LocalFluidIconSize`, che tasti, azioni di barra, capsula e tab bar forniscono (0,6 del vetro; 28 dp nella tab bar), e 24 dp fuori da un vetro. Nessun parametro di peso: il peso è del set. `Icon` di Material resta lecito ma non segue l'ambiente | F0.8, F1A.11 |
 | `controlSize` e `buttonSizing` che tornano ai valori di serie dentro fogli e popover (27) | le presentazioni dell'host azzerano `LocalFluidGlassSize` e lo stile d'ambiente dei tasti | F6.4 |
 | `GeometryProxy.concentricCornerRadii` (27) | `@Composable fun rememberFluidConcentricRadii(minimum: Dp = 0.dp): FluidCornerRadii` | F3.5 |
+| `EditMode`, `List(selection:)`, `toolbarVisibility(.hidden, for: .tabBar)` | `selection(state, count, onSelectAll, onDone, placement, actions)` nello scope della barra; la tab bar diventa la capsula delle azioni | F6B.1, F6B.2 |
+| `UIButton.Configuration.showsActivityIndicator`, `symbolEffect`, `contentTransition(.symbolEffect(.replace))` | `FluidActionButton(preset, state, onClick)`, `FluidActionState`, `FluidActionPreset`; `action` e `state` su `button` della barra e su `FluidCapsuleAction` | F6B.3a, F6B.3b |
+| `findNavigator(isPresented:)`, `UIFindInteraction` | `FluidSearchSpec.findInPage(…)` e `rememberFluidFindState(text)` | F6B.6 |
+| `searchable(text:tokens:suggestedTokens:)` | `tokens` di `FluidSearchSpec`; `FluidFilterChips(…)` | F6B.8 |
+| `ToolbarItemPlacement.keyboard` | `keyboard(context) { … }` nello scope della barra; fuori da `FluidScreen`, `FluidKeyboardBar(toolbar = { … })` | F6B.9 |
+| `Menu(content:label:primaryAction:)` | `action(id, icon, label, onClick = …, menu = …)`; `split(…)` nella barra e `FluidSplitButton(…)` da solo | F6B.11 |
+| `toolbarTitleMenu { }`, `UINavigationItem.titleMenuProvider` | `title(mode, subtitle, menu = { … })` oppure `title(…, panel = { … })` | F6B.11 |
+| `quickLookPreview`, `QLPreviewController` | `FluidFileViewer(count, initial, content, toolbar, tools, info)` | F6C.1 |
 
 ### 3.14 Le icone
 
@@ -994,10 +1002,15 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F5A | Menu e menu contestuale | 6 | 6 | — |
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
 | F6 | Controlli e tocco | 9 | 9 | S5 |
-| F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre) | da definire dopo R8 | — | una sua |
+| F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre, scritta il 21) | 18 | 17 | una sua |
+| F6C | Visori di file (aggiunta il 21 novembre) | 7 | 6 | con F6B o una sua |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 | F9 | Documentazione estesa e verifica d'adozione (aggiunta l'11 novembre) | 7 | 2 | — |
+
+F6B e F6C sono state scritte il 21 novembre: F6C parte dopo F6B.5a e F6B.1, in parallelo alla seconda metà di F6B, e
+chiude prima di F7. Con loro i pacchetti del piano diventano **109**, **97** con Gradle; il conto qui sotto è quello
+di partenza.
 
 In tutto **84 pacchetti** (83 nel piano di partenza, più F4A.7 nato dalle misure di S1-bis), **74** dei quali chiedono almeno una volta un posto Gradle, e **6 sessioni** per 14–19 ore
 previste sul dispositivo (è il programma iniziale: una fase riaperta da una sessione può chiederne un'altra, da concordare). Con tre critici per fase sono almeno 36 valutazioni, fino a 144 se ogni fase usasse i tre giri. Il
@@ -2846,22 +2859,960 @@ la maggior parte dei formati, con strumenti di modifica integrati, «una sorta d
   Gallery e Fluidify;
 - **dove sta**: l'interfaccia del visore nell'engine; ciò che decodifica (riproduzione, resa delle pagine) in un modulo
   a parte e facoltativo, perché `engine-ui` non deve portarsi dietro librerie pesanti: i preset ricevono il contenuto
-  già reso da chi lo sa rendere. È la parte più grossa della fase, e se cresce diventa una fase sua (F6C).
+  già reso da chi lo sa rendere. È la parte più grossa della fase, e se cresce diventa una fase sua (F6C). **Il 21 novembre è diventata F6C**, sotto.
 
 **Scelte di Alessio sull'impostazione della fase (2026-11-11, sera: «va bene così» sulle opzioni consigliate):**
 - **ordine**: barra delle azioni di selezione → tasti con stato ed esito → avviso che nasce dal tasto, con «un elemento
   che diventa pagina» portato avanti in parallelo (è motore: F5B.3 e F4A.6); poi gli altri;
 - **preset dei tasti con esito nella prima versione**: invia, salva, copia, scarica/carica, preferito;
 - **un elemento che diventa pagina**: la versione completa: sagoma continua e interrompibile, il dito che guida apertura
-  e chiusura, la pagina d'arrivo è una rotta vera (indietro, collegamenti, ripristino), e **Fluidify e Gallery migrano**
-  dal loro codice scritto a mano (la migrazione delle app resta un incarico a parte, ma è la prova che regge);
+  e chiusura, la pagina d'arrivo è una rotta vera (indietro, collegamenti, ripristino). La migrazione di Fluidify e Gallery,
+  prevista allora come incarico a parte, **è tolta dal piano** il 21 novembre: la fa Alessio, a mano, quando vuole;
 - **campo dall'alto**: decide **l'app, pagina per pagina**, se resta in cima o sale sopra la tastiera; i tasti
   inglobati si sfocano, rientrano nel campo e tornano alla chiusura.
 
-Pacchetti, perimetri, bersagli e sottocategorie si scrivono all'inizio della fase, con le risposte di Alessio qui sopra:
-fino ad allora questa sezione è la traccia, non il progetto. Regola valida da subito per le fasi prima: **non chiudere strade** a questi
-elementi (il modello delle barre di F4A deve poter essere sostituito da un altro modello a metà pagina; il campo di F4B
-deve accettare un contenuto sotto di sé; lo zoom di F5B deve partire da un elemento qualsiasi, non solo da una card).
+**Il progetto della fase** è stato scritto il 21 novembre 2026, all'inizio di F6B, dalla bozza del 19 novembre
+(`artifacts/liquid-glass/sessioni/f6b-piano/bozza-f6b.md`) e dalle risposte di Alessio a cinque giri di domande a scelta
+(sotto, «Scelte di Alessio del 21 novembre»). Le fasi prima dovevano **non chiudere strade** a questi elementi: il
+modello delle barre di F4A si sostituisce a metà pagina, il campo di F4B accetta un contenuto sotto di sé, lo zoom di
+F5B parte da un elemento qualsiasi. Il controllo è sotto, in «Cosa F6B trova pronto».
+
+Percorsi abbreviati: `ui/` = `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`, `test/` =
+`engine-ui/src/test/kotlin/dev/antigravity/fluidengine/ui/`, `ref/` = `skill/fluid-engine/references/`, `sample/…/` =
+`sample/src/main/kotlin/dev/antigravity/fluidengine/sample/`, `ai-ui/` =
+`engine-ai-ui/src/main/kotlin/dev/antigravity/fluidengine/aiui/`, `richtext/` =
+`engine-richtext/src/main/kotlin/dev/antigravity/fluidengine/richtext/`.
+
+**Scopo e perimetro.**
+
+Le app ricevono già fatti gli **elementi che appartengono all'interfaccia e non alla pagina** e che si trasformano. Oggi
+ogni app li costruisce da sé, «e maluccio» (Alessio). Ogni elemento ha dei **preset** pronti e una forma dichiarativa per
+farne uno su misura. Ogni elemento è un viaggio d'oro e ne segue il protocollo (F1B). L'elenco dei viaggi d'oro si
+allarga con quattro voci: (i) la barra di selezione; (j) «Invia», cioè il tasto con esito e l'avviso che nasce da lui;
+(k) l'elemento che diventa pagina guidato dal dito; (l) il campo con il composer.
+
+**Entra** (parole e scelte di Alessio, piano F6B):
+- i sei della prima tabella:
+  - la barra delle azioni di selezione;
+  - i tasti con stato di lavoro ed esito;
+  - i filtri e suggerimenti a pillole;
+  - la barra sopra la tastiera;
+  - l'elemento che diventa pagina;
+  - i preset d'uso del campo di inserimento dinamico;
+- le idee di R8 accettate:
+  - 10 · l'avviso che nasce dal tasto, con Annulla;
+  - 11 · la pillola di attività, **dentro il modello della barra in alto**;
+  - 3 · il composer dentro il campo;
+  - 9 · il tasto diviso;
+  - 14 · la pillola del titolo che diventa selettore;
+  - 16 · la fila di scelte che diventa menu, come comportamento di serie dei filtri a pillole e non come componente;
+  - 5 · «trova nella pagina», come modo del campo;
+- i visori di file (idea 17 trasformata), che diventano la fase **F6C** (sotto).
+
+**Le scelte già prese l'11 novembre:**
+- l'ordine: barra di selezione → tasti con esito → avviso dal tasto, con l'elemento che diventa pagina portato avanti in
+  parallelo; poi gli altri;
+- i preset dei tasti con esito della prima versione: invia, salva, copia, scarica/carica, preferito;
+- l'elemento che diventa pagina nella versione completa;
+- il campo dall'alto: lo decide l'app pagina per pagina; i tasti inglobati si sfocano, rientrano nel campo e tornano.
+
+**Resta fuori:**
+- 15, il pannello persistente a più altezze («non importa»);
+- le idee non commentate: tasto principale flottante (13, già in F5A), controllo che si espande dal tasto (18),
+  aggiornamento tirando (19), indicatore di posizione con anteprima (20), permesso nel punto in cui serve (21);
+- **la migrazione delle app**, per scelta di Alessio del 21 novembre: «non facciamo migrare nessuno noi, sarò io,
+  manualmente, ad andare nei progetti delle app quando voglio». F6B non tocca le app e non scrive note di migrazione;
+  i casi delle app restano solo come scene della galleria, per provare che l'engine li regge (F6B-e);
+- il ponte fra la pillola di attività e la notifica di sistema (Live Updates di Android 16). Il ponte è dell'app; il
+  modello dei dati è lo stesso;
+- i tasti con esito oltre i cinque preset (elimina con pressione lunga, sincronizza). Si possono fare con la forma
+  dichiarativa, ma non hanno un preset;
+- nei visori, gli strumenti di modifica veri. L'engine dà il posto e la barra; gli strumenti sono dell'app.
+
+**Cosa F6B trova pronto (la regola «non chiudere strade»).**
+
+Le tre condizioni che il piano poneva alle fasi precedenti, controllate il 19 novembre:
+- **Il modello delle barre si può sostituire a metà pagina** (F4A): sì. La pagina scrive lo stato con un `if` e la barra
+  fa il diff da sola (`ref/componenti/toolbar.md`, «Il caso tipo»). Manca il canale verso la tab bar, che non è della
+  pagina ma della shell. È il cuore di F6B.1 e F6B.2.
+- **Il campo di F4B accetta un contenuto sotto di sé**: sì. `FluidSearchSpec` ha gli slot `suggestions` e `scopes`
+  (`ui/fluid/FluidSearch.kt`), posati da `FluidToolbarSearchOverlay` (`ui/fluid/toolbar/FluidToolbarSearch.kt:356-361`).
+  Ha anche `purpose = Input` ed `expansion = StayAtTop | AboveKeyboard`.
+- **Lo zoom parte da un elemento qualsiasi** (F5B.3): sì. `Modifier.fluidTransitionSource(id, ns, shape)` va su qualunque
+  composable. La geometria è pura e scritta apposta per F6B (`ui/page/FluidZoom.kt`; `ref/componenti/pagine.md`,
+  «Per F6B»).
+
+Il resto che F6B riusa:
+- il piano flottante con identità, unione, lente e contenuto che si sfoca (F3, F3.4);
+- la DSL `toolbar { }`, che comprende `action(id, icon, label, menu)` (`ui/fluid/toolbar/FluidToolbar.kt:343`), le
+  priorità, il trabocco e le sorgenti degli elementi;
+- la barra in basso dichiarata (F4B.1);
+- la ricerca dalla lente al campo, sopra la tastiera (F4B.2);
+- la tab bar sul piano, con l'accessorio (F4B.3);
+- il viaggio in tre tempi del menu e del contestuale (F5A);
+- popover, avviso e conferma che nascono dalla sorgente in tre tempi, il foglio a detent e lo zoom (F5B);
+- la pressione, il bagliore, gli stili e la taglia d'ambiente (F6);
+- `FluidSelectionState`, `FluidNotificationHost`, `FluidFloatingCapsule`, `FluidSearchField` (con `navigation`),
+  `FluidTokenField`, `FluidChip`, `FluidComposer` (in engine-ai-ui), `FluidRichTextToolbar` (in engine-richtext),
+  `FluidImageViewer` con `fluidZoomable`, `FluidFileKind` e `FluidScrubber`.
+
+**Progetto tecnico.**
+
+Per ogni elemento: cosa riusa, cosa manca, dove sta, l'API e cosa fa Apple. Firme e nomi sono una
+proposta: i nomi dei parametri secondari li fissa il pacchetto, come nella 3.13 del piano.
+
+**Due regole valgono per tutti gli elementi:**
+- **Compatibilità (3.11).** Non si aggiungono valori agli enum pubblici: rompono i `when` esaustivi delle app. Le
+  posizioni nuove, come la tastiera, sono funzioni dello scope che portano un valore interno. I campi nuovi delle data
+  class pubbliche (`FluidSearchSpec`, `FluidNotification`) vanno **in coda**, con un valore di serie.
+- **Viaggio d'oro.** Ogni elemento nasce da qualcosa e torna in qualcosa. Non c'è mai un fotogramma in cui sorgente e
+  arrivo sono leggibili insieme (la regola di F5B-a). Il contenuto che cambia identità entra sfocato (R7).
+
+**1 · Barra delle azioni di selezione.**
+
+- **Riusa:**
+  - il modello e la DSL della barra (F4A): «Seleziona» → «Fine», il titolo che diventa «3 selezionate» con lo scambio
+    sfocato, le azioni con priorità e trabocco «···»;
+  - la barra in basso dichiarata (F4B.1);
+  - `FluidSelectionState` con «Seleziona tutto» su liste paginate (`AllExcept`), `FluidSelectionBackHandler` e
+    `FluidSelectionMark`;
+  - le posizioni di `FluidFloatingCapsulePlacement` (`ReplacingTabBar`, `AboveTabBar`).
+- **Manca:**
+  1. **Il canale verso la tab bar.** La tab bar sta nella shell e legge il `FluidChromeController`
+     (`ui/fluid/FluidScreen.kt:188`). Oggi la pagina le passa solo il fondale. Serve uno stato interno
+     `bottomReplacement`: la dichiarazione della barra in basso della pagina **davanti**, con il segno «sostituisce la
+     tab bar». Si elegge come `activeBackdrop`, quindi durante un gesto indietro vale la pagina in cima (D1).
+  2. **La trasformazione nella tab bar** (F6B.2). La pillola delle schede **diventa** la capsula delle azioni dentro lo
+     stesso contenitore del piano. Le icone delle schede escono sfocate, quelle delle azioni entrano sfocate (F3.4) e la
+     larghezza cambia in continuo. Il tondo prominente o della ricerca confluisce nel vicino oppure diventa il vetro di
+     «···». Alla fine si fa il viaggio inverso. È la parola di Alessio: la tab bar «si trasforma nelle azioni e torna
+     com'era».
+  3. **Un preset che scrive tutto in una riga sola**: il titolo col conteggio (area viva per TalkBack), «Seleziona tutto»
+     o «Deseleziona», «Fine», le azioni in basso, il back che esce dalla selezione e non dalla pagina.
+  4. **Il gesto indietro durante la selezione** segue la regola D1: niente cambia finché il gesto non è confermato; al
+     rilascio la barra torna tab bar. Oggi `FluidSelectionBackHandler` registra un `BackHandler` semplice, che scatta al
+     rilascio: D1 dovrebbe valere già. Va verificato con il gesto predittivo e scritto in un test.
+  5. **Il tablet con la barra laterale** (scelta di Alessio): la barra delle azioni sta nel pannello della lista, come
+     fa già Notes. Rail e barra laterale non si trasformano.
+- **Dove:**
+  - `ui/fluid/toolbar/FluidSelectionToolbar.kt` (nuovo): l'estensione dello scope e i preset;
+  - un aggancio in `ui/fluid/FluidScreen.kt` (pubblica la sostituzione e compone il back della selezione);
+  - un aggancio in `ui/page/FluidPageAnchoredBar.kt` (lo stesso per la barra dell'host);
+  - `ui/fluid/FluidFloatingTabBar.kt` (F6B.2).
+- **API** (SwiftUI `EditMode` + `List(selection:)` + `ToolbarItemGroup(placement: .bottomBar)` + la tab bar nascosta con
+  `toolbarVisibility(.hidden, for: .tabBar)` → engine):
+  - `FluidToolbarScope.selection(state: FluidSelectionState<*>, count: Int?, onSelectAll: (() -> Unit)?, onDone: () ->
+    Unit, placement: FluidSelectionBarPlacement = ReplacingTabBar, actions: FluidToolbarScope.() -> Unit)`;
+  - le posizioni `ReplacingTabBar`, `AboveTabBar`, `Top` (per le pagine senza barra in basso, come Notes) e `Floating`
+    (come Gallery);
+  - i preset `FluidSelectionActions.mail(…)`, `.gallery(…)`, `.files(…)`, `.deleteOnly(…)`: funzioni che ricevono le
+    callback e scrivono azioni, priorità e trabocco;
+  - le righe cambiano solo lo spazio `leading`, che ospita il segno di selezione, così la lista non salta.
+- **Apple:** la barra che cambia contesto è R1 C6 e R4 B2 (misurata). La barra in basso è R1 B8. **La selezione in iOS 26
+  (Foto, Mail, File) non è documentata né misurata** (R8: le fonti non descrivono la barra). Serve una ricerca breve
+  (F6B.0) su un video o una registrazione di Foto o File in modalità «Seleziona».
+
+**2 · Tasti con stato di lavoro ed esito (invia, salva, copia, scarica/carica, preferito).**
+
+- **Riusa:**
+  - lo scambio sfocato delle icone (F3.4, R7);
+  - la pressione e il bagliore (F6.1, F6.2);
+  - gli stili e la taglia d'ambiente (F6.4);
+  - la DSL della barra e `FluidCapsuleAction`;
+  - l'aptica dell'engine, con un evento per ogni momento.
+- **Manca tutto il resto:**
+  1. **Lo stato**, puro e posseduto dall'app: `FluidActionState` con `Idle`, `Working(progress: (() -> Float)?)`,
+     `Succeeded`, `Failed`, `Cancelled`. Il tasto non contiene logica: la rotazione e la ricomposizione non lo azzerano,
+     perché lo stato sta nel modello dell'app.
+  2. **Un esecutore facoltativo**, `rememberFluidActionRunner(minWorking = 300 ms, hold = …)`. Trasforma una funzione
+     `suspend` negli stati con le regole di R8:
+     - un lavoro più breve di ≈300 ms non mostra «lavoro» ma solo l'esito;
+     - il tasto è spento mentre lavora;
+     - l'esito resta per un tempo per preset, poi si torna a riposo, oppure l'esito resta se lo si chiede.
+  3. **I glifi animati dei cinque preset** (F6B.3b), disegnati e non presi da un'immagine:
+     - **Invia**: l'aeroplanino «si carica» mentre lavora; a riuscita **parte** in diagonale (traslazione più la
+       sfocatura uniforme di R7, non di moto); a fallimento torna indietro con una scossa del solo contenuto e passa a «Riprova».
+     - **Salva**: anello, poi la spunta si disegna; a fallimento una X.
+     - **Copia**: nessun lavoro; l'icona diventa spunta per ≈1 s.
+     - **Scarica e Carica**: la freccia diventa un anello con la percentuale, con pausa e ripresa; a riuscita la freccia
+       cade nell'anello pieno e diventa spunta.
+     - **Preferito**: ottimistico. Si riempie subito con un piccolo rimbalzo; se l'app lo rifiuta torna vuoto con una
+       scossa.
+
+     I simboli di Material Symbols sono forme piene, non tratti: «disegnare» la spunta va fatto con una maschera che la
+     rivela lungo il suo verso, non con il taglio del tracciato.
+  4. **Una larghezza fissa**, la più larga fra gli stati. È necessaria perché il piano non regge un pezzo la cui misura
+     segue un valore continuo (`ref/componenti/piano-flottante.md`, «Cosa non fa ancora»). Anello e percentuale sono
+     contenuto e non toccano il vetro. Le cifre sono tabulari.
+  5. **L'accessibilità**: TalkBack annuncia «Invio in corso…», «Inviato», «Invio non riuscito» con un'area viva. Con il
+     movimento ridotto l'esito è un cambio d'icona senza moto.
+  6. **Le due scelte di Alessio** (21 novembre):
+     - l'esito negativo fa tremare **solo il contenuto**, con la tinta d'errore dentro il vetro; il vetro resta fermo
+       e i vicini non saltano;
+     - il lavoro dei preset senza un gesto proprio (Salva, Carica) è **un anello sottile attorno all'icona**, dentro il
+       vetro, con la percentuale quando c'è.
+- **Dove:**
+  - `ui/fluid/action/FluidActionState.kt`, `FluidActionButton.kt` e `FluidActionGlyphs.kt` (tutti nuovi);
+  - un parametro su `button`, `primary` e `confirm` della barra (`ui/fluid/toolbar/FluidToolbar.kt` e
+    `FluidToolbarModel.kt`: la chiave del contenuto comprende lo stato);
+  - un parametro in coda su `FluidCapsuleAction` (`ui/fluid/FluidFloatingCapsule.kt`).
+- **API** (UIKit `UIButton.Configuration.showsActivityIndicator`, SwiftUI `symbolEffect` e
+  `contentTransition(.symbolEffect(.replace))`, le animazioni di disegno di SF Symbols 7 → engine):
+  - `FluidActionButton(preset: FluidActionPreset, state: FluidActionState, onClick, label: String?, style)`;
+  - nella barra: `button(id, icon, label, onClick, …, action = FluidActionPreset.Send, state = …)`;
+  - nella capsula: `FluidCapsuleAction(…, action = …, state = …)`;
+  - i preset `FluidActionPreset.Send`, `Save`, `Copy`, `Download`, `Upload`, `Favorite`;
+  - un preset su misura: `FluidActionPreset.custom(idle, working, success, failure)`, con icone e glifi animati scelti
+    fra quelli dell'engine.
+- **Apple:**
+  - il tasto con l'indicatore di attività al posto dell'immagine è in R1 K7 (documentato);
+  - il riscontro sull'esito è nella HIG Feedback (R8);
+  - le animazioni Draw e Magic Replace di SF Symbols 7 (WWDC25 337, R8) sono documentate, ma **i loro tempi non sono
+    misurati**: serve una ricerca breve (F6B.0) sulla clip della sessione 337;
+  - l'aeroplanino che «parte» è un'idea di Alessio e Apple non ne ha un riferimento: si fa a occhio.
+
+**3 · Avviso che nasce dal tasto, con Annulla.**
+
+- **Riusa:**
+  - `FluidNotificationHost` con `inlineActions` (fino a due), `replaceGroup` (un solo Annulla per le azioni di massa),
+    `updateCurrent` (per il conto alla rovescia e per «Inviata») e `showForResult` (`ref/componenti/notifiche.md`);
+  - il viaggio in tre tempi dalla sorgente di F5B.1 (raccolta, viaggio, posa) e la sua chiusura in 250 ms;
+  - le sorgenti di F5A.1, comprese quelle degli elementi della barra.
+- **Manca:**
+  1. **La sorgente nella notifica**: `FluidNotification(…, source: FluidTransitionSource? = null)`, in coda. Il riquadro
+     e la forma si leggono **quando si pubblica**, perché la pagina può essere già chiusa (il compositore di Mail):
+     l'avviso nasce da quel punto anche se il tasto non c'è più (R8, scheda 10).
+  2. **Il viaggio**: la faccia del tasto si spegne mentre la goccia si raccoglie; la goccia va al punto di posa, vicino al tasto (scelta di Alessio), e la
+     card si apre attorno a lei col testo sfocato e piegato dalla lente; poi si posa. All'uscita torna nel tasto se il
+     tasto è ancora lì, altrimenti scivola via come oggi.
+  3. **Il conto alla rovescia dell'Annulla**: un anello che si svuota attorno ad «Annulla» (scelta di Alessio). La scadenza resta dell'app, come dice la scheda
+     delle notifiche.
+  4. **Il viaggio composto «Invia»**: il tasto con esito riesce, l'aeroplanino parte, l'avviso nasce dal tasto e poi si
+     aggiorna in «Inviata». Facoltativo: «Annulla» riapre il compositore con un elemento che diventa pagina, con
+     l'avviso come sorgente (F6B.5).
+- **Dove:**
+  - `ui/fluid/FluidNotification.kt` (il campo e la coda);
+  - `ui/fluid/FluidNotificationSource.kt` (nuovo: la lettura della sorgente e il viaggio).
+
+  **Incognita architetturale, da sciogliere all'inizio del pacchetto.** Il viaggio in tre tempi oggi vive nell'host dei
+  modali, nei file di F5A e F5B. L'host delle notifiche è un altro host alla radice. Ci sono due strade:
+  - (a) il codice del viaggio si estrae in un punto comune; il pacchetto dichiara i file prima di scrivere;
+  - (b) l'avviso con sorgente si presenta attraverso l'host dei modali come presentazione parallela, senza velo, e la
+    coda resta di `FluidNotificationHostState`.
+
+  Il pacchetto sceglie e lo scrive.
+- **API:**
+  - `host.show(FluidNotification(…, source = rememberFluidToolbarTransitionSource("send")))`;
+  - i preset `FluidNotification.undo(title, seconds, onUndo, source, group)`, `.result(success, …)` e
+    `.reminder(action, …)`;
+  - SwiftUI non ha un equivalente.
+- **Apple:** le presentazioni che nascono dalla sorgente sono R1 P4 e P5, documentate e misurate in F5B. L'avviso
+  «Annulla invio» di Mail di Apple compare in basso nella lista, **senza nascere dal tasto** (osservazione comune, non in
+  R1: da verificare in F6B.0). La nascita dal tasto è nostra: è l'estensione della regola di F5B.
+
+**4 · Un elemento che diventa pagina (versione completa).**
+
+- **Riusa** lo zoom di F5B.3:
+  - la sagoma continua fra la sorgente e la pagina, sulla molla di Apple a 0,355 s nei due versi;
+  - il dito che chiude e riporta nella sorgente (`FluidZoom.follow`), la sorgente consumata e il ripiego senza salti;
+  - la regola della barra ferma che si trasforma;
+  - le interruzioni conservate (F4A.6);
+  - le rotte di `FluidNavHost` con `zoomSource = { entry -> … }`.
+- **Manca** (R8, scheda 12, punti 1–5, e la scelta C di Alessio):
+  1. **Il dito che apre.** Oggi il push parte solo da un tocco. Serve un push guidato dal gesto, che parte dalla
+     sorgente e si interrompe e inverte in ogni punto: `Modifier.fluidOpenGesture(direction = Up, onOpen)`.
+  2. **La chiusura trascinando in giù.** `FluidBackSwipe` conosce solo `EdgeOnly` e `Anywhere`, cioè orizzontale
+     (`ui/page/FluidPageTransition.kt:49`). Serve una chiusura verticale per il mini lettore e per i visori. Va
+     aggiunta come opzione di una classe nuova o come parametro, non come valore dell'enum.
+  3. **L'elemento condiviso e i tre tratti disgiunti**: la faccia della sorgente esce; l'elemento condiviso (copertina,
+     miniatura) riempie lo spazio viaggiando sul proprio riquadro; la chrome d'arrivo sale per ultima.
+     `Modifier.fluidSharedElement(key, ns)` va nella sorgente e nella pagina. L'host lo disegna fra i due riquadri sullo
+     stesso orologio della sagoma.
+  4. **«Cresce»** (scelta di Alessio del 21 novembre): la sagoma parte di vetro, col materiale della pillola, **resta
+     vetro per tutta la corsa e diventa opaca solo all'arrivo**. Al tocco è un'esplosione rapida del tasto, cioè del
+     vetro liquido, nella pagina; arrivato, il vetro si solidifica nella versione opaca, in modo naturale. Non deve
+     dare fastidio: la sfocatura e lo scurimento dello sfondo crescono in modo progressivo, con una curva scelta perché
+     il passaggio non sembri strano. Il trascinamento va curato allo stesso livello: col dito la sagoma resta vetro
+     finché non si posa, e sfocatura e scurimento seguono la corsa del dito con la stessa curva.
+  5. **Rotta vera**: back stack, collegamenti e ripristino dopo la morte del processo. Dopo il ripristino la pagina è
+     aperta senza viaggio, e il ritorno cerca la sorgente oppure usa il ripiego.
+  6. **Il tablet**: se la destinazione è un pannello (`FluidPaneScaffold`), la sagoma cresce fino ai bordi del pannello.
+  7. **La rotazione a metà viaggio**: si riparte dalla geometria nuova con lo stato intatto.
+- **I preset** (`FluidZoomStyle`):
+  - **Zoom**: una card o una miniatura diventa pagina, con l'elemento condiviso. È il caso della griglia e del visore
+    di Gallery;
+  - **Sale**: un accessorio in basso diventa la pagina intera, guidata dal dito. È il mini lettore di Fluidify. La
+    sorgente è il contenuto dell'accessorio, che l'app marca da sé, quindi la tab bar vendored non si tocca;
+  - **Cresce**: una pillola di vetro diventa pagina o pannello. È la pillola della località di Weather;
+  - **Dalla barra**: un tasto della barra diventa pagina («Scrivi» → compositore di Mail), con
+    `rememberFluidToolbarTransitionSource`.
+- **Dove:**
+  - `ui/page/FluidPageHostState.kt`, `FluidPageInput.kt` e `FluidPageTransition.kt` (F6B.5a);
+  - `ui/page/FluidZoom.kt`, `FluidSharedElement.kt` (nuovo), `FluidPageMotion.kt` e `FluidPageHost.kt` (F6B.5b);
+  - `ui/page/FluidZoomPresets.kt` (nuovo) e i due casi delle app in galleria (F6B.5c).
+- **API** (SwiftUI `matchedTransitionSource` + `navigationTransition(.zoom)` → engine):
+  - `composable(route, transition = FluidPageTransition.Expand, zoomSource = …, zoom = FluidZoomStyle.Rise, dismiss =
+    FluidPageDismiss.Down)`;
+  - `Modifier.fluidOpenGesture(…)` e `Modifier.fluidSharedElement(key, ns)`;
+  - con `FluidPageHost` gli stessi parametri per chiave.
+- **Apple:**
+  - lo zoom è R1 V4 e P3, documentato. La molla è misurata in F5B.3 e corretta a tempo vero da corr-zoom (WWDC24 10145, critica, 0,355 s);
+  - il mini lettore che diventa «In riproduzione» di Musica è osservabile ma non è in R1 né in R4: serve una ricerca
+    breve (F6B.0) su un video in cui si apra col dito;
+  - **la dissolvenza di Apple all'arrivo è ancora una domanda aperta di F5B.3** (`stato.md`) e vale anche qui.
+
+**5 · Il campo di inserimento dinamico: i preset d'uso.**
+
+- **Riusa** F4B.2 per intero:
+  - la lente da 44 dp che diventa campo da 40 dp sul piano;
+  - i vicini che si ritirano;
+  - la salita sopra la tastiera (`searchImeViewport`);
+  - `purpose = Search | Input` e `expansion = StayAtTop | AboveKeyboard`, scelte dalla pagina, come ha deciso Alessio;
+  - `suggestions` e `scopes` in linea;
+  - il testo che entra con la sfocatura;
+  - lo stato salvato.
+- **Manca:**
+  1. **I preset** come costruttori di `FluidSearchSpec`. Ognuno decide icona, segnaposto, il tasto a destra (cancella,
+     invio), il comportamento all'invio (chiude o resta aperto) e se il testo va a capo:
+     - `FluidSearchSpec.search(…)`, la ricerca di oggi;
+     - `.message(…)`, che resta aperto dopo l'invio;
+     - `.note(…)`;
+     - `.assistant(…)`;
+     - `.findInPage(…)`, il punto 12.
+  2. **I campi in coda** su `FluidSearchSpec`: `navigation: FluidSearchNavigation?`, `onSubmit: Close | StayOpen`,
+     `maxLines` (1 di serie). I campi del composer e dei gettoni arrivano con F6B.7 e F6B.8.
+  3. **I tasti inglobati come ha scelto Alessio.** Oggi, a campo attivo in alto, tutti i comandi della riga passano in
+     «Altro» (`FluidToolbarSearch.kt:221-222`). Va verificato sui video di F4B.5 che si **sfocano e rientrano nel
+     campo**, cioè che il loro vetro confluisce in quello del campo e le icone svaniscono sfocate, e che tornano con il
+     viaggio inverso. Se non è così, va ritoccato qui.
+- **Dove:** `ui/fluid/FluidSearch.kt` (i campi in coda e i preset), `ui/fluid/toolbar/FluidToolbarSearch.kt` e
+  `ui/fluid/FluidSearchField.kt`.
+- **API** (SwiftUI `searchable(text:placement:prompt:)`; per l'inserimento, un `TextField` nella `.toolbar` o in
+  `safeAreaInset` → engine): `FluidScreen(search = FluidSearchSpec.message(text, onText, onSend, expansion =
+  AboveKeyboard))`.
+- **Apple:** la ricerca è in R1 R1–R5 e T5. Il campo fissato di iOS 27 è in R5 V5. Gli ambiti in linea sono in R5. Il
+  tempo del campo è misurato in F4B.2 (WWDC25 256). **Il campo di scrittura di Messaggi non è documentato** (vedi 7).
+
+**6 · «Trova nella pagina».**
+
+- **Riusa:** `FluidSearchField` ha già `navigation` con il contatore «3/12», le frecce, «Nessun risultato» e l'area viva
+  per TalkBack (`ref/componenti/barre.md`, «FluidSearchField»). Il campo sale sopra la tastiera (F4B.2).
+- **Manca:**
+  1. **Il preset** `FluidSearchSpec.findInPage(query, onQueryChange, navigation, active, onActiveChange)`: il campo sta
+     sopra la tastiera e **non sostituisce la navigazione**, quindi la barra in alto resta. Invio passa al risultato
+     successivo.
+  2. **Un aiuto facoltativo per il testo semplice**: `rememberFluidFindState(text)` trova le occorrenze in una `String`
+     o in un `AnnotatedString` e dà gli evidenziatori, l'occorrenza corrente e la richiesta di scorrimento. Le app con
+     contenuti complessi calcolano da sé le occorrenze (Notes, `TranscriptSearchBar.kt`).
+- **Dove:** `ui/fluid/FluidSearch.kt` e `ui/fluid/toolbar/FluidToolbarSearch.kt` (con F6B.6); `ui/fluid/FluidFindInText.kt`
+  (nuovo).
+- **Apple:** SwiftUI `findNavigator(isPresented:)` e UIKit `UIFindInteraction` sono documentati da iOS 16. **L'aspetto in
+  iOS 26 non l'ha visto nessuno nel progetto**: serve una ricerca breve (F6B.0).
+
+**7 · Il composer dentro il campo.**
+
+- **Riusa:**
+  - il campo di F4B.2 con i preset di F6B.6;
+  - `FluidComposer` di engine-ai-ui (`ai-ui/chat/FluidComposer.kt:266`), che ha già `leading`, `chips`, `pills` (gli
+    allegati), `voiceLine`, `glow`, `maxLines = 6`, e l'azione a destra (microfono, invio, stop) come funzione pura;
+  - il cambio di stato del tasto di F6B.3a.
+- **Manca:**
+  1. **Il campo che cresce su più righe** fino a `maxLines` e poi scorre dentro. È un pannello che cresce, cioè un cambio
+     del contenitore: il **bordo alto** sale e quello basso resta sopra la tastiera.
+  2. **Un vassoio degli allegati sopra il testo**, che cresce verso l'alto.
+  3. **Lo slot a sinistra** (il «+»).
+  4. **Il tasto a destra a stati**: dettatura, invio e stop sulla **stessa sagoma**, con le icone che si incrociano
+     sfocate. Non sono tre tasti.
+  5. **La riga della voce** al posto del testo mentre si ascolta.
+
+  **Scelta di Alessio (21 novembre):** «ne costruiamo uno nuovo sui nuovi componenti aggiornati, sempre reso un po'
+  speciale (tipo campo di testo con alone attorno può essere un'idea)». Il campo dell'engine ospita le parti;
+  engine-ai-ui costruisce su di lui il **composer nuovo dell'assistente**, con chip, pillole, riga della voce e un alone
+  attorno al campo. `FluidComposer` di oggi resta com'è: le app che lo usano (ClasseViva, PampAI) passano al nuovo a
+  mano, quando lo decide Alessio.
+- **Dove:**
+  - `ui/fluid/FluidSearchField.kt`, `ui/fluid/toolbar/FluidToolbarSearch.kt` e `ui/fluid/FluidSearch.kt` (dopo F6B.6);
+  - `ai-ui/chat/FluidComposerInField.kt` (nuovo).
+- **API:** `FluidSearchSpec.message(…, composer = FluidComposerSlots(leading, attachments, trailing = FluidComposerAction…,
+  voiceLine))` e, in engine-ai-ui, `fluidAssistantField(state, …)`, che restituisce lo spec già riempito.
+- **Apple:** il composer di Messaggi in iOS 26 **non è documentato né misurato** (R8: «Messaggi: "+", dettatura, invio»).
+  In iOS 27 il tasto a destra si può fissare, ma la fonte è secondaria e su una beta (R8). Serve una ricerca breve
+  (F6B.0); altrimenti si fa a occhio.
+
+**8 · Filtri e suggerimenti a pillole, che diventano menu per l'accessibilità.**
+
+- **Riusa:**
+  - `FluidChip` di vetro, che cede il dito alla fila (`ui/fluid/FluidControls.kt:733`);
+  - `FluidTokenField` con i suggerimenti;
+  - gli ambiti in linea di F4B.2;
+  - il menu dalla sorgente (F5A.1, F5A.2) con le voci a interruttore che lasciano il menu aperto (`keepsMenuOpen`,
+    F5A.3).
+- **Manca:**
+  1. **Una fila di filtri dichiarata**: `FluidFilterChips(filters, selection, onChange, mode = Single | Multiple)`. Si
+     usa sotto il campo, nel pannello dei suggerimenti, e anche fuori dalla ricerca.
+  2. **La fila che diventa menu come comportamento di serie.** Quando le pillole non stanno nella larghezza (tipicamente
+     a testo grande: in Transit, `ChipLayoutTest.kt`, le etichette si leggevano «Tutt», «Urba»), la fila si raccoglie in
+     **un** tasto di vetro «Filtri · 2». Il tasto apre il menu dal proprio vetro con le stesse voci a interruttore. È la
+     stessa regola di risoluzione del trabocco della barra, cioè priorità e larghezza misurata.
+  3. **Una pillola con molti valori** (periodo: 7 giorni, 30 giorni, altro) si apre in menu dal suo vetro.
+  4. **Una pillola scelta diventa gettone nel campo** e il suo posto si richiude. Servono i gettoni dentro
+     `FluidSearchField`: oggi stanno solo in `FluidTokenField`.
+  5. **I suggerimenti**: una lista sola ordinata per pertinenza, in cui la pertinenza è dell'app; i recenti con la ✕ per
+     riga; mai un «Nessun risultato» prima del primo carattere (Transit).
+- **I preset:** Ambiti (esclusivi, in linea), Filtri a scelta multipla, Intervalli, Gettoni («da: persona»), Recenti,
+  Vicini e popolari.
+- **Dove:**
+  - `ui/fluid/FluidFilterChips.kt` (nuovo);
+  - un aggancio in `ui/fluid/FluidControls.kt`: `FluidChip` diventa una sorgente del menu;
+  - i gettoni in `FluidSearch.kt` e in `FluidSearchField.kt`, dopo F6B.7.
+- **API** (SwiftUI `searchScopes(_:activation:)`, `searchable(text:tokens:suggestedTokens:)`, `searchSuggestions`,
+  `searchCompletion` → engine):
+  - `FluidSearchSpec(…, filters = FluidFilterSet(…), tokens = …)`;
+  - `FluidFilterChips(…)`.
+- **Apple:**
+  - ambiti, gettoni e suggerimenti sono R1 R5 (documentati); gli ambiti in linea sono di iOS 27 (R5);
+  - **la fila che diventa menu non è un componente di Apple**: si giustifica con la regola HIG sul testo dinamico. A
+    occhio.
+
+**9 · Barra sopra la tastiera.**
+
+- **Riusa:**
+  - il modello della barra di F4A: gruppi, priorità, trabocco, ruoli, il diff fra due stati. Così un cambio di contesto
+    (selezione → formattazione, destinatari → suggerimenti) si trasforma da solo;
+  - la quota dell'IME di F4B.2;
+  - `FluidRichTextToolbar` (`richtext/FluidRichTextToolbar.kt:96`), oggi un solo preset scritto per un'app, e il tondo
+    «Aa» (`FluidRichTextFormatButton`).
+- **Manca:**
+  1. **Una sede nuova**, `FluidKeyboardBar`. Si vede quando l'IME è visibile e un campo ha il fuoco, oppure sempre, se lo
+     si chiede. Segue l'altezza della tastiera fotogramma per fotogramma, senza attese. Quando la tastiera arriva in
+     ritardo, segue l'altezza che arriva.
+  2. **La dichiarazione nello scope**: `keyboard { … }`, una funzione che porta una posizione interna, quindi nessun
+     valore nuovo nell'enum pubblico. Ha una chiave di contesto.
+  3. **I preset:**
+     - **Navigazione fra campi**: precedente, successivo e Fatto, col `FocusManager`;
+     - **Azioni rapide**: allegato, foto, dettatura, «Scrivi con Aria» di Mail;
+     - **Suggerimenti**: destinatari e parole, con `FluidTokenSuggestion`;
+     - **Cronologia**: annulla e ripeti;
+     - **Cerca nel testo**: il contatore del punto 6;
+     - **Formattazione**: `FluidRichTextToolbar` riscritto come preset di questa barra, con la firma di oggi.
+  4. **I casi limite:**
+     - con la tastiera fisica la barra si ancora al fondo della finestra (scelta di Alessio);
+     - con la tastiera flottante o divisa sul tablet sta sul bordo basso della finestra;
+     - il back chiude tastiera e barra insieme;
+     - quando la ricerca è sopra la tastiera (`AboveKeyboard`), il campo sta sopra la barra.
+- **Dove:**
+  - `ui/fluid/toolbar/FluidKeyboardBar.kt` (nuovo: la sede);
+  - lo scope in `FluidToolbar.kt` e in `FluidToolbarModel.kt`;
+  - la sede posata da `FluidScreen.kt`;
+  - `richtext/FluidRichTextToolbar.kt`.
+- **API** (SwiftUI `ToolbarItemGroup(placement: .keyboard)` → engine):
+  - `FluidScreen(toolbar = { keyboard(context = campo) { button(…); flexibleSpacer(); primary(…) } })`;
+  - fuori da `FluidScreen`: `FluidKeyboardBar(toolbar = { … })`.
+- **Apple:** `ToolbarItemPlacement.keyboard` è documentato (iOS 15), ma R8 non l'ha potuto verificare. **L'aspetto in iOS
+  26 non è misurato**: serve una ricerca breve (F6B.0). Il vetro non può rifrangere la tastiera, che è un'altra finestra
+  (R1 O1): sul bordo verso la tastiera il velo è più pieno, come prevede il rischio di F4B.
+
+**10 · Pillola di attività, dentro il modello della barra in alto.**
+
+- **Riusa:**
+  - il modello della barra: la pillola è un **elemento** con un `id`, che prende il posto del titolo (punto 5) e cede
+    il posto come gli altri, ed entra nella risoluzione delle larghezze e delle priorità;
+  - la barra che si ritira (F4A.4): a barra ritirata la pillola diventa minima, cioè il solo anello;
+  - il popover dalla sorgente (F5B.1) per la forma estesa;
+  - il tasto con esito e l'avviso (F6B.3, F6B.4) per l'esito.
+- **Manca:**
+  1. **Un modello delle attività**, alla radice come le notifiche. L'app pubblica `FluidActivity(id, kind, progress: (()
+     -> Float)?, title, actions)` su un `FluidActivityHostState`; l'engine mostra la più importante e un contatore.
+     **La difficoltà sta qui** (R8), nella coda e nelle priorità, non nell'animazione.
+  2. **Le tre forme**:
+     - compatta: anello o icona, una frase breve, tempo o percentuale;
+     - minima: solo l'anello;
+     - estesa: al tocco, una card che nasce dalla pillola con dettagli e azioni (pausa, annulla, apri).
+  3. **L'esito**: la pillola pulsa e poi esce per lente, oppure diventa l'avviso del punto 3.
+  4. **La larghezza** cambia solo quando cambia lo stato o la frase. La percentuale ha cifre tabulari e una larghezza
+     fissa, per non fare della pillola un pezzo che si misura in continuo.
+  5. **Il posto: al posto del titolo** (scelta di Alessio del 21 novembre). Il titolo cambia già con la pagina, e la
+     pillola è «un'altra dinamicità persistente mentre l'attività è in corso». Finché l'attività dura, la pillola
+     prende il posto del titolo in linea: il titolo esce sfocato e la pillola entra sfocata (R7); alla fine il viaggio
+     è inverso. Con il titolo grande la pillola sta nel posto del titolo in linea, nella barra, e il titolo grande
+     resta sotto. Fra due pagine la pillola resta ferma: è il titolo della pagina d'arrivo che aspetta.
+- **Dove:**
+  - `ui/fluid/activity/FluidActivity.kt` (nuovo: il modello, la coda e l'host);
+  - l'elemento nella barra, in `FluidToolbar.kt` e in `FluidToolbarModel.kt`;
+  - la barra dell'host la mostra in ogni pagina (`ui/page/FluidPageAnchoredBar.kt`).
+- **API:**
+  - `FluidActivityHost(state)` alla radice;
+  - `activities.publish(FluidActivity(…))`;
+  - nello scope `activity(placement = …)` per decidere dove si vede, oppure `activity(hidden = true)` in una pagina che
+    non la vuole;
+  - i preset `FluidActivity.sync(…)`, `.transfer(…)`, `.recording(…)`, `.assistant(…)` e `.timer(…)`.
+- **Apple:** non c'è un elemento dentro le app. La grammatica compatta, minima ed estesa viene dalle Live Activities e
+  dall'isola (HIG Live Activities: «transitano in modo prevedibile», R8): si fa a occhio. La comparsa per lente è
+  misurata in R4 B3.
+
+**11 · Tasto diviso.**
+
+- **Riusa:**
+  - il menu dal gruppo (F5A.2): la sorgente è il vetro intero e la sagoma rientra lì;
+  - la regola di R1 N5: tocco = azione, pressione lunga = menu;
+  - la pressione e il bagliore, che nel contenitore partono dal punto del dito.
+- **Manca:**
+  1. **Un elemento nuovo**: un vetro solo con due zone, l'azione (scritta o icona) e la freccia, divise da un filo.
+     Toccare la freccia apre il menu **dallo stesso vetro**. La pressione lunga sull'azione fa lo stesso.
+  2. **Nella barra, un gruppo a sé.** La regola «simboli e testo mai nello stesso gruppo» non si applica, perché è un
+     solo comando.
+  3. **Il bersaglio della freccia** è di almeno 44 dp anche se la zona disegnata è più stretta.
+  4. Per R1 N5 senza tasto diviso visibile: oggi `action(…, menu)` non ha un'azione principale, quindi gli si aggiunge
+     `onClick` (tocco = azione, pressione = menu).
+- **Dove:** `ui/fluid/FluidSplitButton.kt` (nuovo); l'elemento nella barra, in `FluidToolbar.kt` e in
+  `FluidToolbarModel.kt`.
+- **API** (SwiftUI `Menu(content:label:primaryAction:)` → engine):
+  - nella barra: `split(id, text o icon, label, onClick, menu = { … })`;
+  - da solo: `FluidSplitButton(label, onClick, menu, style)`;
+  - `action(id, icon, label, onClick = …, menu = …)`.
+- **Apple:** N5 è documentato. **Il tasto diviso visibile non c'è in iOS**: c'è nello split button di Material 3
+  Expressive e nei menu a tendina con azione principale del Mac (R8). L'aspetto si fa a occhio.
+
+**12 · La pillola del titolo che diventa selettore.**
+
+- **Riusa:**
+  - il titolo della barra (in linea e grande) e il suo scambio sfocato fra stati e fra pagine (F4A);
+  - il menu dalla sorgente (F5A) e il popover dalla sorgente (F5B.1);
+  - il popover che sul telefono si adatta a foglio.
+- **Manca:**
+  1. **Il titolo come sorgente**, con la freccia accanto. In linea ed agganciato è una scritta con la freccia; come
+     stile a scelta, una pillola di vetro come la `LocationPill` di Weather. Di serie è il titolo nudo con la freccia
+     (scelta di Alessio).
+  2. **Due forme d'arrivo**:
+     - un **menu** (account, cartelle), con `menu = { … }`;
+     - un **pannello** su misura con contenuto dell'app (località, con ricerca e lista), con `panel = { … }`. È un
+       popover dal titolo; sul telefono si adatta a foglio dal titolo.
+  3. **Il titolo grande** mostra la freccia anch'esso e apre dallo stesso punto.
+- **Dove:**
+  - `FluidToolbar.kt` e `FluidToolbarModel.kt` (il titolo come elemento con sorgente);
+  - `ui/fluid/FluidCollapsingHeader.kt` (il titolo grande);
+  - `ui/page/FluidPageAnchoredBar.kt` (il titolo della barra dell'host).
+- **API** (SwiftUI `toolbarTitleMenu { }` e UIKit `UINavigationItem.titleMenuProvider`, iOS 16 → engine):
+  `title(mode, subtitle, menu = { … })` oppure `title(…, panel = { … })`.
+- **Apple:** `toolbarTitleMenu` è documentato. **L'aspetto in iOS 26 non è nel materiale del progetto**: serve una
+  ricerca breve (F6B.0), anche solo un fermo immagine.
+
+**13 · Visori di file.**
+
+Il progetto tecnico è sotto, in «La proposta di F6C». Riassunto:
+- un **telaio comune** in engine-ui;
+- i **preset per tipo** in engine-ui, che contengono solo interfaccia;
+- un **modulo facoltativo**, `engine-viewer`, che decodifica: Media3, `PdfRenderer` e testo;
+- il collegamento con F6B: la chiusura trascinando in giù verso la miniatura è F6B.5a, e la barra che diventa quella di
+  uno strumento usa il meccanismo di sostituzione di F6B.1 e F6B.2.
+
+**Bersagli.**
+
+Dove Apple ha misure (R4, R5, R7, o misure prese nelle fasi passate sulle clip di Apple) valgono quelle. Le altre sono
+dette «a occhio» oppure «da misurare», con la clip candidata. Le clip candidate le cerca, le ritaglia e le misura F6B.0,
+con gli strumenti di `artifacts/liquid-glass/riferimenti/tools/`. I numeri tarati vanno nei profili e in `FluidMotion`,
+con scheda e fiducia nel KDoc (regola comune).
+
+| elemento | grandezza | bersaglio | fonte, fiducia |
+|---|---|---|---|
+| tutti | icona che cambia identità | σ massima ≈ 0,15 H a 200–234 ms; le due icone convivono per 70–100 ms; la nuova è nitida a ≈430 ms (300–330 ms sul telefono); chi nasce senza predecessore parte da scala 0,75; la tinta entra dentro la sfocatura a ≈130 ms | R7, alta |
+| tutti | gruppo che cambia larghezza | cambio del piano su 535 ms a vista; trascinamento di 0,155 H al colmo a ~300 ms; il vetro si gonfia del 13,5% a ~200 ms; il tondo che cambia solo simbolo respira (+16,5%) | R4 B2, corretto in F4A.5b; media-alta |
+| selezione | barra in alto, da «sfoglia» a «seleziona» | come sopra; titolo con lo scambio sfocato | R4 B2, R7 |
+| selezione | tab bar che diventa la capsula delle azioni, e ritorno | nessuna misura | **da misurare** su una clip di Foto, File o Mail in «Seleziona» (F6B.0); altrimenti a occhio con i tempi del gruppo che cambia larghezza |
+| tasti con esito | soglia oltre la quale si mostra il lavoro | 300 ms | R8, regola di progetto |
+| tasti con esito | disegno della spunta, sostituzione magica | tempi non misurati | **da misurare** sulla clip di WWDC25 337 (SF Symbols 7, Draw e Magic Replace) |
+| tasti con esito | l'aeroplanino che parte, la scossa del fallimento, il rimbalzo del preferito | — | **a occhio**: nessun riferimento Apple |
+| tasti con esito | pressione | quella di F6.1 (crescita ×1,35, scelta di Alessio) | F6 |
+| avviso dal tasto | vetro e testo | goccia che si raccoglie sul tasto; testo leggibile a 167–183 ms e nitido a 267 ms (tempi del popover, che è una presentazione parallela come l'avviso); rientro a 250 ms | F5B.1 su WWDC25 284 e 323, media |
+| avviso dal tasto | conto alla rovescia, punto di posa | anello che si svuota attorno ad «Annulla»; posa vicino al tasto | **a occhio**, scelte di Alessio |
+| elemento → pagina | apertura e ritorno con la sorgente | molla critica, risposta 0,355 s nei due versi | F5B.3 su WWDC24 10145 a tempo vero (corr-zoom), alta |
+| elemento → pagina | sagoma sotto il dito | fino al 60% a una larghezza intera | F5B.3, **a occhio** |
+| elemento → pagina | «Cresce» | vetro per tutta la corsa, opaca solo all'arrivo; sfocatura e scurimento dello sfondo progressivi, mai a scatto; col dito la stessa curva | **a occhio**, scelta di Alessio (21 novembre) |
+| elemento → pagina | «Sale» guidato dal dito; elemento condiviso; chrome d'arrivo per ultima | la chrome parte dopo il 70% della corsa | **da misurare** sul mini lettore di Musica (clip da trovare in F6B.0); altrimenti a occhio |
+| campo | lente → campo | 334 ms, `CubicBezier(.38, 0, .35, 1)`; lente 44 dp, campo 40 dp | F4B.2 su WWDC25 256, alta |
+| campo | tasti inglobati | sfocati e spariti entro 67–100 ms, come le icone del gruppo che diventa menu | R4 B1 (b), alta, per analogia |
+| composer | crescita per riga, vassoio degli allegati, tasto a destra | scambio dell'icona con R7; il resto a occhio | **da misurare** su Messaggi se F6B.0 trova una clip |
+| pillole → menu | apertura e chiusura del menu dalla fila | apertura in 330–370 ms; un solo superamento (+5,7%, scelta di Alessio); chiusura in 233 ms | R4 B1 e scelte di F5A.2 |
+| pillola → gettone | viaggio | — | **a occhio** |
+| barra sopra la tastiera | quota | segue l'IME fotogramma per fotogramma, con al più 1 fotogramma di ritardo | regola misurabile (framestats), non Apple |
+| barra sopra la tastiera | cambio di contesto | come il gruppo che cambia larghezza | R4 B2 |
+| pillola di attività | comparsa e scomparsa | comparsa 430 ms, scomparsa 470 ms (contorno → simbolo dilatato → riposo) | R4 B3, media |
+| pillola di attività | compatta ↔ estesa | i tempi del popover dalla sorgente | F5B.1 |
+| tasto diviso, titolo selettore | il menu dal vetro | come il menu dal gruppo: si stringe al 60% in 33 ms; apertura in 330–370 ms; voci nella lente, leggibili a 170–200 ms | R4 B1, F5A.2 |
+| titolo selettore | aspetto della freccia e del titolo | — | **da vedere** in un fermo immagine di iOS 26 (F6B.0) |
+| trova nella pagina | aspetto | — | **da vedere** in iOS 26 (F6B.0); il comportamento è quello di F4B.2 |
+
+**Pacchetti.**
+
+| id | cosa | perimetro di scrittura | dipende da | G/D | modello |
+|---|---|---|---|---|---|
+| F6B.0 | **Ricerca breve** e lista d'accettazione. (a) Le clip e i fermi immagine di Apple che mancano: la selezione in Foto, File o Mail; la barra sopra la tastiera; il menu del titolo; «trova»; il composer di Messaggi; Draw e Magic Replace di WWDC25 337; il mini lettore di Musica che si apre col dito; l'«Annulla invio» di Mail. Ognuna con la misura, se si può. (b) Per ogni elemento i casi delle app (Mail, Notes, Gallery, Fluidify, Weather, Transit, PampAI) trascritti in scene di galleria, e la lista d'accettazione del viaggio d'oro | `docs/liquid-glass/ricerca/elementi-dinamici-apple.md`, `artifacts/liquid-glass/ricerca/f6b/` | — | — | Sol |
+| F6B.1 | **Selezione**: `selection { }` dello scope, posizioni, preset, back della selezione con D1; il canale `bottomReplacement` nel `FluidChromeController`; senza tab bar, la barra in basso dichiarata che cambia azioni | `ui/fluid/toolbar/FluidSelectionToolbar.kt` (nuovo), `ui/fluid/FluidScreen.kt` (il canale e un aggancio), `ui/page/FluidPageAnchoredBar.kt` (un aggancio), `ui/fluid/toolbar/FluidBottomBar.kt`, `ui/fluid/FluidSelectionState.kt` (solo se il test di D1 lo chiede), `test/fluid/toolbar/FluidSelectionToolbarTest.kt` | F4A, F4B.1, F6B.0 (la clip della selezione) | G | Opus (Claude secondary) |
+| F6B.2 | **La tab bar che diventa la barra delle azioni**: la pillola diventa la capsula nello stesso contenitore, il tondo confluisce o diventa «···», e il ritorno; rail e barra laterale non si sostituiscono e la barra sta nel pannello | `ui/fluid/FluidFloatingTabBar.kt`, `ui/fluid/FluidAdaptiveNavigation.kt`, `test/fluid/FluidFloatingTabBarSelectionTest.kt` | F6B.1, F4B.3 | G | Astra |
+| F6B.3a | **Tasti con esito: stato e componente.** `FluidActionState`, l'esecutore (soglia di 300 ms, tenuta dell'esito), `FluidActionButton`, il lavoro (anello indeterminato e con percentuale), la larghezza fissa, TalkBack e aptica; l'integrazione nella barra e nella capsula. **Primo pacchetto che scrive nel modello della barra**: crea il punto unico in cui gli elementi nuovi si registrano, così F6B.9–11 aggiungono un tipo senza riscrivere la risoluzione | `ui/fluid/action/FluidActionState.kt`, `ui/fluid/action/FluidActionButton.kt` (nuovi), `ui/fluid/toolbar/FluidToolbar.kt`, `ui/fluid/toolbar/FluidToolbarModel.kt`, `ui/fluid/FluidFloatingCapsule.kt` (`FluidCapsuleAction`), `test/fluid/action/` | F6, F3.4 | G | Opus (Claude secondary) |
+| F6B.3b | **Tasti con esito: i glifi animati** dei cinque preset e l'esito negativo; le varianti per il movimento ridotto; le scene del banco | `ui/fluid/action/FluidActionGlyphs.kt` (nuovo), `test/fluid/action/FluidActionGlyphsTest.kt`, `test/glass/field/trace/F6b3GlyphTraces.kt` | F6B.3a, F6B.0 (WWDC25 337) | G | Astra |
+| F6B.4 | **Avviso che nasce dal tasto, con Annulla**: `source` in `FluidNotification`, il viaggio in tre tempi verso il punto di posa e il ritorno, il conto alla rovescia, i preset; il viaggio composto «Invia». Prima di scrivere, la scelta fra le strade (a) e (b) del progetto tecnico, con i file dichiarati | `ui/fluid/FluidNotification.kt`, `ui/fluid/FluidNotificationSource.kt` (nuovo), `test/fluid/FluidNotificationSourceTest.kt`; con la strada (a), anche i file di F5B.1 da cui si estrae il viaggio, dichiarati prima | F6B.3a, F5B.1 | G | Sol |
+| F6B.5a | **Elemento → pagina, il dito.** Push guidato dal gesto che parte dalla sorgente, interrotto e invertito ovunque; chiusura trascinando in giù; sorgente qualsiasi (compreso il contenuto dell'accessorio); rotazione a metà viaggio. Prima il test, rosso sul codice di oggi | `ui/page/FluidPageHostState.kt`, `ui/page/FluidPageInput.kt`, `ui/page/FluidPageTransition.kt`, `ui/page/FluidPageHost.kt`, `test/page/FluidPageOpenGestureTest.kt` | F5B.3, F4A.6 | G | Astra |
+| F6B.5b | **Elemento → pagina, l'elemento condiviso e i tre tratti** (la faccia esce, il condiviso riempie, la chrome per ultima); la sagoma di vetro che diventa opaca («Cresce»); il tablet a pannelli | `ui/page/FluidSharedElement.kt` (nuovo), `ui/page/FluidZoom.kt`, `ui/page/FluidPageMotion.kt`, `ui/page/FluidPageHost.kt` (dopo F6B.5a), `test/page/FluidSharedElementTest.kt` | F6B.5a | G | Astra |
+| F6B.5c | **Elemento → pagina, i preset e la prova.** Zoom, Sale, Cresce, Dalla barra; rotta vera (ripristino dopo la morte del processo, collegamenti); i casi di Fluidify («In riproduzione» dal mini lettore) e di Gallery (dalla griglia al visore) rifatti come scene della galleria con il codice dell'engine; niente migrazione delle app né note di migrazione (scelta di Alessio) | `ui/page/FluidZoomPresets.kt` (nuovo), `sample/…/dynamic/ElementToPage*.kt`, `ref/componenti/pagine.md` (sezione «Un elemento che diventa pagina»), `sample/src/testDebug/…/FluidElementToPageUiTest.kt` | F6B.5b | G | Opus (Claude secondary) |
+| F6B.6 | **Campo: preset d'uso e «trova nella pagina»**: i costruttori, i campi in coda, l'invio che chiude o resta aperto, `rememberFluidFindState`; i tasti inglobati come ha scelto Alessio (verifica sui video di F4B.5, poi ritocco se serve) | `ui/fluid/FluidSearch.kt`, `ui/fluid/toolbar/FluidToolbarSearch.kt`, `ui/fluid/FluidSearchField.kt`, `ui/fluid/FluidFindInText.kt` (nuovo), `test/fluid/toolbar/FluidToolbarSearchPresetsTest.kt` | F4B.2, F4B.5 | G | Opus (Claude secondary) |
+| F6B.7 | **Composer dentro il campo**: più righe col bordo alto che sale, il vassoio degli allegati, lo slot a sinistra, il tasto a destra a stati, la riga della voce; il composer nuovo dell'assistente in engine-ai-ui, con l'alone | `ui/fluid/FluidSearchField.kt`, `ui/fluid/toolbar/FluidToolbarSearch.kt`, `ui/fluid/FluidSearch.kt` (tutti dopo F6B.6), `ai-ui/chat/FluidComposerInField.kt` (nuovo), i test dei due moduli | F6B.6, F6B.3a | G | Sol |
+| F6B.8 | **Filtri e suggerimenti a pillole**: la fila dichiarata, la fila che diventa menu (larghezza e testo grande), la pillola che si apre in menu, i suggerimenti e i recenti, i preset; poi la pillola che diventa gettone nel campo. La fila può partire subito; i gettoni aspettano F6B.7 | `ui/fluid/FluidFilterChips.kt` (nuovo), `ui/fluid/FluidControls.kt` (`FluidChip` come sorgente: un aggancio), `test/fluid/FluidFilterChipsTest.kt`; dopo F6B.7, `ui/fluid/FluidSearch.kt` e `ui/fluid/FluidSearchField.kt` (i gettoni) | F5A.2, F5A.3; F6B.7 per i gettoni | G | Opus (Claude secondary) |
+| F6B.9 | **Barra sopra la tastiera**: la sede, `keyboard { }` con la chiave di contesto, la quota IME, i preset; `FluidRichTextToolbar` come preset con la firma di oggi | `ui/fluid/toolbar/FluidKeyboardBar.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.3a), `ui/fluid/FluidScreen.kt` (la sede; dopo F6B.1), `richtext/FluidRichTextToolbar.kt`, `test/fluid/toolbar/FluidKeyboardBarTest.kt` | F6B.3a, F6B.1 (file comuni) | G | Sol |
+| F6B.10 | **Pillola di attività**: il modello, la coda e l'host alla radice; l'elemento `activity` nella barra; le forme compatta, minima ed estesa (il popover dalla pillola); l'esito; i preset | `ui/fluid/activity/FluidActivity.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.9), `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.1), `test/fluid/activity/FluidActivityQueueTest.kt` | F6B.9 (file), F5B.1 | G | Opus (Claude secondary) |
+| F6B.11 | **Tasto diviso e titolo che diventa selettore**: l'elemento `split`, `FluidSplitButton`, `action(…, onClick)` (R1 N5); il titolo come sorgente di un menu o di un pannello, in linea, grande e nell'host | `ui/fluid/FluidSplitButton.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.10), `ui/fluid/FluidCollapsingHeader.kt`, `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.10), `test/fluid/toolbar/FluidToolbarSplitTitleTest.kt` | F6B.10 (file), F5A.2, F5B.1 | G | Opus (Claude secondary) |
+| F6B.12 | **Galleria, tracce e schede (1)**: selezione, tasti con esito, avviso, elemento → pagina; nuova scheda `elementi-dinamici.md` | `sample/…/dynamic/` (un file per elemento), `sample/…/GalleryNav.kt`, `test/glass/field/trace/F6b*`, `tools/glassbench/traces/f6b/`, `ref/componenti/elementi-dinamici.md` (nuova), `ref/componenti/toolbar.md`, `ref/componenti/notifiche.md`, `ref/componenti/barre.md` (sezioni) | F6B.1–5c | G | Opus (Claude secondary) |
+| F6B.13 | **Galleria, tracce e schede (2)**: campo e composer, pillole, tastiera, attività, tasto diviso, titolo, trova; gli scenari nuovi della pagina «Misure» (F7.1) per gli elementi che si ripetono spesso (selezione, campo con il composer, barra sopra la tastiera) | `sample/…/dynamic/` (altri file), `sample/…/measure/` (gli scenari), `test/glass/field/trace/`, `ref/componenti/elementi-dinamici.md` (dopo F6B.12), `ref/moduli/ai-ui-chat.md`, `ref/moduli/richtext.md` | F6B.6–11 | G | Opus (Claude secondary) |
+| F6B.14 | **Sessione sul tablet** (numero da assegnare) e rapporto | `artifacts/liquid-glass/sessioni/S-F6B.md`, `stato.md` | tutti | G, D | orchestratore + Sol xhigh |
+
+**Ordine di lancio**, che rispetta le scelte di Alessio:
+
+```
+F6B.0 ─▶ F6B.1 ─▶ F6B.2
+   └──▶ F6B.3a ─▶ F6B.3b
+              └──▶ F6B.4                         (il viaggio composto «Invia»)
+F6B.5a ─▶ F6B.5b ─▶ F6B.5c                       (in parallelo da subito: è motore)
+poi:   F6B.6 ─▶ F6B.7 ─▶ (F6B.8, i gettoni)      F6B.8 (la fila) può partire con F6B.6
+       F6B.9 ─▶ F6B.10 ─▶ F6B.11                (la catena sul modello della barra)
+infine: F6B.12 (dopo 1–5c), F6B.13 (dopo 6–11), F6B.14
+```
+
+Quali file toccano più pacchetti, e in che ordine:
+- **`toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt`**: F6B.3a → F6B.9 → F6B.10 → F6B.11. F6B.3a crea il punto unico
+  di registrazione degli elementi nuovi, perché la catena non riscriva tre volte la risoluzione.
+- **`FluidScreen.kt`**: F6B.1 → F6B.9.
+- **`page/FluidPageAnchoredBar.kt`**: F6B.1 → F6B.10 → F6B.11.
+- **I file della ricerca** (`FluidSearch.kt`, `FluidSearchField.kt`, `toolbar/FluidToolbarSearch.kt`): F6B.6 → F6B.7 →
+  F6B.8 (i gettoni).
+- **`page/`**: solo la catena di F6B.5.
+
+Dalle tabelle sopra, i perimetri di F6B.1, F6B.3a e F6B.5a sono disgiunti: i tre primi lavori possono scrivere insieme,
+se il coordinatore di Gradle lo permette.
+
+**Conti.** F6B ha **18 pacchetti**. **17 chiedono Gradle**: tutti tranne F6B.0. La sessione sul tablet è una sola.
+F6C ne ha altri 7.
+
+**Chi scrive.** Gli agenti Claude partono solo dal provider «Claude secondary» di T3 (scelta di Alessio del 21
+novembre): nella colonna «modello», «Opus» è Opus 5.5 su quel provider. Sol e Astra sono GPT-6.2 su Codex. La
+chiusura della fase segue la regola del 21 novembre: niente giri di voto né critici dopo l'ultimo giro di correzioni;
+Alessio guarda i video e dice sì.
+
+**Risultati osservabili.**
+
+- **Selezione.** In una pagina con tab bar, «Seleziona» trasforma la pillola delle schede nella capsula delle azioni:
+  le schede escono sfocate, le azioni entrano sfocate e la larghezza scorre. In alto «Seleziona» diventa «Fine» e il
+  titolo diventa «3 selezionate». «Fine» o il back rifanno il viaggio inverso. Il gesto indietro non cambia niente
+  finché non è confermato. La lista non salta.
+- **Tasti con esito.** Toccando «Invia» l'aeroplanino si carica e, a invio riuscito, parte. Da lui nasce l'avviso
+  «Invio in corso… Annulla», che poi diventa «Inviata». «Salva» disegna la spunta. «Copia» diventa spunta per un
+  secondo. «Scarica» mostra la percentuale nell'anello. Un preferito rifiutato torna vuoto con una scossa. TalkBack
+  dice ogni esito.
+- **Elemento → pagina.** Il mini lettore si tira su col dito fino alla pagina intera: la copertina viaggia, i comandi
+  arrivano per ultimi. Lasciato a metà, torna; ripreso, riparte. Una miniatura della griglia si apre nel visore e si
+  richiude trascinando in giù. La pagina aperta è una rotta: il back la chiude e dopo la morte del processo è ancora lì.
+- **Campo.** In Mail la ricerca in alto inghiotte avatar e ☰ e li restituisce. Il campo «Messaggio» sta sopra la
+  tastiera, cresce di riga in riga col bordo alto e mostra gli allegati sopra il testo. Il tasto a destra passa da
+  dettatura a invio a stop sullo stesso vetro. «Trova» mostra «3/12» sopra la tastiera senza toccare la barra in alto.
+- **Pillole.** A testo grande la fila dei filtri diventa un tasto «Filtri · 2» che apre il menu. Una pillola scelta
+  diventa gettone nel campo.
+- **Barra sopra la tastiera.** Fra due campi passa da «suggerimenti» a «formattazione» trasformandosi, come una barra in
+  alto che cambia stato.
+- **Attività.** Una sincronizzazione mostra una pillola nella barra in alto, al posto del titolo. Toccata, si apre in
+  una card. Finita, esce.
+- **Tasto diviso e titolo.** «Invia ▾» apre «Programma invio» dallo stesso vetro. Il titolo «Posta in arrivo ▾» apre la
+  scelta dell'account.
+
+**Come si verifica.**
+
+**Il protocollo dei viaggi d'oro** (F1B) vale per selezione, «Invia», elemento → pagina e campo con il composer:
+- il «prima» per Alessio sono le scene di oggi della galleria. Le app di Alessio non si riprendono: sul tablet Fluidify
+  e i suoi file non si toccano;
+- il rivelatore di scatti;
+- le curve e il collage denso;
+- le varianti che rompono: interrotto e invertito al 25, 50 e 75%; tocchi ripetuti; gesto indietro a metà; tastiera in
+  ritardo; rotazione.
+
+**Il banco del movimento** (4.3). Tracce in `tools/glassbench/traces/f6b/`:
+
+| elemento | tracce | confronto |
+|---|---|---|
+| selezione | `selezione-entra`, `selezione-esce`, `selezione-back-confermato`, `selezione-back-annullato`, `selezione-senza-tabbar` | `pair` contro la clip di F6B.0; `curve` sulle larghezze come `B2_barra_contesto` |
+| tasti con esito | `tasto-invia-riuscito`, `tasto-invia-fallito`, `tasto-salva`, `tasto-copia`, `tasto-scarica-percentuale`, `tasto-preferito-rifiutato`, `tasto-lavoro-breve` (sotto i 300 ms) | `first`, `last`, `curve` sulla sfocatura dell'icona contro R7; contro WWDC25 337 dove F6B.0 l'ha misurata |
+| avviso | `avviso-dal-tasto`, `avviso-annulla-torna`, `avviso-sorgente-sparita`, `invia-composto` | gli stessi metodi di `f5b-4` |
+| elemento → pagina | `elemento-zoom`, `elemento-sale-col-dito`, `elemento-cresce`, `elemento-dalla-barra`, `elemento-interrotto-25/50/75`, `elemento-giu-chiude` | `curve` sulla sagoma contro la molla da 0,355 s; la chrome d'arrivo dopo il 70% |
+| campo e composer | `campo-messaggio`, `campo-alto-inghiotte`, `trova-sopra-tastiera`, `composer-righe`, `composer-allegati`, `composer-tasto-stati` | `curve` sulla quota contro l'IME registrato |
+| pillole | `pillole-menu-200`, `pillola-periodo-menu`, `pillola-gettone` | B1 per il menu |
+| tastiera | `tastiera-contesto`, `tastiera-in-ritardo` | B2 |
+| attività | `attivita-compare`, `attivita-estesa`, `attivita-esito` | B3 per la comparsa |
+| diviso, titolo | `diviso-menu`, `titolo-menu`, `titolo-pannello` | B1, F5B.1 |
+
+**I test di logica** (uno per pacchetto, elencati nella tabella), più alcuni punti precisi:
+- `FluidSelectionToolbarTest`: conteggio, «Seleziona tutto» su `AllExcept`, il back che esce dalla selezione e D1;
+- `FluidActionStateTest`: soglia, tenuta, ripresa dopo la ricreazione;
+- `FluidNotificationSourceTest`: sorgente letta alla pubblicazione, sorgente sparita;
+- `FluidPageOpenGestureTest`: posizione e velocità continue a ogni inversione; deve essere rosso sul codice di oggi;
+- `FluidFilterChipsTest`: la fila che diventa menu alle scale 1,0, 1,3 e 2,0 (i numeri di Transit);
+- `FluidKeyboardBarTest`: la quota segue un IME finto fotogramma per fotogramma;
+- `FluidActivityQueueTest`: priorità e contatore;
+- un test Robolectric per elemento sulla semantica e sui bersagli da 48 dp.
+
+**La compatibilità.** `GlassCompatSignaturesTest` per le firme di `FluidNotification`, `FluidSearchSpec`,
+`FluidCapsuleAction` e `FluidRichTextToolbar`. I test di oggi di tab bar, ricerca, notifiche, composer e testo ricco
+restano verdi senza modifiche.
+
+**Backlog per la sessione sul tablet:**
+- la tastiera vera: Samsung Keyboard e Gboard, tastiera flottante e fisica;
+- TalkBack su esiti, conteggio e attività;
+- il testo al 200%;
+- il gesto indietro durante la selezione;
+- il mini lettore tirato col dito a 120 Hz;
+- il ripristino dopo `am kill`;
+- la rotazione a metà viaggio;
+- la selezione su tablet con barra laterale;
+- il costo: nessuna cattura in più a riposo, misurato con gli scenari nuovi di F7.1.
+
+**Sottocategorie specifiche.**
+
+| id | sottocategoria | minimo |
+|---|---|---|
+| F6B-a | ogni elemento nasce da qualcosa e ci torna: nessun fotogramma con sorgente e arrivo leggibili insieme, nulla che compaia o sparisca in un fotogramma | 9 |
+| F6B-b | selezione: la tab bar (o la barra in basso) diventa la barra delle azioni come una superficie sola e torna com'era; la lista non salta; D1 rispettata | 9 |
+| F6B-c | tasti con esito: l'esito si capisce dall'icona senza leggere, anche quello negativo; mai due stati leggibili insieme; un lavoro breve mostra solo l'esito | 8,5 |
+| F6B-d | elemento → pagina: il dito apre e chiude, interrotto e invertito ovunque senza salti; la pagina è una rotta vera; il ripiego non salta | 9 |
+| F6B-e | i preset bastano ai casi delle app senza codice di movimento nell'app: verificato riscrivendo in galleria i casi di Mail, Notes, Gallery, Fluidify, Weather, Transit e PampAI | 8,5 |
+| F6B-f | accessibilità: testo al 200% (pillole → menu, conteggio, titolo selettore), TalkBack su lavoro ed esito, movimento ridotto senza lampi | 8,5 |
+| F6B-g | tastiera: barra e campo seguono la tastiera fotogramma per fotogramma; tastiera in ritardo, fisica, rotazione | 8 |
+| F6B-h | chi usa `FluidFloatingTabBar`, `FluidSearchField`, `FluidNotificationHost`, `FluidComposer`, `FluidRichTextToolbar` come oggi non vede differenze | 9 |
+| F6B-i | costo: nessun elemento aggiunge catture per fotogramma a riposo; anello e glifi animati non ricatturano il vetro | 8 |
+
+**Rischi e ripieghi.**
+
+- **La tab bar vendored** (`FluidFloatingTabBar.kt`, oggi 4081 righe) non regge i gruppi del modello nel suo contenitore. Ripiego: due contenitori
+  vicini. La tab bar esce per lente e la capsula delle azioni nasce per lente sullo stesso posto. È una divergenza
+  dichiarata nella scheda, e Alessio la vede accanto alla versione buona, se c'è.
+- **Il viaggio in tre tempi vive solo nell'host dei modali.** Ripiego: la strada (b) di F6B.4, cioè l'avviso con
+  sorgente presentato dall'host dei modali con la coda delle notifiche. Se nemmeno quella regge, l'avviso scende
+  dall'alto come oggi e solo la faccia del tasto lampeggia d'accento.
+- **I glifi di Material Symbols sono forme piene**, quindi il «disegno» del tratto non viene. Ripiego: la rivelazione con
+  maschera lungo il verso del tratto. Al limite, lo scambio sfocato di R7 fra le due icone, che è già l'aspetto di Apple
+  per Magic Replace.
+- **Il push guidato dal dito litiga con gli scorrimenti annidati** (una lista nel mini lettore, il pager del visore).
+  Ripiego: la sorgente prende il dito solo quando lo scorrimento verticale è finito, la stessa regola di passaggio di
+  `FluidBackSwipe.Anywhere`. Al limite, il dito chiude soltanto e l'apertura è un tocco.
+- **L'elemento condiviso costa una registrazione per fotogramma.** Ripiego: un elemento condiviso solo per viaggio. Senza
+  elemento condiviso, la pagina in scala dentro la sagoma come in F5B.3.
+- **L'IME non dà l'altezza animata con alcune tastiere**, per esempio Samsung Keyboard sul Tab S9. Ripiego: la barra e il
+  campo inseguono l'altezza con la molla di F4B.2, al più un fotogramma dietro.
+- **La catena sulla barra** (F6B.3a → 9 → 10 → 11) è lunga. Mitigazione: il punto unico di registrazione creato da F6B.3a.
+  Se resta lento, F6B.11 si divide in due pacchetti, tasto diviso e titolo, che toccano parti diverse dello stesso file
+  e si scrivono uno dopo l'altro.
+- **Il composer che cresce nel piano**: il pannello che cresce viaggia ogni volta che si aggiunge una riga. Si usa
+  `FluidGlassAnimation.None` per la crescita, come prescrive la scheda del piano. Al limite, il composer resta il
+  pannello di oggi agganciato sopra la tastiera, e il campo dinamico resta su una riga.
+- **La pillola di attività globale** si scontra con le priorità di una barra già piena. Ripiego: diventa minima, cioè il
+  solo anello, prima di far uscire un tasto `Automatic`.
+
+**Scelte di Alessio del 21 novembre 2026** (cinque giri di domande a scelta, il primo giorno della fase; dove non ha
+aggiunto parole sue ha preso l'opzione consigliata):
+
+- **Visori**: fase a sé, F6C, in parallelo alla seconda metà di F6B; F7 aspetta tutte e due.
+- **Migrazione delle app**: tolta dal piano. «Nono, non facciamo migrare nessuno noi, sarò io, manualmente, ad andare nei
+  progetti delle app quando voglio e farle migrare.» Niente migrazione e niente note di migrazione: i casi delle app
+  restano scene della galleria.
+- **Pillola di attività**: una per l'app, pubblicata alla radice e mostrata da ogni barra; una pagina può nasconderla.
+- **Composer**: «ne costruiamo uno nuovo sui nuovi componenti aggiornati, sempre reso un po' speciale (tipo campo di testo
+  con alone attorno può essere un'idea)». È il composer dell'assistente di F6B.7; `FluidComposer` di oggi resta com'è.
+- **Selezione**: un vetro solo. La pillola delle schede diventa la capsula delle azioni, il contenuto si incrocia sfocato,
+  e alla fine torna com'era.
+- **Selezione su tablet con la barra laterale**: la barra delle azioni sta nel pannello della lista, come in Notes.
+- **Esito negativo di un tasto**: trema solo il contenuto, con la tinta d'errore dentro il vetro; il vetro resta fermo.
+- **Lavoro dei preset senza un gesto proprio** (Salva, Carica): un anello sottile attorno all'icona, dentro il vetro.
+- **Avviso dal tasto**: si posa vicino al tasto, sotto la barra in alto o sopra quella in basso.
+- **Conto alla rovescia dell'Annulla**: un anello che si svuota attorno ad «Annulla».
+- **«Cresce»**: opaca solo all'arrivo. Parole sue: «Se il tasto viene cliccato, deve essere come un'esplosione rapida del
+  tasto, e quindi del vetro liquido nella pagina, e quando arriva è come se si solidificasse nella versione opaca, per
+  renderlo naturale. Ovviamente però va reso poco fastidioso, quindi il blur dello sfondo e il suo scurimento per esempio
+  devono essere abbastanza progressivi e con una curva giusta per non essere strano o fastidioso. Va anche tenuto in
+  considerazione il trascinamento poi, che è da trattare anch'esso per bene.»
+- **Pillola di attività nella barra**: al posto del titolo, «in quanto già il titolo è dinamico in base alla pagina: questa
+  sarebbe un'altra dinamicità persistente nel mentre che l'attività è in corso».
+- **Barra sopra la tastiera con la tastiera fisica**: resta in fondo alla finestra.
+- **Fila dei filtri che diventa menu**: quando non ci sta nella larghezza, testo grande compreso.
+- **Tasto diviso**: un vetro solo, con un filo sottile fra azione e freccia.
+- **Titolo che diventa selettore**: il titolo nudo con la freccia; la pillola di vetro è uno stile a scelta.
+
+Le scelte si rivedono comunque in video, quando gli elementi ci sono.
+
+---
+
+### F6C · Visori di file
+
+**Fase aggiunta il 21 novembre 2026 su decisione di Alessio**, che ha approvato la proposta scritta con la bozza di
+F6B: i visori di file escono da F6B e diventano una fase loro, in parallelo alla seconda metà di F6B. F6C parte appena
+ci sono F6B.5a (la chiusura col dito) e F6B.1 (la barra che si sostituisce); F7 aspetta F6B e F6C, perché deve misurare
+anche video e documenti.
+
+**Perché una fase sua.** Il telaio, sei preset e un modulo nuovo sono 7 pacchetti, uno dei quali crea un modulo Gradle.
+In F6B porterebbero la fase oltre i 25 pacchetti. Il piano lo prevede già: «se cresce diventa una fase sua (F6C)».
+
+**Scopo.**
+
+Un visore che si adatta a ciò che mostra: immagine, video, audio, documento a pagine, testo e codice, e il ripiego per
+il tipo sconosciuto. Serve subito a Universal Converter, che oggi prova a decodificare come immagine, poi come testo, e
+altrimenti mostra un dump esadecimale del primo KB (`PreviewLoader.kt:30-45`). Prepara inoltre l'«Anteprima» di un'app
+archivio futura.
+
+**Entra:**
+- il telaio comune;
+- i preset per tipo;
+- il modulo facoltativo che decodifica;
+- `FluidImageViewer` rivisto sul telaio, con la firma di oggi.
+
+**Resta fuori:**
+- gli strumenti di modifica veri: l'engine dà il posto e la barra, l'app fa lo strumento. In Gallery-2 ci sono già il
+  ritaglio del soggetto e il testo nell'immagine;
+- il trasporto: SMB, rete, cache;
+- i documenti Office, che non hanno un decodificatore leggero.
+
+**Cosa fanno oggi le app (lettura del 2026-11-19, in sola lettura).**
+
+| tipo | chi lo apre e come |
+|---|---|
+| immagine | **Universal Converter**: `BitmapFactory` ridotto a 2048 px, `fluidZoomable` dell'engine, «peek» dell'altro file tenendo premuto. **Gallery v1**: Coil, zoom da 1 a 10×, EXIF in un foglio, `sharedElement` dalla miniatura. **Gallery-2**: tasselli fino a 200 MP, pager nel tempo, pannello info tirando su (mezzo foglio sul telefono, pannello laterale da 840 dp), ritaglio del soggetto, testo nell'immagine |
+| GIF, WebP animate, foto in movimento | solo Gallery-2 |
+| video | **Gallery v1**: ExoPlayer con controlli suoi, quindi due interfacce sullo stesso video. **Gallery-2**: un lettore Media3 solo. **Fluidify**: Media3 a schermo pieno, controlli che spariscono dopo 3,5 s; in pratica il ritardo va da 3,5 a ~7,5 s |
+| audio | **Fluidify**: lettore completo (copertina, scrubber, coda, testi). **Pampa notes**: la barra del lettore (ExoPlayer) |
+| PDF, documento a pagine | nessuna app ha un visore. Universal Converter mostra il dump esadecimale; ClasseViva usa `PdfRenderer` solo per l'assistente |
+| testo e codice | solo Universal Converter: monospazio, tetto di 256 KB, nessun colore di sintassi |
+| sconosciuto | Universal Converter: dump esadecimale e «Apri con…»; ClasseViva: `ACTION_VIEW` |
+
+Le barre:
+- si ritirano al tocco in Gallery-2 (senza timeout) e in Fluidify (con timeout durante la riproduzione);
+- Gallery v1 le ritira anche dopo 3 s;
+- in Universal Converter sono fisse.
+
+Per chiudere, Gallery-2 usa il trascinamento in giù, il pizzico che stringe o il back predittivo.
+
+**Progetto tecnico.**
+
+- **Il telaio**, `FluidFileViewer(count, initial, content: (index) -> FluidViewerContent, toolbar, tools, info)`:
+  - **contenuto a schermo pieno**, con sfondo nero per foto e video e del tema per documenti e testo (scelta di Alessio);
+  - **la chrome dichiarata con la DSL `toolbar`.** In alto «2 di 5», indietro o Chiudi, le azioni; in basso la capsula.
+    Si ritira **solo al tocco**, anche durante un video (scelta di Alessio), con la grammatica della barra che si ritira (R5 V5: titolo e tasti si sfocano e svaniscono in
+    170–230 ms; al ritorno sono nitidi in 300–400 ms). Le barre di sistema si nascondono;
+  - **i gesti**: il pager; lo zoom, con le regole di `FluidImageViewer` su chi possiede il dito; la chiusura
+    trascinando in giù con il dito di F6B.5a, verso la miniatura con lo zoom;
+  - **il pannello info**: foglio di vetro a detent (F5B.2, `undimmedUpTo = Medium`), tirando su dal contenuto e dal tasto «i» (scelta di Alessio);
+    pannello laterale sul tablet;
+  - **gli strumenti**: `tools { tool(id, icon, label) { … } }`. Scelto uno strumento, la barra in basso diventa la sua,
+    con lo stesso meccanismo della sostituzione di F6B.1 e F6B.2, e il contenuto passa al compositore dell'app.
+  - **una rotta di serie** (scelta di Alessio): il visore è una pagina vera, con indietro, collegamenti e ripristino
+    dopo la morte del processo; la sovrapposizione resta per chi usa già `FluidImageViewer`.
+- **I contratti**, in engine-ui, senza librerie. `FluidViewerContent` ha cinque forme:
+  - `Image`: un composable o un painter dell'app, con il rapporto d'aspetto;
+  - `Media`: `FluidMediaSession`, cioè stato, posizione, durata, play, pausa, salto e la superficie video come
+    composable;
+  - `Pages`: `FluidPageSource`, cioè conteggio, misura, resa sospendibile di una pagina a una taglia;
+  - `Text`: `FluidTextSource`, cioè righe a pezzi e lingua per i colori;
+  - `Unknown`: `FluidFileInfo` con `FluidFileKind`.
+- **I preset**, solo interfaccia:
+  - **Immagine**: `FluidImageViewer` diventa un preset del telaio;
+  - **Video**: comandi di vetro limpido sopra il video (R1 O6; `Clear`, M2). Il play al centro compare e sparisce per
+    lente (R4 B3). C'è lo scrubber (`FluidScrubber`) e il tempo;
+  - **Audio**: copertina o forma d'onda dell'app, scrubber, tasti;
+  - **Documento a pagine**: pagine in colonna con zoom, «3/12», miniature in un foglio;
+  - **Testo e codice**: monospazio, numeri di riga, a capo sì o no, «trova» (F6B.6), colori dal decodificatore;
+  - **Sconosciuto**: icona di `FluidFileKind`, nome con l'estensione vera (`fluidTruncateFileName`), dimensione,
+    «Apri con…» e «Condividi» dell'app; avviso se è un eseguibile. Il dump esadecimale si può chiedere, ma non è di
+    serie.
+- **Il modulo facoltativo `engine-viewer`** (il nome è una proposta):
+  - adattatori Media3: l'app passa il suo `Player`. Proposta: Media3 come `compileOnly`, così la versione la sceglie
+    l'app (Fluidify e Gallery-2 ne usano già una). Da verificare in F6C.4;
+  - `PdfRenderer` della piattaforma; `androidx.pdf` è in alfa e non si usa;
+  - testo con il riconoscimento del charset, un tetto di lettura e colori di sintassi per poche lingue;
+  - un risolutore da MIME o estensione al preset, che riusa `FluidFileKind.from`;
+  - `engine-ui` non dipende dal modulo. La build lo controlla.
+- **Apple:**
+  - Quick Look (`QLPreviewController`, SwiftUI `quickLookPreview`) è documentato;
+  - Foto (barre al tocco, info tirando su) è osservato, non in R1: serve una ricerca breve;
+  - `AVPlayerViewController` con i comandi di vetro è in R1 O6;
+  - la comparsa del tasto di riproduzione sopra un video è misurata in R4 B3.
+
+**Bersagli.**
+
+| grandezza | bersaglio | fonte, fiducia |
+|---|---|---|
+| comandi del video che compaiono e spariscono | comparsa 430 ms (il contorno, poi il simbolo dilatato ≈2× che si contrae), scomparsa 470 ms | R4 B3, media: è proprio un tasto di riproduzione sopra un video |
+| barre che si ritirano e tornano | sfocate e svanite in 170–230 ms; al ritorno nitide in 300–400 ms, a riposo in 600–800 ms | R5 V5, media |
+| apertura dalla miniatura e chiusura verso di lei | molla critica a 0,355 s | F5B.3 e corr-zoom, alta |
+| zoom, congedo | 4× al massimo, doppio tocco a 2,5×, congedo oltre 110 dp (i numeri di oggi di `FluidImageViewer`) | engine; Gallery v1 usa da 1 a 10× e 300 px: scelta di gusto |
+| pannello info | i detent di F5B.2 | F5B.2 |
+| ritiro automatico delle barre durante un video | nessuno: le barre si ritirano solo al tocco | scelta di Alessio (21 novembre) |
+
+**Pacchetti.**
+
+| id | cosa | perimetro di scrittura | dipende da | G/D | modello |
+|---|---|---|---|---|---|
+| F6C.0 | **Ricerca breve**: i tipi e cosa fa ciascuno, guardando Universal Converter, Gallery v1 e 2, Fluidify, Pampa notes, Quick Look, Foto, File e il lettore di iOS 26; l'elenco per Alessio | `docs/liquid-glass/ricerca/visori.md`, `artifacts/liquid-glass/ricerca/visori/` | — | — | Sol |
+| F6C.1 | **Telaio**: contenuto, chrome che si ritira al tocco, gesti e chiusura col dito, pannello info, modo strumento, sfoglio; i contratti di contenuto | `ui/fluid/viewer/FluidFileViewer.kt`, `ui/fluid/viewer/FluidViewerChrome.kt`, `ui/fluid/viewer/FluidViewerContent.kt` (nuovi), `test/fluid/viewer/` | F6B.5a, F6B.1, F4A.4, F5B.2, risposte a F6C.0 | G | Astra |
+| F6C.2 | **Preset immagine, testo e codice, sconosciuto**; `FluidImageViewer` sul telaio con la firma di oggi | `ui/fluid/viewer/FluidImagePreset.kt`, `ui/fluid/viewer/FluidTextPreset.kt`, `ui/fluid/viewer/FluidUnknownPreset.kt` (nuovi), `ui/fluid/FluidImageViewer.kt`, `test/fluid/viewer/` | F6C.1, F6B.6 | G | Opus (Claude secondary) |
+| F6C.3 | **Preset video, audio e documento a pagine** | `ui/fluid/viewer/FluidMediaPreset.kt`, `ui/fluid/viewer/FluidPagesPreset.kt` (nuovi), `test/fluid/viewer/` | F6C.1 | G | Sol |
+| F6C.4 | **Modulo `engine-viewer`**: Media3, `PdfRenderer`, testo, risolutore | `engine-viewer/**` (nuovo), `settings.gradle`, `versions.gradle`, `sample/build.gradle` (una riga) | F6C.1 | G | Opus (Claude secondary) |
+| F6C.5 | **Galleria «Visori», tracce e schede**; prova in sola lettura con i tipi di Universal Converter aperti dal telaio | `sample/…/viewer/`, `test/glass/field/trace/F6c*`, `tools/glassbench/traces/f6c/`, `ref/componenti/visori.md` (nuova), `ref/moduli/viewer.md` (nuova), `ref/componenti/contenuto-testo-e-media.md` (un rimando) | F6C.1–4 | G | Opus (Claude secondary) |
+| F6C.6 | **Sessione sul tablet** e rapporto. Si fa insieme a F6B.14 se i tempi coincidono | `artifacts/liquid-glass/sessioni/S-F6C.md`, `stato.md` | tutti | G, D | orchestratore + Sol xhigh |
+
+F6C.2, F6C.3 e F6C.4 hanno perimetri disgiunti e possono scrivere insieme dopo F6C.1.
+
+**Risultati osservabili.**
+
+- Una miniatura si apre nel visore. Un tocco ritira le barre, un altro le riporta.
+- Tirando su compaiono le informazioni. Trascinando giù il file torna nella miniatura.
+- Un video mostra i comandi di vetro sopra di sé.
+- Un PDF si sfoglia a pagine col contatore.
+- Un file di testo si cerca con «trova».
+- Un file sconosciuto mostra nome, tipo, dimensione e «Apri con…», mai un vicolo cieco.
+- Un'app dichiara «Ritaglia» e la barra in basso diventa quella del ritaglio.
+
+**Come si verifica.**
+
+- **Tracce:**
+  - `visore-apre`, `visore-barre-tocco`, `visore-info-su`, `visore-chiude-giu`;
+  - `video-comandi`, contro `B3_comparsa_play`;
+  - `pdf-pagine`, `testo-trova`.
+- **Test:**
+  - chi possiede il dito (`FluidImageViewer` di oggi, più il pager di pagine e la chiusura);
+  - il risolutore dei tipi, compresa la regola di `FluidFileKind` per cui un eseguibile non viene mai declassato;
+  - un controllo di build: engine-ui non ha dipendenze di decodifica.
+- **Backlog per la sessione:** video vero sul tablet, PDF di molte pagine, testo grande, TalkBack.
+
+**Sottocategorie specifiche.**
+
+| id | sottocategoria | minimo |
+|---|---|---|
+| F6C-a | le barre si ritirano e tornano come la barra che si ritira; il contenuto non salta | 8,5 |
+| F6C-b | gesti: zoom, pager e chiusura non litigano; la chiusura torna nella miniatura | 9 |
+| F6C-c | ogni tipo ha il suo preset; lo sconosciuto non è mai un vicolo cieco | 8,5 |
+| F6C-d | `engine-ui` non dipende da librerie di decodifica (controllato dalla build) | 9 |
+| F6C-e | un'app dichiara uno strumento e la barra diventa la sua | 8 |
+
+**Rischi e ripieghi.**
+
+- **Media3 in due versioni** (dell'app e del modulo). Ripiego: il modulo dichiara Media3 come `compileOnly` e prende il
+  `Player` dell'app; la versione la sceglie l'app. Va verificato in F6C.4.
+- **`PdfRenderer` su file grandi** è lento e non si può usare da più thread. Ripiego: una pagina alla volta su un
+  thread solo, con una cache di poche pagine e anteprime a bassa risoluzione durante lo scorrimento.
+- **I tasselli fino a 200 MP di Gallery-2** non stanno nel preset immagine della prima versione. Ripiego: l'app passa il
+  suo composable a tasselli come contenuto `Image`; il telaio gli dà gesti e chrome.
+
+**Scelte di Alessio del 21 novembre 2026.**
+
+- **Modo di serie**: una rotta, cioè una pagina vera con indietro, collegamenti e ripristino. La sovrapposizione resta per
+  chi usa già `FluidImageViewer`.
+- **Barre durante un video**: si ritirano solo al tocco; nessun timer.
+- **Pannello info**: tirando su dal contenuto e dal tasto «i».
+- **Sfondo**: nero per foto e video, del tema per documenti e testo.
+- **Da chiedere dopo F6C.0**: i tipi della prima versione. La proposta: immagine (anche animata), video, audio, documento a
+  pagine (PDF), testo e codice, sconosciuto; fuori i documenti Office, gli archivi, gli ebook e il 3D.
 
 ---
 
@@ -2869,7 +3820,8 @@ deve accettare un contenuto sotto di sé; lo zoom di F5B deve partire da un elem
 
 **Scopo.** Far stare tutto nel fotogramma su tablet e telefono senza cambiare ciò che si vede. **Entra**: misure su Tab S9 e
 S25; le leve; i bilanci per fotogramma; le guardie contro le regressioni di costo. **Resta fuori**: qualunque cambio di resa
-non imposto da un bilancio (e in quel caso passa da Alessio come confronto).
+non imposto da un bilancio (e in quel caso passa da Alessio come confronto). Misura anche gli elementi di F6B (gli
+scenari nuovi di F6B.13) e i visori di F6C: parte dopo tutte e due.
 
 **Progetto tecnico.** Le leve, nell'ordine in cui si provano (ognuna misurata da sola, prima e dopo, sugli stessi scenari):
 
@@ -3154,9 +4106,9 @@ Le voci numerate nella tabella riassuntiva di R1 sono **94**, non 95 (il conto d
 | G · geometria | 3 | 3 | — | — | F3.5 |
 | H · tocco e movimento | 6 | 4 | 2 (H5 molle come token, H6 aptica) | — | F6 |
 | V · navigazione | 6 | 4 (V1 in parte c'è: si completa l'interruzione del push) | 2 (V2, V6) | — | F4A.3, F4A.4, F4A.6, F5B.3 |
-| O · altro | 6 | 1 | — | 5 (tastiera, lente del testo, schermata di blocco, icone, player: di sistema o fuori dall'engine; ciò che insegnano è entrato altrove) | F5B.2 |
+| O · altro | 6 | 2 (O6, il player: preset video dei visori, dal 21 novembre) | — | 4 (tastiera, lente del testo, schermata di blocco, icone: di sistema o fuori dall'engine; ciò che insegnano è entrato altrove) | F5B.2, F6C.3 |
 
-In tutto **72** voci si fanno, **16** ci sono già, **6** non si fanno (più la riga senza numero). Nessuna voce di priorità
+In tutto **73** voci si fanno (O6 è passata a «si fa» con F6C, il 21 novembre), **16** ci sono già, **5** non si fanno (più la riga senza numero). Nessuna voce di priorità
 alta è «non si fa». Le voci toccate da R5 portano nella tabella i suoi valori, oppure «a occhio» dove R5 non misura; in
 fondo alla tabella stanno le voci di iOS 27 che R1 non aveva, e ciò che R6 aggiunge su icone e taglie.
 

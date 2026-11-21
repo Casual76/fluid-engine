@@ -88,7 +88,7 @@ riga senza numero in fondo alla famiglia 3.15, riportata qui per ultima).
 | N2 | Tasto della barra → menu | alta | si fa | F5A.2 | è il gruppo intero a trasformarsi; chiede F4A |
 | N3 | Struttura del menu | alta | si fa | F5A.3, F5A.2 (icone delle righe a 22 dp: R6) | sezioni e voce scelta ci sono; nascono sottomenu, sottotitolo, fila di simboli. Icone nascoste di serie (27): riguarda la barra dei menu di iPad e Mac, su iPhone nessun cambio (R5): non si fa |
 | N4 | Ordine e chiusura | media | si fa | F5A.3 | `FluidMenuOrder`, `keepsMenuOpen` |
-| N5 | Azione principale del menu | media | c'è | — | `FluidBarAction(actions, opensOn)`, `FluidMorphMenuButton(actions, onClick)` |
+| N5 | Azione principale del menu | media | c'è | F6B.11 (DSL della barra) | `FluidBarAction(actions, opensOn)`, `FluidMorphMenuButton(actions, onClick)`; nella barra `action(…, onClick, menu)` e `split` (F6B.11) |
 | N6 | Selezione trascinando il dito | media | c'è | — | `FluidMenuHandOff`, `ref/regole.md:570` |
 | N7 | Menu di modifica del testo | media | no | — | è la barra di selezione del testo della piattaforma; rifarla di vetro vuol dire sostituire `LocalTextToolbar` e gestire selezione e tastiera: incarico a parte |
 
@@ -181,7 +181,7 @@ riga senza numero in fondo alla famiglia 3.15, riportata qui per ultima).
 | O3 | Foglio di condivisione | media | no | — | è il foglio di sistema di Android; ciò che insegna (vetro a mezza altezza, opaco a tutta altezza) è P1, in F5B.2 |
 | O4 | Schermata di blocco | bassa | no | — | di sistema; la tinta come materiale è M8 (F2.2), la luce che corre sul bordo è in F6.5 |
 | O5 | Icone a strati | bassa | no | — | fuori dall'engine (icone delle app) |
-| O6 | Player video | bassa | no | — | l'engine non ha un player; tasti `Clear` sopra un video sono M2 (F2.2), con una demo in F2.6 |
+| O6 | Player video | bassa | si fa | F6C.3 | dal 21 novembre: il preset video dei visori, con i comandi di vetro limpido (`Clear`, M2) sopra il video; la riproduzione è dell'app o del modulo facoltativo `engine-viewer` (F6C.4) |
 | — | Notifiche, Centro di controllo | — | no | — | R1 non trova comportamenti utili; `FluidNotification` dell'engine prende il materiale in F1B.5 |
 
 ## Voci di iOS 27 che R1 non aveva (da R5)

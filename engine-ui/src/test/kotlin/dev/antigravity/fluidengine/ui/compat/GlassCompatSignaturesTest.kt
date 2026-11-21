@@ -472,6 +472,15 @@ internal fun CapsuleActionCallsOfF6b3a(onClick: () -> Unit, state: FluidActionSt
 
 class GlassCompatSignaturesTest {
 
+  @Test fun workingAcceptsPreviousCallsAndAnAppControlledPause() {
+    val progress = { 0.48f }
+    for (state in listOf(FluidActionState.Working(), FluidActionState.Working(progress),
+      FluidActionState.Working(progress = progress), FluidActionState.Working { 0.48f })) {
+      org.junit.Assert.assertFalse(state.paused)
+    }
+    org.junit.Assert.assertTrue(FluidActionState.Working(progress, paused = true).paused)
+  }
+
   @Test
   fun theNewContextActionFieldsDefaultToTheOldBehaviour() {
     val log = mutableListOf<String>()

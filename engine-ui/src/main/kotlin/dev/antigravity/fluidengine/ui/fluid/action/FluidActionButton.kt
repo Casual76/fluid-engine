@@ -2,9 +2,6 @@ package dev.antigravity.fluidengine.ui.fluid.action
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.layout.Box
@@ -19,6 +16,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.referentialEqualityPolicy
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -108,7 +108,7 @@ internal data class FluidActionLook(
 @Stable
 internal class FluidActionProgress {
   internal val value = mutableFloatStateOf(0f)
-  internal var source: (() -> Float)? = null
+  internal var source by mutableStateOf<(() -> Float)?>(null, referentialEqualityPolicy())
 
   /** L'avanzamento adesso, 0..1. Letto in un disegno, lo ridisegna quando cambia. */
   fun read(): Float {
@@ -154,9 +154,19 @@ internal fun rememberFluidActionPresentation(
 ): FluidActionPresentation {
   val presentation = remember { FluidActionPresentation(state) }
   val working = state as? FluidActionState.Working
-  if (working?.progress != null) presentation.progress.source = working.progress
+  val paused = working?.paused == true
+  // Congela una sola lettura al bordo della pausa, anche se il produttore esterno continua a scrivere.
+  val held = remember(preset.kind, paused, working?.progress != null) {
+    if (paused) Snapshot.withoutReadObservation {
+      val live = working?.progress?.invoke()
+      if (live != null && live.isFinite()) live.coerceIn(0f, 1f) else presentation.progress.value.floatValue
+    } else null
+  }
+  if (working?.progress != null) {
+    presentation.progress.source = if (held == null) working.progress else remember(held) { { held } }
+  }
   val face = fluidActionFace(preset, state)
-  if (face.ring == FluidActionRing.Determinate) {
+  if (face.ring == FluidActionRing.Determinate && !paused) {
     val source = presentation.progress.source
     LaunchedEffect(presentation, source) {
       if (source == null) return@LaunchedEffect
@@ -201,16 +211,28 @@ internal fun rememberFluidActionPresentation(
  * uno stato e l'altro.
  */
 @Composable
-internal fun FluidActionFaceDrawing(face: FluidActionFace, progress: FluidActionProgress, look: FluidActionLook) {
+internal fun FluidActionFaceDrawing(
+  face: FluidActionFace,
+  progress: FluidActionProgress,
+  look: FluidActionLook,
+  ringClosure: (() -> Float)? = null,
+) {
   val box = look.iconSize * FluidActionProfile.RingDiameter
   val color = if (face.ink == FluidActionInk.Error) look.error else look.ink
   val spin: State<Float>? = if (face.ring == FluidActionRing.Indeterminate && !look.reducedMotion) {
-    rememberInfiniteTransition(label = "fluid action spinner").animateFloat(
-      initialValue = 0f,
-      targetValue = 360f,
-      animationSpec = infiniteRepeatable(tween(FluidActionProfile.SpinnerTurnMs, easing = LinearEasing)),
-      label = "fluid action spinner turn",
-    )
+    val angle = remember { mutableFloatStateOf(0f) }
+    val scale = LocalFluidMotionPolicy.current.durationScale.coerceAtLeast(0.01f)
+    LaunchedEffect(face.paused, scale) {
+      if (face.paused) return@LaunchedEffect
+      var previous = withInfiniteAnimationFrameNanos { it }
+      while (true) {
+        val now = withInfiniteAnimationFrameNanos { it }
+        val frameMs = (now - previous) / 1_000_000f
+        angle.floatValue = (angle.floatValue + 360f * frameMs / (FluidActionProfile.SpinnerTurnMs * scale)) % 360f
+        previous = now
+      }
+    }
+    angle
   } else null
   val digits = if (face.digits) fluidActionDigits(look.iconSize, box) else null
   Box(
@@ -224,15 +246,19 @@ internal fun FluidActionFaceDrawing(face: FluidActionFace, progress: FluidAction
       drawArc(color.copy(alpha = color.alpha * FluidActionProfile.RingTrackAlpha), 0f, 360f, false, topLeft, arc, style = Stroke(stroke))
       when (face.ring) {
         FluidActionRing.Indeterminate -> if (spin != null) {
-          drawArc(color, spin.value - 90f, FluidActionProfile.SpinnerSweep * 360f, false, topLeft, arc, style = line)
+          val arcColor = if (face.paused) color.copy(alpha = color.alpha * FluidActionProfile.ReducedRingAlpha) else color
+          val sweep = FluidActionProfile.SpinnerSweep * 360f
+          drawArc(arcColor, spin.value - 90f, sweep + (360f - sweep) * (ringClosure?.invoke() ?: 0f), false, topLeft, arc, style = line)
         } else {
           // Movimento ridotto: niente che gira; l'anello intero, più pieno della pista, dice «sto lavorando».
           drawArc(color.copy(alpha = color.alpha * FluidActionProfile.ReducedRingAlpha), 0f, 360f, false, topLeft, arc, style = Stroke(stroke))
         }
         FluidActionRing.Determinate -> {
           // Da ore 12 in senso orario (F6B.0 §6, Variable Draw: alta sull'ordine e sul verso).
-          val sweep = 360f * progress.read()
-          if (sweep > 0f) drawArc(color, -90f, sweep, false, topLeft, arc, style = line)
+          val fraction = progress.read()
+          val sweep = 360f * (fraction + (1f - fraction) * (ringClosure?.invoke() ?: 0f))
+          val arcColor = if (face.paused) color.copy(alpha = color.alpha * FluidActionProfile.ReducedRingAlpha) else color
+          if (sweep > 0f) drawArc(arcColor, -90f, sweep, false, topLeft, arc, style = line)
         }
         FluidActionRing.None -> Unit
       }
@@ -273,7 +299,7 @@ private fun fluidActionDigits(iconSize: Dp, box: Dp): FluidActionDigits {
 /**
  * Come un preset passa da una faccia all'altra. Di serie lo scambio sfocato di R7 ([FluidActionSwapGlyph]); F6B.3b
  * innesta i glifi animati veri dei cinque preset in **un punto solo**: [FluidActionGlyphs.of], nel suo file
- * (`FluidActionGlyphs.kt`), che oggi non ne ha nessuno. Un glifo riceve la faccia d'arrivo e ne disegna il passaggio;
+ * (`FluidActionGlyphs.kt`). Un glifo riceve la faccia d'arrivo e ne disegna il passaggio;
  * deve tenere il riquadro di [FluidActionFaceDrawing] (la misura non cambia fra gli stati) e, con
  * [FluidActionLook.reducedMotion], cambiare faccia senza moto.
  */
@@ -328,8 +354,9 @@ internal fun rememberFluidActionSpokenProgress(
   labels: FluidActionLabels,
 ): String? {
   val determinate = fluidActionFace(preset, state).ring == FluidActionRing.Determinate
-  val spoken by remember(presentation, labels, determinate) {
-    derivedStateOf { if (determinate) fluidActionSpokenProgress(presentation.progress.read(), labels) else null }
+  val paused = (state as? FluidActionState.Working)?.paused == true
+  val spoken by remember(presentation, labels, determinate, paused) {
+    derivedStateOf { if (determinate) fluidActionSpokenProgress(presentation.progress.read(), labels, paused) else null }
   }
   return spoken
 }

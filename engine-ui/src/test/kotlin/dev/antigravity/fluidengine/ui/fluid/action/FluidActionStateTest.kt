@@ -54,6 +54,23 @@ class FluidActionStateTest {
 
   // ---- La soglia ------------------------------------------------------------------------------------------------
 
+  @Test fun `pausa esterna conserva identita del lavoro e annuncia il valore esatto`() {
+    val reader = { .48f }
+    val active = FluidActionState.Working(reader)
+    val paused = FluidActionState.Working(reader, paused = true)
+    assertFalse(active.paused)
+    assertFalse(paused.acceptsTap)
+    assertFalse(active == paused)
+    assertEquals(paused, FluidActionState.Working(reader, true))
+    for (preset in listOf(FluidActionPreset.Download, FluidActionPreset.Upload)) {
+      assertTrue(fluidActionFace(preset, paused).paused)
+      assertEquals("In pausa", fluidActionSpoken(preset, paused, FluidActionLabels()))
+      assertEquals("Paused", fluidActionSpoken(preset, paused, FluidActionLabels.english()))
+    }
+    assertEquals("48%", fluidActionSpokenProgress(reader(), FluidActionLabels(), paused = true))
+    assertEquals("25%", fluidActionSpokenProgress(reader(), FluidActionLabels()))
+  }
+
   @Test fun `un lavoro piu breve di 300 ms mostra solo l'esito`() = runTest {
     val save = runner()
     val seen = mutableListOf<String>()

@@ -80,17 +80,22 @@ sealed class FluidActionState {
      * ancora quella di riposo. Lo scrive solo l'esecutore; uno stato scritto dall'app si vede subito.
      */
     internal val pending: Boolean,
+    /** Pausa decisa dall'app: blocca la lettura del progresso e mantiene il tasto disattivato. */
+    val paused: Boolean = false,
   ) : FluidActionState() {
     /** Un lavoro che si vede subito: indeterminato senza [progress], con la percentuale con. */
-    constructor(progress: (() -> Float)? = null) : this(progress, pending = false)
+    constructor(progress: (() -> Float)? = null) : this(progress, pending = false, paused = false)
+
+    /** Come [Working], con pausa gestita da un altro comando dell'app. */
+    constructor(progress: (() -> Float)? = null, paused: Boolean = false) : this(progress, pending = false, paused = paused)
 
     override fun equals(other: Any?): Boolean =
-      other is Working && other.progress === progress && other.pending == pending
+      other is Working && other.progress === progress && other.pending == pending && other.paused == paused
 
-    override fun hashCode(): Int = 31 * System.identityHashCode(progress) + pending.hashCode()
+    override fun hashCode(): Int = 31 * (31 * System.identityHashCode(progress) + pending.hashCode()) + paused.hashCode()
 
     override fun toString(): String = "Working(${if (progress == null) "indeterminato" else "con avanzamento"}" +
-      "${if (pending) ", sotto soglia" else ""})"
+      "${if (pending) ", sotto soglia" else ""}${if (paused) ", in pausa" else ""})"
   }
 
   /** Riuscito: l'icona dell'esito (la spunta), poi di nuovo a riposo dopo la tenuta del preset. */
@@ -229,12 +234,14 @@ internal object FluidActionProfile {
  * il fuoco sul tasto.
  */
 @Immutable
-data class FluidActionWords(
+data class FluidActionWords @JvmOverloads constructor(
   val idle: String,
   val working: String,
   val succeeded: String,
   val failed: String,
   val cancelled: String,
+  /** Stato fermo, seguito dalla percentuale esatta quando ? disponibile. */
+  val paused: String = "In pausa",
 )
 
 /**
@@ -268,17 +275,17 @@ data class FluidActionLabels(
   companion object {
     /** Le parole inglesi. */
     fun english(): FluidActionLabels = FluidActionLabels(
-      send = FluidActionWords("Send", "Sending…", "Sent", "Couldn't send", "Sending canceled"),
-      save = FluidActionWords("Save", "Saving…", "Saved", "Couldn't save", "Saving canceled"),
-      copy = FluidActionWords("Copy", "Copying…", "Copied", "Couldn't copy", "Copy canceled"),
-      download = FluidActionWords("Download", "Downloading…", "Downloaded", "Couldn't download", "Download canceled"),
-      upload = FluidActionWords("Upload", "Uploading…", "Uploaded", "Couldn't upload", "Upload canceled"),
+      send = FluidActionWords("Send", "Sending…", "Sent", "Couldn't send", "Sending canceled", "Paused"),
+      save = FluidActionWords("Save", "Saving…", "Saved", "Couldn't save", "Saving canceled", "Paused"),
+      copy = FluidActionWords("Copy", "Copying…", "Copied", "Couldn't copy", "Copy canceled", "Paused"),
+      download = FluidActionWords("Download", "Downloading…", "Downloaded", "Couldn't download", "Download canceled", "Paused"),
+      upload = FluidActionWords("Upload", "Uploading…", "Uploaded", "Couldn't upload", "Upload canceled", "Paused"),
       favorite = FluidActionWords(
-        "Add to favorites", "Adding to favorites…", "Added to favorites", "Couldn't add to favorites", "Adding canceled",
+        "Add to favorites", "Adding to favorites…", "Added to favorites", "Couldn't add to favorites", "Adding canceled", "Paused",
       ),
       unfavorite = FluidActionWords(
         "Remove from favorites", "Removing from favorites…", "Removed from favorites", "Couldn't remove from favorites",
-        "Removing canceled",
+        "Removing canceled", "Paused",
       ),
       percent = { "$it%" },
     )
@@ -300,8 +307,7 @@ internal enum class FluidActionKind { Send, Save, Copy, Download, Upload, Favori
  * il lavoro. I cinque della prima versione (scelta di Alessio dell'11 novembre 2026) sono [Send], [Save], [Copy],
  * [Download] e [Upload], più [Favorite]; un tasto su misura si fa con [custom].
  *
- * Le icone sono quelle dell'engine, al tratto; il cambio fra uno stato e l'altro è lo scambio sfocato di R7 (F3.4). I
- * glifi animati veri (l'aeroplanino che parte, la spunta che si disegna) li porta F6B.3b, senza cambiare questa API.
+ * I preset animano i vettori del set dell'engine. Il preset su misura usa lo scambio sfocato di R7 (F3.4).
  */
 @Immutable
 class FluidActionPreset internal constructor(
@@ -459,6 +465,7 @@ internal data class FluidActionFace(
   val digits: Boolean = false,
   val ink: FluidActionInk = FluidActionInk.Content,
   val iconScale: Float = 1f,
+  val paused: Boolean = false,
 )
 
 /** La fase di [state] per [preset]: l'ottimistico al lavoro dice già la riuscita. Pura. */
@@ -488,10 +495,10 @@ internal fun fluidActionFace(preset: FluidActionPreset, state: FluidActionState)
       preset.optimistic -> FluidActionFace(preset.kind, preset.success)
       state.pending || !preset.showsWork -> rest
       state.progress == null -> FluidActionFace(preset.kind, preset.working, FluidActionRing.Indeterminate,
-        iconScale = FluidActionProfile.WorkingIconScale)
-      preset.percentInRing -> FluidActionFace(preset.kind, null, FluidActionRing.Determinate, digits = true)
+        iconScale = FluidActionProfile.WorkingIconScale, paused = state.paused)
+      preset.percentInRing -> FluidActionFace(preset.kind, null, FluidActionRing.Determinate, digits = true, paused = state.paused)
       else -> FluidActionFace(preset.kind, preset.working, FluidActionRing.Determinate,
-        iconScale = FluidActionProfile.WorkingIconScale)
+        iconScale = FluidActionProfile.WorkingIconScale, paused = state.paused)
     }
   }
 }
@@ -505,7 +512,7 @@ internal fun fluidActionSpoken(preset: FluidActionPreset, state: FluidActionStat
   // Sotto soglia il tasto è già spento: dice che lavora anche se la faccia è ancora quella di riposo.
   return when (fluidActionPhase(preset, state)) {
     FluidActionPhase.Idle -> name ?: words.idle
-    FluidActionPhase.Working -> words.working
+    FluidActionPhase.Working -> if ((state as? FluidActionState.Working)?.paused == true) words.paused else words.working
     FluidActionPhase.Succeeded -> words.succeeded
     FluidActionPhase.Failed -> words.failed
     FluidActionPhase.Cancelled -> words.cancelled
@@ -513,8 +520,9 @@ internal fun fluidActionSpoken(preset: FluidActionPreset, state: FluidActionStat
 }
 
 /** L'avanzamento detto da TalkBack, a passi di [FluidActionProfile.SpokenProgressStep], o null. Pura. */
-internal fun fluidActionSpokenProgress(progress: Float?, labels: FluidActionLabels): String? {
+internal fun fluidActionSpokenProgress(progress: Float?, labels: FluidActionLabels, paused: Boolean = false): String? {
   if (progress == null || !progress.isFinite()) return null
+  if (paused) return labels.percent(fluidActionPercent(progress))
   val step = FluidActionProfile.SpokenProgressStep
   val stepped = (kotlin.math.floor(progress.coerceIn(0f, 1f) / step + 1e-4f) * step).coerceIn(0f, 1f)
   return labels.percent((stepped * 100f).roundToInt())

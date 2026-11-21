@@ -22,16 +22,21 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `class Destination(@Suppress("UNUSED_PARAMETER") navigator: FluidPageNavigator, internal val content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit) : NavDestination(NAME)` — Una pagina Fluid nel grafo.
     - `var transition: FluidPageTransition`
     - `var backSwipe: FluidBackSwipe`
+    - `var dismiss: FluidPageDismiss`
     - `var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)?` — La sorgente dello zoom di una voce (4.0, F5B.3): vedi `composable(zoomSource = …)`. Null: nessuna.
   - `companion object`
     - `const val NAME` — Il nome con cui il navigator sta nel `NavigatorProvider`.
 - `class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Destination>` — Il builder di una pagina Fluid, per stringa o per classe (rotte tipizzate).
   - `var transition: FluidPageTransition`
   - `var backSwipe: FluidBackSwipe`
+  - `var dismiss: FluidPageDismiss`
   - `var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)?`
 - `fun NavGraphBuilder.composable(route: String, arguments: List<NamedNavArgument> = emptyList(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Una pagina Fluid nel grafo, per rotta stringa.
+- `fun NavGraphBuilder.composable(route: String, arguments: List<NamedNavArgument> = emptyList(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, dismiss: FluidPageDismiss, content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Variante con chiusura verticale dichiarata sulla rotta.
 - `fun <T : Any> NavGraphBuilder.composable(route: KClass<T>, typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Una pagina Fluid nel grafo, per rotta tipizzata (la classe della rotta, serializzabile).
+- `fun <T : Any> NavGraphBuilder.composable(route: KClass<T>, typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, dismiss: FluidPageDismiss, content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Variante tipizzata con chiusura verticale.
 - `inline fun <reified T : Any> NavGraphBuilder.composable(typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, noinline zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Una pagina Fluid nel grafo, per rotta tipizzata: `composable<Dettaglio> { entry -> ... }`.
+- `inline fun <reified T : Any> NavGraphBuilder.composable(typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(), deepLinks: List<NavDeepLink> = emptyList(), transition: FluidPageTransition = FluidPageTransition.Slide, backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly, noinline zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null, dismiss: FluidPageDismiss, noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit)` — Variante reified con chiusura verticale.
 
 ## `engine-ui/ui/navigation/FluidPeerNavigation.kt`
 
@@ -53,6 +58,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?>` — L'host di pagine piu' vicino, o null fuori da un host.
 - `@Composable fun <K : Any> FluidPageHost(stack: List<K>, onBack: () -> Unit, modifier: Modifier = Modifier, transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide }, backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }, peer: FluidPeerMove<K>? = null, onTransitionStart: (List<K>) -> Unit = {}, onSettled: () -> Unit = {}, leaving: Set<K>? = null, state: FluidPageHostState = rememberFluidPageHostState(), pageColor: Color = MaterialTheme.colorScheme.background, zoomSource: (K) -> FluidTransitionSource? = { null }, content: @Composable FluidPageScope.(K) -> Unit)` — Un host di pagine: la pila che riceve diventa due strati opachi, quello sopra e quello sotto, e ogni cambio diventa un movimento con una molla. Non sa niente di navigation: per un `NavController` c'e' `FluidNavHost`, che lo usa.
 - `@Composable fun <K : Any> FluidPageHost(stack: List<K>, onBack: () -> Unit, modifier: Modifier = Modifier, transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide }, backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }, peer: FluidPeerMove<K>? = null, onTransitionStart: (List<K>) -> Unit = {}, onSettled: () -> Unit = {}, leaving: Set<K>? = null, state: FluidPageHostState = rememberFluidPageHostState(), pageColor: Color = MaterialTheme.colorScheme.background, zoomSource: (K) -> FluidTransitionSource? = { null }, precomposePage: K?, content: @Composable FluidPageScope.(K) -> Unit)` — Variante per una destinazione già nota alla pagina chiamante. A riposo l'host può comporre e misurare [precomposePage] nella sua sede definitiva prima del tocco. La pagina preparata ha ciclo di vita CREATED, resta fuori dal disegno e dai tocchi e può essere scartata se cambia la previsione. Gli effetti di composizione possono partire: riservare le azioni di apertura esplicita al davanti o al ciclo di vita.
+- `@Composable fun <K : Any> FluidPageHost(stack: List<K>, onBack: () -> Unit, modifier: Modifier = Modifier, transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide }, backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }, peer: FluidPeerMove<K>? = null, onTransitionStart: (List<K>) -> Unit = {}, onSettled: () -> Unit = {}, leaving: Set<K>? = null, state: FluidPageHostState = rememberFluidPageHostState(), pageColor: Color = MaterialTheme.colorScheme.background, zoomSource: (K) -> FluidTransitionSource? = { null }, precomposePage: K? = null, dismiss: (K) -> FluidPageDismiss, content: @Composable FluidPageScope.(K) -> Unit)` — [dismiss] abilita per destinazione il trascinamento verso il basso, anche dopo una lista annidata.
 
 ## `engine-ui/ui/page/FluidPageHostState.kt`
 
@@ -66,6 +72,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val isMoving: Boolean get()` — Se qualcosa si muove (un back annullato che torna compreso).
   - `fun fractionToward(isHidden: (Any?) -> Boolean): Float` — Quanto si e' andati verso le pagine per cui [isHidden] e' vero (3.0.1): 0 su una pagina dove una cosa c'e', 1 su una dove non c'e', e in mezzo mentre le pagine si muovono, al passo di [progress] — un back a dito compreso, che puo' tornare indietro.
 - `@Composable fun rememberFluidPageHostState(): FluidPageHostState` — Uno stato per host, ricordato.
+
+## `engine-ui/ui/page/FluidPageInput.kt`
+
+- `fun Modifier.fluidOpenGesture(direction: FluidOpenDirection = FluidOpenDirection.Up, state: FluidPageHostState? = null, onOpen: () -> Unit): Modifier` — Tirando la sorgente verso l'alto, [onOpen] inserisce una volta la destinazione nella pila. Il gesto può ancora annullare quell'inserimento. Il tap e la semantica restano al controllo. La sorgente dello zoom si dichiara come per il tap. Un accessorio fuori dall'host passa [state]. Se l'app rimuove anche l'accessorio durante il push, mette [fluidOpenGestureHost] sul genitore stabile.
+- `fun Modifier.fluidOpenGestureHost(state: FluidPageHostState): Modifier` — Tiene il contatto sul genitore comune quando un accessorio esterno a FluidPageHost esce dalla composizione.
 
 ## `engine-ui/ui/page/FluidPageMotion.kt`
 
@@ -135,6 +146,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun interface FluidPeerMove<in K>` — L'ordine fra pari: le schede.
   - `fun direction(from: K, to: K): Int`
 - `enum class FluidPageMove` — Che movimento sta facendo l'host, adesso.
+- `enum class FluidOpenDirection` — Verso del trascinamento che apre una pagina dalla sorgente.
+- `enum class FluidPageDismiss` — Gesto verticale facoltativo della destinazione, indipendente dal bordo orizzontale.
 
 ## `engine-ui/ui/page/FluidZoom.kt`
 

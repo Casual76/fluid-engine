@@ -33,10 +33,15 @@ import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
@@ -51,6 +56,127 @@ import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import kotlin.math.abs
+
+/**
+ * Tirando la sorgente verso l'alto, [onOpen] inserisce una volta la destinazione nella pila. Il
+ * gesto può ancora annullare quell'inserimento. Il tap e la semantica restano al controllo.
+ * La sorgente dello zoom si dichiara come per il tap. Un accessorio fuori dall'host passa [state].
+ * Se l'app rimuove anche l'accessorio durante il push, mette [fluidOpenGestureHost] sul genitore stabile.
+ */
+fun Modifier.fluidOpenGesture(
+  direction: FluidOpenDirection = FluidOpenDirection.Up,
+  state: FluidPageHostState? = null,
+  onOpen: () -> Unit,
+): Modifier = composed {
+  val enclosing = LocalFluidPageTransition.current
+  val host = state ?: enclosing ?: return@composed this
+  val open = rememberUpdatedState(onOpen)
+  if (host === enclosing) {
+    // Il dito resta sull'host fermo anche se la sorgente si sposta o esce dalla composizione.
+    pointerInput(host, direction) {
+      awaitEachGesture {
+        val down = awaitFirstDown(false, PointerEventPass.Initial)
+        host.markOpenContact(down, open.value)
+      }
+    }
+  } else {
+    verticalPageInput(host, externalOpen = { open.value }, dismiss = false)
+  }
+}
+
+/** Tiene il contatto sul genitore comune quando un accessorio esterno a FluidPageHost esce dalla composizione. */
+fun Modifier.fluidOpenGestureHost(state: FluidPageHostState): Modifier = composed {
+  verticalPageInput(state, dismiss = false)
+}
+
+/** Il figlio ha già consumato quanto poteva. Si accetta solo il residuo del dito nel verso richiesto. */
+internal class VerticalPageHandoff(var sign: Int = 0) : NestedScrollConnection {
+  private var pending = 0f
+  var dragging = false
+
+  override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+    if (source != NestedScrollSource.UserInput || sign == 0 || abs(available.y) <= abs(available.x)) return Offset.Zero
+    if (!dragging && available.y * sign <= 0f) return Offset.Zero
+    pending += available.y
+    return Offset(0f, available.y)
+  }
+
+  override suspend fun onPreFling(available: Velocity): Velocity =
+    if (dragging) Velocity(0f, available.y) else Velocity.Zero
+
+  fun take(): Float = pending.also { pending = 0f }
+}
+
+@Composable
+internal fun Modifier.verticalPageInput(
+  state: FluidPageHostState,
+  externalOpen: (() -> (() -> Unit))? = null,
+  dismiss: Boolean = true,
+): Modifier {
+  val handoff = remember(state) { VerticalPageHandoff() }
+  val current = rememberUpdatedState(externalOpen)
+  return nestedScroll(handoff).pointerInput(state, dismiss) {
+    awaitEachGesture {
+      val down = awaitFirstDown(false, PointerEventPass.Initial)
+      val external = current.value?.invoke()
+      if (external != null && state.observesContact(down)) {
+        state.markOpenContact(down, external)
+        return@awaitEachGesture
+      }
+      if (external == null) state.observeContact(down)
+      awaitPointerEvent(PointerEventPass.Main)
+      val open = external ?: state.takeOpenContact(down)
+      val retake = state.canRetakeVertical
+      if (open == null && (!dismiss || !state.canDismissDown || down.position.y < state.barBottomPx)) return@awaitEachGesture
+      handoff.sign = if (open != null) -1 else 1
+      val tracker = VelocityTracker()
+      tracker.addPointerInputChange(down)
+      var token: Int? = if (retake) state.beginVertical(null) else null
+      var childOwns = false
+      try {
+        if (token != null) {
+          handoff.dragging = true
+          down.consume()
+        }
+        while (true) {
+          val pass = if (token == null) PointerEventPass.Main else PointerEventPass.Initial
+          val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == down.id } ?: break
+          tracker.addPointerInputChange(change)
+          val speed = tracker.calculateVelocity().y
+          if (!change.pressed) {
+            token?.let { state.releaseVertical(it, speed); change.consume() }
+            token = null
+            break
+          }
+          var delta = change.position.y - change.previousPosition.y
+          if (token == null) {
+            val total = change.position - down.position
+            if (abs(total.x) > viewConfiguration.touchSlop && abs(total.x) > abs(total.y) && !childOwns) break
+            val residual = handoff.take()
+            childOwns = childOwns || change.isConsumed
+            if (residual != 0f) {
+              delta = residual
+            } else {
+              if (childOwns || total.y * handoff.sign <= viewConfiguration.touchSlop || abs(total.x) >= abs(total.y)) continue
+              delta = total.y
+            }
+            val resume = state.isMoving
+            token = state.beginVertical(open) ?: break
+            if (resume) delta = 0f
+            handoff.dragging = true
+          }
+          change.consume()
+          if (delta != 0f) state.moveVertical(token, delta, speed)
+        }
+      } finally {
+        token?.let { state.releaseVertical(it, 0f, cancelled = true) }
+        handoff.sign = 0
+        handoff.dragging = false
+        handoff.take()
+      }
+    }
+  }
+}
 
 /**
  * Il riconoscitore del trascinamento indietro, sull'host (mai sulla pagina che si muove).
@@ -229,7 +355,7 @@ internal class FluidPageNestedScroll(private val state: FluidPageHostState) : Ne
 
   override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
     if (source != NestedScrollSource.UserInput) return Offset.Zero
-    if (state.phase == FluidPageHostState.Phase.Dragging) return Offset(available.x, 0f)
+    if (state.isHorizontalDrag) return Offset(available.x, 0f)
     val towardExit = available.x * state.layoutDirectionSign
     if (towardExit > 0f && abs(available.x) > abs(available.y) && state.offerHandoff(towardExit)) {
       return Offset(available.x, 0f)
@@ -238,7 +364,7 @@ internal class FluidPageNestedScroll(private val state: FluidPageHostState) : Ne
   }
 
   override suspend fun onPreFling(available: Velocity): Velocity =
-    if (state.phase == FluidPageHostState.Phase.Dragging) Velocity(available.x, 0f) else Velocity.Zero
+    if (state.isHorizontalDrag) Velocity(available.x, 0f) else Velocity.Zero
 }
 
 /** L'informazione che l'host pubblica al dispatcher: nessuna, il back e' tutto quello che fa. */

@@ -12,6 +12,7 @@ import androidx.navigation.NavType
 import androidx.navigation.Navigator
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
+import dev.antigravity.fluidengine.ui.page.FluidPageDismiss
 import dev.antigravity.fluidengine.ui.page.FluidPageScope
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,6 +85,8 @@ class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>() {
       internal set
     var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
       internal set
+    var dismiss: FluidPageDismiss = FluidPageDismiss.None
+      internal set
 
     /** La sorgente dello zoom di una voce (4.0, F5B.3): vedi `composable(zoomSource = …)`. Null: nessuna. */
     var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
@@ -104,6 +107,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
 
   var transition: FluidPageTransition = FluidPageTransition.Slide
   var backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly
+  var dismiss: FluidPageDismiss = FluidPageDismiss.None
   var zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null
 
   constructor(
@@ -131,6 +135,7 @@ class FluidPageDestinationBuilder : NavDestinationBuilder<FluidPageNavigator.Des
   override fun build(): FluidPageNavigator.Destination = super.build().also { destination ->
     destination.transition = transition
     destination.backSwipe = backSwipe
+    destination.dismiss = dismiss
     destination.zoomSource = zoomSource
   }
 }
@@ -156,6 +161,18 @@ fun NavGraphBuilder.composable(
   backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
   zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) = composable(route, arguments, deepLinks, transition, backSwipe, zoomSource, FluidPageDismiss.None, content)
+
+/** Variante con chiusura verticale dichiarata sulla rotta. */
+fun NavGraphBuilder.composable(
+  route: String,
+  arguments: List<NamedNavArgument> = emptyList(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Slide,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  dismiss: FluidPageDismiss,
+  content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
     FluidPageDestinationBuilder(pageNavigator(), route, content).apply {
@@ -164,6 +181,7 @@ fun NavGraphBuilder.composable(
       this.transition = transition
       this.backSwipe = backSwipe
       this.zoomSource = zoomSource
+      this.dismiss = dismiss
     },
   )
 }
@@ -177,6 +195,18 @@ fun <T : Any> NavGraphBuilder.composable(
   backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
   zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
   content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) = composable(route, typeMap, deepLinks, transition, backSwipe, zoomSource, FluidPageDismiss.None, content)
+
+/** Variante tipizzata con chiusura verticale. */
+fun <T : Any> NavGraphBuilder.composable(
+  route: KClass<T>,
+  typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Slide,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  dismiss: FluidPageDismiss,
+  content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
 ) {
   destination(
     FluidPageDestinationBuilder(pageNavigator(), route, typeMap, content).apply {
@@ -184,6 +214,7 @@ fun <T : Any> NavGraphBuilder.composable(
       this.transition = transition
       this.backSwipe = backSwipe
       this.zoomSource = zoomSource
+      this.dismiss = dismiss
     },
   )
 }
@@ -199,3 +230,14 @@ inline fun <reified T : Any> NavGraphBuilder.composable(
 ) {
   composable(T::class, typeMap, deepLinks, transition, backSwipe, zoomSource, content)
 }
+
+/** Variante reified con chiusura verticale. */
+inline fun <reified T : Any> NavGraphBuilder.composable(
+  typeMap: Map<KType, @JvmSuppressWildcards NavType<*>> = emptyMap(),
+  deepLinks: List<NavDeepLink> = emptyList(),
+  transition: FluidPageTransition = FluidPageTransition.Slide,
+  backSwipe: FluidBackSwipe = FluidBackSwipe.EdgeOnly,
+  noinline zoomSource: ((NavBackStackEntry) -> FluidTransitionSource?)? = null,
+  dismiss: FluidPageDismiss,
+  noinline content: @Composable FluidPageScope.(NavBackStackEntry) -> Unit,
+) = composable(T::class, typeMap, deepLinks, transition, backSwipe, zoomSource, dismiss, content)

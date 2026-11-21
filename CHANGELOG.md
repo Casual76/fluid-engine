@@ -8,6 +8,7 @@ Le versioni seguono il semantic versioning: **patch** correzioni, **minor** aggi
 
 ## 4.0.0 - in lavorazione
 
+- F6B.5a — Un elemento si apre in pagina tirandolo su col dito (`Modifier.fluidOpenGesture`): il gesto si ferma, si inverte e riparte in ogni punto con posizione e velocità continue. Una rotta dichiarata con `dismiss = FluidPageDismiss.Down` si chiude tirandola giù; una lista interna cede il dito solo al bordo. Il viaggio sopravvive alla rotazione e alla ricreazione dell'Activity.
 - F6 (correzioni dopo S5d) — La trasparenza ridotta di One UI («Riduci trasparenza e sfocatura») arriva al vetro anche quando si cambia con l'app in sottofondo: il tema rilegge la preferenza alla ripresa e al ritorno del fuoco. In un grappolo di vetri del contenitore la pressione di un tasto cambia la sua sagoma e non più la ricetta dei vicini: il velo degli altri non si scurisce mentre lo si tiene. La lente di interruttore e cursore non azzera lo stiramento se il dito si ferma o inverte il verso senza alzarsi.
 - F7.3i — Il vetro in viaggio e la striscia inferiore esportata delimitano l’uscita dei filtri. Nel contestuale del Tab S9 il ritaglio ha ridotto di 13–14 ms il p90 della CPU del RenderThread.
 - F7.3e — Il corpo ad anello del vetro e la striscia di scorrimento senza sfocatura restituiscono subito trasparente fuori dalla zona che possono colorare: stesse superfici, stessi pixel, meno lavoro sui frammenti (Tab S9: GPU del contestuale col menu da 21 a 17,5 ms al p90).

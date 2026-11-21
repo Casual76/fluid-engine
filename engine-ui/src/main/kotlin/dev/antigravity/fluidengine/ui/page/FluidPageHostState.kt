@@ -31,6 +31,8 @@ package dev.antigravity.fluidengine.ui.page
 import android.view.View
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.animateTo
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -51,6 +53,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -202,6 +205,7 @@ class FluidPageHostState internal constructor() {
   internal var onSettled: () -> Unit = {}
   internal var transitionOf: (Any) -> FluidPageTransition = { FluidPageTransition.Slide }
   internal var backSwipeOf: (Any) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly }
+  internal var dismissOf: (Any) -> FluidPageDismiss = { FluidPageDismiss.None }
   internal var peerOf: ((Any, Any) -> Int)? = null
   internal var renderable: (Any) -> Boolean = { true }
   internal var sourceOf: (Any) -> FluidTransitionSource? = { null }
@@ -228,7 +232,7 @@ class FluidPageHostState internal constructor() {
 
   // --- La macchina ---------------------------------------------------------------------------------
 
-  internal enum class Phase { Idle, Pushing, Popping, Peer, Dragging, Committing, Cancelling }
+  internal enum class Phase { Idle, Pushing, Popping, Peer, Dragging, Committing, Cancelling, VerticalSettling }
 
   internal var phase: Phase = Phase.Idle
     private set
@@ -237,6 +241,54 @@ class FluidPageHostState internal constructor() {
   private var dragToken = 0
   private var processed by mutableStateOf<List<Any>>(emptyList())
   private var job: Job? = null
+  private var touchClock: Job? = null
+  private var touchMoved = false
+  private var lastTravelFrame: Long? = null
+
+  // Il push è una richiesta alla pila dell'app. Fra la richiesta e la composizione che la
+  // riceve conserviamo anche un eventuale rilascio: il primo frame legge già il dito giusto.
+  private class OpenRequest(val from: Any, val token: Int) {
+    var exit = 1f
+    var velocity = 0f
+    var released = false
+    var cancelled = false
+  }
+  private var pendingOpen: OpenRequest? = null
+  private var vertical by mutableStateOf(false)
+  private var fingerOpens = false
+  private var settlingOpen: Boolean? = null
+  internal var restoreAfterRotation: VerticalPageRotation? = null
+  // Alla ripresa la molla conserva la propria velocità, poi il suo scarto dal dito torna a zero.
+  // Offset e velocità sono frazioni dell'altezza: rimangono validi anche durante un ridimensionamento.
+  private var catchOffset = 0f
+  private var catchVelocity = 0f
+  private var sourceNeedsPlacement = false
+  private var openContact: PointerInputChange? = null
+  private var observedContact: PointerInputChange? = null
+  private var openAction: (() -> Unit)? = null
+
+  internal fun observeContact(down: PointerInputChange) { observedContact = down }
+
+  internal fun observesContact(down: PointerInputChange): Boolean =
+    observedContact?.let { it.id == down.id && it.uptimeMillis == down.uptimeMillis } == true
+
+  internal fun markOpenContact(down: PointerInputChange, action: () -> Unit) {
+    openContact = down
+    openAction = action
+  }
+
+  internal fun takeOpenContact(down: PointerInputChange): (() -> Unit)? {
+    observedContact = null
+    val hit = openContact
+    val action = openAction.takeIf { hit?.id == down.id && hit.uptimeMillis == down.uptimeMillis }
+    openContact = null
+    openAction = null
+    return action
+  }
+  internal val canRetakeVertical: Boolean get() =
+    vertical && phase == Phase.VerticalSettling && upper == interactionPage
+  internal val canDismissDown: Boolean get() =
+    canRetakeVertical || (canStartGesture() && interactionPage?.let(dismissOf) == FluidPageDismiss.Down)
   /**
    * Identifica la pagina ancora invisibile per un pop nello stesso frame (C7). Solo la scheda e la dissolvenza
    * aspettano il posizionamento. La molla del push ordinario parte al cambio di pila.
@@ -258,17 +310,18 @@ class FluidPageHostState internal constructor() {
   /** I controlli seguono subito la pila richiesta, anche mentre la pagina uscente resta disegnata. */
   internal val interactionPage: Any? get() = processed.lastOrNull()
 
-  internal fun upperExitFraction(): Float =
-    FluidPageMotion.exitFraction(upperTransition, travelPx, width)
+  internal fun upperExitFraction(): Float = if (vertical && height > 0f) {
+    (travelPx / height).coerceIn(0f, 1f)
+  } else FluidPageMotion.exitFraction(upperTransition, travelPx, width)
 
   /** La frazione con cui si decide chi e' davanti: per un passo fra schede, quella del passo. */
   internal fun frontFraction(): Float =
     if (kind == FluidPageMove.Peer) 1f - peerEased else upperExitFraction()
 
   internal val crossfading: Boolean
-    get() = reducedMotion && (kind == FluidPageMove.Push || kind == FluidPageMove.Pop || kind == FluidPageMove.Peer)
+    get() = reducedMotion && (vertical || kind == FluidPageMove.Push || kind == FluidPageMove.Pop || kind == FluidPageMove.Peer)
 
-  internal fun exitTravel(): Float = FluidPageMotion.exitTravel(upperTransition, width)
+  internal fun exitTravel(): Float = if (vertical) height else FluidPageMotion.exitTravel(upperTransition, width)
 
   // --- Dove sta ogni pagina, letto in disegno ------------------------------------------------------
 
@@ -282,7 +335,7 @@ class FluidPageHostState internal constructor() {
   }
 
   /** La traslazione orizzontale di una pagina in questo fotogramma, in px (gia' nel verso). */
-  internal fun pageOffsetX(role: PageRole): Float = if (crossfading) 0f else when (role) {
+  internal fun pageOffsetX(role: PageRole): Float = if (crossfading || (vertical && zoom == null)) 0f else when (role) {
     PageRole.Gone -> width * direction
     PageRole.Upper -> if (kind == FluidPageMove.Peer) {
       FluidPageMotion.peerFrame(peerTime, peerEased, width, peerDirection).first
@@ -306,7 +359,7 @@ class FluidPageHostState internal constructor() {
 
   /** La scala di una pagina in questo fotogramma, attorno al suo centro (o al punto toccato per Expand). */
   internal fun pageScale(role: PageRole): Float =
-    if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer) {
+    if (!crossfading && !(vertical && zoom == null) && role == PageRole.Upper && kind != FluidPageMove.Peer) {
       zoomContent()?.scale ?: FluidPageMotion.pageFrame(upperTransition, travelPx, width, opening).scale
     } else {
       1f
@@ -317,7 +370,9 @@ class FluidPageHostState internal constructor() {
    * zoom, che sta dentro la sua sagoma (scala attorno al centro dell'host, poi questo spostamento e [pageOffsetX]).
    */
   internal fun pageOffsetY(role: PageRole): Float =
-    if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer) zoomContent()?.translation?.y ?: 0f else 0f
+    if (!crossfading && role == PageRole.Upper && kind != FluidPageMove.Peer)
+      zoomContent()?.translation?.y ?: if (vertical && !reducedMotion) travelPx else 0f
+    else 0f
 
   /** Il riquadro di riposo di una pagina con la sua forma da carta: la sagoma d'arrivo di uno zoom. */
   internal fun fullZoomShape(): FluidZoomShape = FluidZoomShape(Rect(0f, 0f, width, height), cardRadii)
@@ -330,6 +385,12 @@ class FluidPageHostState internal constructor() {
     val journey = zoom ?: return null
     if (crossfading || kind == FluidPageMove.Peer || kind == FluidPageMove.None) return null
     val full = fullZoomShape()
+    if (vertical) {
+      val exit = upperExitFraction()
+      val via = journey.viaExit ?: return FluidZoom.lerp(full, journey.source, exit)
+      return if (exit <= via) FluidZoom.lerp(full, journey.from, exit / via)
+      else FluidZoom.lerp(journey.from, journey.source, (exit - via) / (1f - via))
+    }
     return if (journey.following) {
       FluidZoom.follow(journey.from, full, travelPx - journey.fromTravel, journey.fromTravel, direction, journey.pivot, width)
     } else {
@@ -413,6 +474,13 @@ class FluidPageHostState internal constructor() {
       return
     }
     val change = FluidPageMotion.classifyStackChange(old, processed, peerOf)
+    val request = pendingOpen
+    pendingOpen = null
+    if (request != null && change.kind == FluidStackChangeKind.Push && change.from == request.from &&
+      processed.size == old.size + 1 && processed.dropLast(1) == old) {
+      beginPush(request.from, processed.last(), request)
+      return
+    }
     when (change.kind) {
       FluidStackChangeKind.None -> if (phase == Phase.Idle) settle()
       FluidStackChangeKind.Pop -> beginPop(change.from!!, change.to!!)
@@ -421,7 +489,7 @@ class FluidPageHostState internal constructor() {
     }
   }
 
-  private fun beginPush(from: Any, to: Any) {
+  private fun beginPush(from: Any, to: Any, request: OpenRequest? = null) {
     if (phase == Phase.Popping && upper == to && lower == from && canReverseTravel() && renderable(to)) {
       // La stessa voce torna in cima prima di essere uscita: cambia il bersaglio, non il fotogramma.
       opening = true
@@ -436,6 +504,7 @@ class FluidPageHostState internal constructor() {
     upperTransition = transitionOf(to)
     upper = to
     lower = visibleSource.takeIf(renderable)
+    vertical = request != null
     opening = true
     direction = layoutDirectionSign
     show(FluidPageMove.Push, from = visibleSource, to = to)
@@ -444,6 +513,16 @@ class FluidPageHostState internal constructor() {
     // Lo zoom nasce dalla sorgente: la sagoma parte dal suo riquadro e dalla sua forma. Senza, l'Expand di sempre.
     zoomSourceShape(to)?.let { source ->
       zoom = ZoomJourney(source = source, from = source, fromTravel = travelPx, to = null, toTravel = 0f)
+    }
+    if (request != null) {
+      fingerOpens = true
+      isInteractive = !request.released
+      phase = Phase.Dragging
+      pendingPlacement = to
+      travelPx = height * request.exit
+      velocityPx = request.velocity
+      if (request.released) releaseVertical(request.token, request.velocity, request.cancelled) else markTouchFrame()
+      return
     }
     if (!reducedMotion) animateTravel(0f, zoomSpring(), 0f) { settle() }
     if (phase == Phase.Pushing) pendingPlacement = to
@@ -458,15 +537,20 @@ class FluidPageHostState internal constructor() {
     pendingPlacement = null
     // La sorgente si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma, non prima: nel fotogramma del
     // cambio di pila la pagina nuova non e' ancora composta, e una sorgente gia' nascosta lascerebbe un buco.
-    if (zoom != null && phase == Phase.Pushing && page == upper) consumeSource(page)
+    if (zoom != null && (phase == Phase.Pushing || vertical) && page == upper) consumeSource(page)
     if (phase == Phase.Peer) {
       runPeerClock(placedAtNanos)
-    } else if (crossfading) {
+    } else if (crossfading && !vertical) {
       animateTravel(0f, FluidPageMotion.page(), 0f) { settle() }
     }
   }
 
   private fun beginPop(from: Any, to: Any) {
+    if (vertical && upper == from && pendingPlacement == null) {
+      lower = to.takeIf(renderable)
+      if (phase != Phase.Committing) verticalEndpoint(open = false, velocity = velocityPx)
+      return
+    }
     if (pendingPlacement == from && lower == to) {
       job?.cancel()
       job = null
@@ -624,6 +708,15 @@ class FluidPageHostState internal constructor() {
     val top = processed.lastOrNull()
     pendingPlacement = null
     phase = Phase.Idle
+    touchClock?.cancel()
+    touchClock = null
+    lastTravelFrame = null
+    vertical = false
+    settlingOpen = null
+    catchOffset = 0f
+    catchVelocity = 0f
+    sourceNeedsPlacement = false
+    pendingOpen = null
     zoom = null
     // La sorgente di una pagina che non c'e' piu' rinasce adesso: nello stesso fotogramma la pagina, gia' rientrata nella
     // sagoma, smette di disegnarsi (il ruolo si legge dallo stato).
@@ -663,14 +756,19 @@ class FluidPageHostState internal constructor() {
       onEnd()
       return
     }
-    val animatable = Animatable(travelPx)
+    val last = if (vertical) lastTravelFrame else null
+    val animation = if (last == null) AnimationState(travelPx, initialVelocity)
+    else AnimationState(travelPx, initialVelocity, last)
+    val originalExtent = exitTravel()
     velocityPx = initialVelocity
     job = scope.launch {
       try {
-        animatable.animateTo(target, if (crossfading) FluidMotion.crossFade() else spec, initialVelocity) {
-          travelPx = value
-          velocityPx = velocity
-          if (zoomArrived(value)) throw ZoomArrived()
+        animation.animateTo(target, if (crossfading) FluidMotion.crossFade() else spec, sequentialAnimation = last != null) {
+          lastTravelFrame = lastFrameTimeNanos
+          val resize = if (originalExtent > 0f) exitTravel() / originalExtent else 1f
+          travelPx = value * resize
+          velocityPx = velocity * resize
+          if (zoomArrived(travelPx)) throw ZoomArrived()
         }
       } catch (_: ZoomArrived) {
         // La sagoma è sulla sorgente: il movimento finisce qui, e la sorgente rinasce in questo fotogramma.
@@ -689,6 +787,11 @@ class FluidPageHostState internal constructor() {
    */
   private fun zoomArrived(travel: Float): Boolean {
     val journey = zoom ?: return false
+    if (vertical) {
+      if (phase != Phase.VerticalSettling || settlingOpen != false) return false
+      val shape = zoomShape() ?: return false
+      return FluidZoom.distance(shape, journey.source) <= FluidZoom.ArrivalDp * density
+    }
     val to = journey.to ?: return false
     if (journey.following || journey.toTravel <= journey.fromTravel) return false
     val left = 1f - FluidZoom.travelFraction(travel, journey.fromTravel, journey.toTravel)
@@ -700,9 +803,163 @@ class FluidPageHostState internal constructor() {
 
   // --- Il dito -------------------------------------------------------------------------------------
 
+  /** Un contatto verticale. Il gettone sopravvive al giro di composizione che pubblica il push. */
+  internal fun beginVertical(onOpen: (() -> Unit)?): Int? {
+    if (height <= 0f || width <= 0f || scope == null || pendingOpen != null) return null
+    if (canRetakeVertical) {
+      job?.cancel()
+      job = null
+      phase = Phase.Dragging
+      settlingOpen = null
+      isInteractive = true
+      catchVerticalVelocity()
+      markTouchFrame()
+      return ++dragToken
+    }
+    if (onOpen != null) {
+      val origin = interactionPage ?: return null
+      if (phase != Phase.Idle) return null
+      val request = OpenRequest(origin, ++dragToken)
+      pendingOpen = request
+      try {
+        onOpen()
+      } catch (failure: Throwable) {
+        pendingOpen = null
+        throw failure
+      }
+      return request.token
+    }
+    if (!canDismissDown) return null
+    val exit = upperExitFraction()
+    val extent = exitTravel()
+    val speed = if (extent > 0f) velocityPx / extent else 0f
+    val shape = zoomShape()
+    val token = beginDrag(layoutDirectionSign) ?: return null
+    if (shape != null && exit > 0f && exit < 1f) zoom = zoom?.copy(from = shape, viaExit = exit)
+    vertical = true
+    fingerOpens = false
+    travelPx = height * exit
+    velocityPx = height * speed
+    catchVerticalVelocity()
+    markTouchFrame()
+    return token
+  }
+
+  // Il dito e la molla leggono il medesimo clock Compose (anche nei test): il primo vsync
+  // dopo il rilascio continua dall'ultimo mostrato. Nessuna lettura di wall clock, nessuna
+  // scrittura di stato osservabile e nessun disegno in più mentre il dito è fermo.
+  private fun markTouchFrame() {
+    touchMoved = true
+    if (touchClock?.isActive == true) return
+    touchClock = scope?.launch {
+      while (true) {
+        val sampled = withFrameNanos { frame ->
+          val moved = touchMoved
+          touchMoved = false
+          if (moved) lastTravelFrame = frame else if (catchVelocity == 0f) lastTravelFrame = null
+          moved
+        }
+        if (!sampled) break
+      }
+    }
+  }
+
+  private fun catchVerticalVelocity() {
+    catchOffset = 0f
+    catchVelocity = velocityPx / height
+    if (velocityPx == 0f || reducedMotion) return
+    val extent = height
+    val initial = velocityPx
+    val last = lastTravelFrame
+    val residual = if (last == null) AnimationState(0f, initial) else AnimationState(0f, initial, last)
+    job = scope?.launch {
+      // Riparte dal vsync già mostrato. Azzerare il tempo al prossimo vsync duplicherebbe la posa
+      // della presa per un frame anche con una velocità ereditata di migliaia di px/s.
+      residual.animateTo(0f, FluidPageMotion.zoom(), sequentialAnimation = last != null) {
+        lastTravelFrame = lastFrameTimeNanos
+        val offset = value / extent
+        val speed = velocity / extent
+        travelPx = (travelPx + (offset - catchOffset) * height).coerceIn(0f, height)
+        velocityPx += (speed - catchVelocity) * height
+        catchOffset = offset
+        catchVelocity = speed
+      }
+    }
+  }
+
+  /** Delta fisico in px dell'host fermo. Una rotazione non invalida l'ancora del prossimo evento. */
+  internal fun moveVertical(token: Int, deltaY: Float, velocityY: Float) {
+    val request = pendingOpen
+    if (request?.token == token && !request.released && height > 0f) {
+      request.exit = (request.exit + deltaY / height).coerceIn(0f, 1f)
+      request.velocity = velocityY
+    } else if (vertical && isDragging(token)) {
+      travelPx = (travelPx + deltaY).coerceIn(0f, height)
+      velocityPx = velocityY + catchVelocity * height
+      markTouchFrame()
+    }
+  }
+
+  internal fun releaseVertical(token: Int, velocity: Float, cancelled: Boolean = false) {
+    val request = pendingOpen
+    if (request?.token == token) {
+      request.released = true
+      request.velocity = velocity
+      request.cancelled = cancelled
+      // Come finishCommit: il callback può rifiutare la navigazione. Non armare il push successivo.
+      scope?.launch {
+        repeat(2) { withFrameNanos { } }
+        if (pendingOpen === request) pendingOpen = null
+      }
+      return
+    }
+    if (!vertical || !isDragging(token)) return
+    isInteractive = false
+    val speed = velocity + catchVelocity * height
+    if (fingerOpens) {
+      val open = !cancelled && FluidPageMotion.backRelease(height - travelPx, -velocity, height, density)
+      verticalEndpoint(open, speed)
+    } else if (!cancelled && FluidPageMotion.backRelease(travelPx, velocity, height, density)) {
+      confirmThroughDispatcher(speed)
+    } else {
+      verticalEndpoint(open = true, speed)
+    }
+  }
+
+  private fun verticalEndpoint(open: Boolean, velocity: Float) {
+    touchClock?.cancel()
+    touchClock = null
+    settlingOpen = open
+    phase = Phase.VerticalSettling
+    isInteractive = false
+    val departing = upper
+    if (!open && departing != null) {
+      val source = zoomSourceShape(departing)
+      val journey = zoom
+      val at = upperExitFraction()
+      if (source != null && journey != null && source != journey.source && at < 1f) {
+        val visible = zoomShape() ?: journey.from
+        zoom = journey.copy(source = source, from = visible, viaExit = at.takeIf { it > 0f })
+      }
+    }
+    val placement = pendingPlacement
+    animateTravel(if (open) 0f else height, zoomSpring(), velocity) {
+      if (open) {
+        // Un rilascio rapido (o il movimento ridotto) può precedere la prima posa.
+        if (departing != null && zoom != null) consumeSource(departing)
+        settle()
+      } else {
+        phase = Phase.Committing
+        if (departing != null && departing in processed) onBack()
+        finishCommit(departing)
+      }
+    }
+    if (phase == Phase.VerticalSettling) pendingPlacement = placement
+  }
+
   /** Se adesso un gesto indietro puo' cominciare (o riprendere una pagina che torna a posto). */
   internal fun canStartGesture(): Boolean {
-    if (width <= 0f || processed.size < 2) return false
+    if (vertical || pendingOpen != null || width <= 0f || processed.size < 2) return false
     val top = processed.last()
     val below = processed[processed.size - 2]
     // Una scheda sopra una scheda: non sono una dentro l'altra, il dito non le separa.
@@ -728,6 +985,7 @@ class FluidPageHostState internal constructor() {
    * [direction]: +1 se la pagina esce verso destra.
    */
   internal fun beginDrag(direction: Int, takeOver: Boolean = false): Int? {
+    if (vertical) return null
     // Il back di sistema si prende il dito che l'app stava gia' seguendo (navigazione a gesti, 3.0.4):
     // stessa corsa, stesse pagine, gettone nuovo. Il gesto dell'app se ne accorge al prossimo evento
     // (`isDragging` col suo gettone e' falso) e beve il resto senza rilasciare niente.
@@ -762,11 +1020,12 @@ class FluidPageHostState internal constructor() {
     phase = Phase.Dragging
     show(FluidPageMove.Back, from = upper, to = lower)
     isInteractive = true
-    if (!interruptPush) velocityPx = 0f
     return ++dragToken
   }
 
   internal fun isDragging(token: Int): Boolean = phase == Phase.Dragging && dragToken == token
+
+  internal val isHorizontalDrag get() = phase == Phase.Dragging && !vertical
 
   /** La pagina e' sotto un dito, o sta tornando a posto da un gesto: un back nuovo la prende da dov'e'. */
   internal fun isMovingByFinger(): Boolean = phase == Phase.Dragging || phase == Phase.Cancelling
@@ -845,6 +1104,10 @@ class FluidPageHostState internal constructor() {
   }
 
   private fun commit(velocity: Float) {
+    if (vertical) {
+      verticalEndpoint(open = false, velocity)
+      return
+    }
     phase = Phase.Committing
     show(FluidPageMove.Back, from = upper, to = lower)
     isInteractive = false
@@ -882,9 +1145,12 @@ class FluidPageHostState internal constructor() {
       repeat(2) { withFrameNanos { } }
       job = null
       if (departing in processed) {
-        phase = Phase.Cancelling
-        aimZoom(0f, null)
-        animateTravel(0f, FluidPageMotion.pageReturn(), 0f) { settle() }
+        if (vertical) verticalEndpoint(open = true, velocity = 0f)
+        else {
+          phase = Phase.Cancelling
+          aimZoom(0f, null)
+          animateTravel(0f, FluidPageMotion.pageReturn(), 0f) { settle() }
+        }
       } else {
         settle()
       }
@@ -892,6 +1158,10 @@ class FluidPageHostState internal constructor() {
   }
 
   private fun cancelGesture(velocity: Float) {
+    if (vertical) {
+      verticalEndpoint(open = true, velocity)
+      return
+    }
     phase = Phase.Cancelling
     aimZoom(0f, null)
     animateTravel(0f, FluidPageMotion.pageReturn(), velocity) { settle() }
@@ -976,6 +1246,9 @@ class FluidPageHostState internal constructor() {
 
   /** L'host esce di scena: le sorgenti nascoste tornano tutte. */
   internal fun releaseSources() {
+    observedContact = null
+    openContact = null
+    openAction = null
     for (source in consumed.values) source.release()
     consumed.clear()
   }
@@ -999,6 +1272,7 @@ class FluidPageHostState internal constructor() {
   internal fun blocksInput(page: Any): Boolean = when (phase) {
     Phase.Committing, Phase.Popping -> page == upper
     Phase.Pushing, Phase.Peer -> page == lower
+    Phase.Dragging, Phase.VerticalSettling -> vertical && page == lower
     else -> false
   }
 
@@ -1026,8 +1300,6 @@ class FluidPageHostState internal constructor() {
   }
 
   internal fun updateGeometry(coordinates: LayoutCoordinates, view: View) {
-    width = coordinates.size.width.toFloat()
-    height = coordinates.size.height.toFloat()
     val bounds = coordinates.boundsInWindow()
     hostOriginInRoot = coordinates.positionInRoot()
     hostCoordinates = coordinates
@@ -1035,6 +1307,7 @@ class FluidPageHostState internal constructor() {
     hostRightInWindow = bounds.right
     val root = view.rootView
     windowWidth = root.width.toFloat()
+    resizePage(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())
     val radii = FluidPageMotion.pageCardRadii(
       hostLeft = bounds.left,
       hostTop = bounds.top,
@@ -1061,7 +1334,87 @@ class FluidPageHostState internal constructor() {
       }
     }
   }
+
+  /** La geometria cambia, la fase, il gettone del dito e la velocità in frazioni/s restano gli stessi. */
+  internal fun resizePage(newWidth: Float, newHeight: Float) {
+    if (width == newWidth && height == newHeight) return
+    if (isMoving && (newWidth <= 0f || newHeight <= 0f)) return
+    val oldWidth = width
+    val oldHeight = height
+    val oldExtent = exitTravel()
+    width = newWidth
+    height = newHeight
+    if (!isMoving || oldExtent <= 0f || oldWidth <= 0f || oldHeight <= 0f || newWidth <= 0f || newHeight <= 0f) return
+    val scale = exitTravel() / oldExtent
+    travelPx *= scale
+    velocityPx *= scale
+    val journey = zoom ?: return
+    sourceNeedsPlacement = true
+    val sx = newWidth / oldWidth
+    val sy = newHeight / oldHeight
+    fun remap(shape: FluidZoomShape): FluidZoomShape = shape.resized(sx, sy)
+    val source = upper?.let(::zoomSourceShape) ?: remap(journey.source)
+    zoom = journey.copy(source = source, from = if (journey.from == journey.source) source else remap(journey.from),
+      to = journey.to?.let { if (it == journey.source) source else remap(it) },
+      fromTravel = journey.fromTravel * scale, toTravel = journey.toTravel * scale,
+      pivot = Offset(journey.pivot.x * sx, journey.pivot.y * sy))
+  }
+
+  /** onPlaced dell'host precede quello dei figli. Dopo il layout possiamo leggere la sorgente riposizionata. */
+  internal fun refreshPlacedSource() {
+    if (!sourceNeedsPlacement) return
+    sourceNeedsPlacement = false
+    val journey = zoom ?: return
+    val source = upper?.let(::zoomSourceShape) ?: return
+    zoom = journey.copy(source = source, from = if (journey.from == journey.source) source else journey.from,
+      to = if (journey.to == journey.source) source else journey.to)
+  }
+
+  /** La nuova Activity ritrova le chiavi della pila, mai riferimenti alla vecchia vista o alle sue voci. */
+  internal fun rotationSnapshot(key: (Any) -> Any): VerticalPageRotation? {
+    if (!vertical || height <= 0f || phase == Phase.Committing) return null
+    val top = upper ?: return null
+    val below = lower ?: return null
+    return VerticalPageRotation(key(top), key(below), upperExitFraction(), velocityPx / height,
+      fingerOpens, settlingOpen, width, height, zoom)
+  }
+
+  internal fun resumeRotation(key: (Any) -> Any) {
+    val saved = restoreAfterRotation ?: return
+    if (!initialized || height <= 0f || width <= 0f || processed.isEmpty()) return
+    restoreAfterRotation = null
+    val top = upper ?: return
+    val below = lower ?: return
+    if (phase != Phase.Idle || key(top) != saved.upper || key(below) != saved.lower) return
+    vertical = true
+    opening = saved.opening
+    fingerOpens = saved.opening
+    if (opening) show(FluidPageMove.Push, from = below, to = top) else show(FluidPageMove.Back, from = top, to = below)
+    travelPx = saved.exit * height
+    velocityPx = saved.speed * height
+    if (!reducedMotion) saved.zoom?.let { old ->
+      fun remap(shape: FluidZoomShape): FluidZoomShape = shape.resized(width / saved.width, height / saved.height)
+      zoom = old.copy(source = zoomSourceShape(top) ?: remap(old.source), from = remap(old.from))
+      sourceNeedsPlacement = true
+    }
+    onTransitionStart(listOf(top, below))
+    pendingPlacement = top
+    phase = Phase.Dragging
+    // Android annulla il puntatore insieme alla vecchia finestra. La molla prosegue con posizione
+    // e velocità ritrovate, ed è riprendibile dal primo contatto nella nuova finestra.
+    if (saved.target != null) verticalEndpoint(saved.target, velocityPx)
+    else releaseVertical(++dragToken, velocityPx)
+  }
 }
+
+internal data class VerticalPageRotation(
+  val upper: Any, val lower: Any, val exit: Float, val speed: Float, val opening: Boolean,
+  val target: Boolean?, val width: Float, val height: Float, val zoom: ZoomJourney?,
+)
+
+private fun FluidZoomShape.resized(sx: Float, sy: Float): FluidZoomShape = copy(bounds = bounds.run {
+  Rect(left * sx, top * sy, right * sx, bottom * sy)
+})
 
 /** Uno stato per host, ricordato. */
 @Composable
@@ -1082,4 +1435,5 @@ internal data class ZoomJourney(
   val toTravel: Float,
   val following: Boolean = false,
   val pivot: Offset = Offset.Zero,
+  val viaExit: Float? = null,
 )

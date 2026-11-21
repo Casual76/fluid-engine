@@ -27,6 +27,7 @@ import androidx.navigation.compose.LocalOwnersProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material3.MaterialTheme
 import dev.antigravity.fluidengine.ui.page.FluidPageHostImpl
+import dev.antigravity.fluidengine.ui.page.FluidPageDismiss
 import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
 import dev.antigravity.fluidengine.ui.page.FluidBackSwipe
@@ -152,6 +153,7 @@ fun FluidNavHost(
     modifier = modifier,
     transition = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.transition ?: FluidPageTransition.Slide },
     backSwipe = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.backSwipe ?: FluidBackSwipe.EdgeOnly },
+    dismiss = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.dismiss ?: FluidPageDismiss.None },
     peer = peer,
     onTransitionStart = { entries -> entries.forEach(navigator::prepareForTransition) },
     // A riposo ogni voce in transizione va al suo stato finale: la cima RESUMED, quella sotto

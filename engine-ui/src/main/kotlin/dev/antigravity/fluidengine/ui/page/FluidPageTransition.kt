@@ -98,3 +98,9 @@ enum class FluidPageMove {
   /** Un passo fra schede. */
   Peer,
 }
+
+/** Verso del trascinamento che apre una pagina dalla sorgente. */
+enum class FluidOpenDirection { Up }
+
+/** Gesto verticale facoltativo della destinazione, indipendente dal bordo orizzontale. */
+enum class FluidPageDismiss { None, Down }

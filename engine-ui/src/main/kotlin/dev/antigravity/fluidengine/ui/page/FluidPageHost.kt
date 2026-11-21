@@ -50,6 +50,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.retain.retain
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
@@ -126,6 +127,9 @@ val LocalFluidPageTransition: ProvidableCompositionLocal<FluidPageHostState?> =
 
 /** Una schermata misurata fuori dalla pila non può ancora offrire il proprio fondale alla shell. */
 internal val LocalFluidPagePreparing = compositionLocalOf { false }
+
+/** Vive attraverso la configurazione, come la pila. Una nuova istanza di processo parte a riposo. */
+private class RotationMemory(var trip: VerticalPageRotation? = null)
 
 /**
  * Un host di pagine: la pila che riceve diventa due strati opachi, quello sopra e quello sotto, e
@@ -224,6 +228,30 @@ fun <K : Any> FluidPageHost(
   )
 }
 
+/** [dismiss] abilita per destinazione il trascinamento verso il basso, anche dopo una lista annidata. */
+@Composable
+fun <K : Any> FluidPageHost(
+  stack: List<K>,
+  onBack: () -> Unit,
+  modifier: Modifier = Modifier,
+  transition: (K) -> FluidPageTransition = { FluidPageTransition.Slide },
+  backSwipe: (K) -> FluidBackSwipe = { FluidBackSwipe.EdgeOnly },
+  peer: FluidPeerMove<K>? = null,
+  onTransitionStart: (List<K>) -> Unit = {},
+  onSettled: () -> Unit = {},
+  leaving: Set<K>? = null,
+  state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
+  zoomSource: (K) -> FluidTransitionSource? = { null },
+  precomposePage: K? = null,
+  dismiss: (K) -> FluidPageDismiss,
+  content: @Composable FluidPageScope.(K) -> Unit,
+) {
+  FluidPageHostImpl(stack, onBack, modifier, transition, backSwipe, peer, onTransitionStart, onSettled,
+    leaving, state, pageColor, ownOwners = true, pageKey = { it }, zoomSource = zoomSource,
+    precomposePage = precomposePage, dismiss = dismiss, content = content)
+}
+
 /**
  * [ownOwners]: l'host da' a ogni pagina il suo stato salvabile e il suo ciclo di vita. FluidNavHost
  * lo spegne, perche' quei due li da' gia' la voce del back stack.
@@ -251,6 +279,7 @@ internal fun <K : Any> FluidPageHostImpl(
   pageKey: (K) -> Any,
   zoomSource: (K) -> FluidTransitionSource? = { null },
   precomposePage: K? = null,
+  dismiss: (K) -> FluidPageDismiss = { FluidPageDismiss.None },
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -295,7 +324,16 @@ internal fun <K : Any> FluidPageHostImpl(
   }
 
   // Le sorgenti nascoste dalle pagine aperte con lo zoom rinascono se l'host esce di scena con le pagine aperte.
-  DisposableEffect(state) { onDispose { state.releaseSources() } }
+  val rotation = retain { RotationMemory() }
+  val stableKey = rememberUpdatedState(pageKey)
+  DisposableEffect(state) {
+    state.restoreAfterRotation = rotation.trip
+    rotation.trip = null
+    onDispose {
+      rotation.trip = state.rotationSnapshot { page -> stableKey.value(page as K) }
+      state.releaseSources()
+    }
+  }
 
   // La cima della pila all'ultima chiusura: quando cambia, la rotta e' cambiata, e lo si dice a chi
   // sta fuori dalle pagine nella stessa finestra (3.0.1: la barra flottante si riapre e chiude il fermo
@@ -335,10 +373,12 @@ internal fun <K : Any> FluidPageHostImpl(
     state.onSettled = onSettled
     state.transitionOf = { page -> transition(page as K) }
     state.backSwipeOf = { page -> backSwipe(page as K) }
+    state.dismissOf = { page -> dismiss(page as K) }
     state.peerOf = peer?.let { move -> { from: Any, to: Any -> move.direction(from as K, to as K) } }
     state.renderable = { page -> leaving == null || page in stack || page in leaving }
     state.sourceOf = { page -> zoomSource(page as K) }
     state.onStack(stack)
+    state.resumeRotation { page -> pageKey(page as K) }
     state.backHandler?.isBackEnabled = stack.size > 1
     // Lo stato salvato di una pagina che ha lasciato la pila (e lo schermo) non serve piu'.
     savedKeys.removeAll { saved ->
@@ -359,9 +399,14 @@ internal fun <K : Any> FluidPageHostImpl(
   Box(
     modifier = modifier
       .onPlaced { coordinates -> state.updateGeometry(coordinates, view) }
+      .onGloballyPositioned {
+        state.resumeRotation { page -> pageKey(page as K) }
+        state.refreshPlacedSource()
+      }
       .clipToBounds()
       .nestedScroll(remember(state) { FluidPageNestedScroll(state) })
-      .fluidPageBackSwipe(state),
+      .fluidPageBackSwipe(state)
+      .verticalPageInput(state),
   ) {
     // L'ordine e' quello del disegno: sotto, poi sopra. Le chiavi tengono la composizione di una
     // pagina quando passa da sopra a sotto o viceversa.

@@ -478,7 +478,8 @@ internal fun buildMenuTrace(
     }
     val alpha = if (lens) journey.lensInkAlpha() else fluidMenuContentAlpha(p, closing)
     if (alpha > 0f) {
-      val clip = physics.travelClipIn(panelBox, p)
+      // Nella nascita il ritaglio resta finche' il vetro non contiene il pannello, come nel pannello (S4k).
+      val clip = physics.travelClipIn(panelBox, if (lens) journey.clipProgress(physics, panelBox) else p)
       val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panelBox.topLeft) } ?: panelBox
       val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.magnifiesInk, p, focus, returning = journey.bornReturn) else
         fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)

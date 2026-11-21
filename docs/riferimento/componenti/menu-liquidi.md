@@ -814,6 +814,15 @@ voci si tolgono, e il tocco passa alla pagina e al tasto. Fino a S4h «Altro», 
 fino alla fine dell'uscita: un tocco a 123–140 ms dal congedo non lo riapriva. Il menu del gruppo della barra resta escluso finché
 la capsula non è consegnata (`FluidToolbarMenu.open` rifiuta un'ancora ancora nascosta).
 
+**La riapertura riprende la nascita intera** (S4k): sagoma, goccia, lente e ritaglio dallo stesso istante dell'orologio. Un menu
+nato come Apple che si riapre spegne il ritorno sul contorno (`retarget`), e la goccia riparte dalla sagoma di quell'istante come
+in una nascita. E durante la nascita il ritaglio delle voci resta finché il vetro disegnato non contiene il pannello
+(`FluidMenuJourney.clipProgress`, `fluidMenuBirthClipProgress`), anche senza la goccia: `travelClipIn` lo toglie dal progresso 1,
+ma la nascita ci arriva a ~108 ms con il bordo vicino di «Altro» ancora 24 px dentro il pannello. Fino a S4i, riaperto dopo un
+congedo da fermo, «Altro» restava senza goccia, e da ~225 ms dal tocco le voci si disegnavano a riposo e ingrandite dalla lente
+fuori dal vetro (voto S4j: «Condividi» sopra il bordo, la condivisione e la stella a destra, chiaro f0505–f0512, scuro
+f0561–f0571). Lo stesso ritaglio vale nel pannello, nella lente (`FluidMenuLens.contentMap`), in `FluidMorphMenu` e nelle tracce.
+
 ### Costi
 
 A riposo niente: l'host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali non compone voci chiuse,
@@ -918,6 +927,10 @@ Puri, in `engine-ui` (JVM):
 - Le correzioni S4i: `GruppoRitornoIconeTest` (i fotogrammi veri del congedo da fermo sul Tab S9 rigiocati: con la regola di prima
   la capsula quasi vuota per più fotogrammi, con quella di adesso mai, e mai voci e icone insieme; nei ritorni del banco mai la
   capsula quasi vuota), `FluidMenuEarlyPickS4fTest` (un tocco su «Altro» mentre si chiude lo riapre).
+- La correzione S4k: `RiaperturaVociNelVetroTest` («Altro» del Tab S9 riaperto a 110, 150 e 220 ms dal congedo da fermo, col
+  viaggio vero e la goccia del banco: a ogni fotogramma le voci sono ritagliate sul vetro, o la loro sagoma vista dalla lente sta
+  tutta nel vetro; con la regola di S4i escono, come nel voto S4j), `FluidMenuEarlyPickS4fTest` (lo stesso nel livello vero, dai
+  fotogrammi della sonda).
 - `FluidContextBirthTest` (anche su un orologio finto a 120 Hz): la nascita parte esatta sul seme e finisce esatta sul pannello; da
   100 ms la sagoma di Apple e' quella letta fotogramma per fotogramma (bordo vicino, lontano, larghezza entro lo 0,2%); il distacco
   dalla card (15% a ~234 ms) e il ritorno; un solo superamento per asse; il seme sul bordo che cresce dall'altra parte; il pannello

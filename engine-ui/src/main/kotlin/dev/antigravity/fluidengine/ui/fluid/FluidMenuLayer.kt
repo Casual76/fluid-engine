@@ -60,6 +60,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -659,6 +660,16 @@ private fun FluidMenuLayerContent(
           )
         }
       }
+      // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate. Mentre il vetro passa da un livello
+      // all'altro il ritaglio segue la sua sagoma anche a viaggio d'apertura finito. Nella nascita resta finche' il vetro non
+      // contiene il pannello, anche senza la goccia (S4k).
+      val travelClipNow: () -> RoundRect? = {
+        val placed = Rect(panel.left.roundToInt().toFloat(), panel.top.roundToInt().toFloat(), panel.right, panel.bottom)
+        physics.travelClipIn(
+          placed,
+          if (levels.morphing) levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling) else journey.clipProgress(physics, placed),
+        )
+      }
       // Solo nei test (S4c, NO 2): il menu fotogramma per fotogramma, letto come lo disegna il pannello. Null altrove.
       val probe = FluidMenuLayerProbe.onFrame
       if (probe != null) {
@@ -686,6 +697,12 @@ private fun FluidMenuLayerContent(
                   born = journey.born,
                   birthRunning = journey.birthClock.isRunning,
                   progressRunning = journey.progress.isRunning,
+                  items = contentMapNow().let { m ->
+                    val half = Offset(panel.width / 2f, panel.height / 2f) * m.scale
+                    val center = panel.center + m.translation
+                    Rect(center - half, center + half)
+                  },
+                  itemsClipped = physics.ensurePlan().dropRest != null || travelClipNow() != null,
                 ),
               )
             }
@@ -724,7 +741,11 @@ private fun FluidMenuLayerContent(
           val level = if (levels.swapping) fluidMenuLevelEnterAlpha(levels.swap.value, blurAvailable) else 1f
           val alpha = baseAlpha() * level
           GlassFrameDiagnostics.event("menu.ink", journey) {
-            "alpha=$alpha closing=${journey.closing} phase=${anchor?.groupProgress()} group=${anchor?.groupBounds != null}"
+            // S4k: se il pannello ritaglia le voci sul vetro, e dove la lente mette il loro nodo (scala e spostamento).
+            val map = contentMapNow()
+            val clipped = physics.ensurePlan().dropRest != null || travelClipNow() != null
+            "alpha=$alpha closing=${journey.closing} phase=${anchor?.groupProgress()} group=${anchor?.groupBounds != null} " +
+              "clipped=$clipped scale=${map.scale} shift=${map.translation.x},${map.translation.y}"
           }
           alpha
         },
@@ -741,14 +762,7 @@ private fun FluidMenuLayerContent(
           ),
         paneTitle = paneTitle ?: LocalFluidLabels.current.actions,
         lens = lens,
-        // Il pannello e' posato all'intero piu' vicino: il ritaglio parla le stesse coordinate. Mentre il vetro passa da
-        // un livello all'altro il ritaglio segue la sua sagoma anche a viaggio d'apertura finito.
-        travelClip = {
-          physics.travelClipIn(
-            Rect(panel.left.roundToInt().toFloat(), panel.top.roundToInt().toFloat(), panel.right, panel.bottom),
-            if (levels.morphing) levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling) else progress(),
-          )
-        },
+        travelClip = travelClipNow,
         structure = shownStructure,
         tileLabels = elementSize == FluidMenuElementSize.Medium,
         levelBlurDp = { if (levels.swapping) fluidMenuLevelEnterBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp else 0f },
@@ -1583,4 +1597,11 @@ internal data class FluidMenuProbeFrame(
   val born: Boolean = false,
   val birthRunning: Boolean = false,
   val progressRunning: Boolean = false,
+  /**
+   * Dove la mappa della lente mette il nodo delle voci (il pannello), in coordinate dell'host, e se il pannello le ritaglia sul
+   * vetro (la goccia o il ritaglio del viaggio, `drawInMenuSilhouette` e il `clipInk` della lente). S4k: non ritagliate, devono
+   * stare nel vetro.
+   */
+  val items: Rect = Rect.Zero,
+  val itemsClipped: Boolean = false,
 )

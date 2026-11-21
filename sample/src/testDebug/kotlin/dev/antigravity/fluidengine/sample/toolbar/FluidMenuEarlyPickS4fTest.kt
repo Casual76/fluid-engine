@@ -427,6 +427,52 @@ class FluidMenuEarlyPickS4fTest {
     assertTrue("si richiude", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isEmpty())
   }
 
+  /**
+   * S4k, voto S4j (b): quando «Altro» si riapre durante la chiusura, «Condividi» e alcuni glifi uscivano dal contorno del vetro per
+   * ~100 ms (chiaro f0505–f0512, scuro f0561–f0571). Qui il livello vero, con la riapertura a ~110, ~150 e ~220 ms dal congedo da
+   * fermo: in ogni fotogramma le voci o sono ritagliate sul vetro (la goccia o il ritaglio del viaggio), o il nodo delle voci,
+   * come lo mette la lente, sta nel vetro disegnato.
+   */
+  @Test fun `Altro, riaperto mentre si chiude, tiene le voci nel vetro`() {
+    scene()
+    val at = compose.onNodeWithTag("early-altro").rect().center
+    val misses = ArrayList<String>()
+    for (tap in listOf(112, 160, 224)) {
+      compose.onRoot().performTouchInput { down(at); up() }
+      advance(1_400)
+      assertTrue("«Altro» aperto", compose.onAllNodesWithText("Condividi").fetchSemanticsNodes().isNotEmpty())
+      frames.clear()
+      compose.onRoot().performTouchInput { down(Offset(20f, 20f)); up() }
+      advance(tap)
+      compose.onRoot().performTouchInput { down(at); up() }
+      val reopenedFrom = frames.size
+      advance(900)
+      // Il primo fotogramma dopo il tocco puo' avere il menu gia' visibile e il viaggio ancora in chiusura: il verso cambia nella
+      // composizione, dopo i fotogrammi delle animazioni. Come nel test della riapertura, conta dove arriva.
+      val after = frames.drop(reopenedFrom)
+      after.take(3).forEach { println("TAVOLA riapre-nel-vetro tocco=$tap dopo: visibile=${it.visible} chiusura=${it.closing} p=${it.progress}") }
+      val last = requireNotNull(after.lastOrNull()) { "$tap ms: nessun fotogramma dopo il tocco" }
+      assertTrue(
+        "$tap ms: il tocco riapre: $last",
+        last.visible && !last.closing && kotlin.math.abs(last.progress - 1f) < 0.01f,
+      )
+      var outside = 0
+      for (f in frames) {
+        val g = f.drawn.inflate(1f)
+        val inside = f.items.left >= g.left && f.items.top >= g.top && f.items.right <= g.right && f.items.bottom <= g.bottom
+        if (!f.itemsClipped && !inside && f.inkAlpha > 0.004f) {
+          outside++
+          misses += "$tap ms: p=${f.progress} voci=${f.items} vetro=${f.drawn}"
+        }
+      }
+      val clipped = after.count { it.itemsClipped }
+      println("TAVOLA riapre-nel-vetro tocco=$tap fotogrammi=${after.size} ritagliati=$clipped fuori=$outside p-finale=${last.progress}")
+      compose.onRoot().performTouchInput { down(Offset(20f, 20f)); up() }
+      advance(1_400)
+    }
+    assertTrue("voci fuori dal vetro: ${misses.take(6)}", misses.isEmpty())
+  }
+
   @Test fun `la foto segue il dito con l'Indietro predittivo`() = predictive("foto")
 
   @Test fun `nel contestuale il dito fermo sulla voce durante la nascita la sceglie al rilascio`() = menu("contestuale")

@@ -375,6 +375,24 @@ internal fun fluidMenuLensMap(
 }
 
 /**
+ * Il progresso del ritaglio delle voci durante la nascita ([FluidMenuJourney.clipProgress]): [progress], o
+ * [FluidMenuBirthClipCeiling] se il vetro disegnato [glass] non contiene il pannello [panel] (con [FluidMenuBirthClipSlackPx] di
+ * tolleranza). Sotto 1 `travelClipIn` ritaglia sulla sagoma anche senza la goccia, e la lente mette le voci nel vetro che si vede.
+ */
+internal fun fluidMenuBirthClipProgress(progress: Float, glass: Rect, panel: Rect): Float {
+  val s = FluidMenuBirthClipSlackPx
+  val holds = glass.left <= panel.left + s && glass.top <= panel.top + s && glass.right >= panel.right - s &&
+    glass.bottom >= panel.bottom - s
+  return if (holds) progress else min(progress, FluidMenuBirthClipCeiling)
+}
+
+/** Sotto 1: [FluidPhysicsState.travelClipIn] da' la sagoma. */
+internal const val FluidMenuBirthClipCeiling: Float = 0.999f
+
+/** Il mezzo pixel del pannello posato all'intero, e l'arrotondamento della sagoma a riposo. */
+internal const val FluidMenuBirthClipSlackPx: Float = 1f
+
+/**
  * Il menu tirato dal gesto Indietro ([pull], 0..1) verso la sorgente [source] (S4f, NO 5; S4g-quater, f): la sagoma del primo
  * tratto del congedo ([fluidMenuReturnSlab]: il bordo lontano cede, il vicino resta sulla sorgente, i fianchi stringono verso
  * di lei), proporzionale al gesto addolcito. Le voci restano leggibili; al rilascio il menu si chiude da li', a gesto annullato
@@ -1239,6 +1257,24 @@ internal class FluidMenuJourney {
   val bornReturn: Boolean get() = born && closing
 
   /**
+   * Il progresso con cui ritagliare le voci sul vetro ([FluidPhysicsState.travelClipIn]) e metterle nella lente
+   * ([FluidMenuLens.contentMap]), per il pannello [panel] in coordinate dell'host. E' [progress], ma durante la nascita, finche' il
+   * vetro disegnato non contiene il pannello, resta sotto 1 ([fluidMenuBirthClipProgress]).
+   *
+   * S4k, voto S4j (b): `travelClipIn` toglie il ritaglio dal progresso 1 in su se la goccia non ritaglia, perche' li' il corpo
+   * contiene il contenuto. Con la nascita non e' vero: la sagoma segue l'orologio, e il progresso arriva a 1 a ~108 ms, quando il
+   * bordo vicino di «Altro» e' ancora 24 px dentro il pannello (s4i2, la nascita normale e la riapertura). Nella nascita normale
+   * il ritaglio lo dava la goccia; nella riapertura dopo un congedo da fermo la goccia era spenta, e da ~225 ms dal tocco le voci
+   * si disegnavano a riposo e ingrandite fuori dal vetro: «Condividi» sopra il bordo, la condivisione e la stella a destra (chiaro
+   * f0505–f0512, scuro f0561–f0571).
+   */
+  fun clipProgress(physics: FluidPhysicsState, panel: Rect): Float {
+    val p = progress.value
+    if (p < 1f || !born || closing || birthClock.value >= fluidMenuBirthEndMillis(fromGroup)) return p
+    return fluidMenuBirthClipProgress(p, physics.ensurePlan().bounds, panel)
+  }
+
+  /**
    * Il glifo del tasto al ritorno: quando la sagoma disegnata arriva sul tasto ([fluidModalReturnFaceAlpha]), e da li' non
    * torna indietro. Nell'annullo di «Altro» la goccia arriva con la velocita' della nascita e oscilla attorno al tasto: i
    * puntini comparivano per un campione, li copriva la goccia piu' piccola del tasto, e tornavano alla consegna (S4g, NO 4:
@@ -1699,7 +1735,9 @@ internal class FluidMenuJourney {
     // si conserva il contorno che si sta già seguendo, anche se cambia il verso.
     if (liquidMenu) {
       if (t == 0f && (onContour || (!progress.isRunning && progress.value == 1f))) returningOnContour = true
-      if (t == 1f && progress.value <= 0f) returningOnContour = false
+      // Un menu nato come Apple riaperto a meta' congedo riprende la nascita ([openBirth]), e con lei la goccia (S4k): col
+      // ritorno sul contorno ancora acceso la goccia restava spenta (`FluidMenuReturnSurface`) e il ritaglio delle voci con lei.
+      if (t == 1f && (progress.value <= 0f || born)) returningOnContour = false
     }
     // La sagoma della nascita si ferma ADESSO: dal prossimo fotogramma la chiusura parte da lei, non dal pannello pieno.
     if (born && t == 0f) freezeBirth()

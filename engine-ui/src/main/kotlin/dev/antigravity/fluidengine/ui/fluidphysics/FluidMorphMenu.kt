@@ -731,7 +731,12 @@ fun FluidMorphMenuHost(
             lens = lens,
             // Le voci non escono mai dal vetro mentre si forma o si ritira: ritagliate sul corpo.
             travelClip = {
-              val clipProgress = if (levels.driving) levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling) else progress()
+              // Nella nascita il ritaglio resta finche' il vetro non contiene il pannello, anche senza la goccia (S4k).
+              val clipProgress = if (levels.driving) {
+                levels.morph.value.coerceAtMost(FluidMenuLevelClipCeiling)
+              } else {
+                state.journey.clipProgress(state.physics, panelInLayout)
+              }
               state.physics.travelClipIn(panelInLayout, clipProgress)
             },
             structure = cells,

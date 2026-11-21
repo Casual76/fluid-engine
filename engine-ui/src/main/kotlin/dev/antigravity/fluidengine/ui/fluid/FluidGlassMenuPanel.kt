@@ -692,7 +692,8 @@ internal class FluidMenuLens(
   val panelTopLeft: Offset get() = panel.topLeft
 
   fun contentMap(): FluidMenuContentMap {
-    val clip = physics.travelClipIn(panel, journey.progress.value)
+    // Il ritaglio della nascita finche' il vetro non contiene il pannello, come quello del pannello (S4k).
+    val clip = physics.travelClipIn(panel, journey.clipProgress(physics, panel))
     val visible = clip?.let { Rect(it.left, it.top, it.right, it.bottom).translate(panel.topLeft) } ?: panel
     return fluidMenuLensMap(
       panel, visible, journey.magnifiesInk, journey.progress.value, journey.focus.value, returning = journey.bornReturn,

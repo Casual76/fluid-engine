@@ -3107,8 +3107,9 @@ proposta: i nomi dei parametri secondari li fissa il pacchetto, come nella 3.13 
     `.reminder(action, …)`;
   - SwiftUI non ha un equivalente.
 - **Apple:** le presentazioni che nascono dalla sorgente sono R1 P4 e P5, documentate e misurate in F5B. L'avviso
-  «Annulla invio» di Mail di Apple compare in basso nella lista, **senza nascere dal tasto** (osservazione comune, non in
-  R1: da verificare in F6B.0). La nascita dal tasto è nostra: è l'estensione della regola di F5B.
+  «Annulla invio» di Mail di Apple compare **in alto nella posta in arrivo, fra il titolo e le categorie**, e non nasce dal
+  tasto (F6B.0, dalle guide di iOS 26 e 27; nessun filmato del viaggio). La nascita dal tasto è nostra: è l'estensione
+  della regola di F5B.
 
 **4 · Un elemento che diventa pagina (versione completa).**
 
@@ -3409,8 +3410,9 @@ Il progetto tecnico è sotto, in «La proposta di F6C». Riassunto:
 **Bersagli.**
 
 Dove Apple ha misure (R4, R5, R7, o misure prese nelle fasi passate sulle clip di Apple) valgono quelle. Le altre sono
-dette «a occhio» oppure «da misurare», con la clip candidata. Le clip candidate le cerca, le ritaglia e le misura F6B.0,
-con gli strumenti di `artifacts/liquid-glass/riferimenti/tools/`. I numeri tarati vanno nei profili e in `FluidMotion`,
+dette «a occhio» oppure «da misurare», con la clip candidata. Le clip candidate le ha cercate, ritagliate e misurate F6B.0
+(`artifacts/liquid-glass/sessioni/f6b-0/ricerca-f6b.md`, 19 novembre), con gli strumenti di `artifacts/liquid-glass/riferimenti/tools/`: le righe
+sotto portano già i suoi risultati. I numeri tarati vanno nei profili e in `FluidMotion`,
 con scheda e fiducia nel KDoc (regola comune).
 
 | elemento | grandezza | bersaglio | fonte, fiducia |
@@ -3418,9 +3420,9 @@ con scheda e fiducia nel KDoc (regola comune).
 | tutti | icona che cambia identità | σ massima ≈ 0,15 H a 200–234 ms; le due icone convivono per 70–100 ms; la nuova è nitida a ≈430 ms (300–330 ms sul telefono); chi nasce senza predecessore parte da scala 0,75; la tinta entra dentro la sfocatura a ≈130 ms | R7, alta |
 | tutti | gruppo che cambia larghezza | cambio del piano su 535 ms a vista; trascinamento di 0,155 H al colmo a ~300 ms; il vetro si gonfia del 13,5% a ~200 ms; il tondo che cambia solo simbolo respira (+16,5%) | R4 B2, corretto in F4A.5b; media-alta |
 | selezione | barra in alto, da «sfoglia» a «seleziona» | come sopra; titolo con lo scambio sfocato | R4 B2, R7 |
-| selezione | tab bar che diventa la capsula delle azioni, e ritorno | nessuna misura | **da misurare** su una clip di Foto, File o Mail in «Seleziona» (F6B.0); altrimenti a occhio con i tempi del gruppo che cambia larghezza |
+| selezione | tab bar che diventa la capsula delle azioni, e ritorno | nessuna misura | **non trovato** da F6B.0 (solo fermi di Foto: tondo da 49 pt, spunte da 22 pt): **a occhio** con i tempi del gruppo che cambia larghezza, ≈535 ms (R4 B2) |
 | tasti con esito | soglia oltre la quale si mostra il lavoro | 300 ms | R8, regola di progetto |
-| tasti con esito | disegno della spunta, sostituzione magica | tempi non misurati | **da misurare** sulla clip di WWDC25 337 (SF Symbols 7, Draw e Magic Replace) |
+| tasti con esito | disegno della spunta, sostituzione magica | cerchio che si riempie e spunta in ≈334 ms, di cui 267 ms la spunta, nell'ordine anello → riempimento → spunta; Magic Replace 734 ms e ≈1,67 s nelle demo di 337 (montaggi, non tempi di sistema) | F6B.0 su WWDC25 243 (UIKit) e 337, media |
 | tasti con esito | l'aeroplanino che parte, la scossa del fallimento, il rimbalzo del preferito | — | **a occhio**: nessun riferimento Apple |
 | tasti con esito | pressione | quella di F6.1 (crescita ×1,35, scelta di Alessio) | F6 |
 | avviso dal tasto | vetro e testo | goccia che si raccoglie sul tasto; testo leggibile a 167–183 ms e nitido a 267 ms (tempi del popover, che è una presentazione parallela come l'avviso); rientro a 250 ms | F5B.1 su WWDC25 284 e 323, media |
@@ -3428,25 +3430,25 @@ con scheda e fiducia nel KDoc (regola comune).
 | elemento → pagina | apertura e ritorno con la sorgente | molla critica, risposta 0,355 s nei due versi | F5B.3 su WWDC24 10145 a tempo vero (corr-zoom), alta |
 | elemento → pagina | sagoma sotto il dito | fino al 60% a una larghezza intera | F5B.3, **a occhio** |
 | elemento → pagina | «Cresce» | vetro per tutta la corsa, opaca solo all'arrivo; sfocatura e scurimento dello sfondo progressivi, mai a scatto; col dito la stessa curva | **a occhio**, scelta di Alessio (21 novembre) |
-| elemento → pagina | «Sale» guidato dal dito; elemento condiviso; chrome d'arrivo per ultima | la chrome parte dopo il 70% della corsa | **da misurare** sul mini lettore di Musica (clip da trovare in F6B.0); altrimenti a occhio |
+| elemento → pagina | «Sale» guidato dal dito; elemento condiviso; chrome d'arrivo per ultima | la chrome parte dopo il 70% della corsa | **a occhio**: F6B.0 non ha trovato il mini lettore guidato dal dito (Apple documenta l'apertura al tocco; il mini lettore sopra la tab bar è 0,08 W, la copertina in pagina 0,90 W) |
 | campo | lente → campo | 334 ms, `CubicBezier(.38, 0, .35, 1)`; lente 44 dp, campo 40 dp | F4B.2 su WWDC25 256, alta |
 | campo | tasti inglobati | sfocati e spariti entro 67–100 ms, come le icone del gruppo che diventa menu | R4 B1 (b), alta, per analogia |
-| composer | crescita per riga, vassoio degli allegati, tasto a destra | scambio dell'icona con R7; il resto a occhio | **da misurare** su Messaggi se F6B.0 trova una clip |
+| composer | crescita per riga, vassoio degli allegati, tasto a destra | scambio dell'icona con R7; il resto a occhio | **a occhio**: F6B.0 ha trovato solo fermi di Messaggi |
 | pillole → menu | apertura e chiusura del menu dalla fila | apertura in 330–370 ms; un solo superamento (+5,7%, scelta di Alessio); chiusura in 233 ms | R4 B1 e scelte di F5A.2 |
 | pillola → gettone | viaggio | — | **a occhio** |
 | barra sopra la tastiera | quota | segue l'IME fotogramma per fotogramma, con al più 1 fotogramma di ritardo | regola misurabile (framestats), non Apple |
 | barra sopra la tastiera | cambio di contesto | come il gruppo che cambia larghezza | R4 B2 |
 | pillola di attività | comparsa e scomparsa | comparsa 430 ms, scomparsa 470 ms (contorno → simbolo dilatato → riposo) | R4 B3, media |
-| pillola di attività | compatta ↔ estesa | i tempi del popover dalla sorgente | F5B.1 |
+| pillola di attività | compatta ↔ estesa | i tempi del popover dalla sorgente; per analogia, l'isola dinamica si espande in ≈367 ms col contenuto sfocato fino alla posa | F5B.1; WWDC26 223 in F6B.0, media |
 | tasto diviso, titolo selettore | il menu dal vetro | come il menu dal gruppo: si stringe al 60% in 33 ms; apertura in 330–370 ms; voci nella lente, leggibili a 170–200 ms | R4 B1, F5A.2 |
-| titolo selettore | aspetto della freccia e del titolo | — | **da vedere** in un fermo immagine di iOS 26 (F6B.0) |
-| trova nella pagina | aspetto | — | **da vedere** in iOS 26 (F6B.0); il comportamento è quello di F4B.2 |
+| titolo selettore | aspetto della freccia e del titolo | titolo con la freccia accanto | fermi di Anteprima in F6B.0; l'apertura non è filmata: a occhio |
+| trova nella pagina | aspetto | contatore e frecce in fondo, la barra in alto resta | WWDC25 231 in F6B.0, media; il comportamento è quello di F4B.2 |
 
 **Pacchetti.**
 
 | id | cosa | perimetro di scrittura | dipende da | G/D | modello |
 |---|---|---|---|---|---|
-| F6B.0 | **Ricerca breve** e lista d'accettazione. (a) Le clip e i fermi immagine di Apple che mancano: la selezione in Foto, File o Mail; la barra sopra la tastiera; il menu del titolo; «trova»; il composer di Messaggi; Draw e Magic Replace di WWDC25 337; il mini lettore di Musica che si apre col dito; l'«Annulla invio» di Mail. Ognuna con la misura, se si può. (b) Per ogni elemento i casi delle app (Mail, Notes, Gallery, Fluidify, Weather, Transit, PampAI) trascritti in scene di galleria, e la lista d'accettazione del viaggio d'oro | `docs/liquid-glass/ricerca/elementi-dinamici-apple.md`, `artifacts/liquid-glass/ricerca/f6b/` | — | — | Sol |
+| F6B.0 | **Fatto il 19 novembre (Sol): `artifacts/liquid-glass/sessioni/f6b-0/ricerca-f6b.md`.** **Ricerca breve** e lista d'accettazione. (a) Le clip e i fermi immagine di Apple che mancano: la selezione in Foto, File o Mail; la barra sopra la tastiera; il menu del titolo; «trova»; il composer di Messaggi; Draw e Magic Replace di WWDC25 337; il mini lettore di Musica che si apre col dito; l'«Annulla invio» di Mail. Ognuna con la misura, se si può. (b) Per ogni elemento i casi delle app (Mail, Notes, Gallery, Fluidify, Weather, Transit, PampAI) trascritti in scene di galleria, e la lista d'accettazione del viaggio d'oro | `docs/liquid-glass/ricerca/elementi-dinamici-apple.md`, `artifacts/liquid-glass/ricerca/f6b/` | — | — | Sol |
 | F6B.1 | **Selezione**: `selection { }` dello scope, posizioni, preset, back della selezione con D1; il canale `bottomReplacement` nel `FluidChromeController`; senza tab bar, la barra in basso dichiarata che cambia azioni | `ui/fluid/toolbar/FluidSelectionToolbar.kt` (nuovo), `ui/fluid/FluidScreen.kt` (il canale e un aggancio), `ui/page/FluidPageAnchoredBar.kt` (un aggancio), `ui/fluid/toolbar/FluidBottomBar.kt`, `ui/fluid/FluidSelectionState.kt` (solo se il test di D1 lo chiede), `test/fluid/toolbar/FluidSelectionToolbarTest.kt` | F4A, F4B.1, F6B.0 (la clip della selezione) | G | Opus (Claude secondary) |
 | F6B.2 | **La tab bar che diventa la barra delle azioni**: la pillola diventa la capsula nello stesso contenitore, il tondo confluisce o diventa «···», e il ritorno; rail e barra laterale non si sostituiscono e la barra sta nel pannello | `ui/fluid/FluidFloatingTabBar.kt`, `ui/fluid/FluidAdaptiveNavigation.kt`, `test/fluid/FluidFloatingTabBarSelectionTest.kt` | F6B.1, F4B.3 | G | Astra |
 | F6B.3a | **Tasti con esito: stato e componente.** `FluidActionState`, l'esecutore (soglia di 300 ms, tenuta dell'esito), `FluidActionButton`, il lavoro (anello indeterminato e con percentuale), la larghezza fissa, TalkBack e aptica; l'integrazione nella barra e nella capsula. **Primo pacchetto che scrive nel modello della barra**: crea il punto unico in cui gli elementi nuovi si registrano, così F6B.9–11 aggiungono un tipo senza riscrivere la risoluzione | `ui/fluid/action/FluidActionState.kt`, `ui/fluid/action/FluidActionButton.kt` (nuovi), `ui/fluid/toolbar/FluidToolbar.kt`, `ui/fluid/toolbar/FluidToolbarModel.kt`, `ui/fluid/FluidFloatingCapsule.kt` (`FluidCapsuleAction`), `test/fluid/action/` | F6, F3.4 | G | Opus (Claude secondary) |

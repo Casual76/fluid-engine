@@ -51,6 +51,15 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionGlyphContent
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionLook
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionPreset
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionState
+import dev.antigravity.fluidengine.ui.fluid.action.LocalFluidActionLabels
+import dev.antigravity.fluidengine.ui.fluid.action.acceptsTap
+import dev.antigravity.fluidengine.ui.fluid.action.fluidActionDescribe
+import dev.antigravity.fluidengine.ui.fluid.action.rememberFluidActionPresentation
+import dev.antigravity.fluidengine.ui.fluid.action.rememberFluidActionSpokenProgress
 import kotlin.math.roundToInt
 
 /**
@@ -359,6 +368,12 @@ private fun Modifier.fluidCapsuleFootprint(plane: FluidGlassContainerState, id: 
  *   l'icona — il segno **non e' solo di colore**: un disco pieno e un'icona sola si distinguono anche
  *   in scala di grigi, e a chi non vede i colori. Il disco sta dentro il bersaglio di 48 dp e cresce
  *   con l'icona sotto il dito.
+ * @param action un **tasto con esito** (F6B.3a, `FluidActionPreset`): le facce di ogni stato sono quelle del preset
+ *   (allora [icon] non si disegna), il lavoro e' un anello sottile attorno all'icona e l'esito si scambia sfocato (R7).
+ *   [contentDescription] e' il nome a riposo; negli altri stati TalkBack dice le parole del preset con un'area viva.
+ *   Null (di serie): l'azione di sempre, al bit.
+ * @param state lo stato del tasto con esito (dell'app o di un `FluidActionRunner`): mentre lavora l'azione non
+ *   risponde e non cresce sotto il dito, ma non si vela. La capsula non cambia misura con lo stato.
  */
 @Composable
 fun FluidCapsuleAction(
@@ -373,6 +388,8 @@ fun FluidCapsuleAction(
   size: Dp = FluidFloatingCapsuleDefaults.ActionSize,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
   selected: Boolean? = null,
+  action: FluidActionPreset? = null,
+  state: FluidActionState = FluidActionState.Idle,
 ) {
   val scheme = MaterialTheme.colorScheme
   // Il colore della scelta: quello del disco di un'azione accesa, e dell'icona quando e' accesa.
@@ -392,20 +409,32 @@ fun FluidCapsuleAction(
     animationSpec = if (reducedMotion) snap() else FluidMotion.flick(),
     label = "fluid capsule action selected",
   )
+  // Il tasto con esito (F6B.3a): lo stato di resa (avanzamento, scossa, aptica), e le parole sul bersaglio.
+  val presentation = if (action != null) rememberFluidActionPresentation(action, state, live = true) else null
+  val actionSemantics = if (action != null && presentation != null) {
+    val labels = LocalFluidActionLabels.current
+    val spoken = rememberFluidActionSpokenProgress(action, state, presentation, labels)
+    Modifier.semantics { fluidActionDescribe(this, action, state, labels, contentDescription, spoken) }
+  } else {
+    Modifier
+  }
   Box(
     modifier = modifier
       .size(size)
       .alpha(if (enabled) 1f else CapsuleActionDisabledAlpha)
       // Prima di tutto il resto: la crescita si applica solo a cio' che sta dopo (regola della pressione).
       .fluidPressable(
-        onClick = onClick,
+        // Anche il doppio tocco di TalkBack: un tasto con esito che lavora non riparte.
+        onClick = if (action == null) onClick else ({ if (state.acceptsTap) onClick() }),
         onLongClick = onLongClick,
-        enabled = enabled,
+        // Un tasto con esito che lavora non risponde (e non cresce), ma non si vela: l'anello e' il suo riscontro.
+        enabled = enabled && (action == null || state.acceptsTap),
         role = if (selected != null) Role.Switch else Role.Button,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
         grip = grip,
       )
+      .then(actionSemantics)
       .then(
         if (selected != null) {
           Modifier.semantics { toggleableState = ToggleableState(selected) }
@@ -428,9 +457,15 @@ fun FluidCapsuleAction(
   ) {
     // La taglia dal posto: 28 dp nella capsula, 24 fuori (dentro un campo di ricerca, in una riga dell'app).
     val iconSize = LocalFluidIconSize.current
-    FluidGlassContentTransition(icon, blurReference = iconSize,
-      modifier = Modifier.size(iconSize).semantics { this.contentDescription = contentDescription }) { shown ->
-      FluidIcon(shown, contentDescription = null, tint = color)
+    if (action == null || presentation == null) {
+      FluidGlassContentTransition(icon, blurReference = iconSize,
+        modifier = Modifier.size(iconSize).semantics { this.contentDescription = contentDescription }) { shown ->
+        FluidIcon(shown, contentDescription = null, tint = color)
+      }
+    } else {
+      // Le facce del preset; l'anello sta attorno all'icona, dentro il bersaglio. Il fallimento ha la tinta d'errore.
+      FluidActionGlyphContent(action, state, presentation,
+        FluidActionLook(iconSize, color, scheme.error, reducedMotion))
     }
   }
 }

@@ -1168,7 +1168,10 @@ internal fun <S> FluidGlassContentTransitionWithShape(
       val frame = journey.frame(nowMs)
       if (frame.finished && labelAnchor?.waitsForSpace(referencePx) != true) {
         journey = journey.settle()
-        nowMs = 0.0
+        // Il tempo non torna a zero alla posa (F6B.3a). Se la ricomposizione arriva un fotogramma dopo questo scritto, il
+        // disegno valuta ancora lo strato d'arrivo di prima (entrante, partito a `startMs`) col tempo nuovo: a zero era
+        // all'inizio della sua curva, cioè trasparente, e il contenuto spariva per un fotogramma (i fotogrammi del banco
+        // di F6B.3a). Lo strato fermo non dipende dal tempo, e il cambio dopo riparte da questo istante.
         colorFrom = null
         break
       }

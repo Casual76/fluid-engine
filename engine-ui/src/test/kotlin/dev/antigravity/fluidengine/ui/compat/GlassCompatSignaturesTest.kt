@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.*
+import dev.antigravity.fluidengine.ui.fluid.action.*
 import dev.antigravity.fluidengine.ui.fluidphysics.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -439,6 +440,35 @@ internal fun contextActionsOfThe40(log: MutableList<String>): List<FluidContextA
     onClick = { log += "dieci" },
   ),
 )
+
+// --- FluidCapsuleAction (F6B.3a) ---------------------------------------------------------------------------
+
+/**
+ * `FluidCapsuleAction` come lo scrivono le app prima di F6B.3a: per posizione con tutti e undici i parametri, le forme
+ * minime, l'interruttore e la distruttiva per nome. F6B.3a aggiunge `action` e `state` **in coda**, con un valore di serie:
+ * queste chiamate compilano e restano l'azione di sempre.
+ */
+@Composable
+internal fun CapsuleActionCallsAsBefore(onClick: () -> Unit) {
+  // Undici, per posizione: icon, contentDescription, onClick, modifier, enabled, destructive, tint, onLongClick, size,
+  // grip, selected.
+  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick, Modifier, true, false, Color.Unspecified, null, 48.dp,
+    FluidPressGrip.HoldsFinger, null)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick, modifier = Modifier, size = 40.dp)
+  FluidCapsuleAction(icon = Icons.Rounded.Delete, contentDescription = "Grassetto", onClick = onClick, selected = true)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick = onClick, destructive = true, enabled = false)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Elimina", onClick, onLongClick = onClick, grip = FluidPressGrip.YieldsToScroll)
+}
+
+/** Le forme di F6B.3a, **accanto** a quelle di sopra: il tasto con esito per nome, e tutti e tredici per posizione. */
+@Composable
+internal fun CapsuleActionCallsOfF6b3a(onClick: () -> Unit, state: FluidActionState) {
+  FluidCapsuleAction(Icons.Rounded.Delete, "Salva", onClick, action = FluidActionPreset.Save, state = state)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Copia", onClick, action = FluidActionPreset.Copy)
+  FluidCapsuleAction(Icons.Rounded.Delete, "Salva", onClick, Modifier, true, false, Color.Unspecified, null, 48.dp,
+    FluidPressGrip.HoldsFinger, null, FluidActionPreset.Save, FluidActionState.Working())
+}
 
 class GlassCompatSignaturesTest {
 

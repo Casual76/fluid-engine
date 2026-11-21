@@ -113,6 +113,8 @@ UI_FLUID_DIRS = {
     "ui/fluid/icons": "icone",
     # il modello della barra (F4A.1) e, da F4A.2, la DSL e la resa
     "ui/fluid/toolbar": "barre",
+    # i tasti con esito (F6B.3a): stato, esecutore, tasto e glifi
+    "ui/fluid/action": "barre",
 }
 
 # cartella (sotto .../fluidengine/) -> famiglia; vale per tutto cio' che non e' in ui/fluid

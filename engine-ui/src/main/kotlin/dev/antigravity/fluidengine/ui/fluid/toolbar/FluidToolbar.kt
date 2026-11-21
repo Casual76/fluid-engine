@@ -72,7 +72,11 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.Role
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionPreset
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionState
+import dev.antigravity.fluidengine.ui.fluid.action.fluidToolbarActionType
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -276,17 +280,23 @@ class FluidToolbarScope internal constructor() {
     id: Any = FluidToolbarIds.Confirm,
     enabled: Boolean = true,
     tint: Color = Color.Unspecified,
+    /** Un tasto con esito (F6B.3a): il preset, per esempio [FluidActionPreset.Save]. Vedi [button]. */
+    action: FluidActionPreset? = null,
+    /** Lo stato del tasto con esito, dell'app o di un [dev.antigravity.fluidengine.ui.fluid.action.FluidActionRunner]. */
+    state: FluidActionState = FluidActionState.Idle,
   ) {
     entries += FluidToolbarButtonEntry(
       id = id, role = FluidToolbarRole.Confirm, placement = FluidToolbarPlacement.ConfirmationAction,
       icon = FluidIcons.Check, label = label, onClick = onClick, enabled = enabled, tint = tint,
-      defaultLabel = FluidToolbarDefaultLabel.Confirm, overflow = inOverflow,
+      defaultLabel = FluidToolbarDefaultLabel.Confirm, overflow = inOverflow, type = fluidToolbarActionType(action, state),
     )
   }
 
   /**
    * L'azione principale con un'icona sua: vetro tinto (di serie l'accento), icona chiara, da sola a destra. Una sola per
    * barra, come la conferma, che è un'azione principale anche lei.
+   *
+   * Con [action] e [state] è un tasto con esito, come [button].
    */
   fun primary(
     id: Any,
@@ -295,10 +305,13 @@ class FluidToolbarScope internal constructor() {
     onClick: () -> Unit,
     enabled: Boolean = true,
     tint: Color = Color.Unspecified,
+    action: FluidActionPreset? = null,
+    state: FluidActionState = FluidActionState.Idle,
   ) {
     entries += FluidToolbarButtonEntry(
       id = id, role = FluidToolbarRole.Primary, placement = FluidToolbarPlacement.PrimaryAction, icon = icon,
       label = label, onClick = onClick, enabled = enabled, tint = tint, overflow = inOverflow,
+      type = fluidToolbarActionType(action, state),
     )
   }
 
@@ -317,6 +330,12 @@ class FluidToolbarScope internal constructor() {
    *   gruppo di più icone (non passa agli altri).
    * @param badge un numero sopra l'icona (0 o meno: niente); [badgeDot] un pallino senza numero.
    * @param sharedBackground falso: il tasto non ha vetro (un'icona sulla barra), e non entra in un gruppo.
+   * @param action un **tasto con esito** (F6B.3a): il preset ([FluidActionPreset.Send], `Save`, `Copy`, `Download`,
+   *   `Upload`, `Favorite` o uno su misura) dà le facce di ogni stato e le parole per TalkBack. [icon] resta l'identità del
+   *   tasto nella barra (e la sua icona nel menu «Altro»); dentro il vetro si vedono le facce del preset. Il vetro e la
+   *   sua misura non cambiano con lo stato: cambia solo il contenuto, sfocato (R7).
+   * @param state lo stato del tasto con esito: dell'app, o di un
+   *   [dev.antigravity.fluidengine.ui.fluid.action.FluidActionRunner]. Mentre lavora il tasto non risponde.
    */
   fun button(
     id: Any,
@@ -332,12 +351,14 @@ class FluidToolbarScope internal constructor() {
     badge: Int? = null,
     badgeDot: Boolean = false,
     sharedBackground: Boolean = true,
+    action: FluidActionPreset? = null,
+    state: FluidActionState = FluidActionState.Idle,
   ) {
     entries += FluidToolbarButtonEntry(
       id = id, role = role.toolbarRole(FluidToolbarRole.Action), placement = role.placementFor(placement),
       priority = priority, icon = icon, label = label, onClick = onClick, tint = tint, selected = selected,
       enabled = enabled, badgeCount = badge, badgeDot = badgeDot, sharedBackground = sharedBackground,
-      destructive = role == FluidButtonRole.Destructive, overflow = inOverflow,
+      destructive = role == FluidButtonRole.Destructive, overflow = inOverflow, type = fluidToolbarActionType(action, state),
     )
   }
 
@@ -489,7 +510,53 @@ internal class FluidToolbarButtonEntry(
   val defaultLabel: FluidToolbarDefaultLabel? = null,
   val overflow: Boolean = false,
   val menu: (() -> List<FluidContextAction>)? = null,
+  /** Il tipo registrato (F6B.3a): vedi [FluidToolbarElementType]. Null: un tasto di sempre. */
+  val type: FluidToolbarElementType? = null,
 ) : FluidToolbarEntry
+
+/**
+ * **Il punto unico di registrazione degli elementi nuovi della barra** (F6B.3a), lato resa: ciò che un tipo d'elemento
+ * nuovo dice alla barra oltre al modello ([kind], [FluidToolbarKind]). La barra lo chiede in un posto solo per ciascuna
+ * cosa, e non sa niente del tipo:
+ *
+ * - [kind]: il lato puro, che il modello usa per le chiavi del contenuto e del vetro e per la larghezza;
+ * - [acceptsTap]: se il posto risponde adesso al tocco (un tasto con esito che lavora no);
+ * - [rememberSlot]: la resa del tipo in un posto (la faccia, dentro lo scambio sfocato del posto) e le sue parole per
+ *   TalkBack, ricordata una volta per posto.
+ *
+ * Il tasto con esito ne è il primo (`FluidToolbarActionType`, in `action/FluidActionButton.kt`). Per aggiungerne uno
+ * (F6B.9, F6B.10, F6B.11): il suo [FluidToolbarKind] con una riga in [FluidToolbarKinds], questa classe estesa nel file del
+ * tipo, e una funzione della DSL che aggiunge un [FluidToolbarButtonEntry] con `type =` il tipo, scegliendo un ruolo che
+ * c'è già (`Action` per un'icona che può stare in gruppo, `Text` per un elemento col suo vetro). La risoluzione, la
+ * differenza fra due stati e il piano non cambiano.
+ */
+internal abstract class FluidToolbarElementType {
+  /** Il lato puro del tipo, confrontabile per valore. */
+  abstract val kind: FluidToolbarKind
+
+  /** Se il posto risponde al tocco in questo stato. */
+  open val acceptsTap: Boolean get() = true
+
+  /**
+   * La resa del tipo in un posto. [live] è vero per il posto vero (suona l'aptica, trema), falso per una copia (il glifo
+   * che viaggia fra due vetri), che disegna soltanto.
+   */
+  @Composable
+  abstract fun rememberSlot(live: Boolean): FluidToolbarTypeSlot
+}
+
+/** La resa di un [FluidToolbarElementType] in un posto: la faccia e le parole. */
+internal interface FluidToolbarTypeSlot {
+  /**
+   * La faccia, centrata nel posto, con l'inchiostro [color] (già risolto: chiaro sul vetro tinto della principale) e la
+   * taglia [iconSize]. [onTint] è vero sul vetro tinto.
+   */
+  @Composable
+  fun Face(color: Color, iconSize: Dp, onTint: Boolean)
+
+  /** Le parole per TalkBack sul bersaglio del posto. [name] è il nome che il tasto ha a riposo. */
+  fun describe(receiver: SemanticsPropertyReceiver, name: String?)
+}
 
 internal class FluidToolbarSpacerEntry(override val id: Any, val flexible: Boolean, val width: Dp) : FluidToolbarEntry
 
@@ -615,13 +682,14 @@ internal fun fluidToolbarModel(
       tintArgb = fluidToolbarArgb(tintOf(entry)),
       selected = entry.selected,
       enabled = entry.enabled,
-      widthDp = when {
+      widthDp = entry.type?.kind?.widthDp ?: when {
         entry.custom != null -> entry.width?.value
         entry.text != null -> textWidthDp(entry.text)
         else -> null
       },
       // Un elemento libero cambia contenuto da sé: la sua identità è anche la chiave del contenuto.
       contentKey = if (entry.custom != null) FluidToolbarCustomContent(entry.id) else null,
+      kind = entry.type?.kind,
     )
   }
   return FluidToolbarModel(
@@ -1220,6 +1288,8 @@ private fun FluidToolbarTravellingButton(
   val labels = LocalFluidLabels.current
   val touchable = interactive && entry.onClick != null
   val haptics = LocalFluidHaptics.current
+  // Un tipo registrato viaggia con la sua faccia; il posto vero, nascosto mentre viaggia, resta quello che suona e dice.
+  val typeSlot = entry.type?.rememberSlot(live = false)
   Box(modifier.requiredSize(FluidMetrics.TouchTarget).graphicsLayer {
     fun center(x: Float) = (if (rtl) resolved.widthDp - x else x) * this.density
     val flight = plane?.flightOf(qualified)
@@ -1240,7 +1310,7 @@ private fun FluidToolbarTravellingButton(
     alpha = if (entry.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
   }.then(if (touchable) Modifier.clickable(
     interactionSource = remember { MutableInteractionSource() }, indication = null,
-    enabled = entry.enabled, role = Role.Button,
+    enabled = entry.enabled && entry.type?.acceptsTap != false, role = Role.Button,
   ) {
     haptics.play(FluidHapticEvent.Tap)
     entry.onClick?.invoke()
@@ -1248,6 +1318,7 @@ private fun FluidToolbarTravellingButton(
     contentDescription = entry.accessibleName(labels.back, labels.close, labels.confirm)
     if (element.item.selected) selected = true
     element.item.badge?.text?.let { stateDescription = it }
+    typeSlot?.describe(this, entry.accessibleName(labels.back, labels.close, labels.confirm))
   } else Modifier.clearAndSetSemantics { }), contentAlignment = Alignment.Center) {
     Box(Modifier.fillMaxSize().graphicsLayer {
       if (startColor != endColor) compositingStrategy = CompositingStrategy.Offscreen
@@ -1267,7 +1338,8 @@ private fun FluidToolbarTravellingButton(
       } else trip.inkFraction(element.item, flight?.let { plane?.filmAlpha(it) }, localInk?.value ?: u)
       drawRect(lerp(startColor, endColor, inkFraction), blendMode = BlendMode.SrcIn)
     }), contentAlignment = Alignment.Center) {
-      FluidIcon(icon, null, tint = endColor, size = size)
+      if (typeSlot != null) typeSlot.Face(endColor, size, element.item.isPrimary)
+      else FluidIcon(icon, null, tint = endColor, size = size)
     }
   }
 }
@@ -1453,7 +1525,8 @@ private class FluidToolbarMenuSource {
  * Se cambia e il vetro resta della sua misura (il tondo dell'elenco che diventa la lente), il piano lo fa respirare.
  */
 internal fun fluidToolbarGlassContentKey(group: FluidToolbarGroup): Any =
-  group.items.map { Triple(it.content, it.tintArgb, it.selected) }
+  // Il contenuto del vetro, non lo stato di un tipo registrato: un tasto con esito che riesce non fa respirare il tondo.
+  group.items.map { Triple(it.glassContent, it.tintArgb, it.selected) }
 
 /**
  * La forma del vetro per i posti di [group] (F4A.5b): con la variante [FluidToolbarKeptContent.Soft], i tasti che ci sono
@@ -1480,6 +1553,8 @@ private data class FluidToolbarFace(
   val custom: (@Composable () -> Unit)?,
   /** La taglia dell'icona: 26 dp nella barra, 24 il chevron dell'indietro (R6), come il tasto indietro di sempre. */
   val size: Dp = FluidMetrics.BarIconSize,
+  /** La faccia di un tipo registrato ([FluidToolbarElementType]), con l'inchiostro del posto; prima dell'icona. */
+  val typed: (@Composable (Color) -> Unit)? = null,
 )
 
 /** La taglia dell'icona di un tasto della barra: quella del chevron per l'indietro, quella della barra per gli altri. */
@@ -1518,13 +1593,18 @@ private fun FluidToolbarSlot(
     tint != Color.Unspecified -> tint
     else -> ink
   }
+  // Un tipo registrato (F6B.3a) disegna la sua faccia e cambia stato da sé: lo scambio del posto lo segue solo quando
+  // cambia l'identità ([FluidToolbarItem.glassContent]), non lo stato.
+  val iconSize = fluidToolbarIconSize(item.role)
+  val typeSlot = entry?.type?.rememberSlot(live = true)
   val face = FluidToolbarFace(
-    key = item.content,
+    key = item.glassContent,
     icon = if (overflow) FluidIcons.MoreHoriz else entry?.icon,
     text = entry?.text,
     color = if (onGlass) color else lerp(color, scheme.primary, selection.value),
     custom = entry?.custom,
-    size = fluidToolbarIconSize(item.role),
+    size = iconSize,
+    typed = if (typeSlot == null) null else ({ faceColor -> typeSlot.Face(faceColor, iconSize, onGlass) }),
   )
   val label = when {
     overflow -> declaration.overflowLabel ?: labels.more
@@ -1536,6 +1616,8 @@ private fun FluidToolbarSlot(
     else -> null
   }
   val enabled = entry?.enabled ?: true
+  // Un tasto con esito che lavora non risponde, ma non si vela: l'anello è il suo riscontro (FluidActionState.Working).
+  val accepts = entry?.type?.acceptsTap != false
   val textStyle = FluidToolbarDefaults.textStyle()
   // Il trabocco: le azioni nascoste, nel menu «Altro» e, per TalkBack, come azioni del tasto.
   val hidden = if (overflow) resolved.overflow.mapNotNull { declaration.buttons[it.id] } else emptyList()
@@ -1708,11 +1790,14 @@ private fun FluidToolbarSlot(
             entry?.onClick != null -> Modifier.clickable(
               interactionSource = remember { MutableInteractionSource() },
               indication = null,
-              enabled = enabled,
+              enabled = enabled && accepts,
               role = Role.Button,
             ) {
-              haptics.play(FluidHapticEvent.Tap)
-              entry.onClick.invoke()
+              // Anche il doppio tocco di TalkBack: un tasto con esito che lavora non riparte.
+              if (accepts) {
+                haptics.play(FluidHapticEvent.Tap)
+                entry.onClick.invoke()
+              }
             }
             else -> Modifier
           },
@@ -1721,6 +1806,8 @@ private fun FluidToolbarSlot(
           if (label != null) contentDescription = label
           if (item.selected) selected = true
           badge?.text?.let { stateDescription = it }
+          // Il tipo registrato dice le sue parole (il tasto con esito: «Invio in corso…», «Inviato», con l'area viva).
+          typeSlot?.describe(this, label)
           if (hidden.isNotEmpty()) {
             customActions = hidden.map { it.contextAction(labels.back, labels.close, labels.confirm) }
               .filter { it.enabled }.map { action ->
@@ -1828,6 +1915,7 @@ private fun FluidToolbarFadingFace(
 private fun FluidToolbarFaceContent(face: FluidToolbarFace, textStyle: TextStyle) {
   when {
     face.custom != null -> Box(Modifier.clearAndSetSemantics { }, contentAlignment = Alignment.Center) { face.custom.invoke() }
+    face.typed != null -> face.typed.invoke(face.color)
     face.text != null -> Text(
       text = face.text,
       style = textStyle,
@@ -1851,7 +1939,7 @@ private fun FluidToolbarButtonEntry.contextAction(back: String, close: String, c
     label = accessibleName(back, close, confirm),
     icon = icon,
     destructive = destructive,
-    enabled = enabled && onClick != null,
+    enabled = enabled && onClick != null && type?.acceptsTap != false,
     selected = selected,
     onClick = { onClick?.invoke() },
   )

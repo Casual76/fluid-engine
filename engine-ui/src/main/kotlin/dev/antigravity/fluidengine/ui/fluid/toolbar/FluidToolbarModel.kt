@@ -38,6 +38,49 @@ internal enum class FluidToolbarTrigger {
 internal data class FluidToolbarBadge(val text: String? = null)
 
 /**
+ * **Il punto unico di registrazione degli elementi nuovi della barra** (F6B.3a), lato modello.
+ *
+ * Un elemento nuovo (il tasto con esito di F6B.3a; poi la pillola di attività di F6B.10, il tasto diviso di F6B.11) non è
+ * un ruolo nuovo di [FluidToolbarRole] e non tocca [resolveFluidToolbar] né [diffFluidToolbar]: è un elemento
+ * ordinario (un ruolo che c'è già, una larghezza, una priorità, un vetro suo o condiviso) che porta in [FluidToolbarItem.kind]
+ * **che cosa è** e **che cosa mostra adesso**. Il modello ne ricava due chiavi, e basta:
+ *
+ * - la chiave del **contenuto** ([FluidToolbarItem.content]): comprende lo stato ([state]). Quando cambia, la differenza
+ *   lo dice (`BlurReplace`) e un tasto non viaggia fra due posti con due facce diverse;
+ * - la chiave del **vetro** ([FluidToolbarItem.glassContent]): solo l'identità ([identity]). Un cambio di stato non fa
+ *   respirare il tondo (F4A.5b): il vetro resta fermo e i vicini non saltano (scelta di Alessio del 21 novembre 2026).
+ *
+ * La larghezza è [widthDp] (null: quella di serie del tasto, la lente). Dev'essere **fissa fra gli stati** (la più larga):
+ * il piano non regge un pezzo la cui misura segue un valore continuo (`piano-flottante.md`, «Cosa non fa ancora»).
+ *
+ * La resa e le parole del tipo stanno nel suo lato Compose (`FluidToolbarElementType`, in `FluidToolbar.kt`). Un tipo
+ * nuovo: una classe che implementa questa interfaccia (pura, confrontabile per valore), una che estende
+ * `FluidToolbarElementType`, una funzione della DSL che aggiunge un `FluidToolbarButtonEntry` con il suo `type`, e una
+ * riga in [FluidToolbarKinds].
+ */
+internal interface FluidToolbarKind {
+  /** Il nome del tipo, da [FluidToolbarKinds]: due tipi diversi non hanno mai lo stesso contenuto. */
+  val type: String
+
+  /** Che cosa è, fra due stati: cambia solo se l'elemento diventa un altro (un preset diverso). Confrontabile per valore. */
+  val identity: Any?
+
+  /** Che cosa mostra adesso (la faccia, senza valori continui). Confrontabile per valore. */
+  val state: Any?
+
+  /** La larghezza fissa che l'elemento chiede, in dp, o null per quella di serie. */
+  val widthDp: Float? get() = null
+}
+
+/** I tipi registrati ([FluidToolbarKind.type]). Uno per riga, in ordine d'arrivo. */
+internal object FluidToolbarKinds {
+  /** Il tasto con esito (F6B.3a): `button`, `primary` e `confirm` con `action` e `state`. */
+  const val Action: String = "action"
+}
+
+private data class FluidToolbarKindContent(val type: String, val value: Any?, val identity: Any?, val state: Any?)
+
+/**
  * Un id esplicito diverso vieta l'euristica: [matchId] è null solo per chiavi locali generate dalla DSL.
  * [symbol] identifica il simbolo, non la sua istanza grafica; [widthDp] è la misura fornita dal chiamante
  * per testo/campi/contenuto libero. Tinta ARGB, badge e selezione appartengono al singolo elemento.
@@ -63,6 +106,8 @@ internal data class FluidToolbarItem(
   val bornFrom: Any? = null,
   val transition: FluidToolbarTransition = FluidToolbarTransition.Automatic,
   val contentKey: Any? = null,
+  /** Il tipo registrato dell'elemento, se ne ha uno ([FluidToolbarKind], F6B.3a); null: un tasto di sempre. */
+  val kind: FluidToolbarKind? = null,
 ) {
   init {
     require(widthDp == null || widthDp.isFinite() && widthDp >= 0f)
@@ -74,7 +119,18 @@ internal data class FluidToolbarItem(
   val isPrimary: Boolean get() = prominent || role == FluidToolbarRole.Primary || role == FluidToolbarRole.Confirm ||
     placement == FluidToolbarPlacement.PrimaryAction || placement == FluidToolbarPlacement.ConfirmationAction
   val isExit: Boolean get() = role == FluidToolbarRole.Back || role == FluidToolbarRole.Close
-  val content: Any? get() = contentKey ?: ToolbarContentKey(symbol != null, symbol ?: label)
+
+  /** Che cosa mostra il posto, stato del tipo compreso: quando cambia, il contenuto si scambia sfocato. */
+  val content: Any? get() = contentKey ?: kind?.let { FluidToolbarKindContent(it.type, symbol ?: label, it.identity, it.state) }
+    ?: ToolbarContentKey(symbol != null, symbol ?: label)
+
+  /**
+   * Che cosa porta il vetro (F4A.5b, il respiro del tondo che cambia simbolo): come [content], ma **senza** lo stato di un
+   * tipo registrato ([FluidToolbarKind]). Per un tasto senza tipo è [content].
+   */
+  val glassContent: Any? get() = if (contentKey == null && kind != null) {
+    FluidToolbarKindContent(kind.type, symbol ?: label, kind.identity, null)
+  } else content
 }
 
 private data class ToolbarContentKey(val isSymbol: Boolean, val value: Any?)

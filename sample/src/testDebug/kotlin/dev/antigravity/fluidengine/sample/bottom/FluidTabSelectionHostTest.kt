@@ -55,6 +55,8 @@ class FluidTabSelectionHostTest {
       compose.mainClock.advanceTimeBy(16)
       shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(16))
     }
+    // Ogni campione attende layout e disegno anche quando non esportiamo le PNG.
+    compose.waitForIdle()
   }
 
   private fun saveFrame(name: String, measureStandalone: Boolean = false): Int {
@@ -146,6 +148,7 @@ class FluidTabSelectionHostTest {
     assertEquals(shareBounds, share.getBoundsInRoot())
     gesture()
     compose.runOnUiThread { back.onBackPressed() }
+    compose.runOnIdle { assertFalse("Il back confermato deve chiudere la selezione", selection.isActive) }
     for (i in 1..8) { advance(64); saveFrame("esce-$i") }
     advance(288)
     val returnedInk = saveFrame("10-ritorno", measureStandalone = true)

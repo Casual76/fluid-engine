@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240" viewBox="0 0 360 240">
+<defs><linearGradient id="sea"><stop stop-color="#123c55"/><stop offset="1" stop-color="#59c6be"/></linearGradient></defs>
+<rect width="360" height="240" rx="20" fill="url(#sea)"/>
+<path d="M 32,166 C 104,11 244,216 325,64 M 32,175 C 104,20 244,225 325,73 M 32,184 C 104,29 244,234 325,82"
+      fill="none" stroke="#fef3d5" stroke-width="0.6"/>
+<circle cx="273" cy="75" r="26" fill="#f3c274"/></svg>

@@ -1,0 +1,6 @@
+newmtl rame
+Kd .8 .34 .14
+Ns 80
+newmtl tessuto
+Kd 1 1 1
+map_Kd tessuto.png

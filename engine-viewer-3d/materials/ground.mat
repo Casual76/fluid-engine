@@ -1,0 +1,16 @@
+material {
+  name : FluidViewerGround,
+  shadingModel : unlit,
+  shadowMultiplier : true,
+  blending : transparent,
+  culling : none,
+  depthWrite : false,
+  variantFilter : [ skinning ]
+}
+
+fragment {
+  void material(inout MaterialInputs material) {
+    prepareMaterial(material);
+    material.baseColor = vec4(0.0, 0.0, 0.0, 0.55);
+  }
+}

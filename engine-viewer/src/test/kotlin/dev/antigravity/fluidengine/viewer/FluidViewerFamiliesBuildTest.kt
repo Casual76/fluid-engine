@@ -30,9 +30,9 @@ class FluidViewerFamiliesBuildTest {
   }
 
   @Test
-  fun `the admitted list has the five families of the second wave and the test module`() {
+  fun `the admitted list has the families of the second wave, AR and the test module`() {
     assertEquals(
-      listOf("engine-viewer-office", "engine-viewer-archive", "engine-viewer-data", "engine-viewer-graphics", "engine-viewer-3d", "engine-viewer-prova"),
+      listOf("engine-viewer-office", "engine-viewer-archive", "engine-viewer-data", "engine-viewer-graphics", "engine-viewer-3d", "engine-viewer-ar", "engine-viewer-prova"),
       families.map { it.module },
     )
     assertEquals(listOf("office", "archive", "data", "graphics", "3d", "ar", "prova"), families.map { it.family })

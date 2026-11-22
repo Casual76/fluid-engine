@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -92,6 +93,7 @@ internal fun BoxScope.ViewerChrome(
   index: Int, count: Int, ink: Color, visible: Boolean, backdrop: GlassBackdropState,
   toolbar: FluidToolbarScope.(Int) -> Unit, tools: List<ViewerTool>, tool: ViewerTool?,
   select: (String?) -> Unit, onBack: () -> Unit, onInfo: (() -> Unit)?, strings: FluidViewerStrings,
+  preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -109,6 +111,8 @@ internal fun BoxScope.ViewerChrome(
   }
   val declaration = buildFluidToolbar(onBack) {
     if (count > 0 && tool == null) toolbar(index)
+    // F6C.2: i comandi del preset della pagina corrente («Trova», «A capo») e il suo campo.
+    if (count > 0 && tool == null) preset?.invoke(this)
     group(ViewerButton.Tools, placement = FluidToolbarPlacement.BottomBar) {
       if (tool == null) {
         if (onInfo != null) button(ViewerButton.Info, FluidIcons.Info, strings.info, onClick = onInfo)
@@ -136,9 +140,14 @@ internal fun BoxScope.ViewerChrome(
       onDispose { chrome?.unregisterBackdrop(replacement) }
     }
     SideEffect { chrome?.setBackdropFront(replacement, front) }
+    // Una ricerca dichiarata (F6C.2, «trova» del preset testo): la disegna la barra dell'host, o qui fuori da un host.
+    val search = rememberToolbarSearch(rememberOwnedSearch(declaration.search), width, declared = true)
     FluidPageChromeContent(title, Modifier.align(Alignment.TopCenter), onBack, backdrop,
-      barTint = null, toolbar = declaration, actions = {}, minimize = minimize)
-    if (!anchored) FluidBottomBar(declaration, backdrop, minimize, Modifier.align(Alignment.BottomCenter))
+      barTint = null, toolbar = declaration, actions = {}, minimize = minimize, search = search)
+    if (!anchored) {
+      if (search?.occupiesBottom != true) FluidBottomBar(declaration, backdrop, minimize, Modifier.align(Alignment.BottomCenter))
+      if (search != null) FluidToolbarSearchOverlay(search, declaration, backdrop, minimize)
+    }
   }
 }
 

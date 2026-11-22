@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -37,6 +38,8 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import dev.antigravity.fluidengine.ui.fluid.viewer.LocalViewerPage
+import dev.antigravity.fluidengine.ui.fluid.viewer.rememberViewerPage
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import kotlin.math.abs
@@ -372,6 +375,14 @@ data class FluidImageViewerStrings(
  * Non carica niente: [page] e' l'immagine che l'app disegna (con Coil, con un `Bitmap`, un `Image` di
  * Compose), e il visualizzatore la ingrandisce e la sposta. Nessuna libreria di immagini nell'engine.
  *
+ * **Il preset immagine dei visori (F6C.2).** Le pagine sono quelle del preset immagine di
+ * [dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileViewer]: lo stesso zoom, la stessa regola del dito, la pagina
+ * lasciata che torna a scala 1. Dentro [page] valgono quindi anche
+ * [dev.antigravity.fluidengine.ui.fluid.viewer.FluidAnimatedImage] (parte solo sulla pagina ferma),
+ * [dev.antigravity.fluidengine.ui.fluid.viewer.currentFluidViewerZoom] per un visore a tasselli e
+ * [dev.antigravity.fluidengine.ui.fluid.viewer.currentFluidViewerPageActive]. Resta una sovrapposizione: la rotta con
+ * il ritorno alla miniatura, le barre al tocco e le informazioni è il telaio.
+ *
  * **Dove sta e perche'.** E' un [FluidGlassModalPortal] nella presentazione `FullScreen`, e tutto cio' che e'
  * del modale arriva da li' invece di essere riscritto: il tasto indietro (anche predittivo), il fuoco, la
  * pagina dietro nascosta ai servizi di accessibilita', la chiusura con il tasto in alto, e il **congedo
@@ -464,19 +475,16 @@ private fun FluidImageViewerPager(
     modifier = modifier.fillMaxSize(),
     key = { it },
   ) { index ->
-    val zoom = rememberFluidZoomState(maxScale)
-    // Una pagina che si lascia indietro torna a scala 1: tornarci e trovarla ingrandita a meta' e' una
-    // sorpresa, e il pager la tiene viva (e ingrandita) finche' non esce dalla finestra.
-    LaunchedEffect(pagerState.settledPage) {
-      if (pagerState.settledPage != index) zoom.reset()
-    }
+    // La pagina del preset immagine del visore (F6C.2), la stessa del telaio: uno zoom per pagina che torna a
+    // scala 1 quando la pagina si lascia, e il «ferma» che fa partire un'immagine animata solo qui.
+    val pageScope = rememberViewerPage(pagerState, index, image = true, bar = null, maxScale = maxScale)
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .fluidZoomable(zoom, contentAspectRatio = contentAspectRatio(index), strings = strings),
+        .fluidZoomable(pageScope.zoom, contentAspectRatio = contentAspectRatio(index), strings = strings),
       contentAlignment = Alignment.Center,
     ) {
-      page(index)
+      CompositionLocalProvider(LocalViewerPage provides pageScope) { page(index) }
     }
   }
 }

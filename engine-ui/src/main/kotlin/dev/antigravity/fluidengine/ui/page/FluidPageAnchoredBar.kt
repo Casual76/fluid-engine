@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.ui.fluid.smoothStep
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchOverlay
+import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearch
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarDeclaration
@@ -1171,6 +1172,8 @@ internal fun FluidPageChromeContent(
   toolbar: FluidToolbarDeclaration?,
   actions: @Composable RowScope.() -> Unit,
   minimize: FluidToolbarMinimizeProgress? = null,
+  /** Una ricerca dichiarata della pagina (F6C.2, «trova» del visore di testo): la disegna la barra dell'host. */
+  search: ToolbarSearch? = null,
 ) {
   val docked: State<Float> = remember { mutableFloatStateOf(1f) }
   val glass = remember { mutableFloatStateOf(0f) }
@@ -1201,6 +1204,7 @@ internal fun FluidPageChromeContent(
         backdrop = backdrop,
         toolbar = toolbar,
         minimize = minimize,
+        search = search,
       ),
     )
     return

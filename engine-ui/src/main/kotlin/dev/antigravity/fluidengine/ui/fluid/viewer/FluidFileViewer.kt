@@ -148,6 +148,7 @@ fun FluidFileViewer(
   }
 
   val backdrop = rememberGlassBackdrop()
+  val presetBar = remember { ViewerPresetBar() }
   val outerModal = LocalFluidGlassModalHostState.current
   val modal = outerModal ?: rememberFluidGlassModalHostState()
   val file = if (count > 0) content(index) else null
@@ -175,8 +176,9 @@ fun FluidFileViewer(
             }
             else -> HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
               val item = if (page == index) requireNotNull(file) else content(page)
-              val zoom = rememberFluidZoomState()
-              LaunchedEffect(page == pager.settledPage) { if (page != pager.settledPage) zoom.reset() }
+              // F6C.2: la pagina del preset immagine, condivisa con FluidImageViewer, e il canale dei preset.
+              val pageScope = rememberViewerPage(pager, page, item is FluidViewerContent.Image, presetBar)
+              val zoom = pageScope.zoom
               val gestures = Modifier.fillMaxSize().viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
               val input = if (item is FluidViewerContent.Image) {
                 gestures.fluidZoomable(zoom, item.aspectRatio, onTap = toggle)
@@ -188,7 +190,8 @@ fun FluidFileViewer(
               Box(input.background(if (item.blackBackground) Color.Black else theme.surface), contentAlignment = Alignment.Center) {
                 val ratio = (item as? FluidViewerContent.Image)?.aspectRatio
                 val fitted = if (ratio != null && ratio.isFinite() && ratio > 0f) Modifier.aspectRatio(ratio) else Modifier.fillMaxSize()
-                CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface) {
+                CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface,
+                  LocalViewerPage provides pageScope) {
                   Box(fitted.then(shared), contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
                 }
               }
@@ -197,7 +200,8 @@ fun FluidFileViewer(
         }
       }
       ViewerChrome(index, count, ink, chromeVisible, backdrop, toolbar, available, tool,
-        select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings)
+        select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,
+        preset = presetBar.of(index), width = maxWidth)
       if (hasInfo) ViewerInfo(infoOpen, maxWidth >= ViewerInfoBreakpoint, backdrop, strings, { infoOpen = false }) {
         info?.invoke(index)
       }
@@ -269,8 +273,9 @@ private fun Modifier.viewerVerticalInput(
 @Composable
 private fun ViewerBody(file: FluidViewerContent) {
   when (file) {
-    is FluidViewerContent.Image -> file.draw()
+    is FluidViewerContent.Image -> FluidImagePreset(file)
     is FluidViewerContent.Media -> (file.videoSurface ?: file.artwork)?.invoke()
-    is FluidViewerContent.Unknown -> Text(file.info.name)
+    is FluidViewerContent.Text -> FluidTextPreset(file)
+    is FluidViewerContent.Unknown -> FluidUnknownPreset(file)
   }
 }

@@ -194,7 +194,7 @@ private fun FileAction(label: String, icon: ImageVector, action: () -> Unit) {
 }
 
 @Composable
-private fun FileIcon(kind: FluidFileKind, size: Int) {
+internal fun FileIcon(kind: FluidFileKind, size: Int) {
   val icon = when (kind) {
     FluidFileKind.Image -> FluidIcons.Image
     FluidFileKind.Pdf -> FluidIcons.PictureAsPdf

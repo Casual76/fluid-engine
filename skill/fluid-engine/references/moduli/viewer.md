@@ -2,7 +2,7 @@
 
 **I decodificatori dei visori di file**: il PDF col `PdfRenderer` della piattaforma, il testo col riconoscimento del charset, un tetto di lettura e i colori di sintassi, le GIF e le WebP animate con `ImageDecoder`, gli adattatori per il `Player` di Media3 e il risolutore da MIME o estensione al preset. Pacchetto `dev.antigravity.fluidengine.viewer`, dalla 4.0 (F6C.4).
 
-È un **modulo opt-in**, come `engine-richtext` e `engine-ai-ui`. Il telaio dei visori ([`FluidFileViewer`](../componenti/contenuto-testo-e-media.md)) e i suoi preset stanno in `engine-ui` e **non decodificano niente**: ricevono un `FluidViewerContent` già pronto (un composable, una sessione, un sorgente di pagine o di righe). Questo modulo è il modo di serie di prepararlo da un file o da un `Uri`. Un'app che ha già i suoi decodificatori (Coil, un visore a tasselli, il suo player) passa i suoi contenuti e non lo include.
+È un **modulo opt-in**, come `engine-richtext` e `engine-ai-ui`: si installa con `engine-install.ps1 -Modules …,engine-viewer`. Il telaio dei visori ([`FluidFileViewer`](../componenti/visori.md), la scheda dei sei preset) e i suoi preset stanno in `engine-ui` e **non decodificano niente**: ricevono un `FluidViewerContent` già pronto (un composable, una sessione, un sorgente di pagine o di righe). Questo modulo è il modo di serie di prepararlo da un file o da un `Uri`. Un'app che ha già i suoi decodificatori (Coil, un visore a tasselli, il suo player) passa i suoi contenuti e non lo include.
 
 Modello mentale: **il telaio mostra, il modulo apre, l'app possiede.** Il file, il player e i permessi restano dell'app; il modulo li legge e restituisce oggetti da chiudere.
 
@@ -84,7 +84,7 @@ Scelta di Alessio del 21 novembre 2026: le decodifica questo modulo, **da un fil
 
 - `FluidDecodedImage.decode(context, uri)` (o `decode(file)`) usa `ImageDecoder`: una GIF o una WebP animata (e una HEIF animata dove la piattaforma la anima) diventa un `AnimatedImageDrawable`, una ferma una bitmap. Tetto di 12 MP: le foto da 50 o 200 MP si riducono (per quelle i tasselli sono dell'app). Un file troncato mostra ciò che c'è.
 - `image.content(nome)` è un `FluidViewerContent.Image` qualunque, col rapporto d'aspetto: il preset immagine non ha un tipo nuovo da conoscere, e il telaio dà zoom, sfoglio e chiusura come a una foto.
-- L'animazione **parte quando l'immagine entra in composizione e si ferma quando esce** (lo sfoglio toglie la pagina), e col **movimento ridotto** (`LocalFluidMotionPolicy`) resta ferma sul primo fotogramma.
+- Un'animata va a `fluidAnimatedImage` del preset immagine: **parte solo sulla pagina ferma** (`currentFluidViewerPageActive()`) e si ferma quando la si lascia, come Gallery-2; col **movimento ridotto** (`LocalFluidMotionPolicy`) resta ferma e TalkBack ha l'azione «Riproduci animazione». Disegnata fuori dal visore con `FluidDecodedImage.Body`, parte quando entra in composizione.
 - **Sotto Android 9** (API 28) non c'è `AnimatedImageDrawable`: `BitmapFactory` dà il primo fotogramma.
 - `FluidImageHeader.read(bytes)` legge dai primi byte di una GIF o di una WebP misura, animazione, fotogrammi e giri senza decodificare i pixel: per un rapporto d'aspetto prima della decodifica, o per decidere di non animare una GIF enorme.
 
@@ -96,6 +96,28 @@ Scelta di Alessio del 21 novembre 2026: le decodifica questo modulo, **da un fil
 - `playing` segue **l'intenzione**, come il tasto di Media3: vero se il player deve suonare, anche mentre carica (`buffering`). `positionMillis` si aggiorna **a ogni fotogramma** mentre suona (lo scrubber scorre senza scatti), a riposo non costa niente. `durationMillis` è `null` finché la durata non è nota, e allora `canSeek` è falso; `seekTo` si limita alla durata. `play()` prepara un player fermo e riparte da capo se il file era finito (`ended`). I comandi che il player non offre non si chiamano.
 - `FluidMedia3Video(session)` è la superficie, centrata col rapporto d'aspetto del video (anche con i pixel non quadrati). Di serie un `TextureView`, che il vetro dei comandi sopra il video **cattura**; `surfaceView = true` usa un `SurfaceView` (HDR, meno batteria, come Gallery-2) che sta in una finestra sua: il vetro sopra non lo vede.
 - Tutto si chiama sul thread del player (di solito il principale, quello di Compose).
+
+## Nella galleria «Visori» (F6C.5)
+
+La galleria di Fluid Glass usa il modulo come un'app vera, e si può leggere come esempio (`sample/.../ViewerGallery.kt`, `sample/.../viewer/`):
+
+- i file stanno nella cartella dell'app (copiati una volta dalle risorse) e si aprono da un `file://` con `rememberFluidViewerFiles`;
+- **un `ExoPlayer` per file da suonare**, creato e rilasciato dalla galleria; `media` dà `fluidMedia3Content` solo al file di quel player. La superficie del video segue `currentFluidViewerPageActive()`: il video si ferma quando lo si sfoglia via, e al ritorno riparte solo se suonava e se l'interruttore «Riprendi al ritorno» è acceso (la scelta è dell'app, [`../componenti/visori.md`](../componenti/visori.md));
+- «Apri con…» e «Condividi» passano al sistema l'`Uri` `android.resource://` della risorsa da cui viene il file (un `file://` non si può dare a un'altra app senza un `FileProvider`);
+- il pannello info legge `FluidViewerDocument`: il tipo deciso, il charset e le righe del testo, le pagine del PDF, il motivo di un ripiego.
+
+**La prova con Universal Converter** apre dal telaio i tipi delle prove di quell'app che il suo `PreviewLoader` manda al dump esadecimale. Così si legge che cosa cambierebbe migrandola (la migrazione è di Alessio):
+
+| file | oggi in Universal Converter | con `engine-viewer` |
+|---|---|---|
+| `colors_50x50.png` | immagine | immagine (`ImageDecoder`, anche animata) |
+| `markdown.md` | testo, senza colori né «Trova» | testo e codice, colori del Markdown, «Trova» |
+| un `.mp4`, un `.mp3` | dump esadecimale | video e audio col `Player` dell'app |
+| un `.pdf` | dump esadecimale | documento a pagine (`FluidPdfPageSource`) |
+| un testo UTF-16 col BOM | dump (vede i byte zero) | testo (il BOM decide il charset) |
+| un `.docx`, un binario `.wld` | dump esadecimale | sconosciuto con «Apri con…»; il dump c'è ancora, a richiesta (`firstBytes` di `FluidUnknownPreset`) |
+| un file vuoto | «Il file è vuoto.» | il preset testo dice «Il file è vuoto» |
+| un file sparito | «Non riesco a leggere il file.» | sconosciuto: `failure` è `Unreadable`, la scheda lo dice |
 
 ## Cosa è dell'app, cosa del modulo
 
@@ -134,6 +156,8 @@ Test JVM del modulo (`engine-viewer/src/test/`), senza Robolectric: un'app ospit
 - `FluidImageHeaderTest`: GIF e WebP costruite byte per byte, animate e ferme, troncate, con e senza giri.
 - `EngineUiDecoderFreeTest`: F6C-d, sopra.
 
+Nella galleria, `VisoriGalleryTest` (sample, Robolectric) apre col modulo i file veri del testo, del codice, dello sconosciuto e dell'eseguibile, e i tipi di Universal Converter; il PDF e le immagini li passa già pronti, perché sulla JVM `PdfRenderer` e `ImageDecoder` non decodificano.
+
 Sul dispositivo, `FluidViewerDeviceTest` (`src/androidTest`, `:engine-viewer:connectedDebugAndroidTest`): il `PdfRenderer` vero su un PDF di 300 pagine, rotto, troncato, protetto da password e da un `Uri` che dà una pipe (`PipeProvider`); `ImageDecoder` e `AnimatedImageDrawable` su GIF e WebP scritte da Pillow; il testo UTF-16 da una pipe; i ripieghi di `open` (una GIF chiamata `.txt`, un JSON chiamato `.png`, un PDF senza nome, un `.apk`, un binario, un file sparito); un `ExoPlayer` vero dietro `FluidMedia3Session` e un file video rotto. Compilano anche contro Media3 1.5.1; la superficie video si giudica nella galleria «Visori».
 
 ## Dove guardare
@@ -148,10 +172,13 @@ Sul dispositivo, `FluidViewerDeviceTest` (`src/androidTest`, `:engine-viewer:con
 | GIF e WebP | `FluidDecodedImage.kt`, `FluidImageHeader.kt` |
 | Media3 | `FluidMedia3.kt` |
 | gli errori | `FluidViewerException.kt` |
-| i contratti che il modulo riempie | `engine-ui/…/ui/fluid/viewer/FluidViewerContent.kt` |
+| i contratti che il modulo riempie | `engine-ui/…/ui/fluid/viewer/FluidViewerContent.kt` ([`../componenti/visori.md`](../componenti/visori.md)) |
+| il modulo usato da un'app | `sample/.../ViewerGallery.kt`, `sample/.../viewer/VisoriViewer.kt`, `VisoriFiles.kt` |
 | il controllo di build | `engine-viewer/build.gradle` (`checkEngineUiHasNoDecoders`), `EngineUiDecoderFreeTest.kt` |
 
 ## Dipendenze e configurazione minima
+
+Con lo script: `engine-install.ps1 -AppRoot . -Modules engine-ui,engine-viewer` (le dipendenze si chiudono da sole; lo script ricorda anche la riga di Media3, che il modulo non porta). A mano:
 
 ```groovy
 // settings.gradle dell'app: accanto agli altri moduli dell'engine

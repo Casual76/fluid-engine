@@ -85,6 +85,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | mostrare un HTML ricevuto (mail, newsletter) in una vista chiusa | `componenti/contenuto-web.md` |
 | una ciambella, barre o un andamento con legenda | `componenti/grafici.md` |
 | scrivere testo formattato (elenchi, link, citazioni, HTML/Markdown) | `moduli/richtext.md` (opt-in) |
+| il visore di un file a tutto schermo (foto, video, audio, PDF, testo, sconosciuto): rotta, ritorno nella miniatura, barre al tocco, pannello info, strumenti | `componenti/visori.md` |
 | aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber (i controlli a gesto) | `componenti/controlli-gesto.md` |

@@ -429,7 +429,7 @@ Serve un `FluidGlassModalHost` in scope: senza non si apre e **non va in crash**
 - `fluidZoomable` va su un nodo che ha **le misure del contenitore** (il contenuto dentro è adattato); i gesti stanno *fuori* dal layer scalato, nelle coordinate del contenitore.
 - `pageCount <= 0` non disegna niente. A ogni apertura si riparte da `initialPage` (il pager vive anche a visore chiuso).
 
-**Non usarlo quando.** Vuoi un'immagine ingrandibile **dentro** una tua pagina (usa `Modifier.fluidZoomable` direttamente) o hai bisogno di un fondo che si schiarisce col dito.
+**Non usarlo quando.** Vuoi un'immagine ingrandibile **dentro** una tua pagina (usa `Modifier.fluidZoomable` direttamente) o hai bisogno di un fondo che si schiarisce col dito. Per un file qualunque (video, audio, PDF, testo, sconosciuto) su una rotta vera, con il ritorno nella miniatura, le barre al tocco, il pannello info e gli strumenti, c'è il telaio dei visori: [`visori.md`](visori.md). Dalla 4.0 `FluidImageViewer` usa le stesse pagine del suo preset immagine.
 
 **Versione.** 3.0.0; `background` 3.0.1.
 

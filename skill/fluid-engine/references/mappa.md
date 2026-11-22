@@ -20,14 +20,16 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-ai-ui` | `aiui` | 28 / 6 846 | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in) | **ui**, **ai** |
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
 | `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
+| `engine-viewer` | `viewer` | 11 / 2 940 | i decodificatori dei visori di file: PDF (`PdfRenderer`), testo con charset e colori di sintassi, GIF e WebP animate, l'adattatore del `Player` di Media3 (`compileOnly`: la versione è dell'app), il risolutore dal MIME al preset — **opt-in**, dalla 4.0 (le schede: `moduli/viewer.md`, e il telaio in `componenti/visori.md`) | foundation, **ui** |
 
-(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
+(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0, `engine-viewer` sulla 4.0 di F6C.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
 dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere `engine-update` senza Compose.
 
 ```
 engine-foundation  <-  engine-ui  <-  engine-widget
         ^                  ^      <-  engine-wear
         |                  +------<-  engine-richtext           (opt-in)
+        |                  +------<-  engine-viewer             (opt-in; Media3 compileOnly)
         |                  +------<-  engine-ai-ui  ->  engine-ai
         +-- engine-storage --+                              ^
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
@@ -37,7 +39,7 @@ engine-foundation  <-  engine-ui  <-  engine-widget
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
-`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`; `engine-richtext` prende `engine-foundation` e `engine-ui`.)
+`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`; `engine-richtext` e `engine-viewer` prendono `engine-foundation` e `engine-ui`. `engine-ui` non dipende mai da `engine-viewer` né da una libreria di decodifica: lo controlla la build, F6C-d.)
 
 Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundation, runtime, animation), Material 3,
 `material-icons-extended`, core-ktx, lifecycle (runtime/viewmodel compose), activity-compose, navigation-compose e
@@ -54,6 +56,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | ha un assistente | + `engine-ai` (+ `engine-ai-ui` se vuoi la sua interfaccia) |
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
 | scrive testo formattato (corpo di una mail, note con elenchi, firme) | + `engine-richtext` (**opt-in**: solo se chiesto per nome, `-Modules …,engine-richtext`; porta `engine-ui` e `engine-foundation`) |
+| apre file dal disco nel visore (PDF, testo e codice, GIF animate, video e audio) | + `engine-viewer` (**opt-in**: `-Modules …,engine-viewer`; porta `engine-ui` e `engine-foundation`; per video e audio l'app aggiunge il suo `media3-exoplayer`). Il telaio dei visori è già in `engine-ui`: un'app che ha i suoi decodificatori non lo installa |
 | è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** |
 | è di sole View e XML | solo `engine-update` / `engine-net` / `engine-config` (`-Modules`), mai `engine-ui` |
 | è Compose **Multiplatform** | niente `engine-ui` (artefatti diversi): i moduli senza UI in `androidMain`, il look si **porta** (`integrazione.md`, «Il porto») |

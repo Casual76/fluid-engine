@@ -79,6 +79,7 @@ $EngineModules = [ordered]@{
   "engine-ai-ui"      = @("engine-foundation", "engine-ui", "engine-ai")
   "engine-wear"       = @("engine-foundation", "engine-ui")
   "engine-richtext"   = @("engine-foundation", "engine-ui")
+  "engine-viewer"     = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -90,7 +91,12 @@ $EngineModules = [ordered]@{
 # engine-richtext (l'editor con formattazione: modello a intervalli, barra sopra la tastiera, lettori di
 # HTML e Markdown) idem: lo chiede solo un'app che scrive testo formattato, e chiederlo per nome porta
 # con se' engine-ui e engine-foundation: -Modules ...,engine-richtext.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext")
+# engine-viewer (i decodificatori dei visori di file: PDF, testo e colori di sintassi, GIF e WebP animate, il
+# Player di Media3, il risolutore dal MIME al preset) idem: il telaio dei visori sta gia' in engine-ui e non
+# decodifica niente; il modulo lo chiede solo un'app che apre file dal disco. Porta con se' engine-ui e
+# engine-foundation, e non porta Media3: chi usa video e audio aggiunge il suo media3-exoplayer alla sua
+# versione (il modulo lo compila come compileOnly): -Modules ...,engine-viewer.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer")
 
 function Fail($message) {
   Write-Host "ERRORE: $message" -ForegroundColor Red
@@ -255,7 +261,8 @@ $notes = @(
   @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
   @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
   @("engine-wear", "design system su Wear OS (solo nel modulo dell'orologio)"),
-  @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)")
+  @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),
+  @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)")
 )
 foreach ($note in $notes) {
   $module = $note[0]
@@ -267,6 +274,15 @@ foreach ($note in $notes) {
     $line = "  implementation project(':$module')"
   }
   Write-Host ("{0,-46}// {1}" -f $line, $comment)
+}
+if ($Modules -contains "engine-viewer") {
+  # Media3 non arriva col modulo (compileOnly): senza, video e audio vanno allo sconosciuto con "Apri con...".
+  if ($isKotlinDsl) {
+    $media3 = "  implementation(`"androidx.media3:media3-exoplayer:<la versione dell'app>`")"
+  } else {
+    $media3 = "  implementation `"androidx.media3:media3-exoplayer:<la versione dell'app>`""
+  }
+  Write-Host ("{0,-46}// {1}" -f $media3, "solo per video e audio nel visore (engine-viewer)")
 }
 Write-Host ""
 Write-Host "Poi: docs/01-integrazione.md per il tema e il collegamento della DI." -ForegroundColor Cyan

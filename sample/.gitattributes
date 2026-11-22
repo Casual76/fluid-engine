@@ -1,0 +1,2 @@
+# I file di esempio dei visori (F6C.5) si confrontano byte per byte: niente conversione degli a capo al checkout.
+src/main/res/raw/viewer_* binary

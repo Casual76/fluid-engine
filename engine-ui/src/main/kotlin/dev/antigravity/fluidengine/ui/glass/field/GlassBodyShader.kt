@@ -73,6 +73,13 @@ internal const val GlassMaterializeSymbolCondense: Float = 0.95f
 /** Quanto è dilatato il simbolo quando compare (R4 B3: ≈2×). */
 internal const val GlassMaterializeSymbolScale: Float = 2f
 
+/**
+ * Fin dove di `materialize` salgono insieme contorno e lente nella **comparsa morbida** (F6B.10, terzo giro: la pillola di
+ * attività): tutta la corsa, con un passo morbido. I tempi li danno le curve del piano (`GlassPlaneSoftAppearCurve`,
+ * `GlassPlaneSoftDisappearCurve`): il vetro c'è prima della scritta, che entra sfocata con R7, e se ne va con lei.
+ */
+internal const val GlassMaterializeSoftEnd: Float = 1f
+
 /** I tre canali della comparsa a un dato `materialize`: vedi la nota in testa al file. */
 internal class GlassMaterializeChannels {
   /** Il contorno, 0..1: filo e riflesso. */
@@ -97,8 +104,17 @@ private fun glassMaterializeStep(from: Float, to: Float, x: Float): Float {
 internal fun glassMaterializeChannels(
   materialize: Float,
   out: GlassMaterializeChannels = GlassMaterializeChannels(),
+  /** La comparsa morbida (F6B.10): contorno e lente insieme fino a [GlassMaterializeSoftEnd]; il simbolo lo porta R7. */
+  soft: Boolean = false,
 ): GlassMaterializeChannels {
   val m = if (materialize.isFinite()) materialize.coerceIn(0f, 1f) else 1f
+  if (soft) {
+    out.contour = glassMaterializeStep(0f, GlassMaterializeSoftEnd, m)
+    out.lens = out.contour
+    out.symbolAlpha = 1f
+    out.symbolScale = 1f
+    return out
+  }
   out.contour = glassMaterializeStep(0f, GlassMaterializeContourEnd, m)
   out.lens = minOf(glassMaterializeStep(GlassMaterializeLensFrom, GlassMaterializeLensTo, m), out.contour)
   out.symbolAlpha = 0.5f * glassMaterializeStep(GlassMaterializeSymbolFrom, GlassMaterializeSymbolHalf, m) +
@@ -122,8 +138,9 @@ internal fun glassMaterializeRecipe(
   recipe: GlassRecipe,
   materialize: Float,
   channels: GlassMaterializeChannels = GlassMaterializeChannels(),
+  soft: Boolean = false,
 ): GlassRecipe {
-  val c = glassMaterializeChannels(materialize, channels)
+  val c = glassMaterializeChannels(materialize, channels, soft)
   if (c.contour >= 1f && c.lens >= 1f) return recipe
   val share = if (c.contour > 0f) (c.lens / c.contour).coerceIn(0f, 1f) else 0f
   recipe.materialize = recipe.materialize * c.contour

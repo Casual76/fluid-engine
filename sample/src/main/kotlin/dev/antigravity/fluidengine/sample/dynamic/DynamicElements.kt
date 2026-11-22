@@ -38,6 +38,7 @@ internal enum class DynamicElement(val title: String) {
   Undo("«Invia» e il contatore «Annulla»"),
   Notice("L'avviso dal tasto"),
   ElementToPage("Un elemento che diventa pagina"),
+  Activity("La pillola di attività"),
 }
 
 /**
@@ -82,6 +83,10 @@ internal enum class DynamicScene(
   ElementToPage(
     "elemento", DynamicElement.ElementToPage, "Mini lettore, griglia, pillola, «Scrivi»",
     "Fluidify, Gallery, Weather, Mail · Sale, Zoom, Cresce e Dalla barra",
+  ),
+  ActivityPill(
+    "attivita", DynamicElement.Activity, "La posta che sincronizza",
+    "Mail · la pillola al posto del titolo, la card, l'esito, l'anellino a barra ritirata (F6B.10)",
   ),
   ;
 
@@ -139,6 +144,7 @@ internal fun DynamicElementsPage(onBack: () -> Unit, initial: DynamicScene? = nu
         DynamicScene.Notice -> NoticeFromButtonScene(onBack = close)
         // Le scene di F6B.5c, con il loro indice e le loro rotte.
         DynamicScene.ElementToPage -> ElementToPagePage(onClose = close)
+        DynamicScene.ActivityPill -> ActivityPillScene(onBack = close)
       }
     }
   }

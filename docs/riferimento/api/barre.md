@@ -226,6 +226,60 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
 - `@Composable fun rememberFluidActionRunner(preset: FluidActionPreset? = null, hold: FluidActionHold = FluidActionHold.Preset, minWorking: Duration = FluidActionDefaults.MinWorking): FluidActionRunner` — Un [FluidActionRunner] che vive con la composizione e si salva da sé: dopo una rotazione l'esito in mostra torna col tempo che gli restava. Il lavoro gira nell'ambito della composizione: se la composizione se ne va (la pagina chiusa, l'attività ricreata) il lavoro è annullato. Un lavoro che deve sopravvivere alla rotazione va in un ViewModel: `FluidActionRunner(viewModelScope, preset)`.
 
+## `engine-ui/ui/fluid/activity/FluidActivity.kt`
+
+- `class FluidActivityKind private constructor(val name: String, val icon: ImageVector, val importance: Int, val ring: Boolean, val alert: Boolean)` — Il genere di un'attività: l'icona di serie, l'**importanza** (fra più attività la pillola mostra la più importante) e il segno con cui la pillola apre: l'anello del lavoro, con l'icona piccola dentro ([ring]), oppure l'icona da sola.
+  - `companion object`
+    - `val Sync: FluidActivityKind` — Una sincronizzazione: l'anello che gira, o che avanza se l'app dà l'avanzamento. La meno importante.
+    - `val Transfer: FluidActivityKind` — Un trasferimento (caricamento, scaricamento): l'anello con la percentuale.
+    - `val Timer: FluidActivityKind` — Un timer: l'anello che si svuota e il tempo che resta.
+    - `val Assistant: FluidActivityKind` — L'assistente che lavora o risponde: la sua icona.
+    - `val Recording: FluidActivityKind` — Una registrazione: il microfono con la tinta d'allarme e il tempo trascorso. La più importante: deve sempre vedersi.
+    - `fun custom(name: String, icon: ImageVector, importance: Int = FluidActivityProfile.SyncImportance, ring: Boolean = true, alert: Boolean = false): FluidActivityKind` — Un genere su misura. [importance] di serie è quello di [Sync]: non passa davanti a niente.
+- `class FluidActivityTime private constructor(internal val anchorMillis: Long, internal val mode: Int)` — Il tempo che la pillola mostra al posto della percentuale, con cifre tabulari e una larghezza fissa. I millisecondi sono quelli di `SystemClock.elapsedRealtime()`, l'orologio che non salta col cambio d'ora.
+  - `companion object`
+    - `fun since(startedAtMillis: Long): FluidActivityTime` — Il tempo trascorso da [startedAtMillis]: una registrazione.
+    - `fun until(endsAtMillis: Long): FluidActivityTime` — Il tempo che resta fino a [endsAtMillis]: un timer.
+    - `fun fixed(millis: Long): FluidActivityTime` — Un tempo fermo, [millis]: un'attività in pausa.
+- `class FluidActivityAction(val label: String, val onClick: () -> Unit, val icon: ImageVector? = null, val destructive: Boolean = false)` — Un comando della card estesa (pausa, annulla, interrompi…): una scritta, che è anche il nome per TalkBack, e cosa fa. [destructive] lo colora come un'azione che non si torna indietro.
+- `data class FluidActivity(val id: String, val kind: FluidActivityKind, val progress: (() -> Float)? = null, val title: String, val actions: List<FluidActivityAction> = emptyList(), val detail: String? = null, val time: FluidActivityTime? = null, val paused: Boolean = false, val icon: ImageVector? = null, val importance: Int? = null, val onOpen: (() -> Unit)? = null)` — Un lavoro lungo dell'app, da mostrare nella pillola di attività ([FluidActivityHostState.publish]).
+  - `companion object`
+    - `fun sync(id: String = "sync", title: String? = null, progress: (() -> Float)? = null, detail: String? = null, onCancel: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Una sincronizzazione: l'anello che gira, o che avanza con [progress].
+    - `fun transfer(id: String, progress: () -> Float, title: String? = null, upload: Boolean = false, detail: String? = null, paused: Boolean = false, onPause: (() -> Unit)? = null, onResume: (() -> Unit)? = null, onCancel: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Un trasferimento con la percentuale; [upload] sceglie la freccia in su. In pausa offre «Riprendi», se no «Pausa».
+    - `fun recording(startedAtMillis: Long, id: String = "recording", title: String? = null, pausedElapsedMillis: Long? = null, onPause: (() -> Unit)? = null, onResume: (() -> Unit)? = null, onStop: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Una registrazione col tempo trascorso da [startedAtMillis] (`SystemClock.elapsedRealtime()`). In pausa si passa [pausedElapsedMillis], il tempo registrato fin lì: il tempo si ferma.
+    - `fun assistant(id: String = "assistant", title: String? = null, detail: String? = null, onStop: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — L'assistente che lavora o risponde; [detail] è ciò che sta facendo («Cerco nelle tue note»).
+    - `fun timer(endsAtMillis: Long, id: String = "timer", title: String? = null, totalMillis: Long? = null, pausedRemainingMillis: Long? = null, onPause: (() -> Unit)? = null, onResume: (() -> Unit)? = null, onCancel: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Un timer che finisce a [endsAtMillis] (`SystemClock.elapsedRealtime()`); con [totalMillis] l'anello si svuota. In pausa si passa [pausedRemainingMillis], il tempo che resta: il tempo si ferma.
+- `class FluidActivityOutcome private constructor(internal val code: Int, val message: String?)` — Come finisce un'attività ([FluidActivityHostState.finish]).
+  - `val succeeded: Boolean get()` — Vero per un esito riuscito.
+  - `val failed: Boolean get()` — Vero per un esito non riuscito.
+  - `companion object`
+    - `fun succeeded(message: String? = null): FluidActivityOutcome` — Riuscita: la pillola mostra la spunta e [message] (di serie il titolo), pulsa e poi esce per lente. Un'attività che non era nella pillola (ce n'era una più importante) se ne va in silenzio: il contatore scende.
+    - `fun failed(message: String? = null): FluidActivityOutcome` — Non riuscita: la pillola mostra il segno d'errore e [message], pulsa nella tinta d'errore e resta di più. Anche se non era lei in vista.
+    - `val HandedOff: FluidActivityOutcome` — **Passa il testimone**: l'esito lo dice qualcun altro (un tasto con esito di F6B.3, il contatore dell'annullo di F6B.4), e la pillola esce subito, per lente, mentre lui lo mostra. Senza parole e senza vibrazione sue.
+- `class FluidActivityPlacement private constructor(internal val name: String)` — Dove una barra mostra la pillola ([activity]). Non è un `enum` (regola 3.11).
+  - `companion object`
+    - `val Title: FluidActivityPlacement` — **Al posto del titolo in linea** (di serie, scelta di Alessio del 21 novembre 2026). Col titolo grande, questo resta sotto.
+    - `val Trailing: FluidActivityPlacement` — Fra i tasti di fine riga, col suo vetro: per una pagina che vuole tenere il titolo.
+- `data class FluidActivityLabels(val sync: String = "Sincronizzo", val upload: String = "Caricamento", val download: String = "Scaricamento", val recording: String = "Registrazione", val assistant: String = "Assistente", val timer: String = "Timer", val pause: String = "Pausa", val resume: String = "Riprendi", val cancel: String = "Annulla", val stop: String = "Interrompi", val open: String = "Apri", val paused: String = "In pausa", val succeeded: String = "Fatto", val failed: String = "Non riuscito", val showDetails: String = "Mostra i dettagli", val alsoRunning: String = "Anche in corso", val others: (Int) -> String = { count -> if (count == 1) "e un'altra attività…, val percent: (Int) -> String = { "$it%" })` — Le parole della pillola e della card, di serie in italiano ([english] per l'inglese). Si cambiano alla radice con [LocalFluidActivityLabels].
+  - `companion object`
+    - `fun english(): FluidActivityLabels` — Le parole inglesi.
+- `val LocalFluidActivityLabels` — Le parole della pillola, di serie in italiano.
+- `object FluidActivityIds` — Le identità della pillola nella barra: per aprire qualcosa dalla pillola con `rememberFluidToolbarTransitionSource`.
+  - `val Pill: Any` — L'`id` dell'elemento della barra che è la pillola.
+- `class FluidActivityHostState internal constructor(private val clock: () -> Long)` — Le attività dell'app, **una pillola per l'app** (scelta di Alessio del 21 novembre 2026): si pubblica qui, e ogni barra in alto la mostra al posto del titolo. Si tiene alla radice con [FluidActivityHost], come le notifiche; una funzione dell'app la trova con [LocalFluidActivityHostState].
+  - `var pane: FluidPaneRole by mutableStateOf(FluidPaneRole.Detail)` — Quale barra mostra la pillola quando **due barre in alto sono in vista insieme** (la lista e il dettaglio affiancati su un tablet, [FluidPaneRole]). La pillola è una per l'app: se ne vede una sola. Di serie sta nella barra del dettaglio ([FluidPaneRole.Detail]); con [FluidPaneRole.List] va in quella della lista.
+  - `fun publish(activity: FluidActivity)` — Pubblica [activity], o la aggiorna se c'è già un'attività con lo stesso `id`.
+  - `fun finish(id: String, outcome: FluidActivityOutcome = FluidActivityOutcome.succeeded())` — Finisce l'attività [id] con [outcome]: di serie riuscita. Vedi [FluidActivityOutcome].
+  - `fun remove(id: String)` — Toglie l'attività [id] subito, senza esito (annullata).
+  - `val activities: List<FluidActivity>` — Le attività in corso, dalla più importante.
+  - `val current: FluidActivity? get()` — L'attività che la pillola mostra adesso, o null.
+  - `val expanded: Boolean get()` — Vero se la card estesa è aperta.
+  - `fun collapse()` — Chiude la card estesa: rientra nella pillola. La sorgente resta quella dell'apertura: il ritorno la legge (F5B.1).
+- `@Composable fun rememberFluidActivityHostState(): FluidActivityHostState` — Uno stato delle attività ricordato nella composizione. Per tenerlo in un ViewModel, `FluidActivityHostState()`.
+- `val LocalFluidActivityHostState: CompositionLocal<FluidActivityHostState?> get()` — Lo stato delle attività dell'app, dato da [FluidActivityHost]; null fuori.
+- `@Composable fun FluidActivityHost(state: FluidActivityHostState, content: @Composable () -> Unit)` — L'host delle attività, **alla radice**: dà [state] a tutta l'app ([content]), tiene il tempo degli esiti, suona l'esito e ospita la card estesa (un popover dalla pillola: va dentro l'host dei modali, `LocalFluidGlassModalHostState`). Ogni barra in alto dichiarata (`FluidScreen(toolbar = …)`, `FluidPageChrome`, la barra dell'host delle pagine in ogni pagina) mostra la pillola da sola;
+- `fun FluidToolbarScope.activity(hidden: Boolean = false, placement: FluidActivityPlacement = FluidActivityPlacement.Title)` — La pillola di attività in questa barra (F6B.10). Di serie ogni barra in alto la mostra **al posto del titolo**, senza scrivere niente: questa chiamata serve a una pagina che non la vuole ([hidden], un lettore, un foglio che chiede attenzione) o che la vuole fra i tasti ([placement] [FluidActivityPlacement.Trailing]).
+
 ## `engine-ui/ui/fluid/toolbar/FluidKeyboardBar.kt`
 
 - `@Composable fun FluidKeyboardBar(modifier: Modifier = Modifier, backdrop: GlassBackdropState = currentGlassBackdrop(), context: Any = Unit, alwaysVisible: Boolean = false, fieldFocused: Boolean? = null, toolbar: FluidToolbarScope.() -> Unit)` — Posa una barra contestuale al fondo del contenitore, sopra l'IME. Usare un [Box] che riempie la finestra, accanto al contenuto. Gli inset già consumati da un genitore (per esempio con `imePadding`) sono rispettati. I comandi possono stare direttamente in [toolbar] oppure in `keyboard(context) { … }`. Con la tastiera fisica, [fieldFocused] può seguire il campo dell'app;

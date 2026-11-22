@@ -791,6 +791,8 @@ internal data class FluidGlassAttributes(
   val contentAnchor: FluidGlassContentAnchor = FluidGlassContentAnchor.Center,
   /** Ciò che il vetro porta, se chi lo disegna lo dichiara ([fluidGlassContentKey], F4A.5b): `GlassPlanePiece.contentKey`. */
   val contentKey: Any? = null,
+  /** La comparsa morbida ([fluidGlassSoftMaterialize], F6B.10): `GlassPlanePiece.softMaterialize`. */
+  val softMaterialize: Boolean = false,
 ) {
   companion object {
     val None = FluidGlassAttributes()
@@ -821,6 +823,7 @@ internal fun fluidGlassAttributesOf(chain: Modifier): FluidGlassAttributes {
       is FluidGlassTransitionElement -> out.copy(transition = element.transition)
       is FluidGlassContentAnchorElement -> out.copy(contentAnchor = element.anchor)
       is FluidGlassContentKeyElement -> out.copy(contentKey = element.key)
+      is FluidGlassSoftMaterializeElement -> out.copy(softMaterialize = true)
     }
   }
   return out
@@ -884,6 +887,23 @@ internal class FluidGlassContentAnchorElement(val anchor: FluidGlassContentAncho
   override fun InspectorInfo.inspectableProperties() {
     name = "fluidGlassContentAnchor"
     properties["anchor"] = anchor
+  }
+}
+
+/**
+ * La **comparsa morbida** del vetro che segue (F6B.10, terzo giro), con [FluidGlassTransition.Materialize] o
+ * [FluidGlassTransition.MaterializeWhenAlone]: compare e scompare sul posto, vetro e lente insieme, senza il contorno prima
+ * e più largo, col contenuto che entra ed esce con lo scambio sfocato di R7 invece che dilatato due volte. Per un vetro
+ * largo con una scritta (la pillola di attività). Stesso ordine di [fluidGlassId]. Interna: la usa la barra.
+ */
+internal fun Modifier.fluidGlassSoftMaterialize(): Modifier = this then FluidGlassSoftMaterializeElement()
+
+internal class FluidGlassSoftMaterializeElement : FluidGlassAttributeElement() {
+  override val label: String get() = "fluidGlassSoftMaterialize"
+  override fun equals(other: Any?): Boolean = other is FluidGlassSoftMaterializeElement
+  override fun hashCode(): Int = 0x50F7
+  override fun InspectorInfo.inspectableProperties() {
+    name = "fluidGlassSoftMaterialize"
   }
 }
 
@@ -1483,7 +1503,8 @@ internal fun fluidGlassFieldSlabs(
   val slabs = drawn.map {
     FluidForm.Slab(it.bounds.translate(-origin.x, -origin.y), it.radii, smoothing(it.piece))
   }
-  return FluidGlassFieldShape(slabs, amount.fastCoerceIn(0f, 1f), drawn)
+  return FluidGlassFieldShape(slabs, amount.fastCoerceIn(0f, 1f), drawn,
+    softMaterialize = lens && members.all { it.piece.softMaterialize })
 }
 
 /**
@@ -1781,6 +1802,7 @@ internal fun fluidGlassStagePlane(
       if (donor == null) -1 else (0 until i).firstOrNull { shape.members[it].flightId.sourceKey == donor } ?: i
     },
     materialize = shape.materialize,
+    softMaterialize = shape.softMaterialize,
     motion = physicsPlaneMotion(speedPx / density, movingMs),
     journeyLight = journeyLight,
     touch = touch,
@@ -1794,10 +1816,15 @@ internal fun fluidGlassStagePlane(
  * identità, e il suo contenuto ha i tempi di un cambio di contesto; chi confluisce in un vicino vero ha i suoi (F3.12c).
  * Pura.
  */
-internal fun fluidGlassArrivalOf(change: GlassPlaneChange, relay: Boolean = false): GlassPieceArrival = when (change) {
+internal fun fluidGlassArrivalOf(
+  change: GlassPlaneChange,
+  relay: Boolean = false,
+  /** La comparsa morbida del pezzo (F6B.10): per lente, ma il contenuto entra ed esce con R7. */
+  soft: Boolean = false,
+): GlassPieceArrival = when (change) {
   GlassPlaneChange.BornFromNeighbour -> GlassPieceArrival.BornFromNeighbour
   // Per chi se ne va (F3.10): il simbolo di chi scompare per lente ha i tempi della scomparsa, non del cambio di contesto.
-  GlassPlaneChange.Materialize, GlassPlaneChange.Dematerialize -> GlassPieceArrival.ThroughLens
+  GlassPlaneChange.Materialize, GlassPlaneChange.Dematerialize -> if (soft) GlassPieceArrival.Soft else GlassPieceArrival.ThroughLens
   GlassPlaneChange.Identity -> GlassPieceArrival.Instant
   GlassPlaneChange.MergeIntoNeighbour -> if (relay) GlassPieceArrival.Stays else GlassPieceArrival.MergesIntoNeighbour
   else -> GlassPieceArrival.Stays
@@ -1880,6 +1907,8 @@ internal class FluidGlassFieldShape(
   val slabs: List<FluidForm.Slab>,
   val materialize: Float,
   val members: List<GlassPlanePieceFrame>,
+  /** La comparsa morbida (F6B.10): un campo che compare o scompare per lente coi soli pezzi che la chiedono. */
+  val softMaterialize: Boolean = false,
 )
 
 /**
@@ -2702,6 +2731,7 @@ internal class FluidGlassContainerState {
           FluidGlassTransition.MaterializeWhenAlone -> GlassPlaneTransition.MaterializeWhenAlone
         },
         contentKey = attributes.contentKey,
+        softMaterialize = attributes.softMaterialize,
       ))
     }
     val bounds = Rect(0f, 0f, box.size.width.toFloat(), box.size.height.toFloat())
@@ -2998,7 +3028,7 @@ internal class FluidGlassContainerState {
     for (flying in frame.pieces) {
       val target = flying.flightId.targetKey as? FluidGlassPiece
       val source = flying.flightId.sourceKey as? FluidGlassPiece
-      val arrival = fluidGlassArrivalOf(flying.change, flying.relay)
+      val arrival = fluidGlassArrivalOf(flying.change, flying.relay, flying.piece.softMaterialize)
       if (target != null) {
         val content = target.content
         // Un nodo nuovo con l'identità di uno che se n'è appena andato continua il suo contenuto, dall'aspetto che aveva.

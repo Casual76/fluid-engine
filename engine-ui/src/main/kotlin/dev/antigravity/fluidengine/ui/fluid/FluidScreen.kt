@@ -65,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.clipToBounds
@@ -102,6 +103,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
+import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityRetractedRing
+import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarRetraction
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
@@ -130,6 +134,7 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.bottomReplacesTabBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.bottomReservesSpace
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidScreenToolbar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleHandoffLayer
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleAboveBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleHandoff
 import dev.antigravity.fluidengine.ui.fluid.toolbar.selection
 import androidx.compose.runtime.CompositionLocalContext
@@ -1002,8 +1007,9 @@ fun FluidScreen(
   content: LazyListScope.() -> Unit,
 ) {
   // La barra si rilegge a ogni composizione, come il contenuto di un `if`: il modello che ne esce e' strutturale. In
-  // selezione (F6B.1) l'indietro della schermata non si aggiunge: il back esce dalla selezione.
-  val declaration = toolbar?.let { buildFluidScreenToolbar(onBack, it) }
+  // selezione (F6B.1) l'indietro della schermata non si aggiunge: il back esce dalla selezione. F6B.10: con un'attività
+  // in corso la pillola entra qui nella barra, al posto del titolo, già alla prima composizione.
+  val declaration = fluidToolbarWithActivity(toolbar?.let { buildFluidScreenToolbar(onBack, it) })
   // La larghezza si legge qui, una volta, e diventa un margine: e' l'unica riga che distingue una
   // pagina da telefono allargata da una pagina da tablet. Tutto il resto della schermata non sa
   // di essere su un tablet, e non deve saperlo — salvo chi lo chiede con [metrics].
@@ -2127,10 +2133,12 @@ internal fun FluidTopBar(
       // F2.3c: il titolo e i tasti prendono il lato dalla stessa decisione della striscia, nello stesso istante, col tema
       // del lato (un'icona in `onSurface` segue anche lei).
       GlassInkContent(shade.ink, LocalContentColor.current) {
+      // F6B.10: l'anello della pillola di attività resta, piccolo, mentre la riga si ritira (fuori dal suo livello).
+      FluidActivityRetractedRing(minimize, toolbar, Modifier.padding(top = statusBar + FluidScreenDefaults.ControlRowHeight / 2))
       val hidden by remember(minimize) { derivedStateOf { minimize?.hidden == true } }
       if (hidden) return@GlassInkContent
       val controls = remember { FluidTopBarControls() }
-      CompositionLocalProvider(LocalFluidToolbarMinimize provides null) {
+      CompositionLocalProvider(LocalFluidToolbarMinimize provides null, LocalFluidToolbarRetraction provides minimize) {
       FluidTopBarRow(onTapTitle = onTapTitle, modifier = Modifier.fluidToolbarMinimizeLayer(minimize)) {
         if (toolbar != null) {
           FluidToolbarTopRow(
@@ -2611,8 +2619,11 @@ private fun BoxScope.FluidToolbarTopRow(
   // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto.
   val handoff = rememberFluidTitleHandoff(hidden = !showsTitle)
   val titleGone by remember(handoff) { derivedStateOf { handoff.value >= 1f } }
+  // F6B.10, terzo giro: mentre cede il posto (o lo riprende) il titolo sta sopra i vetri della barra: vedi
+  // [rememberFluidTitleAboveBar]. A riposo non cambia niente.
+  val handingOff = rememberFluidTitleAboveBar(handoff, hidden = !showsTitle)
   if (namesTitle && (showsTitle || !titleGone)) {
-    Box(Modifier.matchParentSize().graphicsLayer {
+    Box(Modifier.matchParentSize().zIndex(if (handingOff) 1f else 0f).graphicsLayer {
       alpha = fade()
       fluidTitleHandoffLayer(handoff.value, if (compactStyle.fontSize.isSpecified) compactStyle.fontSize.toPx() else 0f)
     }) {

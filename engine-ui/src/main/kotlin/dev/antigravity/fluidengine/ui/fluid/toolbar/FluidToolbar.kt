@@ -52,11 +52,13 @@ import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
 import dev.antigravity.fluidengine.ui.fluid.glassContentBlurRadiusPx
 import dev.antigravity.fluidengine.ui.fluid.glassContentSigmaPx
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassQualifiedId
+import dev.antigravity.fluidengine.ui.fluid.fluidGlassSoftMaterialize
 import dev.antigravity.fluidengine.ui.fluid.currentFluidGlassContainer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +66,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -588,6 +592,13 @@ internal abstract class FluidToolbarElementType {
 
   /** Se il posto risponde al tocco in questo stato. */
   open val acceptsTap: Boolean get() = true
+
+  /**
+   * Il tipo come lo ha posato la barra, dato il [kind] dell'elemento risolto: lui stesso, o la sua forma più stretta se la
+   * barra ha scelto [FluidToolbarKind.narrower] (F6B.10, la pillola minima). La barra lo chiede in un punto solo, prima di
+   * [rememberSlot].
+   */
+  open fun resolvedAs(kind: FluidToolbarKind?): FluidToolbarElementType = this
 
   /**
    * La resa del tipo in un posto. [live] è vero per il posto vero (suona l'aptica, trema), falso per una copia (il glifo
@@ -1120,9 +1131,90 @@ internal object FluidToolbarDefaults {
   /** Dove sta il badge rispetto all'angolo in alto a destra del tasto: sull'angolo dell'icona da 26 in un tondo da 44. */
   val BadgeOffset: Dp = 6.dp
 
+  /**
+   * Da quanto ritiro (F4A.4) un elemento che sa stringersi prende la forma stretta (F6B.10, la pillola che diventa
+   * l'anello): a metà corsa, quando titolo e tasti sono già sfocati e quasi svaniti, così il cambio di forma non si vede
+   * mentre la barra se ne va, e uno scorrimento piccolo non lo fa. A occhio, 22 novembre 2026.
+   */
+  const val RetractingFrom: Float = 0.5f
+
   /** La scritta dei tasti di testo: quella del corpo, un poco più piena, come i tasti della barra di Apple. */
   @Composable
   fun textStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+}
+
+/**
+ * Il ritiro della barra (F4A.4) per chi sta **fuori** dal livello che la ritira e deve saperlo lo stesso (F6B.10): la
+ * barra in alto della schermata applica il ritiro alla sua riga e dà ai figli [LocalFluidToolbarMinimize] null, perché
+ * non lo applichino una seconda volta; questo glielo lascia leggere. Null fuori da una barra che si ritira.
+ */
+internal val LocalFluidToolbarRetraction = staticCompositionLocalOf<FluidToolbarMinimizeProgress?> { null }
+
+/**
+ * Se la barra si sta ritirando (F4A.4): vero da quando il ritiro arriva a [FluidToolbarDefaults.RetractingFrom] a quando
+ * torna a zero, così uno scorrimento piccolo che si posa da solo non cambia forma alla pillola. Lo porta nella
+ * composizione **un effetto** (`snapshotFlow`), e mai una lettura del ritiro durante la composizione.
+ *
+ * Perché (F6B.10, secondo giro). Il ritiro è fatto per essere letto in disegno: quello dell'host delle pagine
+ * ([dev.antigravity.fluidengine.ui.page.FluidPageBarMinimize]) si calcola dalla lista delle pagine che la barra mostra,
+ * che l'host riscrive a ogni sua composizione, e dalla posizione delle pagine, che cambia a ogni fotogramma di un
+ * passaggio. Letto nella composizione di questa barra, e in particolare dentro il contenuto di `BoxWithConstraints`
+ * (una sotto-composizione, che Compose esegue dopo, mentre misura la barra), legava quella sotto-composizione a uno stato
+ * scritto a metà della composizione dell'host: sulla base `a8f4905` la parte esterna della barra riceveva i tasti nuovi
+ * («Fatto» al posto di «Strumenti» nel visore) e la sotto-composizione non ripartiva più, così la barra in basso restava
+ * ferma (`FluidFileViewerUiTest.swipeAndButtonOpenSameInfoAndBackReturnsToolCapsule`). Con l'effetto la composizione
+ * legge solo uno stato suo, scritto dopo il fotogramma e solo quando il «sì o no» cambia.
+ */
+@Composable
+internal fun rememberFluidToolbarRetracting(minimize: FluidToolbarMinimizeProgress?): Boolean {
+  // Il valore di partenza si legge una volta, senza osservarlo: una barra che rientra a metà ritiro parte già stretta.
+  var retracting by remember(minimize) {
+    mutableStateOf(Snapshot.withoutReadObservation { fluidToolbarRetractingAfter(false, minimize?.progress ?: 0f) })
+  }
+  if (minimize != null) {
+    LaunchedEffect(minimize) {
+      snapshotFlow { minimize.progress }.collect { progress ->
+        retracting = fluidToolbarRetractingAfter(retracting, progress)
+      }
+    }
+  }
+  return retracting
+}
+
+/** Il passo di [rememberFluidToolbarRetracting]: con l'isteresi, entra a [FluidToolbarDefaults.RetractingFrom], esce a zero. Pura. */
+internal fun fluidToolbarRetractingAfter(retracting: Boolean, progress: Float): Boolean =
+  if (retracting) progress > 0f else progress >= FluidToolbarDefaults.RetractingFrom
+
+/**
+ * Se il titolo agganciato sta **sopra** i vetri della barra (F6B.10, terzo giro): da quando comincia a cedere il posto
+ * ([handoff] sopra zero) a quando il vetro di chi lo aveva preso se n'è andato del tutto, cioè una scomparsa del piano
+ * ([FluidMotion.PlaneDisappearMillis]) dopo che il titolo è tornato. Il vetro di chi prende il centro (la pillola di
+ * attività) mostra la pagina sotto di sé e coprirebbe il titolo: sparirebbe al primo fotogramma della comparsa e
+ * tornerebbe di colpo alla fine della scomparsa. Così titolo e pillola si scambiano sfocati sul posto. A riposo falso.
+ */
+@Composable
+internal fun rememberFluidTitleAboveBar(
+  handoff: State<Float>,
+  /**
+   * Vero da quando il centro è occupato (il titolo deve cedere il posto): il titolo sale sopra subito, nella stessa
+   * composizione in cui il vetro di chi lo prende nasce, e non un fotogramma dopo, quando [handoff] parte (sul tablet,
+   * due fotogrammi senza titolo all'inizio della comparsa).
+   */
+  hidden: Boolean,
+): Boolean {
+  val policy = LocalFluidMotionPolicy.current
+  val moving by remember(handoff) { derivedStateOf { handoff.value > 0f } }
+  val leaving = hidden || moving
+  var above by remember { mutableStateOf(leaving) }
+  LaunchedEffect(leaving, policy.durationScale) {
+    if (leaving) {
+      above = true
+    } else if (above) {
+      delay((FluidMotion.PlaneDisappearMillis * policy.durationScale).toLong().coerceAtLeast(0L))
+      above = false
+    }
+  }
+  return above || leaving
 }
 
 /** Ciò che la barra disegna e misura dopo la risoluzione: i bordi interni dei gruppi ai due lati, in px. */
@@ -1151,6 +1243,11 @@ internal fun FluidToolbarBar(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val model = fluidToolbarModelOf(declaration, title, keyboardContext)
   val metrics = if (bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  // F6B.10: un elemento che sa stringersi (la pillola di attività) prende la sua forma stretta mentre la barra si ritira
+  // (F4A.4). Il ritiro entra qui come «sì o no», portato da un effetto: vedi [rememberFluidToolbarRetracting].
+  val retracting = rememberFluidToolbarRetracting(
+    if (bar == FluidToolbarBar.Keyboard) null else LocalFluidToolbarMinimize.current ?: LocalFluidToolbarRetraction.current,
+  )
   BoxWithConstraints(modifier.fillMaxWidth().height(metrics.buttonWidthDp.dp).fluidToolbarMinimizeLayer(towardsBottom = bar == FluidToolbarBar.Bottom)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
     val search = LocalToolbarSearch.current.takeUnless { bar == FluidToolbarBar.Keyboard }
@@ -1165,7 +1262,11 @@ internal fun FluidToolbarBar(
     // Un campo che a riposo non c'è («trova», F6B.6) non tocca questa barra: i suoi fissati restano dove sono.
     val active = bar != FluidToolbarBar.Keyboard && (fluidToolbarSearchTouchesBar(search?.spec)
       ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true))
-    val resolved = remember(model, width, bar, active) { resolveFluidToolbar(model, width, active, metrics, bar) }
+    // F6B.10: un elemento che sa stringersi (la pillola di attività) prende la sua forma stretta quando non ci sta, e
+    // mentre la barra si ritira ([retracting]).
+    val resolved = remember(model, width, bar, active, retracting) {
+      resolveFluidToolbarFitting(model, width, active, metrics, bar, narrow = retracting)
+    }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
       val extent = fluidToolbarExtent(resolved, density.density)
@@ -1362,7 +1463,7 @@ private fun FluidToolbarTravellingButton(
   val touchable = interactive && entry.onClick != null
   val haptics = LocalFluidHaptics.current
   // Un tipo registrato viaggia con la sua faccia; il posto vero, nascosto mentre viaggia, resta quello che suona e dice.
-  val typeSlot = entry.type?.rememberSlot(live = false)
+  val typeSlot = entry.type?.resolvedAs(element.item.kind)?.rememberSlot(live = false)
   Box(modifier.requiredSize(FluidMetrics.TouchTarget).graphicsLayer {
     fun center(x: Float) = (if (rtl) resolved.widthDp - x else x) * this.density
     val flight = plane?.flightOf(qualified)
@@ -1529,6 +1630,8 @@ private fun FluidToolbarGroupPiece(
       })
       .fluidGlassId(glass, namespace)
       .fluidGlassTransition(fluidToolbarGlassTransition(group))
+      // F6B.10, terzo giro: la pillola compare e se ne va sul posto, con la scritta che entra ed esce sfocata (R7).
+      .then(if (fluidToolbarSoftMaterialize(group)) Modifier.fluidGlassSoftMaterialize() else Modifier)
       .fluidGlassContentAnchor(when (group.side) {
         FluidToolbarSide.Leading -> FluidGlassContentAnchor.Start
         FluidToolbarSide.Center -> FluidGlassContentAnchor.Center
@@ -1633,9 +1736,12 @@ internal fun fluidToolbarGlassContentKey(group: FluidToolbarGroup): Any =
 internal fun fluidToolbarSlotShapeKey(group: FluidToolbarGroup, kept: FluidToolbarKeptContent): Any? =
   if (kept == FluidToolbarKeptContent.Soft) group.items.map { it.id } else null
 
-/** Le uscite nascono per lente; se restano, l'identità continua a tenerle ferme. */
+/** Le uscite nascono per lente; se restano, l'identità continua a tenerle ferme. Così la pillola di attività (F6B.10). */
+/** Se il vetro di [group] compare con la comparsa morbida (F6B.10): quello di un elemento che la chiede. Pura. */
+internal fun fluidToolbarSoftMaterialize(group: FluidToolbarGroup): Boolean = group.items.any { it.kind?.materializes == true }
+
 internal fun fluidToolbarGlassTransition(group: FluidToolbarGroup): FluidGlassTransition =
-  if (group.items.any { it.isExit || it.transition == FluidToolbarTransition.Materialize }) {
+  if (group.items.any { it.isExit || it.transition == FluidToolbarTransition.Materialize || it.kind?.materializes == true }) {
     FluidGlassTransition.MaterializeWhenAlone
   } else {
     FluidGlassTransition.MatchedGeometry
@@ -1697,7 +1803,7 @@ private fun FluidToolbarSlot(
   // Un tipo registrato (F6B.3a) disegna la sua faccia e cambia stato da sé: lo scambio del posto lo segue solo quando
   // cambia l'identità ([FluidToolbarItem.glassContent]), non lo stato.
   val iconSize = fluidToolbarIconSize(item.role)
-  val typeSlot = entry?.type?.rememberSlot(live = true)
+  val typeSlot = entry?.type?.resolvedAs(item.kind)?.rememberSlot(live = true)
   val countdown = entry?.undo
   if (interactive && countdown != null) TrackFluidUndoDeadline(countdown.state)
   val undoDescription = if (interactive) rememberFluidUndoDescription(countdown) else null

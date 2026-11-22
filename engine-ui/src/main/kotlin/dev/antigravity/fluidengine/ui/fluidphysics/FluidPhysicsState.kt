@@ -928,6 +928,7 @@ private class PhysicsPlaneDrive(var frame: () -> PhysicsPlaneShape, var progress
  * @param pinch l'esponente della vita del collo: [PhysicsPlaneNeckPinch] di serie.
  * @param materialize quanto c'è del campo (comparsa per lente), 0..1: lo applica `glassMaterializeRecipe`. Uno per i
  *   campi di vetri che viaggiano.
+ * @param softMaterialize la comparsa morbida (F6B.10): contorno e lente insieme (`GlassMaterializeSoftEnd`).
  * @param motion il peso del vetro in viaggio, 0..1 ([physicsPlaneMotion]): zero da fermi.
  * @param resting vero per un riposo: la sagoma ha il raccordo continuo della casa, come una forma ferma.
  * @param journeyLight il livello della luce del **carattere del viaggio** (F3.9, `GlassLiquidJourney.light`), 0..1: zero
@@ -964,6 +965,7 @@ internal class PhysicsPlaneShape(
    * i pezzi si scuriva (S5d: il terzo tondo da 63,1 a 61,1 livelli mentre si teneva premuto il primo).
    */
   val recipeShortPx: Float = Float.NaN,
+  val softMaterialize: Boolean = false,
 ) {
   /** La stessa geometria come [FluidForm]: una lastra da sola, un gruppo se sono di più. */
   fun form(): FluidForm = if (slabs.size == 1) slabs.single()

@@ -119,6 +119,7 @@ UI_FLUID_DIRS = {
     "ui/fluid/toolbar": "barre",
     # i tasti con esito (F6B.3a): stato, esecutore, tasto e glifi
     "ui/fluid/action": "barre",
+    "ui/fluid/activity": "barre",
     # i visori di file (F6C): il telaio e i contratti
     "ui/fluid/viewer": "contenuto",
 }

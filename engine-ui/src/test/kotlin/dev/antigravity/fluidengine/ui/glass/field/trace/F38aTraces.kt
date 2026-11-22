@@ -285,7 +285,7 @@ internal object F38aTraces {
           }
           // La parte del contenuto di ogni pezzo, dall'aspetto che ha: `startContents` del contenitore.
           for (flying in frame.pieces) {
-            val arrival = fluidGlassArrivalOf(flying.change, flying.relay)
+            val arrival = fluidGlassArrivalOf(flying.change, flying.relay, flying.piece.softMaterialize)
             val targetKey = flying.flightId.targetKey
             val sourceKey = flying.flightId.sourceKey
             if (targetKey != null) {
@@ -545,7 +545,7 @@ internal object F38aTraces {
         glowLevel = shape.journeyGlow,
       )
     }
-    glassMaterializeRecipe(recipe, shape.materialize)
+    glassMaterializeRecipe(recipe, shape.materialize, soft = shape.softMaterialize)
     val padding = glassTravelPaddingDp(GlassRole.Interactive, ButtonOptics, journey = journey)
     // Il bagliore: quello del vetro fermo premuto, o la luce del dito che il palco porta.
     val at = FloatArray(2)

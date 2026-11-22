@@ -1362,7 +1362,7 @@ internal class PhysicsLiquidSurface(
     if (!reducedMotion && !access.reduceTransparency) physicsDropLensRecipe(recipe, plan.dropWarp)
     // La comparsa per lente (F3.3): contorno, poi lente, col raggio di sfocatura che cresce con lei. A uno non tocca niente.
     if (planeShape != null && planeShape.materialize < 1f) {
-      glassMaterializeRecipe(recipe, planeShape.materialize, materializeChannels)
+      glassMaterializeRecipe(recipe, planeShape.materialize, materializeChannels, soft = planeShape.softMaterialize)
     }
     val bounds = plan.bounds
     // Il bagliore: quello della pressione di questa superficie, o la luce del dito che il palco porta (F3.10).

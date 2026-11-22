@@ -65,7 +65,11 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.resolveFluidToolbar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionBackEffect
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidScreenToolbar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleHandoffLayer
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleAboveBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleHandoff
+import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityRetractedRing
+import dev.antigravity.fluidengine.ui.fluid.activity.fluidActivityShown
+import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
 import dev.antigravity.fluidengine.ui.fluid.toolbar.selection
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.Box
@@ -96,6 +100,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -223,7 +228,12 @@ internal fun BoxScope.FluidAnchoredBar(
   val target = remember(state) { FluidPageBarTargetMemory() }
   // L'host disegna dal modello da quando ha visto la prima barra dichiarata, e da lì in poi sempre (vedi
   // [FluidPageBarTargetMemory.hostModel]): un host che non ne ha mai vista una è quello di prima, identico.
-  val hostModel = target.noteModel(modelMode || lowerKey?.let { registry[it]?.spec?.toolbar } != null)
+  // F6B.10: con un'attività in corso la pillola sta nella barra di ogni pagina, anche di una pagina di sempre: la barra si
+  // disegna allora dal modello (una volta per host, come quando arriva la prima barra dichiarata).
+  val activityShown = fluidActivityShown()
+  val hostModel = target.noteModel(
+    modelMode || lowerKey?.let { registry[it]?.spec?.toolbar } != null || activityShown && barSpec != null,
+  )
   val registeredDeclaration = target.update(barPage, barSlot != null, barSpec, moving)
   val withdrawn = barSpec?.minimize?.hidden == true
   val declaration = if (withdrawn) FluidPageBarEmpty else registeredDeclaration
@@ -507,6 +517,8 @@ internal fun BoxScope.FluidAnchoredBar(
               state = state,
               page = page,
               spec = spec,
+              // Una pagina di sempre non dichiara il centro: la pillola che la barra le mette prende comunque il suo titolo.
+              activityTakesTitle = hostModel && activityShown && spec.toolbar == null,
               shiftPx = shiftPx,
               controls = controls,
               shade = shade,
@@ -553,6 +565,12 @@ internal fun BoxScope.FluidAnchoredBar(
         if (hostModel) {
           HostModelBar(
             declaration = declaration,
+            // La pillola entra nella barra della pagina (F6B.10); minima per una pagina di sempre, i cui tasti il modello
+            // non misura. Non in una barra ritirata.
+            activity = !withdrawn && barSpec != null,
+            legacyPage = barSpec?.toolbar == null,
+            // L'anellino resta anche a barra ritirata del tutto, quando la barra è vuota (F6B.10).
+            ringDeclaration = registeredDeclaration.takeIf { barSpec != null },
             title = (barSpec ?: upperSpec)?.title,
             context = target.context ?: currentCompositionLocalContext,
             controlBackdrop = controlBackdrop,
@@ -691,13 +709,17 @@ private fun BoxScope.BarTitle(
   swap: FluidBarTitleSwap?,
   stepPx: Float,
   followsFinger: Boolean,
+  activityTakesTitle: Boolean = false,
 ) {
   val toolbar = spec.toolbar
   // F6B.1: quando il centro si occupa (il conteggio di una selezione) il titolo agganciato esce sfocandosi invece di
-  // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto.
-  val principal = toolbar?.hasPrincipal == true
+  // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto. F6B.10: così anche
+  // per la pillola di attività, che sta al posto del titolo.
+  val principal = toolbar?.hasPrincipal == true || activityTakesTitle
   val handoff = rememberFluidTitleHandoff(hidden = principal)
   val titleGone by remember(handoff) { derivedStateOf { handoff.value >= 1f } }
+  // F6B.10, terzo giro: mentre cede il posto il titolo sta sopra i vetri della barra ([rememberFluidTitleAboveBar]).
+  val handingOff = rememberFluidTitleAboveBar(handoff, hidden = principal)
   if (toolbar != null && (toolbar.titleMode == FluidToolbarTitleMode.None || (principal && titleGone))) return
   // Il moto legato alla corsa vale per le pagine di sempre e, nella variante delle prove, mentre il dito tiene la pagina.
   val byTravel: () -> Boolean = remember(state, swap, followsFinger) {
@@ -725,6 +747,7 @@ private fun BoxScope.BarTitle(
     Box(
       modifier = Modifier
         .matchParentSize()
+        .zIndex(if (handingOff) 1f else 0f)
         .onGloballyPositioned { box[0] = it }
         // F2.3c: il titolo svanisce e risale con l'inchiostro della barra quando la barra cambia lato.
         .graphicsLayer {
@@ -1150,7 +1173,8 @@ fun FluidPageChrome(
   // non e' una `FluidScreen` non ha mai detto il colore del testo: fuori da una `Surface` vale nero, e il
   // titolo agganciato era nero sul tema scuro. Il fondo sotto la barra e' quello della pagina.
   // F6B.1: in selezione la barra non aggiunge l'indietro della pagina, e il back esce dalla selezione.
-  val declaration = toolbar?.let { buildFluidScreenToolbar(onBack, it) }
+  // F6B.10: con un'attività in corso la pillola entra nella barra, al posto del titolo.
+  val declaration = fluidToolbarWithActivity(toolbar?.let { buildFluidScreenToolbar(onBack, it) })
   val selection = declaration?.selection
   if (selection != null && !LocalFluidPagePreparing.current) {
     FluidSelectionBackEffect(enabled = true, onExit = selection.exit)
@@ -1491,6 +1515,9 @@ private fun FluidBarTitleClock(swap: FluidBarTitleSwap, durationScale: Float) {
 @Composable
 private fun HostModelBar(
   declaration: FluidToolbarDeclaration,
+  activity: Boolean,
+  legacyPage: Boolean,
+  ringDeclaration: FluidToolbarDeclaration?,
   title: String?,
   context: CompositionLocalContext,
   controlBackdrop: GlassBackdropState,
@@ -1518,8 +1545,10 @@ private fun HostModelBar(
       LocalFluidToolbarMinimize provides minimize,
     ) {
       val paint = remember { Paint() }
+      // Nel contesto della pagina: la pillola trova la sua sorgente nella pagina della barra.
+      val shown = if (activity) fluidToolbarWithActivity(declaration, minimalOnly = legacyPage) ?: declaration else declaration
       FluidToolbarBar(
-        declaration = declaration,
+        declaration = shown,
         modifier = Modifier.graphicsLayer { alpha = if (hidden()) 0f else 1f }.drawWithContent {
           val amount = trailingOpacity?.invoke() ?: 1f
           if (amount >= 1f) {
@@ -1545,6 +1574,8 @@ private fun HostModelBar(
         title = title,
         onExtent = insets::modelExtent,
       )
+      // F6B.10: fuori dal livello che ritira la barra, l'anello della pillola che resta piccolo in alto.
+      FluidActivityRetractedRing(minimize, ringDeclaration)
     }
   }
 }

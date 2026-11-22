@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -291,7 +292,8 @@ fun FluidCollapsingTopBar(
   val density = LocalDensity.current
   val scope = androidx.compose.runtime.rememberCoroutineScope()
   val activeFacet = rememberTitleFacet(titleFacets, collapse.progress)
-  val declaration = toolbar?.let { buildFluidToolbar(onBack, it) }
+  // F6B.10: con un'attività in corso la pillola entra nella barra dichiarata, al posto del titolo.
+  val declaration = fluidToolbarWithActivity(toolbar?.let { buildFluidToolbar(onBack, it) })
   Box(modifier) {
     FluidTopBar(
       title = title,

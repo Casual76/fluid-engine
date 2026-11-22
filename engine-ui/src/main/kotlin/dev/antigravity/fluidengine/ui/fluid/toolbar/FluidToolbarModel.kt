@@ -70,6 +70,27 @@ internal interface FluidToolbarKind {
 
   /** La larghezza fissa che l'elemento chiede, in dp, o null per quella di serie. */
   val widthDp: Float? get() = null
+
+  /**
+   * La forma **più stretta** dello stesso elemento (F6B.10: la pillola di attività minima, il solo anello), o null se non
+   * ne ha una. [resolveFluidToolbarFitting] la prende prima di far uscire un tasto: un elemento che sa stringersi cede
+   * spazio prima di cederlo agli altri. Ha lo stesso [type] e una [widthDp] minore.
+   */
+  val narrower: FluidToolbarKind? get() = null
+
+  /**
+   * Vero per un elemento che sta **al posto del titolo** (F6B.10, la pillola di attività): come il titolo, non conta nel
+   * tetto dei tre gruppi (R5 B11), che vale per i tasti. Occupa comunque la sua larghezza.
+   */
+  val takesTitlePlace: Boolean get() = false
+
+  /**
+   * Vero se il vetro dell'elemento compare e se ne va **sul posto**, anche accanto a un altro vetro
+   * (`MaterializeWhenAlone`), con la **comparsa morbida** (`fluidGlassSoftMaterialize`, F6B.10 terzo giro): vetro e lente
+   * insieme, senza il contorno più largo, e la scritta che entra ed esce sfocata con R7 invece che due volte più grande.
+   * Con lo stesso `id` resta lo stesso vetro fermo. La pillola di attività.
+   */
+  val materializes: Boolean get() = false
 }
 
 /** I tipi registrati ([FluidToolbarKind.type]). Uno per riga, in ordine d'arrivo. */
@@ -78,6 +99,8 @@ internal object FluidToolbarKinds {
   const val Action: String = "action"
   /** Il contatore di «Trova» accanto alle frecce della barra della tastiera. */
   const val KeyboardFindCounter: String = "keyboard-find-counter"
+  /** La pillola di attività (F6B.10): al posto del titolo, compatta o minima. */
+  const val Activity: String = "activity"
 }
 
 private data class FluidToolbarKindContent(val type: String, val value: Any?, val identity: Any?, val state: Any?)
@@ -330,11 +353,21 @@ private fun List<ToolbarDraft>.requiredWidth(metrics: FluidToolbarMetrics): Floa
   val leading = sideWidth(FluidToolbarSide.Leading, metrics)
   val center = sideWidth(FluidToolbarSide.Center, metrics)
   val trailing = sideWidth(FluidToolbarSide.Trailing, metrics)
-  val inside = if (center > 0f) center + 2f * max(
+  val inside = if (center > 0f && centerTakesTitlePlace()) {
+    // Al posto del titolo (F6B.10): come il titolo di UIKit, sta al centro se ci sta, se no nello spazio che resta fra i
+    // due lati. Chiede solo la sua larghezza, non quella del lato più largo ripetuta dall'altra parte.
+    leading + center + trailing + (if (leading > 0f) metrics.groupSpacingDp else 0f) + if (trailing > 0f) metrics.groupSpacingDp else 0f
+  } else if (center > 0f) center + 2f * max(
     if (leading > 0f) leading + metrics.groupSpacingDp else 0f,
     if (trailing > 0f) trailing + metrics.groupSpacingDp else 0f,
   ) else leading + trailing + if (leading > 0f && trailing > 0f) metrics.groupSpacingDp else 0f
   return if (inside == 0f) 0f else metrics.edgeMarginDp * 2f + inside
+}
+
+/** Vero se al centro ci sono solo elementi al posto del titolo ([FluidToolbarKind.takesTitlePlace], F6B.10). */
+private fun List<ToolbarDraft>.centerTakesTitlePlace(): Boolean {
+  val center = filter { it.side == FluidToolbarSide.Center }
+  return center.isNotEmpty() && center.all { draft -> draft.items.all { it.kind?.takesTitlePlace == true } }
 }
 
 /**
@@ -365,14 +398,14 @@ internal fun resolveFluidToolbar(
     }))
   var drafts = toolbarDrafts(tokens, hidden, hidden.isNotEmpty(), metrics)
   for (candidate in candidates) {
-    if (drafts.count { draft -> draft.items.none { it.holdsNavigationSlot } } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
+    if (drafts.count { draft -> draft.countsInCap() } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
     if (hidden.add(candidate.item.id)) drafts = toolbarDrafts(tokens, hidden, true, metrics)
   }
   // «Seleziona tutto» esce solo se lo spazio non basta (F6B.12): se è uscito senza liberare posto, torna.
   for (slot in candidates.filter { it.item.holdsNavigationSlot && !it.item.overflow && it.item.id in hidden }) {
     hidden.remove(slot.item.id)
     val back = toolbarDrafts(tokens, hidden, hidden.isNotEmpty(), metrics)
-    if (back.count { draft -> draft.items.none { it.holdsNavigationSlot } } <= 3 && back.requiredWidth(metrics) <= widthDp) {
+    if (back.count { draft -> draft.countsInCap() } <= 3 && back.requiredWidth(metrics) <= widthDp) {
       drafts = back
     } else hidden.add(slot.item.id)
   }
@@ -402,12 +435,22 @@ internal fun resolveFluidToolbar(
   }
   val groups = ArrayList<FluidToolbarGroup>()
   val elements = ArrayList<FluidToolbarElement>()
+  val titlePlace = drafts.centerTakesTitlePlace()
   for (side in FluidToolbarSide.entries) {
     val row = drafts.filter { it.side == side }
     val rowWidth = drafts.sideWidth(side, metrics)
     var left = when (side) {
       FluidToolbarSide.Leading -> margin
-      FluidToolbarSide.Center -> (widthDp - rowWidth) / 2f
+      FluidToolbarSide.Center -> if (titlePlace) {
+        // Al centro se ci sta; se no accanto al lato più largo, nello spazio libero (F6B.10, come il titolo di UIKit).
+        val leading = drafts.sideWidth(FluidToolbarSide.Leading, metrics)
+        val trailing = drafts.sideWidth(FluidToolbarSide.Trailing, metrics)
+        val from = margin + if (leading > 0f) leading + metrics.groupSpacingDp else 0f
+        val to = widthDp - margin - (if (trailing > 0f) trailing + metrics.groupSpacingDp else 0f) - rowWidth
+        ((widthDp - rowWidth) / 2f).coerceIn(from, max(from, to))
+      } else {
+        (widthDp - rowWidth) / 2f
+      }
       FluidToolbarSide.Trailing -> widthDp - margin - rowWidth
     }
     row.forEachIndexed { index, draft ->
@@ -431,8 +474,66 @@ internal fun resolveFluidToolbar(
   }
   val required = drafts.requiredWidth(metrics)
   return FluidToolbarResolved(groups, elements, overflow, widthDp, required,
-    groups.count { group -> group.items.none { it.holdsNavigationSlot } } <= 3 && required <= widthDp, metrics, model.titles, model.presentation)
+    groups.count { group -> group.items.none { it.holdsNavigationSlot || it.kind?.takesTitlePlace == true } } <= 3 &&
+      required <= widthDp,
+    metrics, model.titles, model.presentation)
 }
+
+/**
+ * Se il gruppo conta nel tetto dei tre (R5 B11): le uscite no (F4A.2b), «Seleziona tutto» al posto dell'indietro no
+ * (F6B.12), e nemmeno chi sta al posto del titolo (F6B.10).
+ */
+private fun ToolbarDraft.countsInCap(): Boolean = items.none { it.holdsNavigationSlot || it.kind?.takesTitlePlace == true }
+
+/**
+ * [resolveFluidToolbar] per un modello con elementi che sanno stringersi ([FluidToolbarKind.narrower], F6B.10: la pillola
+ * di attività che diventa il solo anello). La risoluzione non cambia: si risolve con la forma larga e, se serve, con quella
+ * stretta, e si sceglie.
+ *
+ * - [narrow] vero: sempre la forma stretta. È la barra che si ritira (F4A.4): [FluidToolbarBar] lo passa da quando il
+ *   ritiro lascia lo zero a quando ci torna (`rememberFluidToolbarRetracting`).
+ * - Altrimenti la forma larga **se** non fa uscire più tasti di quella stretta e l'elemento ci sta intero (non accorciato,
+ *   non nel menu «Altro»); se no la stretta. È il ripiego del piano: la pillola diventa minima **prima** di far uscire un
+ *   tasto `Automatic`.
+ *
+ * Senza elementi che sanno stringersi è [resolveFluidToolbar], al bit. Pura.
+ */
+internal fun resolveFluidToolbarFitting(
+  model: FluidToolbarModel,
+  widthDp: Float,
+  searchActive: Boolean = false,
+  metrics: FluidToolbarMetrics,
+  bar: FluidToolbarBar = FluidToolbarBar.Top,
+  narrow: Boolean = false,
+): FluidToolbarResolved {
+  val wide = model.items.flatMap { it.tree() }.filter { it.kind?.narrower != null }
+  if (wide.isEmpty()) return resolveFluidToolbar(model, widthDp, searchActive, metrics, bar)
+  val slim = FluidToolbarModel(model.items.map { it.narrowed() }, model.titles, model.presentation)
+  val slimResolved = resolveFluidToolbar(slim, widthDp, searchActive, metrics, bar)
+  if (narrow) return slimResolved
+  val wideResolved = resolveFluidToolbar(model, widthDp, searchActive, metrics, bar)
+  fun evicted(resolved: FluidToolbarResolved) = resolved.overflow.count { !it.overflow && it.kind?.narrower == null }
+  // Un elemento che non sta in questa barra (la pillola in una barra in basso) non ha posto né nell'una né nell'altra.
+  val whole = wide.all { item ->
+    val element = wideResolved.element(item.id)
+    element == null || !element.inOverflow && element.widthDp >= (item.widthDp ?: element.widthDp) - FluidToolbarWidthToleranceDp
+  }
+  return if (whole && evicted(wideResolved) <= evicted(slimResolved) && (wideResolved.fits || !slimResolved.fits)) {
+    wideResolved
+  } else {
+    slimResolved
+  }
+}
+
+/** L'elemento nella sua forma stretta ([FluidToolbarKind.narrower]), e così i figli di un gruppo. */
+private fun FluidToolbarItem.narrowed(): FluidToolbarItem {
+  val slim = kind?.narrower
+  val children = children.map { it.narrowed() }
+  return if (slim == null) copy(children = children) else copy(kind = slim, widthDp = slim.widthDp, children = children)
+}
+
+/** Due misure più vicine di così (dp) sono la stessa: le somme del modello possono differire di un ulp. */
+private const val FluidToolbarWidthToleranceDp = 0.01f
 
 internal enum class FluidToolbarMatch { Id, Role, Symbol, OutsideOrder }
 internal enum class FluidToolbarElementChange {

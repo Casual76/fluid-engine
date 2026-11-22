@@ -653,6 +653,13 @@ internal enum class GlassPieceContentRole {
   /** Il contenuto di un vetro che compare per lente (R7 A8). */
   Lens,
 
+  /**
+   * Il contenuto di un vetro con la **comparsa morbida** (F6B.10): entra al posto di un altro (il titolo) con lo scambio
+   * sfocato di R7 ([GlassContentRole.Enter]), sull'orologio di R7 ([GlassContentDefaults.DurationMs]) e non su quello
+   * della lente: arriva sfocato a scala 0,93, mai due volte più grande, mai fuori dal vetro.
+   */
+  Swap,
+
   /** Torna nitido dall'aspetto che aveva: un contenuto che stava entrando o uscendo e ora resta. */
   Recover,
 
@@ -854,6 +861,18 @@ internal fun glassPieceContentLook(
         )
       }
     }
+    GlassPieceContentRole.Swap -> {
+      val u = glassPieceSwapU(p)
+      if (u <= GlassContentDefaults.EnterAt) {
+        GlassContentInvisible
+      } else {
+        GlassContentLook(
+          alpha = GlassContentCurves.alpha(GlassContentRole.Enter, u, blurAvailable),
+          scale = GlassContentCurves.scale(GlassContentRole.Enter, u),
+          blur = GlassContentCurves.blur(GlassContentRole.Enter, u) * peak,
+        )
+      }
+    }
     GlassPieceContentRole.Exit -> {
       val u = p / glassPieceExitSpan(content)
       val from = content.from
@@ -875,6 +894,18 @@ internal fun glassPieceContentLook(
     }
   }
 }
+
+/**
+ * L'`u` di R7 a cui sta il contenuto della comparsa morbida alla fase [phase] della comparsa per lente: la fase conta su
+ * [FluidMotion.PlaneAppearMillis], R7 su [GlassContentDefaults.DurationMs]. Pura.
+ */
+internal fun glassPieceSwapU(phase: Float): Float = phase * FluidMotion.PlaneAppearMillis / GlassContentDefaults.DurationMs
+
+/**
+ * La parte della scomparsa morbida in cui sta l'uscita del contenuto: R7 sull'orologio di R7, cioè
+ * [GlassContentDefaults.DurationMs] su [FluidMotion.PlaneDisappearMillis] (F6B.10).
+ */
+internal val GlassPieceSoftExitSpan: Float = GlassContentDefaults.DurationMs / FluidMotion.PlaneDisappearMillis
 
 /** L'`u` delle curve di F3.4 a cui sta chi nasce alla fase [phase] del volo: 0,36 a [GlassPieceContentDefaults.BornAt], 1 a `BornSharp`. */
 internal fun glassPieceBornU(phase: Float): Float =
@@ -905,6 +936,7 @@ internal fun glassPieceContentDone(content: GlassPieceContent, phase: Float): Bo
   GlassPieceContentRole.Born -> phase >= GlassPieceContentDefaults.BornAlphaEnd &&
     phase >= GlassPieceContentDefaults.BornFocusEnd
   GlassPieceContentRole.Lens -> phase >= GlassPieceContentDefaults.LensTo
+  GlassPieceContentRole.Swap -> glassPieceSwapU(phase) >= GlassContentDefaults.EnterEnd
   GlassPieceContentRole.Exit -> phase / glassPieceExitSpan(content) >= GlassContentDefaults.ExitEnd
   GlassPieceContentRole.Recover -> phase >= GlassPieceContentDefaults.RecoverSpan
 }
@@ -918,7 +950,12 @@ private fun glassPieceExitSpan(content: GlassPieceContent): Float =
  * [MergesIntoNeighbour] (F3.12c) è chi se ne va confluendo in un vicino vero (non la staffetta): il suo contenuto ha
  * [GlassPieceContentDefaults.MergeExitSpan].
  */
-internal enum class GlassPieceArrival { Stays, BornFromNeighbour, ThroughLens, Instant, MergesIntoNeighbour }
+internal enum class GlassPieceArrival {
+  Stays, BornFromNeighbour, ThroughLens, Instant, MergesIntoNeighbour,
+
+  /** Per lente con la comparsa morbida (F6B.10): il contenuto entra ed esce con R7 ([GlassPieceContentRole.Swap]). */
+  Soft,
+}
 
 /**
  * La parte che il contenuto di un pezzo prende quando un viaggio parte o riparte.
@@ -935,6 +972,7 @@ internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentL
     // confluenza a tempo vero (F3.12c, R4 B2 (b)); la staffetta quelli del cambio di contesto (R4 B2 (d)).
     val span = when (arrival) {
       GlassPieceArrival.ThroughLens -> GlassPieceContentDefaults.LensExitSpan
+      GlassPieceArrival.Soft -> GlassPieceSoftExitSpan
       GlassPieceArrival.MergesIntoNeighbour -> GlassPieceContentDefaults.MergeExitSpan
       else -> GlassPieceContentDefaults.ExitSpan
     }
@@ -944,6 +982,7 @@ internal fun glassPieceContentFor(arrival: GlassPieceArrival, now: GlassContentL
   return when (arrival) {
     GlassPieceArrival.BornFromNeighbour -> GlassPieceContent(GlassPieceContentRole.Born)
     GlassPieceArrival.ThroughLens -> GlassPieceContent(GlassPieceContentRole.Lens)
+    GlassPieceArrival.Soft -> GlassPieceContent(GlassPieceContentRole.Swap)
     GlassPieceArrival.Instant -> GlassPieceContent.Rest
     // Un vetro che resta: il contenuto che si vedeva continua (nitido, o tornando nitido da dov'era). Uno mai visto è
     // un nodo nuovo su un vetro che c'era già (un pezzo tolto e rimesso a metà viaggio): entra come chi nasce, quando il

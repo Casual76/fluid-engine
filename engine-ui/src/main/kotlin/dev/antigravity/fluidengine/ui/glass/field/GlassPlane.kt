@@ -39,6 +39,14 @@ internal data class GlassPlanePiece(
    * lente: `FluidMotion.PlaneContentBreath`). Null: non dichiarato, il vetro non sa cosa porta e resta fermo, com'era.
    */
   val contentKey: Any? = null,
+  /**
+   * La **comparsa morbida** (F6B.10, terzo giro): chi compare o scompare per lente lo fa sul posto, senza il contorno
+   * prima e più largo e senza il simbolo due volte più grande; vetro e lente salgono e scendono insieme, il contenuto entra
+   * ed esce con lo scambio sfocato di R7 ([dev.antigravity.fluidengine.ui.fluid.GlassPieceArrival.Soft]). È per un vetro
+   * largo con una scritta (la pillola di attività), dove la lente di R4 B3 porta la scritta fuori dal vetro. Falso: la
+   * lente di sempre, al bit.
+   */
+  val softMaterialize: Boolean = false,
 ) {
   init {
     require(bounds.planeValues().all { it.isFinite() } && bounds.width > 0f && bounds.height > 0f)
@@ -715,14 +723,16 @@ private class PlaneFlight(
   private val destination = pair.target ?: pair.neighbour ?: pair.source!!
   private val appears = pair.change == GlassPlaneChange.Materialize
   private val disappears = pair.change == GlassPlaneChange.Dematerialize
+  // La comparsa morbida (F6B.10) nasce e se ne va della sua misura: niente contorno più largo.
+  private val contourScale = if (destination.softMaterialize) 1f else motion.initialContourScale
   private val startRect = when {
-    appears -> pair.target!!.bounds.planeScale(motion.initialContourScale)
+    appears -> pair.target!!.bounds.planeScale(contourScale)
     else -> seed?.bounds ?: origin.bounds
   }
-  private val endRect = if (disappears) destination.bounds.planeScale(motion.initialContourScale) else destination.bounds
-  private val startRadii = if (appears) destination.radii.planeScale(motion.initialContourScale, startRect)
+  private val endRect = if (disappears) destination.bounds.planeScale(contourScale) else destination.bounds
+  private val startRadii = if (appears) destination.radii.planeScale(contourScale, startRect)
     else seed?.radii ?: origin.radii
-  private val endRadii = if (disappears) destination.radii.planeScale(motion.initialContourScale, endRect)
+  private val endRadii = if (disappears) destination.radii.planeScale(contourScale, endRect)
     else destination.radii
   private val initialAmount = if (appears) 0f else seed?.materialize ?: 1f
   private val targetAmount = if (disappears || pair.target == null && pair.change == GlassPlaneChange.Identity) 0f else 1f
@@ -1325,8 +1335,8 @@ private class PlaneFlight(
    */
   private val curve: GlassContentCurve? = when {
     motion.spec != null -> null
-    appears -> GlassPlaneAppearCurve
-    disappears -> GlassPlaneDisappearCurve
+    appears -> if (destination.softMaterialize) GlassPlaneSoftAppearCurve else GlassPlaneAppearCurve
+    disappears -> if (destination.softMaterialize) GlassPlaneSoftDisappearCurve else GlassPlaneDisappearCurve
     else -> null
   }
   private val budgetMs: Double = if (disappears) motion.disappearMs else motion.appearMs
@@ -2162,6 +2172,22 @@ internal val GlassPlaneAppearCurve: GlassContentCurve =
  */
 internal val GlassPlaneDisappearCurve: GlassContentCurve =
   GlassContentCurve(floatArrayOf(0f, 0.277f, 0.851f, 1f), floatArrayOf(1f, 0.97f, 0.27f, 0f))
+
+/**
+ * `materialize` della **comparsa morbida** (F6B.10, terzo giro: la pillola di attività), sui 430 ms della comparsa: il
+ * vetro sale tutto insieme (`glassMaterializeChannels(soft = true)`) e c'è quasi pieno a 150 ms, quando la scritta comincia
+ * a entrare sfocata con R7 (≈110 ms). A occhio, 22 novembre 2026.
+ */
+internal val GlassPlaneSoftAppearCurve: GlassContentCurve =
+  GlassContentCurve(floatArrayOf(0f, 0.12f, 0.35f, 0.55f, 1f), floatArrayOf(0f, 0.35f, 0.9f, 1f, 1f))
+
+/**
+ * `materialize` della **scomparsa morbida** (F6B.10), sui 470 ms della scomparsa: il viaggio inverso. Il vetro comincia a
+ * svanire mentre la scritta si sfoca (R7, sparita a ≈200 ms), è a un terzo quando lei non c'è più e se ne va del tutto a
+ * ≈330 ms. Nessun vetro vuoto fermo, nessuno scalino. A occhio, 22 novembre 2026.
+ */
+internal val GlassPlaneSoftDisappearCurve: GlassContentCurve =
+  GlassContentCurve(floatArrayOf(0f, 0.15f, 0.45f, 0.7f, 1f), floatArrayOf(1f, 0.9f, 0.35f, 0f, 0f))
 
 /**
  * Il punto di [curve] (monotona su 0..1) che vale [value]: da lì riparte un volo interrotto, senza scalini. Per

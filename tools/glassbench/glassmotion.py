@@ -88,7 +88,7 @@ COMMON_KEYS = {"kind", "name", "x", "y", "w", "h", "radius", "corner", "smoothin
 CONTENT_CLIPS = ("auto", "shape", "alpha", "none", "pieces")
 APPLE_KEYS = ("name", "video", "t0Frame", "crop", "collage", "speed", "note")
 ELEMENT_KEYS = {
-    "shader": COMMON_KEYS | {"source", "inputs", "uniforms", "blend", "alpha", "scale"},
+    "shader": COMMON_KEYS | {"source", "inputs", "uniforms", "blend", "alpha", "scale", "passes"},
     "material": COMMON_KEYS | {"capture", "body", "light", "children", "clipRadiusScale"},
 }
 PIECE_KEYS = {"x", "y", "w", "h", "radius", "blend", "smooth"}

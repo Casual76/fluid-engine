@@ -70,6 +70,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Lo stato di un [FluidPageHost]: cosa si sta muovendo, quanto, e se c'e' un dito.
@@ -371,6 +372,27 @@ class FluidPageHostState internal constructor() {
     upper -> PageRole.Upper
     lower -> PageRole.Lower
     else -> PageRole.Gone
+  }
+
+  /** Letto nel disegno della singola pagina. Una pagina promossa a cima perde il velo
+   * nello stesso fotogramma. Il visore dispone di un proprio fondo, anche in chiusura. */
+  internal fun dimOn(page: Any): Float {
+    if (page != lower || !isMoving || kind == FluidPageMove.Peer || reducedMotion || upper in ownPageBackground) return 0f
+    val arrival = 1f - upperExitFraction()
+    val journey = zoom ?: return FluidPageMotion.SlideDim * arrival
+    val bounds = zoomShape()?.bounds ?: return 0f
+    val source = journey.source.bounds
+    // La corsa del dito può traslare la carta molto più di quanto la contragga.
+    // Misuriamo il lato che varia di più in proporzione all'host: resta lo stesso
+    // anche quando una rotazione cambia il rapporto fra altezza e larghezza.
+    val dw = width - source.width
+    val dh = height - source.height
+    val growth = when {
+      dh != 0f && abs(dh) * width >= abs(dw) * height -> (bounds.height - source.height) / dh
+      dw != 0f -> (bounds.width - source.width) / dw
+      else -> arrival
+    }
+    return FluidPageMotion.zoomDim(growth, journey.returnDim)
   }
 
   /** La traslazione orizzontale di una pagina in questo fotogramma, in px (gia' nel verso). */
@@ -1290,6 +1312,7 @@ class FluidPageHostState internal constructor() {
       toTravel = if (following) travelPx else exitTravel(),
       following = following,
       pivot = touchPoint(),
+      returnDim = true,
     )
     consumeSource(page)
   }
@@ -1538,4 +1561,6 @@ internal data class ZoomJourney(
   val viaExit: Float? = null,
   val pinched: Boolean = false,
   val withoutSource: Boolean = false,
+  /** Vero per uno zoom nato come ritorno. Si conserva nelle riprese e nella rotazione. */
+  val returnDim: Boolean = false,
 )

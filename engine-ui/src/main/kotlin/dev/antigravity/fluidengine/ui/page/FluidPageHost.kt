@@ -577,6 +577,11 @@ private fun <K : Any> PageLayer(
       )
       .then(if (growingBackground != null) Modifier.growingBackdrop(state, growingBackground) else Modifier)
       .pageLayer(state, page, shadowColor, elevationPx, signals)
+      .drawWithContent {
+        drawContent()
+        val dim = state.dimOn(page)
+        if (dim > 0f) drawRect(Color.Black, alpha = dim)
+      }
       .onPlaced { sharedSpace.coordinates = it }
       .zoomCrossfade(state, page, pageColor)
       .then(if (pageColor.isSpecified && page !in state.ownPageBackground) Modifier.background(pageColor) else Modifier)
@@ -623,11 +628,7 @@ private class PageScopeImpl(
 
 /** Registra il fondo dopo la sfocatura e il velo: anche la lente vede la pagina sottostante già attenuata. */
 private fun Modifier.growingBackdrop(state: FluidPageHostState, backdrop: GlassBackdropState): Modifier =
-  glassBackdropSource(backdrop).drawWithContent {
-    drawContent()
-    val amount = FluidZoom.atmosphere(state.fractionToward { it == state.upper })
-    drawRect(Color.Black, alpha = FluidPageMotion.GrowDim * amount)
-  }.graphicsLayer {
+  glassBackdropSource(backdrop).graphicsLayer {
     val amount = FluidZoom.atmosphere(state.fractionToward { it == state.upper })
     renderEffect = if (isRenderEffectSupported()) glassContentBlurEffect(
       amount * FluidPageMotion.GrowBlurDp * density, tileMode = TileMode.Clamp) else null
@@ -768,9 +769,15 @@ private fun Modifier.pageLayer(
       if (state.travelPx > FluidPageMotion.CardThresholdPx || scale < 1f) {
         shape = state.cardShape
         clip = true
-        shadowElevation = if (page in state.ownPageBackground) 0f else elevationPx
-        ambientShadowColor = shadowColor
-        spotShadowColor = shadowColor
+        val slide = state.upperTransition == FluidPageTransition.Slide
+        shadowElevation = when {
+          page in state.ownPageBackground -> 0f
+          slide -> size.width * FluidPageMotion.SlideElevationFraction
+          else -> elevationPx
+        }
+        val color = if (slide) Color.Black.copy(alpha = FluidPageMotion.SlideShadowAlpha) else shadowColor
+        ambientShadowColor = color
+        spotShadowColor = color
         signals.markMoving()
       }
     }

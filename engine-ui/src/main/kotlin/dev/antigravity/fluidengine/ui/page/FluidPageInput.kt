@@ -325,6 +325,9 @@ private suspend fun AwaitPointerEventScope.trackDrag(
     while (true) {
       val event = awaitPointerEvent(PointerEventPass.Initial)
       val change = event.changes.firstOrNull { it.id == pointer } ?: break
+      // Compose consegna ACTION_CANCEL come un alzato sintetico già consumato.
+      // Leggerlo prima del nostro consume evita un pop spurio oltre la soglia.
+      val cancelled = !change.pressed && change.isConsumed
       change.consume()
       if (!state.isDragging(token)) {
         // La pila e' cambiata sotto il dito: la pagina e' andata, il resto del gesto si beve.
@@ -337,14 +340,15 @@ private suspend fun AwaitPointerEventScope.trackDrag(
       tracker.addPointerInputChange(change)
       if (!change.pressed) {
         released = true
-        state.release(token, tracker.calculateVelocity().x * dir)
+        if (cancelled) state.release(token, 0f, decided = false)
+        else state.release(token, tracker.calculateVelocity().x * dir)
         return
       }
       state.dragTo(token, FluidPageMotion.inAppTravel(change.position.x, anchorX, dir, startTravel))
     }
   } finally {
-    // Gesto interrotto (l'host esce dalla composizione, il puntatore sparisce): decide la distanza.
-    if (!released) state.release(token, 0f)
+    // Il puntatore sparito o un host smontato non hanno confermato un back.
+    if (!released) state.release(token, 0f, decided = false)
   }
 }
 

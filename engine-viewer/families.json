@@ -33,8 +33,8 @@
       "module": "engine-viewer-data",
       "family": "data",
       "package": "dev.antigravity.fluidengine.viewer.data",
-      "label": "Testi ricchi e dati: Markdown, HTML, CSV, TSV, JSON, XML, plist, EPUB, EML, ICS, VCF",
-      "weight": "0,1-0,25 MB (stima)",
+      "label": "Testi ricchi e dati: Markdown, HTML, CSV, TSV, JSON, NDJSON, XML, plist, EPUB, EML, ICS, VCF",
+      "weight": "0,13 MB nell'APK con R8, 0,14 MB scaricati, uguale per ogni architettura (nessuna libreria nativa); 108 KB di dex nel suo pacchetto. Misurato da F6C.13 sulla bench della galleria, con e senza il modulo",
       "assets": [],
       "libraries": []
     },

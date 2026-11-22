@@ -1,0 +1,11 @@
+// Impostazioni dell'editor (JSONC: commenti e virgole finali)
+{
+  /* il tema */
+  "editor.theme": "scuro",
+  "editor.fontSize": 14, // in punti
+  "files.exclude": {
+    "**/build": true,
+    "**/.gradle": true,
+  },
+  "estensioni": ["kotlin", "markdown",],
+}

@@ -1,0 +1,3 @@
+# I file di prova sono byte esatti: una mail ha gli a capo CRLF di RFC 5322, un EPUB e' uno ZIP, un CSV prova i
+# separatori e le virgolette. La conversione degli a capo di un checkout su Windows (core.autocrlf) li cambierebbe.
+src/test/resources/data/** -text

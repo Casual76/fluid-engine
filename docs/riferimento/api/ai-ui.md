@@ -61,6 +61,52 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun Modifier.fluidListeningGlow(glow: FluidListeningGlow, shape: Shape = ComposerShape): Modifier` — L'alone della capsula mentre ascolta, come modificatore da mettere su un contenitore *esterno* al pannello di vetro, che non clippa: dentro la capsula le macchie le copre il vetro (il fondale rifratto e il suo film), fuori sbordano di una ventina di dp e diventano l'alone; l'anello, disegnato dopo `drawContent`, corre sul filo del bordo.
 - `fun AssistantState.isVoiceActive(): Boolean` — Vero se lo stato e' uno di quelli in cui il composer ascolta o trascrive: l'alone e la riga della voce.
 
+## `engine-ai-ui/aiui/chat/FluidComposerInField.kt`
+
+- `@Composable fun fluidAssistantField(state: FluidComposerState, action: FluidComposerAction, onSend: () -> Unit, onStop: () -> Unit = {}, onVoice: () -> Unit = {}, onStopListening: () -> Unit = {}, onMute: () -> Unit = {}, onAdd: (() -> Unit)? = null, prompt: String = FluidChatStrings().composerPlaceholder, strings: FluidChatStrings = FluidChatStrings(), addDescription: String = "Aggiungi", leading: (@Composable () -> Unit)? = null, chips: (@Composable RowScope.() -> Unit)? = null, pills: (@Composable () -> Unit)? = null, voiceLine: (@Composable () -> Unit)? = null, voiceActive: Boolean = action == FluidComposerAction.StopListening, level: () -> Float = { 0f }, failed: Boolean = false, sending: FluidActionState = FluidActionState.Idle, halo: Boolean = true, active: Boolean = false, onActiveChange: ((Boolean) -> Unit)? = null, maxLines: Int = 6, requestMicPermission: Boolean = true, placement: FluidSearchPlacement = FluidSearchPlacement.BottomBar, expansion: FluidSearchExpansion = FluidSearchExpansion.AboveKeyboard): FluidSearchSpec` — Il composer dell'assistente **dentro il campo** (F6B.7): restituisce lo [FluidSearchSpec] già pieno, da dare a `FluidScreen(search = …)`. Il campo sta in basso, sale sopra la tastiera e cresce di riga in riga fino a [maxLines]; dentro ha: - lo **slot a sinistra**, il «+» ([onAdd]) o ciò che l'app mette in [leading];
+- `fun fluidAssistantFieldTrailing(action: FluidComposerAction, hasInput: Boolean, strings: FluidChatStrings, sending: FluidActionState, onVoice: () -> Unit, onStop: () -> Unit, onStopListening: () -> Unit, onMute: () -> Unit): FluidSearchTrailing` — Il tasto a destra del composer dell'assistente, dal tasto di [FluidComposer] ([fluidComposerAction]). Pura. Un tasto solo, sulla stessa sagoma: - [FluidComposerAction.Voice] e [FluidComposerAction.Send] con del testo: il microfono a campo vuoto, «Invia» con del testo ([FluidSearchTrailing.voice]); - [FluidComposerAction.Send] a campo vuoto (niente microfono): «Invia», che a campo vuoto è la X;
+- `fun fluidAssistantFieldMood(action: FluidComposerAction, failed: Boolean = false): FluidHaloMood` — L'umore dell'alone del campo dal tasto a destra (F6B.7). Pura: ascolta, lavora (anche mentre trascrive), legge ad alta voce (scrive), l'errore dell'ultima risposta, altrimenti a riposo.
+- `object FluidAssistantFieldHaloProfile` — I numeri dell'alone del campo (F6B.7).
+  - `val Spec: FluidHaloFieldSpec` — Le macchie: sei da 26 dp, accese al più al 45%, senza filo (l'anello lo fa il disegno sopra il vetro).
+  - `const val RestPresence: Float` — A riposo (il campo chiuso, l'assistente fermo) l'alone c'è ma al 70%, ed è **fermo**: nessun fotogramma.
+  - `const val FocusAmplitude: Float` — L'ampiezza a campo aperto mentre si scrive: viva ma bassa.
+  - `const val BusyAmplitude: Float` — L'ampiezza mentre l'assistente lavora, scrive o ha sbagliato: quella dell'alone di sessione.
+  - `const val FocusTempo: Float` — Il passo dell'orologio per umore (tempo dell'orologio per secondo vero). A campo aperto 1: il giro di luce fa il bordo in 5 s, le macchie in ~17 s. In ascolto un po' più svelto, al lavoro e mentre legge di più (lo scorrere dice «sta facendo»), nell'errore più lento.
+  - `const val ListeningTempo: Float`
+  - `const val WorkingTempo: Float`
+  - `const val WritingTempo: Float`
+  - `const val ErrorTempo: Float`
+  - `val RingWidth: Dp` — L'anello sul bordo del vetro: spessore.
+  - `const val RingFloorAlpha: Float` — L'alfa dell'anello: dal 38% a riposo, più il 40% dell'ampiezza (fino al 78% con la voce piena).
+  - `const val RingAmplitudeAlpha: Float`
+  - `const val RingCyclesPerSec: Float` — I colori girano sull'anello un giro ogni 8 s (di tempo dell'orologio), come l'anello del composer di prima.
+  - `const val RingStops: Int` — Quante fermate ha il gradiente dell'anello.
+  - `const val CometLapsPerSec: Float` — Il giro di luce: un giro del bordo ogni 5 s di tempo dell'orologio (3,1 s al lavoro).
+  - `const val CometLength: Float` — Quanto è lunga la scia, in frazione del bordo (~125 dp su un campo di 368 × 40).
+  - `const val CometSlices: Int` — In quante fette si disegna la scia, dalla coda (trasparente) alla testa (piena).
+  - `val CometWidth: Dp` — La testa della scia: un filo da 2,5 dp all'alfa 0,65, dentro un bagliore da 7 dp all'alfa 0,22.
+  - `const val CometAlpha: Float`
+  - `val CometGlowWidth: Dp`
+  - `const val CometGlowAlpha: Float`
+  - `const val BreathDepth: Float` — Il respiro: l'alfa di macchie, anello e scia va su e giù del 12% in 4,5 s di tempo dell'orologio.
+  - `const val BreathPeriod: Float`
+  - `const val MotionFadeInMs: Int` — Il moto entra in 400 ms ed esce in 600 (e intanto rallenta fino a fermarsi).
+  - `const val MotionFadeOutMs: Int`
+  - `const val FadeInMs: Int` — La presenza entra in 220 ms ed esce in 260, come l'alone del composer di prima.
+  - `const val FadeOutMs: Int`
+- `fun fluidAssistantFieldAmplitude(mood: FluidHaloMood, focused: Boolean, level: Float, reducedMotion: Boolean = false): Float` — Quanto è acceso l'alone del campo, da 0 a 1 (F6B.7). Pura. A riposo zero (resta la presenza bassa e ferma), a campo aperto [FluidAssistantFieldHaloProfile.FocusAmplitude], in ascolto segue il microfono senza scendere sotto il 30%, al lavoro, mentre scrive e nell'errore [FluidAssistantFieldHaloProfile.BusyAmplitude]. Col movimento ridotto la voce non fa pulsare niente: l'ascolto resta al suo minimo.
+- `fun fluidAssistantFieldPresence(mood: FluidHaloMood, focused: Boolean): Float` — La presenza dell'alone: bassa e ferma a riposo, piena altrimenti. Pura.
+- `fun fluidAssistantFieldMoves(mood: FluidHaloMood, focused: Boolean, reducedMotion: Boolean): Boolean` — Se l'alone si muove (F6B.7): il campo è attivo, cioè aperto ([focused]) o con l'assistente che ascolta, lavora o legge. Pura. A riposo no: niente fotogrammi finché il campo è chiuso e l'assistente fermo. Col movimento ridotto mai.
+- `fun fluidAssistantFieldTempo(mood: FluidHaloMood): Float` — Il passo dell'orologio dell'alone per [mood] ([FluidAssistantFieldHaloProfile.FocusTempo] e i suoi vicini). Pura.
+- `fun fluidAssistantFieldRingAlpha(amplitude: Float, presence: Float): Float` — L'alfa dell'anello per [amplitude] e [presence]. Pura.
+- `fun fluidAssistantFieldBreath(time: Float, motion: Float): Float` — Il respiro dell'alone al tempo [time] dell'orologio, con il moto a [motion] (0 fermo, 1 pieno): un fattore sull'alfa attorno a 1, ±[FluidAssistantFieldHaloProfile.BreathDepth]. Fermo vale 1. Pura.
+- `fun fluidAssistantFieldCometHead(time: Float): Float` — Dove sta la testa del giro di luce al tempo [time], in frazione del bordo (0..1, in senso orario). Pura.
+- `fun fluidAssistantFieldCometWeight(slice: Int, slices: Int = FluidAssistantFieldHaloProfile.CometSlices): Float` — Il peso della fetta [slice] della scia (0 la coda, l'ultima la testa): cresce col quadrato verso la testa. Pura.
+- `class FluidAssistantFieldHalo internal constructor(internal val clock: FluidHaloClock, private val presence: State<Float>, private val motion: State<Float>, private val blobs: List<State<Color>>, private val ring: List<Color>, private val blend: BlendMode, private val fieldActive: MutableState<Boolean>) : FluidComposerHalo` — L'alone attorno al campo del composer dell'assistente (F6B.7): le macchie del campo di luce viaggiano sul bordo del vetro **dietro** di lui (dentro le copre il vetro, fuori sbordano); un anello sottile con i colori del tema che girano sta **sopra** il bordo, e mentre il campo è attivo un **giro di luce** gli corre sopra e tutto **respira** piano. Lo costruisce [rememberFluidAssistantFieldHalo].
+  - `val presenceNow: Float get()` — La presenza di adesso, 0..1.
+  - `val motionNow: Float get()` — Il moto di adesso, 0 fermo e 1 pieno: il giro di luce e il respiro ci sono quanto vale.
+- `@Composable fun rememberFluidAssistantFieldHalo(mood: FluidHaloMood, focused: Boolean, level: () -> Float = { 0f }, colours: FluidHaloColours = FluidHaloColours.fromTheme(), blend: BlendMode = haloBlendForTheme()): FluidAssistantFieldHalo` — L'alone del campo per [mood] (di solito [fluidAssistantFieldMood]): [focused] è il campo aperto, [level] il livello del microfono, letto solo dal loop di fotogrammi. Il campo dice anche da sé se è aperto ([FluidComposerHalo.fieldActiveChanged]): basta l'uno o l'altro.
+
 ## `engine-ai-ui/aiui/chat/FluidFollowBottom.kt`
 
 - `enum class FluidFollowAction` — Cosa fare dopo aver guardato la lista: niente, andare in fondo (con la molla), o inseguire la crescita senza animare.

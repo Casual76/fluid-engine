@@ -177,6 +177,8 @@ internal object F38aTraces {
     val layoutLeadFrames: Int = 0,
     /** Il moto del piano (F6B.6: la ricerca usa la sua curva da 334 ms); di serie quello del contenitore. */
     val motion: GlassPlaneMotion = GlassPlaneMotion(),
+    /** (F6B.7) vero agli istanti in cui il piano segue senza viaggio (`FluidGlassAnimation.None`): il campo che cresce. */
+    val instantAt: (Double) -> Boolean = { false },
   )
 
   private val NeutralTint = GlassTint(Color.Transparent, Color.Transparent, Color.Transparent, GlassTintMode.Neutral)
@@ -227,7 +229,7 @@ internal object F38aTraces {
       val time = glassTraceTimeMs(index, Fps)
       val state = stateAt(time)
       val nanos = base + glassTraceTimeNanos(index, Fps)
-      val change = driver.step(nanos, state, motion)
+      val change = driver.step(nanos, state, if (scene.instantAt(time)) null else motion)
       // I pezzi che ci sono adesso e dove stanno; chi non c'è più resta dov'era, staccato.
       for (piece in state.pieces) {
         val content = contents.getOrPut(piece.key) {

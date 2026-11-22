@@ -103,6 +103,8 @@ object FluidSearchFieldDefaults {
  * @property note (F6B.6) il segnaposto di serie di [FluidSearchSpec.note].
  * @property assistant (F6B.6) il segnaposto di serie di [FluidSearchSpec.assistant].
  * @property findInPage (F6B.6) il segnaposto di serie di [FluidSearchSpec.findInPage].
+ * @property dictate (F6B.7) il nome del microfono del composer ([FluidSearchTrailing.voice]).
+ * @property stop (F6B.7) il nome dello stop del composer ([FluidSearchTrailing.stop]), se l'app non ne dà uno.
  */
 @Immutable
 data class FluidSearchLabels(
@@ -118,6 +120,8 @@ data class FluidSearchLabels(
   val note: String = "Nota",
   val assistant: String = "Chiedi all'assistente",
   val findInPage: String = "Trova nella pagina",
+  val dictate: String = "Dettatura",
+  val stop: String = "Interrompi",
 )
 
 /**

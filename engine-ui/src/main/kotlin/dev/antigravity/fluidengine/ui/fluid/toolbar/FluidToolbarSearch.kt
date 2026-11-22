@@ -162,6 +162,39 @@ import dev.antigravity.fluidengine.ui.fluid.SearchCounter
 import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowUp
 import dev.antigravity.fluidengine.ui.fluid.icons.KeyboardArrowDown
 import dev.antigravity.fluidengine.ui.fluid.icons.ArrowUpward
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainWidth
+import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidComposerHalo
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerState
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchSubmitGate
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchTrailingKind
+import dev.antigravity.fluidengine.ui.fluid.FluidTextFieldVerticalPadding
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchFieldExtraPx
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchGrows
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchSendsText
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchSubmittable
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionGlyphContent
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionLook
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionPreset
+import dev.antigravity.fluidengine.ui.fluid.action.FluidActionState
+import dev.antigravity.fluidengine.ui.fluid.action.LocalFluidActionLabels
+import dev.antigravity.fluidengine.ui.fluid.action.acceptsTap
+import dev.antigravity.fluidengine.ui.fluid.action.fluidActionDescribe
+import dev.antigravity.fluidengine.ui.fluid.action.rememberFluidActionPresentation
+import dev.antigravity.fluidengine.ui.fluid.icons.Check
+import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.Refresh
+import dev.antigravity.fluidengine.ui.fluid.icons.Stop
 import kotlin.math.roundToInt
 
 /** Le sedi di Principal appartengono al contenuto. Le altre due sono sul piano della barra. */
@@ -194,7 +227,21 @@ internal fun searchBar(placement: FluidSearchPlacement, width: Dp): FluidToolbar
 internal val LocalToolbarSearch = compositionLocalOf<ToolbarSearch?> { null }
 // WWDC25 256, f7320..7330, a 30000/1001 Hz. Curva del centro della lente nella clip a 1×.
 internal val ToolbarSearchTiming = tween<Float>(334, easing = CubicBezierEasing(.38f, 0f, .35f, 1f))
-internal val ToolbarSearchAnimation = FluidGlassAnimation.Custom(ToolbarSearchTiming)
+internal val ToolbarSearchCurve = FluidGlassAnimation.Custom(ToolbarSearchTiming)
+
+/**
+ * Vero mentre il campo che cresce cambia altezza (F6B.7): il piano lo segue senza viaggio, con
+ * [FluidGlassAnimation.None] (la scheda del piano flottante, «Un pannello che cresce»; il rischio «Il composer che
+ * cresce nel piano»). Lo dà la sovrapposizione della ricerca attorno alla sua barra.
+ */
+internal val LocalToolbarSearchFollows = compositionLocalOf { false }
+
+/**
+ * Come il piano della ricerca anima i suoi cambi: la curva da 334 ms del campo (F4B.2), oppure nessun viaggio mentre il
+ * campo cresce ([LocalToolbarSearchFollows], F6B.7). Letto dove si compone il contenitore della barra.
+ */
+internal val ToolbarSearchAnimation: FluidGlassAnimation
+  @Composable @ReadOnlyComposable get() = if (LocalToolbarSearchFollows.current) FluidGlassAnimation.None else ToolbarSearchCurve
 // Salute (WWDC25 256): il gruppo perde il fuoco al primo movimento e il nuovo segno entra a gruppo raccolto.
 internal const val ToolbarSearchInkMillis = 250
 
@@ -433,6 +480,9 @@ internal fun FluidToolbarSearchOverlay(
   val appInset = LocalFluidBottomInset.current
   val bottomPadding = fluidBottomBarOffset(appInset)
   val reserved = PaddingValues(bottom = bottomPadding)
+  // Il campo che cresce (F6B.7): quanto il suo vetro supera la riga, e dove sta il vetro per l'alone.
+  val growth = remember { ToolbarSearchGrowth() }
+  val frame = remember { ToolbarSearchFieldFrame() }
   CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalFluidCanvasBackdrop provides null,
     LocalFluidGlassQuality provides null) {
     val viewport = if (keyboardDock == null) Modifier.padding(reserved).searchImeViewport()
@@ -444,22 +494,51 @@ internal fun FluidToolbarSearchOverlay(
       val pose = remember(model, maxWidth, search.bar, search.hasDeclaration, active, search.spec.behavior, search.spec.showsAtRest) {
         search.layout(model, maxWidth.value, metrics)
       }
-      // Il contenuto che esce (F6B.6): «trova» che se ne va, o il campo aperto che torna lente. Esce sfocato dal fantasma.
-      val leaving = remember { ToolbarSearchLeaving() }
-      leaving.track(pose, search.spec, animate = !reduced)
-      Box(Modifier.fillMaxWidth().offset { IntOffset(0, toolbarSearchOffset(available, rowHeight.roundToPx(), position.value)) }
-        .height(rowHeight).then(if (active) Modifier else Modifier.fluidToolbarMinimizeLayer(minimize, towardsBottom = search.atBottom))) {
-        FluidToolbarGroups(page, pose.neighbours, reduced, interactive = true, searchActive = active) { namespace ->
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-            if (!pose.hidden) ToolbarSearchField(search, pose, namespace, Modifier)
-            leaving.ghost?.let { ghost -> key(ghost.serial) { ToolbarSearchGhost(ghost, namespace) { leaving.finish(ghost) } } }
+      // La crescita (F6B.7): il bersaglio è il contenuto naturale del campo meno la sua riga. Una riga in più mentre si
+      // scrive è un cambio del contenitore che il piano segue senza viaggio; aprire e chiudere viaggiano come sempre.
+      val grows = fluidSearchGrows(search.spec)
+      val target = if (grows && !pose.hidden) fluidSearchFieldExtraPx(growth.contentPx, growth.rowPx, pose.compact).toFloat() else 0f
+      val posed = ToolbarSearchGrowthKey(pose.compact, pose.hidden, active, pose.left, pose.width)
+      val poseChanged = growth.posed != null && growth.posed != posed
+      val move = toolbarSearchGrowthMove(growth.extra.targetValue, target, poseChanged, settled = growth.measures > 1)
+      SideEffect { growth.posed = posed }
+      val follows = move == ToolbarSearchGrowthMove.Follow || growth.following && !poseChanged
+      LaunchedEffect(growth, target, posed) {
+        when (move) {
+          ToolbarSearchGrowthMove.Stay -> Unit
+          ToolbarSearchGrowthMove.Jump -> growth.extra.snapTo(target)
+          ToolbarSearchGrowthMove.Follow -> growth.follow {
+            if (reduced) growth.extra.snapTo(target) else growth.extra.animateTo(target, ToolbarSearchGrowthSpring)
           }
         }
+      }
+      // Il contenuto che esce (F6B.6): «trova» che se ne va, o il campo aperto che torna lente. Esce sfocato dal fantasma.
+      val leaving = remember { ToolbarSearchLeaving() }
+      leaving.track(pose, search.spec, animate = !reduced, extraPx = growth.extra.targetValue)
+      val halo = search.spec.composer?.halo?.takeUnless { pose.hidden }
+      // L'alone sa se il campo è aperto (F6B.7): si anima solo allora.
+      search.spec.composer?.halo?.let { aura -> SideEffect { aura.fieldActiveChanged(active) } }
+      Box(Modifier.fillMaxWidth().offset { IntOffset(0, toolbarSearchOffset(available, rowHeight.roundToPx(), position.value)) }
+        .height(rowHeight).then(if (active) Modifier else Modifier.fluidToolbarMinimizeLayer(minimize, towardsBottom = search.atBottom))) {
+        // L'alone del composer (F6B.7): dietro al vetro e sopra il suo bordo, fuori dal piano e fuori dalla sua cattura.
+        if (halo != null) ToolbarSearchHaloLayer(halo, frame, behind = true)
+        CompositionLocalProvider(LocalToolbarSearchFollows provides follows) {
+          FluidToolbarGroups(page, pose.neighbours, reduced, interactive = true, searchActive = active) { namespace ->
+            frame.bind(LocalFluidGlassContainer.current, namespace)
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+              if (!pose.hidden) ToolbarSearchField(search, pose, namespace, Modifier, growth, frame)
+              leaving.ghost?.let { ghost -> key(ghost.serial) { ToolbarSearchGhost(ghost, namespace, search.occupiesBottom) { leaving.finish(ghost) } } }
+            }
+          }
+        }
+        if (halo != null) ToolbarSearchHaloLayer(halo, frame, behind = false)
       }
       if (active && search.spec.suggestions != null) {
         Box(Modifier.align(if (bottom) Alignment.BottomCenter else Alignment.TopCenter)
           .padding(horizontal = FluidMetrics.ScreenEdgeMargin)
-          .padding(top = if (bottom) 0.dp else rowHeight, bottom = if (bottom) rowHeight else 0.dp)) {
+          .padding(top = if (bottom) 0.dp else rowHeight, bottom = if (bottom) rowHeight else 0.dp)
+          // Sopra (o sotto) il campo cresciuto, non sotto il suo vetro (F6B.7).
+          .offset { IntOffset(0, growth.extra.value.roundToInt().let { if (bottom) -it else it }) }) {
           search.spec.suggestions.invoke()
         }
       }
@@ -467,16 +546,227 @@ internal fun FluidToolbarSearchOverlay(
   }
 }
 
+// ================================================================================================================
+// Il campo che cresce (F6B.7)
+// ================================================================================================================
+
+/**
+ * La molla della crescita di riga in riga e del vassoio: [FluidMotion.snappy] (smorzamento critico, risposta 0,30 s),
+ * la molla del cromo che non rimbalza. **A occhio** (F6B.7, 21 novembre 2026): F6B.0 non ha trovato una clip di Messaggi
+ * che mostri la crescita (ricerca F6B.0 §5); il vetro la segue fotogramma per fotogramma senza viaggio.
+ */
+internal val ToolbarSearchGrowthSpring = FluidMotion.snappy<Float>()
+
+/** La posa del campo per la crescita: se cambia, il cambio d'altezza fa parte del viaggio del piano (apre, chiude). */
+internal data class ToolbarSearchGrowthKey(
+  val compact: Boolean, val hidden: Boolean, val active: Boolean, val left: Float, val width: Float,
+)
+
+/** Che cosa fa il vetro del campo quando l'altezza del contenuto cambia (F6B.7). */
+internal enum class ToolbarSearchGrowthMove {
+  /** Niente da fare. */
+  Stay,
+
+  /** Al posto nuovo in un colpo: la prima misura, o un cambio che viaggia col piano (il campo che si apre o si chiude). */
+  Jump,
+
+  /** Cresce o cala con la molla, e il piano lo segue senza viaggio ([FluidGlassAnimation.None]). */
+  Follow,
+}
+
+/**
+ * La mossa del vetro da [from] a [to] px oltre la riga (F6B.7). Pura. La prima misura ([settled] falso) si posa senza
+ * animare: un campo che compare con tre righe di bozza le ha già. Un cambio di posa ([poseChanged]: il campo si apre, si
+ * chiude, cambia larghezza) viaggia col piano sulla curva della ricerca. Il resto (una riga in più o in meno mentre si
+ * scrive, il vassoio che si apre o si chiude) cresce con la molla e il piano lo segue fotogramma per fotogramma.
+ */
+internal fun toolbarSearchGrowthMove(from: Float, to: Float, poseChanged: Boolean, settled: Boolean): ToolbarSearchGrowthMove = when {
+  from == to -> ToolbarSearchGrowthMove.Stay
+  !settled || poseChanged -> ToolbarSearchGrowthMove.Jump
+  else -> ToolbarSearchGrowthMove.Follow
+}
+
+/**
+ * Lo stato del campo che cresce (F6B.7). Il layout del campo scrive l'altezza naturale del suo contenuto ([report]); la
+ * sovrapposizione ne fa il bersaglio e anima [extra], che il layout del vetro legge (senza ricomporre). Mentre [extra]
+ * cambia con la molla, [following] tiene il piano senza viaggio; due fotogrammi dopo l'arrivo la curva della ricerca
+ * torna per i cambi che viaggiano.
+ */
+@Stable
+internal class ToolbarSearchGrowth {
+  /** L'altezza naturale del contenuto del campo (vassoio e righe), in px. */
+  var contentPx by mutableIntStateOf(0)
+    private set
+
+  /** L'altezza della riga del campo (40 dp aperto, 46 chiuso in lente), in px. */
+  var rowPx by mutableIntStateOf(0)
+    private set
+
+  /** Quante misure diverse sono arrivate: la prima si posa senza crescere. */
+  var measures by mutableIntStateOf(0)
+    private set
+
+  /** Il vetro oltre la riga adesso, in px. */
+  val extra = Animatable(0f)
+
+  private var followers by mutableIntStateOf(0)
+
+  /** Vero mentre il vetro cresce o cala con la molla: il piano lo segue senza viaggio. */
+  val following: Boolean get() = followers > 0
+
+  /** L'ultima posa composta (scritta dopo la composizione). */
+  internal var posed: ToolbarSearchGrowthKey? = null
+
+  // Le copie che il layout confronta: la misura non deve **leggere** gli stati che scrive, o si iscrive a loro e si
+  // rifà a ogni scrittura.
+  private var seenContent = 0
+  private var seenRow = 0
+  private var seenMeasures = 0
+
+  /** Dal layout: il contenuto è alto [content] px, la riga [row] px. Scrive gli stati solo se cambiano, senza leggerli. */
+  fun report(content: Int, row: Int) {
+    if (content == seenContent && row == seenRow) return
+    seenContent = content
+    seenRow = row
+    seenMeasures++
+    contentPx = content
+    rowPx = row
+    measures = seenMeasures
+  }
+
+  /** La crescita con la molla: il piano segue senza viaggio finché dura, più due fotogrammi. */
+  suspend fun follow(block: suspend () -> Unit) {
+    followers++
+    try {
+      block()
+      repeat(2) { withFrameNanos { } }
+    } finally {
+      followers--
+    }
+  }
+}
+
+/**
+ * Il vetro del campo che cresce (F6B.7): alto quanto la sua riga [base] più [extraPx], col bordo dalla parte della
+ * tastiera fermo. Al genitore dice d'essere alto quanto la riga, così la barra, i vicini e il bersaglio da 48 dp non si
+ * spostano; il vetro sborda verso l'alto ([upward]) o verso il basso. Legge [extraPx] nel layout: la crescita non
+ * ricompone.
+ */
+internal fun Modifier.toolbarSearchGrowth(base: Dp, extraPx: () -> Float, upward: Boolean): Modifier = layout { measurable, constraints ->
+  val basePx = base.roundToPx()
+  val place = toolbarSearchGrowthPlace(basePx, extraPx().roundToInt(), upward)
+  val placeable = measurable.measure(constraints.copy(minHeight = place.height, maxHeight = place.height))
+  layout(placeable.width, constraints.constrainHeight(basePx)) { placeable.place(0, place.top) }
+}
+
+/** Il vetro del campo che cresce rispetto alla sua riga, in px (F6B.7): [top] dal bordo alto della riga, alto [height]. */
+internal data class ToolbarSearchGrowthPlace(val top: Int, val height: Int) {
+  val bottom: Int get() = top + height
+}
+
+/**
+ * Dove sta il vetro che cresce (F6B.7). Pura. Alto la riga ([basePx]) più [extraPx]; in basso ([upward]) il bordo basso
+ * resta quello della riga e sale quello alto, in alto il contrario.
+ */
+internal fun toolbarSearchGrowthPlace(basePx: Int, extraPx: Int, upward: Boolean): ToolbarSearchGrowthPlace {
+  val extra = extraPx.coerceAtLeast(0)
+  return ToolbarSearchGrowthPlace(if (upward) -extra else 0, basePx + extra)
+}
+
+/** La riga della voce prende il posto del testo (F6B.7): l'app la dà, e il campo non è chiuso in una lente. Pura. */
+internal fun toolbarSearchShowsVoiceLine(spec: FluidSearchSpec, pose: ToolbarSearchPose): Boolean =
+  spec.composer?.voiceLine != null && !pose.compact && !pose.hidden
+
+/**
+ * Il contenuto del campo che cresce alla sua altezza naturale (F6B.7), ancorato al bordo dalla parte della tastiera e
+ * ritagliato dal vetro: mentre il vetro cresce, la riga di sopra (o il vassoio) entra dal bordo che sale. Dice a [report]
+ * l'altezza naturale.
+ */
+internal fun Modifier.toolbarSearchNatural(upward: Boolean, report: (Int) -> Unit): Modifier = layout { measurable, constraints ->
+  val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+  report(placeable.height)
+  val width = constraints.constrainWidth(placeable.width)
+  val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height
+  layout(width, height) { placeable.place(0, if (upward) height - placeable.height else 0) }
+}
+
+/**
+ * Dove sta il vetro del campo, per l'alone (F6B.7): in viaggio la sagoma del piano, ferma quella del layout, nelle
+ * coordinate della riga. [version] cambia a ogni posa del vetro, così il disegno dell'alone si rifà anche quando il
+ * campo cresce senza viaggio.
+ */
+@Stable
+internal class ToolbarSearchFieldFrame {
+  private var plane: FluidGlassContainerState? = null
+  private var qualified: FluidGlassQualifiedId? = null
+  private var namespace: FluidGlassNamespace? = null
+  internal var row: LayoutCoordinates? = null
+  private var glass: LayoutCoordinates? = null
+
+  /** Il raggio del vetro fermo, in px: quello della capsula o dei 20 dp del campo su più righe. */
+  internal var radiusPx = Float.POSITIVE_INFINITY
+
+  private val placements = mutableIntStateOf(0)
+  private var placed = 0
+
+  /** Cambia a ogni posa del vetro: il disegno dell'alone lo legge e si rifà. */
+  val version: Int get() = placements.intValue
+
+  fun bind(plane: FluidGlassContainerState?, namespace: FluidGlassNamespace) {
+    this.plane = plane
+    if (this.namespace !== namespace) {
+      this.namespace = namespace
+      qualified = FluidGlassQualifiedId(namespace, ToolbarFieldId)
+    }
+  }
+
+  /**
+   * Il vetro è stato posato. Solo **scrittura**: la posa è osservata, e leggere qui lo stato che si scrive (`version++`)
+   * la iscriverebbe a lui, rifacendo la posa a ogni scrittura senza fine (trovato da `FluidAssistantFieldHaloTest`).
+   */
+  fun placed(coordinates: LayoutCoordinates) {
+    glass = coordinates
+    placements.intValue = ++placed
+  }
+
+  /** La sagoma del vetro adesso, in px della riga; null se non c'è ancora. */
+  fun shape(): RoundRect? {
+    version
+    val flying = qualified?.let { plane?.flightOf(it) }
+    val bounds = flying?.bounds ?: run {
+      val row = row?.takeIf { it.isAttached } ?: return null
+      val glass = glass?.takeIf { it.isAttached } ?: return null
+      row.localBoundingBoxOf(glass, clipBounds = false)
+    }
+    val radius = minOf(bounds.height / 2f, bounds.width / 2f, radiusPx)
+    return RoundRect(bounds, CornerRadius(radius))
+  }
+}
+
+/** Lo strato dell'alone, dietro o sopra il piano della barra: un suo strato grafico, che si ridisegna da solo. */
+@Composable
+private fun BoxScope.ToolbarSearchHaloLayer(halo: FluidComposerHalo, frame: ToolbarSearchFieldFrame, behind: Boolean) {
+  Spacer(Modifier.matchParentSize().then(if (behind) Modifier.onPlaced { frame.row = it } else Modifier)
+    .graphicsLayer().drawBehind {
+      val glass = frame.shape() ?: return@drawBehind
+      with(halo) { if (behind) drawBehindGlass(glass) else drawOverGlass(glass) }
+    })
+}
+
 /** Il velo protegge l'inchiostro anche nel tratto colorato che resta più chiaro o scuro della media della sonda. */
 internal fun fluidSearchReadingVeil(ink: Color): Color =
   if (ink.luminance() > .5f) Color.Black.copy(alpha = .40f) else Color.White.copy(alpha = .16f)
 
-internal fun Modifier.fluidSearchReadingSurface(ink: Color, progress: () -> Float): Modifier {
+internal fun Modifier.fluidSearchReadingSurface(ink: Color, progress: () -> Float): Modifier =
+  fluidSearchReadingSurface(ink, null, progress)
+
+/** Il velo di lettura con il raggio [radius] (F6B.7, il campo su più righe); null: la capsula. */
+internal fun Modifier.fluidSearchReadingSurface(ink: Color, radius: Dp?, progress: () -> Float): Modifier {
   val veil = fluidSearchReadingVeil(ink)
   return drawBehind {
     val amount = progress().coerceIn(0f, 1f)
-    if (amount > 0f) drawRoundRect(veil.copy(alpha = veil.alpha * amount),
-      cornerRadius = CornerRadius(size.height / 2f))
+    val corner = if (radius == null) size.height / 2f else minOf(radius.toPx(), size.height / 2f)
+    if (amount > 0f) drawRoundRect(veil.copy(alpha = veil.alpha * amount), cornerRadius = CornerRadius(corner))
   }
 }
 
@@ -485,11 +775,33 @@ private object ToolbarFieldId
 /** Il tasto a destra del campo aperto: la X che chiude o «Invia» (F6B.6), sulla stessa sagoma. */
 internal enum class ToolbarSearchTrailingFace { Close, Send }
 
-/** La faccia del tasto a destra: null a campo chiuso, «Invia» solo con il preset che invia e qualcosa da inviare. */
-internal fun toolbarSearchTrailingFace(spec: FluidSearchSpec): ToolbarSearchTrailingFace? = when {
-  !spec.active -> null
-  fluidSearchCanSend(spec) -> ToolbarSearchTrailingFace.Send
-  else -> ToolbarSearchTrailingFace.Close
+/** La faccia del tasto a destra di F6B.6: null a campo chiuso o con le facce del composer ([toolbarSearchKeyFace]). */
+internal fun toolbarSearchTrailingFace(spec: FluidSearchSpec): ToolbarSearchTrailingFace? = when (toolbarSearchKeyFace(spec)) {
+  ToolbarSearchKeyFace.Close -> ToolbarSearchTrailingFace.Close
+  ToolbarSearchKeyFace.Send -> ToolbarSearchTrailingFace.Send
+  ToolbarSearchKeyFace.Voice, ToolbarSearchKeyFace.Stop, null -> null
+}
+
+/**
+ * Tutte le facce del tasto a destra, sulla stessa sagoma (F6B.7): la X che chiude o «Invia» (F6B.6), il microfono e lo
+ * stop del composer. Si scambiano sfocate (R7): mai due tasti. Un tipo a sé, accanto a [ToolbarSearchTrailingFace].
+ */
+internal enum class ToolbarSearchKeyFace { Close, Send, Voice, Stop }
+
+/**
+ * La faccia del tasto a destra (F6B.6, F6B.7):
+ * - la ricerca e «Invia»: nessuna a campo chiuso; aperto la X, o «Invia» con qualcosa da inviare;
+ * - il microfono del composer: il microfono a campo vuoto, «Invia» con del testo, anche a riposo;
+ * - lo stop: lo stop, anche a riposo.
+ */
+internal fun toolbarSearchKeyFace(spec: FluidSearchSpec): ToolbarSearchKeyFace? = when (spec.trailing.kind) {
+  FluidSearchTrailingKind.Voice -> if (fluidSearchCanSend(spec)) ToolbarSearchKeyFace.Send else ToolbarSearchKeyFace.Voice
+  FluidSearchTrailingKind.Stop -> ToolbarSearchKeyFace.Stop
+  FluidSearchTrailingKind.Clear, FluidSearchTrailingKind.Send -> when {
+    !spec.active -> null
+    fluidSearchCanSend(spec) -> ToolbarSearchKeyFace.Send
+    else -> ToolbarSearchKeyFace.Close
+  }
 }
 
 /**
@@ -509,7 +821,7 @@ internal fun toolbarSearchFieldParts(spec: FluidSearchSpec, widthDp: Float): Too
   val base = lens + action * 2
   val navigation = spec.active && spec.navigation != null && widthDp >= base + action * 2 + ToolbarSearchCounterRoomDp
   val taken = base + if (navigation) action * 2 + ToolbarSearchCounterRoomDp else 0f
-  val clear = spec.active && spec.trailing == FluidSearchTrailing.Clear && spec.query.isNotEmpty() && widthDp >= taken + action
+  val clear = spec.active && spec.trailing.kind == FluidSearchTrailingKind.Clear && spec.query.isNotEmpty() && widthDp >= taken + action
   return ToolbarSearchFieldParts(navigation, clear)
 }
 
@@ -518,7 +830,10 @@ private val SearchSendDisc = 30.dp
 private val SearchSendGlyph = 18.dp
 
 @Composable
-private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, namespace: FluidGlassNamespace, modifier: Modifier) {
+private fun ToolbarSearchField(
+  search: ToolbarSearch, pose: ToolbarSearchPose, namespace: FluidGlassNamespace, modifier: Modifier,
+  growth: ToolbarSearchGrowth, frame: ToolbarSearchFieldFrame,
+) {
   val spec = search.spec
   val active = spec.active
   val purposeSearch = spec.purpose == FluidSearchPurpose.Search
@@ -592,80 +907,117 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
       GlassContentDefaults.PeakBlur, FluidSearchFieldDefaults.IconSize.toPx()))
     renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
   }
-  val submit = { fluidSearchSubmit(spec, close) }
+  // Niente doppio invio (F6B.7): lo stesso testo non riparte subito, e il tasto che cambia faccia non risponde.
+  val gate = remember { FluidSearchSubmitGate() }
+  val submit = {
+    if (fluidSearchSubmittable(spec) && (!fluidSearchSendsText(spec) || gate.trySubmit(spec.query))) fluidSearchSubmit(spec, close)
+  }
   val activate = Modifier.fluidPressable(onClick = { toggle(true) }, role = Role.Button,
     focusShape = FluidCapsuleShape, feedback = FluidPressFeedback.Expand, haptic = FluidHapticEvent.Open)
   val target = if (active) Modifier.pointerInput(focus, keyboard) {
     // Anche il margine tra il vetro da 40 dp e il bersaglio da 48 dp riporta all'editor.
     detectTapGestures { focus.requestFocus(); keyboard?.show() }
   } else activate
+  val face = toolbarSearchKeyFace(spec).takeUnless { pose.compact }
+  val editor: @Composable (Modifier, Boolean) -> Unit = { editorModifier, singleLine ->
+    BasicTextField(
+      value = search.editor.value,
+      onValueChange = { next ->
+        val changed = next.text != search.editor.value.text
+        search.editor.value = next
+        if (changed) spec.onQueryChange(next.text)
+      },
+      // Con più righe il testo va a capo e il campo cresce fino a `maxLines` righe, poi scorre dentro (F6B.7).
+      singleLine = singleLine,
+      maxLines = spec.maxLines,
+      textStyle = MaterialTheme.typography.bodyLarge.copy(color = LocalContentColor.current),
+      cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+      keyboardOptions = KeyboardOptions(imeAction = fluidSearchImeAction(spec)),
+      keyboardActions = KeyboardActions(onSearch = { submit() }, onDone = { submit() }, onSend = { submit() }),
+      modifier = editorModifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = prompt },
+    )
+  }
   Box(modifier.offset(x = x.dp).width(width.dp).height(FluidMetrics.TouchTarget)
     .then(target), contentAlignment = Alignment.Center) {
-    Row(Modifier.fillMaxWidth().height(height).fluidGlassId(ToolbarFieldId, namespace)
-      .fluidGlassContentAnchor(FluidGlassContentAnchor.Start).fluidGlass(FluidGlass.Regular)
-      .fluidSearchReadingSurface(LocalContentColor.current) { reading.value }.clip(FluidCapsuleShape), verticalAlignment = Alignment.CenterVertically) {
-      val ink = LocalContentColor.current
-      Row(Modifier.fillMaxSize().then(bornLayer), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
-          FluidIcon(fluidSearchIcon(spec), if (pose.compact) prompt else null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
-        }
-        // L'editor ha un solo proprietario. Il segnaposto e le azioni possono sfocarsi indipendentemente dal cursore.
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-          // Il segnaposto entra ed esce sfocato con l'apertura, ma lascia il posto al testo subito, come in ogni campo:
-          // mai due scritte nello stesso posto (F6B.6). Svuotato il testo torna fermo, come in Apple.
-          if (spec.query.isEmpty()) FluidGlassContentTransition(if (!pose.compact) prompt else null,
-            contentAlignment = Alignment.CenterStart) { hint ->
-            if (hint != null) Text(hint, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
-              overflow = TextOverflow.Ellipsis)
+    if (!fluidSearchGrows(spec)) {
+      // Il campo di una riga: quello di F6B.6, al pixel.
+      Row(Modifier.fillMaxWidth().height(height).fluidGlassId(ToolbarFieldId, namespace)
+        .fluidGlassContentAnchor(FluidGlassContentAnchor.Start).fluidGlass(FluidGlass.Regular)
+        .fluidSearchReadingSurface(LocalContentColor.current) { reading.value }.clip(FluidCapsuleShape), verticalAlignment = Alignment.CenterVertically) {
+        val ink = LocalContentColor.current
+        Row(Modifier.fillMaxSize().then(bornLayer), verticalAlignment = Alignment.CenterVertically) {
+          Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            FluidIcon(fluidSearchIcon(spec), if (pose.compact) prompt else null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
           }
-          if (active) BasicTextField(
-            value = search.editor.value,
-            onValueChange = { next ->
-              val changed = next.text != search.editor.value.text
-              search.editor.value = next
-              if (changed) spec.onQueryChange(next.text)
-            },
-            // Con più righe il testo va a capo e scorre dentro il campo; il campo che cresce è del composer (F6B.7).
-            singleLine = spec.maxLines <= 1,
-            maxLines = spec.maxLines,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = ink),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(imeAction = fluidSearchImeAction(spec)),
-            keyboardActions = KeyboardActions(onSearch = { submit() }, onDone = { submit() }, onSend = { submit() }),
-            modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = prompt },
-          )
-          else if (!pose.compact && spec.query.isNotEmpty()) Text(spec.query, color = ink,
-            style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          // L'editor ha un solo proprietario. Il segnaposto e le azioni possono sfocarsi indipendentemente dal cursore.
+          Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            // Il segnaposto entra ed esce sfocato con l'apertura, ma lascia il posto al testo subito, come in ogni campo:
+            // mai due scritte nello stesso posto (F6B.6). Svuotato il testo torna fermo, come in Apple.
+            if (spec.query.isEmpty()) FluidGlassContentTransition(if (!pose.compact) prompt else null,
+              contentAlignment = Alignment.CenterStart) { hint ->
+              if (hint != null) Text(hint, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            }
+            if (active) editor(Modifier, spec.maxLines <= 1)
+            else if (!pose.compact && spec.query.isNotEmpty()) Text(spec.query, color = ink,
+              style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          }
+          ToolbarSearchFieldTrailing(spec, pose, face, active, ink, closeLabel, close, submit, gate) { it() }
         }
-        val actionSize = FluidSearchFieldDefaults.ActionSize
-        val parts = toolbarSearchFieldParts(spec, pose.width)
-        val scopeBudget = (pose.width.dp - lens - actionSize * (if (parts.clear) 3 else 2) -
-          if (parts.navigation) actionSize * 2 + ToolbarSearchCounterRoomDp.dp else 0.dp).coerceAtLeast(0.dp)
-        if (active && spec.scopes != null) {
-          Box(Modifier.widthIn(max = minOf((pose.width / 3f).dp, scopeBudget)).horizontalScroll(rememberScrollState())) { spec.scopes.invoke() }
-        }
-        if (parts.clear) Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
-          SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") }
-        }
-        val navigation = spec.navigation
-        if (parts.navigation && navigation != null) {
-          // «3/12» e le frecce dentro il campo, come FluidSearchField; il contatore è un'area viva (F6B.6, «trova»).
-          SearchCounter(spec.query, navigation, SearchLabels, color = ink)
-          FluidCapsuleAction(FluidIcons.KeyboardArrowUp, SearchLabels.previous, navigation.onPrevious,
-            enabled = navigation.total > 0, tint = ink, size = actionSize)
-          FluidCapsuleAction(FluidIcons.KeyboardArrowDown, SearchLabels.next, navigation.onNext,
-            enabled = navigation.total > 0, tint = ink, size = actionSize)
-        }
-        // Un tasto solo: la X, o «Invia» appena c'è qualcosa da inviare; le due facce si scambiano sfocate (R7).
-        FluidGlassContentTransition(toolbarSearchTrailingFace(spec)) { face ->
-          when (face) {
-            ToolbarSearchTrailingFace.Close ->
-              if (active) FluidCapsuleAction(FluidIcons.Close, closeLabel, close, size = actionSize, tint = ink)
-              else Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
-                FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+      }
+    } else {
+      // Il campo che cresce (F6B.7): il vetro sale dal bordo opposto alla tastiera, il contenuto sta alla sua altezza
+      // naturale ancorato a quel bordo, e il piano segue il vetro senza viaggio mentre cresce.
+      val upward = search.occupiesBottom
+      val shape = if (pose.compact) FluidCapsuleShape else ToolbarSearchMultilineShape
+      frame.radiusPx = with(density) { if (pose.compact) Float.POSITIVE_INFINITY else FluidTextFieldDefaults.MultilineRadius.toPx() }
+      val composer = spec.composer
+      Box(Modifier.fillMaxWidth().toolbarSearchGrowth(height, { growth.extra.value }, upward)
+        .onPlaced(frame::placed)
+        .toolbarSearchOverflowTaps(upward, { growth.extra.value }, height) { if (active) { focus.requestFocus(); keyboard?.show() } else toggle(true) }
+        .fluidGlassId(ToolbarFieldId, namespace)
+        .fluidGlassContentAnchor(FluidGlassContentAnchor.Start).fluidGlass(FluidGlass.Regular, shape)
+        .fluidSearchReadingSurface(LocalContentColor.current, if (pose.compact) null else FluidTextFieldDefaults.MultilineRadius) { reading.value }
+        .clip(shape)) {
+        val ink = LocalContentColor.current
+        val rowPx = with(density) { height.roundToPx() }
+        Column(Modifier.fillMaxWidth().then(bornLayer).toolbarSearchNatural(upward) { growth.report(it, rowPx) }) {
+          // Il vassoio degli allegati, sopra il testo (F6B.7): quando l'app lo toglie il suo contenuto esce sfocato, poi
+          // il vetro si richiude dal bordo di sopra.
+          val tray = rememberLastSlot(composer?.attachments.takeUnless { pose.compact })
+          FluidGlassContentTransition(tray.shown, contentAlignment = Alignment.BottomStart) { shown ->
+            if (shown) Box(Modifier.fillMaxWidth().padding(start = ToolbarSearchTrayInset, end = ToolbarSearchTrayInset,
+              top = ToolbarSearchTrayInset)) { tray.last() }
+          }
+          Row(Modifier.fillMaxWidth().heightIn(min = height), verticalAlignment = Alignment.Bottom) {
+            // Lo slot a sinistra (il «+»), accanto all'ultima riga; chiuso in lente, l'icona del preset.
+            Box(Modifier.width(lens).height(height), contentAlignment = Alignment.Center) {
+              val leading = rememberLastSlot(composer?.leading.takeUnless { pose.compact })
+              FluidGlassContentTransition(leading.shown) { shown ->
+                if (shown) leading.last()
+                else FluidIcon(fluidSearchIcon(spec), if (pose.compact) prompt else null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
               }
-            ToolbarSearchTrailingFace.Send -> SearchSendButton(SearchLabels.send, if (active) submit else null)
-            null -> Unit
+            }
+            Box(Modifier.weight(1f).heightIn(min = height)) {
+              val voice = rememberLastSlot(composer?.voiceLine.takeIf { toolbarSearchShowsVoiceLine(spec, pose) })
+              Box(Modifier.fillMaxWidth().padding(vertical = FluidTextFieldVerticalPadding)
+                .toolbarSearchVoiceSwap(voice.shown), contentAlignment = Alignment.CenterStart) {
+                if (spec.query.isEmpty()) FluidGlassContentTransition(if (!pose.compact) prompt else null,
+                  contentAlignment = Alignment.CenterStart) { hint ->
+                  if (hint != null) Text(hint, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                }
+                if (active) editor(Modifier, spec.maxLines <= 1)
+                else if (!pose.compact && spec.query.isNotEmpty()) Text(spec.query, color = ink,
+                  style = MaterialTheme.typography.bodyLarge, maxLines = spec.maxLines, overflow = TextOverflow.Ellipsis)
+              }
+              // La riga della voce al posto del testo, mentre si ascolta (F6B.7): entra ed esce sfocata (R7).
+              FluidGlassContentTransition(voice.shown, modifier = Modifier.matchParentSize(),
+                contentAlignment = Alignment.CenterStart) { shown -> if (shown) voice.last() }
+            }
+            ToolbarSearchFieldTrailing(spec, pose, face, active, ink, closeLabel, close, submit, gate) { item ->
+              Box(Modifier.height(height), contentAlignment = Alignment.Center) { item() }
+            }
           }
         }
       }
@@ -673,16 +1025,192 @@ private fun ToolbarSearchField(search: ToolbarSearch, pose: ToolbarSearchPose, n
   }
 }
 
-/** «Invia»: il disco d'accento con la freccia in su, dentro il posto di un comando. Senza [onClick] è solo la faccia. */
+/**
+ * Uno slot dell'app che c'è o non c'è (F6B.7): [shown] dice se c'è, [last] è l'ultimo contenuto dato, che resta per lo
+ * strato che esce sfocato quando l'app lo toglie.
+ */
+@Stable
+private class ToolbarSearchSlot {
+  var shown by mutableStateOf(false)
+  var content by mutableStateOf<(@Composable () -> Unit)?>(null)
+  val last: @Composable () -> Unit = { content?.invoke() }
+}
+
 @Composable
-private fun SearchSendButton(label: String, onClick: (() -> Unit)?) {
+private fun rememberLastSlot(slot: (@Composable () -> Unit)?): ToolbarSearchSlot {
+  val holder = remember { ToolbarSearchSlot() }
+  holder.shown = slot != null
+  if (slot != null) holder.content = slot
+  return holder
+}
+
+/** La sagoma del campo su più righe (F6B.7): i 20 dp della capsula a una riga, che restano mentre cresce. */
+private val ToolbarSearchMultilineShape = ContinuousCornerShape(FluidTextFieldDefaults.MultilineRadius)
+
+/** Il margine del vassoio degli allegati dentro il vetro: a occhio (F6B.7, 21 novembre 2026), un quarto di riga. */
+private val ToolbarSearchTrayInset = 6.dp
+
+/**
+ * I comandi a destra del campo (F6B.6, F6B.7): gli ambiti, il cerchio che svuota, «3/12» con le frecce e il tasto a
+ * destra a stati. [slot] posa ogni comando: nel campo che cresce stanno in fondo, accanto all'ultima riga.
+ */
+@Composable
+private fun RowScope.ToolbarSearchFieldTrailing(
+  spec: FluidSearchSpec, pose: ToolbarSearchPose, face: ToolbarSearchKeyFace?, active: Boolean, ink: Color,
+  closeLabel: String, close: () -> Unit, submit: () -> Unit, gate: FluidSearchSubmitGate,
+  slot: @Composable (@Composable () -> Unit) -> Unit,
+) {
+  val lens = FluidMetrics.GlassButtonLens
+  val actionSize = FluidSearchFieldDefaults.ActionSize
+  val parts = toolbarSearchFieldParts(spec, pose.width)
+  val scopeBudget = (pose.width.dp - lens - actionSize * (if (parts.clear) 3 else 2) -
+    if (parts.navigation) actionSize * 2 + ToolbarSearchCounterRoomDp.dp else 0.dp).coerceAtLeast(0.dp)
+  if (active && spec.scopes != null) slot {
+    Box(Modifier.widthIn(max = minOf((pose.width / 3f).dp, scopeBudget)).horizontalScroll(rememberScrollState())) { spec.scopes.invoke() }
+  }
+  if (parts.clear) slot {
+    Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+      SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") }
+    }
+  }
+  val navigation = spec.navigation
+  if (parts.navigation && navigation != null) slot {
+    // «3/12» e le frecce dentro il campo, come FluidSearchField; il contatore è un'area viva (F6B.6, «trova»).
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      SearchCounter(spec.query, navigation, SearchLabels, color = ink)
+      FluidCapsuleAction(FluidIcons.KeyboardArrowUp, SearchLabels.previous, navigation.onPrevious,
+        enabled = navigation.total > 0, tint = ink, size = actionSize)
+      FluidCapsuleAction(FluidIcons.KeyboardArrowDown, SearchLabels.next, navigation.onNext,
+        enabled = navigation.total > 0, tint = ink, size = actionSize)
+    }
+  }
+  // Un tasto solo: la X, «Invia», il microfono o lo stop; le facce si scambiano sfocate sulla stessa sagoma (R7).
+  slot {
+    FluidGlassContentTransition(face) { shown ->
+      ToolbarSearchTrailingKey(spec, shown, active, ink, closeLabel, close, submit, gate)
+    }
+  }
+}
+
+/** Una faccia del tasto a destra (F6B.6, F6B.7). Il microfono e lo stop non rispondono subito dopo un invio. */
+@Composable
+private fun ToolbarSearchTrailingKey(
+  spec: FluidSearchSpec, face: ToolbarSearchKeyFace?, active: Boolean, ink: Color, closeLabel: String,
+  close: () -> Unit, submit: () -> Unit, gate: FluidSearchSubmitGate,
+) {
+  val actionSize = FluidSearchFieldDefaults.ActionSize
+  val trailing = spec.trailing
+  when (face) {
+    ToolbarSearchKeyFace.Close ->
+      if (active) FluidCapsuleAction(FluidIcons.Close, closeLabel, close, size = actionSize, tint = ink)
+      else Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
+        FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+      }
+    // Il microfono del composer invia anche a riposo, con una bozza; «Invia» della ricerca solo a campo aperto.
+    ToolbarSearchKeyFace.Send -> SearchSendButton(SearchLabels.send,
+      if (active || trailing.kind == FluidSearchTrailingKind.Voice) submit else null,
+      sending = trailing.sending, stateful = trailing != FluidSearchTrailing.Send)
+    ToolbarSearchKeyFace.Voice -> FluidCapsuleAction(FluidIcons.Mic, SearchLabels.dictate,
+      { if (gate.tapAllowed()) trailing.onVoice?.invoke() }, size = actionSize, tint = ink)
+    ToolbarSearchKeyFace.Stop -> FluidCapsuleAction(trailing.stopIcon ?: FluidIcons.Filled.Stop,
+      trailing.stopLabel ?: SearchLabels.stop, { if (gate.tapAllowed()) trailing.onStop?.invoke() }, size = actionSize, tint = ink)
+    null -> Unit
+  }
+}
+
+/**
+ * I tocchi sulla parte del vetro che sborda dalla riga (F6B.7): il genitore ne conosce solo la riga, quindi un tocco sopra
+ * (o sotto) di lei, fuori dall'editor e dai tasti, apre il campo o rimette il cursore. Dentro la riga il tocco resta della
+ * scatola del campo, con la sua pressione.
+ */
+@Composable
+private fun Modifier.toolbarSearchOverflowTaps(upward: Boolean, extraPx: () -> Float, base: Dp, onTap: () -> Unit): Modifier {
+  val tap by rememberUpdatedState(onTap)
+  return pointerInput(upward, base) {
+    awaitEachGesture {
+      val down = awaitFirstDown(requireUnconsumed = true)
+      val extra = extraPx()
+      val inOverflow = if (upward) down.position.y < extra else down.position.y > base.toPx()
+      if (!inOverflow) return@awaitEachGesture
+      down.consume()
+      val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+      up.consume()
+      tap()
+    }
+  }
+}
+
+/**
+ * Il testo che lascia il posto alla riga della voce e torna (F6B.7): lo scambio sfocato di R7 sullo strato del testo,
+ * con le curve del contenuto ([GlassContentCurves]). L'editor resta nella composizione, col suo fuoco. La prima posa non
+ * anima; con il movimento ridotto il cambio è di colpo.
+ */
+@Composable
+private fun Modifier.toolbarSearchVoiceSwap(voice: Boolean): Modifier {
+  val policy = LocalFluidMotionPolicy.current
+  val phase = remember { Animatable(if (voice) GlassContentDefaults.ExitEnd else GlassContentDefaults.EnterEnd) }
+  val first = remember { booleanArrayOf(true) }
+  LaunchedEffect(voice, policy.reducedMotion) {
+    val end = if (voice) GlassContentDefaults.ExitEnd else GlassContentDefaults.EnterEnd
+    if (first[0] || policy.reducedMotion) {
+      first[0] = false
+      phase.snapTo(end)
+      return@LaunchedEffect
+    }
+    phase.snapTo(0f)
+    phase.animateTo(end, tween((GlassContentDefaults.DurationMs * end * policy.durationScale).roundToInt(), easing = LinearEasing))
+  }
+  val blurAvailable = Build.VERSION.SDK_INT >= 31
+  return graphicsLayer {
+    val u = phase.value
+    val role = if (voice) GlassContentRole.Exit else GlassContentRole.Enter
+    alpha = if (voice && u >= GlassContentDefaults.ExitEnd) 0f else GlassContentCurves.alpha(role, u, blurAvailable)
+    scaleX = GlassContentCurves.scale(role, u)
+    scaleY = scaleX
+    val radius = glassContentBlurRadiusPx(glassContentSigmaPx(GlassContentCurves.blur(role, u) *
+      GlassContentDefaults.PeakBlur, GlassContentDefaults.BlurReference.toPx()))
+    renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
+  }
+}
+
+/** Le parole di «Invia» con lo stato dell'invio (F6B.3a): quelle del preset Invia dell'app. */
+@Composable
+private fun rememberSearchSendPreset(): FluidActionPreset {
+  val words = LocalFluidActionLabels.current.send
+  return remember(words) {
+    FluidActionPreset.custom(idle = FluidIcons.ArrowUpward, success = FluidIcons.Check, failure = FluidIcons.Refresh, words = words)
+  }
+}
+
+/**
+ * «Invia»: il disco d'accento con la freccia in su, dentro il posto di un comando. Senza [onClick] è solo la faccia.
+ *
+ * Con [stateful] (F6B.7) la freccia è il glifo di un tasto con esito ([sending], F6B.3a): mentre lavora l'anello gira
+ * attorno alla freccia e il tasto è spento (niente doppio invio), poi la spunta o il fallimento; TalkBack lo dice.
+ */
+@Composable
+private fun SearchSendButton(
+  label: String, onClick: (() -> Unit)?, sending: FluidActionState = FluidActionState.Idle, stateful: Boolean = false,
+) {
   val scheme = MaterialTheme.colorScheme
+  val preset = if (stateful) rememberSearchSendPreset() else null
+  val labels = LocalFluidActionLabels.current
   val press = if (onClick == null) Modifier.clearAndSetSemantics { } else Modifier
-    .fluidPressable(onClick = onClick, role = Role.Button, focusShape = FluidCapsuleShape, feedback = FluidPressFeedback.Expand)
-    .semantics { contentDescription = label }
+    .fluidPressable(onClick = { if (sending.acceptsTap) onClick() }, role = Role.Button, focusShape = FluidCapsuleShape,
+      feedback = FluidPressFeedback.Expand)
+    .semantics {
+      if (preset != null && sending != FluidActionState.Idle) fluidActionDescribe(this, preset, sending, labels, label, null)
+      else contentDescription = label
+    }
   Box(Modifier.size(FluidSearchFieldDefaults.ActionSize).then(press), contentAlignment = Alignment.Center) {
     Box(Modifier.size(SearchSendDisc).background(scheme.primary, FluidCapsuleShape), contentAlignment = Alignment.Center) {
-      FluidIcon(FluidIcons.ArrowUpward, null, size = SearchSendGlyph, tint = scheme.onPrimary)
+      if (preset == null) FluidIcon(FluidIcons.ArrowUpward, null, size = SearchSendGlyph, tint = scheme.onPrimary)
+      else {
+        val presentation = rememberFluidActionPresentation(preset, sending, live = onClick != null)
+        // Sull'accento il rosso non si legge: il fallimento resta nell'inchiostro del disco, come sui tasti pieni.
+        FluidActionGlyphContent(preset, sending, presentation,
+          FluidActionLook(SearchSendGlyph, scheme.onPrimary, scheme.onPrimary, LocalFluidMotionPolicy.current.reducedMotion))
+      }
     }
   }
 }
@@ -693,6 +1221,8 @@ private fun SearchSendButton(label: String, onClick: (() -> Unit)?) {
  */
 internal class ToolbarSearchGhostState(
   val serial: Int, val pose: ToolbarSearchPose, val spec: FluidSearchSpec, val withLens: Boolean = true,
+  /** (F6B.7) quanto il vetro del campo che cresce superava la riga, in px: il testo esce con tutte le sue righe. */
+  val extraPx: Float = 0f,
 )
 
 /**
@@ -711,18 +1241,18 @@ internal class ToolbarSearchLeaving {
   var ghost by mutableStateOf<ToolbarSearchGhostState?>(null)
     private set
 
-  fun track(pose: ToolbarSearchPose, spec: FluidSearchSpec, animate: Boolean) {
+  fun track(pose: ToolbarSearchPose, spec: FluidSearchSpec, animate: Boolean, extraPx: Float = 0f) {
     val last = shown
     if (pose.hidden) {
       shown = null
-      if (last != null && animate) ghost = ToolbarSearchGhostState(++serial, last.pose, last.spec)
+      if (last != null && animate) ghost = ToolbarSearchGhostState(++serial, last.pose, last.spec, extraPx = last.extraPx)
       return
     }
-    shown = ToolbarSearchGhostState(0, pose, spec)
+    shown = ToolbarSearchGhostState(0, pose, spec, extraPx = extraPx)
     val current = ghost
     when {
       last != null && last.spec.active && !last.pose.compact && !spec.active && pose.compact ->
-        ghost = if (animate) ToolbarSearchGhostState(++serial, last.pose, last.spec, withLens = false) else null
+        ghost = if (animate) ToolbarSearchGhostState(++serial, last.pose, last.spec, withLens = false, extraPx = last.extraPx) else null
       // Riaperto mentre usciva: il campo vero riprende.
       current != null && (current.withLens || !pose.compact) -> ghost = null
     }
@@ -734,7 +1264,7 @@ internal class ToolbarSearchLeaving {
 }
 
 @Composable
-private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidGlassNamespace, finished: () -> Unit) {
+private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidGlassNamespace, upward: Boolean, finished: () -> Unit) {
   val phase = remember { Animatable(0f) }
   val scale = LocalFluidMotionPolicy.current.durationScale
   LaunchedEffect(phase) {
@@ -772,13 +1302,18 @@ private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidG
         GlassContentDefaults.PeakBlur, FluidSearchFieldDefaults.IconSize.toPx()))
       renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
     }, contentAlignment = Alignment.CenterStart) {
-    Row(Modifier.fillMaxWidth().height(FluidTextFieldDefaults.MinHeight), verticalAlignment = Alignment.CenterVertically) {
-      Box(Modifier.width(lens).fillMaxHeight(), contentAlignment = Alignment.Center) {
+    // Il campo che cresceva esce con tutte le sue righe, ancorate al bordo dalla parte della tastiera (F6B.7).
+    val grew = ghost.extraPx > 0.5f
+    val rowHeight = FluidTextFieldDefaults.MinHeight
+    Row(Modifier.fillMaxWidth().then(if (grew) Modifier.toolbarSearchGrowth(rowHeight, { ghost.extraPx }, upward)
+      else Modifier.height(rowHeight)), verticalAlignment = if (grew) Alignment.Bottom else Alignment.CenterVertically) {
+      Box(Modifier.width(lens).height(rowHeight), contentAlignment = Alignment.Center) {
         if (ghost.withLens) FluidIcon(fluidSearchIcon(spec), null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
       }
-      Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-        Text(spec.query.ifEmpty { prompt }, color = ink, style = MaterialTheme.typography.bodyLarge, maxLines = 1,
-          overflow = TextOverflow.Ellipsis)
+      Box(Modifier.weight(1f).then(if (grew) Modifier.padding(vertical = FluidTextFieldVerticalPadding) else Modifier),
+        contentAlignment = Alignment.CenterStart) {
+        Text(spec.query.ifEmpty { prompt }, color = ink, style = MaterialTheme.typography.bodyLarge,
+          maxLines = if (grew) spec.maxLines else 1, overflow = TextOverflow.Ellipsis)
       }
       val parts = toolbarSearchFieldParts(spec, pose.width)
       if (parts.clear) Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
@@ -794,10 +1329,15 @@ private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidG
           }
         }
       }
-      when (toolbarSearchTrailingFace(spec)) {
-        ToolbarSearchTrailingFace.Send -> SearchSendButton(SearchLabels.send, null)
+      when (val face = toolbarSearchKeyFace(spec)) {
+        ToolbarSearchKeyFace.Send -> SearchSendButton(SearchLabels.send, null)
         else -> Box(Modifier.size(actionSize), contentAlignment = Alignment.Center) {
-          FluidIcon(FluidIcons.Close, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
+          val icon = when (face) {
+            ToolbarSearchKeyFace.Voice -> FluidIcons.Mic
+            ToolbarSearchKeyFace.Stop -> spec.trailing.stopIcon ?: FluidIcons.Filled.Stop
+            else -> FluidIcons.Close
+          }
+          FluidIcon(icon, null, size = FluidSearchFieldDefaults.IconSize, tint = ink)
         }
       }
     }
@@ -940,7 +1480,7 @@ private fun FluidToolbarPrincipalSearch(
               },
             )
             if (active) spec.scopes?.invoke()
-            if (open && spec.query.isNotEmpty() && spec.trailing == FluidSearchTrailing.Clear) Box(Modifier.size(FluidSearchFieldDefaults.ActionSize),
+            if (open && spec.query.isNotEmpty() && spec.trailing.kind == FluidSearchTrailingKind.Clear) Box(Modifier.size(FluidSearchFieldDefaults.ActionSize),
               contentAlignment = Alignment.Center) { SearchClearButton(LocalFluidLabels.current.clear) { spec.onQueryChange("") } }
             val navigation = spec.navigation
             if (active && navigation != null) {
@@ -952,7 +1492,7 @@ private fun FluidToolbarPrincipalSearch(
                 enabled = navigation.total > 0, size = FluidSearchFieldDefaults.ActionSize)
             }
             if (active) {
-              if (fluidSearchCanSend(spec)) SearchSendButton(SearchLabels.send) { fluidSearchSubmit(spec) { close() } }
+              if (fluidSearchCanSend(spec)) SearchSendButton(SearchLabels.send, onClick = { fluidSearchSubmit(spec) { close() } })
               else FluidCapsuleAction(
                 icon = FluidIcons.Close, contentDescription = SearchLabels.close, onClick = { close() },
                 size = FluidSearchFieldDefaults.ActionSize,

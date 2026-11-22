@@ -10,7 +10,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 15 | 218 |
+| [Barre di navigazione e di azione](barre.md) | 15 | 224 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 34 | 282 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
@@ -38,7 +38,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |
 | [engine-ai-bridge](ai-bridge.md) | 4 | 99 |
-| [engine-ai-ui](ai-ui.md) | 29 | 226 |
+| [engine-ai-ui](ai-ui.md) | 30 | 269 |
 
 Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona (il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.
 

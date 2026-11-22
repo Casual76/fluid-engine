@@ -502,6 +502,23 @@ internal fun searchSpecsOfF6b6(log: MutableList<String>): List<FluidSearchSpec> 
   )
 }
 
+/**
+ * Le forme di F6B.7, **accanto** a quelle di prima: il composer dentro il campo. `composer` è un campo in coda di
+ * `FluidSearchSpec` (diciannove per posizione) e un parametro in coda di `message` e `assistant`; `FluidSearchTrailing`
+ * è diventato un tipo con i valori nel companion (`Clear`, `Send` come prima; `send`, `voice`, `stop` nuovi), così le
+ * chiamate di F6B.6 qui sopra compilano uguali.
+ */
+internal fun searchSpecsOfF6b7(log: MutableList<String>): List<FluidSearchSpec> = listOf(
+  FluidSearchSpec.message("", { log += it }, onSend = { log += "invia" }, composer = FluidComposerSlots(
+    leading = { }, attachments = { }, trailing = FluidSearchTrailing.voice({ log += "voce" }), voiceLine = null)),
+  FluidSearchSpec.assistant("", { log += it }, onAsk = { log += "chiedi" },
+    composer = FluidComposerSlots(trailing = FluidSearchTrailing.stop({ log += "ferma" }, "Ferma"))),
+  FluidSearchSpec("lago", { log += it }, FluidSearchPlacement.BottomBar, FluidSearchBehavior.AlwaysVisible, null, null,
+    null, null, FluidSearchPurpose.Input, FluidSearchExpansion.AboveKeyboard, false, null, null,
+    FluidSearchSubmit.StayOpen, 5, null, FluidSearchTrailing.send(FluidActionState.Working()), true, FluidComposerSlots()),
+  FluidSearchSpec("lago", { log += it }, trailing = FluidSearchTrailing.Send),
+)
+
 class GlassCompatSignaturesTest {
 
   @Test fun workingAcceptsPreviousCallsAndAnAppControlledPause() {
@@ -690,5 +707,32 @@ class GlassCompatSignaturesTest {
     assertFalse(specs[5].showsAtRest)
     assertEquals(3, specs[6].navigation!!.total)
     assertEquals(FluidSearchSubmit.Close, specs[6].onSubmit)
+  }
+
+  @Test
+  fun theSearchSpecsOfF6b7CarryTheComposerAndTheTrailingKeepsItsValues() {
+    val log = mutableListOf<String>()
+    // Le forme di prima hanno il composer al valore di serie.
+    for (spec in searchSpecsAsBefore(log) + searchSpecsOfF6b6(log)) assertNull(spec.composer)
+    val specs = searchSpecsOfF6b7(log)
+    // Il tasto a destra del composer è quello che l'app ha dato, nel campo `trailing` di sempre.
+    specs[0].trailing.onVoice!!.invoke()
+    specs[1].trailing.onStop!!.invoke()
+    assertEquals(listOf("voce", "ferma"), log)
+    assertEquals("Ferma", specs[1].trailing.stopLabel)
+    assertEquals(5, specs[2].maxLines)
+    assertTrue(specs[2].composer != null)
+    assertFalse(specs[2].trailing.sending.acceptsTap)
+    // I valori di F6B.6 sono gli stessi oggetti, e `send` a riposo è `Send`.
+    assertEquals(FluidSearchTrailing.Send, specs[3].trailing)
+    assertEquals(FluidSearchTrailing.Send, FluidSearchTrailing.send(FluidActionState.Idle))
+    assertEquals(FluidSearchTrailing.Clear, FluidSearchSpec("lago", { }).trailing)
+    // La data class: `copy` e `equals` contano il campo nuovo.
+    val spec = specs[3]
+    assertEquals(spec, spec.copy())
+    assertFalse(spec == spec.copy(composer = FluidComposerSlots()))
+    // Le parole nuove del campo hanno il loro valore di serie.
+    assertEquals("Dettatura", FluidSearchLabels().dictate)
+    assertEquals("Interrompi", FluidSearchLabels().stop)
   }
 }

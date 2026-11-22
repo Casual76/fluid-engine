@@ -1,0 +1,5 @@
+# I file di prova del modulo sono byte esatti: un PDF ha gli offset nella tabella xref, e la conversione degli a capo
+# di un checkout su Windows (core.autocrlf) lo romperebbe.
+*.pdf binary
+*.gif binary
+*.webp binary

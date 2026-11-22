@@ -28,7 +28,7 @@ references/
   integrazione.md  aggiornamenti.md  config-remota.md  widget.md  limiti.md  ai.md
   design-system.md            inventario storico di engine-ui (le schede sotto lo sostituiscono, resta per il contesto)
   componenti/                 UNA SCHEDA PER FAMIGLIA di engine-ui (scopo, uso, comportamento, trappole)
-  moduli/                     UNA SCHEDA PER MODULO senza UI o opt-in (foundation ... ai-ui, wear, richtext)
+  moduli/                     UNA SCHEDA PER MODULO senza UI o opt-in (foundation ... ai-ui, wear, richtext, viewer)
   api/                        catalogo GENERATO: ogni dichiarazione pubblica con la firma
 scripts/                      gen_api_catalog.py, check_docs.py, sync_docs.py
 ```
@@ -70,6 +70,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-ai-ui` | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (**opt-in**) | `moduli/ai-ui*.md` |
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
 | `engine-richtext` | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera), HTML ristretto, Markdown, testo (**opt-in**, dalla 3.1.0) | `moduli/richtext.md` |
+| `engine-viewer` | i decodificatori dei visori di file: PDF, testo con charset e colori di sintassi, GIF e WebP animate, il `Player` di Media3, il risolutore dal MIME al preset (**opt-in**, dalla 4.0) | `moduli/viewer.md` |
 
 ## Che componente uso per…
 
@@ -85,6 +86,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | mostrare un HTML ricevuto (mail, newsletter) in una vista chiusa | `componenti/contenuto-web.md` |
 | una ciambella, barre o un andamento con legenda | `componenti/grafici.md` |
 | scrivere testo formattato (elenchi, link, citazioni, HTML/Markdown) | `moduli/richtext.md` (opt-in) |
+| aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber (i controlli a gesto) | `componenti/controlli-gesto.md` |
 | pop-up, foglio, avviso, conferma, portale, pannello laterale (`FluidDrawer`), scelta di data e ora | `componenti/menu-modali.md` |

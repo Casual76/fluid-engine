@@ -51,4 +51,12 @@ ext.engine = [
   coroutinesTest : '1.8.1',
   // Solo per i test Compose del modulo sample, che non entra mai in un'app: vedi sample/build.gradle.
   robolectric    : '4.17',
+
+  // engine-viewer (F6C.4) compila contro Media3 senza portarlo: `compileOnly`, e la versione a runtime e' quella
+  // dell'app. `media3` e' il pavimento delle API usate, la piu' vecchia dei consumer di riferimento (Fluidify e
+  // Gallery v1, novembre 2026); `media3Test` e' la piu' nuova (Gallery-2 e Pampa notes), quella con cui girano i
+  // test JVM del modulo: il codice compilato contro la 1.5.1 gira cosi' sulla 1.11.1. Per la corsa al pavimento:
+  // -Pviewer.media3Test=1.5.1.
+  media3         : '1.5.1',
+  media3Test     : '1.11.1',
 ]

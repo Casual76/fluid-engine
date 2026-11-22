@@ -138,6 +138,8 @@ DIR_FAMILY = {
     "widget": "widget",
     "wear": "wear",
     "richtext": "richtext",
+    # il modulo facoltativo dei visori (F6C.4)
+    "viewer": "viewer",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -173,6 +175,7 @@ FAMILY_TITLES = {
     "widget": "engine-widget",
     "wear": "engine-wear",
     "richtext": "engine-richtext",
+    "viewer": "engine-viewer",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

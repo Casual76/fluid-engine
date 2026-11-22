@@ -1,0 +1,138 @@
+// I decodificatori dei visori di file (F6C.4): PDF con il PdfRenderer della piattaforma, testo con il riconoscimento
+// del charset e i colori di sintassi, GIF e WebP animate con ImageDecoder, gli adattatori per il Player di Media3 e il
+// risolutore da MIME o estensione al preset. Opt-in, come engine-richtext: il telaio e i preset stanno in engine-ui
+// (`ui/fluid/viewer`), che non sa niente di decodifica; un'app che passa i suoi contenuti non include questo modulo.
+//
+// Dipende solo da engine-ui e dalla piattaforma. Media3 e' `compileOnly`: l'app passa il suo `Player` e sceglie la
+// versione (Fluidify e Gallery-2 ne usano gia' una), cosi' a runtime non ce n'e' mai una seconda. Il controllo qui
+// sotto (`checkEngineUiHasNoDecoders`) lo verifica a ogni corsa dei test, insieme a F6C-d: engine-ui non arriva a
+// nessuna libreria di decodifica e non dipende da questo modulo.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+// La versione di Media3 dei test JVM: di serie la piu' nuova dei consumer di riferimento, -Pviewer.media3Test=1.5.1
+// per la corsa al pavimento.
+def media3Test = project.findProperty('viewer.media3Test') ?: engine.media3Test
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    // Un'app senza Media3 non chiama mai gli adattatori, ma R8 vedrebbe le classi mancanti e fermerebbe la build.
+    consumerProguardFiles 'consumer-rules.pro'
+    // I test sul dispositivo (src/androidTest): PdfRenderer, ImageDecoder e un ExoPlayer vero, dove la JVM non arriva.
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  testOptions {
+    unitTests {
+      // Come engine-ui: i test sono logica pura, ma i tipi della piattaforma (Uri, Looper) compaiono nelle firme.
+      returnDefaultValues = true
+      // Il test dell'adattatore controlla di girare sulla versione di Media3 dichiarata qui.
+      all { systemProperty 'viewer.media3Test', media3Test }
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano `FluidViewerContent`, `FluidPageSource`, `FluidTextSource` di engine-ui.
+  api project(':engine-ui')
+  // Solo per compilare: il Player arriva dall'app, con la sua versione (vedi versions.gradle, `media3`).
+  compileOnly "androidx.media3:media3-common:${engine.media3}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "androidx.media3:media3-common:${media3Test}"
+
+  // Solo per :engine-viewer:connectedDebugAndroidTest, mai in un'app: il player vero alla versione dei test.
+  androidTestImplementation 'androidx.test:runner:1.7.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+  androidTestImplementation "androidx.media3:media3-exoplayer:${media3Test}"
+}
+
+// F6C-d, controllato dalla build. Si legge il grafo risolto di questo modulo, nel suo contesto (nessuna risoluzione di
+// una configurazione di un altro progetto): tutto cio' che si raggiunge da `:engine-ui` e' cio' che engine-ui porta a
+// runtime. Ci si ferma se fra quei nodi c'e' una libreria di decodifica o questo modulo stesso, e se Media3 entra nel
+// runtime di engine-viewer (sarebbe una seconda versione accanto a quella dell'app). I sorgenti e il build.gradle di
+// engine-ui li controlla il test `EngineUiDecoderFreeTest`.
+def decoderGroups = [
+  'androidx.media3', 'com.google.android.exoplayer', 'androidx.pdf',
+  'io.coil-kt', 'io.coil-kt.coil3', 'com.github.bumptech.glide', 'com.facebook.fresco', 'com.squareup.picasso',
+  'pl.droidsonroids.gif', 'com.github.penfeizhou.android.animation', 'com.davemorrissey.labs', 'me.saket.telephoto',
+  'com.tom-roush', 'org.apache.pdfbox', 'com.github.barteksc', 'com.artifex.mupdf',
+  'com.googlecode.juniversalchardet', 'com.github.albfernandez', 'com.ibm.icu', 'io.noties',
+]
+
+tasks.register('checkEngineUiHasNoDecoders') {
+  group = 'verification'
+  description = 'engine-ui non arriva a librerie di decodifica ne\' a engine-viewer; Media3 non entra nel runtime.'
+  def selfPath = project.path
+  // AGP crea le configurazioni delle varianti dopo la valutazione: si chiede per nome solo quando il compito gira.
+  def classpath = { project.configurations.getByName('debugRuntimeClasspath') }
+  doLast {
+    def isDecoder = { String g -> decoderGroups.any { g == it || g.startsWith(it + '.') } }
+    def root = classpath().incoming.resolutionResult.root
+    def problems = []
+    def engineUi = null
+    def seen = [] as Set
+    def queue = [root]
+    while (!queue.isEmpty()) {
+      def component = queue.remove(0)
+      if (!seen.add(component.id)) continue
+      def id = component.id
+      if (id instanceof org.gradle.api.artifacts.component.ProjectComponentIdentifier && id.projectPath == ':engine-ui') {
+        engineUi = component
+      }
+      def mv = component.moduleVersion
+      if (id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier && mv.group.startsWith('androidx.media3')) {
+        problems << "Media3 nel runtime di engine-viewer (${mv.group}:${mv.name}:${mv.version}): deve restare compileOnly"
+      }
+      component.dependencies.each { d ->
+        if (d instanceof org.gradle.api.artifacts.result.ResolvedDependencyResult) queue << d.selected
+      }
+    }
+    if (engineUi == null) throw new GradleException('engine-viewer deve dipendere da :engine-ui')
+    seen.clear()
+    queue = [engineUi]
+    while (!queue.isEmpty()) {
+      def component = queue.remove(0)
+      if (!seen.add(component.id)) continue
+      def id = component.id
+      if (id instanceof org.gradle.api.artifacts.component.ProjectComponentIdentifier && id.projectPath == selfPath) {
+        problems << 'engine-ui dipende da engine-viewer'
+      }
+      def mv = component.moduleVersion
+      if (id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier && isDecoder(mv.group)) {
+        problems << "engine-ui porta una libreria di decodifica: ${mv.group}:${mv.name}:${mv.version}"
+      }
+      component.dependencies.each { d ->
+        if (d instanceof org.gradle.api.artifacts.result.ResolvedDependencyResult) queue << d.selected
+      }
+    }
+    if (!problems.isEmpty()) throw new GradleException('F6C-d: ' + problems.join('; '))
+    logger.lifecycle("F6C-d: engine-ui raggiunge ${seen.size()} componenti, nessuno di decodifica; Media3 fuori dal runtime.")
+  }
+}
+
+tasks.withType(Test).configureEach { dependsOn 'checkEngineUiHasNoDecoders' }
+tasks.matching { it.name == 'check' }.configureEach { dependsOn 'checkEngineUiHasNoDecoders' }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Un fornitore che dà ogni file come una pipe: il caso dell'Uri non ricercabile, che PdfRenderer rifiuta. -->
+    <provider
+      android:name="dev.antigravity.fluidengine.viewer.PipeProvider"
+      android:authorities="dev.antigravity.fluidengine.viewer.test.pipe"
+      android:exported="false" />
+  </application>
+</manifest>

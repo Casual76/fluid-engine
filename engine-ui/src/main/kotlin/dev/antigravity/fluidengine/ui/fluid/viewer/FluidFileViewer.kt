@@ -97,7 +97,7 @@ fun FluidFileViewer(
   modifier: Modifier = Modifier,
   onPageChange: (Int) -> Unit = {},
   strings: FluidViewerStrings = FluidViewerStrings(),
-  renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, _ -> ViewerBody(file) },
+  renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, visible -> ViewerBody(file, visible) },
 ) {
   require(count >= 0)
   val route = LocalViewerRoute.current
@@ -271,10 +271,11 @@ private fun Modifier.viewerVerticalInput(
 
 /** F6C.2 and F6C.3 provide the type-specific controls and readers. */
 @Composable
-private fun ViewerBody(file: FluidViewerContent) {
+private fun ViewerBody(file: FluidViewerContent, chromeVisible: Boolean) {
   when (file) {
     is FluidViewerContent.Image -> FluidImagePreset(file)
-    is FluidViewerContent.Media -> (file.videoSurface ?: file.artwork)?.invoke()
+    is FluidViewerContent.Media -> FluidMediaPreset(file, chromeVisible)
+    is FluidViewerContent.Pages -> FluidPagesPreset(file, chromeVisible)
     is FluidViewerContent.Text -> FluidTextPreset(file)
     is FluidViewerContent.Unknown -> FluidUnknownPreset(file)
   }

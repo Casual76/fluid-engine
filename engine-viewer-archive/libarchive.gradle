@@ -38,7 +38,9 @@ abstract class PrepareLibarchive extends DefaultTask {
         file.parentFile.mkdirs()
         file.bytes = read(name)
       }
-      if (!Arrays.equals(consumerRules.get().asFile.bytes, read('proguard.txt'))) {
+      // Con core.autocrlf il checkout su Windows porta le regole in CRLF: si confrontano a fine riga normalizzato.
+      def normalized = { byte[] bytes -> new String(bytes, 'UTF-8').replace('\r\n', '\n') }
+      if (normalized(consumerRules.get().asFile.bytes) != normalized(read('proguard.txt'))) {
         throw new GradleException('libarchive consumer rules differ from the upstream AAR')
       }
       write(classesJar.get().asFile, 'classes.jar')

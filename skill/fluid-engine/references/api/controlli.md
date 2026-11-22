@@ -17,6 +17,42 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidHairline(modifier: Modifier = Modifier, startInset: Dp = 0.dp, color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha…)` — A hairline. 0.5dp is a real width on every screen the app runs on, and it is what iOS draws.
 - `@Composable fun FluidColorDot(color: Color, selected: Boolean, onClick: () -> Unit, label: String, modifier: Modifier = Modifier, size: Dp = 30.dp)` — A circular dot, used to preview an accent colour in the picker.
 
+## `engine-ui/ui/fluid/FluidFilterChips.kt`
+
+- `enum class FluidFilterMode` — Come si sceglie nella fila: una sola pillola alla volta (gli ambiti, esclusivi) o quante se ne vuole.
+- `data class FluidFilterValue(val id: String, val label: String)` — Un valore di una pillola a piu' valori (il periodo: «7 giorni», «30 giorni», «Altro»).
+- `data class FluidFilter(val id: String, val label: String, val icon: ImageVector? = null, val priority: FluidToolbarPriority = FluidToolbarPriority.Automatic, val values: List<FluidFilterValue> = emptyList(), val enabled: Boolean = true)` — Una pillola della fila.
+  - `val hasValues: Boolean get()` — Vero se la pillola si apre in un menu di valori.
+- `data class FluidFilterSelection(val selected: Set<String> = emptySet(), val values: Map<String, String> = emptyMap())` — La selezione di una fila, posseduta dall'app: quali pillole sono accese e, per quelle a piu' valori, quale valore. E' **la stessa** per la fila e per il menu: una sola funzione ([toggle], [choose]) la cambia da tutti e due i posti.
+  - `fun isSelected(id: String): Boolean`
+  - `fun valueOf(id: String): String?` — Il valore scelto della pillola [id], o null se la pillola e' spenta o non ha valori.
+  - `val count: Int get()` — Quante pillole sono accese.
+  - `fun toggle(id: String, mode: FluidFilterMode): FluidFilterSelection` — Il tocco su una pillola semplice. [FluidFilterMode.Multiple]: accende o spegne. [FluidFilterMode.Single]: la sceglie al posto delle altre; toccata quando e' gia' la scelta resta com'e' (gli ambiti, esclusivi, ne hanno sempre una).
+  - `fun choose(id: String, value: String?, mode: FluidFilterMode): FluidFilterSelection` — La scelta di un valore della pillola [id] ([value] null: «Qualsiasi», la pillola si spegne).
+  - `companion object`
+    - `val None: FluidFilterSelection`
+    - `fun of(vararg ids: String): FluidFilterSelection` — Una selezione con le pillole [ids] accese.
+    - `val Saver: Saver<FluidFilterSelection, Any>` — Per `rememberSaveable(stateSaver = FluidFilterSelection.Saver)`: sopravvive alla morte del processo.
+- `data class FluidFilterSet(val filters: List<FluidFilter>, val mode: FluidFilterMode = FluidFilterMode.Multiple, val label: String? = null)` — Una fila dichiarata: le pillole, il modo e il nome del tasto in cui si raccoglie. E' cio' che restituiscono i preset ([FluidFilterPresets]) e cio' che `FluidSearchSpec` portera' con i gettoni (F6B.8, secondo giro).
+- `data class FluidFilterLabels(val filters: String = "Filtri", val more: String = "Altro", val activeCount: String = "%1\$s · %2\$d", val activeSpoken: String = "attivi: %1\$d", val anyValue: String = "Qualsiasi", val removeRecent: String = "Rimuovi dai recenti", val noResults: String = "Nessun risultato")` — Le parole che la fila e i suggerimenti dicono da se'. **In italiano di serie**, come [FluidLabels]: un'app tradotta le passa una volta alla radice con [LocalFluidFilterLabels].
+- `val LocalFluidFilterLabels: ProvidableCompositionLocal<FluidFilterLabels>` — Le parole della fila e dei suggerimenti per tutto l'albero.
+- `object FluidFilterChipsDefaults` — Le misure della fila.
+  - `val Spacing: Dp` — Lo spazio fra due pillole: come fra due tasti di una fila di controlli.
+- `@Composable fun FluidFilterChips(filters: List<FluidFilter>, selection: FluidFilterSelection, onChange: (FluidFilterSelection) -> Unit, mode: FluidFilterMode = FluidFilterMode.Multiple, modifier: Modifier = Modifier, label: String? = null, labels: FluidFilterLabels = LocalFluidFilterLabels.current)` — Una fila di filtri a pillole. Si usa sotto il campo di ricerca (lo slot `suggestions` di `FluidSearchSpec`, sopra [FluidSearchSuggestions]), nel pannello dei suggerimenti, e anche fuori dalla ricerca.
+- `@Composable fun FluidFilterChips(set: FluidFilterSet, selection: FluidFilterSelection, onChange: (FluidFilterSelection) -> Unit, modifier: Modifier = Modifier, labels: FluidFilterLabels = LocalFluidFilterLabels.current)` — Una fila dichiarata ([FluidFilterSet], per esempio da [FluidFilterPresets]).
+- `enum class FluidSuggestionKind` — Che cosa e' un suggerimento: decide il simbolo di serie e, per i recenti, la ✕.
+- `data class FluidSearchSuggestion(val id: String, val title: String, val subtitle: String? = null, val kind: FluidSuggestionKind = FluidSuggestionKind.Result, val relevance: Float = 0f, val icon: ImageVector? = null)` — Un suggerimento della lista sotto il campo.
+- `@Composable fun FluidSearchSuggestions(query: String, suggestions: List<FluidSearchSuggestion>, onSuggestionClick: (FluidSearchSuggestion) -> Unit, modifier: Modifier = Modifier, onRemoveRecent: ((FluidSearchSuggestion) -> Unit)? = null, loading: Boolean = false, labels: FluidFilterLabels = LocalFluidFilterLabels.current)` — La lista dei suggerimenti sotto il campo (lo slot `suggestions` di `FluidSearchSpec`, o dove serve).
+- `object FluidFilterPresets` — I preset della fila e dei suggerimenti (F6B.8): **Ambiti** (esclusivi, in linea), **Filtri a scelta multipla**, **Intervalli** (una pillola a piu' valori), **Recenti**, **Vicini e popolari**. Il preset **Gettoni** («da: persona») arriva col giro dopo F6B.7, con i gettoni dentro il campo.
+  - `fun scopes(options: List<FluidFilterValue>, label: String? = null): FluidFilterSet` — **Ambiti**: scelte esclusive in linea sotto il campo, come gli ambiti di iOS 27 («Tutte le caselle», «Casella attuale», WWDC26 292). Una sola alla volta: l'app parte con `FluidFilterSelection.of(<il primo id>)`.
+  - `fun choices(filters: List<FluidFilter>, label: String? = null): FluidFilterSet` — **Filtri a scelta multipla**: interruttori, accesi insieme; raccolti, il menu resta aperto a ogni scelta.
+  - `fun range(id: String, label: String, values: List<FluidFilterValue>, icon: ImageVector? = FluidIcons.Schedule, priority: FluidToolbarPriority = FluidToolbarPriority.Automatic): FluidFilter` — **Intervalli**: una pillola a piu' valori, che si apre in menu dal suo vetro.
+  - `fun lastDays(id: String = "periodo", label: String = "Periodo", days: List<Int> = listOf(7, 30), dayLabel: (Int) -> String = { "$it giorni" }, other: String? = "Altro"): FluidFilter` — L'intervallo piu' comune, il periodo: «7 giorni», «30 giorni» e «Altro» (che l'app tratta come vuole, per esempio con la scelta delle date). Gli id dei valori sono `"7"`, `"30"` e `"altro"`.
+  - `fun recent(id: String, title: String, subtitle: String? = null, relevance: Float = 0f): FluidSearchSuggestion` — **Recenti**: una ricerca fatta prima, con la ✕ nella lista.
+  - `fun nearby(id: String, title: String, subtitle: String? = null, relevance: Float = 0f): FluidSearchSuggestion` — Un luogo vicino.
+  - `fun popular(id: String, title: String, subtitle: String? = null, relevance: Float = 0f): FluidSearchSuggestion` — Una ricerca popolare.
+  - `fun nearbyAndPopular(nearby: List<FluidSearchSuggestion>, popular: List<FluidSearchSuggestion>): List<FluidSearchSuggestion>` — **Vicini e popolari**: le due liste in una sola, per pertinenza (quella dell'app); a parita' prima i vicini. E' la lista prima del primo carattere, al posto di uno stato vuoto.
+
 ## `engine-ui/ui/fluid/FluidGlassButtonStyle.kt`
 
 - `class FluidGlassButtonStyle private constructor(val glass: FluidGlass, val isProminent: Boolean, val tint: Color)` — Lo stile di un tasto di vetro ([FluidGlassButton], [FluidGlassIconButton]): `buttonStyle(.glass)`, `.glassProminent` e `.glass(_:)` di SwiftUI.

@@ -139,6 +139,23 @@ internal class MenuScene(
   val head: (panelOnCanvasDp: Rect) -> Map<String, Any?>,
   /** Cio' che sta fermo sulla pagina e si disegna prima del menu (il tasto accanto): elementi della traccia. */
   val still: (origin: Offset, palette: TodayPalette) -> List<Map<String, Any?>> = { _, _ -> emptyList() },
+  /**
+   * La scala del testo (F6B.8, `pillole-menu-200`): le righe del menu crescono con la loro linea di testo come in
+   * `rememberFluidMenuPanelMetrics`, e le etichette con lei. Di serie 1: ogni traccia di prima resta al bit.
+   */
+  val fontScale: Float = 1f,
+  /** La faccia della sorgente come testo (un chip: «Filtri · 2») al posto di [faceIcon]; null: l'icona, com'era. */
+  val faceText: String? = null,
+  /** Il corpo del testo della faccia, in dp gia' alla scala del testo. */
+  val faceTextSizeDp: Float = 15f,
+  /** Un simbolo in coda alla faccia di testo (la freccia del chip che apre un menu). */
+  val faceTrailingIcon: String? = null,
+  /**
+   * La capsula del gruppo in dp dello schermo, quando non e' quella della barra (F6B.8: un chip che apre il menu come il
+   * gruppo). Con [MenuTraceVariant.grouped] il tasto premuto e' [anchorDp] cosi' com'e' e la faccia e' [faceText]; null:
+   * la capsula di tre tasti della barra, com'era.
+   */
+  val groupDp: Rect? = null,
 )
 
 /** La traccia e i fatti che il test controlla. */
@@ -207,13 +224,15 @@ internal fun buildMenuTrace(
   val pitch = if (variant?.corrected == true) FluidMetrics.GroupItemPitch.value else 44f
   val groupShift = pitch * 2 * d
   val atStart = variant?.triggerAtStart == true
-  val rest = scene.anchorDp.scaled(d).let { if (variant?.grouped == true && !atStart) it.translate(groupShift, 0f) else it }
+  val rest = scene.anchorDp.scaled(d).let {
+    if (variant?.grouped == true && !atStart && scene.groupDp == null) it.translate(groupShift, 0f) else it
+  }
   val origin = Offset(scene.canvasOriginDp.x * d, scene.canvasOriginDp.y * d)
 
   // Le misure come le costruisce `rememberFluidMenuPanelMetrics`, con la riga di `bodyLarge` (17/23 sp).
   val metrics = FluidMenuPanelMetrics(
     widthPx = FluidMenuPanelWidth.value * d,
-    rowHeightPx = fluidMenuRowHeight(23.dp).value * d,
+    rowHeightPx = fluidMenuRowHeight((23f * scene.fontScale).dp).value * d,
     paddingPx = FluidMenuPanelPadding.value * d,
     sectionGapPx = FluidMenuSectionGap.value * d,
     radiusPx = FluidRadius.Group.value * d,
@@ -265,7 +284,7 @@ internal fun buildMenuTrace(
     restBounds = rest
     pressedBounds = if (variant?.grouped == true) rest else fluidPressedBounds(rest, transformAt(0.0))
     if (variant?.grouped == true) {
-      groupBounds = if (atStart) Rect(rest.left, rest.top, rest.right + groupShift, rest.bottom)
+      groupBounds = scene.groupDp?.scaled(d) ?: if (atStart) Rect(rest.left, rest.top, rest.right + groupShift, rest.bottom)
         else Rect(rest.left - groupShift, rest.top, rest.right, rest.bottom)
     }
   }
@@ -340,12 +359,10 @@ internal fun buildMenuTrace(
     if (variant?.alignToClose == true || variant?.grouped == true) break
     val t = glassTraceTimeMs(k, fps)
     val transform = transformAt(t)
-    val face = todayIconLayer(
-      name = "faccia",
+    val face = menuFaceLayer(
+      scene = scene,
       box = rest.translate(transform.translationX, transform.translationY),
-      icon = scene.faceIcon,
-      iconSizeDp = scene.faceIconSizeDp,
-      color = palette.primary,
+      palette = palette,
       origin = origin,
       density = d,
       scaleX = transform.scaleX,
@@ -440,7 +457,11 @@ internal fun buildMenuTrace(
       val faceProgress = if (variant.corrected && closing && !showRest) requireNotNull(journey.anchor).groupProgress() else journey.faceProgress
       val u = faceProgress / FluidMotion.MenuGroupFaceProgressSpan
       val alpha = GlassContentCurves.alpha(GlassContentRole.Exit, u, blurAvailable = true)
-      if (alpha > 0f) {
+      if (alpha > 0f && scene.faceText != null && scene.groupDp != null) {
+        // La faccia del chip (F6B.8) nella sua capsula, con la stessa curva d'uscita delle icone del gruppo.
+        content += menuFaceLayer(scene, scene.groupDp.scaled(d), palette, origin, d, alpha = alpha) +
+          ("blurDp" to GlassContentCurves.blur(GlassContentRole.Exit, u) * 3f)
+      } else if (alpha > 0f) {
         listOf("fluid:share|share", "fluid:star|circle", "fluid:more_horiz|dots").forEachIndexed { i, symbol ->
           val iconSize = if (variant.corrected) FluidMetrics.BarIconSize.value else 26f
           val face = todayIconLayer("tasto-${i + 1}", rest.translate((if (atStart) i else i - 2) * pitch * d, 0f), symbol, iconSize,
@@ -448,12 +469,10 @@ internal fun buildMenuTrace(
           content += face + ("blurDp" to GlassContentCurves.blur(GlassContentRole.Exit, u) * 3f)
         }
       }
-    } else content += todayIconLayer(
-      name = "faccia",
+    } else content += menuFaceLayer(
+      scene = scene,
       box = rest.translate(faceMap.translation.x, faceMap.translation.y),
-      icon = scene.faceIcon,
-      iconSizeDp = scene.faceIconSizeDp,
-      color = palette.primary,
+      palette = palette,
       origin = origin,
       density = d,
       alpha = if (variant?.corrected == true) journey.faceAlpha(physics) else fluidMenuFaceAlpha(journey.faceProgress),
@@ -484,6 +503,10 @@ internal fun buildMenuTrace(
       val map = if (lens) fluidMenuLensMap(panelBox, visible, journey.magnifiesInk, p, focus, returning = journey.bornReturn) else
         fluidMenuLiquidContentMap(target = panel, current = bounds, alpha = alpha)
       val glyphDp = if (variant != null) FluidMenuRowGlyph.value else OggiMenuGlyphDp
+      // Col testo a scala la riga e' piu' alta: la linea di base scende di meta' della crescita, e del testo che cresce.
+      // A scala 1 e' zero esatto: le tracce di prima non si muovono nemmeno di un ulp.
+      val baselineShiftDp = if (scene.fontScale == 1f) 0f else
+        (layout.rowHeightPx / d - fluidMenuRowHeight(23.dp).value) / 2f + 6f * (scene.fontScale - 1f)
       val cx = panelBox.width / 2f
       val cy = panelBox.height / 2f
       // Quanto si vede lontana una voce dal suo riquadro di scelta (il centro della riga a riposo), in dp: lo scarto che
@@ -507,11 +530,12 @@ internal fun buildMenuTrace(
           "kind" to "text",
           "text" to item.label,
           "x" to round3(mapX(FluidMenuRowSidePadding.value * d) / d),
-          "y" to round3(mapY(top + BaselineInRowDp * d) / d),
-          "sizeDp" to round3(17f * map.scale),
+          "y" to round3(mapY(top + (BaselineInRowDp + baselineShiftDp) * d) / d),
+          "sizeDp" to round3(17f * scene.fontScale * map.scale),
           "color" to glassColor(tone),
         )
-        items += linkedMapOf(
+        // Una voce senza simbolo (un interruttore spento, F6B.8) non ne disegna.
+        if (item.icon.isNotEmpty()) items += linkedMapOf(
           "kind" to "icon",
           "icon" to item.icon,
           "x" to round3(mapX(panelBox.width - (FluidMenuRowSidePadding.value + glyphDp / 2f) * d) / d),
@@ -603,6 +627,57 @@ internal fun buildMenuTrace(
     head = head,
   )
   return MenuBuilt(trace, panel, anchor.pressedBounds, ringFrames, driver.integratedFrames, openBounds, closeBounds, born, rowShift)
+}
+
+/**
+ * La faccia della sorgente: l'icona di sempre ([todayIconLayer], con gli stessi argomenti, al bit), oppure, con
+ * [MenuScene.faceText], il testo di un chip (margine di 14 dp, freccia in coda a 15 dp) nell'inchiostro del testo.
+ */
+private fun menuFaceLayer(
+  scene: MenuScene,
+  box: Rect,
+  palette: TodayPalette,
+  origin: Offset,
+  density: Float,
+  alpha: Float = 1f,
+  scaleX: Float = 1f,
+  scaleY: Float = scaleX,
+): Map<String, Any?> {
+  val text = scene.faceText
+    ?: return todayIconLayer("faccia", box, scene.faceIcon, scene.faceIconSizeDp, palette.primary, origin, density, alpha, scaleX, scaleY)
+  val w = box.width / density
+  val h = box.height / density
+  val size = scene.faceTextSizeDp
+  val items = arrayListOf<Map<String, Any?>>(
+    linkedMapOf(
+      "kind" to "text",
+      "text" to text,
+      "x" to 14.0,
+      "y" to round3(h / 2f + size * 0.35f),
+      "sizeDp" to round3(size),
+      "color" to glassColor(palette.onSurface),
+    ),
+  )
+  scene.faceTrailingIcon?.let { icon ->
+    items += linkedMapOf(
+      "kind" to "icon",
+      "icon" to icon,
+      "x" to round3(w - 14f - 7.5f * scene.fontScale),
+      "y" to round3(h / 2f),
+      "sizeDp" to round3(15f * scene.fontScale),
+      "color" to glassColor(palette.onSurface),
+    )
+  }
+  return linkedMapOf(
+    "name" to "faccia",
+    "x" to round3((box.left - origin.x) / density),
+    "y" to round3((box.top - origin.y) / density),
+    "w" to round3(w),
+    "h" to round3(h),
+    "items" to items,
+    "alpha" to alpha.coerceIn(0f, 1f),
+    "scale" to if (scaleX == scaleY) scaleX else listOf(scaleX, scaleY),
+  )
 }
 
 /** Il colore di una voce: `FluidGlassMenuRow` (`error` per le distruttive, il 38% d'opacita' per le spente). */

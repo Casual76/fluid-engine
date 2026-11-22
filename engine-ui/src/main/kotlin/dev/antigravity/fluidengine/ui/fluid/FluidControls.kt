@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -70,12 +72,14 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastFirstOrNull
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
@@ -728,6 +732,10 @@ private val SegmentPillInset = 2.dp
  * ([FluidPressGrip.HoldsFinger]): i chip stanno in file che scorrono in orizzontale, dove non c'e' un
  * fuori da cui partire. Se il dito che parte su un chip fa scorrere la fila, il chip si scioglie
  * (cala, smette di seguire il dito, suona `PressRelease`) e non clicca, come in iOS.
+ *
+ * Dalla 4.0 (F6B.8) il chip sa anche essere la **sorgente di un menu**: e' quello che fa
+ * [FluidFilterChips] col tasto «Filtri · 2» e con la pillola a piu' valori. Chi chiama [FluidChip]
+ * non vede differenze: la sorgente e' un aggancio interno ([FluidChipMenuSource]).
  */
 @Composable
 fun FluidChip(
@@ -737,6 +745,54 @@ fun FluidChip(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
   leading: (@Composable () -> Unit)? = null,
+) {
+  FluidChipCore(label = label, selected = selected, onClick = onClick, modifier = modifier, enabled = enabled, leading = leading)
+}
+
+/** Il margine orizzontale dell'etichetta di un [FluidChip] (anche per misurarlo senza comporlo, F6B.8). */
+internal val FluidChipHorizontalPadding = 14.dp
+
+/** Il margine verticale dell'etichetta di un [FluidChip]. */
+internal val FluidChipVerticalPadding = 6.dp
+
+/** Lo spazio fra il simbolo, l'etichetta e la freccia di un [FluidChip]. */
+internal val FluidChipContentGap = 5.dp
+
+/** Il riquadro del simbolo in testa (e della freccia in coda, F6B.8) di un [FluidChip]. */
+internal val FluidChipGlyphSize = 15.dp
+
+/**
+ * Il riquadro della freccia in coda di un chip che apre un menu (F6B.8): segue il testo come un simbolo di Apple col
+ * testo dinamico, con la stessa scala (anche quella non lineare di Android 14), da 15 dp fino al doppio. Il simbolo in
+ * testa resta [FluidChipGlyphSize], com'e' sempre stato.
+ */
+@Composable
+internal fun fluidChipTrailingGlyphSize(): Dp =
+  with(LocalDensity.current) { FluidChipGlyphSize.value.sp.toDp() }.coerceIn(FluidChipGlyphSize, FluidChipGlyphSize * 2)
+
+/** Il bersaglio minimo di un [FluidChip]: 48 dp, la regola di Android per il tocco. */
+internal val FluidChipMinTarget = 48.dp
+
+/** Lo stile dell'etichetta di un [FluidChip]. */
+@Composable
+internal fun fluidChipLabelStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+
+/**
+ * Il corpo di [FluidChip]. Con [trailing] e [menu] nulli e' esattamente il chip di sempre (la stessa catena di
+ * modificatori, nodo per nodo); [trailing] e' un simbolo in coda (la freccia di un chip che apre un menu), [menu] la
+ * sorgente del menu (l'aggancio di F6B.8, [FluidChipMenuSource] in `FluidFilterChips.kt`): con lei il tocco apre il menu
+ * e [onClick] non viene chiamato, e il chip si comporta come il gruppo di una barra che diventa menu.
+ */
+@Composable
+internal fun FluidChipCore(
+  label: String,
+  selected: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  leading: (@Composable () -> Unit)? = null,
+  trailing: (@Composable () -> Unit)? = null,
+  menu: FluidChipMenuSource? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val glass = fluidControlGlassBackdrop()
@@ -758,23 +814,40 @@ fun FluidChip(
     label = "chip content",
   )
 
+  val labelStyle = fluidChipLabelStyle()
   val face: @Composable () -> Unit = {
     CompositionLocalProvider(LocalContentColor provides content) {
       Row(
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(FluidChipContentGap),
         verticalAlignment = Alignment.CenterVertically,
       ) {
         if (leading != null) {
-          Box(modifier = Modifier.size(15.dp), contentAlignment = Alignment.Center) { leading() }
+          Box(modifier = Modifier.size(FluidChipGlyphSize), contentAlignment = Alignment.Center) { leading() }
         }
-        ProvideTextStyle(
-          MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-        ) {
+        ProvideTextStyle(labelStyle) {
           Text(text = label, maxLines = 1)
+        }
+        if (trailing != null) {
+          Box(modifier = Modifier.size(fluidChipTrailingGlyphSize()), contentAlignment = Alignment.Center) { trailing() }
         }
       }
     }
   }
+
+  // F6B.8: la sorgente del menu. Nulla per ogni chip di prima: nessun modificatore in piu', nessun effetto.
+  val haptics = LocalFluidHaptics.current
+  val faceLayer = if (menu != null) rememberGraphicsLayer() else null
+  val exitLayer = if (menu != null) rememberGraphicsLayer() else null
+  val faceReferencePx = with(LocalDensity.current) { labelStyle.fontSize.toPx() }
+  val menuGate = if (menu != null && exitLayer != null) Modifier.fluidChipMenuGate(menu, exitLayer, faceReferencePx) else Modifier
+  val faceRecord = if (menu != null && faceLayer != null) {
+    Modifier.fluidChipFaceRecord(faceLayer, FluidChipHorizontalPadding, FluidChipVerticalPadding)
+  } else {
+    Modifier
+  }
+  val menuTint = if (menu != null) GlassDefaults.controlTint() else null
+  val menuOptics = if (menu != null) GlassDefaults.buttonOptics() else null
+  val tapToOpen: () -> Unit = { menu?.open(withFinger = false) }
 
   if (glass != null) {
     // Una pressione sola per il click e per il vetro, come in FluidGlassButton: la lente cresce, segue
@@ -782,10 +855,19 @@ fun FluidChip(
     val press = rememberFluidPressState(FluidPressFeedback.Expand)
     // F2.3b: il chip possiede la sua etichetta e gira come i tasti (il chip scelto no: e' una pellicola d'accento).
     val chipInk = rememberGlassInk()
+    if (menu != null) {
+      SideEffect {
+        menu.faceLayer = faceLayer
+        menu.anchor.ink = chipInk
+        menu.anchor.tintFrom = menuTint
+        menu.anchor.opticsFrom = menuOptics
+      }
+    }
     Box(
       modifier = modifier
+        .then(menuGate)
         .alpha(if (enabled) 1f else 0.4f)
-        .defaultMinSize(minHeight = 48.dp)
+        .defaultMinSize(minHeight = FluidChipMinTarget)
         .semantics { this.selected = selected }
         .glassControlSurfaceInked(
           backdrop = glass,
@@ -801,38 +883,66 @@ fun FluidChip(
           ink = chipInk,
         )
         .fluidPressable(
-          onClick = onClick,
+          onClick = if (menu != null) tapToOpen else onClick,
+          onLongClick = if (menu != null) {
+            {
+              // Un Open solo, e solo se il menu si apre davvero, come l'azione della barra con un menu.
+              if (menu.open(withFinger = true)) haptics.play(FluidHapticEvent.Open)
+            }
+          } else {
+            null
+          },
           enabled = enabled,
           role = Role.Button,
+          haptic = if (menu != null) FluidHapticEvent.Open else FluidHapticEvent.Tap,
           focusShape = FluidCapsuleShape,
           pressState = press,
+          longClickHaptic = if (menu != null) null else FluidHapticEvent.GestureStart,
           // Un chip sta in una fila che scorre: il dito che parte da lui deve poterla far scorrere.
           grip = FluidPressGrip.YieldsToScroll,
         )
-        .padding(horizontal = 14.dp, vertical = 6.dp),
+        .padding(horizontal = FluidChipHorizontalPadding, vertical = FluidChipVerticalPadding)
+        .then(faceRecord),
       contentAlignment = Alignment.Center,
     ) { GlassInkContent(chipInk, LocalContentColor.current) { face() } }
     return
   }
 
+  if (menu != null) {
+    SideEffect {
+      menu.faceLayer = faceLayer
+      menu.anchor.ink = null
+      menu.anchor.tintFrom = menuTint
+      menu.anchor.opticsFrom = menuOptics
+    }
+  }
   Box(
     modifier = modifier
+      .then(menuGate)
       .alpha(if (enabled) 1f else 0.4f)
-      .defaultMinSize(minHeight = 48.dp)
+      .defaultMinSize(minHeight = FluidChipMinTarget)
       .semantics { this.selected = selected }
       // Outside the clip and the fill, so the pill is what grows (2.11.0): inside them only the
       // label moved, and a chip pressed under a thumb showed nothing at all.
       .fluidPressable(
-        onClick = onClick,
+        onClick = if (menu != null) tapToOpen else onClick,
+        onLongClick = if (menu != null) {
+          { if (menu.open(withFinger = true)) haptics.play(FluidHapticEvent.Open) }
+        } else {
+          null
+        },
         enabled = enabled,
         role = Role.Button,
+        haptic = if (menu != null) FluidHapticEvent.Open else FluidHapticEvent.Tap,
         focusShape = FluidCapsuleShape,
         feedback = FluidPressFeedback.Expand,
+        longClickHaptic = if (menu != null) null else FluidHapticEvent.GestureStart,
         grip = FluidPressGrip.YieldsToScroll,
       )
       .clip(FluidCapsuleShape)
       .background(container)
-      .padding(horizontal = 14.dp, vertical = 6.dp),
+      .padding(horizontal = FluidChipHorizontalPadding, vertical = FluidChipVerticalPadding)
+      .then(faceRecord),
     contentAlignment = Alignment.Center,
   ) { face() }
 }

@@ -68,6 +68,8 @@ UI_FLUID_FILES = {
     "controlli": [
         "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls", "FluidGlassButtonStyle",
         "FluidTextField", "FluidTextEdit", "FluidTokenField", "FluidStepper",
+        # F6B.8: la fila di filtri a pillole, i suggerimenti e i loro preset
+        "FluidFilterChips",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [

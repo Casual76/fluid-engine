@@ -15,12 +15,18 @@
     {
       "module": "engine-viewer-archive",
       "family": "archive",
+      "packaging": "L'AAR Maven 1.1.7 richiede minCompileSdk 37.2. Il modulo verifica l'impronta, include i binari JNI intatti e controlla i riferimenti contro SDK 36. Togliere il task quando l'engine compila con SDK 37.2.",
       "package": "dev.antigravity.fluidengine.viewer.archive",
       "label": "Archivi: ZIP, 7z, RAR, TAR (anche .tgz, .tar.xz, .tar.zst), .gz, .bz2, .xz",
-      "weight": "2,35 MB non compressi per arm64-v8a, 1,08 MB scaricati (libarchive)",
+      "weight": "JNI nell'APK: 2.406.200 byte arm64-v8a, 1.842.532 armeabi-v7a, 2.686.464 x86_64, 2.741.020 x86. Ripiego 7z dopo R8: +40.011 byte di DEX compressi, +182.174 byte nell'APK di prova",
       "assets": [],
       "libraries": [
-        { "coordinates": "me.zhanghai.android.libarchive:library", "license": "Apache-2.0 (collegamento); libarchive BSD-2; zlib, bzip2, xz, lz4, zstd, mbedTLS: zlib, BSD, 0BSD, Apache-2.0", "weight": "2,35 MB non compressi per arm64-v8a" }
+        { "coordinates": "me.zhanghai.android.libarchive:library", "license": "Apache-2.0 (collegamento); libarchive BSD-2-Clause; zlib, bzip2, xz, lz4, zstd, Mbed TLS: zlib, BSD, 0BSD, Apache-2.0", "weight": "2.406.200 byte arm64-v8a, 1.842.532 armeabi-v7a, 2.686.464 x86_64, 2.741.020 x86 misurati nell'APK" },
+        { "coordinates": "org.apache.commons:commons-compress", "license": "Apache-2.0", "weight": "Ripiego condiviso con XZ e dipendenze: +40.011 byte di DEX compressi dopo R8 nell'APK di prova" },
+        { "coordinates": "org.tukaani:xz", "license": "0BSD", "weight": "Ripiego per 7z cifrati" },
+        { "coordinates": "commons-io:commons-io", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" },
+        { "coordinates": "commons-codec:commons-codec", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" },
+        { "coordinates": "org.apache.commons:commons-lang3", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" }
       ]
     },
     {

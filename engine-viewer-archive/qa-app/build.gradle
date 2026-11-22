@@ -1,0 +1,49 @@
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: rootProject.file('versions.gradle')
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.archive.qa'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.viewer.archive.qa'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1.0'
+  }
+
+  sourceSets.main.assets.srcDir '../src/androidTest/assets'
+  buildFeatures { compose = true }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      signingConfig signingConfigs.debug
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+    }
+    bench {
+      initWith release
+      applicationIdSuffix '.bench'
+      matchingFallbacks = ['release']
+    }
+  }
+
+  packaging.resources {
+    merges += ['META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt']
+  }
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+  kotlinOptions { jvmTarget = engine.jvmTarget }
+}
+
+dependencies {
+  implementation project(':engine-viewer-archive')
+}

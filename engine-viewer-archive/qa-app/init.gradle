@@ -1,0 +1,15 @@
+// Only the F6C.12 test APKs use this application. The engine and consuming apps do not include it.
+gradle.settingsEvaluated { settings ->
+  settings.include(':archive-qa')
+  settings.project(':archive-qa').projectDir = new File(settings.settingsDir, 'engine-viewer-archive/qa-app')
+}
+
+// The sample's normal build keeps its base-only dependency. This opt-in exercises a real SDK 36 consumer.
+gradle.beforeProject { project ->
+  if (project.path == ':sample' && project.providers.gradleProperty('archiveQaSample').isPresent()) {
+    project.plugins.withId('com.android.application') {
+      project.dependencies.add('implementation', project.dependencies.project(path: ':engine-viewer-archive'))
+      project.android.packaging.resources.merges += ['META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt']
+    }
+  }
+}

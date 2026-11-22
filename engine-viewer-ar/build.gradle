@@ -1,0 +1,71 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.ar'
+  compileSdk engine.compileSdk
+  defaultConfig {
+    minSdk engine.minSdk
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+  buildFeatures { compose = true }
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+  kotlinOptions { jvmTarget = engine.jvmTarget }
+  testOptions.unitTests.includeAndroidResources = true
+}
+
+dependencies {
+  api project(':engine-viewer-3d')
+  implementation 'com.google.ar:core:1.51.0'
+  implementation 'com.google.android.filament:filament-utils-android:1.71.5'
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  androidTestImplementation "androidx.activity:activity-compose:${engine.activityCompose}"
+  androidTestImplementation 'androidx.test:runner:1.7.0'
+}
+
+// Compare real packaged manifests. This task is only available in the engine's own build.
+if (rootProject.projectDir == projectDir.parentFile && rootProject.findProject(':sample') != null) {
+  tasks.register('checkArViewerManifests') {
+    group = 'verification'
+    description = 'Check that CAMERA and the optional ARCore marker only come from the AR module.'
+    dependsOn 'assembleDebugAndroidTest', ':engine-viewer-3d:assembleDebugAndroidTest', ':sample:assembleDebug'
+    doLast {
+      def exe = System.getProperty('os.name').toLowerCase().contains('windows') ? '.exe' : ''
+      def aapt = new File(android.sdkDirectory, "build-tools/${android.buildToolsVersion}/aapt2${exe}")
+      def dump = { Project module, String output ->
+        def dir = module.layout.buildDirectory.dir("outputs/apk/${output}").get().asFile
+        def apk = dir.listFiles()?.find { it.name.endsWith('.apk') }
+        if (apk == null) throw new GradleException("No APK to inspect in ${dir}")
+        def text = new ByteArrayOutputStream()
+        project.exec {
+          commandLine aapt, 'dump', 'xmltree', '--file', 'AndroidManifest.xml', apk
+          standardOutput = text
+        }
+        text.toString('UTF-8')
+      }
+      def withAr = dump(project, 'androidTest/debug')
+      def optionalAr = /E: meta-data[^\r\n]*\r?\n[ \t]*A:[^\r\n]*:name[^\r\n]*"com\.google\.ar\.core"[^\r\n]*\r?\n[ \t]*A:[^\r\n]*:value[^\r\n]*"optional"/
+      if (!withAr.contains('"android.permission.CAMERA"') || !(withAr =~ optionalAr)) {
+        throw new GradleException('The AR APK must declare CAMERA and com.google.ar.core=optional.')
+      }
+      [dump(project(':engine-viewer-3d'), 'androidTest/debug'), dump(project(':sample'), 'debug')].each { withoutAr ->
+        if (withoutAr.contains('"android.permission.CAMERA"') || withoutAr.contains('"com.google.ar.core"')) {
+          throw new GradleException('CAMERA or ARCore leaked into an APK without engine-viewer-ar.')
+        }
+      }
+      logger.lifecycle('AR manifest: CAMERA + optional in the AR APK only, absent from 3D-only and sample APKs.')
+    }
+  }
+  tasks.matching { it.name == 'check' }.configureEach { dependsOn 'checkArViewerManifests' }
+}

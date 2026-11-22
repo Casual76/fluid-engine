@@ -117,14 +117,15 @@ if (Test-Path -LiteralPath $familiesManifest) {
       Label    = [string]$family.label
       Weight   = [string]$family.weight
       Licenses = $(if ($licenses) { $licenses } else { "nessuna libreria" })
+      Requires = @($family.requires | Where-Object { $_ })
       Present  = (Test-Path -LiteralPath (Join-Path $PSScriptRoot "..\$($family.module)"))
     }
   }
 }
 $PresentViewerFamilies = @($ViewerFamilies | Where-Object { $_.Present } | ForEach-Object { $_.Module })
-foreach ($familyModule in $PresentViewerFamilies) {
-  $EngineModules[$familyModule] = @("engine-foundation", "engine-ui", "engine-viewer")
-  $OptInModules += $familyModule
+foreach ($family in ($ViewerFamilies | Where-Object { $_.Present })) {
+  $EngineModules[$family.Module] = @("engine-foundation", "engine-ui", "engine-viewer") + $family.Requires
+  $OptInModules += $family.Module
 }
 if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "..\engine-viewer-all")) {
   $EngineModules["engine-viewer-all"] = @("engine-foundation", "engine-ui", "engine-viewer") + $PresentViewerFamilies

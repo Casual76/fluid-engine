@@ -1,0 +1,23 @@
+<resources>
+  <string name="ar_title">Realtà aumentata</string>
+  <string name="ar_model">Torna al modello</string>
+  <string name="ar_cancel">Annulla</string>
+  <string name="ar_continue">Continua</string>
+  <string name="ar_ok">OK</string>
+  <string name="ar_install">Continua su Google Play</string>
+  <string name="ar_install_title">Google Play Services per AR</string>
+  <string name="ar_install_message">Installa o aggiorna Google Play Services per AR per posare il modello nella stanza.</string>
+  <string name="ar_install_declined">Il servizio AR è ancora indisponibile. Puoi continuare a vedere il modello 3D.</string>
+  <string name="ar_permission_title">Usare la fotocamera in AR</string>
+  <string name="ar_permission_message">La fotocamera serve a trovare un piano e posare il modello. Questa vista usa Google Play Services per AR (ARCore), fornito da Google e soggetto alla sua informativa sulla privacy.</string>
+  <string name="ar_privacy">Informativa sulla privacy di Google</string>
+  <string name="ar_permission_denied">Il permesso per la fotocamera è stato negato. Puoi continuare a vedere il modello 3D.</string>
+  <string name="ar_unavailable">La realtà aumentata al momento non è disponibile su questo dispositivo.</string>
+  <string name="ar_camera_unavailable">La vista AR non si è avviata o è stata interrotta. Puoi continuare a vedere il modello 3D.</string>
+  <string name="ar_camera_starting">Apertura della fotocamera…</string>
+  <string name="ar_scan">Inquadra il pavimento o un tavolo e sposta lentamente il dispositivo da un lato all’altro.</string>
+  <string name="ar_place">Tocca il piano per posare il modello.</string>
+  <string name="ar_place_center">Posa al centro</string>
+  <string name="ar_tracking_lost">Muovi lentamente il dispositivo e inquadra di nuovo il piano.</string>
+  <string name="ar_scale">Scala %1$s</string>
+</resources>

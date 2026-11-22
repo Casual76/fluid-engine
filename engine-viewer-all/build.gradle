@@ -40,6 +40,7 @@ family(':engine-viewer-archive')
 family(':engine-viewer-data')
 family(':engine-viewer-graphics')
 family(':engine-viewer-3d')
+family(':engine-viewer-ar')
 
 ext.viewerFamiliesRole = 'all'
 apply from: "${projectDir}/../engine-viewer/viewer-families.gradle"

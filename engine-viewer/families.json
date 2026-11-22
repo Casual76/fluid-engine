@@ -66,6 +66,23 @@
       ]
     },
     {
+      "module": "engine-viewer-ar",
+      "family": "ar",
+      "package": "dev.antigravity.fluidengine.viewer.ar",
+      "requires": ["engine-viewer-3d"],
+      "label": "Realtà aumentata: posa dei modelli 3D nella stanza con ARCore",
+      "weight": "APK debug di prova, DEX, asset e JNI attribuiti: 324.620 B arm64-v8a, 269.768 B armeabi-v7a, 335.064 B x86 e 324.572 B x86_64. Filament condiviso con engine-viewer-3d",
+      "assets": [
+        { "name": "Materiale originale per il fondo della fotocamera", "license": "Stessa licenza del Fluid Engine", "weight": "9.144 B non compressi, 3.749 B nella voce ZIP dell'APK debug di prova" }
+      ],
+      "libraries": [
+        { "coordinates": "com.google.ar:core", "license": "ARCore Additional Terms of Service", "weight": "APK di prova: 96.111 B DEX comuni più JNI, 168.768 B arm64-v8a, 113.916 B armeabi-v7a, 179.212 B x86 e 168.720 B x86_64" },
+        { "coordinates": "com.google.android.filament:filament-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" },
+        { "coordinates": "com.google.android.filament:gltfio-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" },
+        { "coordinates": "com.google.android.filament:filament-utils-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" }
+      ]
+    },
+    {
       "module": "engine-viewer-prova",
       "family": "prova",
       "package": "dev.antigravity.fluidengine.viewer.prova",

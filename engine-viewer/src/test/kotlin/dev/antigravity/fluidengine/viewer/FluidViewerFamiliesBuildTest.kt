@@ -35,7 +35,7 @@ class FluidViewerFamiliesBuildTest {
       listOf("engine-viewer-office", "engine-viewer-archive", "engine-viewer-data", "engine-viewer-graphics", "engine-viewer-3d", "engine-viewer-prova"),
       families.map { it.module },
     )
-    assertEquals(listOf("office", "archive", "data", "graphics", "3d", "prova"), families.map { it.family })
+    assertEquals(listOf("office", "archive", "data", "graphics", "3d", "ar", "prova"), families.map { it.family })
     assertEquals(listOf("engine-viewer-prova"), families.filter { it.test }.map { it.module })
     for (f in families) {
       assertTrue("${f.module}: il pacchetto", f.pkg.startsWith("dev.antigravity.fluidengine.viewer."))

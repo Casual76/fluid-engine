@@ -83,6 +83,7 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
   private var animation by mutableIntStateOf(0)
   private var reset by mutableIntStateOf(0)
   private var failure by mutableStateOf(false)
+  private val extension = sceneViewerExtension?.create(model)
 
   val content = FluidViewerContent.Custom(
     actions = {
@@ -92,6 +93,7 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
           if (playing) "Pausa" else "Riproduci", { playing = !playing }, FluidToolbarPlacement.BottomBar)
         if (model.stats.animations > 1) button("3d.animation", Icons.Default.SkipNext,
           "Animazione successiva", { animation = (animation + 1) % model.stats.animations }, FluidToolbarPlacement.BottomBar)
+        extension?.actions(this)
       }
     },
   ) {
@@ -115,8 +117,10 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
         modifier = Modifier.fillMaxSize().semantics { contentDescription = "Modello 3D, $name" },
         onReset = null,
         onRelease = SceneTexture::dispose,
-        update = { it.update(active && lifecycle.isAtLeast(Lifecycle.State.RESUMED), playing, animation, reset) },
+        update = { it.update(active && extension?.overlayVisible != true &&
+          lifecycle.isAtLeast(Lifecycle.State.RESUMED), playing, animation, reset) },
       )
+      extension?.Overlay(active)
     }
   }
 }

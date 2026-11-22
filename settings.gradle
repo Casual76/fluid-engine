@@ -40,6 +40,7 @@ include ':engine-viewer-office'
 // -archive, -data, -graphics, -3d) entrano qui con una riga ciascuna, quando esistono.
 include ':engine-viewer-all'
 include ':engine-viewer-graphics', ':engine-viewer-3d'
+include ':engine-viewer-ar'
 include ':engine-viewer-data' // F6C.13 · testi ricchi e dati
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.

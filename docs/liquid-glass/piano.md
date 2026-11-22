@@ -3879,6 +3879,22 @@ decodificatori.
   - **Immagini speciali, font, 3D:** HEIC, AVIF, RAW, TIFF, SVG, PSD; l'anteprima dei font; modelli GLB, OBJ, STL.
 - **L'aspetto delle pagine rifatte** si sceglie dalle proposte di F6C.7, mostrate in chat come immagini.
 
+**Dopo le tavole di F6C.7, 22 novembre 2026** (ricerca `docs/liquid-glass/ricerca/visori-2.md`):
+- **Aspetto:** fra le tre direzioni (A Fedele, B Ispettore, C Atmosfera), Alessio vuole «un mix fra la A e la C,
+  tendente verso la A e con ovviamente il tasto per maggiori info che ti da le info della B». Quindi:
+  - la pagina è quella di A, il contenuto pulito come Quick Look, con qualche tocco di C;
+  - il tasto delle informazioni apre il pannello con le informazioni ricche di B: fatti, struttura, capitoli, firma,
+    filtri, peso.
+
+  F6C.7 rifà una tavola «Mix» da mostrare prima di F6C.9.
+- **3D:** Filament (Google, Apache-2.0), con i materiali e la luce come AR Quick Look. Pesa ≈6,5 MB nell'app installata,
+  solo in `engine-viewer-3d`.
+- **Archivi:** libarchive (`me.zhanghai.android.libarchive`, Apache-2.0 e BSD), ≈2,35 MB solo in `engine-viewer-archive`.
+- **Office:** i caratteri con le misure di Word (Carlito, Caladea, Liberation, OFL), così pagine e a capo cadono come in
+  Word. Pesano 3–6 MB, solo in `engine-viewer-office`.
+- **Le forme di contenuto nuove** `Grid`, per fogli e CSV, e `Custom`, per archivi, JSON, EPUB e il resto, stanno in
+  `engine-ui` e le fa F6C.8. Il contratto non è ancora uscito in una versione, quindi aggiungerle non rompe nessuno.
+
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 
 | modulo | famiglia |
@@ -3902,7 +3918,7 @@ se:
 | id | cosa | perimetro di scrittura | dipende da | G/D | modello |
 |---|---|---|---|---|---|
 | F6C.7 | **Ricerca e proposte.** Le pagine di Quick Look e di File di iOS 26 per ogni tipo; l'apertura di un documento dalla miniatura; per ogni famiglia come si legge (lettura propria o libreria, licenza, peso, versione minima di Android). **Due o tre proposte d'aspetto** per le pagine di audio, documento, testo, sconosciuto, Office, archivio e dati, rese come immagini per Alessio | `docs/liquid-glass/ricerca/visori-2.md`, `artifacts/liquid-glass/ricerca/visori-2/` | — | — | Opus (Claude secondary) |
-| F6C.8 | **Il registro dei moduli.** I moduli di famiglia aggiungono tipi al risolutore senza toccarlo, con priorità e ripiego; il contratto `Pages` serve anche a Office; `engine-viewer-all`; `engine-install.ps1` conosce i moduli | `engine-viewer/**`, `engine-viewer-all/**` (nuovo), `settings.gradle`, `tools/engine-install.ps1` | F6C.7 | G | Opus (Claude secondary) |
+| F6C.8 | **Il registro dei moduli.** I moduli di famiglia aggiungono tipi al risolutore senza toccarlo, con priorità e ripiego; il contratto `Pages` serve anche a Office; le forme `Grid` e `Custom`; `engine-viewer-all`; `engine-install.ps1` conosce i moduli | `engine-viewer/**`, `engine-viewer-all/**` (nuovo), `ui/fluid/viewer/FluidViewerContent.kt`, `settings.gradle`, `tools/engine-install.ps1` | F6C.7 | G | Opus (Claude secondary) |
 | F6C.9 | **I preset rifatti** come scelto dalle proposte: audio, documento a pagine, testo e codice, sconosciuto ed eseguibile, pannello info. Più i due difetti: «Trova» sotto la barra di stato con la tastiera, durata dell'audio prima di Play | `ui/fluid/viewer/*Preset.kt`, `ui/fluid/viewer/FluidViewerChrome.kt`, `test/fluid/viewer/` | F6C.7, scelte di Alessio | G | Astra |
 | F6C.10 | **L'apertura dalla miniatura per ogni tipo**, e la chiusura inversa col dito, con lo scurimento di F6D | `ui/fluid/viewer/FluidFileViewer.kt`, `test/fluid/viewer/` | F6C.9, F6D.1 | G | Sol |
 | F6C.11 | **Office**: DOCX, ODT e RTF impaginati; XLSX e ODS in griglia; PPTX e ODP a slide | `engine-viewer-office/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Astra |

@@ -54,6 +54,21 @@ class GraphicsFamilyTest {
     assertEquals(800f, axis.max, 0f)
   }
 
+  @Test
+  fun specimenUsesMappedGlyphsAndReportsTheRealFontMetadata() {
+    val face = FontFile(bytes("studio-variable.ttf")).faces.single()
+    assertEquals("Aa", face.preview.hero)
+    assertEquals("Quel vitreo balzo fra squarci d'ombra", face.preview.sentence)
+    assertEquals(".,:;!?-+()&@#%='/€", face.preview.groups.single { it.label == "Segni" }.characters)
+    assertEquals(listOf("Inglese"), face.preview.languages)
+    assertTrue(face.tables.containsAll(listOf("cmap", "fvar", "glyf", "name")))
+    val rows = face.details().associate { it.label to it.value }
+    assertEquals("Fluid Engine test corpus", rows["Autore"])
+    assertEquals("Version 1.1", rows["Versione"])
+    assertEquals("CC0-1.0", rows["Licenza"])
+    assertEquals("Sì", face.facts("TTF").single { it.label == "Variabile" }.value)
+  }
+
   private fun fallback(name: String, reason: String) {
     runBlocking {
       val app = RuntimeEnvironment.getApplication()

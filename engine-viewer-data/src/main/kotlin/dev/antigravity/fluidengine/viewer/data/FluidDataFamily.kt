@@ -21,10 +21,10 @@ import kotlinx.coroutines.withContext
  * | tipo | pagina |
  * |---|---|
  * | Markdown | reso con `FluidMarkdown`, con «Reso \| Sorgente» |
- * | HTML | `FluidWebContent` chiuso: le risorse relative si caricano (se l'app dà la cartella), le remote mai |
+ * | HTML | `FluidWebContent` chiuso: le risorse relative si caricano (se l'app dà la cartella), le remote mai; nel tema scuro senza colori suoi prende quelli del tema |
  * | CSV, TSV | la griglia (`Grid`), letta a flusso: separatore, virgolette e intestazione riconosciuti |
  * | JSON, JSONC, NDJSON, XML, plist | un albero con i punti colorati per tipo, «Albero \| Testo», «Mostra altri», riga e colonna degli errori |
- * | EPUB 2 e 3 | a capitoli, con l'indice e le immagini; con un DRM è «protetto» |
+ * | EPUB 2 e 3 | a capitoli, come un libro (corpo 19, colonna di 552 dp, titoli grandi), con l'indice e le immagini; con un DRM la pagina «Protetto da DRM» col sistema, il motivo e «Apri con…» |
  * | EML | intestazioni, corpo HTML (immagini `cid:`) o di testo, allegati che si aprono col risolutore |
  * | ICS | gli eventi come schede: fusi, giornate intere, ripetizioni in italiano |
  * | VCF | i contatti come schede, con la foto |

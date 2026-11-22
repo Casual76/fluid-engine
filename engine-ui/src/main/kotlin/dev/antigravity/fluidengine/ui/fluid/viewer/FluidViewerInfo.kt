@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -19,6 +21,8 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -27,7 +31,11 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.*
@@ -38,6 +46,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -119,14 +128,34 @@ internal fun defaultViewerInfo(file: FluidViewerContent, strings: FluidViewerStr
   return FluidViewerInfo(info, facts = facts, actions = actions)
 }
 
-/** D · Mix. Intensità e posizione degli aloni a occhio, 22 novembre 2026. */
+/**
+ * Tavola D · Mix, a occhio, 22 novembre 2026, secondo giro sul Tab S9.
+ * La colonna è larga fino a 552 dp, con 16 dp di margine interno per lato. Copertina al 73,5%,
+ * fino a 400 dp; icona al 35%, fino a 184 dp. Da 390 a 552 dp il respiro verticale aumenta
+ * di 8 dp. La tipografia conserva gli sp del tema e la scala del testo di sistema.
+ */
 internal object ViewerMixProfile {
-  const val FileTint = .20f
-  const val HaloTint = .36f
-  val CoverSize = 280.dp
-  val IconSize = 136.dp
-  val PanelWidth = 444.dp
+  val ColumnWidth = 552.dp
+  val CoverLimit = 400.dp
+  val IconLimit = 184.dp
+  const val CoverFraction = .735f
+  const val IconFraction = .35f
+  const val FileTint = .34f
+  const val LowerTint = .24f
+  const val WarningTint = .27f
   val Amber = Color(0xFFFF9500)
+  val HaloDrop = 6.dp
+  fun haloSpread(itemSize: Dp): Dp = (itemSize * .16f).coerceIn(20.dp, 46.dp)
+  fun verticalBreath(width: Dp): Dp = ((width - 390.dp) * .05f).coerceIn(0.dp, 8.dp)
+}
+
+/** Bound the reading column independently of Android's density, text settings and the window insets. */
+@Composable
+internal fun ViewerMixColumn(modifier: Modifier, content: @Composable (width: Dp) -> Unit) {
+  BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+    val width = minOf(maxWidth, ViewerMixProfile.ColumnWidth)
+    Box(Modifier.width(width), contentAlignment = Alignment.Center) { content(width) }
+  }
 }
 
 @Composable
@@ -157,7 +186,14 @@ private fun thumbnailAccent(image: ImageBitmap): Color? {
       val bucket = pixel and 0x00e0e0e0
       bins.getOrPut(bucket) { mutableListOf() }.add(pixel)
     }
-    val group = bins.values.maxByOrNull { it.size } ?: return null
+    // Prefer chromatic pixels to the neutral field around an app icon or the rim of a cover.
+    val group = bins.values.maxByOrNull { pixels ->
+      val p = pixels.first()
+      val r = (p ushr 16) and 255
+      val g = (p ushr 8) and 255
+      val b = p and 255
+      pixels.size * (22 + maxOf(r, g, b) - minOf(r, g, b))
+    } ?: return null
     fun mean(shift: Int) = group.sumOf { (it ushr shift) and 255 } / group.size
     return Color(mean(16), mean(8), mean(0))
   } finally {
@@ -179,33 +215,120 @@ internal fun viewerAccent(info: FluidViewerInfo?, fallback: Color): Color {
 }
 
 @Composable
-internal fun Modifier.viewerWash(accent: Color, halo: Boolean = false): Modifier {
+internal fun Modifier.viewerWash(accent: Color, lower: Color, edge: Color): Modifier {
   if (viewerSolidMaterial()) return this
   return drawWithCache {
-    val center = Offset(size.width / 2, size.height * (if (halo) .5f else .34f))
-    val radius = if (halo) size.minDimension / 2 else size.maxDimension * .84f
-    val brush = Brush.radialGradient(listOf(accent.copy(alpha = if (halo) ViewerMixProfile.HaloTint
-      else ViewerMixProfile.FileTint), Color.Transparent), center, radius.coerceAtLeast(1f))
-    onDrawBehind { drawRect(brush) }
+    fun field(color: Color, alpha: Float, x: Float, y: Float, radius: Float) = Brush.radialGradient(
+      0f to color.copy(alpha = alpha), .45f to color.copy(alpha = alpha * .78f),
+      1f to color.copy(alpha = 0f), center = Offset(size.width * x, size.height * y),
+      radius = (size.maxDimension * radius).coerceAtLeast(1f))
+    val top = field(accent, ViewerMixProfile.FileTint, .45f, .27f, .78f)
+    val foot = field(lower, ViewerMixProfile.LowerTint, .05f, .92f, .60f)
+    val side = field(edge, ViewerMixProfile.LowerTint, .99f, .81f, .56f)
+    onDrawBehind {
+      drawRect(top)
+      drawRect(foot)
+      drawRect(side)
+    }
+  }
+}
+
+/** Soft, shape-following colour around the artwork. Draw outside its bounds, before its clip. */
+@Composable
+internal fun Modifier.viewerHalo(accent: Color, corner: Dp): Modifier {
+  if (viewerSolidMaterial()) return this
+  return drawWithCache {
+    val spread = ViewerMixProfile.haloSpread(size.minDimension.toDp()).toPx()
+    val radius = corner.toPx()
+    val drop = ViewerMixProfile.HaloDrop.toPx()
+    onDrawBehind {
+      for (ring in 20 downTo 1) {
+        val t = ring / 20f
+        val extra = spread * t
+        drawRoundRect(accent.copy(alpha = .09f * (1f - t) + .008f),
+          Offset(-extra, drop - extra), Size(size.width + 2 * extra, size.height + 2 * extra),
+          CornerRadius(radius + extra))
+      }
+    }
   }
 }
 
 @Composable
-internal fun ViewerFacts(facts: List<String>, backdrop: GlassBackdropState, modifier: Modifier = Modifier) {
+internal fun ViewerFacts(facts: List<String>, backdrop: GlassBackdropState, modifier: Modifier = Modifier,
+  contrast: ViewerInfoText? = null) {
   if (facts.isEmpty()) return
   Row(modifier.horizontalScroll(rememberScrollState()).semantics { isTraversalGroup = true },
     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
     facts.forEach { fact ->
-      Text(fact, Modifier.viewerGlass(backdrop).padding(horizontal = 12.dp, vertical = 6.dp),
-        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+      Text(fact, Modifier.viewerGlass(backdrop).then(if (contrast == null) Modifier else
+        Modifier.background(contrast.support, FluidCapsuleShape)).padding(horizontal = 12.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        color = contrast?.ink ?: MaterialTheme.colorScheme.onSurface)
+    }
+  }
+}
+
+internal val LocalViewerInfoPageColors = staticCompositionLocalOf<ColorScheme?> { null }
+
+internal data class ViewerInfoText(val ink: Color, val support: Color)
+
+/**
+ * Keep the theme ink where it meets WCAG AA. At the light/dark crossover use black or white:
+ * fading the two inks through grey would make the letters disappear. The tint behind a label
+ * is just strong enough to keep every pixel legible even over a black or white detail in the glass.
+ */
+internal fun viewerInfoText(surface: Color, preferred: Color): ViewerInfoText {
+  val darkInk = fluidContrastRatio(Color.Black, surface) >= fluidContrastRatio(Color.White, surface)
+  val ink = if (preferred.alpha == 1f && (preferred.luminance() < surface.luminance()) == darkInk &&
+    fluidContrastRatio(preferred, surface) >= 4.55f) preferred else if (darkInk) Color.Black else Color.White
+  val worst = if (darkInk) Color.Black else Color.White
+  var low = 0
+  var high = 255
+  while (low < high) {
+    val mid = (low + high) / 2
+    val background = surface.copy(alpha = mid / 255f).compositeOver(worst)
+    val ordered = if (darkInk) background.luminance() >= ink.luminance() else background.luminance() <= ink.luminance()
+    if (ordered && fluidContrastRatio(ink, background) >= 4.55f) high = mid else low = mid + 1
+  }
+  return ViewerInfoText(ink, surface.copy(alpha = low / 255f))
+}
+
+@Composable
+internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState, strings: FluidViewerStrings,
+  close: () -> Unit, extra: @Composable () -> Unit) {
+  val page = LocalViewerInfoPageColors.current
+  val overlay = LocalFluidSheetPageVeil.current
+  if (page == null || overlay == null) {
+    ViewerInfoContents(info, backdrop, strings, close, null, null, extra)
+    return
+  }
+  val media = info.file.kind == FluidFileKind.Image || info.file.kind == FluidFileKind.Video
+  val glass = if (media) LocalFluidThemeSides.current?.scheme(true) ?: androidx.compose.material3.darkColorScheme()
+    else MaterialTheme.colorScheme
+  val opacity = overlay.alpha().coerceIn(0f, 1f)
+  fun layer(glassColor: Color, pageColor: Color) = pageColor.copy(alpha = opacity).compositeOver(glassColor)
+  val surface = layer(glass.surface, overlay.color)
+  val capsule = layer(glass.surfaceContainerHigh, page.surfaceContainerHigh)
+  val row = layer(glass.surfaceContainerLow, page.surfaceContainerLow)
+  val preferred = if (fluidContrastRatio(glass.onSurface, surface) > fluidContrastRatio(page.onSurface, surface))
+    glass else page
+  val title = remember(surface, preferred) { viewerInfoText(surface, preferred.onSurface) }
+  val fact = remember(capsule, preferred) { viewerInfoText(capsule, preferred.onSurface) }
+  val rowInk = remember(row, preferred) { viewerInfoText(row, preferred.onSurface).ink }
+  val colors = preferred.copy(surface = surface, surfaceContainerLow = row, surfaceContainerHigh = capsule,
+    onSurface = rowInk, onSurfaceVariant = viewerInfoText(row, preferred.onSurfaceVariant).ink)
+  MaterialTheme(colorScheme = colors, typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
+    CompositionLocalProvider(LocalContentColor provides rowInk, LocalFluidGlassAppearance provides null,
+      LocalFluidSurfaceSide provides (title.ink.luminance() > surface.luminance())) {
+      ViewerInfoContents(info, currentCanvasBackdrop() ?: backdrop, strings, close, title, fact, extra)
     }
   }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState, strings: FluidViewerStrings,
-  close: () -> Unit, extra: @Composable () -> Unit) {
+private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropState, strings: FluidViewerStrings,
+  close: () -> Unit, title: ViewerInfoText?, fact: ViewerInfoText?, extra: @Composable () -> Unit) {
   val colors = MaterialTheme.colorScheme
   val kind = LocalFluidLabels.current.fileKind(info.file.kind)
   val summary = info.subtitle ?: fluidUnknownDetails(info.file, kind, FluidUnknownPresetStrings())
@@ -226,45 +349,54 @@ internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState,
   }
   val actions = listOfNotNull(location?.openMap?.let { FluidViewerInfoAction(strings.openMap, it) }) + info.actions
   var actionFailed by remember(info.file) { mutableStateOf(false) }
-  Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).semantics { isTraversalGroup = true }
-    .padding(FluidScreenDefaults.HorizontalPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-      val thumb = info.thumbnail
-      if (thumb == null) FileIcon(info.file.kind, 44)
-      else Image(thumb, null, Modifier.size(48.dp).clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
-      Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
-        Text(info.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-        if (summary != info.title) Text(summary, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-      }
-      FluidGlassIconButton(close, backdrop = backdrop, size = FluidGlassSize.Compact) {
-        FluidIcon(FluidIcons.Close, strings.close)
-      }
-    }
-    ViewerFacts(info.facts, backdrop)
-    extra()
-    sections.forEach { section ->
-      if (section.rows.isNotEmpty() || section.content != null) {
-        FluidSectionHeader(section.title)
-        if (section.rows.isNotEmpty()) FluidListGroup {
-          section.rows.forEachIndexed { index, row ->
-            if (index > 0) FluidListDivider()
-            ViewerInfoRow(row, strings.copy)
+  ViewerMixColumn(Modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).semantics { isTraversalGroup = true }
+      .padding(FluidScreenDefaults.HorizontalPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        val thumb = info.thumbnail
+        if (thumb == null) FileIcon(info.file.kind, 44)
+        else Image(thumb, null, Modifier.size(48.dp).clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
+        Column(Modifier.weight(1f).wrapContentWidth(Alignment.Start)
+          .then(if (title == null) Modifier else Modifier.background(title.support, MaterialTheme.shapes.small)
+            .padding(horizontal = 6.dp, vertical = 3.dp))
+          .semantics(mergeDescendants = true) { heading() }) {
+          Text(info.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = title?.ink ?: colors.onSurface)
+          if (summary != info.title) Text(summary, style = MaterialTheme.typography.bodySmall, color = title?.ink ?: colors.onSurfaceVariant)
+        }
+        FluidGlassIconButton(close, backdrop = backdrop, size = FluidGlassSize.Compact) {
+          Box(Modifier.fillMaxSize().then(if (fact == null) Modifier else Modifier.background(fact.support, FluidCapsuleShape)),
+            contentAlignment = Alignment.Center) {
+            FluidIcon(FluidIcons.Close, strings.close, tint = fact?.ink ?: colors.onSurface)
           }
         }
-        section.content?.invoke()
       }
-    }
-    if (actions.isNotEmpty()) {
-      FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        actions.forEach { action ->
-          FluidButton(action.label, {
-            actionFailed = false
-            fluidRunFileAction(action.onClick) { actionFailed = true }
-          }, style = FluidButtonStyle.Tinted)
+      ViewerFacts(info.facts, backdrop, contrast = fact)
+      extra()
+      sections.forEach { section ->
+        if (section.rows.isNotEmpty() || section.content != null) {
+          FluidSectionHeader(section.title)
+          if (section.rows.isNotEmpty()) FluidListGroup {
+            section.rows.forEachIndexed { index, row ->
+              if (index > 0) FluidListDivider()
+              ViewerInfoRow(row, strings.copy)
+            }
+          }
+          section.content?.invoke()
         }
       }
-      if (actionFailed) Text(strings.actionFailed, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        color = colors.error)
+      if (actions.isNotEmpty()) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          actions.forEach { action ->
+            FluidButton(action.label, {
+              actionFailed = false
+              fluidRunFileAction(action.onClick) { actionFailed = true }
+            }, style = FluidButtonStyle.Tinted)
+          }
+        }
+        if (actionFailed) Text(strings.actionFailed, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+          color = colors.error)
+      }
     }
   }
 }

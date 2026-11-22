@@ -362,6 +362,10 @@ private data class FluidSheetScreen(val size: Size, val cornerPx: Float) {
   }
 }
 
+/** Page colour currently drawn over the sheet's glass, including the live fade while dragging. */
+internal class FluidSheetPageVeil(val color: Color, val alpha: () -> Float)
+internal val LocalFluidSheetPageVeil = androidx.compose.runtime.staticCompositionLocalOf<FluidSheetPageVeil?> { null }
+
 /**
  * Lo stato del moto di un foglio: il detent in cui sta e quanto il dito (o la molla) lo ha spostato da lì.
  *
@@ -729,6 +733,20 @@ private fun FluidSheetPane(
       },
     content = {
       val sharedMaterial = motion.detentedLook
+      // Read the same value in the glass painter and in content that needs to adapt its ink.
+      fun paintedVeil(height: Float): Float {
+        val stops = motion.stops
+        return when {
+          !sharedMaterial || stops == null -> 0f
+          motion.zoomActive -> fluidSheetZoomVeil(motion.zoomTravel(slide()),
+            fluidSheetLargeness(motion.zoomFinal.height, stops, motion.largePx, FluidSheetOpaqueBand))
+          motion.veil < 0f -> fluidSheetLargeness(height, stops, motion.largePx, FluidSheetOpaqueBand)
+          else -> motion.veil
+        }
+      }
+      val pageVeil = remember(motion, sharedMaterial, pageInk, slide) {
+        FluidSheetPageVeil(pageInk) { paintedVeil(motion.zoomFinal.height) }
+      }
       Box(
         propagateMinConstraints = true,
         modifier = Modifier
@@ -806,17 +824,7 @@ private fun FluidSheetPane(
               .drawWithCache {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 onDrawBehind {
-                  val stops = motion.stops
-                  val veil = when {
-                    stops == null -> 0f
-                    // Nello zoom il vetro diventa pagina mentre cresce, se al suo detent è opaco (284 f25411–f25413).
-                    motion.zoomActive -> fluidSheetZoomVeil(
-                      motion.zoomTravel(slide()),
-                      fluidSheetLargeness(motion.zoomFinal.height, stops, motion.largePx, FluidSheetOpaqueBand),
-                    )
-                    motion.veil < 0f -> fluidSheetLargeness(size.height, stops, motion.largePx, FluidSheetOpaqueBand)
-                    else -> motion.veil
-                  }
+                  val veil = paintedVeil(size.height)
                   if (veil > 0f) drawOutline(outline, pageInk.copy(alpha = veil))
                 }
               },
@@ -870,7 +878,7 @@ private fun FluidSheetPane(
               }
             },
         ) {
-          CompositionLocalProvider(LocalFluidSheetSink provides sink) {
+          CompositionLocalProvider(LocalFluidSheetSink provides sink, LocalFluidSheetPageVeil provides pageVeil) {
             // La maniglia: c'e' sempre (lo spazio in cima e' lo stesso di prima); un foglio che non la vuole la nasconde
             // in disegno. Toccata, passa al detent successivo.
             FluidGrabber(

@@ -69,4 +69,7 @@ data class FluidDataStrings(
   val empty: String = "Il file è vuoto",
   val webFailed: String = "La pagina non si può mostrare qui",
   val loading: String = "Caricamento",
+  val protectedTitle: String = "Protetto da DRM",
+  val openWith: String = "Apri con…",
+  val share: String = "Condividi",
 )

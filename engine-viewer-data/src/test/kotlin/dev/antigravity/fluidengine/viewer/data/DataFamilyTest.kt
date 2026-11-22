@@ -108,13 +108,81 @@ class DataFamilyTest {
     }
   }
 
-  @Test fun `a protected epub is the unknown page with the reason`() = runBlocking {
+  @Test fun `a protected epub says Protetto da DRM with the system, the reason and the book`() = runBlocking {
     val document = FluidViewerRegistry.open(context, FluidViewerSource.of(file("protetto.epub")))
     try {
-      assertTrue(document.content is FluidViewerContent.Unknown)
-      assertEquals(FluidViewerFailure.Protected, document.failure!!.failure)
+      // Non lo sconosciuto generico: la pagina del libro protetto, con i dati del pannello.
+      assertTrue(document.content is FluidViewerContent.Custom)
+      assertNull(document.failure)
+      val facts = document.details.filter { it.section == null }.map { it.value }
+      assertTrue(facts.toString(), "Protetto da DRM" in facts)
+      assertTrue(facts.toString(), "cifratura del file" in facts)
+      val protection = document.details.filter { it.section == "Protezione" }.associate { it.label to it.value }
+      assertEquals("1", protection["Risorse cifrate"])
+      assertTrue(protection["Motivo"], protection["Motivo"]!!.contains("aes128-cbc"))
+      assertEquals("Quaderno di campo", document.details.first { it.section == "Libro" && it.label == "Titolo" }.value)
     } finally {
       document.close()
+    }
+    // Chi vuole solo leggere il libro (la miniatura) riceve ancora l'eccezione «protetto».
+    zip("protetto.epub").use { zip ->
+      val drm = DataEpub.protection(zip).drm!!
+      assertEquals("cifratura del file", drm.system)
+      val error = runCatching { DataEpub.read(zip) }.exceptionOrNull() as dev.antigravity.fluidengine.viewer.FluidViewerException
+      assertEquals(FluidViewerFailure.Protected, error.failure)
+    }
+    zip("libro3.epub").use { zip ->
+      val protection = DataEpub.protection(zip)
+      assertNull(protection.drm)
+      assertEquals(1, protection.obfuscatedFonts)
+    }
+  }
+
+  @Test fun `a page without colors takes the dark theme, one with its own colors keeps them`() {
+    val surface = androidx.compose.ui.graphics.Color(0xFF0D0D0F)
+    val ink = androidx.compose.ui.graphics.Color(0xFFF2F2F7)
+    val accent = androidx.compose.ui.graphics.Color(0xFF2ED8A0)
+    val plain = String(bytes("pagina.html"), Charsets.UTF_8)
+    val own = String(bytes("colori.html"), Charsets.UTF_8)
+    val mail = DataMime.parse(bytes("messaggio.eml")).html!!
+    assertEquals(DataWebColors.None, DataWeb.colors(plain))
+    assertEquals(DataWebColors.None, DataWeb.colors(mail))
+    assertEquals(DataWebColors.Own, DataWeb.colors(own))
+    assertEquals(DataWebColors.Own, DataWeb.colors("<table><tr><td bgcolor=\"#ffffff\">x</td></tr></table>"))
+    assertEquals(DataWebColors.Own, DataWeb.colors("<p style=\"color: #333\">x</p>"))
+    assertEquals(DataWebColors.Own, DataWeb.colors("<font color=\"red\">x</font>"))
+    assertEquals(DataWebColors.None, DataWeb.colors("<p style=\"border-color: red; background-color: transparent\">x</p>"))
+    assertEquals(DataWebColors.Scheme, DataWeb.colors("<meta name=\"color-scheme\" content=\"light dark\"><body style=\"color:#000\">"))
+    assertEquals(DataWebColors.Scheme, DataWeb.colors("<style>@media (prefers-color-scheme: dark) { body { background: #000 } }</style>"))
+    // Nel tema scuro: la pagina senza colori prende il fondo e l'inchiostro del tema, e chiede lo scurimento.
+    val (dark, darkening) = DataWeb.forTheme(plain, dark = true, surface = surface, ink = ink, accent = accent)
+    assertTrue(darkening)
+    assertTrue(dark, dark.contains("<meta name=\"color-scheme\" content=\"dark\">"))
+    assertTrue(dark, dark.contains("background: #0D0D0F") && dark.contains("color: #F2F2F7"))
+    // Quella con i suoi colori resta com'è, senza scurimento; nel tema chiaro tutte restano come sono.
+    assertEquals(own to false, DataWeb.forTheme(own, dark = true, surface = surface, ink = ink, accent = accent))
+    assertEquals(plain to false, DataWeb.forTheme(plain, dark = false, surface = surface, ink = ink, accent = accent))
+    val scheme = "<meta name=\"color-scheme\" content=\"light dark\">"
+    assertEquals(scheme to true, DataWeb.forTheme(scheme, dark = true, surface = surface, ink = ink, accent = accent))
+  }
+
+  @Test fun `the book is set like a book`() {
+    val css = DataWeb.readerCss(androidx.compose.ui.graphics.Color.White, androidx.compose.ui.graphics.Color.Black,
+      androidx.compose.ui.graphics.Color.Gray, androidx.compose.ui.graphics.Color.Blue, dark = false, marginPx = 20)
+    assertTrue(css, css.contains("max-width: ${DataProfile.BookColumn}px !important; margin: 0 auto !important"))
+    assertTrue(css, css.contains("font-size: ${DataProfile.BookFontSize}px !important; line-height: ${DataProfile.BookLineHeight} !important"))
+    assertTrue(css, css.contains("padding: 12px 20px 72px 20px"))
+    assertTrue(css, css.contains("h1 { font-size: 1.9em !important"))
+    assertTrue(css, css.contains("img { display: block; margin: 1.1em auto !important"))
+    assertTrue(DataProfile.BookFontSize in 18..20)
+    // Il capitolo porta il foglio e la viewport, e un collegamento al capitolo dopo porta al capitolo dopo.
+    zip("libro3.epub").use { zip ->
+      val book = DataEpub.read(zip)
+      val html = DataEpub.chapterHtml(zip, book, 1, css, "light")
+      assertTrue(html.contains("max-width: ${DataProfile.BookColumn}px"))
+      val link = Regex("""href="(/OEBPS/Text/cap3\.xhtml#fine)"""").find(html)!!.groupValues[1]
+      val target = DataWeb.target(Uri.parse("https://abc.invalid$link")) as DataWebTarget.Local
+      assertEquals(2, book.chapterOf(target.path))
     }
   }
 

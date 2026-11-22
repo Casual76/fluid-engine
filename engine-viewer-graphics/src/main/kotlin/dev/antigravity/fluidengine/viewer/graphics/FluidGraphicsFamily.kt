@@ -28,6 +28,7 @@ import dev.antigravity.fluidengine.viewer.FluidViewerSignature
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 
@@ -145,21 +146,23 @@ class FluidGraphicsFamily : FluidViewerFamily {
 
   private suspend fun openFont(request: FluidViewerRequest): FluidViewerOpened {
     val font = FontFile(request.source.open().use { it.readGraphic(MaxFontBytes) })
+    val faces = font.faces
+    val format = request.type.id.uppercase(Locale.ROOT)
     val file = File.createTempFile("viewer-font-", ".sfnt", request.context.cacheDir)
     try {
       file.writeBytes(font.bytes)
-      val initial = font.faces.mapIndexed { index, _ ->
+      val initial = faces.mapIndexed { index, _ ->
         Typeface.Builder(file).setTtcIndex(index).build() ?: corrupt("Il carattere non è leggibile da Android")
       }
       val details = buildList {
-        add(FluidViewerDetail("Formato", request.type.label))
-        addAll(font.faces.first().details())
-        if (font.faces.size > 1) font.faces.forEachIndexed { index, face ->
+        addAll(faces.first().facts(format))
+        addAll(faces.first().details())
+        if (faces.size > 1) faces.forEachIndexed { index, face ->
           add(FluidViewerDetail("Carattere ${index + 1}", "${face.family} · ${face.style}", "Collezione"))
         }
       }
       return FluidViewerOpened(FluidViewerContent.Custom {
-        FontSpecimen(file, font, initial, contentPadding)
+        FontSpecimen(file, faces, initial, format, contentPadding)
       }, details, onClose = { file.delete() })
     } catch (t: Throwable) {
       file.delete()

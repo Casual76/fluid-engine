@@ -135,24 +135,15 @@ private fun VisoriMedia.videoContent(): FluidViewerContent.Media {
   })
 }
 
-private fun VisoriMedia.audioContent(): FluidViewerContent.Media {
-  val audio = object : FluidMediaSession by session, FluidMediaDurationLoader {
-    override fun requestDuration() {
-      val player = session.player
-      if (!player.playWhenReady && player.playbackState == Player.STATE_IDLE &&
-        player.isCommandAvailable(Player.COMMAND_PREPARE)) player.prepare()
-    }
-  }
-  return FluidViewerContent.Media(audio)
-}
+private fun VisoriMedia.audioContent() = FluidViewerContent.Media(session)
 
 /** La forma d'onda è dell'app (il preset audio la ospita): barre fisse, colorate fin dove è arrivato il player. */
 @Composable
 internal fun Waveform(session: FluidMediaSession) {
   val played = MaterialTheme.colorScheme.primary
-  val rest = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+  val rest = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
   val duration = session.durationMillis?.takeIf { it > 0 }
-  Canvas(Modifier.fillMaxWidth(0.86f).height(36.dp).testTag("visori-onda")) {
+  Canvas(Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(40.dp).testTag("visori-onda")) {
     val bars = 48
     val step = size.width / bars
     val fraction = duration?.let { session.positionMillis.toFloat() / it } ?: 0f

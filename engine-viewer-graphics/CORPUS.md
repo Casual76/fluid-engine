@@ -2,6 +2,8 @@
 
 I file sotto `src/androidTest/assets/corpus` sono inclusi soltanto nell'APK di prova. Il generatore `tools/make-corpus.py` produce grafiche, font e contenitori per esercitare i lettori. I campioni generati sono originali del pacchetto e sono disponibili con [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
+`python tools/make-corpus.py --fonts-only` rigenera i soli caratteri, con le maiuscole, le minuscole, le cifre e i segni del provino.
+
 | File | Formato o percorso da provare |
 |---|---|
 | `studio.heic`, `studio.avif` | Codec di Android |

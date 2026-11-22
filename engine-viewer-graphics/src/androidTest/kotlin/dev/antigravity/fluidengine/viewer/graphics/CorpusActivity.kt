@@ -10,7 +10,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -27,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
@@ -78,13 +82,18 @@ class CorpusActivity : ComponentActivity() {
       var file by rememberSaveable { mutableStateOf<String?>(null) }
       var chooser by rememberSaveable { mutableStateOf(false) }
       var largeText by rememberSaveable { mutableStateOf(false) }
+      var compact by rememberSaveable { mutableStateOf(false) }
       FluidTheme(EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT)) {
         val selected = file
         if (selected != null && !chooser) {
           BackHandler { file = null }
           val displayDensity = LocalDensity.current.density
           CompositionLocalProvider(LocalDensity provides Density(displayDensity, if (largeText) 2f else 1f)) {
-            FilePage(selected, { file = null }) { chooser = true }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+              Box(Modifier.widthIn(max = if (compact) 400.dp else Dp.Infinity).fillMaxWidth()) {
+                FilePage(selected, { file = null }) { chooser = true }
+              }
+            }
           }
         } else {
           LazyColumn(Modifier.fillMaxSize().padding(
@@ -93,6 +102,7 @@ class CorpusActivity : ComponentActivity() {
           ), verticalArrangement = Arrangement.spacedBy(FluidScreenDefaults.HorizontalPadding)) {
             item { FluidButton(if (dark) "Passa al tema chiaro" else "Passa al tema scuro", { dark = !dark }) }
             item { FluidButton(if (largeText) "Scala testo 1,0" else "Scala testo 2,0", { largeText = !largeText }) }
+            item { FluidButton(if (compact) "Larghezza del tablet" else "Larghezza telefono · 400 dp", { compact = !compact }) }
             if (chooser) item { FluidButton("Torna ai file", { chooser = false; file = null }) }
             item {
               FluidListGroup {

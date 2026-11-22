@@ -12,6 +12,15 @@ internal class DataEpubChapter(val path: String, val title: String?, val bytes: 
 /** Una voce dell'indice: il titolo, il capitolo a cui porta (o -1), quanto è rientrata. */
 internal class DataEpubTocEntry(val title: String, val path: String?, val chapter: Int, val depth: Int)
 
+/**
+ * Il DRM di un EPUB: il [system] per le persone («Adobe ADEPT», «Apple FairPlay», «Readium LCP», «cifratura del
+ * file»), quante risorse sono cifrate ([encrypted], 0 se il sistema non lo dice) e il [reason] in una frase.
+ */
+internal class DataEpubDrm(val system: String, val encrypted: Int, val reason: String)
+
+/** Ciò che dice `META-INF` di un EPUB: il DRM, se c'è, e quanti caratteri sono solo offuscati (non è un DRM). */
+internal class DataEpubProtection(val drm: DataEpubDrm?, val obfuscatedFonts: Int)
+
 /** Un libro letto: i metadati dell'OPF, la spina, l'indice, la copertina e i conti per il pannello info. */
 internal class DataEpubBook(
   val version: String,
@@ -47,16 +56,27 @@ internal class DataEpubBook(
 /**
  * F6C.13 · Gli EPUB 2 e 3 (§1.3): lo ZIP, poi `META-INF/container.xml`, poi l'OPF (metadati, manifesto, spina), poi
  * l'indice (`nav.xhtml` di EPUB 3 o `toc.ncx` di EPUB 2). Un libro con DRM (`META-INF/encryption.xml` che cifra il
- * testo, `rights.xml` di Adobe, `sinf.xml` di Apple) è **protetto**: si apre lo sconosciuto con il motivo e «Apri con…».
+ * testo, `rights.xml` di Adobe, `sinf.xml` di Apple, `license.lcpl` di Readium) è **protetto**: la pagina lo dice, col
+ * sistema e il motivo, e offre «Apri con…» ([DataEpubProtection], `DataProtectedPage`).
  * L'offuscamento dei caratteri di IDPF e di Adobe non è un DRM: il libro si apre, e il pannello lo dice.
  */
 internal object DataEpub {
   private val FontObfuscation = setOf("http://www.idpf.org/2008/embedding", "http://ns.adobe.com/pdf/enc#RC")
 
+  /** Il libro, se si può leggere: con un DRM è un'eccezione «protetto» (per chi vuole solo leggerlo, come la miniatura). */
   fun read(zip: DataZip): DataEpubBook {
+    val protection = protection(zip)
+    protection.drm?.let { throw FluidViewerException(FluidViewerFailure.Protected, it.reason) }
+    return metadata(zip, protection.obfuscatedFonts)
+  }
+
+  /**
+   * I metadati e la spina, anche di un libro protetto: l'OPF e l'indice non si cifrano mai (lo vieta OCF), quindi titolo,
+   * autore e copertina si leggono lo stesso. I capitoli no.
+   */
+  fun metadata(zip: DataZip, obfuscated: Int = 0): DataEpubBook {
     val container = zip.read("META-INF/container.xml") ?: throw FluidViewerException(FluidViewerFailure.Corrupt, "L'EPUB non ha META-INF/container.xml")
     val opfPath = rootfile(container) ?: throw FluidViewerException(FluidViewerFailure.Corrupt, "L'EPUB non dice dov'è il pacchetto (OPF)")
-    val obfuscated = protection(zip)
     val opf = zip.read(opfPath) ?: throw FluidViewerException(FluidViewerFailure.Corrupt, "Manca il pacchetto dell'EPUB: $opfPath")
     return pack(zip, opfPath, opf, obfuscated)
   }
@@ -75,27 +95,49 @@ internal object DataEpub {
     return null
   }
 
-  /** Lancia «protetto» per un DRM; restituisce quanti caratteri sono solo offuscati. */
-  fun protection(zip: DataZip): Int {
-    if (zip.entry("META-INF/rights.xml") != null || zip.entry("META-INF/sinf.xml") != null) {
-      throw FluidViewerException(FluidViewerFailure.Protected, "L'EPUB è protetto da un DRM")
+  /**
+   * Il DRM di un EPUB, da `META-INF`: `rights.xml` è di Adobe ADEPT, `sinf.xml` di Apple FairPlay, `license.lcpl` di
+   * Readium LCP; un `encryption.xml` che cifra il testo è un DRM anche senza nome. L'offuscamento dei caratteri di IDPF
+   * e di Adobe non lo è: si conta e basta.
+   */
+  fun protection(zip: DataZip): DataEpubProtection {
+    val (obfuscated, encrypted, algorithms) = encryption(zip)
+    val drm = when {
+      zip.entry("META-INF/rights.xml") != null -> DataEpubDrm("Adobe ADEPT", encrypted,
+        "Il libro è cifrato con Adobe ADEPT: si legge solo con l'account e l'app che l'hanno comprato.")
+      zip.entry("META-INF/sinf.xml") != null -> DataEpubDrm("Apple FairPlay", encrypted,
+        "Il libro è cifrato con Apple FairPlay: si legge solo in Libri, con l'ID Apple che l'ha comprato.")
+      zip.entry("META-INF/license.lcpl") != null -> DataEpubDrm("Readium LCP", encrypted,
+        "Il libro è cifrato con Readium LCP: si legge in un'app che conosce la sua licenza e la sua frase segreta.")
+      encrypted > 0 -> DataEpubDrm("cifratura del file", encrypted,
+        "Il testo del libro è cifrato (${if (encrypted == 1) "1 risorsa" else "$encrypted risorse"}, ${algorithms.joinToString(", ") { it.substringAfterLast('#') }.ifEmpty { "algoritmo non dichiarato" }}): " +
+          "serve l'app con la sua chiave.")
+      else -> null
     }
-    val encryption = zip.read("META-INF/encryption.xml") ?: return 0
+    return DataEpubProtection(drm, obfuscated)
+  }
+
+  /** Da `encryption.xml`: i caratteri offuscati, le risorse cifrate e gli algoritmi di cifratura. */
+  private fun encryption(zip: DataZip): Triple<Int, Int, Set<String>> {
+    val encryption = zip.read("META-INF/encryption.xml") ?: return Triple(0, 0, emptySet())
     val parser = DataXml.parser(relaxed = true)
     parser.setInput(ByteArrayInputStream(encryption), null)
     var algorithm: String? = null
     var obfuscated = 0
     var encrypted = 0
+    val algorithms = LinkedHashSet<String>()
     while (parser.next() != XmlPullParser.END_DOCUMENT) {
       if (parser.eventType != XmlPullParser.START_TAG) continue
       when (parser.name.substringAfter(':')) {
         "EncryptedData" -> algorithm = null
         "EncryptionMethod" -> algorithm = parser.getAttributeValue(null, "Algorithm")
-        "CipherReference" -> if (algorithm in FontObfuscation) obfuscated++ else encrypted++
+        "CipherReference" -> if (algorithm in FontObfuscation) obfuscated++ else {
+          encrypted++
+          algorithm?.let { algorithms += it }
+        }
       }
     }
-    if (encrypted > 0) throw FluidViewerException(FluidViewerFailure.Protected, "L'EPUB è protetto da un DRM ($encrypted risorse cifrate)")
-    return obfuscated
+    return Triple(obfuscated, encrypted, algorithms)
   }
 
   private class Item(val id: String, val href: String, val mediaType: String, val properties: String)

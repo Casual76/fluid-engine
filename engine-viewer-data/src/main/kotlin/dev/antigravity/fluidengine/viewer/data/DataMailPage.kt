@@ -197,17 +197,19 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
         FluidListDivider()
       }
       item(key = "body") {
-        val html = model.html
+        val body = model.html
         val text = mail.text
+        // Nel tema scuro un corpo senza colori suoi prende quelli del tema; una newsletter con i suoi colori resta com'è.
+        val themed = remember(body, dark, scheme) { body?.let { DataWeb.forTheme(it, dark, scheme.surface, scheme.onSurface, scheme.primary) } }
         when {
-          html != null -> FluidWebContent(
-            html = html,
+          themed != null -> FluidWebContent(
+            html = themed.first,
             onLinkClick = { open(it.url) },
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             state = state,
             onRequest = model.policy::handle,
             sizing = FluidWebSizing.WrapContent(),
-            darkening = dark,
+            darkening = themed.second,
             placeholder = { FluidSkeletonText(Modifier.padding(FluidScreenDefaults.HorizontalPadding), lines = 8) },
             failure = { failure ->
               if (text != null) MailText(text) else DataNotice(strings.webFailed, failure.toString(), Modifier.padding(FluidScreenDefaults.HorizontalPadding))

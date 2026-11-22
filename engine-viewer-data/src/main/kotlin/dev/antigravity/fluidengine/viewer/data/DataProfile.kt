@@ -64,6 +64,27 @@ internal object DataProfile {
    * (`ViewerMixProfile.FileTint`, 20%), a occhio il 22 novembre 2026. Sparisce con «Riduci trasparenza» e il contrasto alto.
    */
   const val CardTint: Float = 0.20f
+
+  /**
+   * La colonna di lettura di un libro sul tablet (dp): quella centrale di F6C.9, che l'orchestratore ha indicato nel
+   * secondo giro di F6C.13 (22 novembre 2026). Sul telefono la colonna è lo schermo meno i margini della pagina.
+   */
+  const val BookColumn: Int = 552
+
+  /** Il corpo del testo di un libro (sp, attraverso lo zoom del testo di WebView): fra 18 e 20, a occhio, 22 novembre 2026. */
+  const val BookFontSize: Int = 19
+
+  /** L'interlinea di un libro: comoda, come Libri. A occhio, 22 novembre 2026. */
+  const val BookLineHeight: Float = 1.6f
+
+  /** L'ambra dell'avviso: la stessa dell'avviso dell'eseguibile di F6C.9 (`ViewerMixProfile.Amber`, il giallo-arancio di sistema di Apple). */
+  val Amber = Color(0xFFFF9500)
+
+  /** La colonna della pagina di un libro protetto: quella dello sconosciuto di F6C.9 (`ViewerMixProfile.PanelWidth`). */
+  val NoticeColumn = 444.dp
+
+  /** L'icona grande di un libro senza copertina: come l'icona dello sconosciuto di F6C.9. */
+  val NoticeIcon = 136.dp
 }
 
 /**

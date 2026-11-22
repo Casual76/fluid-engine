@@ -36,6 +36,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSkeletonText
 import dev.antigravity.fluidengine.ui.fluid.FluidWebContent
 import dev.antigravity.fluidengine.ui.fluid.FluidWebResponse
 import dev.antigravity.fluidengine.ui.fluid.FluidWebSizing
+import dev.antigravity.fluidengine.ui.fluid.fluidReadingWidth
 import dev.antigravity.fluidengine.ui.fluid.icons.ChevronLeft
 import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -114,9 +115,11 @@ internal fun DataEpubPage(scope: FluidViewerCustomScope, model: DataEpubModel, s
       val height = (maxHeight - top - bottom - 28.dp).coerceIn(160.dp, maxDp)
       Column(Modifier.fillMaxSize().padding(top = top)) {
         val title = book.chapters[index].title
+        // L'etichetta sta sulla colonna del libro: centrata sul tablet, coi margini sul telefono.
         Text(
           listOfNotNull(strings.chapter(index + 1, count, book.percentAt(index)), title).joinToString(" · "),
-          Modifier.fillMaxWidth().padding(horizontal = FluidScreenDefaults.HorizontalPadding).padding(bottom = 6.dp),
+          Modifier.fillMaxWidth().fluidReadingWidth(DataProfile.BookColumn.dp + FluidScreenDefaults.HorizontalPadding * 2)
+            .padding(horizontal = FluidScreenDefaults.HorizontalPadding).padding(bottom = 6.dp),
           style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         val document = html

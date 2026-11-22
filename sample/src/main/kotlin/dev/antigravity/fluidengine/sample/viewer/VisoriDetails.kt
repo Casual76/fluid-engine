@@ -61,11 +61,18 @@ private suspend fun readDetails(context: Context, sample: VisoreFile, file: Flui
   document: FluidViewerDocument?, base: FluidViewerInfo): FluidViewerInfo {
   val disk = File(requireNotNull(file.uri.path))
   val thumb = sample.cover?.let { BitmapFactory.decodeResource(context.resources, it,
-    BitmapFactory.Options().apply { inScaled = false; inSampleSize = 2 })?.asImageBitmap() }
+    BitmapFactory.Options().apply { inScaled = false; inSampleSize = if (sample.tipo == VisoreTipo.Audio) 1 else 2 })?.asImageBitmap() }
   val info = base.copy(thumbnail = thumb)
   if (!disk.isFile) return info
   return when (sample.tipo) {
-    VisoreTipo.Audio -> audioDetails(disk, info)
+    VisoreTipo.Audio -> {
+      val track = audioDetails(disk, info)
+      // This generated recording has an app-authored cover, collection and cue sheet.
+      if (sample.id == "campanelle") track.copy(subtitle = track.subtitle ?: "Fluid Glass · Suoni della galleria",
+        chapters = listOf(FluidAudioChapter("Inizio", 0L), FluidAudioChapter("Seconda frase", 4_000L),
+          FluidAudioChapter("Finale", 8_000L)))
+      else track
+    }
     VisoreTipo.Eseguibile -> if (file.name.endsWith(".apk", true)) apkDetails(context, disk, info) else info
     VisoreTipo.Foto -> {
       val exif = ExifInterface(disk.path)
@@ -173,7 +180,7 @@ private fun apkDetails(context: Context, disk: File, info: FluidViewerInfo): Flu
     Triple(names.size, names.count { it.endsWith(".dex") },
       names.filter { it.startsWith("lib/") && it.endsWith(".so") }.map { it.split('/')[1] }.distinct())
   }
-  return info.copy(thumbnail = app.takeIf { it.icon != 0 }?.loadIcon(pm)?.toBitmap(192, 192, Bitmap.Config.ARGB_8888)?.asImageBitmap(),
+  return info.copy(thumbnail = app.takeIf { it.icon != 0 }?.loadIcon(pm)?.toBitmap(512, 512, Bitmap.Config.ARGB_8888)?.asImageBitmap(),
     facts = listOfNotNull("APK", archive.versionName, if (cert != null) "Firmato" else null, if (installed) "Installata" else "Non installata"),
     sections = listOf(
       section("App", "ID" to archive.packageName, "Versione" to archive.versionName,

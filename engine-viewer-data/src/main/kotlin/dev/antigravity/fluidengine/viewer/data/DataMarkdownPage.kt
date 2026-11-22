@@ -187,7 +187,8 @@ internal class DataHtmlModel(
 /**
  * F6C.13 · Una pagina HTML nella WebView chiusa di engine-ui, fra le due barre: JavaScript spento, nessuna rete; le
  * risorse relative le serve l'app (la cartella del file), quelle remote restano bloccate, con «Carica immagini» solo se
- * l'app dà il suo client. In tema scuro la pagina si scurisce (lo scurimento algoritmico di WebView). «Reso | Sorgente».
+ * l'app dà il suo client. Nel tema scuro una pagina senza colori suoi prende il fondo e l'inchiostro del tema, una che
+ * dichiara il suo schema lo usa, una con i suoi colori resta com'è ([DataWeb.colors]). «Reso | Sorgente».
  */
 @Composable
 internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, settings: FluidDataSettings) {
@@ -217,6 +218,11 @@ internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, s
       DataSourceView(document, contentPadding, find)
       return@DataInner
     }
+    // Nel tema scuro una pagina senza colori suoi prende quelli del tema; una con i suoi colori resta com'è (DataWeb.colors).
+    val scheme = MaterialTheme.colorScheme
+    val (html, darkening) = remember(model.html, dark, scheme) {
+      DataWeb.forTheme(model.html, dark, scheme.surface, scheme.onSurface, scheme.primary)
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
       val top = contentPadding.calculateTopPadding()
       val bottom = contentPadding.calculateBottomPadding()
@@ -230,13 +236,13 @@ internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, s
           )
         }
         FluidWebContent(
-          html = model.html,
+          html = html,
           onLinkClick = { link: FluidWebLink -> open(link.url) },
           modifier = Modifier.fillMaxWidth().height(height),
           state = state,
           onRequest = model.policy::handle,
           sizing = FluidWebSizing.Viewport(height),
-          darkening = dark,
+          darkening = darkening,
           placeholder = { FluidSkeletonText(lines = 8, modifier = Modifier.padding(FluidScreenDefaults.HorizontalPadding)) },
           failure = {
             DataNotice(strings.webFailed, it.toString(), Modifier.padding(FluidScreenDefaults.HorizontalPadding),

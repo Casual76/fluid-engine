@@ -113,7 +113,7 @@ object DataProva {
   val Files = listOf(
     "nota.md", "pagina.html", "spese.csv", "misure.tsv", "config.json", "impostazioni.jsonc", "eventi.ndjson", "rotto.json",
     "catalogo.xml", "rotto.xml", "Info.plist", "binario.plist", "libro3.epub", "libro2.epub", "protetto.epub",
-    "messaggio.eml", "charset.eml", "riunioni.ics", "contatti.vcf", "grande.csv", "grande.json",
+    "messaggio.eml", "charset.eml", "riunioni.ics", "contatti.vcf", "grande.csv", "grande.json", "colori.html",
   )
 
   val Cities = listOf("Roma", "Milano", "Napoli", "Torino", "Palermo", "Genova", "Bologna", "Firenze", "Bari", "Catania")

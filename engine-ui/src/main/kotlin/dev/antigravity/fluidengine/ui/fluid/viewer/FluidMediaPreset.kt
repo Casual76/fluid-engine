@@ -27,7 +27,12 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
-import dev.antigravity.fluidengine.ui.fluid.icons.GridView
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
+import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidMorphMenuState
+import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
+import androidx.compose.ui.text.font.FontWeight
 import dev.antigravity.fluidengine.ui.fluid.icons.Pause
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
@@ -140,10 +145,14 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
   val shape = ContinuousCornerShape(FluidRadius.Card)
   val step = strings.skipSeconds.coerceAtLeast(1) * 1000L
   val chapters = info?.chapters.orEmpty()
+  val parentMenu = LocalFluidMorphMenuState.current
+  val menu = parentMenu ?: rememberFluidMorphMenuState()
+  val more = LocalFluidLabels.current.more
+  var actionFailed by remember(content.session) { mutableStateOf(false) }
   var showingChapters by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
   if (chapters.isNotEmpty()) {
     ViewerPresetToolbar {
-      button("viewer.audio.chapters", FluidIcons.GridView, strings.chapters,
+      text("viewer.audio.chapters", strings.chapters,
         { showingChapters = true }, placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar)
     }
     FluidGlassSheet(showingChapters, { showingChapters = false }, paneTitle = strings.chapters,
@@ -159,16 +168,20 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
       }
     }
   }
-  BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent))
-    val coverSize = minOf(ViewerMixProfile.CoverSize, maxWidth * .72f, maxHeight * .35f)
-    Column(Modifier.widthIn(max = ViewerMixProfile.PanelWidth).fillMaxWidth().verticalScroll(rememberScrollState())
-      .padding(horizontal = FluidScreenDefaults.HorizontalPadding)
-      .padding(top = FluidScreenDefaults.topBarHeight(), bottom = WindowInsets.navigationBars.asPaddingValues()
-        .calculateBottomPadding() + bottom + FluidScreenDefaults.ItemSpacing),
-      verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-      Box(Modifier.fillMaxWidth().height(coverSize + 28.dp).viewerWash(accent, halo = true), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(coverSize).clip(shape), contentAlignment = Alignment.Center) {
+  Box(Modifier.fillMaxSize()) {
+    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent, colors.secondary, colors.primary))
+    ViewerMixColumn(Modifier.fillMaxSize().padding(top = FluidScreenDefaults.topBarHeight(),
+      bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + bottom)) { width ->
+      val breath = ViewerMixProfile.verticalBreath(width)
+      val coverSize = minOf(width * ViewerMixProfile.CoverFraction, ViewerMixProfile.CoverLimit)
+      // A scroll container clips its own drawing. Include the whole upper feather in its measured content.
+      val headroom = maxOf(12.dp + breath, ViewerMixProfile.haloSpread(coverSize) - ViewerMixProfile.HaloDrop)
+      Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+        .padding(start = 16.dp, end = 16.dp, top = headroom, bottom = 12.dp + breath),
+        verticalArrangement = Arrangement.spacedBy(12.dp + breath / 2),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(coverSize).viewerHalo(accent, FluidRadius.Card)
+          .clip(shape), contentAlignment = Alignment.Center) {
           val artwork = content.artwork
           val thumb = info?.thumbnail
           when {
@@ -189,27 +202,42 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
             }
           }
         }
-      }
-      info?.let {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-          Text(it.title, style = MaterialTheme.typography.titleLarge)
-          it.subtitle?.let { subtitle -> Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
+        info?.let { metadata ->
+          Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+              Text(metadata.title, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
+              val subtitle = metadata.subtitle ?: metadata.facts.take(2).joinToString(" · ")
+              if (subtitle.isNotBlank()) Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+            }
+            if (metadata.actions.isNotEmpty()) {
+              FluidMorphMenuButton(state = menu, actions = {
+                metadata.actions.map { action -> FluidContextAction(label = action.label) {
+                  actionFailed = false
+                  fluidRunFileAction(action.onClick) { actionFailed = true }
+                } }
+              }, onClick = {}, opensOnTap = true, icon = FluidIcons.MoreHoriz, backdrop = backdrop,
+                modifier = Modifier.semantics { contentDescription = more })
+            }
+          }
+          if (actionFailed) Text(FluidViewerStrings().actionFailed, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium, color = colors.error)
         }
-      }
-      // Keep the cover in place when a tap hides the controls.
-      Column(Modifier.fillMaxWidth().layout { measurable, constraints ->
-        val controls = measurable.measure(constraints)
-        layout(controls.width, controls.height) { if (chromeVisible) controls.placeRelative(0, 0) }
-      }.viewerGlass(backdrop, shape).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        info?.audioWaveform?.invoke()
-        PlaybackTimeline(session, duration, chromeVisible && canSeek, backdrop, video = false, strings = strings)
-        Row(horizontalArrangement = Arrangement.spacedBy(FluidScreenDefaults.HorizontalPadding), verticalAlignment = Alignment.CenterVertically) {
-          if (canSeek) SkipButton(strings.skipBack, -strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(-step) }
-          PlaybackButton(session, chromeVisible && session.error == null, backdrop, strings)
-          if (canSeek) SkipButton(strings.skipForward, strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(step) }
+        // Keep the cover in place when a tap hides the controls.
+        Column(Modifier.fillMaxWidth().layout { measurable, constraints ->
+          val controls = measurable.measure(constraints)
+          layout(controls.width, controls.height) { if (chromeVisible) controls.placeRelative(0, 0) }
+        }.viewerGlass(backdrop, ContinuousCornerShape(FluidRadius.Sheet)).padding(horizontal = 12.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+          info?.audioWaveform?.invoke()
+          PlaybackTimeline(session, duration, chromeVisible && canSeek, backdrop, video = false, strings = strings)
+          Row(horizontalArrangement = Arrangement.spacedBy(FluidScreenDefaults.HorizontalPadding), verticalAlignment = Alignment.CenterVertically) {
+            if (canSeek) SkipButton(strings.skipBack, -strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(-step) }
+            PlaybackButton(session, chromeVisible && session.error == null, backdrop, strings)
+            if (canSeek) SkipButton(strings.skipForward, strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(step) }
+          }
         }
       }
     }
+    if (parentMenu == null && !info?.actions.isNullOrEmpty()) FluidMorphMenuHost(menu, backdrop)
   }
 }
 
@@ -242,9 +270,16 @@ private fun PlaybackButton(
 
 @Composable
 private fun SkipButton(label: String, seconds: Int, backdrop: GlassBackdropState, enabled: Boolean, click: () -> Unit) {
-  FluidGlassIconButton(click, backdrop = backdrop, enabled = enabled) {
-    Text(if (seconds > 0) "+$seconds" else "−${-seconds}", Modifier.clearAndSetSemantics { contentDescription = label },
-      style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
+  val amount = if (seconds > 0) "+$seconds" else "−${-seconds}"
+  val style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+  val measure = androidx.compose.ui.text.rememberTextMeasurer()
+  val text = measure.measure(amount, style, softWrap = false).size
+  val lens = with(androidx.compose.ui.platform.LocalDensity.current) {
+    maxOf(LocalFluidGlassSize.current.lens, maxOf(text.width, text.height).toDp() + 10.dp)
+  }
+  FluidGlassIconButton(click, size = lens, backdrop = backdrop, enabled = enabled) {
+    Text(amount, Modifier.clearAndSetSemantics { contentDescription = label }, style = style,
+      maxLines = 1, softWrap = false)
   }
 }
 
@@ -267,8 +302,9 @@ private fun PlaybackTimeline(
         onSeek = { target -> if (session.canSeek && session.error == null) {
           session.durationMillis?.takeIf { it > 0L }?.let { session.seekTo(target.roundToLong().inMediaBounds(it)) }
         } },
-        modifier = modifier.widthIn(max = 560.dp).fillMaxWidth().padding(FluidScreenDefaults.HorizontalPadding)
-          .then(surface).padding(horizontal = FluidScreenDefaults.HorizontalPadding),
+        modifier = if (video) modifier.widthIn(max = 560.dp).fillMaxWidth().padding(FluidScreenDefaults.HorizontalPadding)
+          .then(surface).padding(horizontal = FluidScreenDefaults.HorizontalPadding)
+        else modifier.fillMaxWidth().padding(horizontal = 8.dp),
         valueRange = 0f..(duration?.toFloat() ?: 0f),
         enabled = enabled,
         startLabel = FluidScrubbing.Elapsed,

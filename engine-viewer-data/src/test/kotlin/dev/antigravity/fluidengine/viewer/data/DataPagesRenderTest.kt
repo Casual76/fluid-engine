@@ -75,7 +75,7 @@ class DataPagesRenderTest {
 
   private val files = listOf(
     "nota.md", "pagina.html", "spese.csv", "config.json", "rotto.json", "eventi.ndjson", "catalogo.xml", "binario.plist",
-    "libro3.epub", "messaggio.eml", "riunioni.ics", "contatti.vcf",
+    "libro3.epub", "protetto.epub", "colori.html", "messaggio.eml", "riunioni.ics", "contatti.vcf",
   )
 
   @Test fun everyPageLight() {

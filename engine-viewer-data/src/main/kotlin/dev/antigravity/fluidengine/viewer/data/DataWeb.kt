@@ -10,6 +10,9 @@ import java.io.InputStream
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
+/** Come una pagina web dichiara i suoi colori ([DataWeb.colors]). */
+internal enum class DataWebColors { None, Scheme, Own }
+
 /** Dove sta una risorsa chiesta da una pagina della famiglia. */
 internal sealed interface DataWebTarget {
   /** Dentro il file o la sua cartella: [path] pulito, senza «..» che esce e senza «/» in testa. */
@@ -216,21 +219,75 @@ internal object DataWeb {
   private fun css(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)
 
   /**
-   * Il foglio del lettore di un libro: il fondo e l'inchiostro del tema, i link nell'accento, le immagini dentro la
-   * colonna, la colonna con i margini della pagina. Il testo del libro resta nei suoi caratteri e nelle sue misure; i
-   * colori no, come in Libri.
+   * Il foglio del lettore di un libro, come Libri: il fondo e l'inchiostro del tema, i link nell'accento; il corpo a
+   * [DataProfile.BookFontSize] px con l'interlinea [DataProfile.BookLineHeight] (con la viewport alla larghezza dello
+   * schermo un px CSS è un dp, e lo zoom del testo di WebView ci aggiunge la scala del testo di sistema); una **colonna
+   * di lettura** larga al più [DataProfile.BookColumn], centrata sul tablet, con i margini della pagina sul telefono; i
+   * titoli dei capitoli grandi; le immagini dentro la colonna. I caratteri del libro restano i suoi (il suo foglio viene
+   * dopo e vince); i colori no, come in Libri.
    */
   fun readerCss(surface: Color, ink: Color, muted: Color, accent: Color, dark: Boolean, marginPx: Int): String = """
     :root { color-scheme: ${if (dark) "dark" else "light"}; }
-    html, body { background: ${css(surface)} !important; }
-    body { color: ${css(ink)} !important; margin: 0 ${marginPx}px !important; padding: 8px 0 48px 0 !important;
-      line-height: 1.55; overflow-wrap: break-word; -webkit-text-size-adjust: 100%; }
+    html { background: ${css(surface)} !important; font-size: ${DataProfile.BookFontSize}px !important; }
+    body { background: ${css(surface)} !important; color: ${css(ink)} !important;
+      max-width: ${DataProfile.BookColumn}px !important; margin: 0 auto !important; box-sizing: content-box !important;
+      padding: 12px ${marginPx}px 72px ${marginPx}px !important;
+      font-size: ${DataProfile.BookFontSize}px !important; line-height: ${DataProfile.BookLineHeight} !important;
+      font-family: "Noto Serif", Georgia, serif; overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto;
+      -webkit-text-size-adjust: 100%; }
+    p, li, dd, blockquote { line-height: ${DataProfile.BookLineHeight} !important; }
+    p { margin-top: 0; margin-bottom: 0.9em; }
+    h1 { font-size: 1.9em !important; line-height: 1.2 !important; margin: 0.5em 0 0.9em 0 !important; font-weight: 700 !important; }
+    h2 { font-size: 1.45em !important; line-height: 1.25 !important; margin: 1.3em 0 0.6em 0 !important; font-weight: 700 !important; }
+    h3 { font-size: 1.2em !important; line-height: 1.3 !important; margin: 1.2em 0 0.5em 0 !important; }
     body *:not(a) { color: inherit !important; background-color: transparent !important; border-color: ${css(muted)} !important; }
     a, a * { color: ${css(accent)} !important; }
-    img, svg, video, image { max-width: 100% !important; height: auto !important; }
-    pre, code { white-space: pre-wrap; }
-    table { max-width: 100%; }
+    img, svg, video, image, object, embed { max-width: 100% !important; height: auto !important; }
+    img { display: block; margin: 1.1em auto !important; border-radius: 6px; }
+    pre, code { white-space: pre-wrap; font-size: 0.85em; }
+    table { max-width: 100% !important; border-collapse: collapse; }
+    td, th { padding: 4px 8px; }
   """.trimIndent()
+
+  /**
+   * Come una pagina web dichiara i suoi colori, per il tema scuro:
+   * - [DataWebColors.Scheme]: dichiara il suo schema (`color-scheme`, `prefers-color-scheme`): sa da sé come stare al
+   *   buio, e il contenitore glielo chiede (`darkening`);
+   * - [DataWebColors.Own]: ha colori suoi (un fondo, un colore del testo, `bgcolor`, `<font color>`): si rispettano, e
+   *   la pagina resta com'è anche nel tema scuro (scurirla cambierebbe i colori dell'autore, e un testo scuro su un fondo
+   *   scurito non si leggerebbe);
+   * - [DataWebColors.None]: nessun colore, il testo nero di serie su bianco di serie: nel tema scuro prende il fondo e
+   *   l'inchiostro del tema ([themeCss]), come una pagina dell'app.
+   */
+  fun colors(html: String): DataWebColors {
+    if (SchemeMeta.containsMatchIn(html) || SchemeCss.containsMatchIn(html)) return DataWebColors.Scheme
+    if (OwnColor.containsMatchIn(html) || OwnBackground.containsMatchIn(html) || OwnAttribute.containsMatchIn(html)) return DataWebColors.Own
+    return DataWebColors.None
+  }
+
+  private val SchemeMeta = Regex("""<meta[^>]+name\s*=\s*["']?color-scheme""", RegexOption.IGNORE_CASE)
+  private val SchemeCss = Regex("""prefers-color-scheme|color-scheme\s*:""", RegexOption.IGNORE_CASE)
+  // `color:` che non sia la coda di `background-color:` o `border-color:`, con un valore che non sia «inherit».
+  private val OwnColor = Regex("""(?<![\w-])color\s*:\s*(?!inherit|initial|unset|currentcolor)[#\w(]""", RegexOption.IGNORE_CASE)
+  private val OwnBackground = Regex("""background(-color)?\s*:\s*(?!none|transparent|inherit|initial|unset|url)[#\w(]""", RegexOption.IGNORE_CASE)
+  private val OwnAttribute = Regex("""<[a-z]+[^>]*\s(bgcolor|text|color)\s*=""", RegexOption.IGNORE_CASE)
+
+  /** Il fondo e l'inchiostro del tema per una pagina senza colori suoi ([DataWebColors.None]), nel tema scuro. */
+  fun themeCss(surface: Color, ink: Color, accent: Color): String =
+    ":root { color-scheme: dark; } html, body { background: ${css(surface)}; color: ${css(ink)}; } a { color: ${css(accent)}; }"
+
+  /**
+   * L'HTML da dare al contenitore e se chiedergli lo scurimento, per il tema corrente ([dark]). Nel tema chiaro la
+   * pagina è sempre com'è.
+   */
+  fun forTheme(html: String, dark: Boolean, surface: Color, ink: Color, accent: Color): Pair<String, Boolean> {
+    if (!dark) return html to false
+    return when (colors(html)) {
+      DataWebColors.None -> inject(html, themeCss(surface, ink, accent), colorScheme = "dark") to true
+      DataWebColors.Scheme -> html to true
+      DataWebColors.Own -> html to false
+    }
+  }
 
   /** Il foglio minimo di una mail: le immagini e le tabelle dentro lo schermo, nient'altro (i colori sono del mittente). */
   const val MailCss = "body { margin: 0; overflow-wrap: break-word; } img { max-width: 100%; height: auto; } pre { white-space: pre-wrap; }"

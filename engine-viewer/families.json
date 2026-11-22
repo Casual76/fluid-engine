@@ -43,7 +43,7 @@
       "family": "graphics",
       "package": "dev.antigravity.fluidengine.viewer.graphics",
       "label": "Immagini speciali e font: HEIC, AVIF, RAW, TIFF, PSD, SVG; TTF, OTF, TTC, WOFF",
-      "weight": "249.303 B di DEX attribuiti nell'APK debug di prova, uguali per arm64-v8a, armeabi-v7a, x86 e x86_64",
+      "weight": "277.517 B di DEX attribuiti nell'APK debug di prova, uguali per arm64-v8a, armeabi-v7a, x86 e x86_64",
       "assets": [],
       "libraries": [
         { "coordinates": "com.caverock:androidsvg-aar", "license": "Apache-2.0", "weight": "134.347 B di DEX nell'APK debug di prova" },

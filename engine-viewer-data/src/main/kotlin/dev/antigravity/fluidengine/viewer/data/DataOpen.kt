@@ -123,6 +123,7 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
       row("Documento", "Immagini", Regex("<img\\b", RegexOption.IGNORE_CASE).findAll(html).count().toString())
       row("Documento", "Collegamenti", Regex("<a\\b[^>]*href", RegexOption.IGNORE_CASE).findAll(html).count().toString())
       row("Documento", "Script", Regex("<script\\b", RegexOption.IGNORE_CASE).findAll(html).count().let { if (it == 0) "nessuno" else "$it, spenti" })
+      row("Documento", "Colori", colorsLabel(DataWeb.colors(html)))
       row("Risorse", "Relative", if (resources == null) "bloccate: l'app non ha dato la cartella" else "dalla cartella del file")
       row("Risorse", "Remote", if (remote == 0) "nessuna" else "$remote, bloccate" + if (settings.remoteImages != null) " («Carica immagini»)" else "")
       row("Risorse", "Rete", "nessuna richiesta parte dalla pagina")
@@ -308,7 +309,10 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
   suspend fun epub(): FluidViewerOpened {
     val zip = zip()
     val book = try {
-      DataEpub.read(zip)
+      val protection = DataEpub.protection(zip)
+      val drm = protection.drm
+      if (drm != null) return protectedEpub(zip, drm)
+      DataEpub.metadata(zip, protection.obfuscatedFonts)
     } catch (e: Exception) {
       zip.close()
       throw e
@@ -344,6 +348,55 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
     return FluidViewerOpened(FluidViewerContent.Custom(draw = { DataEpubPage(this, model, settings) }), details.list, onClose = { zip.close() })
   }
 
+  /**
+   * Un EPUB con DRM: non lo sconosciuto generico, ma la pagina «Protetto da DRM» con il libro (titolo, autore,
+   * copertina se non è cifrata), il sistema e il motivo, e «Apri con…» e «Condividi» dell'app. Come un archivio
+   * cifrato, il file c'è e si riconosce; solo il testo non si legge qui.
+   */
+  private fun protectedEpub(zip: DataZip, drm: DataEpubDrm): FluidViewerOpened {
+    val book = try {
+      DataEpub.metadata(zip)
+    } catch (_: Exception) {
+      null
+    }
+    val cover = book?.coverPath?.let { path ->
+      try {
+        zip.read(path)?.let { FluidDataFamily.decodePicture(it, DataProfile.MaxPictureSide) }
+      } catch (_: Exception) {
+        null
+      }
+    }
+    zip.close()
+    val model = DataProtectedModel(
+      title = book?.title ?: name.substringBeforeLast('.'),
+      subtitle = listOfNotNull(book?.creators?.joinToString(", ")?.takeIf { it.isNotEmpty() }, "Libro EPUB",
+        source.sizeBytes?.let { DataText.size(it) }).joinToString(" · "),
+      reason = drm.reason,
+      cover = cover,
+      openWith = request.openWith,
+      share = request.share,
+    )
+    val details = DataDetails().apply {
+      fact("Formato", "EPUB")
+      fact("Protezione", strings.protectedTitle)
+      fact("Sistema", drm.system)
+      row("Protezione", "DRM", drm.system)
+      row("Protezione", "Risorse cifrate", drm.encrypted.takeIf { it > 0 }?.toString())
+      row("Protezione", "Motivo", drm.reason)
+      row("Protezione", "Cosa fare", "Apri il libro con l'app che l'ha comprato («Apri con…»)")
+      book?.let { b ->
+        row("Libro", "Titolo", b.title)
+        row("Libro", if (b.creators.size > 1) "Autori" else "Autore", b.creators.joinToString(", "))
+        row("Libro", "Editore", b.publisher)
+        row("Libro", "Lingua", b.language)
+        row("Libro", "Identificativo", b.identifier)
+        row("Libro", "Capitoli", b.chapters.size.toString())
+      }
+      reading(null, source.sizeBytes, false)
+    }
+    return FluidViewerOpened(FluidViewerContent.Custom(draw = { DataProtectedPage(this, model, settings) }), details.list)
+  }
+
   // --- EML --------------------------------------------------------------------------------------------------------
 
   suspend fun mail(): FluidViewerOpened {
@@ -370,6 +423,7 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
       }
       row("Struttura", "Parti MIME", mail.parts.toString())
       row("Struttura", "Immagini in linea", mail.inline.size.toString())
+      mail.html?.let { row("Struttura", "Colori del corpo", colorsLabel(DataWeb.colors(it))) }
       row("Struttura", "Charset", mail.charsets.joinToString(", ").ifEmpty { null })
       row("Struttura", "Codifiche", mail.encodings.joinToString(", ").ifEmpty { null })
       row("Struttura", "Rete", "nessuna: le immagini remote restano bloccate")
@@ -441,4 +495,11 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
 internal fun SnapshotStateList<FluidViewerDetail>.replaceWith(items: List<FluidViewerDetail>) {
   clear()
   addAll(items)
+}
+
+/** Come si vede una pagina web nel tema scuro, per il pannello info. */
+internal fun colorsLabel(colors: DataWebColors): String = when (colors) {
+  DataWebColors.None -> "nessun colore suo: nel tema scuro prende quelli del tema"
+  DataWebColors.Scheme -> "dichiara il suo schema chiaro e scuro"
+  DataWebColors.Own -> "colori suoi, rispettati anche nel tema scuro"
 }

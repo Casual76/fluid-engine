@@ -14,24 +14,37 @@ internal class FontFace(
   val glyphCount: Int?,
   val unitsPerEm: Int?,
   val weight: Int?,
-  val alphabets: List<String>,
   val axes: List<FontAxis>,
+  val tables: List<String>,
+  val preview: FontPreview,
 ) {
   val family get() = names[16] ?: names[1] ?: names[4] ?: "Carattere"
   val style get() = names[17] ?: names[2] ?: "Normale"
+  val alphabets get() = preview.scripts
+
+  fun facts(format: String): List<FluidViewerDetail> = buildList {
+    add(FluidViewerDetail("Formato", format))
+    add(FluidViewerDetail("Glifi", glyphCount?.toString() ?: "Non indicati"))
+    add(FluidViewerDetail("Variabile", if (axes.isNotEmpty()) "Sì" else "No"))
+    if (axes.isNotEmpty()) add(FluidViewerDetail("Assi", axes.joinToString(", ") { it.tag }))
+  }
 
   fun details(): List<FluidViewerDetail> = buildList {
     add(FluidViewerDetail("Famiglia", family))
     add(FluidViewerDetail("Stile", style))
-    if (axes.isNotEmpty()) add(FluidViewerDetail("Assi", axes.joinToString(", ") { it.tag }))
-    for ((id, label) in listOf(4 to "Nome completo", 6 to "Nome PostScript", 5 to "Versione", 8 to "Produttore", 9 to "Autore"))
+    add(FluidViewerDetail("Autore", names[9] ?: "Non indicato", "Nomi"))
+    add(FluidViewerDetail("Versione", names[5] ?: "Non indicata", "Nomi"))
+    for ((id, label) in listOf(4 to "Nome completo", 6 to "Nome PostScript", 8 to "Produttore"))
       names[id]?.let { add(FluidViewerDetail(label, it, "Nomi")) }
-    for ((id, label) in listOf(0 to "Copyright", 13 to "Licenza", 14 to "Riferimento"))
-      names[id]?.let { add(FluidViewerDetail(label, it, "Licenza")) }
-    glyphCount?.let { add(FluidViewerDetail("Glifi", it.toString(), "Carattere")) }
+    add(FluidViewerDetail("Licenza", names[13] ?: names[14] ?: "Non indicata", "Licenza"))
+    names[0]?.let { add(FluidViewerDetail("Copyright", it, "Licenza")) }
+    names[14]?.takeIf { names[13] != null }?.let { add(FluidViewerDetail("Riferimento", it, "Licenza")) }
     unitsPerEm?.let { add(FluidViewerDetail("Unità per em", it.toString(), "Carattere")) }
     weight?.let { add(FluidViewerDetail("Peso OpenType", it.toString(), "Carattere")) }
-    if (alphabets.isNotEmpty()) add(FluidViewerDetail("Scritture", alphabets.joinToString(", "), "Carattere"))
+    add(FluidViewerDetail("Tabelle presenti (${tables.size})", tables.joinToString(", "), "Struttura"))
+    add(FluidViewerDetail("Scritture", alphabets.joinToString(", ").ifEmpty { "Nessuna rilevata" }, "Copertura"))
+    add(FluidViewerDetail("Lingue · alfabeto di base",
+      preview.languages.joinToString(", ").ifEmpty { "Nessuna tra quelle verificate" }, "Copertura"))
   }
 }
 
@@ -62,9 +75,9 @@ internal class FontFile(input: ByteArray) {
     val glyphCount = tables["maxp"]?.word(4)
     val unitsPerEm = tables["head"]?.word(18)
     val weight = tables["OS/2"]?.word(4)
-    val alphabets = tables["cmap"]?.let(::alphabets).orEmpty()
     val axes = tables["fvar"]?.let { axes(it, names) }.orEmpty()
-    return FontFace(names, glyphCount, unitsPerEm, weight, alphabets, axes)
+    val cmap = tables["cmap"]?.let { FontCmap(data, it.at, it.size, glyphCount) }
+    return FontFace(names, glyphCount, unitsPerEm, weight, axes, tables.keys.sorted(), fontPreview(cmap))
   }
 
   private inner class Table(val at: Int, val size: Int) {
@@ -125,50 +138,6 @@ internal class FontFile(input: ByteArray) {
     }
   }
 
-  private fun alphabets(table: Table): List<String> {
-    val count = table.word(2) ?: return emptyList()
-    val coverage = linkedMapOf(
-      "Latino" to 0x0041..0x024f, "Greco" to 0x0370..0x03ff, "Cirillico" to 0x0400..0x052f,
-      "Ebraico" to 0x0590..0x05ff, "Arabo" to 0x0600..0x06ff, "Devanagari" to 0x0900..0x097f,
-      "Kana" to 0x3041..0x30ff, "Han" to 0x4e00..0x9fff, "Hangul" to 0xac00..0xd7a3,
-    )
-    val found = HashSet<String>()
-    fun add(first: Int, last: Int) {
-      for ((name, range) in coverage) if (first <= range.last && last >= range.first) found += name
-    }
-    val seen = HashSet<Int>()
-    for (i in 0 until count.coerceAtMost(256)) {
-      val record = 4 + i * 8
-      val platform = table.word(record) ?: break
-      val encoding = table.word(record + 2) ?: break
-      if (platform != 0 && !(platform == 3 && encoding in listOf(1, 10))) continue
-      val at = table.long(record + 4)?.takeIf { it <= table.size - 2 }?.toInt() ?: continue
-      if (!seen.add(at)) continue
-      when (table.word(at)) {
-        4 -> {
-          val segments = (table.word(at + 6) ?: 0) / 2
-          val starts = at + 16 + 2 * segments
-          if (!table.has(starts, 2 * segments)) continue
-          for (index in 0 until segments) {
-            val first = table.word(starts + index * 2)!!
-            val last = table.word(at + 14 + index * 2) ?: continue
-            if (first != 65535 && first <= last) add(first, last)
-          }
-        }
-        12, 13 -> {
-          val groups = table.long(at + 12)?.takeIf { it <= 100_000 && table.has(at + 16, it.toInt() * 12) } ?: continue
-          for (index in 0 until groups.toInt()) {
-            val group = at + 16 + index * 12
-            val first = table.long(group)!!
-            val last = table.long(group + 4)!!
-            if (first <= last && last <= 0x10ffff) add(first.toInt(), last.toInt())
-          }
-        }
-      }
-      if (found.size == coverage.size) break
-    }
-    return coverage.keys.filter(found::contains)
-  }
 }
 
 /** WOFF 1.0, sezioni 4 e 5: il font ricostruito contiene soltanto le tabelle SFNT. */

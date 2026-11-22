@@ -192,11 +192,14 @@ internal fun BoxScope.ViewerInfo(
 ) {
   var large by rememberSaveable(open) { mutableStateOf(false) }
   if (!wide) {
+    val pageColors = MaterialTheme.colorScheme
     FluidGlassSheet(visible = open, onDismissRequest = close, paneTitle = strings.info,
       detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
       selectedDetent = if (large) FluidSheetDetent.Large else FluidSheetDetent.Medium,
       onSelectedDetentChange = { large = it == FluidSheetDetent.Large },
-      undimmedUpTo = FluidSheetDetent.Medium) { body() }
+      undimmedUpTo = FluidSheetDetent.Medium) {
+      CompositionLocalProvider(LocalViewerInfoPageColors provides pageColors) { body() }
+    }
     return
   }
   val reduced = LocalFluidMotionPolicy.current.reducedMotion

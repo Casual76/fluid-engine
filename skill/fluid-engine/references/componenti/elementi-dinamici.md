@@ -79,8 +79,8 @@ FluidScreen(title = "Posta in arrivo", onBack = back, toolbar = {
 
 - **Le posizioni** (`FluidSelectionBarPlacement`, non un enum): `ReplacingTabBar` (di serie: al posto della tab bar, o
   nella barra in basso della pagina se una tab bar non c'è), `AboveTabBar`, `Top` (accanto a «Fine», per le pagine senza
-  barra in basso: su un telefono le azioni, e con loro «Seleziona tutto», stanno in «Altro»), `Floating` (una capsula sulla griglia, che non le lascia
-  spazio).
+  barra in basso: le azioni stanno accanto a «Fine» se c'è posto, se no in «Altro»; «Seleziona tutto» sta al posto dell'indietro e resta in barra finché c'è
+  posto), `Floating` (una capsula sulla griglia, che non le lascia spazio).
 - **I preset** (`FluidSelectionActions`): `mail`, `gallery`, `files`, `deleteOnly`. Ricevono le callback e scrivono
   azioni, priorità e trabocco; un'azione con la callback null non c'è; si spengono da sole a zero elementi.
 - **Su misura**: le azioni sono la DSL della barra. Un'azione si spegne a zero con `enabled = selectionHasItems`;
@@ -108,7 +108,7 @@ fanno, l'ordine in cui si compongono i `BackHandler` dei suoi menu.
 
 **In galleria** (Chrome → «Elementi dinamici», `--es gallery.page DynamicElements`): `--es dynamic.scene
 selezione-posta` (Mail: la tab bar che diventa le azioni, un solo «Annulla» per l'archiviazione in blocco; sul tablet
-rail e barra laterale), `selezione-note` (Notes: «Seleziona tutto» su 120 note caricate a pagine, le azioni in alto e, sul telefono, in «Altro»),
+rail e barra laterale), `selezione-note` (Notes: «Seleziona tutto» su 120 note caricate a pagine, le azioni in alto e in «Altro»),
 `selezione-foto` (Gallery: la capsula flottante), `selezione-file` (File: la barra in basso senza tab bar). Le scene
 sono in `sample/…/dynamic/SelectionScenes.kt`.
 
@@ -116,7 +116,9 @@ sono in `sample/…/dynamic/SelectionScenes.kt`.
 
 **Cosa fa.** Un tasto che, toccato, **lavora** e poi dice com'è andata, con un glifo animato secondo il significato
 dell'icona. Invia: l'aeroplanino si carica e, a invio riuscito, parte; a fallimento torna e diventa «Riprova». Salva:
-l'anello sottile attorno all'icona, poi la spunta si disegna lungo il suo verso. Copia: la spunta per un secondo, senza
+l'anello sottile attorno all'icona, poi la spunta si disegna lungo il suo verso mentre l'icona esce
+sfocata; con un lavoro breve (niente anello) la spunta entra con lo scambio sfocato di R7, sovrapposta all'icona che esce:
+mai un attimo di vetro vuoto (scelta di Alessio del 22 novembre 2026). Copia: la spunta per un secondo, senza
 lavoro. Scarica e Carica: la percentuale nell'anello, con pausa e ripresa; a riuscita la freccia cade e diventa spunta.
 Preferito: si riempie subito; se l'app rifiuta torna com'era con una scossa. L'esito negativo ha la tinta d'errore e
 **trema solo il contenuto**: il vetro resta fermo e i vicini non saltano.
@@ -161,6 +163,7 @@ download.run {
 - L'esito negativo fa tremare solo il contenuto, con la tinta d'errore dentro il vetro (21 novembre).
 - Il lavoro dei preset senza un gesto proprio (Salva, Carica) è un anello sottile attorno all'icona, dentro il vetro.
 - «Salva» riuscito: solo la spunta a taglia d'icona, niente disco pieno; il tasto resta di vetro (dopo i video).
+- La spunta entra mentre l'icona esce, senza un attimo di vetro vuoto fra le due (22 novembre, sulle riprese di F6B.12).
 
 **Cosa fa da solo l'engine.** I glifi animati, le varianti per il movimento ridotto (l'esito è un cambio d'icona senza
 moto), la larghezza fissa (la più larga fra gli stati: il vetro non respira e i vicini non saltano), l'area viva che

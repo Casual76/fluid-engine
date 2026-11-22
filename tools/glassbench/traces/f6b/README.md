@@ -27,7 +27,7 @@ script `raccogli-tracce.py` e `differenze-tracce.py` nella stessa cartella):
 | `tasto-copia` | Copia | `F6b3GlyphTraces` (curva) | sempre | `f6b-3b/banco/tasto-copia.jpg` |
 | `tasto-scarica-percentuale` | Scarica | `F6b3GlyphTraces` (curva) | sempre | `f6b-3b/banco/tasto-scarica-percentuale.jpg` |
 | `tasto-preferito-rifiutato` | Preferito | `F6b3GlyphTraces` (curva) | sempre | `f6b-3b/banco/tasto-preferito-rifiutato.jpg` |
-| `tasto-lavoro-breve` | Salva sotto i 300 ms | `F6b12ShortWorkTrace` (curva, nuova in F6B.12) | sempre, `engine-ui/build/reports/f6b-12/curve/` | `f6b-12/banco/tasto-lavoro-breve.jpg` |
+| `tasto-lavoro-breve` | Salva sotto i 300 ms: la spunta entra con lo scambio sfocato di R7 mentre l'icona esce (correzione di F6B.12) | `F6b12ShortWorkTrace` (curva, nuova in F6B.12) | sempre, `engine-ui/build/reports/f6b-12/curve/` | `f6b-12/correzione/salva-breve.jpg` (`FluidSaveShortWorkFramesTest`) |
 | `invia-composto` | Invia → «Nuova mail» diventa «Annulla» | `FluidUndoCountdownTraceTest` | `GLASS_UNDO_TRACE_DIR` | `f6b-4/banco-contatore/render/invia-composto/invia-composto-collage.jpg` |
 | `annulla-contatore` | «Annulla» toccato durante il riempimento | `FluidUndoCountdownTraceTest` | `GLASS_UNDO_TRACE_DIR` | `f6b-4/banco-contatore/render/annulla-contatore/annulla-contatore-collage.jpg` |
 | `annulla-scade` | il contatore che scade | `FluidUndoCountdownTraceTest` | `GLASS_UNDO_TRACE_DIR` | `f6b-4/banco-contatore/render/annulla-scade/annulla-scade-collage.jpg` |

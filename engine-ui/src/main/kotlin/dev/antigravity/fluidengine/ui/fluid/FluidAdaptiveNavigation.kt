@@ -5,6 +5,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -153,7 +158,10 @@ private class AdaptiveStage(
  * la rotta appartiene all'app e la preferenza per il pannello sopravvive alla ricreazione dell'Activity.
  * Il contenuto riceve gli spazi liberi sopra e sotto e viene disposto accanto alla colonna. Su immagini e fondali
  * a tutta larghezza [fluidBackgroundExtension] continua la pagina sotto il vetro.
- * Applicare al contenitore gli inset di sistema pertinenti alla finestra.
+ * Il rail, la tab bar in alto e la barra laterale stanno sotto la barra di stato, come la barra in alto di [FluidScreen]
+ * (F6B.12): la pagina resta a finestra intera e conta da sé la barra di stato. Se un antenato ha già consumato la barra di
+ * stato (`safeDrawingPadding`, la regola di prima), non si conta due volte. Gli altri inset di sistema (la barra di
+ * navigazione, i ritagli ai lati) li applica l'app al contenitore.
  */
 @Composable
 fun FluidAdaptiveNavigation(
@@ -171,6 +179,13 @@ fun FluidAdaptiveNavigation(
   // Solo la forma Bottom monta una tab bar e la prende, anche in una galleria con una shell esterna.
   val chrome = if (items.isEmpty()) LocalFluidChromeController.current else rememberFluidChromeController()
   BoxWithConstraints(modifier.fillMaxSize()) {
+   val window = maxHeight
+   // La barra di stato (scelta di Alessio del 22 novembre 2026, sulle riprese di F6B.12: il rail saliva sotto l'ora).
+   // Il riquadro interno è più basso della finestra di quanto resta della barra dopo ciò che gli antenati hanno già
+   // consumato: la chrome vive lì dentro, la pagina torna a finestra intera. Si legge in misura, giusto dal primo
+   // fotogramma; senza barra di stato (o già consumata) tutto è com'era.
+   BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))) {
+    val statusTop = (window - maxHeight).value.coerceAtLeast(0f).dp
     val form = adaptiveForm(maxWidth, sidebar)
     val wide = form == AdaptiveForm.Top || form == AdaptiveForm.Sidebar
     val density = LocalDensity.current.density
@@ -188,7 +203,7 @@ fun FluidAdaptiveNavigation(
         }
       }
     }
-    Box(Modifier.fillMaxSize().glassBackdropSource(backdrop)) {
+    Box(Modifier.adaptiveWindowPage(statusTop).glassBackdropSource(backdrop)) {
       CompositionLocalProvider(LocalBackgroundExtensionStart provides start, LocalFluidChromeController provides chrome) {
         Box(Modifier.fillMaxSize().layout { measurable, constraints ->
           val dx = start().roundToPx().coerceIn(0, constraints.maxWidth)
@@ -196,7 +211,7 @@ fun FluidAdaptiveNavigation(
           layout(constraints.maxWidth, page.height) { page.placeRelative(dx, 0) }
         }) {
           content(PaddingValues(
-            top = if (stage != null) (stage.poses.top.bottom + edge).dp else 0.dp,
+            top = if (stage != null) (stage.poses.top.bottom + edge).dp + statusTop else 0.dp,
             bottom = if (items.isNotEmpty() && form == AdaptiveForm.Bottom) FluidTabBarDefaults.ContentInset else 0.dp,
           ))
         }
@@ -237,7 +252,19 @@ fun FluidAdaptiveNavigation(
         }
       }
     }
+   }
   }
+}
+
+/** La pagina a finestra intera dentro il riquadro sotto la barra di stato: misurata più alta di [top] e posata più su. */
+private fun Modifier.adaptiveWindowPage(top: Dp): Modifier = layout { measurable, constraints ->
+  val dy = top.roundToPx()
+  if (dy == 0 || !constraints.hasBoundedHeight) {
+    val page = measurable.measure(constraints)
+    return@layout layout(page.width, page.height) { page.place(0, 0) }
+  }
+  val page = measurable.measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight + dy))
+  layout(constraints.maxWidth, constraints.maxHeight) { page.place(0, -dy) }
 }
 
 private fun Modifier.adaptiveInk(clarity: Float) = graphicsLayer {

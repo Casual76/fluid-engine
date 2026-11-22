@@ -417,6 +417,14 @@ Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).safeDra
 }
 ```
 
+**La barra di stato** (F6B.12, scelta di Alessio del 22 novembre 2026). Il rail, la tab bar in alto e la barra laterale
+stanno sotto la barra di stato, come la barra in alto di `FluidScreen`; la pagina resta a finestra intera e la conta da sé,
+e chi usa la forma in alto riceve in `insets` anche la barra di stato. Se un antenato l'ha già consumata (il
+`safeDrawingPadding` dell'esempio sopra, la regola di prima) non si conta due volte: la misura è quella che resta dopo gli
+antenati, presa in fase di misura, giusta dal primo fotogramma. Gli altri inset (la barra di navigazione, i ritagli ai
+lati) restano dell'app. Prima il rail saliva sotto l'ora (la posta sul Tab S9, riprese di F6B.12). Lo prova
+`FluidAdaptiveStatusBarTest` (sample).
+
 **La conversione è un viaggio del piano, in due tratte.** La capsula e la colonna sono lo stesso pannello: all'apertura
 la capsula va prima al margine iniziale mentre la pagina le fa posto (400 ms), poi la lastra scende fino in fondo (500
 ms) e le voci passano da riga a colonna, sfocate nel cambio; alla chiusura la colonna si raccoglie (430 ms) e la capsula

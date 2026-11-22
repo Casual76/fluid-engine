@@ -334,7 +334,7 @@ internal fun SelectionNotesScene(onBack: () -> Unit) {
     }
     item(key = "nota") {
       FluidSectionFootnote(
-        text = "«Seleziona», poi «Seleziona tutto» (in «Altro» sul telefono, con le azioni): il conteggio dice tutte " +
+        text = "«Seleziona», poi «Seleziona tutto» (in «Altro» solo se la barra non ha posto): il conteggio dice tutte " +
           "le note della cartella, anche quelle non ancora caricate; togline una e il conteggio scende di uno.",
       )
     }

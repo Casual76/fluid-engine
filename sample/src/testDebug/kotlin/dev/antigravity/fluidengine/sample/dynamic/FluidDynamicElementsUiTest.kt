@@ -136,15 +136,6 @@ class FluidDynamicElementsUiTest {
   private fun customActions(node: SemanticsNodeInteraction): List<String> =
     node.fetchSemanticsNode().config.getOrNull(SemanticsActions.CustomActions).orEmpty().map { it.label }
 
-  /** Esegue l'azione di TalkBack [label] di [node]. */
-  private fun runCustom(node: SemanticsNodeInteraction, label: String) {
-    val action = node.fetchSemanticsNode().config[SemanticsActions.CustomActions].first { it.label == label }
-    compose.runOnUiThread { action.action() }
-    // Lo stato scritto fuori dalla composizione: lo snapshot lo deve sapere prima del fotogramma dopo.
-    Snapshot.sendApplyNotifications()
-    compose.waitForIdle()
-  }
-
   private fun live(name: String, substring: Boolean = false): LiveRegionMode? =
     compose.onNodeWithContentDescription(name, substring = substring).fetchSemanticsNode().config
       .getOrNull(SemanticsProperties.LiveRegion)
@@ -239,19 +230,20 @@ class FluidDynamicElementsUiTest {
     button("Seleziona").performClick()
     advance(800)
     assertTrue(shows("0 selezionati"))
-    // In alto i posti sono tre, «Altro» compreso, e il conteggio sta al centro: su un telefono le azioni e «Seleziona
-    // tutto» stanno in «Altro» (F6B.1, «Top»). Da lì li raggiunge anche TalkBack, con le azioni del tasto.
-    assertTrue(customActions(button("Altro")).contains("Seleziona tutto"))
-    runCustom(button("Altro"), "Seleziona tutto")
+    // In alto i posti sono tre, «Altro» compreso: a 400 dp le azioni stanno in «Altro» (spente a zero, e TalkBack propone
+    // solo quelle eseguibili). «Seleziona tutto» sta al posto dell'indietro e resta in barra quando c'è posto (scelta di
+    // Alessio del 22 novembre 2026): a 400 dp c'è.
+    assertFalse(customActions(button("Altro")).contains("Seleziona tutto"))
+    button("Seleziona tutto").performClick()
     advance(400)
     assertTrue(shows("$SelectionNotesTotal selezionati"))
     // Tutto scelto: lo stesso tasto dice «Deseleziona», e le azioni si accendono.
-    val all = customActions(button("Altro"))
-    assertTrue("$all", all.containsAll(listOf("Deseleziona", "Sposta", "Elimina")))
+    button("Deseleziona")
+    assertTrue(customActions(button("Altro")).containsAll(listOf("Sposta", "Elimina")))
     compose.onNodeWithTag(SelectionSceneTags.note(0)).performClick()
     advance(400)
     assertTrue(shows("${SelectionNotesTotal - 1} selezionati"))
-    assertTrue(customActions(button("Altro")).contains("Seleziona tutto"))
+    button("Seleziona tutto")
     button("Fine").performClick()
     advance(800)
     button("Seleziona")

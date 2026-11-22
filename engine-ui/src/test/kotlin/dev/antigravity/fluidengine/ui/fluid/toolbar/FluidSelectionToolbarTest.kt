@@ -185,8 +185,10 @@ class FluidSelectionToolbarTest {
     val narrow = top(bar, width = 360f)
     assertTrue("«Fine» resta", FluidSelectionToolbarIds.Toggle in narrow.visibleIds())
     val hidden = narrow.overflow.map { it.id }
-    if (FluidSelectionToolbarIds.Count in hidden) assertTrue("prima esce «Seleziona tutto»", FluidSelectionToolbarIds.SelectAll in hidden)
-    assertTrue(FluidSelectionToolbarIds.SelectAll in hidden)
+    // Dal 22 novembre 2026 (scelta di Alessio, F6B.12) «Seleziona tutto» va in «Altro» solo se lo spazio non basta: qui a
+    // non starci è il conteggio al centro, e togliere «Seleziona tutto», sul lato corto, non libererebbe posto. Resta.
+    assertTrue("il conteggio troppo lungo esce", FluidSelectionToolbarIds.Count in hidden)
+    assertTrue("«Seleziona tutto» resta", FluidSelectionToolbarIds.SelectAll in narrow.visibleIds())
   }
 
   @Test fun `senza onSelectAll il tasto non c'e'`() {
@@ -475,12 +477,16 @@ class FluidSelectionToolbarTest {
     assertTrue(one.visibleIds().containsAll(listOf("delete", FluidSelectionToolbarIds.Count, FluidSelectionToolbarIds.Toggle)))
     assertEquals("«Fine» è il più esterno a destra", FluidSelectionToolbarIds.Toggle,
       one.elements.filter { it.side == FluidToolbarSide.Trailing && !it.inOverflow }.maxBy { it.leftDp }.item.id)
-    // Mail: conteggio, «Fine» e «Altro» sono già tre gruppi anche su un tablet (R5 B11). Le azioni stanno in «Altro»,
-    // e con loro «Seleziona tutto»; il conteggio e «Fine» restano.
+    // Mail su un tablet: il conteggio e «Fine» restano. «Seleziona tutto» sta al posto dell'indietro, non conta nei tre
+    // gruppi (R5 B11) e resta anche lui quando c'è posto (scelta di Alessio del 22 novembre 2026, F6B.12: fino ad allora
+    // andava in «Altro» con le azioni). Le azioni stanno nel posto che resta, o in «Altro»: nessuna si perde.
     val up = top(bar, width = 900f)
     assertTrue(up.fits)
-    assertTrue(up.visibleIds().containsAll(listOf(FluidSelectionToolbarIds.Count, FluidSelectionToolbarIds.Toggle)))
-    assertTrue(up.overflow.map { it.id }.containsAll(listOf("mark", "move", "archive", "delete", FluidSelectionToolbarIds.SelectAll)))
+    assertTrue(up.visibleIds().containsAll(listOf(FluidSelectionToolbarIds.Count, FluidSelectionToolbarIds.Toggle,
+      FluidSelectionToolbarIds.SelectAll)))
+    for (id in listOf("mark", "move", "archive", "delete")) {
+      assertTrue("$id in barra o in «Altro»", id in up.visibleIds() || up.overflow.any { it.id == id })
+    }
   }
 
   @Test fun `la capsula flottante non chiede spazio alla lista, le altre in basso si'`() {

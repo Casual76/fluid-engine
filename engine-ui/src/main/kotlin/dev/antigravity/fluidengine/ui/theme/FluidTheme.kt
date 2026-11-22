@@ -326,6 +326,28 @@ internal class FluidThemeSides(
 /** Vedi [FluidThemeSides]. */
 internal val LocalFluidThemeSides = staticCompositionLocalOf<FluidThemeSides?> { null }
 
+/** Keep controls on a known black media surface on the dark side, including anchored toolbars
+ * drawn outside the destination. Preserve the application's accent, typography and motion scheme. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun BlackMediaAppearance(enabled: Boolean, content: @Composable () -> Unit) {
+  val scheme = if (enabled) LocalFluidThemeSides.current?.scheme(true) ?: darkColorScheme() else MaterialTheme.colorScheme
+  val textStyle = androidx.compose.material3.LocalTextStyle.current
+  val indication = androidx.compose.foundation.LocalIndication.current
+  MaterialTheme(colorScheme = scheme, typography = MaterialTheme.typography, shapes = MaterialTheme.shapes,
+    motionScheme = MaterialTheme.motionScheme) {
+    CompositionLocalProvider(
+      LocalFluidSurfaceSide provides if (enabled) true else LocalFluidSurfaceSide.current,
+      dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassAppearance provides
+        if (enabled) null else dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassAppearance.current,
+      androidx.compose.material3.LocalContentColor provides if (enabled) scheme.onSurface else androidx.compose.material3.LocalContentColor.current,
+      androidx.compose.material3.LocalTextStyle provides textStyle,
+      androidx.compose.foundation.LocalIndication provides indication,
+      content = content,
+    )
+  }
+}
+
 /** Accent roles are kept as pairs: a background colour is never detached from its readable content. */
 @Immutable
 private data class AccentRoles(

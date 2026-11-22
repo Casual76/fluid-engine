@@ -68,7 +68,7 @@ fun FluidPagesPreset(
   val count = source.count.coerceAtLeast(0)
   val surface = MaterialTheme.colorScheme.surface
   if (count == 0) {
-    Box(modifier.fillMaxSize().background(surface), contentAlignment = Alignment.Center) { Text(strings.empty) }
+    Box(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier), contentAlignment = Alignment.Center) { Text(strings.empty) }
     return
   }
   key(source) {
@@ -102,7 +102,7 @@ fun FluidPagesPreset(
     }
     val gap = FluidScreenDefaults.HorizontalPadding
     CompositionLocalProvider(LocalFluidGlassModalHostState provides modal) {
-      BoxWithConstraints(modifier.fillMaxSize().background(surface).clipToBounds()) {
+      BoxWithConstraints(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier).clipToBounds()) {
         val pageWidth = (maxWidth - gap * 2).coerceAtLeast(1.dp) * scale
         val pixelWidth = with(LocalDensity.current) { pageWidth.roundToPx() }
         val top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() +

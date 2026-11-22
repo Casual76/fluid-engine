@@ -39,6 +39,7 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
   Menus("Menù liquidi"),
   AllGlass("Tutto in vetro"),
   MoreComponents("Riordino, aggiornamento e visore"),
+  Visori("Visori"),
 
   /** Le scene di misura della prima sessione sul dispositivo (piano «iOS in Android», F0.6): vedi `measure/`. */
   Measure("Misure"),

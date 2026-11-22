@@ -39,6 +39,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.Info
 import dev.antigravity.fluidengine.ui.fluid.toolbar.*
 import dev.antigravity.fluidengine.ui.page.FluidPageChromeContent
+import dev.antigravity.fluidengine.ui.page.LocalSharedPage
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
 import dev.antigravity.fluidengine.ui.page.LocalFluidPagePreparing
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
@@ -103,9 +104,10 @@ internal fun BoxScope.ViewerChrome(
       ViewerChromeMotion.duration(!visible, abs(target - progress.value), policy.durationScale), easing = LinearEasing,
     ))
   }
-  val minimize = remember(progress, policy) {
+  val space = LocalSharedPage.current
+  val minimize = remember(progress, policy, space) {
     object : FluidToolbarMinimizeProgress {
-      override val progress get() = progress.value
+      override val progress get() = maxOf(progress.value, 1f - (space?.let { it.host.backdropArrival(it.page) } ?: 1f))
       override val reducedMotion = policy.reducedMotion
     }
   }

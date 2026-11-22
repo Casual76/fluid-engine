@@ -166,6 +166,9 @@ internal fun FluidPageHostState.findSharedPair(): Pair<SharedOrigin, PageInk>? {
 
 internal fun FluidPageHostState.zoomFaces(): ZoomFaces {
   val p = fractionToward { it == upper }
+  val destination = upper
+  if (destination != null && destination in ownPageBackground && sharedPair != null)
+    return viewerZoomFaces(p, backdropArrival(destination))
   if (growing != null || sharedPair != null) return FluidZoom.faces(p)
   // Senza immagine condivisa il centro resta occupato dalla pagina in scala. Usiamo l'orologio
   // dello zoom F5B.3, con le due identità che si danno il cambio nel massimo della sfocatura.
@@ -173,6 +176,24 @@ internal fun FluidPageHostState.zoomFaces(): ZoomFaces {
   val mapped = if (u < 0.5f) u * 2f * FluidPageMotion.SourceFaceEnd
     else FluidPageMotion.PageChromeStart + (u * 2f - 1f) * (1f - FluidPageMotion.PageChromeStart)
   return FluidZoom.faces(mapped)
+}
+
+/** The shared media travels on its own layer. Its controls stay with the arriving backdrop. */
+internal fun viewerZoomFaces(progress: Float, backdrop: Float): ZoomFaces {
+  val faces = FluidZoom.faces(progress)
+  return faces.copy(pageAlpha = faces.pageAlpha * backdrop, sourceAlpha = 0f)
+}
+
+/** Continue the actual held image rectangle to the thumbnail or back to the fitted image. */
+internal fun FluidPageHostState.sharedImageBounds(origin: Rect, target: Rect, progress: Float, shape: FluidZoomShape): Rect {
+  val full = fullZoomShape()
+  val journey = zoom ?: return androidx.compose.ui.geometry.lerp(origin, target, progress)
+  val via = journey.viaExit
+  if (!journey.pinched || via == null) return FluidZoom.sharedBounds(origin, target, progress, shape, journey.source, full)
+  val held = FluidZoom.sharedBounds(target, target, 1f, journey.from, full, full)
+  val exit = upperExitFraction()
+  return if (exit <= via) androidx.compose.ui.geometry.lerp(target, held, exit / via)
+    else androidx.compose.ui.geometry.lerp(held, origin, (exit - via) / (1f - via))
 }
 
 internal fun DrawScope.drawPageInk(layer: GraphicsLayer, rect: Rect) {
@@ -191,7 +212,7 @@ internal fun SharedPageOverlay(state: FluidPageHostState, modifier: Modifier) {
       val p = state.fractionToward { it == state.upper }
       state.sharedPair?.let { (origin, target) ->
         val layer = target.layer ?: origin.ink.layer ?: return@let
-        val box = FluidZoom.sharedBounds(origin.bounds, target.bounds!!, p, zoom, state.zoom!!.source, state.fullZoomShape())
+        val box = state.sharedImageBounds(origin.bounds, target.bounds!!, p, zoom)
         drawPageInk(layer, box)
       }
       if (state.growing != null) {

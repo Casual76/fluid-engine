@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -62,6 +63,23 @@ class FluidFileViewerUiTest {
   private var count by mutableIntStateOf(3)
   private var thumbnails by mutableStateOf(true)
   private var dark = false
+  private var videoSession: FluidMediaSession? = null
+
+  private class VideoSession(
+    override val videoAspectRatio: Float = 1.5f,
+    private val position: () -> Long = { 100L },
+  ) : FluidMediaSession, FluidVideoGeometry {
+    override var playing by mutableStateOf(true)
+      private set
+    override val positionMillis get() = position()
+    override val durationMillis = 30000L
+    override val canSeek = true
+    override fun play() { playing = true }
+    override fun pause() { playing = false }
+    var sought: Long? = null
+      private set
+    override fun seekTo(positionMillis: Long) { sought = positionMillis }
+  }
   private val plate by lazy {
     System.getenv("GLASS_F6C1_PHOTO")?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
   }
@@ -97,7 +115,8 @@ class FluidFileViewerUiTest {
               deepLinks = listOf(navDeepLink { uriPattern = "viewer://file/{index}" }),
               initial = { it.arguments!!.getInt("index") }, thumbnail = { _, i -> FluidViewerThumbnail(i, ns) }) {
               FluidFileViewer(count, content = { i ->
-                FluidViewerContent.Image(1.5f) { Photo(Modifier.fillMaxSize().testTag("file-$i")) }
+                val body: @Composable () -> Unit = { Photo(Modifier.fillMaxSize().testTag("file-$i")) }
+                videoSession?.let { FluidViewerContent.Media(it, videoSurface = body) } ?: FluidViewerContent.Image(1.5f, body)
               }, onBack = { nav.popBackStack() }, tools = {
                 tool("crop", FluidIcons.Info, "Ritaglia", actions = {
                   button("apply", FluidIcons.Info, "Applica", { actions++ })
@@ -190,6 +209,139 @@ class FluidFileViewerUiTest {
     assertEquals("grid", nav.currentDestination?.route)
   }
 
+  @Test fun inwardPinchBelowThresholdReturnsAndPastThresholdClosesIntoGrid() {
+    show()
+    fun pinch(end: Float) {
+      compose.onRoot().performTouchInput {
+        down(0, center - Offset(100f, 0f))
+        down(1, center + Offset(100f, 0f))
+        for (step in 1..8) {
+          val radius = 100f + (end - 100f) * step / 8f
+          updatePointerTo(0, center - Offset(radius, 0f))
+          updatePointerTo(1, center + Offset(radius, 0f))
+          move(24L)
+        }
+        advanceEventTime(160L)
+        up(1)
+        up(0)
+      }
+      compose.waitForIdle()
+    }
+    pinch(91f)
+    compose.onNodeWithText("2 di 3").assertIsDisplayed()
+    pinch(68f)
+    compose.onNodeWithTag("thumb-1").assertIsDisplayed()
+    assertEquals("grid", nav.currentDestination?.route)
+  }
+
+  @Test fun mediaChromeUsesDarkGlassAndDocumentsRestoreTheSystemPalette() {
+    var kind by mutableIntStateOf(0)
+    var appearance: Pair<Boolean, Boolean>? = null
+    val session = VideoSession()
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings(themeMode = ThemeMode.LIGHT) }) {
+        FluidFileViewer(1, content = {
+          when (kind) {
+            0 -> FluidViewerContent.Image(1.5f) { Box(Modifier.fillMaxSize()) }
+            1 -> FluidViewerContent.Media(session, videoSurface = { Box(Modifier.fillMaxSize()) })
+            else -> FluidViewerContent.Unknown(FluidFileInfo("note.pdf"))
+          }
+        }, toolbar = {
+          item("palette", label = "Aspetto") {
+            val side = LocalFluidSurfaceSide.current == true
+            val dark = androidx.compose.material3.MaterialTheme.colorScheme.surface.luminance() < .5f
+            SideEffect { appearance = side to dark }
+            Text("A")
+          }
+        })
+      }
+    }
+    compose.runOnIdle { assertEquals(true to true, appearance); kind = 1 }
+    compose.runOnIdle { assertEquals(true to true, appearance); kind = 2 }
+    compose.runOnIdle { assertEquals(false to false, appearance) }
+  }
+
+  @Test fun standaloneDragAndPinchOnlyDismissWithAnOptInCallback() {
+    var enabled by mutableStateOf(false)
+    var open by mutableStateOf(true)
+    var calls = 0
+    val close: () -> Unit = { calls++; open = false }
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        Box(Modifier.fillMaxSize().background(Color.Cyan)) {
+          if (open) FluidFileViewer(1, content = {
+            FluidViewerContent.Image(1.5f) { Photo(Modifier.fillMaxSize().testTag("standalone")) }
+          }, onBack = {}, onDismissRequest = if (enabled) close else null)
+        }
+      }
+    }
+    fun squeeze() = compose.onRoot().performTouchInput {
+      down(0, center - Offset(100f, 0f))
+      down(1, center + Offset(100f, 0f))
+      updatePointerTo(0, center - Offset(65f, 0f))
+      updatePointerTo(1, center + Offset(65f, 0f))
+      move(64)
+      advanceEventTime(160)
+      up(1)
+      up(0)
+    }
+    squeeze()
+    compose.onRoot().performTouchInput { swipe(center, center + Offset(0f, 220f)) }
+    compose.onNodeWithTag("standalone").assertIsDisplayed()
+    compose.runOnIdle { assertEquals(0, calls); enabled = true }
+    compose.onNodeWithTag("standalone").assertIsDisplayed()
+    compose.mainClock.autoAdvance = false
+    compose.onRoot().performTouchInput {
+      down(center)
+      moveBy(Offset(0f, 48f))
+      moveBy(Offset(0f, 172f))
+    }
+    compose.mainClock.advanceTimeByFrame()
+    withWindow {
+      val pixel = it.getPixel(10, it.height / 3)
+      assertEquals(0, android.graphics.Color.red(pixel))
+      assertTrue(android.graphics.Color.green(pixel) in 1..254)
+    }
+    compose.onRoot().performTouchInput { advanceEventTime(150); up() }
+    assertEquals(0, calls)
+    compose.mainClock.advanceTimeBy(1600)
+    compose.mainClock.autoAdvance = true
+    compose.onNodeWithTag("standalone").assertDoesNotExist()
+    compose.runOnIdle { assertEquals(1, calls); open = true }
+    compose.onNodeWithTag("standalone").assertIsDisplayed()
+    squeeze()
+    compose.onNodeWithTag("standalone").assertDoesNotExist()
+    compose.runOnIdle { assertEquals(2, calls) }
+  }
+
+  @Test fun reducingZoomedVideoToOneKeepsTheRouteAndANewPinchClosesIt() {
+    videoSession = VideoSession()
+    show()
+    val root = compose.onRoot()
+    root.performTouchInput { doubleClick(Offset(width * .34f, height * .46f)) }
+    val scale = { n: Int -> SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Zoom $n%") }
+    compose.onNode(scale(250)).assertExists()
+    fun squeeze() = root.performTouchInput {
+      val origin = Offset(centerX, height * .45f)
+      down(0, origin - Offset(100f, 0f))
+      down(1, origin + Offset(100f, 0f))
+      for (step in 1..8) {
+        val radius = 100f - 9f * step
+        updatePointerTo(0, origin - Offset(radius, 0f))
+        updatePointerTo(1, origin + Offset(radius, 0f))
+        move(24L)
+      }
+      advanceEventTime(150L)
+      up(1)
+      up(0)
+    }
+    squeeze()
+    compose.onNode(scale(100)).assertExists()
+    compose.onNodeWithText("2 di 3").assertIsDisplayed()
+    squeeze()
+    compose.onNodeWithTag("thumb-1").assertIsDisplayed()
+  }
+
   @Test fun deepLinkThenPageChangeAndRecreationRestoreTheSettledFile() {
     compose.setContent(scene)
     compose.runOnIdle {
@@ -250,15 +402,7 @@ class FluidFileViewerUiTest {
   }
 
   @Test fun playingVideoKeepsItsChromeUntilTheUserTaps() {
-    val session = object : FluidMediaSession {
-      override val playing = true
-      override val positionMillis = 100L
-      override val durationMillis = 30000L
-      override val canSeek = true
-      override fun play() {}
-      override fun pause() {}
-      override fun seekTo(positionMillis: Long) {}
-    }
+    val session = VideoSession()
     compose.setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
         FluidFileViewer(1, content = { FluidViewerContent.Media(session, videoSurface = {
@@ -268,9 +412,26 @@ class FluidFileViewerUiTest {
     }
     compose.mainClock.advanceTimeBy(18000)
     compose.onNodeWithContentDescription("Informazioni").assertIsDisplayed()
-    compose.onNodeWithTag("video").performTouchInput { click() }
+    val pause = compose.onNodeWithContentDescription("Pausa")
+    pause.performTouchInput { click() }
+    compose.runOnIdle { assertFalse(session.playing) }
+    compose.onNodeWithContentDescription("Riproduci").performTouchInput { click() }
+    compose.runOnIdle { assertTrue(session.playing) }
+    compose.onNodeWithContentDescription("Posizione di riproduzione").performTouchInput {
+      swipe(Offset(width * .20f, centerY), Offset(width * .70f, centerY))
+    }
+    compose.runOnIdle { assertTrue((session.sought ?: 0L) in 1L..session.durationMillis) }
+    compose.onNodeWithContentDescription("Informazioni").assertIsDisplayed()
+    val video = compose.onNodeWithTag("video")
+    video.performTouchInput { click(Offset(width * .23f, height * .42f)) }
     compose.mainClock.advanceTimeBy(18000)
     compose.onNodeWithContentDescription("Informazioni").assertDoesNotExist()
+    pause.assertDoesNotExist()
+    video.performTouchInput { click(Offset(width * .23f, height * .42f)) }
+    compose.mainClock.advanceTimeBy(1200)
+    compose.onNodeWithContentDescription("Informazioni").assertIsDisplayed()
+    pause.assertIsDisplayed()
+    compose.runOnIdle { assertTrue(session.playing) }
   }
 
   @Suppress("DEPRECATION")
@@ -326,28 +487,166 @@ class FluidFileViewerUiTest {
     compose.onNodeWithContentDescription("Ritaglia").assertIsDisplayed()
   }
 
+  private fun withWindow(action: (Bitmap) -> Unit) {
+    val window = compose.activity.window
+    val view = window.decorView
+    val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+    try {
+      var result = PixelCopy.ERROR_UNKNOWN
+      compose.runOnIdle {
+        PixelCopy.request(window, android.graphics.Rect(0, 0, view.width, view.height), bitmap,
+          { result = it }, Handler(Looper.getMainLooper()))
+      }
+      shadowOf(Looper.getMainLooper()).idle()
+      assertEquals(PixelCopy.SUCCESS, result)
+      action(bitmap)
+    } finally {
+      bitmap.recycle()
+    }
+  }
+
+  private fun capture(file: File) = withWindow { bitmap ->
+    file.parentFile?.mkdirs()
+    file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    Unit
+  }
+
+  @Test fun windowBackdropArrivesLateAndRevealsGridOnFirstDragAndBack() {
+    compose.setContent(scene)
+    val folder = System.getenv("GLASS_F6C1_STILLS")?.let { File(it, "sfondo") }
+    fun sample(name: String): Pair<Int, Int> {
+      var result = 0 to 0
+      withWindow { bitmap ->
+        // Away from both toolbars. The floor of a black viewer is a positive control.
+        val probe = bitmap.getPixel(bitmap.width / 2, bitmap.height * 3 / 4)
+        var black = 0
+        for (y in 0 until bitmap.height step 4) for (x in 0 until bitmap.width step 4) {
+          if (bitmap.getPixel(x, y) and 0x00ffffff == 0) black++
+        }
+        result = probe to black
+        if (folder != null) {
+          folder.mkdirs()
+          File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+      }
+      return result
+    }
+    val grid = sample("01-griglia")
+    compose.mainClock.autoAdvance = false
+    compose.onNodeWithTag("thumb-1").performClick()
+    compose.mainClock.advanceTimeBy(64)
+    val early = sample("02-apertura")
+    compose.mainClock.advanceTimeBy(1600)
+    val opened = sample("03-aperto")
+    assertEquals(android.graphics.Color.BLACK, opened.first)
+    assertNotEquals(grid.first, opened.first)
+    assertTrue("Early black samples ${early.second}, grid ${grid.second}, open ${opened.second}",
+      early.second <= grid.second + 60 && opened.second > early.second + 2500)
+    compose.onRoot().performTouchInput {
+      down(center)
+      moveBy(Offset(0f, 24f))
+      moveBy(Offset(0f, 12f))
+    }
+    compose.mainClock.advanceTimeByFrame()
+    fun light(color: Int) = android.graphics.Color.red(color)
+    val first = light(sample("04-primo-trascinamento").first)
+    compose.onRoot().performTouchInput { moveBy(Offset(0f, 90f)) }
+    compose.mainClock.advanceTimeByFrame()
+    val held = light(sample("04b-piu-in-basso").first)
+    assertTrue("First $first, held $held", first < held && held < light(grid.first))
+    compose.onRoot().performTouchInput { moveBy(Offset(0f, -90f)) }
+    compose.mainClock.advanceTimeByFrame()
+    assertTrue(light(sample("04c-inversione").first) < held)
+    compose.onRoot().performTouchInput { advanceEventTime(200); up() }
+    compose.mainClock.advanceTimeBy(1600)
+    assertEquals(opened.first, sample("05-annullo").first)
+    compose.runOnUiThread { nav.popBackStack() }
+    compose.mainClock.advanceTimeBy(64)
+    val backStart = light(sample("06-indietro").first)
+    compose.mainClock.advanceTimeBy(64)
+    val backMiddle = light(sample("07-dissolvenza").first)
+    compose.mainClock.advanceTimeBy(240)
+    assertTrue("Back $backStart, $backMiddle, grid ${light(grid.first)}", backStart in 1 until backMiddle && backMiddle <= light(grid.first))
+    assertEquals(grid.first, sample("08-ritorno").first)
+    compose.mainClock.autoAdvance = true
+  }
+
+  @Test fun videoPinchZoomKeepsTransportFixedLight() = videoZoom(false)
+  @Test fun videoPinchZoomKeepsTransportFixedDark() = videoZoom(true)
+
+  private fun videoZoom(night: Boolean) {
+    val footage = System.getenv("GLASS_F6C1_VIDEO_INPUT")?.let(::File)
+    val output = System.getenv("GLASS_F6C1_VIDEO_OUTPUT")?.let { File(it, if (night) "scuro" else "chiaro") }
+    var frame by mutableIntStateOf(0)
+    val session = VideoSession(16f / 9f) { frame * 1000L / 60L }
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings(themeMode = if (night) ThemeMode.DARK else ThemeMode.LIGHT) }) {
+        FluidFileViewer(1, content = { FluidViewerContent.Media(session, videoSurface = {
+          val movieFrame = remember(frame) { footage?.let { BitmapFactory.decodeFile(File(it, "%03d.jpg".format(frame)).path).asImageBitmap() } }
+          val surface = Modifier.fillMaxSize().testTag("film")
+          if (movieFrame == null) Box(surface.background(Color.DarkGray))
+          else Image(movieFrame, null, surface, contentScale = ContentScale.FillBounds)
+        }) }, info = { Text("Video") })
+      }
+    }
+    val root = compose.onRoot()
+    val pause = compose.onNodeWithContentDescription("Pausa")
+    val track = compose.onNodeWithContentDescription("Posizione di riproduzione")
+    val pauseBounds = pause.fetchSemanticsNode().boundsInRoot
+    val trackBounds = track.fetchSemanticsNode().boundsInRoot
+    val movie = compose.onNodeWithTag("film")
+    val original = movie.fetchSemanticsNode().boundsInRoot
+    val frames = if (output == null) 12 else 84
+    for (n in 0 until frames) {
+      val start = if (output == null) 1 else 15
+      val steps = if (output == null) 8 else 36
+      if (n in start..start + steps) root.performTouchInput {
+        val centerOfPinch = Offset(width * .35f, height * .47f)
+        val gap = 28f + 42f * (n - start) / steps
+        if (n == start) {
+          down(0, centerOfPinch - Offset(gap, 0f))
+          down(1, centerOfPinch + Offset(gap, 0f))
+        } else {
+          updatePointerTo(0, centerOfPinch - Offset(gap, 0f))
+          updatePointerTo(1, centerOfPinch + Offset(gap, 0f))
+          move(16L)
+          if (n == start + steps) { up(1); up(0) }
+        }
+      }
+      if (output != null) {
+        compose.runOnIdle { frame = n }
+        capture(File(output, "f%03d.png".format(n)))
+      }
+    }
+    fun scale(percent: Int) = compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Zoom $percent%")).assertExists()
+    scale(250)
+    val enlarged = movie.fetchSemanticsNode().boundsInRoot
+    assertTrue(enlarged.height > original.height)
+    assertEquals(pauseBounds, pause.fetchSemanticsNode().boundsInRoot)
+    assertEquals(trackBounds, track.fetchSemanticsNode().boundsInRoot)
+    root.performTouchInput { doubleClick(Offset(width * .23f, height * .46f)) }
+    scale(100)
+    pause.assertIsDisplayed()
+    root.performTouchInput { doubleClick(Offset(width * .23f, height * .46f)) }
+    scale(250)
+    root.performTouchInput {
+      val at = Offset(width * .35f, height * .47f)
+      down(0, at - Offset(20f, 0f))
+      down(1, at + Offset(20f, 0f))
+      updatePointerTo(0, at - Offset(58f, 0f))
+      updatePointerTo(1, at + Offset(58f, 0f))
+      move()
+      up(1)
+      up(0)
+    }
+    scale(400)
+    pause.assertIsDisplayed()
+  }
+
   /** Optional lossless Android checkpoints alongside the 120 Hz motion-bench model. */
   @Test fun appearanceCheckpoints() {
     val folder = System.getenv("GLASS_F6C1_STILLS")?.let(::File)
-    fun shot(name: String) {
-      if (folder == null) return
-      folder.mkdirs()
-      val window = compose.activity.window
-      val view = window.decorView
-      val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-      try {
-        var result = PixelCopy.ERROR_UNKNOWN
-        compose.runOnIdle {
-          PixelCopy.request(window, android.graphics.Rect(0, 0, view.width, view.height), bitmap,
-            { result = it }, Handler(Looper.getMainLooper()))
-        }
-        shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(PixelCopy.SUCCESS, result)
-        File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-      } finally {
-        bitmap.recycle()
-      }
-    }
+    fun shot(name: String) { if (folder != null) capture(File(folder, "$name.png")) }
     dark = true
     compose.setContent(scene)
     shot("01-miniature")

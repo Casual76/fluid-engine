@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -330,6 +331,7 @@ fun FluidScrubber(
       scale(lerp(2f / 3f, 1f, progress), lerp(0f, 1f, progress)) { drawTrack() }
     }
   }
+  val clearThumb = LocalClearScrubberThumb.current
   val thumbBackdrop: Backdrop = rememberCombinedBackdrop(
     backdrop.backdrop,
     rememberBackdrop(trackBackdrop, unfoldedTrack),
@@ -679,7 +681,14 @@ fun FluidScrubber(
             translationX = (centre - thumbPx / 2f) * if (isLtr) 1f else -1f
           }
           .then(
-            if (isRenderEffectSupported()) {
+            if (clearThumb) {
+              val source = remember(thumbBackdrop, backdrop) { GlassBackdropState(thumbBackdrop, null, backdrop.blurRadius) }
+              Modifier.graphicsLayer {
+                val swell = 1f + FallbackSwell * dragAnimation.pressProgress
+                scaleX = swell
+                scaleY = swell
+              }.fluidGlass(FluidGlass.Clear, FluidCapsuleShape, backdrop = source)
+            } else if (isRenderEffectSupported()) {
               // La goccia di Kyant (`glass/interaction/GlassDrop.kt`) coi numeri del pomello dello
               // slider: lente 10/14 dp e squash dal modulo della velocita'.
               Modifier.glassDrop(
@@ -1218,3 +1227,6 @@ private const val TrackAlphaDark = 0.17f
 /** Il pronto: il velo della pista piu' qualcosa, perche' si legga come un pieno fra il velo e l'accento. */
 private const val BufferedAlphaLight = 0.26f
 private const val BufferedAlphaDark = 0.36f
+
+/** Playback controls keep a clear lens even before the user touches the timeline. */
+internal val LocalClearScrubberThumb = staticCompositionLocalOf { false }

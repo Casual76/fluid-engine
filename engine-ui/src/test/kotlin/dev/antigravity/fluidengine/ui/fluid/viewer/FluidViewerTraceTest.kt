@@ -15,6 +15,8 @@ import dev.antigravity.fluidengine.ui.page.FluidPageHostState
 import dev.antigravity.fluidengine.ui.page.FluidPageTransition
 import dev.antigravity.fluidengine.ui.page.FluidZoom
 import dev.antigravity.fluidengine.ui.page.FluidZoomShape
+import dev.antigravity.fluidengine.ui.page.sharedImageBounds
+import dev.antigravity.fluidengine.ui.page.viewerZoomFaces
 import java.io.File
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -33,15 +35,24 @@ class FluidViewerTraceTest {
   private val fps = 120
   private val plate = "artifacts/liquid-glass/sessioni/f6c-1/tracce/dune.png"
 
-  @Test fun exportFourViewerJourneysWithBothAppearances() {
+  @Test fun exportViewerJourneysWithBothAppearances() {
     for (dark in listOf(false, true)) {
-      for (scene in listOf("visore-apre", "visore-barre-tocco", "visore-info-su", "visore-chiude-giu")) {
+      for (scene in listOf("visore-apre", "visore-barre-tocco", "visore-info-su", "visore-chiude-giu", "visore-chiude-pizzico", "visore-chiude-tocco")) {
         val trace = makeTrace(scene, dark)
         assertEquals(fps, trace.fps)
         assertTrue(trace.frames.all { frame -> frame.elements.count { it["name"] == "foto" } == 1 })
         GlassTraceOutput.requestedDir(System.getenv("GLASS_F6C1_DIR"))?.let { trace.write(File(it, "${trace.name}/trace.json")) }
       }
     }
+  }
+
+  @Test fun pinchThresholdAndReversalFollowGallery() {
+    assertFalse(ViewerPinch.dismiss(.86f, 0f))
+    assertTrue(ViewerPinch.dismiss(.85f, 0f))
+    assertFalse(ViewerPinch.dismiss(.72f, 1.61f))
+    assertTrue(ViewerPinch.dismiss(.93f, -1.61f))
+    assertEquals(.25f, ViewerPinch.scale(.08f), 0f)
+    assertEquals(1.15f, ViewerPinch.scale(2f), 0f)
   }
 
   @Test fun chromeUsesDirectionalDurationsAndZeroMotionHasNoTravel() {
@@ -59,6 +70,48 @@ class FluidViewerTraceTest {
     assertTrue(viewerDismissRelease(221f, 0f, 2f))
     assertFalse(viewerDismissRelease(240f, -4000f, 2f))
     assertTrue(viewerDismissRelease(2f, 4000f, 2f))
+  }
+
+  @Test fun pinchWithoutAPlacedThumbnailCanCancelAndThenClose() {
+    val clock = BroadcastFrameClock()
+    val scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher() + clock)
+    val state = FluidPageHostState().also {
+      it.scope = scope
+      it.width = width
+      it.height = height
+      it.density = 1f
+      it.transitionOf = { FluidPageTransition.Expand }
+      it.dismissOf = { FluidPageDismiss.Down }
+      it.onBack = { it.onStack(listOf("grid")) }
+      it.ownPageBackground["file"] = androidx.compose.ui.graphics.Color.Black
+    }
+    var n = 0
+    fun settle() { repeat(180) { clock.sendFrame(glassTraceTimeNanos(n++, fps)) } }
+    try {
+      state.onStack(listOf("grid"))
+      state.onStack(listOf("grid", "file"))
+      state.pagePlaced("file")
+      settle()
+      for (close in listOf(false, true)) {
+        val token = requireNotNull(state.beginVertical(null))
+        val scale = if (close) .74f else .92f
+        val center = Offset(118f, 202f)
+        state.movePinch(token, scale, center, center)
+        assertEquals(width * scale, requireNotNull(state.zoomShape()).bounds.width, .1f)
+        val held = state.backdropArrival("file")
+        assertTrue(held in .001f.. .999f)
+        state.movePinch(token, (scale + 1f) / 2f, center, center)
+        assertTrue(state.backdropArrival("file") > held)
+        state.movePinch(token, scale, center, center)
+        assertEquals(held, state.backdropArrival("file"), .001f)
+        state.releaseVertical(token, 0f, decision = ViewerPinch.dismiss(scale, 0f))
+        settle()
+        assertEquals(if (close) "grid" else "file", state.upper)
+        if (!close) assertEquals(1f, state.backdropArrival("file"), 0f)
+      }
+    } finally {
+      scope.cancel()
+    }
   }
 
   @Test fun returningAfterPagingReleasesTheFirstThumbnailAndBorrowsTheCurrentOne() {
@@ -140,10 +193,13 @@ class FluidViewerTraceTest {
     val base = mutableMapOf<String, Any?>()
     val frames = mutableListOf<GlassTraceFrame>()
     var token: Int? = null
+    var previousAlpha = 1f
+    var partialFrames = 0
     try {
       val last = if (scene == "visore-barre-tocco") 150 else 120
       for (n in 0..last) {
         if (scene == "visore-apre" && n == 9) open()
+        if (scene == "visore-chiude-tocco" && n == 9) state.onStack(listOf("album"))
         if (scene == "visore-chiude-giu") {
           if (n == 9) {
             state.recordDown(Offset(151f, 240f), IntSize(width.toInt(), height.toInt()))
@@ -152,18 +208,51 @@ class FluidViewerTraceTest {
           if (n in 10..39) state.moveVertical(token!!, 8f, 960f)
           if (n == 40) state.releaseVertical(token!!, 960f)
         }
+        if (scene == "visore-chiude-pizzico") {
+          if (n == 9) token = requireNotNull(state.beginVertical(null))
+          if (n in 9..39) {
+            val f = (n - 9) / 30f
+            val anchor = Offset(180f, 266f)
+            state.movePinch(token!!, 1f - .38f * f, anchor, anchor + Offset(14f, 17f) * f)
+          }
+          if (n == 40) state.releaseVertical(token!!, 0f, decision = ViewerPinch.dismiss(.62f, 0f))
+        }
         tick()
         val ms = glassTraceTimeMs(n, fps)
         val p = state.fractionToward { it == "file" }
         val shape = state.zoomShape() ?: if (p > .5f) full else FluidZoomShape(thumb)
-        val photo = FluidZoom.sharedBounds(thumb, destination, p, shape, FluidZoomShape(thumb), full)
+        val photo = state.sharedImageBounds(thumb, destination, p, shape)
+        if (scene == "visore-chiude-pizzico" && n in 9..39) {
+          val f = (n - 9) / 30f
+          val anchor = Offset(180f, 266f)
+          val center = anchor + Offset(14f, 17f) * f
+          val expected = center + (destination.center - anchor) * (1f - .38f * f)
+          assertEquals(expected.x, photo.center.x, .05f)
+          assertEquals(expected.y, photo.center.y, .05f)
+          assertEquals(destination.width * (1f - .38f * f), photo.width, .05f)
+        }
         val elements = mutableListOf<Map<String, Any?>>()
         val page = if (dark) "#161619" else "#F6F5F2"
         val ink = if (dark) "#FFFFFF" else "#242328"
         elements += rectangle("album", full.bounds, page)
         elements += label("titolo-album", "Foto", 20f, 84f, 32f, ink)
         elements += label("nome-file", "Dune", 20f, 230f, 16f, ink)
-        if (p > 0f) elements += rectangle("visore", shape.bounds, "#000000", shape.corners.topLeft)
+        val backdrop = if (p > 0f) state.backdropArrival("file") else 0f
+        if (scene == "visore-apre" && p <= FluidZoom.ViewerBackdropStart) assertEquals(0f, backdrop, 0f)
+        if (scene.startsWith("visore-chiude")) {
+          assertTrue("Backdrop step at frame $n: $previousAlpha -> $backdrop", previousAlpha - backdrop < .24f)
+          if (backdrop in .001f.. .999f) partialFrames++
+          previousAlpha = backdrop
+        }
+        if (p == 1f && (scene == "visore-apre" || n < 9)) assertEquals(1f, backdrop, .001f)
+        val faces = viewerZoomFaces(p, backdrop)
+        if (backdrop > 0f) {
+          val closing = scene.startsWith("visore-chiude")
+          val opacity = if (closing) backdrop else backdrop * faces.pageAlpha
+          val alphaByte = (opacity * 255f).toInt().coerceIn(0, 255)
+          elements += rectangle("visore", if (closing) full.bounds else shape.bounds, "#000000%02X".format(alphaByte),
+            if (closing) 0f else shape.corners.topLeft)
+        }
         elements += rectangle("foto", photo, "#00000000").plus("content" to listOf(mapOf(
           "name" to "foto", "w" to photo.width, "h" to photo.height, "items" to listOf(mapOf(
             "kind" to "background", "x" to 0, "y" to 0, "w" to photo.width, "h" to photo.height,
@@ -177,7 +266,6 @@ class FluidViewerTraceTest {
           else -> (1f - ((ms - 650) / ViewerChromeMotion.ShowMillis).toFloat()).coerceIn(0f, 1f)
         }
         val look = fluidToolbarMinimizeLook(hidden, 48f, false, true)
-        val faces = FluidZoom.faces(p)
         val alpha = look.alpha * faces.pageAlpha
         if (alpha > .001f) {
           val y = 22f + look.offsetPx + faces.riseDp
@@ -196,7 +284,8 @@ class FluidViewerTraceTest {
         }
         frames += GlassTraceFrame(ms, elements)
       }
-      assertEquals(scene != "visore-chiude-giu", state.upper == "file")
+      assertEquals(!scene.startsWith("visore-chiude"), state.upper == "file")
+      if (scene.startsWith("visore-chiude")) assertTrue("Only $partialFrames intermediate frames", partialFrames >= 7)
       val name = scene + if (dark) "-scuro" else ""
       return GlassTrace(name, "f6c-1", 1f, if (dark) "dark" else "light", width, height, frames, fps,
         mapOf("background" to mapOf("kind" to "color", "color" to "#000000"), "base" to base,

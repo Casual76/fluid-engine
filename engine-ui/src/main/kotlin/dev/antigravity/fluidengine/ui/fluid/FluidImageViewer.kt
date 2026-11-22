@@ -287,6 +287,16 @@ fun Modifier.fluidZoomable(
   onTap: (() -> Unit)? = null,
   strings: FluidImageViewerStrings = FluidImageViewerStrings(),
 ): Modifier {
+  return fluidZoomInput(state, contentAspectRatio, enabled, onTap, strings).fluidZoomLayer(state)
+}
+
+/** Keep player controls outside the scaled layer while sharing the image gesture recognizer. */
+@Composable
+internal fun Modifier.fluidZoomInput(
+  state: FluidZoomState, contentAspectRatio: Float?, enabled: Boolean = true,
+  onTap: (() -> Unit)? = null, strings: FluidImageViewerStrings = FluidImageViewerStrings(),
+  immediateTap: Boolean = false,
+): Modifier {
   state.contentAspectRatio = contentAspectRatio
   val haptics = rememberFluidHaptics()
   val currentOnTap by rememberUpdatedState(onTap)
@@ -307,27 +317,33 @@ fun Modifier.fluidZoomable(
     .then(
       if (enabled) {
         Modifier
-          .pointerInput(state, hasTap) {
-            detectTapGestures(
-              onDoubleTap = { at ->
-                // Un doppio tocco e' un momento: un colpo, quando l'immagine si ingrandisce.
-                haptics.play(FluidHapticEvent.Tap)
-                state.toggleAt(Offset(at.x - size.width / 2f, at.y - size.height / 2f))
-              },
-              onTap = if (hasTap) ({ _: Offset -> currentOnTap?.invoke() }) else null,
-            )
+          .pointerInput(state, hasTap, immediateTap) {
+            val doubleTap: (Offset) -> Unit = { at ->
+              haptics.play(FluidHapticEvent.Tap)
+              state.toggleAt(Offset(at.x - size.width / 2f, at.y - size.height / 2f))
+            }
+            if (immediateTap) {
+              // Video transport reacts at release. A double tap restores the original visibility
+              // on the second release and uses the same zoom as an image.
+              detectTapGestures(onDoubleTap = doubleTap, onPress = {
+                if (tryAwaitRelease()) currentOnTap?.invoke()
+              })
+            } else {
+              detectTapGestures(onDoubleTap = doubleTap, onTap = if (hasTap) ({ _: Offset -> currentOnTap?.invoke() }) else null)
+            }
           }
           .pointerInput(state) { zoomGesture(state) }
       } else {
         Modifier
       },
     )
-    .graphicsLayer {
-      scaleX = state.scale
-      scaleY = state.scale
-      translationX = state.panX
-      translationY = state.panY
-    }
+}
+
+internal fun Modifier.fluidZoomLayer(state: FluidZoomState): Modifier = graphicsLayer {
+  scaleX = state.scale
+  scaleY = state.scale
+  translationX = state.panX
+  translationY = state.panY
 }
 
 /** Il pizzico e lo spostamento: vedi [fluidZoomable] per di chi e' il dito. */
@@ -477,7 +493,7 @@ private fun FluidImageViewerPager(
   ) { index ->
     // La pagina del preset immagine del visore (F6C.2), la stessa del telaio: uno zoom per pagina che torna a
     // scala 1 quando la pagina si lascia, e il «ferma» che fa partire un'immagine animata solo qui.
-    val pageScope = rememberViewerPage(pagerState, index, image = true, bar = null, maxScale = maxScale)
+    val pageScope = rememberViewerPage(pagerState, index, zoomable = true, bar = null, maxScale = maxScale)
     Box(
       modifier = Modifier
         .fillMaxSize()

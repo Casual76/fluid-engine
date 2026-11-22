@@ -72,7 +72,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clipToBounds
+import dev.antigravity.fluidengine.ui.theme.BlackMediaAppearance
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -331,6 +333,7 @@ internal fun <K : Any> FluidPageHostImpl(
   precomposePage: K? = null,
   dismiss: (K) -> FluidPageDismiss = { FluidPageDismiss.None },
   zoom: (K) -> FluidZoomStyle? = { null },
+  handleSystemBack: Boolean = true,
   content: @Composable FluidPageScope.(K) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
@@ -351,7 +354,7 @@ internal fun <K : Any> FluidPageHostImpl(
 
   // Il back di sistema: registrato qui, prima che le pagine compongano i loro BackHandler, cosi'
   // quelli (e un modale aperto dopo) passano davanti.
-  val dispatcherOwner: NavigationEventDispatcherOwner? = LocalNavigationEventDispatcherOwner.current
+  val dispatcherOwner: NavigationEventDispatcherOwner? = if (handleSystemBack) LocalNavigationEventDispatcherOwner.current else null
   DisposableEffect(dispatcherOwner, state) {
     val dispatcher = dispatcherOwner?.navigationEventDispatcher
     val handler = FluidPageBackHandler(state)
@@ -474,6 +477,12 @@ internal fun <K : Any> FluidPageHostImpl(
       if (page == upper && glass != null && backdrop != null) {
         GrowingPageSurface(state, backdrop, glass)
       }
+      val viewerColor = state.ownPageBackground[page]
+      if (page == upper && viewerColor != null) {
+        Box(Modifier.matchParentSize().drawBehind {
+          if (state.hasClosingBackdrop(page)) drawRect(viewerColor, alpha = state.backdropArrival(page))
+        })
+      }
       key(pageKey(page)) {
         PageLayer(
           page = page,
@@ -497,9 +506,11 @@ internal fun <K : Any> FluidPageHostImpl(
     }
     if (state.zoom != null) SharedPageOverlay(state, Modifier.matchParentSize())
     // Sopra le pagine, sotto la chrome dell'app: una barra per host, ferma mentre le pagine passano.
-    FluidAnchoredBar(state = state, registry = barRegistry,
-      lowerKey = if (entering == null) lower else state.lower,
-      upperKey = if (entering == null) upper else state.upper)
+    BlackMediaAppearance(upper?.let { state.ownPageBackground[it] } == Color.Black) {
+      FluidAnchoredBar(state = state, registry = barRegistry,
+        lowerKey = if (entering == null) lower else state.lower,
+        upperKey = if (entering == null) upper else state.upper)
+    }
   }
 }
 
@@ -568,7 +579,7 @@ private fun <K : Any> PageLayer(
       .pageLayer(state, page, shadowColor, elevationPx, signals)
       .onPlaced { sharedSpace.coordinates = it }
       .zoomCrossfade(state, page, pageColor)
-      .then(if (pageColor.isSpecified) Modifier.background(pageColor) else Modifier)
+      .then(if (pageColor.isSpecified && page !in state.ownPageBackground) Modifier.background(pageColor) else Modifier)
       .pageInputGate(state, page)
       .then(when {
         covered -> Modifier.clearAndSetSemantics { }
@@ -647,7 +658,8 @@ private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageCol
   val sourceFace = rememberGraphicsLayer()
   return drawWithContent {
     val zoom = state.zoomShape()
-    if (zoom == null || state.roleOf(page) != PageRole.Upper) {
+    if (zoom == null || state.roleOf(page) != PageRole.Upper ||
+      (page in state.ownPageBackground && state.sharedPair == null)) {
       drawContent()
       return@drawWithContent
     }
@@ -655,7 +667,7 @@ private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageCol
     val clip = FluidZoom.contentClip(zoom, target, FluidZoom.content(zoom, target)).bounds
     val look = state.zoomFaces()
     val grow = state.growing != null
-    if (!grow && pageColor.isSpecified) drawRect(pageColor)
+    if (!grow && pageColor.isSpecified && page !in state.ownPageBackground) drawRect(pageColor)
     // Anche quando l'alfa è zero, i figli marcati possono registrarsi per il disegno dell'host.
     face.record { this@drawWithContent.drawContent() }
     face.alpha = if (grow) state.solidOpacity else look.pageAlpha
@@ -715,7 +727,9 @@ private fun Modifier.pageLayer(
   val scale = state.pageScale(role)
   scaleX = scale
   scaleY = scale
-  alpha = 1f
+  val journey = state.zoom
+  alpha = if (role == PageRole.Upper && journey?.withoutSource == true)
+    ((1f - state.upperExitFraction()) / (1f - (journey.viaExit ?: 0f))).coerceIn(0f, 1f) else 1f
   transformOrigin = TransformOrigin.Center
   shape = RectangleShape
   clip = false
@@ -742,7 +756,7 @@ private fun Modifier.pageLayer(
       shape = FluidZoomClipShape(clipped.toRoundRect())
       clip = true
       // Cresce ha già l'ombra del materiale. Una carta trasparente sopra la lastra la disegnerebbe due volte.
-      shadowElevation = if (state.growing != null) 0f else elevationPx * (1f - state.upperExitFraction()).coerceIn(0f, 1f)
+      shadowElevation = if (state.growing != null || page in state.ownPageBackground) 0f else elevationPx * (1f - state.upperExitFraction()).coerceIn(0f, 1f)
       ambientShadowColor = shadowColor
       spotShadowColor = shadowColor
       signals.markMoving()
@@ -754,7 +768,7 @@ private fun Modifier.pageLayer(
       if (state.travelPx > FluidPageMotion.CardThresholdPx || scale < 1f) {
         shape = state.cardShape
         clip = true
-        shadowElevation = elevationPx
+        shadowElevation = if (page in state.ownPageBackground) 0f else elevationPx
         ambientShadowColor = shadowColor
         spotShadowColor = shadowColor
         signals.markMoving()

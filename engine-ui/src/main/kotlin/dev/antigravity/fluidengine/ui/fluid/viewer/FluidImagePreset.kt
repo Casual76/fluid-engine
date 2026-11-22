@@ -45,7 +45,7 @@ internal class ViewerPageScope(
   val index: Int,
   private val settled: State<Boolean>,
   val zoom: FluidZoomState,
-  val image: Boolean,
+  val zoomable: Boolean,
   val bar: ViewerPresetBar?,
 ) {
   val active: Boolean get() = settled.value
@@ -98,7 +98,7 @@ internal fun ViewerPresetToolbar(block: FluidToolbarScope.() -> Unit) {
 internal fun rememberViewerPage(
   pager: PagerState,
   page: Int,
-  image: Boolean,
+  zoomable: Boolean,
   bar: ViewerPresetBar?,
   maxScale: Float = FluidZoom.DefaultMaxScale,
 ): ViewerPageScope {
@@ -107,7 +107,7 @@ internal fun rememberViewerPage(
     if (pager.settledPage != page) zoom.reset()
   }
   val settled = remember(pager, page) { derivedStateOf { pager.settledPage == page } }
-  return remember(page, settled, zoom, image, bar) { ViewerPageScope(page, settled, zoom, image, bar) }
+  return remember(page, settled, zoom, zoomable, bar) { ViewerPageScope(page, settled, zoom, zoomable, bar) }
 }
 
 /**
@@ -120,13 +120,13 @@ internal fun rememberViewerPage(
 fun currentFluidViewerPageActive(): Boolean = LocalViewerPage.current?.active ?: true
 
 /**
- * Dentro una pagina immagine del visore: lo zoom che il visore le applica, null altrove. Un visore a tasselli
+ * Dentro una pagina immagine o video del visore: lo zoom che il visore le applica, null altrove. Un visore a tasselli
  * dell'app (Gallery-2, fino a 200 MP) passato come [FluidViewerContent.Image] legge qui [FluidZoomState.scale],
  * [FluidZoomState.panX] e [FluidZoomState.panY] per scegliere la risoluzione e i tasselli da caricare; i gesti, i
  * limiti dello spostamento e la chrome restano del visore (piano F6C, «Rischi»).
  */
 @Composable
-fun currentFluidViewerZoom(): FluidZoomState? = LocalViewerPage.current?.takeIf { it.image }?.zoom
+fun currentFluidViewerZoom(): FluidZoomState? = LocalViewerPage.current?.takeIf { it.zoomable }?.zoom
 
 /**
  * Il preset immagine dentro il telaio: disegna il contenuto dell'app. Lo zoom, il pager, il congedo e il ritorno alla

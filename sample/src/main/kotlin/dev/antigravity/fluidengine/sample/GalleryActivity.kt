@@ -305,6 +305,7 @@ internal fun Gallery(
               GalleryPage.Gaps -> GapsPage(bottomInset) { nav.back() }
               GalleryPage.Menus -> MenusPage(bottomInset) { nav.back() }
               GalleryPage.AllGlass -> AllGlassPage(bottomInset) { nav.back() }
+              GalleryPage.Visori -> ViewerGallery { nav.back() }
               GalleryPage.MoreComponents -> MoreComponentsPage(bottomInset) { nav.back() }
               // Le misure della prima sessione sul dispositivo: scene fisse, scelte con `measure.scene`.
               GalleryPage.Measure -> MeasurePage(bottomInset) { nav.back() }
@@ -376,7 +377,7 @@ internal fun Gallery(
         }
        }
 
-        if (nav.page != GalleryPage.TabletNavigation) Box(
+        if (nav.page != GalleryPage.TabletNavigation && nav.page != GalleryPage.Visori) Box(
           modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()

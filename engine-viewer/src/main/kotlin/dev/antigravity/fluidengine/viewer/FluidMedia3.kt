@@ -27,6 +27,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.VideoSize
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidMediaSession
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidVideoGeometry
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import kotlinx.coroutines.flow.first
 
@@ -49,7 +50,7 @@ import kotlinx.coroutines.flow.first
  * Si crea con [rememberFluidMedia3Session]; fuori da Compose, [attach] e [close] a mano.
  */
 @Stable
-class FluidMedia3Session(val player: Player) : FluidMediaSession, AutoCloseable {
+class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeometry, AutoCloseable {
 
   override var playing: Boolean by mutableStateOf(false)
     private set
@@ -71,7 +72,7 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, AutoCloseable 
     private set
 
   /** Il rapporto d'aspetto del video (con i pixel non quadrati), `null` finché non c'è un fotogramma o è audio. */
-  var videoAspectRatio: Float? by mutableStateOf(null)
+  override var videoAspectRatio: Float? by mutableStateOf(null)
     private set
 
   private var attached = false
@@ -222,5 +223,5 @@ fun fluidMedia3Content(
   artwork: (@Composable () -> Unit)? = null,
 ): FluidViewerContent.Media {
   val surface: @Composable () -> Unit = { FluidMedia3Video(session, surfaceView = surfaceView) }
-  return FluidViewerContent.Media(session = session, videoSurface = surface.takeIf { video }, artwork = artwork)
+  return FluidViewerContent.Media(session = session, sampleVideo = video && !surfaceView, videoSurface = surface.takeIf { video }, artwork = artwork)
 }

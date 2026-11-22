@@ -98,6 +98,21 @@ internal fun zoomFaceEffect(blur: Float, density: Float): RenderEffect? =
  *   alto al centro); [contentClip] dà la sagoma nelle coordinate della pagina non scalata, per ritagliarla.
  */
 object FluidZoom {
+  /** Viewer backdrop enters over the last 12% of the trip. Visual estimate for Alessio, 2026-11-22. */
+  internal const val ViewerBackdropStart = .88f
+
+  /** With the back spring this spans about 150 ms. Under the fingers, half the screen travel
+   * clears the backdrop and reversing the same distance restores it (visual tuning, 2026-11-22). */
+  internal const val ViewerBackFadeEnd = .68f
+  internal const val ViewerGestureFadeEnd = .50f
+
+  /** Gallery-2 ViewerDismissSpec.AwayScale / AwayDropFraction for a grid cell which has disappeared. */
+  internal fun pinchWithoutSource(full: Rect): FluidZoomShape {
+    val scale = .72f
+    val center = full.center + Offset(0f, full.height * .12f)
+    val half = Offset(full.width, full.height) * (scale / 2f)
+    return FluidZoomShape(Rect(center - half, center + half))
+  }
 
   /** Segue anche lo spostamento della sagoma quando il dito la porta fuori dalla traiettoria rettilinea. */
   internal fun sharedBounds(from: Rect, to: Rect, p: Float, shape: FluidZoomShape, source: FluidZoomShape, full: FluidZoomShape): Rect {

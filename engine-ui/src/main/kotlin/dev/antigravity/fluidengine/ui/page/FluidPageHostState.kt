@@ -309,6 +309,21 @@ class FluidPageHostState internal constructor() {
   }
   internal val canRetakeVertical: Boolean get() =
     vertical && phase == Phase.VerticalSettling && upper == interactionPage
+  /** A composed destination which paints its own backdrop can reveal the page underneath. */
+  internal val ownPageBackground = androidx.compose.runtime.mutableStateMapOf<Any, androidx.compose.ui.graphics.Color>()
+  private var closingBackdropCeiling = 1f
+
+  internal fun hasClosingBackdrop(page: Any): Boolean = upper == page && kind != FluidPageMove.None && !opening
+
+  /** Only the final 12% of the opening exposes the backdrop (Alessio, visual estimate 2026-11-22). */
+  internal fun backdropArrival(page: Any): Float {
+    if (upper != page || kind == FluidPageMove.None) return 1f
+    val exit = upperExitFraction()
+    if (opening) return glassContentSmoothstep(FluidZoom.ViewerBackdropStart, 1f, 1f - exit)
+    val end = if (vertical || kind == FluidPageMove.Back) FluidZoom.ViewerGestureFadeEnd else FluidZoom.ViewerBackFadeEnd
+    return minOf(closingBackdropCeiling, 1f - glassContentSmoothstep(0f, end, exit))
+  }
+
   /** An optional distance/velocity rule belonging to one composed destination. Coordinates are host pixels. */
   internal val verticalDismissRelease = mutableMapOf<Any, (Float, Float) -> Boolean>()
   internal val canDismissDown: Boolean get() =
@@ -601,6 +616,7 @@ class FluidPageHostState internal constructor() {
       return
     }
     if (phase == Phase.Pushing && upper == from && canReverseTravel() && renderable(from)) {
+      closingBackdropCeiling = backdropArrival(from)
       // Nessun settle intermedio: le voci del push restano in transizione fino al vero riposo.
       lower = to.takeIf(renderable)
       opening = false
@@ -737,6 +753,7 @@ class FluidPageHostState internal constructor() {
   }
 
   private fun settle(notify: Boolean = true) {
+    closingBackdropCeiling = 1f
     val top = processed.lastOrNull()
     pendingPlacement = null
     phase = Phase.Idle
@@ -883,6 +900,10 @@ class FluidPageHostState internal constructor() {
     val speed = if (extent > 0f) velocityPx / extent else 0f
     val shape = zoomShape()
     val token = beginDrag(layoutDirectionSign) ?: return null
+    if (zoom == null && !reducedMotion && upper in ownPageBackground && upperTransition == FluidPageTransition.Expand) {
+      val full = fullZoomShape()
+      zoom = ZoomJourney(FluidZoom.pinchWithoutSource(full.bounds), full, 0f, null, height, withoutSource = true)
+    }
     if (shape != null && exit > 0f && exit < 1f) zoom = zoom?.copy(from = shape, viaExit = exit)
     vertical = true
     fingerOpens = false
@@ -948,7 +969,23 @@ class FluidPageHostState internal constructor() {
     }
   }
 
-  internal fun releaseVertical(token: Int, velocity: Float, cancelled: Boolean = false) {
+  /** Pinch geometry is expressed in stationary host pixels. The same journey continues at release. */
+  internal fun movePinch(token: Int, scale: Float, anchor: Offset, center: Offset) {
+    if (!vertical || !isDragging(token) || reducedMotion) return
+    val full = fullZoomShape()
+    fun mapped(point: Offset) = center + (point - anchor) * scale
+    val shape = FluidZoomShape(Rect(mapped(full.bounds.topLeft), mapped(full.bounds.bottomRight)))
+    // An interior waypoint also represents a pure two-finger translation at scale one.
+    val shift = (center - anchor).getDistance() / full.bounds.size.maxDimension
+    val exit = maxOf(kotlin.math.abs(1f - scale), shift).coerceIn(.001f, .999f)
+    val journey = zoom ?: return
+    zoom = journey.copy(from = shape, viaExit = exit, pinched = true)
+    travelPx = height * exit
+    velocityPx = 0f
+    markTouchFrame()
+  }
+
+  internal fun releaseVertical(token: Int, velocity: Float, cancelled: Boolean = false, decision: Boolean? = null) {
     val request = pendingOpen
     if (request?.token == token) {
       request.released = true
@@ -967,7 +1004,7 @@ class FluidPageHostState internal constructor() {
     if (fingerOpens) {
       val open = !cancelled && FluidPageMotion.backRelease(height - travelPx, -velocity, height, density)
       verticalEndpoint(open, speed)
-    } else if (!cancelled && (verticalDismissRelease[upper]?.invoke(travelPx, velocity)
+    } else if (!cancelled && (decision ?: verticalDismissRelease[upper]?.invoke(travelPx, velocity)
         ?: FluidPageMotion.backRelease(travelPx, velocity, height, density))) {
       confirmThroughDispatcher(speed)
     } else {
@@ -1499,4 +1536,6 @@ internal data class ZoomJourney(
   val following: Boolean = false,
   val pivot: Offset = Offset.Zero,
   val viaExit: Float? = null,
+  val pinched: Boolean = false,
+  val withoutSource: Boolean = false,
 )

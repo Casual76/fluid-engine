@@ -30,6 +30,11 @@ interface FluidMediaSession {
   fun seekTo(positionMillis: Long)
 }
 
+/** Optional dimensions for fitting a video surface and bounding its zoom and pan. */
+interface FluidVideoGeometry {
+  val videoAspectRatio: Float?
+}
+
 /** Zero-based pages. Both suspending operations must be safe to call on the main dispatcher. */
 interface FluidPageSource {
   val count: Int
@@ -61,9 +66,14 @@ interface FluidViewerContent {
   /** A non-null video surface identifies a video, even while it is buffering. */
   class Media(
     val session: FluidMediaSession,
+    /** True for surfaces that the glass can sample, such as a TextureView or Compose content. */
+    val sampleVideo: Boolean,
     val videoSurface: (@Composable () -> Unit)? = null,
     val artwork: (@Composable () -> Unit)? = null,
-  ) : FluidViewerContent
+  ) : FluidViewerContent {
+    constructor(session: FluidMediaSession, videoSurface: (@Composable () -> Unit)? = null,
+      artwork: (@Composable () -> Unit)? = null) : this(session, false, videoSurface, artwork)
+  }
 
   class Pages(val source: FluidPageSource) : FluidViewerContent
   class Text(val source: FluidTextSource) : FluidViewerContent

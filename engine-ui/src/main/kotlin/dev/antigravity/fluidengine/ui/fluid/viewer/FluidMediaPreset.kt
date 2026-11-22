@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.*
@@ -49,7 +50,7 @@ fun FluidMediaPreset(
   content: FluidViewerContent.Media,
   chromeVisible: Boolean,
   modifier: Modifier = Modifier,
-  sampleVideo: Boolean = false,
+  sampleVideo: Boolean = content.sampleVideo,
   strings: FluidMediaPresetStrings = FluidMediaPresetStrings(),
 ) {
   key(content.session) {
@@ -62,16 +63,27 @@ fun FluidMediaPreset(
     val bottom = fluidBottomBarExtraInset(LocalFluidBottomInset.current)
     val policy = LocalFluidMotionPolicy.current
     val art = content.artwork
-    Box(modifier.fillMaxSize().background(if (video != null) Color.Black else MaterialTheme.colorScheme.surface)) {
+    val page = LocalViewerPage.current
+    val surfaceColor = if (video != null) Color.Black else MaterialTheme.colorScheme.surface
+    Box(modifier.fillMaxSize().then(if (page == null) Modifier.background(surfaceColor) else Modifier)) {
       if (video != null) {
-        if (!sampleVideo) Box(Modifier.matchParentSize().glassBackdropSource(backdrop).background(Color.Black))
+        if (!sampleVideo) Box(Modifier.matchParentSize().glassBackdropSource(backdrop)
+          .viewerBackdrop(Color.Black, fullyArrivedOnly = true))
         Box(
           Modifier.matchParentSize().then(if (sampleVideo) Modifier.glassBackdropSource(backdrop) else Modifier),
           contentAlignment = Alignment.Center,
         ) {
-          video()
+          val ratio = (session as? FluidVideoGeometry)?.videoAspectRatio
+          val shared = LocalVideoShared.current
+          val surface = Modifier.viewerFit(ratio)
+          Box(if (page != null && shared != null) surface.then(shared).fluidZoomLayer(page.zoom) else surface,
+            contentAlignment = Alignment.Center) { video() }
         }
-        CompositionLocalProvider(LocalFluidSurfaceSide provides true) {
+        // Route contacts on an AndroidView to the frame. The transport above has its own hit targets.
+        if (LocalVideoShared.current != null) Box(Modifier.matchParentSize().pointerInput(Unit) {
+          awaitPointerEventScope { while (true) awaitPointerEvent() }
+        })
+        dev.antigravity.fluidengine.ui.theme.BlackMediaAppearance(true) {
           val playbackNamespace = rememberFluidGlassNamespace()
           // Materialize is the existing R4 B3 preset. Removing this single keyed piece leaves its
           // recorded symbol with the plane for the 470 ms departure, without a second hit target.
@@ -182,7 +194,7 @@ private fun PlaybackTimeline(
     primary = ink, onPrimary = Color.Black) else scheme
   val surface = if (video) Modifier.fluidGlass(FluidGlass.Clear, backdrop = backdrop) else Modifier
   val total = duration?.let(FluidScrubbing::clock)
-  CompositionLocalProvider(LocalContentColor provides ink) {
+  CompositionLocalProvider(LocalContentColor provides ink, LocalClearScrubberThumb provides video) {
     MaterialTheme(colorScheme = colors) {
       FluidScrubber(
         position = { session.positionMillis.inMediaBounds(duration).toFloat() },

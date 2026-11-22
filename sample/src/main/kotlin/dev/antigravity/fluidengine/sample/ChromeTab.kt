@@ -241,6 +241,8 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           onClick = { onOpen(GalleryPage.AllGlass) },
         )
         FluidListDivider()
+        FluidListRow(title = "Visori", subtitle = "Foto, video e PDF", onClick = { onOpen(GalleryPage.Visori) })
+        FluidListDivider()
         FluidListRow(
           title = "Riordino, aggiornamento e visore",
           subtitle = "Aggiornamento in-app, riordino, scorrimento rapido con la bolla, visualizzatore",

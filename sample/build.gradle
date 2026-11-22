@@ -15,6 +15,8 @@ plugins {
 
 apply from: "${projectDir}/../versions.gradle"
 
+def viewerMedia3 = project.findProperty('viewer.media3Test') ?: engine.media3Test
+
 // La chiave vera vive fuori dal repo: local.properties (git-ignorato) con
 //   pampa.storeFile=C\:/VibeCoded Projects/pampa.jks   (i due punti si scrivono \: anche con le barre dritte: lint PropertyEscape)
 //   pampa.storePassword=...
@@ -151,6 +153,7 @@ dependencies {
   // altre. Porta con se' il permesso RECORD_AUDIO di engine-ai, che la galleria non chiede mai (il composer della pagina
   // ha requestMicPermission = false).
   implementation project(':engine-ai-ui')
+  implementation "androidx.media3:media3-exoplayer:${viewerMedia3}"
   implementation project(':engine-viewer') // F6C.4, opt-in: i decodificatori dei visori (PDF, testo, GIF e WebP animate) per la galleria
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
 

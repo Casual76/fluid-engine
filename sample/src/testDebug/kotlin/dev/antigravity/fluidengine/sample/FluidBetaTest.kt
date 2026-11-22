@@ -426,6 +426,7 @@ class FluidBetaGalleryTest {
 
   /** Un segno che la pagina e' quella composta: qualcosa che sta solo nella sua demo. */
   private fun pageMarkerShown(page: GalleryPage): Boolean = when (page) {
+    GalleryPage.Visori -> shown("Quaderno di campo")
     GalleryPage.ToTry -> compose.onAllNodes(hasTestTag("to-try-page")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.RowsAndSheets -> compose.onAllNodes(hasTestTag("demo-toggle-notifications")).fetchSemanticsNodes().isNotEmpty()
     GalleryPage.CapsulesAndParts -> compose.onAllNodes(hasTestTag("capsules-and-parts-demo")).fetchSemanticsNodes().isNotEmpty()

@@ -821,7 +821,13 @@ private val Stable = TryRound(
   title = "Stabile",
   intro = "La versione stabile: i componenti nuovi della fase 1 (liste, identità, navigazione, campi, contenuti) " +
     "con la matrice degli stati, e gli ultimi ritocchi dopo la beta 5. Tocca una voce per aprire la sua demo.",
-  items = Phase1Items + listOf(
+  items = listOf(
+    TryItem(
+      "visori", TryArea.Pages, "Visori",
+      "Apri una foto, ingrandisci il video con due dita o sfoglia il PDF.",
+      TryTarget.Page(GalleryPage.Visori, "Galleria dei file"),
+    ),
+  ) + Phase1Items + listOf(
     TryItem(
       "interruttore-trascinabile", TryArea.Rows, "Interruttori da trascinare",
       "Trascina il pallino di «Nero assoluto» o di «Aptica» invece di toccare la riga: si prende e si posa dove lo " +

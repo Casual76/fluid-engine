@@ -27,6 +27,8 @@ spariva mentre la si leggeva.
 | un messaggio che deve restare finché non si corregge la causa | **non così**: `FluidInlineMessage` |
 | sapere che la notifica è stata *vista* prima di marcarla come consegnata | il valore di ritorno di `show`: `FluidNotificationDelivery.Presented` |
 | pubblicare dallo stesso evento da più schermate senza duplicati | lo stesso `id`: la coda deduplica finché la notifica è in coda o a vista |
+| «Annulla invio» dopo che il compositore si è chiuso, **senza** un avviso (la scelta di serie dalla 4.0) | non una notifica: il tasto che diventa il contatore, `FluidUndoCountdown` (sezione «Il contatore nel tasto») |
+| un avviso con testo che **nasce dal tasto** che l'ha pubblicato e si posa vicino a lui (non di serie) | `FluidNotification(…, source = rememberFluidToolbarTransitionSource(id))`, o i preset `FluidNotification.undo`, `.result`, `.reminder` (sezione «L'avviso che nasce dal tasto») |
 
 ## Montare l'host
 
@@ -272,6 +274,68 @@ l'app in secondo piano, con la card aperta), mentre la finestra di annullo è un
 **Trappole.** Il callback termina la presentazione: se l'azione deve restare disponibile dopo il tocco (due tentativi), pubblica una nuova card (id nuovo, stesso gruppo) dal callback. `updateCurrent` non cambia la coda: una
 card in coda non si aggiorna, si pubblica di nuovo. `showForResult` aspetta come `show` un host attivo: con uno stato che nessun host disegna non ritorna mai. Lo scadere del `TimedOut` non è lo scadere dell'operazione.
 
+## L'avviso che nasce dal tasto (F6B.4, non di serie)
+
+**Cos'è.** Un campo in coda a `FluidNotification`, `source: FluidTransitionSource? = null`, con tre preset. Con la
+sorgente la card **non scende dall'alto**: nasce dal vetro del tasto che l'ha pubblicata. La faccia del tasto si spegne
+mentre la goccia si raccoglie, la goccia va al punto di posa vicino al tasto (sotto la barra in alto, sopra quella in
+basso: scelta di Alessio) e la card si apre attorno a lei col testo sfocato e piegato dalla lente; poi si posa. All'uscita
+torna nel tasto se il tasto è ancora lì, altrimenti scivola via come le notifiche di sempre. È il viaggio in tre tempi del
+popover di F5B.1 (raccolta, viaggio, posa; testo leggibile a 167–183 ms e nitido a 267 ms; rientro in 250 ms), estratto in
+un punto comune (`FluidSourceJourney`) e usato dalla coda delle notifiche: la strada (a) del piano.
+
+**Non è di serie.** Dopo i video del 21 novembre Alessio l'ha giudicato «troppo invasivo» per «Invia» e «Annulla»: lì il
+riscontro è il tasto che diventa il contatore (sotto). L'avviso dal tasto resta per chi vuole un avviso **con testo**
+legato a un tasto: un esito da spiegare in una frase, un promemoria con un'azione.
+
+```kotlin
+val host = LocalFluidNotificationHostState.current
+val archive = rememberFluidToolbarTransitionSource("archivia")       // il tasto «archivia» della barra di questa pagina
+scope.launch {
+  host?.show(FluidNotification.undo("Conversazione archiviata", seconds = 5, onUndo = ripristina,
+    source = archive, group = "posta"))
+}
+```
+
+| preset | che cosa è |
+|---|---|
+| `FluidNotification.undo(title, seconds, onUndo, source, group, id, message, undoLabel)` | un solo «Annulla» in linea, con attorno un **anello che si svuota** (scelta di Alessio) in `seconds` secondi; il tempo di lettura comprende quello per vedere l'esito dopo la scadenza |
+| `FluidNotification.result(success, title, message, source, id)` | un esito, col tono `Success` o `Error` |
+| `FluidNotification.reminder(action, title, message, source, id)` | un promemoria con l'azione già in linea, a card chiusa |
+
+**Comportamento.**
+- **La sorgente si legge quando si pubblica**: riquadro e forma del tasto in quel momento restano con la richiesta anche
+  mentre aspetta in coda, quindi l'avviso nasce dal punto giusto anche se la pagina si è già chiusa (il compositore). Quando
+  arriva il suo turno prova a prendere in consegna il tasto; alla chiusura cerca la sua posizione attuale.
+- **L'anello** attorno a un'azione in linea viene da `FluidNotificationAction(label, onClick, countdown)` con un
+  `FluidNotificationCountdown(durationMillis, startedAtElapsedRealtimeMillis)`, sullo stesso orologio di
+  `SystemClock.elapsedRealtime()`. L'anello **non** cambia né il tempo di lettura né la disponibilità dell'azione: la
+  scadenza resta dell'app, che toglie l'azione con `updateCurrent` e la rivalida nel callback (vedi sopra).
+- La coda, i gruppi, `showForResult` e `updateCurrent` sono quelli di sempre: con `source = null` (di serie) la card è
+  quella di prima, al pixel.
+
+**Trappole.** `rememberFluidToolbarTransitionSource(id)` va chiamata nella composizione della pagina che dichiara la barra:
+in un'altra pagina l'`id` è un altro tasto. Una sorgente che a pubblicazione non si risolve (il tasto non è posato) dà la
+card di sempre, dall'alto.
+
+## Il contatore nel tasto (F6B.4, di serie)
+
+Per «Annulla invio» l'engine non pubblica una notifica: dopo l'invio la pagina si chiude (lo fa l'app) e **un tasto della
+pagina sotto diventa «Annulla»**, nello stesso vetro e con lo stesso `id`, e si riempie col tempo che resta; a tempo
+scaduto torna com'era. È `FluidUndoCountdown` sui tasti della barra, della capsula e su `FluidActionButton`:
+
+```kotlin
+val timing = remember(startedAt) { if (startedAt < 0) null else FluidNotificationCountdown(8_000, startedAt) }
+val countdown = timing?.let { rememberFluidUndoCountdownState(it) }
+primary("nuova", FluidIcons.Add, "Nuova mail", onClick = scrivi,
+  undo = countdown?.let { FluidUndoCountdown(it, onUndo = riapriBozza, accessibilityLabel = "Annulla invio") })
+```
+
+`FluidUndoCountdownState(timing)` dice se la finestra è aperta (`isActive`) e accetta un solo annullamento (`undo`), anche
+dopo una ricreazione. Il tasto è un'area viva gentile («Annulla invio, 6 secondi»). La sezione completa è in
+[toolbar.md](toolbar.md), «Il contatore Annulla»; la famiglia in [elementi-dinamici.md](elementi-dinamici.md). La scena
+della galleria: «Elementi dinamici» → «Invia» (anche dalla voce «Avvisi con azione»).
+
 ## Token, costanti, Defaults
 
 Non c'è un `object …Defaults` pubblico: le costanti del gesto (`NotificationExpandDistanceDp`, `NotificationDismissDistanceDp`,
@@ -295,6 +359,15 @@ sorgente. Quello che un'app può regolare è nel dato: `FluidNotification.durati
   dell'host riconsegna la card non presentata e conserva l'esito; un'azione prima dell'handshake non lascia la consegna sospesa. `FluidNotificationDragTest` (sample) in più: le azioni in linea sono accessibili subito al 200%, in scuro e
   a movimento ridotto; un trascinamento dal tasto non esegue l'azione; `updateCurrent` toglie subito l'azione scaduta senza espandere la card.
 - `FluidHostContentColorTest`: il titolo ha il colore della superficie sul tema scuro.
+- `FluidNotificationSourceTest` (engine-ui, F6B.4): la posa sotto una sorgente in alto e sopra una in basso, la card
+  dentro lo schermo in uno spazio stretto, un solo «Annulla» per tutti gli osservatori, l'anello che non tocca il tempo di
+  lettura, un solo «Annulla» per un'operazione di massa; `FluidNotificationSourceFramesTest` (sample, Robolectric): la
+  sorgente letta alla pubblicazione anche se il tasto sparisce mentre la richiesta è in coda, con l'host e il modificatore veri; `FluidNotificationSourceTraceTest`: le tracce `avviso-dal-tasto`,
+  `avviso-annulla-torna`, `avviso-sorgente-sparita` (`tools/glassbench/traces/f6b/`).
+- `FluidUndoCountdownTest`, `FluidUndoCountdownUiTest` e `FluidUndoCountdownTraceTest` (F6B.4): il contatore nel tasto, un
+  solo annullamento, la ricreazione, l'area viva, le tracce `invia-composto`, `annulla-contatore`, `annulla-scade`.
+- `FluidDynamicElementsUiTest` (sample, F6B.12): la scena «avviso» della galleria (l'avviso dal tasto con «Annulla» e
+  l'esito negativo) e la scena «invia».
 
 **Non è provato**: l'aspetto del vetro, i fotogrammi dell'arrivo e dell'uscita, TalkBack su un dispositivo, e il comportamento reale a fotogrammi (è la ragione per cui i
 numeri del gesto sono funzioni pure: il resto si guarda in mano).
@@ -304,5 +377,7 @@ numeri del gesto sono funzioni pure: il resto si guarda in mano).
 `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/FluidNotification.kt` (un solo file): i tipi (`FluidNotification`, `FluidNotificationTone`,
 `FluidNotificationAction`, `FluidNotificationDelivery`), la coda e il tempo di lettura (`FluidNotificationHostState`, `runQueue`, `awaitDismissalOrActiveTimeout`),
 `FluidNotificationHost`, i colori dei toni, **le funzioni pure del gesto** (`fluidNotificationRelease`, la curva, l'allungamento, la velocità di ritorno), `FluidNotificationDragState`,
-`FluidNotificationCard`. Sample che la usano: `ChromeTab.kt` («Notifica in-app», «Notifica da aprire»), `MaterialTab.kt` (una notifica con un'azione e 60 s di durata, per guardarla
+`FluidNotificationCard`. L'avviso dal tasto è in `FluidNotificationSource.kt` (la lettura della sorgente, la card in viaggio,
+l'anello attorno all'azione) con il viaggio comune `FluidSourceJourney`; il contatore nel tasto in `FluidUndoCountdown.kt`.
+Sample che la usano: `ChromeTab.kt` («Notifica in-app», «Notifica da aprire»), `MaterialTab.kt` (una notifica con un'azione e 60 s di durata, per guardarla
 sul vetro), `GalleryActivity.kt` (l'host alla radice). Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md).

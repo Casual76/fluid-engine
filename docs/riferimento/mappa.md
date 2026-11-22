@@ -84,6 +84,7 @@ Tutto sotto `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`. La colo
 | `glass/` (+ `backdrop/` e sotto) | la libreria di Kyant0 copiata come sorgente: lente, backdrop, effetti, highlight, ombre | `vetro` | `vetro` |
 | `fluidphysics/` (17 file) | il motore che trasforma una sagoma di vetro in un'altra | `fluid-physics` | `fluid-physics` |
 | `page/` + `navigation/` | `FluidNavHost`, host delle pagine, back, barra di pagina | `pagine` | `pagine` |
+| gli elementi dinamici (F6B): `fluid/toolbar/FluidSelectionToolbar.kt`, `fluid/action/`, `fluid/FluidUndoCountdown.kt`, `fluid/FluidNotificationSource.kt`, `page/FluidZoomPresets.kt` | ciò che è dell'interfaccia e si trasforma: la selezione con la tab bar che diventa le azioni, i tasti con esito, il contatore «Annulla», l'avviso dal tasto, l'elemento che diventa pagina; le scene in `sample/…/dynamic/` | `elementi-dinamici` (+ `toolbar`, `barre`, `notifiche`, `pagine`) | `barre`, `menu-modali`, `pagine` |
 | `haptics/` | vocabolario degli eventi aptici, grana, pattern | `aptica` | `aptica` |
 | `tutorial/` | suggerimenti al primo uso, coach mark | `tutorial` | `tutorial` |
 

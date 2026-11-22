@@ -342,6 +342,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-button-styles"),
           onClick = { onOpen(GalleryPage.ButtonStyles) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Elementi dinamici",
+          subtitle = "F6B.12: selezione, tasti con esito, «Annulla» nel tasto, avviso dal tasto, elemento che diventa pagina",
+          modifier = Modifier.testTag("chrome-open-dynamic-elements"),
+          onClick = { onOpen(GalleryPage.DynamicElements) },
+        )
       }
     }
 

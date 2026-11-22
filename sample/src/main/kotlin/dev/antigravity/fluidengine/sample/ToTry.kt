@@ -846,6 +846,18 @@ private val Stable = TryRound(
         "la pagina resta sotto il dito; giudica se non salta più.",
       PagesScreen,
     ),
+    TryItem(
+      "elementi-dinamici-selezione", TryArea.Bar, "Selezione nella tab bar",
+      "Apri «Posta in arrivo», tocca «Seleziona» e tre righe, poi «Fine»: la tab bar diventa le azioni e torna com'era; " +
+        "giudica se è un vetro solo e se la lista resta ferma.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Selezione"),
+    ),
+    TryItem(
+      "elementi-dinamici-tasti", TryArea.Buttons, "Tasti con esito",
+      "Apri «I sei preset», tocca ogni tasto con «Riesce», «Non riesce» e «Lavoro breve», poi metti in pausa Scarica: " +
+        "giudica se l'esito si capisce dall'icona senza leggere.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Tasti con esito"),
+    ),
   ),
 )
 

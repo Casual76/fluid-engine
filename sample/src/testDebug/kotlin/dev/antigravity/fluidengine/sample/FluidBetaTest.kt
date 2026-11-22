@@ -479,6 +479,8 @@ class FluidBetaGalleryTest {
     GalleryPage.ListsForms -> shown("F6.6 ·", substring = true)
     // «Stili dei tasti» (F6.4), come «Liste, campi e stepper»: il segno è il sottotitolo con la sigla del pacchetto.
     GalleryPage.ButtonStyles -> shown("F6.4 ·", substring = true)
+    // «Elementi dinamici» (F6B.12), come «Stili dei tasti»: il segno è il sottotitolo dell'indice con la sigla del pacchetto.
+    GalleryPage.DynamicElements -> shown("F6B.12 ·", substring = true)
   }
 }
 

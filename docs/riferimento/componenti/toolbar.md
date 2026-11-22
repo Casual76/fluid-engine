@@ -59,6 +59,8 @@ elimina nascono **in un vetro solo** (sono icone vicine), la conferma nasce tint
 | `overflow(label?) { … }` | ciò che sta **sempre** nel menu «Altro» (il tasto coi tre puntini) | — |
 | `title(mode, subtitle?)`, `subtitle(text)` | il modo del titolo (`Large`, `Inline`, `None`) e il sottotitolo | — |
 | `search(spec)` | la ricerca della pagina (vedi «La ricerca») | — |
+| `selection(state, count, onSelectAll, onDone, placement, labels, doneId) { … }`, `selectButton(onClick)` | la barra in selezione e il tasto «Seleziona» (vedi «La selezione», F6B.1) | il conteggio al centro, «Fine» e «Seleziona tutto» a sé; le azioni nei loro gruppi |
+| `undoCountdown(id, countdown, placement, priority)` | un «Annulla» temporaneo col suo vetro, che si riempie e poi esce (vedi «Il contatore Annulla», F6B.4) | a sé |
 
 `role`: `FluidButtonRole.Destructive` colora l'icona (e la voce del menu) col colore d'errore; `Confirm` e `Close` fanno
 del tasto una conferma o un Chiudi; `Cancel` lo mette a sinistra. `placement` (`FluidToolbarPlacement`) e `priority`
@@ -254,6 +256,127 @@ azioni delle pagine di sempre restano nella loro riga, come prima. Dettagli, la 
 [pagine-back-e-barra.md](pagine-back-e-barra.md), «La barra disegnata dal modello». La prova in galleria è «Barre fra
 pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `pages.start`).
 
+## La selezione (F6B.1, F6B.2)
+
+Una pagina entra in selezione scrivendo `selection { }` **al posto** della barra di «sfoglia», con un `if`, come ogni
+altro cambio di stato:
+
+```kotlin
+FluidScreen(title = "Note", toolbar = {
+  if (selecting) {
+    selection(state, count = state.countIn(total), onSelectAll = { state.selectAll(snapshot = query) },
+      onDone = { selecting = false }, placement = FluidSelectionBarPlacement.Top) {
+      button("sposta", FluidIcons.DriveFileMove, "Sposta", onClick = sposta, enabled = selectionHasItems)
+      button("elimina", FluidIcons.Delete, "Elimina", onClick = elimina, role = FluidButtonRole.Destructive,
+        enabled = selectionHasItems)
+    }
+  } else {
+    selectButton(onClick = { selecting = true })
+  }
+}) { … }
+```
+
+Che cosa dichiara, e che cosa si vede:
+- **«Seleziona» e «Fine» sono lo stesso tasto**: hanno di serie lo stesso `id` (`FluidSelectionToolbarIds.Toggle`), quindi
+  è lo stesso vetro che si stringe e cambia scritta sfocandola.
+- **Il conteggio** («3 selezionati», da `FluidSelectionLabels`) sta al centro, senza vetro, al posto del titolo agganciato:
+  quando cambia, la scritta si scambia sfocandosi; il titolo agganciato esce sfocato e torna alla fine. Per TalkBack è
+  un'area viva della schermata, annunciata una volta per cambio.
+- **«Seleziona tutto»** a sinistra, al posto dell'indietro, se c'è `onSelectAll`: un tondo col simbolo dell'elenco spuntato
+  che, con tutto scelto, si accende e dice «Deseleziona». È un tondo e non una scritta perché la barra ha tre gruppi e
+  centra il conteggio (R5 B11): per esteso spingerebbe il conteggio in «Altro» su un telefono.
+- **Le azioni** sono la DSL di sempre dentro il blocco, oppure un preset: `FluidSelectionActions.mail(…)`, `.gallery(…)`,
+  `.files(…)`, `.deleteOnly(…)`. In basso si dividono ai due estremi, in tre gruppi al più, «Altro» compreso; quando il
+  posto non basta escono prima le azioni, poi «Seleziona tutto», poi il conteggio, «Fine» per ultimo.
+- **Dove stanno** (`FluidSelectionBarPlacement`, non un enum: si confronta con `==`): `ReplacingTabBar` di serie, cioè
+  **al posto della tab bar** (la tab bar della shell trasforma la sua pillola nella capsula delle azioni: vedi
+  [barre.md](barre.md), «La tab bar che diventa le azioni»; senza tab bar la disegna la barra in basso della pagina);
+  `AboveTabBar`; `Top`, nella barra in alto (i posti sono tre, «Altro» compreso, col conteggio al centro: su un telefono le azioni, e con loro «Seleziona tutto», stanno in «Altro»); `Floating`, una capsula che
+  galleggia sul contenuto e a cui la lista non lascia spazio.
+- **Il back della selezione**: con una selezione dichiarata il back esce dalla selezione e non dalla pagina, e l'indietro
+  della pagina non c'è. Niente cambia finché il gesto indietro non è confermato (D1); un gesto annullato lascia tutto
+  com'era. Dentro un host di pagine l'host tiene ferma la sostituzione della tab bar finché il gesto non è confermato.
+
+Le regole: una selezione sola per barra; nessuna `primary` o `confirm` fra le azioni in basso; un'azione distruttiva in una
+selezione in basso passa `placement = FluidToolbarPlacement.BottomBar` (il ruolo da solo la metterebbe in alto); un'azione
+su misura si spegne a zero con `enabled = selectionHasItems`. Le righe prendono il segno con `FluidSelectionLeading` nello
+spazio `leading`, nella stessa misura: la lista non salta. La famiglia e le scene sono in
+[elementi-dinamici.md](elementi-dinamici.md).
+
+**Limiti.** `FluidCollapsingTopBar(toolbar = …)` mostra i tasti di `selection { }` ma non compone il back e non toglie
+l'indietro (usa `FluidScreen` o `FluidPageChrome`).
+
+## Il punto unico dei tipi (F6B.3a)
+
+Gli elementi nuovi della barra (il tasto con esito, il contatore di «Trova» della barra sopra la tastiera, e quelli di
+F6B.10–11) **non sono ruoli nuovi** del modello: sono un `FluidToolbarButtonEntry` ordinario, con un ruolo che c'è già
+(`Action` per un'icona che può stare in un gruppo, `Text` per un elemento col suo vetro), e in più un **tipo**. Così si
+aggiunge un elemento senza riscrivere la risoluzione delle larghezze, il trabocco o la differenza fra due stati.
+Tutto è interno all'engine: è la regola per chi scrive l'engine, non un'API delle app.
+
+- **Il lato puro**, `FluidToolbarKind` in `FluidToolbarModel.kt`, salvato in `FluidToolbarItem.kind`: `type` (il nome,
+  una costante in `FluidToolbarKinds`, una riga per tipo), `identity` (che cosa è fra due stati: per il tasto con esito il
+  preset), `state` (che cosa mostra adesso, senza valori continui: la faccia) e `widthDp` (la larghezza fissa, la più
+  larga fra gli stati). Il modello ne ricava due chiavi: `FluidToolbarItem.content` **comprende lo stato** (un cambio è
+  uno scambio sfocato nel posto, mai un viaggio con due facce), `FluidToolbarItem.glassContent` **no** (il vetro non
+  respira quando cambia solo lo stato). Per un tasto senza tipo le due chiavi coincidono con quella di prima.
+- **Il lato della resa**, `FluidToolbarElementType` in `FluidToolbar.kt`: `kind`, `acceptsTap` (se il posto risponde
+  adesso) e `rememberSlot(live)`, che dà la faccia da disegnare dentro lo scambio sfocato del posto e la descrizione per
+  TalkBack. La barra lo chiama in un punto solo per cosa: il posto, il bersaglio (che prende il tocco solo se
+  `acceptsTap`), il glifo che viaggia fra due vetri (`live = false`: disegna, ma non suona e non trema) e il menu «Altro»
+  (che spegne la voce che non risponde).
+- **La DSL**: una funzione dello scope che aggiunge la voce col suo tipo.
+
+Il primo tipo è il tasto con esito (`FluidToolbarActionType`, in `action/FluidActionButton.kt`). La prova che un tipo
+inventato entra senza riscrivere niente è `FluidActionToolbarTest`.
+
+## `action` e `state`: il tasto con esito nella barra (F6B.3a)
+
+`button`, `primary` e `confirm` hanno in coda `action: FluidActionPreset? = null` e `state: FluidActionState = Idle`.
+Con `action` il posto disegna le facce del preset (l'anello del lavoro, la spunta, la X, la percentuale) al posto
+dell'icona; `icon` resta l'identità del tasto e la sua icona nel menu «Altro».
+
+```kotlin
+val send = rememberFluidActionRunner(FluidActionPreset.Send)
+FluidScreen(title = "Nuova mail", toolbar = {
+  primary("invia", FluidIcons.Send, "Invia", onClick = { send.run { api.invia(bozza) } },
+    action = FluidActionPreset.Send, state = send.state)
+}) { … }
+```
+
+Che cosa fa la barra: **un cambio di stato è uno scambio sfocato nello stesso vetro**, senza viaggi né fantasmi; il vetro
+non respira (scelta di Alessio: il vetro resta fermo e i vicini non saltano) e la larghezza è fissa; sotto la soglia dei
+300 ms la barra non cambia affatto; mentre lavora il tasto non risponde e TalkBack lo dice spento; la voce in «Altro» è
+spenta finché lavora. Sul vetro tinto della principale e della conferma l'esito negativo usa l'inchiostro della tinta (il
+rosso sull'accento non si legge): lo dicono il glifo e la scossa. Lo stesso tasto da solo è `FluidActionButton`, nella
+capsula `FluidCapsuleAction(…, action, state)`: vedi [elementi-dinamici.md](elementi-dinamici.md), «I tasti con esito».
+
+## Il contatore «Annulla»: `undo` (F6B.4)
+
+`button`, `primary`, `FluidCapsuleAction` e `FluidActionButton` hanno in coda `undo: FluidUndoCountdown? = null`. Finché
+la finestra è aperta il tasto **diventa «Annulla»** nello stesso vetro e con lo stesso `id`, e una tinta lo riempie da un
+capo all'altro col tempo che passa; a tempo scaduto torna la faccia di riposo. È la scelta di Alessio per «Annulla invio»
+al posto dell'avviso: la pagina del compositore si chiude, e un tasto della pagina sotto («Nuova mail») fa da contatore.
+
+```kotlin
+val timing = remember(startedAt) { if (startedAt < 0) null else FluidNotificationCountdown(8_000, startedAt) }
+val countdown = timing?.let { rememberFluidUndoCountdownState(it) }
+primary("nuova", FluidIcons.Add, "Nuova mail", onClick = scrivi,
+  undo = countdown?.let { FluidUndoCountdown(it, onUndo = riapriBozza, accessibilityLabel = "Annulla invio") })
+```
+
+- La finestra (`FluidNotificationCountdown`: durata e istante di partenza sull'orologio monotono) e l'operazione sono
+  **dell'app**; `FluidUndoCountdownState` accetta un solo tocco entro la finestra, anche dopo una ricreazione
+  (`rememberFluidUndoCountdownState` salva il consumo).
+- Il piano riceve una larghezza misurata per faccia; il riempimento si legge nel disegno (a secondi interi col movimento
+  ridotto); TalkBack sente «Annulla invio, 6 secondi» da un'area viva gentile, a passi via via più fitti.
+- `rememberFluidToolbarTransitionSource(id)` risolve il posto anche mentre dice «Annulla»: l'app può farne la sorgente di
+  una pagina che si riapre con lo zoom.
+- `undoCountdown(id, countdown)` è la variante **temporanea**: un tasto col suo vetro che non c'era, nasce per lente e alla
+  fine esce con la lente del piano (un «Annulla» per un'archiviazione in blocco).
+
+La galleria: «Elementi dinamici», scena `invia` e scena `selezione-posta`; e la voce «Avvisi con azione».
+
 ## Limiti noti
 
 - **Il menu «Altro»** è il menu contestuale dell'engine (senza un host dei modali non si apre: le azioni restano
@@ -305,4 +428,6 @@ pagine» (`--es gallery.page toolbarpages`, con `pages.auto`, `pages.follow`, `p
 - `…/ui/fluid/toolbar/FluidToolbarSearch.kt`: il punto unico della ricerca.
 - `…/ui/fluid/FluidScreen.kt`: `toolbar`, `search`, il modo del titolo, il sottotitolo agganciato.
 - La galleria: `sample/…/toolbar/` («Barre (prova)», anche `toolbar.scene ritiro` e `telefono-apple` per il riferimento f8551; «Barre fra pagine», F4A.3).
+- `…/ui/fluid/toolbar/FluidSelectionToolbar.kt`: la selezione (F6B.1); `…/ui/fluid/action/`: il tasto con esito e il suo tipo
+  (F6B.3a); `…/ui/fluid/FluidUndoCountdown.kt`: il contatore (F6B.4). Le scene: `sample/…/dynamic/` («Elementi dinamici»).
 - `…/ui/page/FluidPageAnchoredBar.kt` e `FluidPageBar.kt`: la barra dell'host disegnata dal modello (F4A.3).

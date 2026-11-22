@@ -336,6 +336,8 @@ internal fun Gallery(
               GalleryPage.ListsForms -> dev.antigravity.fluidengine.sample.listsforms.ListsFormsPage(bottomInset) { nav.back() }
               // Gli stili dei tasti (F6.4): `buttons.sheet open` apre col foglio della barra compatta.
               GalleryPage.ButtonStyles -> dev.antigravity.fluidengine.sample.buttons.ButtonStylesPage(bottomInset) { nav.back() }
+              // Gli elementi dinamici (F6B.12): `dynamic.scene` apre una scena. A finestra intera, come i visori.
+              GalleryPage.DynamicElements -> dev.antigravity.fluidengine.sample.dynamic.DynamicElementsPage(onBack = { nav.back() })
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,
@@ -377,7 +379,8 @@ internal fun Gallery(
         }
        }
 
-        if (nav.page != GalleryPage.TabletNavigation && nav.page != GalleryPage.Visori) Box(
+        if (nav.page != GalleryPage.TabletNavigation && nav.page != GalleryPage.Visori &&
+          nav.page != GalleryPage.DynamicElements) Box(
           modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()

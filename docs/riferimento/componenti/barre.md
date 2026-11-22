@@ -44,6 +44,7 @@ proprio margine.
 | un pallino o un numero su una zona | `FluidTabItem(badge = FluidTabBadge(count))` o `tab(…, badge = …)` |
 | un'azione primaria («Scrivi») sempre visibile, o in testa al rail | `standaloneTab(…)` senza ruolo; sul rail `FluidTabRail(header = { … })` |
 | la stessa navigazione su telefono e tablet | `FluidAdaptiveNavigation(items, route, onSelect) { insets -> … }` |
+| che in selezione la tab bar **diventi** le azioni e poi torni com'era | niente sulla tab bar: la pagina dichiara `selection(…)` nella sua barra; la tab bar sta dentro `ProvideFluidChrome` o è quella di `FluidAdaptiveNavigation` (sezione «La tab bar che diventa le azioni») |
 | una barra laterale chiamata a mano (anche su telefono) | `FluidSidebar` |
 | «Non così»: la barra dentro `Scaffold(bottomBar = …)` | lo `Scaffold` toglie spazio alla pagina; la barra deve galleggiare **sopra**, perché il contenuto le scorra sotto sfocato |
 | «Non così»: `FluidTabBar`, `FluidFoldingTabBar` + `FluidBarFold` | deprecate: sono `FluidFloatingTabBar` sotto un altro nome |
@@ -342,6 +343,61 @@ unica e stabile. Le schede a elenco dicono `selected` ma non hanno `Role.Tab` n�
 un test le cerca dall'etichetta.
 
 **Non usarla quando** c'è un solo livello di navigazione (lista → dettaglio): bastano `onBack` e `FluidScreen`.
+
+### La tab bar che diventa le azioni (F6B.2)
+
+Quando la pagina davanti entra in selezione con le azioni al posto della tab bar (`selection(…)` con
+`FluidSelectionBarPlacement.ReplacingTabBar`, la posizione di serie: [toolbar.md](toolbar.md), «La selezione»), **la
+pillola delle schede diventa la capsula delle azioni nello stesso contenitore del piano**: le schede escono sfocate, le
+azioni entrano sfocate e la larghezza cambia in continuo. Il tondo della ricerca o della scheda prominente diventa il
+vetro di «Altro» se il preset ha un trabocco (Gallery), oppure confluisce nella capsula (un preset senza trabocco, come
+«Solo Elimina»: resta un vetro solo, al centro). «Fine» e il back confermato rifanno il viaggio inverso e la tab bar
+torna com'era: la scheda scelta, i segni, la posizione della lista. È la scelta di Alessio del 21 novembre, «un vetro
+solo»; dopo i video gli va bene l'attimo di vetro vuoto fra le due facce.
+
+```kotlin
+val chrome = rememberFluidChromeController()
+ProvideFluidChrome(chrome, bottomInset = FluidFloatingTabBarDefaults.ContentInset, scrollToTop = bus) {
+  Box(Modifier.fillMaxSize()) {
+    FluidScreen(title = "Fotografie", toolbar = {
+      if (selecting) selection(state, count, onSelectAll = null, onDone = { selecting = false },
+        actions = FluidSelectionActions.gallery(onShare = condividi, onDelete = elimina))
+      else selectButton(onClick = { selecting = true })
+    }) { … }
+    FluidFloatingTabBar(selectedTabKey = route, scrollConnection = scroll,
+      backdrop = chrome.activeBackdrop.value ?: fallback, modifier = Modifier.align(Alignment.BottomCenter)) { … }
+  }
+}
+```
+
+**Come funziona.** La pagina pubblica la sua barra in basso al `FluidChromeController` col segno «sostituisce la tab bar»
+(il canale di F6B.1, eletto come il fondale: vale la pagina davanti); la tab bar dice che la disegna lei e la pagina
+smette di disegnarla (un vetro solo). La tab bar risolve le azioni con il modello della barra in basso (priorità e
+larghezza, «Altro» se non ci stanno), usa le parole, le callback, le sorgenti e l'aptica della pagina, e misura le schede
+alla loro grandezza naturale anche mentre la capsula cambia misura: la lista continua a riservare lo spazio della tab bar
+e non salta. Il cambio dura `FluidMotion.PlaneResizeMillis` (535 ms, il gruppo che cambia larghezza di R4 B2, per
+analogia: Apple non ha una clip della selezione) sulla curva `FluidMotion.EaseInOut`; il contenuto usa le curve di
+sfocatura e scala di F3.4. Il viaggio inverso percorre le stesse funzioni a ritroso. Durante un gesto indietro non
+confermato niente cambia (D1): in un host la sostituzione resta quella della pagina in cima finché il gesto non è
+confermato. Col movimento ridotto si salta alla destinazione.
+
+**Rail e barra laterale non si trasformano.** Con `FluidAdaptiveNavigation` sopra i 600 dp nessuno prende la
+sostituzione: la barra delle azioni sta nel pannello della lista, larga quanto il pannello (la scelta di Alessio, come in
+Notes). Con `FluidListDetailScaffold` il dettaglio non ha una sua barra.
+
+**Trappole.**
+- *La tab bar resta e le azioni le stanno sopra*: la tab bar non vede il `FluidChromeController` della pagina. Va
+  composta dentro `ProvideFluidChrome`, con la pagina (o è quella di `FluidAdaptiveNavigation`, che ha il suo). Senza, la
+  pagina disegna le azioni nella sua barra in basso, sopra la tab bar, come con `AboveTabBar`.
+- *Due vetri*: la barra in basso della pagina e la tab bar insieme vogliono dire la stessa cosa (la tab bar non ha preso la
+  sostituzione).
+
+La scena della galleria è «Elementi dinamici» → «Posta in arrivo» (`--es gallery.page DynamicElements --es dynamic.scene
+selezione-posta`), con la tab bar di `FluidAdaptiveNavigation` su telefono e il rail o la barra laterale su tablet. Le
+prove: `FluidFloatingTabBarSelectionTest` (engine: modello, geometria, annullo e conferma, preset, tracce a 120 Hz) e
+`FluidTabSelectionHostTest` (sample: la barra al ritorno uguale al pixel all'entrata, badge, scheda e lista conservati,
+le azioni nel pannello a 800 e 1400 dp); le tracce `selezione-entra`, `selezione-esce`, `selezione-back-confermato` e
+`selezione-back-annullato` in `tools/glassbench/traces/f6b/`.
 
 ## Telefono e tablet: la navigazione adattiva
 

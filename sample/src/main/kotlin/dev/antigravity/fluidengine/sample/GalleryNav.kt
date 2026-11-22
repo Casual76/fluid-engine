@@ -145,6 +145,14 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   ButtonStyles("Stili dei tasti"),
 
+  /**
+   * Gli elementi dinamici (piano «iOS in Android», F6B.12): la selezione con la tab bar che diventa le azioni, i tasti con
+   * esito, «Invia» col contatore «Annulla», l'avviso dal tasto e l'elemento che diventa pagina, ognuno nei casi delle app
+   * rifatti con il solo engine. Vuole la finestra intera (le scene hanno la loro tab bar): la galleria qui non disegna la
+   * sua. Vedi `dynamic/`. Si apre con `--es gallery.page DynamicElements`, una scena con `--es dynamic.scene …`.
+   */
+  DynamicElements("Elementi dinamici"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

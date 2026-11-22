@@ -32,6 +32,7 @@ internal val LocalBackgroundExtensionStart = compositionLocalOf<() -> Dp> { { 0.
  * Continua un'immagine sotto la navigazione laterale mantenendo nitida e intera la sua parte visibile.
  * Applicarlo al fondale, prima del suo disegno. Lo spazio di [FluidAdaptiveNavigation] segue il vetro;
  * [start] e [end] permettono di servire anche un pannello o un ispettore disposti dall'app.
+ * Sotto la colonna di [FluidAdaptiveNavigation] c'è di serie lo sfondo del tema: l'estensione si disegna sopra e lo copre.
  */
 fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifier = composed {
   val automatic = LocalBackgroundExtensionStart.current

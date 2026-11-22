@@ -39,7 +39,11 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -162,6 +166,10 @@ private class AdaptiveStage(
  * (F6B.12): la pagina resta a finestra intera e conta da sé la barra di stato. Se un antenato ha già consumato la barra di
  * stato (`safeDrawingPadding`, la regola di prima), non si conta due volte. Gli altri inset di sistema (la barra di
  * navigazione, i ritagli ai lati) li applica l'app al contenitore.
+ * Dove la navigazione toglie spazio alla pagina (la colonna del rail e della barra laterale, per tutta l'altezza, barra
+ * di stato compresa) mette lo sfondo del tema, `MaterialTheme.colorScheme.background`: la finestra non si vede mai
+ * (scelta di Alessio del 22 novembre 2026). Un fondale che vuole continuare sotto il vetro, come su iPad, usa
+ * [fluidBackgroundExtension]: la sua estensione si disegna sopra lo sfondo di serie, e vince.
  */
 @Composable
 fun FluidAdaptiveNavigation(
@@ -203,7 +211,8 @@ fun FluidAdaptiveNavigation(
         }
       }
     }
-    Box(Modifier.adaptiveWindowPage(statusTop).glassBackdropSource(backdrop)) {
+    val ground = MaterialTheme.colorScheme.background
+    Box(Modifier.adaptiveWindowPage(statusTop).glassBackdropSource(backdrop).adaptiveColumnGround(start, ground)) {
       CompositionLocalProvider(LocalBackgroundExtensionStart provides start, LocalFluidChromeController provides chrome) {
         Box(Modifier.fillMaxSize().layout { measurable, constraints ->
           val dx = start().roundToPx().coerceIn(0, constraints.maxWidth)
@@ -265,6 +274,19 @@ private fun Modifier.adaptiveWindowPage(top: Dp): Modifier = layout { measurable
   }
   val page = measurable.measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight + dy))
   layout(constraints.maxWidth, constraints.maxHeight) { page.place(0, -dy) }
+}
+
+/**
+ * Lo sfondo del tema nella colonna che la navigazione toglie alla pagina: largo quanto lo spostamento della pagina (lo
+ * stesso arrotondamento), alto quanto la pagina a finestra intera, cioè anche sotto la barra di stato. Sta dentro la
+ * registrazione del vetro, così il rail e la barra laterale ci posano sopra come sulla pagina, e sotto la pagina, così
+ * l'estensione di [fluidBackgroundExtension] lo copre. A pagina intera (forma in basso, tab bar in alto) non disegna niente.
+ */
+private fun Modifier.adaptiveColumnGround(start: () -> Dp, color: Color) = drawBehind {
+  val width = start().roundToPx().coerceIn(0, size.width.toInt()).toFloat()
+  if (width <= 0f) return@drawBehind
+  val left = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width - width
+  drawRect(color, topLeft = Offset(left, 0f), size = Size(width, size.height))
 }
 
 private fun Modifier.adaptiveInk(clarity: Float) = graphicsLayer {

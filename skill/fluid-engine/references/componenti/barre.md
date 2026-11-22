@@ -422,6 +422,15 @@ antenati, presa in fase di misura, giusta dal primo fotogramma. Gli altri inset 
 lati) restano dell'app. Prima il rail saliva sotto l'ora (la posta sul Tab S9, riprese di F6B.12). Lo prova
 `FluidAdaptiveStatusBarTest` (sample).
 
+**Lo sfondo dietro la colonna** (F6B.12, scelta di Alessio del 22 novembre 2026: «di serie nell'engine»). Dove la
+navigazione toglie spazio alla pagina, cioè la colonna del rail e della barra laterale, per tutta l'altezza e quindi anche
+sotto l'ora, `FluidAdaptiveNavigation` mette da sé lo sfondo del tema (`MaterialTheme.colorScheme.background`, lo stesso
+di `FluidScreen`), in chiaro e in scuro: nessuna app vede più la finestra scoperta. Prima lì si vedeva la finestra, scura,
+e l'ora ci spariva sopra (la posta sul Tab S9). Lo sfondo sta sotto la pagina e dentro ciò che il vetro registra: il rail
+e la barra laterale ci posano sopra come sulla pagina. Un fondale che vuole continuare sotto il vetro, come su iPad, usa
+ancora `fluidBackgroundExtension()`: la sua estensione si disegna sopra lo sfondo di serie, e vince. Senza colonna (la tab
+bar in basso, quella in alto) non cambia niente. Lo prova `FluidAdaptiveColumnGroundTest` (sample).
+
 **La conversione è un viaggio del piano, in due tratte.** La capsula e la colonna sono lo stesso pannello: all'apertura
 la capsula va prima al margine iniziale mentre la pagina le fa posto (400 ms), poi la lastra scende fino in fondo (500
 ms) e le voci passano da riga a colonna, sfocate nel cambio; alla chiusura la colonna si raccoglie (430 ms) e la capsula
@@ -438,7 +447,7 @@ mano (anche su telefono, se l'app la sceglie).
 **`fluidBackgroundExtension(start = null, end = 0.dp)`** va sull'immagine o sulla decorazione a tutta larghezza, prima
 del suo disegno: registra il disegno una volta, mostra l'originale al centro e ne ripete il bordo ribaltato e sfocato
 (12 dp) sotto la colonna. Sul bordo della pagina il riflesso parte nitido e si sfoca solo nell'estensione, così i colori
-si raccordano durante il viaggio. Il margine viene dal contenitore; `start` ed `end` espliciti servono a un ispettore
+si raccordano durante il viaggio. Copre lo sfondo di serie della colonna. Il margine viene dal contenitore; `start` ed `end` espliciti servono a un ispettore
 posato dall'app. Rispetta il verso di lettura. Sotto Android 12 resta il riflesso senza sfocatura. Il testo va su un altro
 nodo, e resta nitido.
 

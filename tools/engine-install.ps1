@@ -98,6 +98,39 @@ $EngineModules = [ordered]@{
 # versione (il modulo lo compila come compileOnly): -Modules ...,engine-viewer.
 $OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer")
 
+# F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
+# visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
+# (engine-viewer/families.json, la stessa che controlla la build con checkViewerFamilies): qui non si ricopia.
+# Ogni famiglia porta con se' engine-viewer; engine-viewer-all porta tutte le famiglie che esistono in questo
+# engine. Sono tutte opt-in: un'app che non apre un tipo non ne paga il peso, e il tipo resta sconosciuto con
+# "Apri con...". Una famiglia che l'engine non ha ancora (le scrivono F6C.11-F6C.14) si elenca, ma non si chiede.
+$ViewerFamilies = @()
+$familiesManifest = Join-Path $PSScriptRoot "..\engine-viewer\families.json"
+if (Test-Path -LiteralPath $familiesManifest) {
+  $parsedFamilies = (Read-TextFile $familiesManifest) | ConvertFrom-Json
+  foreach ($family in $parsedFamilies.families) {
+    if ($family.test -eq $true) { continue }
+    $licenses = @(@($family.libraries | ForEach-Object { $_.license }) + @($family.assets | ForEach-Object { $_.license }) |
+      Where-Object { $_ } | Select-Object -Unique) -join "; "
+    $ViewerFamilies += [pscustomobject]@{
+      Module   = [string]$family.module
+      Label    = [string]$family.label
+      Weight   = [string]$family.weight
+      Licenses = $(if ($licenses) { $licenses } else { "nessuna libreria" })
+      Present  = (Test-Path -LiteralPath (Join-Path $PSScriptRoot "..\$($family.module)"))
+    }
+  }
+}
+$PresentViewerFamilies = @($ViewerFamilies | Where-Object { $_.Present } | ForEach-Object { $_.Module })
+foreach ($familyModule in $PresentViewerFamilies) {
+  $EngineModules[$familyModule] = @("engine-foundation", "engine-ui", "engine-viewer")
+  $OptInModules += $familyModule
+}
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "..\engine-viewer-all")) {
+  $EngineModules["engine-viewer-all"] = @("engine-foundation", "engine-ui", "engine-viewer") + $PresentViewerFamilies
+  $OptInModules += "engine-viewer-all"
+}
+
 function Fail($message) {
   Write-Host "ERRORE: $message" -ForegroundColor Red
   exit 1
@@ -113,6 +146,9 @@ function Resolve-Modules {
   while ($queue.Count -gt 0) {
     $name = $queue.Dequeue()
     if (-not $EngineModules.Contains($name)) {
+      if (@($ViewerFamilies | Where-Object { $_.Module -eq $name }).Count -gt 0) {
+        Fail "il modulo di famiglia $name non c'e' ancora in questo engine (engine-viewer/families.json lo annuncia). Quelli presenti: $(if ($PresentViewerFamilies.Count -gt 0) { $PresentViewerFamilies -join ', ' } else { 'nessuno' })"
+      }
       Fail "modulo sconosciuto: $name. Quelli veri sono: $($EngineModules.Keys -join ', ')"
     }
     if (-not $selected.Add($name)) { continue }
@@ -264,6 +300,10 @@ $notes = @(
   @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),
   @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)")
 )
+foreach ($family in $ViewerFamilies) {
+  if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }
+}
+$notes += , @("engine-viewer-all", "il visore universale: engine-viewer e tutte le famiglie di questo engine (opt-in; peso: la somma)")
 foreach ($note in $notes) {
   $module = $note[0]
   $comment = $note[1]
@@ -283,6 +323,30 @@ if ($Modules -contains "engine-viewer") {
     $media3 = "  implementation `"androidx.media3:media3-exoplayer:<la versione dell'app>`""
   }
   Write-Host ("{0,-46}// {1}" -f $media3, "solo per video e audio nel visore (engine-viewer)")
+}
+if ($Modules -contains "engine-viewer" -and $ViewerFamilies.Count -gt 0) {
+  # F6C.8: le famiglie dei visori, una per tipo di file. Si includono con -Modules; chi vuole il visore universale
+  # (come Universal Converter) chiede engine-viewer-all, che le porta tutte.
+  Write-Host ""
+  Write-Host "Visori, i moduli di famiglia (opt-in; tutti insieme: -Modules ...,engine-viewer-all):" -ForegroundColor Cyan
+  foreach ($family in $ViewerFamilies) {
+    if ($Modules -contains $family.Module) {
+      $state = "incluso"
+    } elseif ($family.Present) {
+      $state = "da includere con -Modules ...,$($family.Module)"
+    } else {
+      $state = "non ancora in questo engine"
+    }
+    if ($isKotlinDsl) {
+      $line = "  implementation(project(`":$($family.Module)`"))"
+    } else {
+      $line = "  implementation project(':$($family.Module)')"
+    }
+    Write-Host ("  {0,-24}{1}" -f $family.Module, $family.Label)
+    Write-Host ("  {0,-24}peso: {1}; licenze: {2}" -f "", $family.Weight, $family.Licenses) -ForegroundColor DarkGray
+    Write-Host ("  {0,-24}{1}" -f "", $state) -ForegroundColor DarkGray
+    if ($family.Present) { Write-Host ("  {0,-24}riga: {1}" -f "", $line.Trim()) -ForegroundColor DarkGray }
+  }
 }
 Write-Host ""
 Write-Host "Poi: docs/01-integrazione.md per il tema e il collegamento della DI." -ForegroundColor Cyan

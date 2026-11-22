@@ -1,0 +1,45 @@
+// F6C.8 · Il visore universale: tutte le famiglie dei visori in una dipendenza sola, per chi (come Universal Converter)
+// vuole aprire ogni tipo. Niente codice: solo `api` verso engine-viewer e verso i moduli di famiglia, che si
+// registrano da soli presso il risolutore (META-INF/services, FluidViewerRegistry).
+//
+//   implementation project(':engine-viewer-all')
+//
+// Un'app che vuole solo qualche famiglia non include questo modulo: aggiunge le sue righe una per una
+// (tools/engine-install.ps1 le stampa con il peso). Chi non aggiunge un modulo non ne paga il peso.
+plugins {
+  id 'com.android.library'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.all'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+}
+
+// Una riga per famiglia (F6C.11-F6C.14). La riga porta il modulo quando il modulo e' nel build: nel settings.gradle
+// dell'engine, o nel blocco che engine-install.ps1 scrive nell'app. Finche' il modulo non esiste non aggiunge niente,
+// e `checkViewerFamilies` controlla che ogni famiglia ammessa che e' nel build sia qui.
+def family = { String path -> if (rootProject.findProject(path) != null) dependencies.add('api', project(path)) }
+
+dependencies {
+  api project(':engine-viewer')
+}
+
+family(':engine-viewer-office')
+family(':engine-viewer-archive')
+family(':engine-viewer-data')
+family(':engine-viewer-graphics')
+family(':engine-viewer-3d')
+
+ext.viewerFamiliesRole = 'all'
+apply from: "${projectDir}/../engine-viewer/viewer-families.gradle"

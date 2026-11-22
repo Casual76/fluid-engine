@@ -1,0 +1,32 @@
+// F6C.8 · Il modulo di famiglia di prova: dichiara il tipo «.prova» e si registra presso il risolutore di engine-viewer
+// con META-INF/services, come faranno office, archive, data, graphics e 3d. Esiste solo nel build dell'engine
+// (settings.gradle): serve all'app di prova (../app), che prova in release che R8 tiene le famiglie scoperte con
+// ServiceLoader, e che un'app senza il modulo non ne ha le classi. Non entra mai in engine-viewer-all ne' in un'app.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.prova'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-viewer')
+}

@@ -1,0 +1,71 @@
+{
+  "about": "F6C.8 · I moduli di famiglia dei visori ammessi nel build, con le librerie che ciascuno puo' portare, la licenza e il peso. Lo leggono checkViewerFamilies (engine-viewer/viewer-families.gradle) e tools/engine-install.ps1. Una libreria fuori da questa lista ferma la build. I pesi sono le stime di F6C.7 (docs/liquid-glass/ricerca/visori-2.md, par. 1): li misura F6C.15.",
+  "families": [
+    {
+      "module": "engine-viewer-office",
+      "family": "office",
+      "package": "dev.antigravity.fluidengine.viewer.office",
+      "label": "Office: DOCX, ODT e RTF a pagine, XLSX e ODS in griglia, PPTX e ODP a slide",
+      "weight": "0,2-0,4 MB di codice dopo R8, piu' 3-6 MB di caratteri metrici (stima)",
+      "assets": [
+        { "name": "Carlito, Caladea, Liberation Sans, Serif e Mono", "license": "OFL-1.1, Apache-2.0", "weight": "3-6 MB (stima)" }
+      ],
+      "libraries": []
+    },
+    {
+      "module": "engine-viewer-archive",
+      "family": "archive",
+      "package": "dev.antigravity.fluidengine.viewer.archive",
+      "label": "Archivi: ZIP, 7z, RAR, TAR (anche .tgz, .tar.xz, .tar.zst), .gz, .bz2, .xz",
+      "weight": "2,35 MB non compressi per arm64-v8a, 1,08 MB scaricati (libarchive)",
+      "assets": [],
+      "libraries": [
+        { "coordinates": "me.zhanghai.android.libarchive:library", "license": "Apache-2.0 (collegamento); libarchive BSD-2; zlib, bzip2, xz, lz4, zstd, mbedTLS: zlib, BSD, 0BSD, Apache-2.0", "weight": "2,35 MB non compressi per arm64-v8a" }
+      ]
+    },
+    {
+      "module": "engine-viewer-data",
+      "family": "data",
+      "package": "dev.antigravity.fluidengine.viewer.data",
+      "label": "Testi ricchi e dati: Markdown, HTML, CSV, TSV, JSON, XML, plist, EPUB, EML, ICS, VCF",
+      "weight": "0,1-0,25 MB (stima)",
+      "assets": [],
+      "libraries": []
+    },
+    {
+      "module": "engine-viewer-graphics",
+      "family": "graphics",
+      "package": "dev.antigravity.fluidengine.viewer.graphics",
+      "label": "Immagini speciali e font: HEIC, AVIF, RAW, TIFF, PSD, SVG; TTF, OTF, TTC, WOFF",
+      "weight": "0,3 MB di classi prima di R8 (AndroidSVG 0,21 MB, exifinterface 0,07 MB), meno dopo",
+      "assets": [],
+      "libraries": [
+        { "coordinates": "com.caverock:androidsvg-aar", "license": "Apache-2.0", "weight": "0,21 MB di classi" },
+        { "coordinates": "androidx.exifinterface:exifinterface", "license": "Apache-2.0", "weight": "0,07 MB di classi" }
+      ]
+    },
+    {
+      "module": "engine-viewer-3d",
+      "family": "3d",
+      "package": "dev.antigravity.fluidengine.viewer.scene",
+      "label": "Modelli 3D: GLB, glTF, OBJ, STL (Filament, con i materiali e la luce come AR Quick Look)",
+      "weight": "6,5 MB non compressi per arm64-v8a, 3,1 MB scaricati (Filament)",
+      "assets": [],
+      "libraries": [
+        { "coordinates": "com.google.android.filament:filament-android", "license": "Apache-2.0", "weight": "2,9 MB per arm64-v8a" },
+        { "coordinates": "com.google.android.filament:gltfio-android", "license": "Apache-2.0", "weight": "3,0 MB per arm64-v8a" },
+        { "coordinates": "com.google.android.filament:filament-utils-android", "license": "Apache-2.0", "weight": "0,5 MB per arm64-v8a" }
+      ]
+    },
+    {
+      "module": "engine-viewer-prova",
+      "family": "prova",
+      "package": "dev.antigravity.fluidengine.viewer.prova",
+      "label": "Il modulo di prova di F6C.8: il tipo .prova, per provare il registro in un APK release",
+      "weight": "pochi KB",
+      "test": true,
+      "assets": [],
+      "libraries": []
+    }
+  ]
+}

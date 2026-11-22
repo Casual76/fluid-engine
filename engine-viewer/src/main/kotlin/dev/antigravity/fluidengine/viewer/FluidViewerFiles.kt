@@ -31,7 +31,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.Closeable
+import java.io.File
 import java.io.FileNotFoundException
+import java.io.IOException
 
 /** Un file da mostrare: dove sta e cosa ne sa l'app. [sizeBytes] `null` è ignoto, zero è vuoto. */
 @Immutable
@@ -57,6 +59,11 @@ data class FluidViewerOptions(
   /** Falso: GIF e WebP animate si mostrano ferme sul primo fotogramma. */
   val animateImages: Boolean = true,
   val pdfMaxCopyBytes: Long = FluidPdfPageSource.DefaultMaxCopyBytes,
+  /**
+   * F6C.8: il tetto della copia in cache di una sorgente che non si può spostare (una pipe, un flusso), quando una
+   * famiglia o un preset chiede `FluidViewerSource.seekable`.
+   */
+  val sourceMaxCopyBytes: Long = FluidViewerSource.DefaultMaxCopyBytes,
 )
 
 /**
@@ -72,6 +79,8 @@ class FluidViewerDocument internal constructor(
   /** Il motivo per cui il file è finito allo sconosciuto, `null` se si è aperto o se è sconosciuto davvero. */
   val failure: FluidViewerException?,
   private val resource: Closeable?,
+  /** F6C.8: le righe del pannello info date dalla famiglia che l'ha aperto («Pagine 9»); vuote per i preset di serie. */
+  val details: List<FluidViewerDetail> = emptyList(),
 ) : Closeable {
   override fun close() {
     resource?.close()
@@ -106,6 +115,10 @@ suspend fun fluidReadTextFile(
  * I ripieghi, nell'ordine: un eseguibile va subito allo sconosciuto (con l'avviso, mai letto); un file senza tipo
  * dal nome o dal MIME si riconosce dai primi byte; un file che il suo decodificatore rifiuta prova il tipo dei suoi
  * primi byte e poi il testo; se niente lo apre, lo sconosciuto con il motivo in [FluidViewerDocument.failure].
+ *
+ * F6C.8: con un modulo di famiglia nell'app ([FluidViewerRegistry.families]) decide il registro, con le sue regole
+ * (firma, estensione, MIME, priorità, ripiego al candidato dopo); i preset di serie sono uno dei candidati, con i
+ * ripieghi di sopra. Senza famiglie è esattamente l'apertura di F6C.4.
  */
 suspend fun FluidViewerFile.open(
   context: Context,
@@ -115,59 +128,152 @@ suspend fun FluidViewerFile.open(
   media: ((FluidViewerType) -> FluidViewerContent?)? = null,
 ): FluidViewerDocument {
   val app = context.applicationContext
-  val unknown = FluidViewerContent.Unknown(info, openWith, share)
-  var type = this.type
-  if (type.executable) return FluidViewerDocument(this, type, unknown, null, null)
-  if (type.preset == FluidViewerPreset.Unknown && type.mimeType == null) {
-    val header = readHeader(app)
-    if (header != null) type = FluidViewerType.of(mimeType, name, header)
+  val families = FluidViewerRegistry.families
+  if (families.isNotEmpty()) {
+    val source = FluidViewerSource.of(app, uri, name, mimeType, sizeBytes, options.sourceMaxCopyBytes)
+    return fluidOpenSource(app, this, source, families, options, openWith, share, media)
   }
-  var failure: FluidViewerException? = null
+  val unknown = FluidViewerContent.Unknown(info, openWith, share)
+  val failures = FluidViewerFailures()
+  val result = fluidOpenBuiltin(type, mimeType, name, FluidUriAccess(app, this, options), failures, media)
+  val attempt = result.attempt ?: return FluidViewerDocument(this, result.type, unknown, failures.first, null)
+  return FluidViewerDocument(this, attempt.type, attempt.content, null, attempt.resource)
+}
+
+/** Come il preset di serie legge un file: dall'`Uri` dell'app come in F6C.4, o da una sorgente del registro. */
+internal interface FluidBuiltinAccess {
+  /** I primi byte, `null` se il file non si legge. */
+  suspend fun header(): ByteArray?
+  suspend fun image(): FluidDecodedImage
+  suspend fun pages(): FluidPdfPageSource
+  /** `null` se i byte non sono testo. */
+  suspend fun text(): FluidTextDocument?
+}
+
+/** L'esito del preset di serie: il tipo a cui è arrivato (anche dai primi byte) e, se ha aperto, il tentativo. */
+internal class FluidBuiltinResult(val type: FluidViewerType, val attempt: FluidViewerAttempt?)
+
+/**
+ * I preset di serie con i ripieghi di F6C.4, senza Android: il preset di [start]; per un file senza tipo dal nome o
+ * dal MIME, quello dei primi byte; per un'immagine, un PDF o un testo che non si apre, il tipo della firma e poi il
+ * testo. Ogni motivo finisce in [failures] (il primo vince).
+ */
+internal suspend fun fluidOpenBuiltin(
+  start: FluidViewerType,
+  mimeType: String?,
+  name: String,
+  access: FluidBuiltinAccess,
+  failures: FluidViewerFailures,
+  media: ((FluidViewerType) -> FluidViewerContent?)?,
+): FluidBuiltinResult {
+  var type = start
+  if (type.executable) return FluidBuiltinResult(type, null)
+  if (type.preset == FluidViewerPreset.Unknown && type.mimeType == null) {
+    val header = access.header()
+    if (header != null) type = FluidViewerType.builtin(mimeType, name, header).type
+  }
   val tried = mutableSetOf<FluidViewerPreset>()
-  suspend fun attempt(preset: FluidViewerPreset): FluidViewerDocument? {
+  suspend fun attempt(preset: FluidViewerPreset): FluidViewerAttempt? {
     if (!tried.add(preset)) return null
     return try {
       when (preset) {
         FluidViewerPreset.Image -> {
-          val image = FluidDecodedImage.decode(app, uri, options.imageMaxPixels, options.animateImages)
-          FluidViewerDocument(this, type.copy(preset = preset), image.content(name), null, null)
+          val image = access.image()
+          FluidViewerAttempt(type.copy(preset = preset), image.content(name), emptyList(), null)
         }
         FluidViewerPreset.Pages -> {
-          val pdf = FluidPdfPageSource.open(app, uri, options.pdfMaxCopyBytes)
-          FluidViewerDocument(this, type.copy(preset = preset), FluidViewerContent.Pages(pdf), null, pdf)
+          val pdf = access.pages()
+          FluidViewerAttempt(type.copy(preset = preset), FluidViewerContent.Pages(pdf), emptyList(), pdf)
         }
-        FluidViewerPreset.Text -> {
-          val text = fluidReadTextFile(app, uri, name, mimeType, sizeBytes, options.textLimitBytes, options.textMaxLineChars)
-          text?.let {
-            FluidViewerDocument(this, type.copy(preset = preset, language = it.language), FluidViewerContent.Text(it), null, null)
-          }
+        FluidViewerPreset.Text -> access.text()?.let {
+          FluidViewerAttempt(type.copy(preset = preset, language = it.language), FluidViewerContent.Text(it), emptyList(), null)
         }
         FluidViewerPreset.Video, FluidViewerPreset.Audio ->
-          media?.invoke(type)?.let { FluidViewerDocument(this, type, it, null, null) }
+          media?.invoke(type)?.let { FluidViewerAttempt(type, it, emptyList(), null) }
         else -> null
       }
     } catch (e: CancellationException) {
       throw e
     } catch (e: FluidViewerException) {
-      if (failure == null) failure = e
+      failures.record(e)
       null
     } catch (e: RuntimeException) {
       // Un decodificatore della piattaforma che cede in un modo non documentato (un PDF strano, un'immagine
       // patologica): è un file che non si apre, non un'app che cade.
-      if (failure == null) failure = FluidViewerException(FluidViewerFailure.Corrupt, "Il file non si apre: $name", e)
+      failures.record(FluidViewerException(FluidViewerFailure.Corrupt, "Il file non si apre: $name", e))
       null
     }
   }
-  attempt(type.preset)?.let { return it }
+  attempt(type.preset)?.let { return FluidBuiltinResult(it.type, it) }
   val decodable = type.preset == FluidViewerPreset.Image || type.preset == FluidViewerPreset.Pages ||
     type.preset == FluidViewerPreset.Text
   if (decodable) {
-    readHeader(app)?.let { FluidViewerType.sniff(it) }?.let { sniffed ->
-      if (sniffed == FluidViewerPreset.Image || sniffed == FluidViewerPreset.Pages) attempt(sniffed)?.let { return it }
+    access.header()?.let { FluidViewerType.sniff(it) }?.let { sniffed ->
+      if (sniffed == FluidViewerPreset.Image || sniffed == FluidViewerPreset.Pages) attempt(sniffed)?.let { return FluidBuiltinResult(it.type, it) }
     }
-    attempt(FluidViewerPreset.Text)?.let { return it }
+    attempt(FluidViewerPreset.Text)?.let { return FluidBuiltinResult(it.type, it) }
   }
-  return FluidViewerDocument(this, type, unknown, failure, null)
+  return FluidBuiltinResult(type, null)
+}
+
+/** I preset di serie sull'`Uri` di un [FluidViewerFile], come in F6C.4. */
+private class FluidUriAccess(
+  private val context: Context,
+  private val file: FluidViewerFile,
+  private val options: FluidViewerOptions,
+) : FluidBuiltinAccess {
+  override suspend fun header(): ByteArray? = file.readHeader(context)
+  override suspend fun image() = FluidDecodedImage.decode(context, file.uri, options.imageMaxPixels, options.animateImages)
+  override suspend fun pages() = FluidPdfPageSource.open(context, file.uri, options.pdfMaxCopyBytes)
+  override suspend fun text() = fluidReadTextFile(context, file.uri, file.name, file.mimeType, file.sizeBytes,
+    options.textLimitBytes, options.textMaxLineChars)
+}
+
+/**
+ * I preset di serie su una sorgente del registro: l'`Uri` dell'app passa dalle stesse funzioni di F6C.4, un file
+ * dell'app dalle sue, un'altra sorgente dal suo flusso (l'immagine da una copia in cache, il PDF dal descrittore).
+ */
+internal fun fluidBuiltinAccess(
+  context: Context,
+  source: FluidViewerSource,
+  options: FluidViewerOptions,
+  header: ByteArray?,
+): FluidBuiltinAccess = when (source) {
+  is FluidViewerUriSource -> object : FluidBuiltinAccess {
+    private val uri = FluidUriAccess(context, FluidViewerFile(source.uri, source.name, source.mimeType, source.sizeBytes), options)
+    override suspend fun header() = header ?: uri.header()
+    override suspend fun image() = uri.image()
+    override suspend fun pages() = uri.pages()
+    override suspend fun text() = uri.text()
+  }
+  is FluidViewerFileSource -> object : FluidBuiltinAccess {
+    override suspend fun header() = header ?: FluidViewerProbe.readHeader(source)
+    override suspend fun image() = FluidDecodedImage.decode(source.file, options.imageMaxPixels, options.animateImages)
+    override suspend fun pages() = FluidPdfPageSource.open(source.file)
+    override suspend fun text() = source.readText(options)
+  }
+  else -> object : FluidBuiltinAccess {
+    override suspend fun header() = header ?: FluidViewerProbe.readHeader(source)
+
+    override suspend fun image(): FluidDecodedImage {
+      val copy = FluidSeekableCopy(File(context.cacheDir, "fluid-viewer"), options.sourceMaxCopyBytes, source.name) { source.open() }
+      return copy.use { FluidDecodedImage.decode(it.file(), options.imageMaxPixels, options.animateImages) }
+    }
+
+    override suspend fun pages(): FluidPdfPageSource = FluidPdfPageSource.open(source.seekable())
+
+    override suspend fun text() = source.readText(options)
+  }
+}
+
+private suspend fun FluidViewerSource.readText(options: FluidViewerOptions): FluidTextDocument? = withContext(Dispatchers.IO) {
+  try {
+    open().use { FluidTextDecoder.read(it, name, mimeType, sizeBytes, options.textLimitBytes, options.textMaxLineChars) }
+  } catch (e: FluidViewerException) {
+    throw e
+  } catch (e: IOException) {
+    throw FluidViewerException(FluidViewerFailure.Unreadable, "Testo non leggibile: $name", e)
+  }
 }
 
 private suspend fun FluidViewerFile.readHeader(context: Context): ByteArray? = withContext(Dispatchers.IO) {
@@ -258,7 +364,7 @@ class FluidViewerFiles internal constructor(
       created.pending.complete(document)
       // Il testo e le pagine restano lo stesso oggetto: chi li legge vede arrivare i dati. Il resto si sostituisce.
       created.document = if (created.pending.keeps()) {
-        FluidViewerDocument(file, document.type, created.pending.content, null, document)
+        FluidViewerDocument(file, document.type, created.pending.content, null, document, document.details)
       } else {
         document
       }
@@ -286,6 +392,8 @@ class FluidViewerFiles internal constructor(
 
   private fun pendingContent(file: FluidViewerFile): Pending {
     val type = file.type
+    // F6C.8: un tipo di famiglia ha il suo contenuto, che arriva intero: intanto la pagina vuota del tema.
+    if (type.family != null) return PendingFamily
     return when (type.preset) {
       FluidViewerPreset.Text -> PendingText(type.language)
       FluidViewerPreset.Pages -> PendingPages()
@@ -301,6 +409,10 @@ class FluidViewerFiles internal constructor(
 
   private object PendingImage : Pending {
     override val content: FluidViewerContent = FluidViewerContent.Image(null) {}
+  }
+
+  private object PendingFamily : Pending {
+    override val content: FluidViewerContent = FluidViewerContent.Custom {}
   }
 
   /** Il testo che arriva: [FluidTextSource.readLines] aspetta il documento, [lineCount] è noto quando arriva. */

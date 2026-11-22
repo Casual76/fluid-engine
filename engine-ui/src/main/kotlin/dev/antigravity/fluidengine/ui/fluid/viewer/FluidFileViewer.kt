@@ -188,10 +188,10 @@ fun FluidFileViewer(
               val video = (item as? FluidViewerContent.Media)?.takeIf { it.videoSurface != null }
               val ratio = (item as? FluidViewerContent.Image)?.aspectRatio
                 ?: (video?.session as? FluidVideoGeometry)?.videoAspectRatio
-              val pageScope = rememberViewerPage(pager, page, item.blackBackground, presetBar)
+              val pageScope = rememberViewerPage(pager, page, item.frameZoomed, presetBar)
               val zoom = pageScope.zoom
               val gestures = Modifier.fillMaxSize().viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
-              val input = if (item.blackBackground) {
+              val input = if (item.frameZoomed) {
                 gestures.viewerPinchDismiss(pageSpace, zoom, enabled = !infoOpen)
                   .fluidZoomInput(zoom, ratio, onTap = toggle, immediateTap = video != null)
               } else {
@@ -346,5 +346,8 @@ private fun ViewerBody(file: FluidViewerContent, chromeVisible: Boolean) {
     is FluidViewerContent.Pages -> FluidPagesPreset(file, chromeVisible)
     is FluidViewerContent.Text -> FluidTextPreset(file)
     is FluidViewerContent.Unknown -> FluidUnknownPreset(file)
+    // F6C.8: le due forme nuove, con il preset minimo (quelli veri: F6C.9 e le famiglie).
+    is FluidViewerContent.Grid -> FluidGridPreset(file, chromeVisible)
+    is FluidViewerContent.Custom -> FluidCustomPreset(file, chromeVisible)
   }
 }

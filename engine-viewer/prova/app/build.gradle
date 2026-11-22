@@ -1,0 +1,220 @@
+// F6C.8 · L'app di prova del registro dei visori (F6C-h). Tre sapori in release, con R8 come un'app vera:
+//   - conFamiglia: engine-viewer piu' il modulo di prova (../famiglia), che si registra con META-INF/services;
+//   - conFamigliaNonOttimizzata: lo stesso con -dontoptimize, come un'app che spegne le ottimizzazioni di R8;
+//   - senzaFamiglia: solo engine-viewer.
+// `checkViewerFamilyApks` costruisce i tre APK e li legge con dexdump: nei primi due la famiglia c'e', con il
+// costruttore senza argomenti, e il registro la trova (R8 riscrive ServiceLoader in un `new`, oppure il file dei
+// servizi la nomina col nome di dopo R8); nel terzo non c'e' nessuna classe del modulo. Esiste solo nel build
+// dell'engine: un'app ospite non la vede mai.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.prova.app'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.viewer.prova'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1'
+  }
+
+  flavorDimensions = ['famiglie']
+  productFlavors {
+    conFamiglia { dimension 'famiglie' }
+    conFamigliaNonOttimizzata {
+      dimension 'famiglie'
+      applicationIdSuffix '.nonottimizzata'
+      proguardFile 'dontoptimize.pro'
+    }
+    senzaFamiglia {
+      dimension 'famiglie'
+      applicationIdSuffix '.senza'
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+    }
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  implementation project(':engine-viewer')
+  conFamigliaImplementation project(':engine-viewer-prova')
+  conFamigliaNonOttimizzataImplementation project(':engine-viewer-prova')
+}
+
+ext.viewerFamiliesRole = 'app'
+ext.viewerFamiliesConfigurations = ['conFamigliaReleaseRuntimeClasspath', 'conFamigliaNonOttimizzataReleaseRuntimeClasspath',
+  'senzaFamigliaReleaseRuntimeClasspath']
+apply from: "${projectDir}/../../viewer-families.gradle"
+
+// La prova sugli APK. dexdump viene dai build-tools dell'SDK; la mappa di R8 dice come si chiamano le classi dopo.
+def familyInterface = 'dev.antigravity.fluidengine.viewer.FluidViewerFamily'
+def registryClass = 'dev.antigravity.fluidengine.viewer.FluidViewerRegistry'
+def provaFamily = 'dev.antigravity.fluidengine.viewer.prova.FluidProvaFamily'
+def provaPackage = 'dev.antigravity.fluidengine.viewer.prova.'
+def appPackage = 'dev.antigravity.fluidengine.viewer.prova.app.'
+
+// Le classi di un DEX secondo dexdump -d: per ognuna le interfacce e le firme dei costruttori; in piu' chi crea quale
+// tipo con `new-instance`, e se il codice chiama ancora `ServiceLoader.load`.
+def readDex = { File dexdump, File dex, Set<String> created, List<Boolean> serviceLoader ->
+  def out = new ByteArrayOutputStream()
+  project.exec {
+    commandLine dexdump.absolutePath, '-d', dex.absolutePath
+    standardOutput = out
+  }
+  def classes = [:]
+  def current = null
+  def section = null
+  def method = null
+  out.toString('UTF-8').eachLine { String line ->
+    def instance = line =~ /new-instance v\d+, L([^;]+);/
+    // «classe>tipo»: chi crea che cosa (i nomi corti di R8 si ripetono fra due APK, non dentro uno).
+    if (instance.find() && current != null) created << "${current.name}>${instance.group(1).replace('/', '.')}".toString()
+    if (line.contains('Ljava/util/ServiceLoader;.load:')) serviceLoader[0] = true
+    def descriptor = line =~ /^\s+Class descriptor\s+: 'L(.+);'$/
+    if (descriptor.matches()) {
+      current = [name: descriptor.group(1).replace('/', '.'), interfaces: [], inits: []]
+      classes[current.name] = current
+      section = null
+      return
+    }
+    if (current == null) return
+    if (line ==~ /^\s+Interfaces\s+-$/) {
+      section = 'interfaces'
+      return
+    }
+    if (line ==~ /^\s+(Static fields|Instance fields|Direct methods|Virtual methods)\s+-$/) {
+      section = line.contains('Direct methods') ? 'direct' : 'other'
+      return
+    }
+    def item = line =~ /^\s+#\d+\s+: 'L(.+);'$/
+    if (section == 'interfaces' && item.matches()) current.interfaces << item.group(1).replace('/', '.')
+    def name = line =~ /^\s+name\s+: '(.+)'$/
+    if (section == 'direct' && name.matches()) method = name.group(1)
+    def type = line =~ /^\s+type\s+: '(.+)'$/
+    if (section == 'direct' && type.matches() && method == '<init>') current.inits << type.group(1)
+  }
+  classes
+}
+
+tasks.register('checkViewerFamilyApks') {
+  group = 'verification'
+  description = 'F6C-h: R8 in release tiene la famiglia scoperta con ServiceLoader; senza il modulo non ce ne sono classi.'
+  dependsOn 'assembleConFamigliaRelease', 'assembleConFamigliaNonOttimizzataRelease', 'assembleSenzaFamigliaRelease', 'checkViewerFamilies'
+  def buildDir = layout.buildDirectory
+  doLast {
+    def exe = System.getProperty('os.name').toLowerCase().contains('windows') ? '.exe' : ''
+    def dexdump = new File(android.sdkDirectory, "build-tools/${android.buildToolsVersion}/dexdump${exe}")
+    if (!dexdump.isFile()) throw new GradleException("F6C-h: dexdump non trovato in ${dexdump}")
+    def report = new StringBuilder()
+    def problems = []
+    ['conFamiglia', 'conFamigliaNonOttimizzata', 'senzaFamiglia'].each { flavor ->
+      def apkDir = buildDir.dir("outputs/apk/${flavor}/release").get().asFile
+      def apk = apkDir.listFiles()?.find { it.name.endsWith('.apk') }
+      if (apk == null) throw new GradleException("F6C-h: nessun APK in ${apkDir}")
+      def mappingFile = buildDir.file("outputs/mapping/${flavor}Release/mapping.txt").get().asFile
+      // La mappa di R8: «nome.originale -> nome.dopo:» per ogni classe che resta.
+      def mapping = [:]
+      mappingFile.eachLine { String line ->
+        def m = line =~ /^(\S+) -> (\S+):$/
+        if (m.matches()) mapping[m.group(1)] = m.group(2)
+      }
+      def unzipped = new File(temporaryDir, flavor)
+      project.delete(unzipped)
+      project.copy {
+        from project.zipTree(apk)
+        into unzipped
+      }
+      // R8 rinomina anche il file dei servizi: si chiama come l'interfaccia dopo R8, e nomina le classi dopo R8.
+      def servicesDir = new File(unzipped, 'META-INF/services')
+      def allServices = (servicesDir.listFiles() ?: []).collect { it.name }.sort()
+      def services = new File(servicesDir, mapping[familyInterface] ?: familyInterface)
+      def listed = services.isFile() ? services.readLines().collect { it.trim() }.findAll { it && !it.startsWith('#') } : []
+      def classes = [:]
+      def created = [] as Set
+      def serviceLoader = [false]
+      unzipped.listFiles().findAll { it.name ==~ /classes\d*\.dex/ }.sort { it.name }.each {
+        classes.putAll(readDex(dexdump, it, created, serviceLoader))
+      }
+      def provaAfter = mapping[provaFamily]
+      def interfaceAfter = mapping[familyInterface] ?: familyInterface
+      def registryAfter = mapping[registryClass]
+      def registryCreates = created.findAll { registryAfter != null && it.startsWith(registryAfter + '>') }.collect { it.substring(registryAfter.length() + 1) }
+      def provaClasses = mapping.keySet().findAll { it.startsWith(provaPackage) && !it.startsWith(appPackage) }
+      report << "${flavor}: ${apk.name}, ${apk.length()} byte, ${classes.size()} classi nei DEX\n"
+      report << "  META-INF/services: ${allServices}; quello della famiglia (${services.name}): ${services.isFile() ? listed : 'assente'}\n"
+      report << "  ${familyInterface} -> ${mapping[familyInterface] ?: '(non in mappa: fusa o tolta da R8)'}\n"
+      report << "  ServiceLoader.load nel codice: ${serviceLoader[0] ? 'si' : 'no'}\n"
+      report << "  ${registryClass} -> ${registryAfter ?: '(tolto)'}; crea con new-instance: ${registryCreates.sort()}\n"
+      if (registryAfter == null) problems << "${flavor}: R8 ha tolto il registro, l'app di prova non lo usa piu'"
+      if (flavor.startsWith('conFamiglia')) {
+        if (provaAfter == null) {
+          problems << "${flavor}: R8 ha tolto la famiglia di prova (non e' nella mappa)"
+        } else {
+          def found = classes[provaAfter]
+          report << "  ${provaFamily} -> ${provaAfter}: " +
+            (found == null ? 'NON nei DEX' : "nei DEX, interfacce ${found.interfaces}, costruttori ${found.inits}") + '\n'
+          if (found == null) {
+            problems << "${flavor}: ${provaAfter} non e' nei DEX"
+          } else {
+            if (!found.inits.contains('()V')) problems << "${flavor}: ${provaAfter} non ha piu' il costruttore senza argomenti"
+            // Se l'interfaccia resta, la famiglia la implementa; R8 la fonde nella classe quando la famiglia e' l'unica.
+            if (mapping[familyInterface] != null && !found.interfaces.contains(interfaceAfter)) {
+              problems << "${flavor}: ${provaAfter} non implementa piu' ${interfaceAfter}"
+            }
+          }
+          // Le due strade buone: il file dei servizi nomina la classe col nome di dopo R8 (ServiceLoader la trova),
+          // oppure R8 ha riscritto la chiamata in `new` della classe e il file non serve piu'. Il file assente con
+          // ServiceLoader.load ancora nel codice vorrebbe dire una famiglia persa.
+          if (listed.contains(provaAfter)) {
+            report << "  il file dei servizi nomina ${provaAfter}: ServiceLoader la trova\n"
+          } else if (listed.isEmpty() && !serviceLoader[0] && registryCreates.contains(provaAfter)) {
+            report << "  R8 ha riscritto ServiceLoader: il registro crea ${provaAfter} con new-instance, il file dei servizi non serve\n"
+          } else {
+            problems << "${flavor}: la famiglia non si trova (servizi ${listed}, ServiceLoader.load ${serviceLoader[0]}, il registro crea ${registryCreates})"
+          }
+        }
+      } else {
+        if (!provaClasses.isEmpty()) problems << "senzaFamiglia: classi del modulo di prova nella mappa: ${provaClasses}"
+        if (listed.any { it.startsWith(provaPackage) || (provaAfter != null && it == provaAfter) }) {
+          problems << "senzaFamiglia: il file dei servizi nomina ${listed}"
+        }
+        if (classes.keySet().any { it.startsWith(provaPackage) && !it.startsWith(appPackage) }) {
+          problems << 'senzaFamiglia: classi del modulo di prova nei DEX'
+        }
+        report << "  classi del modulo di prova: ${provaClasses.isEmpty() ? 'nessuna' : provaClasses}\n"
+      }
+    }
+    def out = buildDir.file('reports/viewer-families-apk.txt').get().asFile
+    out.parentFile.mkdirs()
+    out.text = report.toString()
+    logger.lifecycle(report.toString().trim())
+    if (!problems.isEmpty()) throw new GradleException('F6C-h: ' + problems.join('; '))
+    logger.lifecycle("F6C-h: gli APK sono come devono (rapporto in ${out})")
+  }
+}

@@ -102,8 +102,16 @@ setContent {
   `LocalFluidHaptics` (un solo motore aptico per tema, acceso/spento da `settings.hapticsEnabled`), `LocalFluidSurfaceSide`
   (da che parte sta) e `LocalFluidSystemContrast` (contrasto di sistema, Android 14+: il vetro si fa piu' denso e il bordo piu'
   netto; segue il cambio con l'app aperta).
-- **Barre di sistema.** Con `systemBars = true` un `SideEffect` imposta `isAppearanceLightStatusBars` e
-  `isAppearanceLightNavigationBars` sulla finestra dell'`Activity` (`!isDark`). Fuori da una `Activity` (finestre di dialogo) o in
+- **Barre di sistema.** Con `systemBars = true` il tema imposta `isAppearanceLightStatusBars` e
+  `isAppearanceLightNavigationBars` sulla finestra dell'`Activity` (`!isDark`), e le **rimette dopo ogni cambio di
+  configurazione** (F6B.12, 22 novembre 2026): `enableEdgeToEdge()` di androidx.activity 1.13 aggiunge alla finestra una vista
+  che a ogni cambio rimette lo stile delle barre secondo il tema del **sistema**, e in un'`Activity` che gestisce da sé la
+  rotazione (`configChanges`) un'app scura su un sistema chiaro, ruotata, aveva l'ora scura sul fondo scuro finché non la si
+  riapriva. Ora il tema legge la configurazione e rimette le barre, subito e ancora un attimo dopo (così non conta l'ordine
+  in cui la finestra avvisa le sue viste). Lo prova `FluidSystemBarsConfigurationTest` (sample): rotazione e ricreazione,
+  in chiaro e in scuro, su telefono, pieghevole e tablet. `enableEdgeToEdge()` riaccende anche il velo di contrasto sotto la
+  barra di navigazione (`isNavigationBarContrastEnforced`): un'app che lo spegne lo rispegne dopo ogni cambio, come fa la
+  galleria. Fuori da una `Activity` (finestre di dialogo) o in
   anteprima di Studio non fa niente. Dalla 4.0 le **icone della barra di stato seguono la barra in alto** di `FluidScreen`:
   dove il bordo dello scorrimento scurisce sopra un contenuto scuro (tema chiaro) e il titolo passa al bianco, anche orologio
   e icone passano al chiaro, e tornano scuri quando la barra torna chiara. Dalla 4.0 G1 nei **due versi**: sul tema scuro,

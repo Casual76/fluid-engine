@@ -70,6 +70,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Lo stato di un [FluidPageHost]: cosa si sta muovendo, quanto, e se c'e' un dito.
@@ -213,8 +214,8 @@ class FluidPageHostState internal constructor() {
   internal var zoom: ZoomJourney? by mutableStateOf<ZoomJourney?>(null)
     private set
 
-  /** Le sorgenti nascoste dalle pagine aperte con lo zoom, per pagina: rinascono quando la pagina esce dalla pila. */
-  private val consumed = HashMap<Any, FluidTransitionSource>()
+  /** Sorgenti preparate all'apertura e nascoste dal primo disegno del fronte fino all'uscita della pagina. */
+  private val zoomSources = HashMap<Any, FluidTransitionSource>()
 
   // --- Il cablaggio, rinfrescato a ogni composizione dell'host -------------------------------------
 
@@ -373,6 +374,27 @@ class FluidPageHostState internal constructor() {
     else -> PageRole.Gone
   }
 
+  /** Letto nel disegno della singola pagina. Una pagina promossa a cima perde il velo
+   * nello stesso fotogramma. Il visore dispone di un proprio fondo, anche in chiusura. */
+  internal fun dimOn(page: Any): Float {
+    if (page != lower || !isMoving || kind == FluidPageMove.Peer || reducedMotion || upper in ownPageBackground) return 0f
+    val arrival = 1f - upperExitFraction()
+    val journey = zoom ?: return FluidPageMotion.SlideDim * arrival
+    val bounds = zoomShape()?.bounds ?: return 0f
+    val source = journey.source.bounds
+    // La corsa del dito può traslare la carta molto più di quanto la contragga.
+    // Misuriamo il lato che varia di più in proporzione all'host: resta lo stesso
+    // anche quando una rotazione cambia il rapporto fra altezza e larghezza.
+    val dw = width - source.width
+    val dh = height - source.height
+    val growth = when {
+      dh != 0f && abs(dh) * width >= abs(dw) * height -> (bounds.height - source.height) / dh
+      dw != 0f -> (bounds.width - source.width) / dw
+      else -> arrival
+    }
+    return FluidPageMotion.zoomDim(growth, journey.returnDim)
+  }
+
   /** La traslazione orizzontale di una pagina in questo fotogramma, in px (gia' nel verso). */
   internal fun pageOffsetX(role: PageRole): Float = if (crossfading || (vertical && zoom == null)) 0f else when (role) {
     PageRole.Gone -> width * direction
@@ -484,7 +506,15 @@ class FluidPageHostState internal constructor() {
   internal fun zoomContentAlpha(role: PageRole): Float = if (role == PageRole.Upper) 1f - zoomCrossfadeAlpha() else 1f
 
   /** La fotografia della sorgente della pagina sopra, se la variante l'ha chiesta e la sorgente si è già registrata. */
-  internal fun zoomSnapshot(): FluidTransitionSnapshot? = upper?.let { consumed[it] }?.snapshot
+  internal fun zoomSnapshot(): FluidTransitionSnapshot? = upper?.let { zoomSources[it] }?.snapshot
+
+  internal fun awaitingZoomDraw(page: Any): Boolean = page == upper && zoomSources[page]?.isConsumed == false
+
+  internal fun zoomFrontDrawn(page: Any) {
+    if (page != upper) return
+    if (pendingPlacement == page && zoom != null) pagePlaced(page)
+    else if (awaitingZoomDraw(page)) zoomSources.getValue(page).consume()
+  }
 
   /**
    * Da dove a dove (x, px) la pagina sopra copre quella sotto in questo fotogramma.
@@ -556,7 +586,7 @@ class FluidPageHostState internal constructor() {
     phase = Phase.Pushing
     // Lo zoom nasce dalla sorgente: la sagoma parte dal suo riquadro e dalla sua forma. Senza, l'Expand di sempre.
     zoomSourceShape(to)?.let { source ->
-      growing = sourceOf(to)?.growingGlass
+      growing = retainZoomSource(to)?.growingGlass
       landing = 0f
       sharedOrigins = findSharedOrigins(source.bounds)
       zoom = ZoomJourney(source = source, from = source, fromTravel = travelPx, to = null, toTravel = 0f)
@@ -577,14 +607,14 @@ class FluidPageHostState internal constructor() {
 
   /**
    * La prima misura può comporre tutta la pagina. La scheda parte qui per conservare il passo iniziale del 13%.
-   * La dissolvenza tiene il contenuto di partenza opaco finché quello d'arrivo può essere disegnato.
+   * Per lo zoom il renderer segnala questo passaggio solo dopo aver disegnato la faccia o l'immagine condivisa.
    */
   internal fun pagePlaced(page: Any, placedAtNanos: Long? = null) {
     if (pendingPlacement != page) return
     pendingPlacement = null
     // La sorgente si nasconde nel fotogramma in cui la pagina compare sulla sua sagoma, non prima: nel fotogramma del
     // cambio di pila la pagina nuova non e' ancora composta, e una sorgente gia' nascosta lascerebbe un buco.
-    if (zoom != null && (phase == Phase.Pushing || vertical) && page == upper) consumeSource(page)
+    if (zoom != null && page == upper) zoomSources[page]?.consume()
     if (phase == Phase.Peer) {
       runPeerClock(placedAtNanos)
     } else if (crossfading && !vertical) {
@@ -772,9 +802,9 @@ class FluidPageHostState internal constructor() {
     landing = 0f
     // La sorgente di una pagina che non c'e' piu' rinasce adesso: nello stesso fotogramma la pagina, gia' rientrata nella
     // sagoma, smette di disegnarsi (il ruolo si legge dallo stato).
-    if (consumed.isNotEmpty()) {
-      val gone = consumed.keys.filter { it !in processed }
-      for (page in gone) consumed.remove(page)?.release()
+    if (zoomSources.isNotEmpty()) {
+      val gone = zoomSources.keys.filter { it !in processed }
+      for (page in gone) zoomSources.remove(page)?.release()
     }
     show(FluidPageMove.None, from = null, to = null)
     isInteractive = false
@@ -1031,8 +1061,6 @@ class FluidPageHostState internal constructor() {
     val placement = pendingPlacement
     animateTravel(if (open) 0f else height, zoomSpring(), velocity) {
       if (open) {
-        // Un rilascio rapido (o il movimento ridotto) può precedere la prima posa.
-        if (departing != null && zoom != null) consumeSource(departing)
         settle()
       } else {
         phase = Phase.Committing
@@ -1290,8 +1318,9 @@ class FluidPageHostState internal constructor() {
       toTravel = if (following) travelPx else exitTravel(),
       following = following,
       pivot = touchPoint(),
+      returnDim = true,
     )
-    consumeSource(page)
+    retainZoomSource(page)?.consume()
   }
 
   /**
@@ -1329,15 +1358,16 @@ class FluidPageHostState internal constructor() {
   /** Il punto dell'ultimo contatto, in px dell'host (il centro se non ce n'è stato uno). */
   private fun touchPoint(): Offset = Offset(expandOrigin.pivotFractionX * width, expandOrigin.pivotFractionY * height)
 
-  private fun consumeSource(page: Any) {
-    val source = sourceOf(page) ?: return
-    val previous = consumed[page]
-    if (previous?.sameOrigin(source) == true) return
+  private fun retainZoomSource(page: Any): FluidTransitionSource? {
+    val source = sourceOf(page) ?: return null
+    val previous = zoomSources[page]
+    if (previous?.sameOrigin(source) == true) return previous
     // A paged destination can return to a different thumbnail than the one which opened it.
     previous?.release()
     // La fotografia serve solo alla dissolvenza: senza, nessun layer in più.
-    source.consume(snapshot = zoomCrossfade && !reducedMotion)
-    consumed[page] = source
+    if (zoomCrossfade && !reducedMotion) source.prepareSnapshot()
+    zoomSources[page] = source
+    return source
   }
 
   /** L'host esce di scena: le sorgenti nascoste tornano tutte. */
@@ -1345,8 +1375,8 @@ class FluidPageHostState internal constructor() {
     observedContact = null
     openContact = null
     openAction = null
-    for (source in consumed.values) source.release()
-    consumed.clear()
+    for (source in zoomSources.values) source.release()
+    zoomSources.clear()
   }
 
   /**
@@ -1491,7 +1521,7 @@ class FluidPageHostState internal constructor() {
     velocityPx = saved.speed * height
     if (!reducedMotion) saved.zoom?.let { old ->
       fun remap(shape: FluidZoomShape): FluidZoomShape = shape.resized(width / saved.width, height / saved.height)
-      growing = sourceOf(top)?.growingGlass
+      growing = retainZoomSource(top)?.growingGlass
       landing = saved.landing
       sharedOrigins = findSharedOrigins((zoomSourceShape(top) ?: remap(old.source)).bounds)
       zoom = old.copy(source = zoomSourceShape(top) ?: remap(old.source), from = remap(old.from))
@@ -1538,4 +1568,6 @@ internal data class ZoomJourney(
   val viaExit: Float? = null,
   val pinched: Boolean = false,
   val withoutSource: Boolean = false,
+  /** Vero per uno zoom nato come ritorno. Si conserva nelle riprese e nella rotazione. */
+  val returnDim: Boolean = false,
 )

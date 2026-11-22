@@ -339,7 +339,8 @@ private fun List<ToolbarDraft>.requiredWidth(metrics: FluidToolbarMetrics): Floa
 
 /**
  * R1 B1–B10, R5 B11: icone insieme, testo/uscita/principale isolati, tre gruppi e menu compreso nel conto.
- * Le uscite (indietro e Chiudi) non contano nei tre: R5 B11 mostra indietro più tre vetri (F4A.2b).
+ * Le uscite (indietro e Chiudi) non contano nei tre: R5 B11 mostra indietro più tre vetri (F4A.2b). Nemmeno «Seleziona
+ * tutto», che in selezione sta al posto dell'indietro ([holdsNavigationSlot], F6B.12).
  * I pareggi espellono dall'interno verso l'esterno; l'ordine nel menu resta quello dichiarato.
  * Con vincoli impossibili (es. finestra più stretta di un fissato) [FluidToolbarResolved.fits] è false:
  * non si perde in silenzio un comando protetto. Nessuna misura di testo viene indovinata dal modello.
@@ -364,8 +365,16 @@ internal fun resolveFluidToolbar(
     }))
   var drafts = toolbarDrafts(tokens, hidden, hidden.isNotEmpty(), metrics)
   for (candidate in candidates) {
-    if (drafts.count { draft -> draft.items.none { it.isExit } } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
+    if (drafts.count { draft -> draft.items.none { it.holdsNavigationSlot } } <= 3 && drafts.requiredWidth(metrics) <= widthDp) break
     if (hidden.add(candidate.item.id)) drafts = toolbarDrafts(tokens, hidden, true, metrics)
+  }
+  // «Seleziona tutto» esce solo se lo spazio non basta (F6B.12): se è uscito senza liberare posto, torna.
+  for (slot in candidates.filter { it.item.holdsNavigationSlot && !it.item.overflow && it.item.id in hidden }) {
+    hidden.remove(slot.item.id)
+    val back = toolbarDrafts(tokens, hidden, hidden.isNotEmpty(), metrics)
+    if (back.count { draft -> draft.items.none { it.holdsNavigationSlot } } <= 3 && back.requiredWidth(metrics) <= widthDp) {
+      drafts = back
+    } else hidden.add(slot.item.id)
   }
   // La conferma localizzata può essere più larga della finestra. Si misura la riga
   // dopo il trabocco e si accorcia la scritta fino alla lente, conservando il nome intero nel bersaglio.
@@ -422,7 +431,7 @@ internal fun resolveFluidToolbar(
   }
   val required = drafts.requiredWidth(metrics)
   return FluidToolbarResolved(groups, elements, overflow, widthDp, required,
-    groups.count { group -> group.items.none { it.isExit } } <= 3 && required <= widthDp, metrics, model.titles, model.presentation)
+    groups.count { group -> group.items.none { it.holdsNavigationSlot } } <= 3 && required <= widthDp, metrics, model.titles, model.presentation)
 }
 
 internal enum class FluidToolbarMatch { Id, Role, Symbol, OutsideOrder }

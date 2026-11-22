@@ -1003,14 +1003,14 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
 | F6 | Controlli e tocco | 9 | 9 | S5 |
 | F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre, scritta il 21) | 18 | 17 | una sua |
-| F6C | Visori di file (aggiunta il 21 novembre; seconda ondata il 22) | 16 | 14 | con F6B o una sua |
+| F6C | Visori di file (aggiunta il 21 novembre; seconda ondata il 22) | 17 | 15 | con F6B o una sua |
 | F6D | Lo scurimento nelle transizioni (aggiunta il 22 novembre) | 3 | 2 | con F6B.14 |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 | F9 | Documentazione estesa e verifica d'adozione (aggiunta l'11 novembre) | 7 | 2 | — |
 
 F6B e F6C sono state scritte il 21 novembre: F6C parte dopo F6B.5a e F6B.1, in parallelo alla seconda metà di F6B, e
-chiude prima di F7. Il 22 novembre, dopo le riprese della galleria «Visori», F6C ha avuto una seconda ondata (F6C.7–F6C.15)
+chiude prima di F7. Il 22 novembre, dopo le riprese della galleria «Visori», F6C ha avuto una seconda ondata (F6C.7–F6C.16)
 ed è nata F6D, lo scurimento della pagina sotto in ogni transizione: anche loro chiudono prima di F7. Con loro i pacchetti del piano diventano **109**, **97** con Gradle; il conto qui sotto è quello
 di partenza.
 
@@ -3464,7 +3464,7 @@ con scheda e fiducia nel KDoc (regola comune).
 | F6B.8 | **Filtri e suggerimenti a pillole**: la fila dichiarata, la fila che diventa menu (larghezza e testo grande), la pillola che si apre in menu, i suggerimenti e i recenti, i preset; poi la pillola che diventa gettone nel campo. La fila può partire subito; i gettoni aspettano F6B.7 | `ui/fluid/FluidFilterChips.kt` (nuovo), `ui/fluid/FluidControls.kt` (`FluidChip` come sorgente: un aggancio), `test/fluid/FluidFilterChipsTest.kt`; dopo F6B.7, `ui/fluid/FluidSearch.kt` e `ui/fluid/FluidSearchField.kt` (i gettoni) | F5A.2, F5A.3; F6B.7 per i gettoni | G | Opus (Claude secondary) |
 | F6B.9 | **Barra sopra la tastiera**: la sede, `keyboard { }` con la chiave di contesto, la quota IME, i preset; `FluidRichTextToolbar` come preset con la firma di oggi | `ui/fluid/toolbar/FluidKeyboardBar.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.3a), `ui/fluid/FluidScreen.kt` (la sede; dopo F6B.1), `richtext/FluidRichTextToolbar.kt`, `test/fluid/toolbar/FluidKeyboardBarTest.kt` | F6B.3a, F6B.1 (file comuni) | G | Sol |
 | F6B.10 | **Pillola di attività**: il modello, la coda e l'host alla radice; l'elemento `activity` nella barra; le forme compatta, minima ed estesa (il popover dalla pillola); l'esito; i preset | `ui/fluid/activity/FluidActivity.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.9), `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.1), `test/fluid/activity/FluidActivityQueueTest.kt` | F6B.9 (file), F5B.1 | G | Opus (Claude secondary) |
-| F6B.11 | **Tasto diviso e titolo che diventa selettore**: l'elemento `split`, `FluidSplitButton`, `action(…, onClick)` (R1 N5); il titolo come sorgente di un menu o di un pannello, in linea, grande e nell'host | `ui/fluid/FluidSplitButton.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.10), `ui/fluid/FluidCollapsingHeader.kt`, `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.10), `test/fluid/toolbar/FluidToolbarSplitTitleTest.kt` | F6B.10 (file), F5A.2, F5B.1 | G | Opus (Claude secondary) |
+| F6B.11 | **Tasto diviso e titolo che diventa selettore**; in più **un tasto che cambia nello stesso posto resta un vetro solo** (Alessio, 22 novembre): l'elemento `split`, `FluidSplitButton`, `action(…, onClick)` (R1 N5); il titolo come sorgente di un menu o di un pannello, in linea, grande e nell'host | `ui/fluid/FluidSplitButton.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.10), `ui/fluid/FluidCollapsingHeader.kt`, `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.10), `test/fluid/toolbar/FluidToolbarSplitTitleTest.kt` | F6B.10 (file), F5A.2, F5B.1 | G | Opus (Claude secondary) |
 | F6B.12 | **Galleria, tracce e schede (1)**: selezione, tasti con esito, avviso, elemento → pagina; nuova scheda `elementi-dinamici.md` | `sample/…/dynamic/` (un file per elemento), `sample/…/GalleryNav.kt`, `test/glass/field/trace/F6b*`, `tools/glassbench/traces/f6b/`, `ref/componenti/elementi-dinamici.md` (nuova), `ref/componenti/toolbar.md`, `ref/componenti/notifiche.md`, `ref/componenti/barre.md` (sezioni) | F6B.1–5c | G | Opus (Claude secondary) |
 | F6B.13 | **Galleria, tracce e schede (2)**: campo e composer, pillole, tastiera, attività, tasto diviso, titolo, trova; gli scenari nuovi della pagina «Misure» (F7.1) per gli elementi che si ripetono spesso (selezione, campo con il composer, barra sopra la tastiera) | `sample/…/dynamic/` (altri file), `sample/…/measure/` (gli scenari), `test/glass/field/trace/`, `ref/componenti/elementi-dinamici.md` (dopo F6B.12), `ref/moduli/ai-ui-chat.md`, `ref/moduli/richtext.md` | F6B.6–11 | G | Opus (Claude secondary) |
 | F6B.14 | **Sessione sul tablet** (numero da assegnare) e rapporto | `artifacts/liquid-glass/sessioni/S-F6B.md`, `stato.md` | tutti | G, D | orchestratore + Sol xhigh |
@@ -3661,6 +3661,19 @@ aggiunto parole sue ha preso l'opzione consigliata):
   - «Annulla» riapre il compositore, e **l'app decide come**: una pagina che entra normale, di serie, oppure il tasto che
     diventa la pagina;
   - l'avviso che nasce dal tasto resta nell'engine, **non di serie**, per chi vuole un avviso con testo.
+
+**22 novembre 2026:**
+- **«Seleziona tutto»** resta un tasto visibile quando nella barra c'è spazio; va in «Altro» solo quando non ci sta
+  (F6B.12).
+- **La pillola di attività a barra ritirata** «resta come anellino»: quando la barra in alto si ritira scorrendo, della
+  pillola resta visibile solo l'anello, piccolo, in alto; quando la barra torna, torna compatta (F6B.10). Con due barre
+  in vista (lista e dettaglio) la pillola è una sola, di serie in quella del dettaglio.
+- **Un tasto della barra che cambia resta un vetro solo.** Parole di Alessio, sulle riprese della selezione: «i tasti
+  della barra quando cambiano non cambiano solo icona, ma è come se ci fossero due tasti durante lo scambio». Oggi,
+  quando l'indietro diventa «Seleziona tutto» nello stesso posto, il vetro vecchio esce per lente e il nuovo entra per
+  lente, e per qualche fotogramma si vedono due contorni uno dentro l'altro. Come in iOS, nello stesso posto il vetro
+  resta uno: cambia misura con la molla, se serve, e il contenuto si scambia sfocato (R7). La lente resta per un tasto
+  che nasce o se ne va davvero. Lo fa F6B.11, che lavora sugli stessi file dopo F6B.10.
 
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
@@ -3872,6 +3885,38 @@ decodificatori.
   - **Immagini speciali, font, 3D:** HEIC, AVIF, RAW, TIFF, SVG, PSD; l'anteprima dei font; modelli GLB, OBJ, STL.
 - **L'aspetto delle pagine rifatte** si sceglie dalle proposte di F6C.7, mostrate in chat come immagini.
 
+**Dopo le tavole di F6C.7, 22 novembre 2026** (ricerca `docs/liquid-glass/ricerca/visori-2.md`):
+- **Aspetto:** fra le tre direzioni (A Fedele, B Ispettore, C Atmosfera), Alessio vuole «un mix fra la A e la C,
+  tendente verso la A e con ovviamente il tasto per maggiori info che ti da le info della B». Quindi:
+  - la pagina è quella di A, il contenuto pulito come Quick Look, con qualche tocco di C;
+  - il tasto delle informazioni apre il pannello con le informazioni ricche di B: fatti, struttura, capitoli, firma,
+    filtri, peso.
+
+  F6C.7 rifà una tavola «Mix» da mostrare prima di F6C.9.
+- **3D:** Filament (Google, Apache-2.0), con i materiali e la luce come AR Quick Look. Pesa ≈6,5 MB nell'app installata,
+  solo in `engine-viewer-3d`.
+- **Archivi:** libarchive (`me.zhanghai.android.libarchive`, Apache-2.0 e BSD), ≈2,35 MB solo in `engine-viewer-archive`.
+- **Office:** i caratteri con le misure di Word (Carlito, Caladea, Liberation, OFL), così pagine e a capo cadono come in
+  Word. Pesano 3–6 MB, solo in `engine-viewer-office`.
+- **Le forme di contenuto nuove** `Grid`, per fogli e CSV, e `Custom`, per archivi, JSON, EPUB e il resto, stanno in
+  `engine-ui` e le fa F6C.8. Il contratto non è ancora uscito in una versione, quindi aggiungerle non rompe nessuno.
+
+**Dopo la tavola «D · Mix», 22 novembre 2026:**
+- **Aspetto: «D · Mix» va bene** (`ricerca/visori-2.md` §5.1 e §5.2). La base è A. Da C vengono:
+  - la tinta leggera del file, solo su audio, eseguibile, sconosciuto e archivio, mai su documenti, testo, dati e slide;
+    sparisce con «Riduci trasparenza» e con il contrasto alto;
+  - il lettore audio in un pannello di vetro, con la copertina e il suo alone;
+  - l'eseguibile con l'icona e l'alone, i fatti in capsule e l'avviso in vetro ambra;
+  - le cartelle dell'archivio come tessere di vetro;
+  - i punti colorati per fogli, tipi del JSON e lingua del codice.
+
+  Il tasto «i» apre il pannello con le informazioni di B: a Medium sopra il contenuto senza velo, a Large col velo.
+- **Caratteri di Office: solo latino**, 1,25 MB. Greco, cirillico, arabo e CJK vanno a capo in modo approssimato, e il
+  pannello info lo dice.
+- **3D anche in AR, con ARCore.** Il modello si posa nella stanza come in AR Quick Look. Sta in un modulo facoltativo a
+  parte, `engine-viewer-ar`, che chiede la fotocamera e un dispositivo certificato ARCore. Senza, il visore 3D resta
+  quello di Filament sul fondo del tema. È il pacchetto F6C.16.
+
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 
 | modulo | famiglia |
@@ -3881,7 +3926,8 @@ decodificatori.
 | `engine-viewer-archive` | archivi |
 | `engine-viewer-data` | testi ricchi e dati |
 | `engine-viewer-graphics` | immagini speciali e font |
-| `engine-viewer-3d` | modelli 3D. Se F6C.7 trova un motore leggero, può stare in `graphics` |
+| `engine-viewer-3d` | modelli 3D con Filament (scelta di Alessio) |
+| `engine-viewer-ar` | il modello 3D posato nella stanza con ARCore (scelta di Alessio); dipende da `engine-viewer-3d` |
 | `engine-viewer-all` | li raccoglie tutti, per Universal Converter |
 
 Ogni modulo dichiara il suo peso nell'APK, misurato da F6C.15, ed è scritto nella scheda. Una libreria esterna entra solo
@@ -3895,7 +3941,7 @@ se:
 | id | cosa | perimetro di scrittura | dipende da | G/D | modello |
 |---|---|---|---|---|---|
 | F6C.7 | **Ricerca e proposte.** Le pagine di Quick Look e di File di iOS 26 per ogni tipo; l'apertura di un documento dalla miniatura; per ogni famiglia come si legge (lettura propria o libreria, licenza, peso, versione minima di Android). **Due o tre proposte d'aspetto** per le pagine di audio, documento, testo, sconosciuto, Office, archivio e dati, rese come immagini per Alessio | `docs/liquid-glass/ricerca/visori-2.md`, `artifacts/liquid-glass/ricerca/visori-2/` | — | — | Opus (Claude secondary) |
-| F6C.8 | **Il registro dei moduli.** I moduli di famiglia aggiungono tipi al risolutore senza toccarlo, con priorità e ripiego; il contratto `Pages` serve anche a Office; `engine-viewer-all`; `engine-install.ps1` conosce i moduli | `engine-viewer/**`, `engine-viewer-all/**` (nuovo), `settings.gradle`, `tools/engine-install.ps1` | F6C.7 | G | Opus (Claude secondary) |
+| F6C.8 | **Il registro dei moduli.** I moduli di famiglia aggiungono tipi al risolutore senza toccarlo, con priorità e ripiego; il contratto `Pages` serve anche a Office; le forme `Grid` e `Custom`; `engine-viewer-all`; `engine-install.ps1` conosce i moduli | `engine-viewer/**`, `engine-viewer-all/**` (nuovo), `ui/fluid/viewer/FluidViewerContent.kt`, `settings.gradle`, `tools/engine-install.ps1` | F6C.7 | G | Opus (Claude secondary) |
 | F6C.9 | **I preset rifatti** come scelto dalle proposte: audio, documento a pagine, testo e codice, sconosciuto ed eseguibile, pannello info. Più i due difetti: «Trova» sotto la barra di stato con la tastiera, durata dell'audio prima di Play | `ui/fluid/viewer/*Preset.kt`, `ui/fluid/viewer/FluidViewerChrome.kt`, `test/fluid/viewer/` | F6C.7, scelte di Alessio | G | Astra |
 | F6C.10 | **L'apertura dalla miniatura per ogni tipo**, e la chiusura inversa col dito, con lo scurimento di F6D | `ui/fluid/viewer/FluidFileViewer.kt`, `test/fluid/viewer/` | F6C.9, F6D.1 | G | Sol |
 | F6C.11 | **Office**: DOCX, ODT e RTF impaginati; XLSX e ODS in griglia; PPTX e ODP a slide | `engine-viewer-office/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Astra |
@@ -3903,9 +3949,10 @@ se:
 | F6C.13 | **Testi ricchi e dati**: Markdown, HTML, CSV, JSON, XML, EPUB, EML, ICS, VCF | `engine-viewer-data/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Opus (Claude secondary) |
 | F6C.14 | **Immagini speciali, font, 3D** | `engine-viewer-graphics/**`, `engine-viewer-3d/**` (nuovi), `settings.gradle` (una riga) | F6C.8 | G | Sol |
 | F6C.15 | **La galleria «Visori» rifatta**, partendo da F6C.5: ogni famiglia, l'apertura dalla miniatura, il peso di ogni modulo, le tracce nuove e le schede. Il visore universale di Universal Converter, in sola lettura | `sample/…/viewer/`, `test/glass/field/trace/F6c*`, `tools/glassbench/traces/f6c/`, `ref/componenti/visori.md`, `ref/moduli/viewer*.md` | tutti | G | Opus (Claude secondary) |
+| F6C.16 | **AR**: il modello 3D posato nella stanza con ARCore, come AR Quick Look; il tasto «AR» nel visore 3D solo dove ARCore c'è; la fotocamera chiesta al tocco | `engine-viewer-ar/**` (nuovo), `settings.gradle` (una riga) | F6C.14 | G, D | Sol |
 
 F6C.11–F6C.14 hanno perimetri disgiunti e partono insieme dopo F6C.8, tranne la riga di `settings.gradle`, che
-l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.6, la sessione sul tablet, si fa dopo F6C.15.
+l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.16 parte dopo F6C.14. F6C.6, la sessione sul tablet, si fa dopo F6C.15 e F6C.16.
 
 **Risultati osservabili in più.**
 - Un DOCX si apre a pagine come il documento, un PPTX a slide, un XLSX in griglia.

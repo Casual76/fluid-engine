@@ -5,6 +5,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,8 +26,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -34,7 +43,11 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -153,7 +166,18 @@ private class AdaptiveStage(
  * la rotta appartiene all'app e la preferenza per il pannello sopravvive alla ricreazione dell'Activity.
  * Il contenuto riceve gli spazi liberi sopra e sotto e viene disposto accanto alla colonna. Su immagini e fondali
  * a tutta larghezza [fluidBackgroundExtension] continua la pagina sotto il vetro.
- * Applicare al contenitore gli inset di sistema pertinenti alla finestra.
+ * Il rail, la tab bar in alto e la barra laterale stanno sotto la barra di stato, come la barra in alto di [FluidScreen]
+ * (F6B.12): la pagina resta a finestra intera e conta da sé la barra di stato. Se un antenato ha già consumato la barra di
+ * stato (`safeDrawingPadding`, la regola di prima), non si conta due volte. Gli altri inset di sistema (la barra di
+ * navigazione, i ritagli ai lati) li applica l'app al contenitore.
+ * Dove la navigazione toglie spazio alla pagina (la colonna del rail e della barra laterale, per tutta l'altezza, barra
+ * di stato compresa) mette lo sfondo del tema, `MaterialTheme.colorScheme.background`: la finestra non si vede mai
+ * (scelta di Alessio del 22 novembre 2026). Un fondale che vuole continuare sotto il vetro, come su iPad, usa
+ * [fluidBackgroundExtension]: la sua estensione si disegna sopra lo sfondo di serie, e vince.
+ * Nella forma «tab bar in alto» le barre delle pagine stanno **sotto** la capsula, non dietro (scelta di Alessio del 22
+ * novembre 2026: «le sovrapposizioni di elementi UI sono da evitare quanto più possibile»): [FluidScreen] e la barra
+ * dell'host delle pagine contano la sua fascia come la barra di stato ([LocalFluidTopChromeBand]), e il contenuto ci
+ * scorre sotto. Un contenuto che non è una [FluidScreen] usa `insets.top`, come prima.
  */
 @Composable
 fun FluidAdaptiveNavigation(
@@ -171,6 +195,13 @@ fun FluidAdaptiveNavigation(
   // Solo la forma Bottom monta una tab bar e la prende, anche in una galleria con una shell esterna.
   val chrome = if (items.isEmpty()) LocalFluidChromeController.current else rememberFluidChromeController()
   BoxWithConstraints(modifier.fillMaxSize()) {
+   val window = maxHeight
+   // La barra di stato (scelta di Alessio del 22 novembre 2026, sulle riprese di F6B.12: il rail saliva sotto l'ora).
+   // Il riquadro interno è più basso della finestra di quanto resta della barra dopo ciò che gli antenati hanno già
+   // consumato: la chrome vive lì dentro, la pagina torna a finestra intera. Si legge in misura, giusto dal primo
+   // fotogramma; senza barra di stato (o già consumata) tutto è com'era.
+   BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))) {
+    val statusTop = (window - maxHeight).value.coerceAtLeast(0f).dp
     val form = adaptiveForm(maxWidth, sidebar)
     val wide = form == AdaptiveForm.Top || form == AdaptiveForm.Sidebar
     val density = LocalDensity.current.density
@@ -188,15 +219,25 @@ fun FluidAdaptiveNavigation(
         }
       }
     }
-    Box(Modifier.fillMaxSize().glassBackdropSource(backdrop)) {
-      CompositionLocalProvider(LocalBackgroundExtensionStart provides start, LocalFluidChromeController provides chrome) {
+    val ground = MaterialTheme.colorScheme.background
+    // La fascia in alto della capsula (F6B.12): si stringe mentre la capsula va di lato verso la barra laterale. Derivata,
+    // così la pagina si ricompone solo quando la fascia cambia, non a ogni passo del piano di vetro.
+    val band by remember(stage) {
+      derivedStateOf { if (stage == null) 0.dp else ((stage.poses.top.bottom + edge) * (1f - stage.poses.slide(stage.current()))).dp }
+    }
+    Box(Modifier.adaptiveWindowPage(statusTop).glassBackdropSource(backdrop).adaptiveColumnGround(start, ground)) {
+      CompositionLocalProvider(
+        LocalBackgroundExtensionStart provides start,
+        LocalFluidChromeController provides chrome,
+        LocalFluidTopChromeBand provides band,
+      ) {
         Box(Modifier.fillMaxSize().layout { measurable, constraints ->
           val dx = start().roundToPx().coerceIn(0, constraints.maxWidth)
           val page = measurable.measure(constraints.offset(horizontal = -dx))
           layout(constraints.maxWidth, page.height) { page.placeRelative(dx, 0) }
         }) {
           content(PaddingValues(
-            top = if (stage != null) (stage.poses.top.bottom + edge).dp else 0.dp,
+            top = if (stage != null) (stage.poses.top.bottom + edge).dp + statusTop else 0.dp,
             bottom = if (items.isNotEmpty() && form == AdaptiveForm.Bottom) FluidTabBarDefaults.ContentInset else 0.dp,
           ))
         }
@@ -237,8 +278,62 @@ fun FluidAdaptiveNavigation(
         }
       }
     }
+   }
   }
 }
+
+/**
+ * La fascia in alto che la navigazione adattiva occupa sopra le pagine, sotto la barra di stato: nella forma «tab bar in
+ * alto» la capsula con i suoi margini (F6B.12). Le barre in alto dell'engine la contano come la barra di stato
+ * ([fluidTopChromeInset]): i tasti e il titolo stanno sotto la capsula, e il contenuto ci scorre sotto, col bordo dello
+ * scorrimento. Mentre la capsula va di lato per diventare la barra laterale si stringe fino a zero; zero nelle altre forme.
+ * I fogli la rimettono a zero, perché stanno davanti alla capsula.
+ */
+internal val LocalFluidTopChromeBand = compositionLocalOf { 0.dp }
+
+/**
+ * Lo spazio in alto sopra la riga dei tasti di una barra dell'engine: la barra di stato (gli inset grezzi, come sempre) più
+ * la fascia della tab bar in alto ([LocalFluidTopChromeBand]). Un punto solo, per `FluidScreen` e la barra dell'host.
+ */
+@Composable
+internal fun fluidTopChromeInset(): Dp =
+  WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + LocalFluidTopChromeBand.current
+
+/** La pagina a finestra intera dentro il riquadro sotto la barra di stato: misurata più alta di [top] e posata più su. */
+private fun Modifier.adaptiveWindowPage(top: Dp): Modifier = layout { measurable, constraints ->
+  val dy = top.roundToPx()
+  if (dy == 0 || !constraints.hasBoundedHeight) {
+    val page = measurable.measure(constraints)
+    return@layout layout(page.width, page.height) { page.place(0, 0) }
+  }
+  val page = measurable.measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight + dy))
+  layout(constraints.maxWidth, constraints.maxHeight) { page.place(0, -dy) }
+}
+
+/**
+ * Lo sfondo del tema nella colonna che la navigazione toglie alla pagina: largo quanto lo spostamento della pagina (lo
+ * stesso arrotondamento), alto quanto la pagina a finestra intera, cioè anche sotto la barra di stato. Sta dentro la
+ * registrazione del vetro, così il rail e la barra laterale ci posano sopra come sulla pagina, e sotto la pagina, così
+ * l'estensione di [fluidBackgroundExtension] lo copre. A pagina intera (forma in basso, tab bar in alto) non disegna niente.
+ */
+private fun Modifier.adaptiveColumnGround(start: () -> Dp, color: Color) = drawBehind {
+  val width = start().roundToPx().coerceIn(0, size.width.toInt()).toFloat()
+  if (width <= 0f) return@drawBehind
+  val left = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width - width
+  drawRect(color, topLeft = Offset(left, 0f), size = Size(width, size.height))
+}
+
+/**
+ * L'inchiostro delle voci della tab bar in alto e della barra laterale (scelta di Alessio del 22 novembre 2026, sulle
+ * riprese di F6B.12: in scuro, senza una `Surface` sopra la navigazione, le voci uscivano nere sul vetro scuro).
+ * Se l'app ha dato un colore del contenuto (una `Surface`, o `LocalContentColor` a mano) vale il suo, come prima;
+ * altrimenti l'inchiostro del tema, lo stesso del rail ([fluidChromeInk], `onSurface`). Senza nessuno che lo dia,
+ * `LocalContentColor` vale il suo valore di serie, `Color.Black`: quello si legge come «nessun colore dato». Un'app che
+ * desse proprio `Color.Black` avrebbe `onSurface`, che in chiaro è quasi lo stesso nero (#121214).
+ */
+@Composable
+@ReadOnlyComposable
+private fun adaptiveTabsInk(): Color = LocalContentColor.current.takeIf { it != Color.Black } ?: fluidChromeInk()
 
 private fun Modifier.adaptiveInk(clarity: Float) = graphicsLayer {
   alpha = clarity
@@ -262,8 +357,10 @@ private fun AdaptiveTabs(
   val u = stage.poses.unfold(r)
   val clarity = stage.poses.ink(r)
   val labels = LocalFluidLabels.current
-  val ink = LocalContentColor.current
+  val ink = adaptiveTabsInk()
   val slots = AdaptiveCells(r, u)
+  // Le icone e le scritte prendono l'inchiostro da qui (FluidIcon e Text leggono LocalContentColor).
+  CompositionLocalProvider(LocalContentColor provides ink) {
   Box(Modifier.fillMaxSize().clip(if (u == 0f) FluidCapsuleShape else ContinuousCornerShape(FluidRadius.Group))) {
     Box(Modifier.offset(slots.toggleX.dp, pad.dp).size(row.dp)
       .fluidPressable(onClick = toggle, role = Role.Button), contentAlignment = Alignment.Center) {
@@ -306,5 +403,6 @@ private fun AdaptiveTabs(
         }
       }
     }
+  }
   }
 }

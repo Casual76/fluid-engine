@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -727,10 +726,13 @@ object FluidScreenDefaults {
   val TitleBottomSpacing: Dp = 10.dp
   val ContentBottomSpacing: Dp = 28.dp
 
-  /** Total height of the top chrome, including the status bar it sits under. */
+  /**
+   * Total height of the top chrome, including the status bar it sits under. Dentro [FluidAdaptiveNavigation] nella forma
+   * «tab bar in alto» comprende anche la fascia della capsula (F6B.12): la riga dei tasti sta sotto la capsula.
+   */
   @Composable
   fun topBarHeight(): Dp =
-    WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + ControlRowHeight
+    fluidTopChromeInset() + ControlRowHeight
 
   /** Bottom padding a scrolling body needs so its last item clears the system and tab bars. */
   @Composable
@@ -1545,14 +1547,14 @@ private fun FluidScreenLayout(
         text = selection.title,
         modifier = Modifier
           .align(Alignment.TopCenter)
-          .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+          .padding(top = fluidTopChromeInset())
           .height(FluidScreenDefaults.ControlRowHeight)
           .fillMaxWidth(FluidSelectionAnnouncementWidth),
       )
     }
 
     if (minimize != null) {
-      val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+      val statusBarHeight = fluidTopChromeInset()
       if (LocalFluidPageBar.current != null) {
         // L'host disegna i comandi sopra le pagine. La striscia che campiona il corpo deve
         // invece stare sotto l'editor fissato, come nella schermata autonoma.
@@ -2079,7 +2081,7 @@ internal fun FluidTopBar(
     return
   }
 
-  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val statusBar = fluidTopChromeInset()
   val tint = barTint ?: GlassDefaults.barTint()
   // The bar publishes its own finished material so the actions standing on it refract *it* rather
   // than the page three layers down — a lens resting on frosted glass shows the frosting.
@@ -2237,7 +2239,7 @@ internal fun BoxScope.FluidTopBarBackground(
     FluidTopBarGlass(backdrop = backdrop, tint = tint, intensity = intensity, exports = exports)
     return
   }
-  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val statusBar = fluidTopChromeInset()
   // La sonda legge solo la barra (barra di stato e riga dei tasti), non la coda della striscia sotto (dal seguito di
   // F2.5): decide il contenuto che sta dietro la barra, come in Apple, dove una foto scura che entra da sotto si vela e
   // la stessa foto che riempie la barra si scurisce (`f17058` contro `f17132`). Con la coda, il riquadro che arriva
@@ -2504,7 +2506,7 @@ internal fun FluidTopBarRow(
   modifier: Modifier = Modifier,
   content: @Composable BoxScope.() -> Unit,
 ) {
-  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val statusBar = fluidTopChromeInset()
   val interactionSource = remember { MutableInteractionSource() }
   val scrollToTopLabel = LocalFluidLabels.current.scrollToTop
   Column(

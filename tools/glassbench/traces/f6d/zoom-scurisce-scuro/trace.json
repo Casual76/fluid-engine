@@ -1,0 +1,6458 @@
+{
+  "schema": 1,
+  "name": "zoom-scurisce-scuro",
+  "phase": "f6d",
+  "fps": 120,
+  "durationMs": 1558.333333,
+  "density": 1,
+  "theme": "dark",
+  "size": [400, 600],
+  "background": {
+    "kind": "color",
+    "color": "#427873"
+  },
+  "_confronto": "iPadOS 18 WWDC24 10145 f958–966 e f3183–3200, ripresa a 0,5×. Scuro NV.",
+  "_ripetizioni": 3,
+  "base": {
+    "lista": {
+      "kind": "shape",
+      "x": 0,
+      "y": 0,
+      "w": 400,
+      "h": 600,
+      "color": "#606060",
+      "radius": 0,
+      "content": [
+        {
+          "name": "testo",
+          "items": [
+            {
+              "kind": "text",
+              "text": "Raccolte",
+              "x": 20,
+              "y": 62,
+              "sizeDp": 34,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "TACCUINO DI VIAGGIO",
+              "x": 22,
+              "y": 93,
+              "sizeDp": 12,
+              "color": "#D6DFED"
+            },
+            {
+              "kind": "text",
+              "text": "I luoghi",
+              "x": 24,
+              "y": 163,
+              "sizeDp": 20,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Verso il lago",
+              "x": 190,
+              "y": 239,
+              "sizeDp": 21,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Sette appunti",
+              "x": 190,
+              "y": 264,
+              "sizeDp": 15,
+              "color": "#D6DFED"
+            },
+            {
+              "kind": "text",
+              "text": "Dopo la pioggia",
+              "x": 24,
+              "y": 360,
+              "sizeDp": 20,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Note di viaggio   /   12 novembre",
+              "x": 24,
+              "y": 381,
+              "sizeDp": 13,
+              "color": "#D6DFED"
+            },
+            {
+              "kind": "text",
+              "text": "Il sentiero",
+              "x": 24,
+              "y": 430,
+              "sizeDp": 20,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Note di viaggio   /   13 novembre",
+              "x": 24,
+              "y": 451,
+              "sizeDp": 13,
+              "color": "#D6DFED"
+            },
+            {
+              "kind": "text",
+              "text": "Il vecchio porto",
+              "x": 24,
+              "y": 500,
+              "sizeDp": 20,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Note di viaggio   /   14 novembre",
+              "x": 24,
+              "y": 521,
+              "sizeDp": 13,
+              "color": "#D6DFED"
+            }
+          ]
+        }
+      ]
+    },
+    "cella": {
+      "kind": "shape",
+      "x": 32,
+      "y": 192,
+      "w": 144,
+      "h": 108,
+      "color": "#303D53",
+      "radius": 0,
+      "content": [
+        {
+          "name": "titolo",
+          "label": "Lago",
+          "color": "#F2F4FA"
+        }
+      ]
+    },
+    "velo": {
+      "kind": "shape",
+      "x": 0,
+      "y": 0,
+      "w": 400,
+      "h": 600,
+      "color": "#00000000",
+      "radius": 0
+    },
+    "pagina": {
+      "kind": "shape",
+      "x": 0,
+      "y": 0,
+      "w": 400,
+      "h": 600,
+      "color": "#303D53",
+      "radius": 0,
+      "content": [
+        {
+          "name": "inchiostro",
+          "items": [
+            {
+              "kind": "text",
+              "text": "Verso il lago",
+              "x": 22,
+              "y": 68,
+              "sizeDp": 32,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "12 NOVEMBRE",
+              "x": 24,
+              "y": 99,
+              "sizeDp": 12,
+              "color": "#D6DFED"
+            },
+            {
+              "kind": "text",
+              "text": "Il primo treno partiva presto.",
+              "x": 24,
+              "y": 165,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Dalla finestra si vedeva il lago.",
+              "x": 24,
+              "y": 201,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Restava appena un filo di nebbia",
+              "x": 24,
+              "y": 237,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "fra i tetti bassi e la riva.",
+              "x": 24,
+              "y": 273,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Alla stazione il bar era aperto.",
+              "x": 24,
+              "y": 309,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "Ho segnato il nome del paese",
+              "x": 24,
+              "y": 345,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            },
+            {
+              "kind": "text",
+              "text": "sulla prima pagina del taccuino.",
+              "x": 24,
+              "y": 381,
+              "sizeDp": 19,
+              "color": "#F2F4FA"
+            }
+          ]
+        },
+        {
+          "name": "sorgente",
+          "label": "Lago",
+          "color": "#F2F4FA"
+        }
+      ]
+    }
+  },
+  "frames": [
+    {
+      "t": -41.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": -33.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": -25,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": -16.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": -8.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "pagina",
+          "x": 32,
+          "y": 192,
+          "w": 144,
+          "h": 108,
+          "_phase": "Pushing",
+          "_exit": 1,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.36,
+              "w": 400,
+              "h": 600,
+              "x": -128,
+              "y": -192,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000000",
+          "_alpha": 0.001643
+        },
+        {
+          "name": "pagina",
+          "x": 31.707954,
+          "y": 190.247726,
+          "w": 146.336365,
+          "h": 112.490189,
+          "_phase": "Pushing",
+          "_exit": 0.990874,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.365841,
+              "w": 400,
+              "h": 600,
+              "x": -126.831818,
+              "y": -190.247726,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000002",
+          "_alpha": 0.005989
+        },
+        {
+          "name": "pagina",
+          "x": 30.93524,
+          "y": 185.611435,
+          "w": 152.518082,
+          "h": 124.370682,
+          "_phase": "Pushing",
+          "_exit": 0.966726,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.381295,
+              "w": 400,
+              "h": 600,
+              "x": -123.740959,
+              "y": -185.611435,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 25,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.013192
+        },
+        {
+          "name": "pagina",
+          "x": 29.654694,
+          "y": 177.928162,
+          "w": 162.762451,
+          "h": 144.059082,
+          "_phase": "Pushing",
+          "_exit": 0.926709,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.406906,
+              "w": 400,
+              "h": 600,
+              "x": -118.618774,
+              "y": -177.928162,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000005",
+          "_alpha": 0.021003
+        },
+        {
+          "name": "pagina",
+          "x": 28.266098,
+          "y": 169.596588,
+          "w": 173.871216,
+          "h": 165.408752,
+          "_phase": "Pushing",
+          "_exit": 0.883316,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.434678,
+              "w": 400,
+              "h": 600,
+              "x": -113.064392,
+              "y": -169.596573,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.995534
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 41.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000008",
+          "_alpha": 0.029659
+        },
+        {
+          "name": "pagina",
+          "x": 26.727257,
+          "y": 160.363541,
+          "w": 186.181946,
+          "h": 189.068405,
+          "_phase": "Pushing",
+          "_exit": 0.835227,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.465455,
+              "w": 400,
+              "h": 600,
+              "x": -106.909027,
+              "y": -160.363541,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.934742
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000A",
+          "_alpha": 0.039963
+        },
+        {
+          "name": "pagina",
+          "x": 24.895437,
+          "y": 149.37262,
+          "w": 200.836502,
+          "h": 217.232666,
+          "_phase": "Pushing",
+          "_exit": 0.777982,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.502091,
+              "w": 400,
+              "h": 600,
+              "x": -99.581749,
+              "y": -149.372635,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.777074
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 58.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000D",
+          "_alpha": 0.049321
+        },
+        {
+          "name": "pagina",
+          "x": 23.231787,
+          "y": 139.390717,
+          "w": 214.145721,
+          "h": 242.811279,
+          "_phase": "Pushing",
+          "_exit": 0.725993,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.535364,
+              "w": 400,
+              "h": 600,
+              "x": -92.927139,
+              "y": -139.390701,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.518293
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000F",
+          "_alpha": 0.058649
+        },
+        {
+          "name": "pagina",
+          "x": 21.573481,
+          "y": 129.440887,
+          "w": 227.41214,
+          "h": 268.307739,
+          "_phase": "Pushing",
+          "_exit": 0.674171,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.56853,
+              "w": 400,
+              "h": 600,
+              "x": -86.29393,
+              "y": -129.440903,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.227066
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 75,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000012",
+          "_alpha": 0.068916
+        },
+        {
+          "name": "pagina",
+          "x": 19.748322,
+          "y": 118.489937,
+          "w": 242.013428,
+          "h": 296.369537,
+          "_phase": "Pushing",
+          "_exit": 0.617135,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.605034,
+              "w": 400,
+              "h": 600,
+              "x": -78.993286,
+              "y": -118.489929,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.000631
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000014",
+          "_alpha": 0.077716
+        },
+        {
+          "name": "pagina",
+          "x": 18.183842,
+          "y": 109.10305,
+          "w": 254.529266,
+          "h": 320.423431,
+          "_phase": "Pushing",
+          "_exit": 0.568245,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.636323,
+              "w": 400,
+              "h": 600,
+              "x": -72.735367,
+              "y": -109.10305,
+              "alpha": 0.394411,
+              "blurDp": 0.11801
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 91.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000016",
+          "_alpha": 0.086129
+        },
+        {
+          "name": "pagina",
+          "x": 16.688236,
+          "y": 100.129417,
+          "w": 266.49411,
+          "h": 343.418365,
+          "_phase": "Pushing",
+          "_exit": 0.521507,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.666235,
+              "w": 400,
+              "h": 600,
+              "x": -66.752945,
+              "y": -100.129417,
+              "alpha": 0.59879,
+              "blurDp": 0.086031
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000018",
+          "_alpha": 0.095067
+        },
+        {
+          "name": "pagina",
+          "x": 15.099173,
+          "y": 90.595032,
+          "w": 279.206604,
+          "h": 367.85022,
+          "_phase": "Pushing",
+          "_exit": 0.471849,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.698017,
+              "w": 400,
+              "h": 600,
+              "x": -60.396698,
+              "y": -90.595039,
+              "alpha": 0.768134,
+              "blurDp": 0.052055
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 108.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001A",
+          "_alpha": 0.102512
+        },
+        {
+          "name": "pagina",
+          "x": 13.775637,
+          "y": 82.653824,
+          "w": 289.794922,
+          "h": 388.199585,
+          "_phase": "Pushing",
+          "_exit": 0.430489,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.724487,
+              "w": 400,
+              "h": 600,
+              "x": -55.102539,
+              "y": -82.653809,
+              "alpha": 0.841867,
+              "blurDp": 0.023755
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001C",
+          "_alpha": 0.109472
+        },
+        {
+          "name": "pagina",
+          "x": 12.538393,
+          "y": 75.230362,
+          "w": 299.692871,
+          "h": 407.222229,
+          "_phase": "Pushing",
+          "_exit": 0.391825,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.749232,
+              "w": 400,
+              "h": 600,
+              "x": -50.153564,
+              "y": -75.230347,
+              "alpha": 0.888185,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 125,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001E",
+          "_alpha": 0.116719
+        },
+        {
+          "name": "pagina",
+          "x": 11.249928,
+          "y": 67.499565,
+          "w": 310.000549,
+          "h": 427.032349,
+          "_phase": "Pushing",
+          "_exit": 0.35156,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.775001,
+              "w": 400,
+              "h": 600,
+              "x": -44.999725,
+              "y": -67.499596,
+              "alpha": 0.973539,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001F",
+          "_alpha": 0.122653
+        },
+        {
+          "name": "pagina",
+          "x": 10.195049,
+          "y": 61.170288,
+          "w": 318.439606,
+          "h": 443.251129,
+          "_phase": "Pushing",
+          "_exit": 0.318595,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.796099,
+              "w": 400,
+              "h": 600,
+              "x": -40.780197,
+              "y": -61.1703,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 141.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000021",
+          "_alpha": 0.128123
+        },
+        {
+          "name": "pagina",
+          "x": 9.222618,
+          "y": 55.335709,
+          "w": 326.219055,
+          "h": 458.202271,
+          "_phase": "Pushing",
+          "_exit": 0.288207,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.815548,
+              "w": 400,
+              "h": 600,
+              "x": -36.890472,
+              "y": -55.335705,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000022",
+          "_alpha": 0.133746
+        },
+        {
+          "name": "pagina",
+          "x": 8.222946,
+          "y": 49.337677,
+          "w": 334.216431,
+          "h": 473.572235,
+          "_phase": "Pushing",
+          "_exit": 0.256967,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.835541,
+              "w": 400,
+              "h": 600,
+              "x": -32.891785,
+              "y": -49.337681,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 158.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000023",
+          "_alpha": 0.138297
+        },
+        {
+          "name": "pagina",
+          "x": 7.413815,
+          "y": 44.48288,
+          "w": 340.689484,
+          "h": 486.012604,
+          "_phase": "Pushing",
+          "_exit": 0.231682,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.851724,
+              "w": 400,
+              "h": 600,
+              "x": -29.655258,
+              "y": -44.48288,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000024",
+          "_alpha": 0.142453
+        },
+        {
+          "name": "pagina",
+          "x": 6.675001,
+          "y": 40.050003,
+          "w": 346.600006,
+          "h": 497.371887,
+          "_phase": "Pushing",
+          "_exit": 0.208594,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.8665,
+              "w": 400,
+              "h": 600,
+              "x": -26.699997,
+              "y": -40.049995,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 175,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000025",
+          "_alpha": 0.146687
+        },
+        {
+          "name": "pagina",
+          "x": 5.922333,
+          "y": 35.533997,
+          "w": 352.621338,
+          "h": 508.944153,
+          "_phase": "Pushing",
+          "_exit": 0.185073,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.881553,
+              "w": 400,
+              "h": 600,
+              "x": -23.689331,
+              "y": -35.533993,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000026",
+          "_alpha": 0.150086
+        },
+        {
+          "name": "pagina",
+          "x": 5.318071,
+          "y": 31.908432,
+          "w": 357.455414,
+          "h": 518.234619,
+          "_phase": "Pushing",
+          "_exit": 0.16619,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.893639,
+              "w": 400,
+              "h": 600,
+              "x": -21.272293,
+              "y": -31.908434,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 191.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000027",
+          "_alpha": 0.153168
+        },
+        {
+          "name": "pagina",
+          "x": 4.770136,
+          "y": 28.620819,
+          "w": 361.838928,
+          "h": 526.65918,
+          "_phase": "Pushing",
+          "_exit": 0.149067,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.904597,
+              "w": 400,
+              "h": 600,
+              "x": -19.080536,
+              "y": -28.620798,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000028",
+          "_alpha": 0.156287
+        },
+        {
+          "name": "pagina",
+          "x": 4.215639,
+          "y": 25.293839,
+          "w": 366.274902,
+          "h": 535.18457,
+          "_phase": "Pushing",
+          "_exit": 0.131739,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.915687,
+              "w": 400,
+              "h": 600,
+              "x": -16.862549,
+              "y": -25.293821,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 208.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000028",
+          "_alpha": 0.158776
+        },
+        {
+          "name": "pagina",
+          "x": 3.773191,
+          "y": 22.639145,
+          "w": 369.814453,
+          "h": 541.987183,
+          "_phase": "Pushing",
+          "_exit": 0.117912,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.924536,
+              "w": 400,
+              "h": 600,
+              "x": -15.092773,
+              "y": -22.639168,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000029",
+          "_alpha": 0.161021
+        },
+        {
+          "name": "pagina",
+          "x": 3.37409,
+          "y": 20.244537,
+          "w": 373.007263,
+          "h": 548.123413,
+          "_phase": "Pushing",
+          "_exit": 0.10544,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.932518,
+              "w": 400,
+              "h": 600,
+              "x": -13.496368,
+              "y": -20.244545,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 225,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002A",
+          "_alpha": 0.163281
+        },
+        {
+          "name": "pagina",
+          "x": 2.972273,
+          "y": 17.833633,
+          "w": 376.221832,
+          "h": 554.301331,
+          "_phase": "Pushing",
+          "_exit": 0.092884,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.940555,
+              "w": 400,
+              "h": 600,
+              "x": -11.889084,
+              "y": -17.833632,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002A",
+          "_alpha": 0.165076
+        },
+        {
+          "name": "pagina",
+          "x": 2.653175,
+          "y": 15.919052,
+          "w": 378.774597,
+          "h": 559.207397,
+          "_phase": "Pushing",
+          "_exit": 0.082912,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.946936,
+              "w": 400,
+              "h": 600,
+              "x": -10.612701,
+              "y": -15.919054,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 241.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002B",
+          "_alpha": 0.166688
+        },
+        {
+          "name": "pagina",
+          "x": 2.366526,
+          "y": 14.199158,
+          "w": 381.06781,
+          "h": 563.614685,
+          "_phase": "Pushing",
+          "_exit": 0.073954,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.95267,
+              "w": 400,
+              "h": 600,
+              "x": -9.466095,
+              "y": -14.19915,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002B",
+          "_alpha": 0.168305
+        },
+        {
+          "name": "pagina",
+          "x": 2.0791,
+          "y": 12.474594,
+          "w": 383.367188,
+          "h": 568.033813,
+          "_phase": "Pushing",
+          "_exit": 0.064972,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.958418,
+              "w": 400,
+              "h": 600,
+              "x": -8.316406,
+              "y": -12.474614,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 258.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002B",
+          "_alpha": 0.169584
+        },
+        {
+          "name": "pagina",
+          "x": 1.851707,
+          "y": 11.110245,
+          "w": 385.18634,
+          "h": 571.530029,
+          "_phase": "Pushing",
+          "_exit": 0.057866,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.962966,
+              "w": 400,
+              "h": 600,
+              "x": -7.40683,
+              "y": -11.110247,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.170729
+        },
+        {
+          "name": "pagina",
+          "x": 1.648119,
+          "y": 9.888718,
+          "w": 386.815033,
+          "h": 574.660156,
+          "_phase": "Pushing",
+          "_exit": 0.051504,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.967038,
+              "w": 400,
+              "h": 600,
+              "x": -6.592484,
+              "y": -9.888733,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 275,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.171874
+        },
+        {
+          "name": "pagina",
+          "x": 1.444651,
+          "y": 8.667908,
+          "w": 388.44281,
+          "h": 577.788513,
+          "_phase": "Pushing",
+          "_exit": 0.045145,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.971107,
+              "w": 400,
+              "h": 600,
+              "x": -5.778595,
+              "y": -8.667898,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.172776
+        },
+        {
+          "name": "pagina",
+          "x": 1.28418,
+          "y": 7.705078,
+          "w": 389.726563,
+          "h": 580.255737,
+          "_phase": "Pushing",
+          "_exit": 0.040131,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.974316,
+              "w": 400,
+              "h": 600,
+              "x": -5.136719,
+              "y": -7.705074,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 291.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.173582
+        },
+        {
+          "name": "pagina",
+          "x": 1.1409,
+          "y": 6.845398,
+          "w": 390.872803,
+          "h": 582.458679,
+          "_phase": "Pushing",
+          "_exit": 0.035653,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.977182,
+              "w": 400,
+              "h": 600,
+              "x": -4.563599,
+              "y": -6.845391,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.174386
+        },
+        {
+          "name": "pagina",
+          "x": 0.998098,
+          "y": 5.988586,
+          "w": 392.015198,
+          "h": 584.654236,
+          "_phase": "Pushing",
+          "_exit": 0.031191,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.980038,
+              "w": 400,
+              "h": 600,
+              "x": -3.992401,
+              "y": -5.988604,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 308.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.175018
+        },
+        {
+          "name": "pagina",
+          "x": 0.885763,
+          "y": 5.314575,
+          "w": 392.913879,
+          "h": 586.381409,
+          "_phase": "Pushing",
+          "_exit": 0.02768,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.982285,
+              "w": 400,
+              "h": 600,
+              "x": -3.54306,
+              "y": -5.314583,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.17558
+        },
+        {
+          "name": "pagina",
+          "x": 0.785694,
+          "y": 4.714172,
+          "w": 393.714417,
+          "h": 587.919983,
+          "_phase": "Pushing",
+          "_exit": 0.024553,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.984286,
+              "w": 400,
+              "h": 600,
+              "x": -3.142792,
+              "y": -4.714179,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 325,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.17614
+        },
+        {
+          "name": "pagina",
+          "x": 0.686188,
+          "y": 4.117126,
+          "w": 394.510498,
+          "h": 589.44989,
+          "_phase": "Pushing",
+          "_exit": 0.021443,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.986276,
+              "w": 400,
+              "h": 600,
+              "x": -2.744751,
+              "y": -4.117119,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.17658
+        },
+        {
+          "name": "pagina",
+          "x": 0.608082,
+          "y": 3.648499,
+          "w": 395.135315,
+          "h": 590.650696,
+          "_phase": "Pushing",
+          "_exit": 0.019003,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.987838,
+              "w": 400,
+              "h": 600,
+              "x": -2.432343,
+              "y": -3.64852,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 341.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.17697
+        },
+        {
+          "name": "pagina",
+          "x": 0.538641,
+          "y": 3.231842,
+          "w": 395.690857,
+          "h": 591.718384,
+          "_phase": "Pushing",
+          "_exit": 0.016833,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.989227,
+              "w": 400,
+              "h": 600,
+              "x": -2.154572,
+              "y": -3.231865,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.177358
+        },
+        {
+          "name": "pagina",
+          "x": 0.469725,
+          "y": 2.818344,
+          "w": 396.242188,
+          "h": 592.777954,
+          "_phase": "Pushing",
+          "_exit": 0.014679,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.990605,
+              "w": 400,
+              "h": 600,
+              "x": -1.878906,
+              "y": -2.818358,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 358.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.177662
+        },
+        {
+          "name": "pagina",
+          "x": 0.415733,
+          "y": 2.4944,
+          "w": 396.674133,
+          "h": 593.608154,
+          "_phase": "Pushing",
+          "_exit": 0.012992,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.991685,
+              "w": 400,
+              "h": 600,
+              "x": -1.662933,
+              "y": -2.494401,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.177931
+        },
+        {
+          "name": "pagina",
+          "x": 0.367809,
+          "y": 2.206848,
+          "w": 397.057556,
+          "h": 594.34491,
+          "_phase": "Pushing",
+          "_exit": 0.011494,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.992644,
+              "w": 400,
+              "h": 600,
+              "x": -1.471222,
+              "y": -2.206832,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 375,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.178198
+        },
+        {
+          "name": "pagina",
+          "x": 0.32033,
+          "y": 1.921982,
+          "w": 397.437347,
+          "h": 595.074951,
+          "_phase": "Pushing",
+          "_exit": 0.01001,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.993593,
+              "w": 400,
+              "h": 600,
+              "x": -1.281326,
+              "y": -1.921982,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.178407
+        },
+        {
+          "name": "pagina",
+          "x": 0.283194,
+          "y": 1.699158,
+          "w": 397.734436,
+          "h": 595.645935,
+          "_phase": "Pushing",
+          "_exit": 0.00885,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.994336,
+              "w": 400,
+              "h": 600,
+              "x": -1.132782,
+              "y": -1.699179,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 391.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.178592
+        },
+        {
+          "name": "pagina",
+          "x": 0.250278,
+          "y": 1.501678,
+          "w": 397.997772,
+          "h": 596.151978,
+          "_phase": "Pushing",
+          "_exit": 0.007821,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.994994,
+              "w": 400,
+              "h": 600,
+              "x": -1.001114,
+              "y": -1.501679,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.178775
+        },
+        {
+          "name": "pagina",
+          "x": 0.217716,
+          "y": 1.306305,
+          "w": 398.25827,
+          "h": 596.652588,
+          "_phase": "Pushing",
+          "_exit": 0.006804,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.995646,
+              "w": 400,
+              "h": 600,
+              "x": -0.870865,
+              "y": -1.306289,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 408.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.178918
+        },
+        {
+          "name": "pagina",
+          "x": 0.192284,
+          "y": 1.153702,
+          "w": 398.461731,
+          "h": 597.04364,
+          "_phase": "Pushing",
+          "_exit": 0.006009,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.996154,
+              "w": 400,
+              "h": 600,
+              "x": -0.769135,
+              "y": -1.153708,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.179045
+        },
+        {
+          "name": "pagina",
+          "x": 0.169771,
+          "y": 1.018631,
+          "w": 398.641815,
+          "h": 597.389771,
+          "_phase": "Pushing",
+          "_exit": 0.005305,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.996605,
+              "w": 400,
+              "h": 600,
+              "x": -0.679092,
+              "y": -1.018631,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 425,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.17917
+        },
+        {
+          "name": "pagina",
+          "x": 0.147532,
+          "y": 0.885193,
+          "w": 398.819763,
+          "h": 597.731689,
+          "_phase": "Pushing",
+          "_exit": 0.00461,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.997049,
+              "w": 400,
+              "h": 600,
+              "x": -0.590118,
+              "y": -0.885183,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.179268
+        },
+        {
+          "name": "pagina",
+          "x": 0.13018,
+          "y": 0.781082,
+          "w": 398.958557,
+          "h": 597.998474,
+          "_phase": "Pushing",
+          "_exit": 0.004068,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.997396,
+              "w": 400,
+              "h": 600,
+              "x": -0.520721,
+              "y": -0.781077,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 441.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.179354
+        },
+        {
+          "name": "pagina",
+          "x": 0.11484,
+          "y": 0.689041,
+          "w": 399.081268,
+          "h": 598.234314,
+          "_phase": "Pushing",
+          "_exit": 0.003589,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.997703,
+              "w": 400,
+              "h": 600,
+              "x": -0.459366,
+              "y": -0.689042,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 458.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 475,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 491.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 508.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Pushing",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 525,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 541.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 558.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 575,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 591.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 608.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 625,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 641.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 658.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 675,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 691.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 708.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 716.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 725,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 733.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 741.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 750,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 758.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 766.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 775,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 783.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 791.666667,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 800,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 808.333333,
+      "elements": [
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Idle",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 816.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "pagina",
+          "x": 0,
+          "y": 0,
+          "w": 400,
+          "h": 600,
+          "_phase": "Popping",
+          "_exit": 0,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 1,
+              "w": 400,
+              "h": 600,
+              "x": 0,
+              "y": 0,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 825,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002E",
+          "_alpha": 0.179095
+        },
+        {
+          "name": "pagina",
+          "x": 0.292046,
+          "y": 1.752275,
+          "w": 397.663635,
+          "h": 595.509827,
+          "_phase": "Popping",
+          "_exit": 0.009126,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.994159,
+              "w": 400,
+              "h": 600,
+              "x": -1.168182,
+              "y": -1.752269,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 833.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002D",
+          "_alpha": 0.176681
+        },
+        {
+          "name": "pagina",
+          "x": 1.06476,
+          "y": 6.388559,
+          "w": 391.481934,
+          "h": 583.629333,
+          "_phase": "Popping",
+          "_exit": 0.033274,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.978705,
+              "w": 400,
+              "h": 600,
+              "x": -4.259033,
+              "y": -6.388557,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 841.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002C",
+          "_alpha": 0.17262
+        },
+        {
+          "name": "pagina",
+          "x": 2.345306,
+          "y": 14.071836,
+          "w": 381.237549,
+          "h": 563.940918,
+          "_phase": "Popping",
+          "_exit": 0.073291,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.953094,
+              "w": 400,
+              "h": 600,
+              "x": -9.381226,
+              "y": -14.071835,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 850,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002B",
+          "_alpha": 0.168127
+        },
+        {
+          "name": "pagina",
+          "x": 3.733903,
+          "y": 22.403416,
+          "w": 370.128754,
+          "h": 542.591248,
+          "_phase": "Popping",
+          "_exit": 0.116684,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.925322,
+              "w": 400,
+              "h": 600,
+              "x": -14.935623,
+              "y": -22.403437,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 858.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000002A",
+          "_alpha": 0.163029
+        },
+        {
+          "name": "pagina",
+          "x": 5.272742,
+          "y": 31.636452,
+          "w": 357.818085,
+          "h": 518.93158,
+          "_phase": "Popping",
+          "_exit": 0.164773,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.894545,
+              "w": 400,
+              "h": 600,
+              "x": -21.090958,
+              "y": -31.63644,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 866.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000028",
+          "_alpha": 0.156786
+        },
+        {
+          "name": "pagina",
+          "x": 7.104563,
+          "y": 42.627377,
+          "w": 343.163513,
+          "h": 490.767334,
+          "_phase": "Popping",
+          "_exit": 0.222018,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.857909,
+              "w": 400,
+              "h": 600,
+              "x": -28.418243,
+              "y": -42.627365,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 875,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000026",
+          "_alpha": 0.150933
+        },
+        {
+          "name": "pagina",
+          "x": 8.768213,
+          "y": 52.60928,
+          "w": 329.854279,
+          "h": 465.18869,
+          "_phase": "Popping",
+          "_exit": 0.274007,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.824636,
+              "w": 400,
+              "h": 600,
+              "x": -35.072861,
+              "y": -52.609295,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 883.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000025",
+          "_alpha": 0.144909
+        },
+        {
+          "name": "pagina",
+          "x": 10.42652,
+          "y": 62.55912,
+          "w": 316.58783,
+          "h": 439.692261,
+          "_phase": "Popping",
+          "_exit": 0.325829,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.79147,
+              "w": 400,
+              "h": 600,
+              "x": -41.706085,
+              "y": -62.559128,
+              "alpha": 1,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 891.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000023",
+          "_alpha": 0.138033
+        },
+        {
+          "name": "pagina",
+          "x": 12.251677,
+          "y": 73.510056,
+          "w": 301.986603,
+          "h": 411.630493,
+          "_phase": "Popping",
+          "_exit": 0.382865,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.754966,
+              "w": 400,
+              "h": 600,
+              "x": -49.006699,
+              "y": -73.510048,
+              "alpha": 0.902121,
+              "blurDp": 0
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 900,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000022",
+          "_alpha": 0.131907
+        },
+        {
+          "name": "pagina",
+          "x": 13.816158,
+          "y": 82.89695,
+          "w": 289.470734,
+          "h": 387.576569,
+          "_phase": "Popping",
+          "_exit": 0.431755,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.723677,
+              "w": 400,
+              "h": 600,
+              "x": -55.264633,
+              "y": -82.896942,
+              "alpha": 0.840315,
+              "blurDp": 0.024622
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 908.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000020",
+          "_alpha": 0.125825
+        },
+        {
+          "name": "pagina",
+          "x": 15.311764,
+          "y": 91.870583,
+          "w": 277.50589,
+          "h": 364.581635,
+          "_phase": "Popping",
+          "_exit": 0.478493,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.693765,
+              "w": 400,
+              "h": 600,
+              "x": -61.247055,
+              "y": -91.870575,
+              "alpha": 0.749971,
+              "blurDp": 0.0566
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 916.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001E",
+          "_alpha": 0.119087
+        },
+        {
+          "name": "pagina",
+          "x": 16.900827,
+          "y": 101.404968,
+          "w": 264.793396,
+          "h": 340.14978,
+          "_phase": "Popping",
+          "_exit": 0.528151,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.661983,
+              "w": 400,
+              "h": 600,
+              "x": -67.603302,
+              "y": -101.404953,
+              "alpha": 0.572947,
+              "blurDp": 0.090577
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 925,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001D",
+          "_alpha": 0.113227
+        },
+        {
+          "name": "pagina",
+          "x": 18.224363,
+          "y": 109.346176,
+          "w": 254.205078,
+          "h": 319.800415,
+          "_phase": "Popping",
+          "_exit": 0.569511,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.635513,
+              "w": 400,
+              "h": 600,
+              "x": -72.897461,
+              "y": -109.346184,
+              "alpha": 0.386894,
+              "blurDp": 0.118876
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 933.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001B",
+          "_alpha": 0.107516
+        },
+        {
+          "name": "pagina",
+          "x": 19.461607,
+          "y": 116.769638,
+          "w": 244.307129,
+          "h": 300.777771,
+          "_phase": "Popping",
+          "_exit": 0.608175,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.610768,
+              "w": 400,
+              "h": 600,
+              "x": -77.846436,
+              "y": -116.769646,
+              "alpha": 0.020964,
+              "blurDp": 0.14533
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 941.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000001A",
+          "_alpha": 0.101291
+        },
+        {
+          "name": "pagina",
+          "x": 20.750072,
+          "y": 124.500435,
+          "w": 233.99942,
+          "h": 280.967651,
+          "_phase": "Popping",
+          "_exit": 0.64844,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.584999,
+              "w": 400,
+              "h": 600,
+              "x": -83.00029,
+              "y": -124.500435,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.105361
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 950,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000018",
+          "_alpha": 0.095952
+        },
+        {
+          "name": "pagina",
+          "x": 21.804951,
+          "y": 130.829712,
+          "w": 225.560394,
+          "h": 264.748871,
+          "_phase": "Popping",
+          "_exit": 0.681405,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.563901,
+              "w": 400,
+              "h": 600,
+              "x": -87.219803,
+              "y": -130.829697,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.265519
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 958.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000017",
+          "_alpha": 0.090805
+        },
+        {
+          "name": "pagina",
+          "x": 22.777382,
+          "y": 136.664291,
+          "w": 217.780945,
+          "h": 249.797745,
+          "_phase": "Popping",
+          "_exit": 0.711793,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.544452,
+              "w": 400,
+              "h": 600,
+              "x": -91.109528,
+              "y": -136.664291,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.4331
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 966.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000016",
+          "_alpha": 0.085252
+        },
+        {
+          "name": "pagina",
+          "x": 23.777052,
+          "y": 142.662308,
+          "w": 209.783585,
+          "h": 234.427841,
+          "_phase": "Popping",
+          "_exit": 0.743033,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.524459,
+              "w": 400,
+              "h": 600,
+              "x": -95.108208,
+              "y": -142.662323,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.618546
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 975,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000015",
+          "_alpha": 0.080531
+        },
+        {
+          "name": "pagina",
+          "x": 24.586185,
+          "y": 147.51712,
+          "w": 203.310516,
+          "h": 221.987396,
+          "_phase": "Popping",
+          "_exit": 0.768318,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.508276,
+              "w": 400,
+              "h": 600,
+              "x": -98.344742,
+              "y": -147.51712,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.741894
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 983.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000013",
+          "_alpha": 0.076013
+        },
+        {
+          "name": "pagina",
+          "x": 25.324999,
+          "y": 151.949997,
+          "w": 197.400009,
+          "h": 210.628128,
+          "_phase": "Popping",
+          "_exit": 0.791406,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.4935,
+              "w": 400,
+              "h": 600,
+              "x": -101.299995,
+              "y": -151.949997,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.82182
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 991.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000012",
+          "_alpha": 0.071172
+        },
+        {
+          "name": "pagina",
+          "x": 26.077667,
+          "y": 156.466003,
+          "w": 191.378662,
+          "h": 199.055847,
+          "_phase": "Popping",
+          "_exit": 0.814927,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.478447,
+              "w": 400,
+              "h": 600,
+              "x": -104.310669,
+              "y": -156.466003,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.88892
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1000,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000011",
+          "_alpha": 0.067082
+        },
+        {
+          "name": "pagina",
+          "x": 26.681929,
+          "y": 160.091568,
+          "w": 186.544571,
+          "h": 189.765366,
+          "_phase": "Popping",
+          "_exit": 0.83381,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.466361,
+              "w": 400,
+              "h": 600,
+              "x": -106.727715,
+              "y": -160.091583,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.931919
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1008.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000010",
+          "_alpha": 0.063188
+        },
+        {
+          "name": "pagina",
+          "x": 27.229864,
+          "y": 163.379181,
+          "w": 182.161087,
+          "h": 181.340851,
+          "_phase": "Popping",
+          "_exit": 0.850933,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.455403,
+              "w": 400,
+              "h": 600,
+              "x": -108.919456,
+              "y": -163.379181,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.962169
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1016.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000F",
+          "_alpha": 0.059036
+        },
+        {
+          "name": "pagina",
+          "x": 27.784361,
+          "y": 166.706161,
+          "w": 177.725113,
+          "h": 172.815445,
+          "_phase": "Popping",
+          "_exit": 0.868261,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.444313,
+              "w": 400,
+              "h": 600,
+              "x": -111.137444,
+              "y": -166.706161,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.983994
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1025,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000E",
+          "_alpha": 0.055543
+        },
+        {
+          "name": "pagina",
+          "x": 28.22681,
+          "y": 169.36087,
+          "w": 174.185516,
+          "h": 166.012787,
+          "_phase": "Popping",
+          "_exit": 0.882088,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.435464,
+              "w": 400,
+              "h": 600,
+              "x": -112.907242,
+              "y": -169.36087,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.994857
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1033.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000D",
+          "_alpha": 0.052231
+        },
+        {
+          "name": "pagina",
+          "x": 28.62591,
+          "y": 171.755463,
+          "w": 170.992722,
+          "h": 159.876648,
+          "_phase": "Popping",
+          "_exit": 0.89456,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.427482,
+              "w": 400,
+              "h": 600,
+              "x": -114.503639,
+              "y": -171.755463,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 0.999522
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1041.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000C",
+          "_alpha": 0.048712
+        },
+        {
+          "name": "pagina",
+          "x": 29.027727,
+          "y": 174.166367,
+          "w": 167.778183,
+          "h": 153.698685,
+          "_phase": "Popping",
+          "_exit": 0.907116,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.419445,
+              "w": 400,
+              "h": 600,
+              "x": -116.110909,
+              "y": -174.166367,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1050,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000C",
+          "_alpha": 0.045763
+        },
+        {
+          "name": "pagina",
+          "x": 29.346825,
+          "y": 176.080948,
+          "w": 165.225403,
+          "h": 148.792557,
+          "_phase": "Popping",
+          "_exit": 0.917088,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.413063,
+              "w": 400,
+              "h": 600,
+              "x": -117.387299,
+              "y": -176.080948,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1058.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000B",
+          "_alpha": 0.042974
+        },
+        {
+          "name": "pagina",
+          "x": 29.633474,
+          "y": 177.800842,
+          "w": 162.932205,
+          "h": 144.385345,
+          "_phase": "Popping",
+          "_exit": 0.926046,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.407331,
+              "w": 400,
+              "h": 600,
+              "x": -118.533897,
+              "y": -177.800842,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1066.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000A",
+          "_alpha": 0.040019
+        },
+        {
+          "name": "pagina",
+          "x": 29.9209,
+          "y": 179.525406,
+          "w": 160.632797,
+          "h": 139.966141,
+          "_phase": "Popping",
+          "_exit": 0.935028,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.401582,
+              "w": 400,
+              "h": 600,
+              "x": -119.683601,
+              "y": -179.525406,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1075,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#0000000A",
+          "_alpha": 0.03755
+        },
+        {
+          "name": "pagina",
+          "x": 30.148293,
+          "y": 180.889755,
+          "w": 158.81366,
+          "h": 136.470016,
+          "_phase": "Popping",
+          "_exit": 0.942134,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.397034,
+              "w": 400,
+              "h": 600,
+              "x": -120.59317,
+              "y": -180.889755,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1083.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000009",
+          "_alpha": 0.03522
+        },
+        {
+          "name": "pagina",
+          "x": 30.351881,
+          "y": 182.111282,
+          "w": 157.184952,
+          "h": 133.339828,
+          "_phase": "Popping",
+          "_exit": 0.948496,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.392962,
+              "w": 400,
+              "h": 600,
+              "x": -121.407524,
+              "y": -182.111298,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1091.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000008",
+          "_alpha": 0.032757
+        },
+        {
+          "name": "pagina",
+          "x": 30.555349,
+          "y": 183.332092,
+          "w": 155.557205,
+          "h": 130.211517,
+          "_phase": "Popping",
+          "_exit": 0.954855,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.388893,
+              "w": 400,
+              "h": 600,
+              "x": -122.221397,
+              "y": -183.332092,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1100,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000008",
+          "_alpha": 0.030703
+        },
+        {
+          "name": "pagina",
+          "x": 30.71582,
+          "y": 184.294922,
+          "w": 154.273438,
+          "h": 127.744263,
+          "_phase": "Popping",
+          "_exit": 0.959869,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.385684,
+              "w": 400,
+              "h": 600,
+              "x": -122.863281,
+              "y": -184.294922,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1108.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000007",
+          "_alpha": 0.028769
+        },
+        {
+          "name": "pagina",
+          "x": 30.8591,
+          "y": 185.154602,
+          "w": 153.127197,
+          "h": 125.541321,
+          "_phase": "Popping",
+          "_exit": 0.964347,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.382818,
+              "w": 400,
+              "h": 600,
+              "x": -123.436401,
+              "y": -185.154602,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1116.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000007",
+          "_alpha": 0.026729
+        },
+        {
+          "name": "pagina",
+          "x": 31.001902,
+          "y": 186.011414,
+          "w": 151.984787,
+          "h": 123.345764,
+          "_phase": "Popping",
+          "_exit": 0.968809,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.379962,
+              "w": 400,
+              "h": 600,
+              "x": -124.007607,
+              "y": -186.011414,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1125,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000006",
+          "_alpha": 0.02503
+        },
+        {
+          "name": "pagina",
+          "x": 31.114237,
+          "y": 186.685425,
+          "w": 151.086105,
+          "h": 121.618591,
+          "_phase": "Popping",
+          "_exit": 0.97232,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.377715,
+              "w": 400,
+              "h": 600,
+              "x": -124.456947,
+              "y": -186.685425,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1133.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000006",
+          "_alpha": 0.023433
+        },
+        {
+          "name": "pagina",
+          "x": 31.214306,
+          "y": 187.285828,
+          "w": 150.285553,
+          "h": 120.080048,
+          "_phase": "Popping",
+          "_exit": 0.975447,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.375714,
+              "w": 400,
+              "h": 600,
+              "x": -124.857224,
+              "y": -187.285828,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1141.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000006",
+          "_alpha": 0.021751
+        },
+        {
+          "name": "pagina",
+          "x": 31.313812,
+          "y": 187.882874,
+          "w": 149.489502,
+          "h": 118.55014,
+          "_phase": "Popping",
+          "_exit": 0.978557,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.373724,
+              "w": 400,
+              "h": 600,
+              "x": -125.255249,
+              "y": -187.882874,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1150,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000005",
+          "_alpha": 0.020353
+        },
+        {
+          "name": "pagina",
+          "x": 31.391918,
+          "y": 188.351501,
+          "w": 148.864655,
+          "h": 117.349274,
+          "_phase": "Popping",
+          "_exit": 0.980997,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.372162,
+              "w": 400,
+              "h": 600,
+              "x": -125.567673,
+              "y": -188.351517,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1158.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000005",
+          "_alpha": 0.019039
+        },
+        {
+          "name": "pagina",
+          "x": 31.461359,
+          "y": 188.768158,
+          "w": 148.309128,
+          "h": 116.281616,
+          "_phase": "Popping",
+          "_exit": 0.983167,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.370773,
+              "w": 400,
+              "h": 600,
+              "x": -125.845436,
+              "y": -188.768143,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1166.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000005",
+          "_alpha": 0.017658
+        },
+        {
+          "name": "pagina",
+          "x": 31.530275,
+          "y": 189.181656,
+          "w": 147.757797,
+          "h": 115.222,
+          "_phase": "Popping",
+          "_exit": 0.985321,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.369394,
+              "w": 400,
+              "h": 600,
+              "x": -126.121101,
+              "y": -189.181656,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1175,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000004",
+          "_alpha": 0.016512
+        },
+        {
+          "name": "pagina",
+          "x": 31.584267,
+          "y": 189.5056,
+          "w": 147.325867,
+          "h": 114.391891,
+          "_phase": "Popping",
+          "_exit": 0.987008,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.368315,
+              "w": 400,
+              "h": 600,
+              "x": -126.337067,
+              "y": -189.505615,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1183.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000004",
+          "_alpha": 0.015436
+        },
+        {
+          "name": "pagina",
+          "x": 31.632191,
+          "y": 189.793152,
+          "w": 146.942474,
+          "h": 113.65506,
+          "_phase": "Popping",
+          "_exit": 0.988506,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.367356,
+              "w": 400,
+              "h": 600,
+              "x": -126.528763,
+              "y": -189.793152,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1191.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000004",
+          "_alpha": 0.014306
+        },
+        {
+          "name": "pagina",
+          "x": 31.67967,
+          "y": 190.078018,
+          "w": 146.562637,
+          "h": 112.925064,
+          "_phase": "Popping",
+          "_exit": 0.98999,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.366407,
+              "w": 400,
+              "h": 600,
+              "x": -126.718681,
+              "y": -190.078033,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1200,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.013369
+        },
+        {
+          "name": "pagina",
+          "x": 31.716806,
+          "y": 190.300842,
+          "w": 146.265549,
+          "h": 112.354095,
+          "_phase": "Popping",
+          "_exit": 0.99115,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.365664,
+              "w": 400,
+              "h": 600,
+              "x": -126.867226,
+              "y": -190.300827,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1208.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.01249
+        },
+        {
+          "name": "pagina",
+          "x": 31.749722,
+          "y": 190.498322,
+          "w": 146.002228,
+          "h": 111.848053,
+          "_phase": "Popping",
+          "_exit": 0.992179,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.365006,
+              "w": 400,
+              "h": 600,
+              "x": -126.998886,
+              "y": -190.498322,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1216.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.011569
+        },
+        {
+          "name": "pagina",
+          "x": 31.782284,
+          "y": 190.693695,
+          "w": 145.74173,
+          "h": 111.347382,
+          "_phase": "Popping",
+          "_exit": 0.993196,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.364354,
+              "w": 400,
+              "h": 600,
+              "x": -127.129135,
+              "y": -190.69371,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1225,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.010805
+        },
+        {
+          "name": "pagina",
+          "x": 31.807716,
+          "y": 190.846298,
+          "w": 145.538269,
+          "h": 110.956375,
+          "_phase": "Popping",
+          "_exit": 0.993991,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.363846,
+              "w": 400,
+              "h": 600,
+              "x": -127.230865,
+              "y": -190.846283,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1233.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000003",
+          "_alpha": 0.010089
+        },
+        {
+          "name": "pagina",
+          "x": 31.830229,
+          "y": 190.981369,
+          "w": 145.35817,
+          "h": 110.610245,
+          "_phase": "Popping",
+          "_exit": 0.994695,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.363395,
+              "w": 400,
+              "h": 600,
+              "x": -127.320915,
+              "y": -190.981369,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1241.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000002",
+          "_alpha": 0.00934
+        },
+        {
+          "name": "pagina",
+          "x": 31.852468,
+          "y": 191.114807,
+          "w": 145.180252,
+          "h": 110.268311,
+          "_phase": "Popping",
+          "_exit": 0.99539,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.362951,
+              "w": 400,
+              "h": 600,
+              "x": -127.409874,
+              "y": -191.114807,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1250,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000002",
+          "_alpha": 0.008718
+        },
+        {
+          "name": "pagina",
+          "x": 31.86982,
+          "y": 191.218918,
+          "w": 145.041443,
+          "h": 110.001511,
+          "_phase": "Popping",
+          "_exit": 0.995932,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.362604,
+              "w": 400,
+              "h": 600,
+              "x": -127.479279,
+              "y": -191.218918,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1258.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "velo",
+          "x": 0,
+          "color": "#00000002",
+          "_alpha": 0.008138
+        },
+        {
+          "name": "pagina",
+          "x": 31.88516,
+          "y": 191.310959,
+          "w": 144.918716,
+          "h": 109.765671,
+          "_phase": "Popping",
+          "_exit": 0.996411,
+          "content": [
+            {
+              "name": "inchiostro",
+              "scale": 0.362297,
+              "w": 400,
+              "h": 600,
+              "x": -127.540642,
+              "y": -191.310959,
+              "alpha": 0,
+              "blurDp": 0.15
+            },
+            {
+              "name": "sorgente",
+              "alpha": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 1266.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1275,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1283.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1291.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1300,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1308.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1316.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1325,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1333.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1341.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1350,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1358.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1366.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1375,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1383.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1391.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1400,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1408.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1416.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1425,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1433.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1441.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1450,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1458.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1466.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1475,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1483.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1491.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1500,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1508.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1516.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1525,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1533.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1541.666667,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1550,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    },
+    {
+      "t": 1558.333333,
+      "elements": [
+        {
+          "name": "lista",
+          "x": 0
+        },
+        {
+          "name": "cella"
+        }
+      ]
+    }
+  ]
+}

@@ -172,7 +172,10 @@ internal fun SelectionMailScene(onBack: () -> Unit) {
     items = MailTabs,
     selectedRoute = tab,
     onSelect = { tab = it.route },
-    modifier = Modifier.navigationBarsPadding().testTag(SelectionSceneTags.MailNavigation),
+    // Lo sfondo prima del margine della barra di navigazione, come nell'esempio della scheda (barre.md): senza, sotto la
+    // maniglia dei gesti si vedeva la finestra, una striscia nera (riprese di F6B.12, 22 novembre 2026).
+    modifier = Modifier.background(MaterialTheme.colorScheme.background).navigationBarsPadding()
+      .testTag(SelectionSceneTags.MailNavigation),
   ) { _ ->
     FluidListDetailScaffold(
       ambient = null,
@@ -334,7 +337,7 @@ internal fun SelectionNotesScene(onBack: () -> Unit) {
     }
     item(key = "nota") {
       FluidSectionFootnote(
-        text = "«Seleziona», poi «Seleziona tutto» (in «Altro» sul telefono, con le azioni): il conteggio dice tutte " +
+        text = "«Seleziona», poi «Seleziona tutto» (in «Altro» solo se la barra non ha posto): il conteggio dice tutte " +
           "le note della cartella, anche quelle non ancora caricate; togline una e il conteggio scende di uno.",
       )
     }

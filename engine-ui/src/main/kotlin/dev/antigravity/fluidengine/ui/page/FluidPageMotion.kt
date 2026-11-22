@@ -37,6 +37,7 @@ import dev.antigravity.fluidengine.ui.fluid.GlassContentDefaults
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 
 /** Dove sta la pagina sopra in un fotogramma: spostamento lungo l'uscita (px, ≥ 0) e scala. */
 @Immutable
@@ -212,8 +213,35 @@ object FluidPageMotion {
   internal const val GrowCornerStart = 0.5f
   internal const val ZoomCornerMillis = GrowSolidMillis / 2
 
-  /** Sfondo di Cresce, a occhio, scelta di Alessio del 21 novembre 2026. Valori massimi dopo la curva a S. */
+  /** F6D.0 §2–3, Note WWDC25 284 (f22252, f22611–23, f23472–76). Il 12% a piena copertura
+   * è estrapolato, fiducia media. Per ShrinkSlide ed Expand senza sorgente è un'analogia Fluid.
+   * In scuro e all'annullo manca una misura Apple: stessa curva per scelta Fluid. */
+  internal const val SlideDim = 0.12f
+
+  /** Ombra di Slide. F6D.0 §2, Note WWDC25 284, f22230–52: circa 1–3 punti presso il
+   * bordo e meno di un punto a 0,03 W. Elevazione e tinta sono una taratura Fluid per HWUI.
+   * Fiducia media in chiaro; tinta nera anche in scuro per scelta Fluid (Apple NV). */
+  internal const val SlideElevationFraction = 0.035f
+  /** Taratura Fluid del nero di HWUI sui fotogrammi f22230–52 di Note (F6D.0 §2).
+   * Fiducia media sull’ombra chiara, scelta Fluid in scuro dove Apple resta NV. */
+  internal const val SlideShadowAlpha = 0.36f
+
+  /** F6D.0 §4, WWDC24 10145, iPadOS 18 f966 e f3183 (12,5% e 16,5%). Il massimo
+   * di zoom è una stima Fluid, fiducia media. Cresce conserva il suo 18% per analogia,
+   * fiducia bassa. Scuro, annullo e parità con iOS 26/27: NV. */
   internal const val GrowDim = 0.18f
+
+  /** F6D.0 §7, iPadOS 18 f3183/86/89/90. Approssimazione Fluid della coda al ritorno,
+   * fiducia media nel tratto osservabile. Un gesto ripreso continua sulla stessa curva. */
+  private const val ZoomReturnDimExponent = 0.55f
+
+  /** Intensità sulla crescita effettiva della sagoma (0 alla sorgente, 1 a pagina intera). */
+  internal fun zoomDim(growth: Float, returning: Boolean): Float {
+    val q = growth.coerceIn(0f, 1f)
+    return GrowDim * if (returning) q.pow(ZoomReturnDimExponent) else q
+  }
+
+  /** Sfocatura massima di Cresce, scelta Fluid del 21 novembre 2026. */
   internal const val GrowBlurDp = 10f
 
   // --- La corsa --------------------------------------------------------------------------------

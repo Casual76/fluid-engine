@@ -3,10 +3,9 @@ package dev.antigravity.fluidengine.ui.page
 /**
  * Come una pagina entra e, soprattutto, come se ne va col dito.
  *
- * Tutte e tre sono opache dal primo all'ultimo fotogramma: nessuna sfuma, nessuna sfoca la pagina
- * sotto. Due pagine leggibili una attraverso l'altra sono la cosa che fa sembrare l'app un prototipo
- * (vedi le regole), e una sfocatura a tutto schermo e' il fotogramma piu' caro che l'app possa
- * disegnare proprio quando ne ha meno.
+ * Durante il viaggio la pagina superiore conserva il proprio fondo. Un velo nero sulla sola
+ * pagina inferiore segue la posizione disegnata, anche quando il dito si ferma o inverte la
+ * corsa. Cresce aggiunge la sfocatura al fondale campionato dal vetro.
  */
 enum class FluidPageTransition {
   /**

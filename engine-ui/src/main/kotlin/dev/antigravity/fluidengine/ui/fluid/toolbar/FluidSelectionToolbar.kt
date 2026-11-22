@@ -80,7 +80,8 @@ import kotlin.math.roundToInt
  *   non la prende (F6B.2) e dove una tab bar non c'è (una pagina senza schede, il pannello della lista su un tablet con
  *   la barra laterale) la disegna la schermata, nella sua barra in basso. È il caso di Mail, Note e File.
  * - [AboveTabBar]: in basso, sopra la tab bar, che resta.
- * - [Top]: nella barra in alto, accanto a «Fine»: per le pagine senza una barra in basso.
+ * - [Top]: nella barra in alto, accanto a «Fine»: per le pagine senza una barra in basso. Le azioni vanno in «Altro» quando
+ *   i tre gruppi sono pieni; «Seleziona tutto» resta a sinistra finché c'è posto (scelta di Alessio, 22 novembre 2026).
  * - [Floating]: in basso, una capsula che galleggia sul contenuto e sopra la tab bar, che resta; la pagina non le
  *   riserva spazio in fondo alla lista (la griglia di Gallery le passa sotto).
  */
@@ -259,6 +260,7 @@ fun FluidToolbarScope.selection(
     // Un tondo e non una scritta: la barra ha tre gruppi e centra il conteggio (R5 B11), e «Seleziona tutto» scritto
     // per esteso lo spingerebbe in «Altro» su ogni telefono. Con tutto scelto lo stesso tasto è acceso (la pellicola
     // della selezione) e dice «Deseleziona». Le parole restano il suo nome e la voce del menu se ci finisce.
+    // Sta dove stava l'indietro e conta come lui nel tetto dei tre gruppi ([holdsNavigationSlot]).
     button(
       id = FluidSelectionToolbarIds.SelectAll,
       icon = FluidIcons.Checklist,
@@ -282,9 +284,9 @@ fun FluidToolbarScope.selection(
   }
   // Il conteggio al centro, senza vetro: prende il posto del titolo agganciato (il titolo cede il posto a ciò che sta al
   // centro). Il nome per TalkBack lo dà l'area viva della schermata, non questa faccia: due letture sarebbero una di troppo.
-  // Dopo le azioni e prima di «Fine» di proposito: quando il posto non basta la barra fa uscire prima le azioni, poi
-  // «Seleziona tutto», poi il conteggio, e «Fine» per ultimo (a parità di priorità, fra centro e destra esce prima chi
-  // viene prima; a sinistra il più interno). Come in iOS, i tasti contano più del titolo.
+  // Dopo le azioni e prima di «Fine» di proposito: quando il posto non basta la barra fa uscire prima le azioni, poi il
+  // conteggio, e «Fine» per ultimo (a parità di priorità, fra centro e destra esce prima chi viene prima; a sinistra il
+  // più interno). «Seleziona tutto» esce solo se nemmeno lui ci sta (F6B.12). Come in iOS, i tasti contano più del titolo.
   entries += FluidToolbarButtonEntry(
     id = FluidSelectionToolbarIds.Count,
     role = FluidToolbarRole.Text,
@@ -327,7 +329,9 @@ data class FluidSelectionActionLabels(
  * **In basso** le azioni si dividono ai due estremi della barra con uno spazio flessibile, in tre gruppi al più, «Altro»
  * compreso (il tetto della barra, R5 B11): quando il posto non basta escono prima le azioni a priorità bassa. **In alto**
  * ([FluidSelectionBarPlacement.Top]) la barra ha già il conteggio e «Fine», e ancora tre gruppi in tutto: le azioni
- * finiscono in «Altro», con «Seleziona tutto» se non c'è posto, e restano raggiungibili da lì e da TalkBack.
+ * prendono il gruppo che resta, accanto a «Fine», quando ci stanno, se no finiscono in «Altro» e restano raggiungibili da
+ * lì e da TalkBack. «Seleziona tutto» non conta nei tre gruppi (sta al posto dell'indietro) e resta in barra finché c'è
+ * posto.
  *
  * Nessuna azione dei preset ha priorità alta: in alto i posti della selezione («Seleziona tutto», il conteggio, «Fine»)
  * restano finché c'è un'azione da far uscire.
@@ -429,6 +433,19 @@ object FluidSelectionActions {
 
 /** Le parole di serie, una volta sola. */
 internal val FluidSelectionDefaultLabels = FluidSelectionLabels()
+
+/**
+ * Il tasto occupa il posto dell'indietro e non conta nel tetto dei tre gruppi della barra (R5 B11: «indietro più tre
+ * vetri»): le uscite (indietro, Chiudi) e, in selezione, «Seleziona tutto», che prende il posto dell'indietro (F6B.1).
+ *
+ * Scelta di Alessio del 22 novembre 2026, sulle riprese di F6B.12: con le azioni in alto «Seleziona tutto» resta un tasto
+ * visibile quando la barra ha posto (tablet, telefono largo) e va in «Altro» solo se lo spazio non basta. Prima contava
+ * come un gruppo e, con conteggio, «Fine» e «Altro», usciva anche su un tablet. Il tetto per gli altri tasti non cambia.
+ * Quando la larghezza non basta il trabocco toglie ancora per primo «Seleziona tutto», ma se toglierlo non libera posto
+ * (sta sul lato corto, e a non starci è il conteggio al centro) il tasto torna in barra: esce solo il conteggio.
+ */
+internal val FluidToolbarItem.holdsNavigationSlot: Boolean
+  get() = isExit || id == FluidSelectionToolbarIds.SelectAll
 
 /**
  * La posizione esplicita di un'azione dei preset: la barra in basso per le selezioni in basso (un ruolo distruttivo,

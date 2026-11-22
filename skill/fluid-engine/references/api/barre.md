@@ -8,7 +8,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidBackgroundExtension.kt`
 
-- `fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifier` — Continua un'immagine sotto la navigazione laterale mantenendo nitida e intera la sua parte visibile. Applicarlo al fondale, prima del suo disegno. Lo spazio di [FluidAdaptiveNavigation] segue il vetro; [start] e [end] permettono di servire anche un pannello o un ispettore disposti dall'app.
+- `fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifier` — Continua un'immagine sotto la navigazione laterale mantenendo nitida e intera la sua parte visibile. Applicarlo al fondale, prima del suo disegno. Lo spazio di [FluidAdaptiveNavigation] segue il vetro; [start] e [end] permettono di servire anche un pannello o un ispettore disposti dall'app. Sotto la colonna di [FluidAdaptiveNavigation] c'è di serie lo sfondo del tema: l'estensione si disegna sopra e lo copre.
 
 ## `engine-ui/ui/fluid/FluidFindInText.kt`
 

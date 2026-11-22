@@ -75,8 +75,8 @@ posto del titolo**. `id` diversi per tasti diversi: due tasti con lo stesso `id`
   si **divide** quando un suo tasto diventa principale, e torna unito quando smette.
 - **Le misure** (`FluidMetrics`): icone da 28 dp, freccia Indietro da 25 dp, vetro alto 46 dp e passo da 46 dp
   dentro un gruppo. Tra due gruppi ci sono 12 dp, dai bordi 16 dp.
-- **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso**, oltre ai vetri d'uscita (indietro e Chiudi): su
-  iPhone si vedono indietro più tre vetri. Le uscite occupano comunque larghezza; quando il posto non basta escono prima
+- **Il trabocco** (R5 B11): al più tre gruppi, «Altro» **compreso**, oltre ai vetri d'uscita (indietro e Chiudi) e, in
+  selezione, a «Seleziona tutto», che prende il posto dell'indietro (F6B.12): su iPhone si vedono indietro più tre vetri. Le uscite occupano comunque larghezza; quando il posto non basta escono prima
   i tasti `Low`, poi `Automatic`, poi `High`, a parità i più interni.
   Il tetto vale anche su tablet largo. Un gruppo esplicito tiene insieme i tasti visibili, ma la priorità decide
   per ogni tasto chi resta in barra. Indietro, Chiudi e la principale hanno precedenza. In una finestra stretta
@@ -287,11 +287,14 @@ Che cosa dichiara, e che cosa si vede:
   centra il conteggio (R5 B11): per esteso spingerebbe il conteggio in «Altro» su un telefono.
 - **Le azioni** sono la DSL di sempre dentro il blocco, oppure un preset: `FluidSelectionActions.mail(…)`, `.gallery(…)`,
   `.files(…)`, `.deleteOnly(…)`. In basso si dividono ai due estremi, in tre gruppi al più, «Altro» compreso; quando il
-  posto non basta escono prima le azioni, poi «Seleziona tutto», poi il conteggio, «Fine» per ultimo.
+  posto non basta escono prima le azioni, poi il conteggio, «Fine» per ultimo; «Seleziona tutto», sul lato corto, esce
+  solo se nemmeno lui ci sta (prima del 22 novembre 2026 usciva prima del conteggio).
 - **Dove stanno** (`FluidSelectionBarPlacement`, non un enum: si confronta con `==`): `ReplacingTabBar` di serie, cioè
   **al posto della tab bar** (la tab bar della shell trasforma la sua pillola nella capsula delle azioni: vedi
   [barre.md](barre.md), «La tab bar che diventa le azioni»; senza tab bar la disegna la barra in basso della pagina);
-  `AboveTabBar`; `Top`, nella barra in alto (i posti sono tre, «Altro» compreso, col conteggio al centro: su un telefono le azioni, e con loro «Seleziona tutto», stanno in «Altro»); `Floating`, una capsula che
+  `AboveTabBar`; `Top`, nella barra in alto (i posti sono tre, «Altro» compreso, col conteggio al centro: le azioni stanno nel posto che resta, o in «Altro»;
+  «Seleziona tutto» sta al posto dell'indietro, non conta nei tre e resta in barra finché c'è posto, scelta di Alessio del
+  22 novembre 2026); `Floating`, una capsula che
   galleggia sul contenuto e a cui la lista non lascia spazio.
 - **Il back della selezione**: con una selezione dichiarata il back esce dalla selezione e non dalla pagina, e l'indietro
   della pagina non c'è. Niente cambia finché il gesto indietro non è confermato (D1); un gesto annullato lascia tutto

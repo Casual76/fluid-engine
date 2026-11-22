@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.theme
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -17,7 +18,6 @@ import dev.antigravity.fluidengine.ui.haptics.rememberAndroidFluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -26,7 +26,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
+import androidx.core.content.OnConfigurationChangedProvider
+import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
@@ -45,6 +48,7 @@ import dev.antigravity.fluidengine.ui.glass.field.rememberGlassLightEnvironment
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -236,19 +240,44 @@ fun FluidTheme(
  * that paints an opaque page and the wrong thing for one that does not: a background left
  * transparent so an image can show through has luminance zero, so a light app got light icons on a
  * light page. The theme already knows which side it resolved to, and that answer cannot be faked.
+ *
+ * **After every configuration change** (F6B.12, scelta di Alessio del 22 novembre 2026). `enableEdgeToEdge()` di
+ * androidx.activity 1.13 aggiunge alla finestra una vista che, a ogni cambio di configurazione, rimette lo stile delle
+ * barre secondo il tema del **sistema**. In un'Activity che gestisce da sé la rotazione (`configChanges`) il tema non si
+ * ricomponeva e non le rimetteva: un'app scura su un sistema chiaro, ruotata, aveva l'ora scura sul fondo scuro e una
+ * fascia chiara sotto la maniglia dei gesti, finché non la si riapriva. Ora il tema ascolta i cambi di configurazione
+ * dell'Activity (`OnConfigurationChangedProvider`, cioè ogni `ComponentActivity`) e rimette le barre con un `post`, che
+ * arriva dopo che l'Activity e la finestra hanno avvisato tutte le loro viste, quella di `enableEdgeToEdge()` compresa.
  */
 @Composable
 private fun SystemBarsAppearance(isDark: Boolean, statusBar: FluidStatusBarSide) {
   val view = LocalView.current
   val lightBars = !isDark
+  // Una chiave dell'effetto: ogni cambio di configurazione che arriva alla composizione rimette le barre (vedi sopra).
+  val configuration = LocalConfiguration.current
   if (!view.isInEditMode) {
-    SideEffect {
-      val window = (view.context as? Activity)?.window ?: return@SideEffect
-      // Letto senza osservazione: il lato sotto la barra di stato cambia senza ricomporre il tema (vedi sotto).
-      val lightIcons = Snapshot.withoutReadObservation { statusBar.lightStatusBars(lightBars) }
-      WindowCompat.getInsetsController(window, view).apply {
-        isAppearanceLightStatusBars = lightIcons
-        isAppearanceLightNavigationBars = lightBars
+    DisposableEffect(view, configuration, lightBars, statusBar) {
+      val window = (view.context as? Activity)?.window
+      val apply = Runnable {
+        if (window == null) return@Runnable
+        // Letto senza osservazione: il lato sotto la barra di stato cambia senza ricomporre il tema (vedi sotto).
+        val lightIcons = Snapshot.withoutReadObservation { statusBar.lightStatusBars(lightBars) }
+        WindowCompat.getInsetsController(window, view).apply {
+          isAppearanceLightStatusBars = lightIcons
+          isAppearanceLightNavigationBars = lightBars
+        }
+      }
+      apply.run()
+      // E di nuovo dopo la vista di `enableEdgeToEdge()`: a ogni cambio di configurazione l'Activity avvisa sé e le viste
+      // della finestra nello stesso messaggio, e un `post` arriva dopo tutte. Senza un'Activity che lo offra resta la
+      // chiave della configurazione, sopra.
+      val provider = view.context as? OnConfigurationChangedProvider
+      val listener = Consumer<Configuration> { view.post(apply) }
+      provider?.addOnConfigurationChangedListener(listener)
+      view.post(apply)
+      onDispose {
+        provider?.removeOnConfigurationChangedListener(listener)
+        view.removeCallbacks(apply)
       }
     }
     // 4.0 (F2.3b): la barra in alto di una schermata che scurisce sopra un contenuto scuro chiede le icone chiare, e le

@@ -878,7 +878,13 @@ private fun FluidSheetPane(
               }
             },
         ) {
-          CompositionLocalProvider(LocalFluidSheetSink provides sink, LocalFluidSheetPageVeil provides pageVeil) {
+          // Davanti alla tab bar in alto della navigazione adattiva: la sua fascia qui non conta (F6B.12). Il velo della
+          // pagina passa ai contenuti per l'inchiostro del pannello info (F6C.9).
+          CompositionLocalProvider(
+            LocalFluidSheetSink provides sink,
+            LocalFluidSheetPageVeil provides pageVeil,
+            LocalFluidTopChromeBand provides 0.dp,
+          ) {
             // La maniglia: c'e' sempre (lo spazio in cima e' lo stesso di prima); un foglio che non la vuole la nasconde
             // in disegno. Toccata, passa al detent successivo.
             FluidGrabber(

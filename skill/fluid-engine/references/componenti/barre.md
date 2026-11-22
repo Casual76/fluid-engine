@@ -414,6 +414,30 @@ Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).safeDra
 }
 ```
 
+**La barra di stato** (F6B.12, scelta di Alessio del 22 novembre 2026). Il rail, la tab bar in alto e la barra laterale
+stanno sotto la barra di stato, come la barra in alto di `FluidScreen`; la pagina resta a finestra intera e la conta da sé,
+e chi usa la forma in alto riceve in `insets` anche la barra di stato. Se un antenato l'ha già consumata (il
+`safeDrawingPadding` dell'esempio sopra, la regola di prima) non si conta due volte: la misura è quella che resta dopo gli
+antenati, presa in fase di misura, giusta dal primo fotogramma. Gli altri inset (la barra di navigazione, i ritagli ai
+lati) restano dell'app. Prima il rail saliva sotto l'ora (la posta sul Tab S9, riprese di F6B.12). Lo prova
+`FluidAdaptiveStatusBarTest` (sample).
+
+**Lo sfondo dietro la colonna** (F6B.12, scelta di Alessio del 22 novembre 2026: «di serie nell'engine»). Dove la
+navigazione toglie spazio alla pagina, cioè la colonna del rail e della barra laterale, per tutta l'altezza e quindi anche
+sotto l'ora, `FluidAdaptiveNavigation` mette da sé lo sfondo del tema (`MaterialTheme.colorScheme.background`, lo stesso
+di `FluidScreen`), in chiaro e in scuro: nessuna app vede più la finestra scoperta. Prima lì si vedeva la finestra, scura,
+e l'ora ci spariva sopra (la posta sul Tab S9). Lo sfondo sta sotto la pagina e dentro ciò che il vetro registra: il rail
+e la barra laterale ci posano sopra come sulla pagina. Un fondale che vuole continuare sotto il vetro, come su iPad, usa
+ancora `fluidBackgroundExtension()`: la sua estensione si disegna sopra lo sfondo di serie, e vince. Senza colonna (la tab
+bar in basso, quella in alto) non cambia niente. Lo prova `FluidAdaptiveColumnGroundTest` (sample).
+
+**L'inchiostro delle voci** (F6B.12, stessa sera). Le voci della tab bar in alto e della barra laterale prendono da sole il
+colore del contenuto dal tema (`onSurface`, lo stesso del rail), in chiaro e in scuro, senza bisogno di una `Surface` sopra
+la navigazione: prima, in scuro e senza `Surface`, uscivano nere sul vetro scuro. Se l'app dà un colore del contenuto (una
+`Surface`, o `LocalContentColor`) vale il suo, come prima; il valore di serie di `LocalContentColor` (`Color.Black`, quello
+che c'è quando nessuno lo dà) si legge come «nessun colore dato». Il rail resta com'era: l'inchiostro del tema, sempre. Lo
+prova `FluidAdaptiveNavigationInkTest` (sample).
+
 **La conversione è un viaggio del piano, in due tratte.** La capsula e la colonna sono lo stesso pannello: all'apertura
 la capsula va prima al margine iniziale mentre la pagina le fa posto (400 ms), poi la lastra scende fino in fondo (500
 ms) e le voci passano da riga a colonna, sfocate nel cambio; alla chiusura la colonna si raccoglie (430 ms) e la capsula
@@ -421,6 +445,23 @@ torna al centro (400 ms). Le curve sono misurate su Musica per iPad (WWDC25 208)
 punto raggiunto, anche dentro la prima tratta. Le voci, il tasto, il velo della selezione e lo spazio della pagina
 seguono il rettangolo corrente del vetro; il tasto resta azionabile durante la sfocatura. Il contenuto riceve in
 `insets` lo spazio sopra la capsula o sotto la tab bar; lo spazio laterale lo riserva il contenitore.
+
+**Le barre delle pagine sotto la tab bar in alto** (F6B.12, scelta di Alessio del 22 novembre 2026: «le sovrapposizioni di
+elementi UI sono da evitare quanto più possibile»). Nella forma «tab bar in alto» la capsula sta al centro, sotto la barra
+di stato; prima le barre delle pagine (il «‹» e «Seleziona» della lista, il titolo del dettaglio) ci finivano sotto. Ora le
+barre in alto dell'engine, `FluidScreen` e la barra dell'host delle pagine, contano la fascia della capsula (la capsula
+più i suoi margini, 80 dp: 56 di capsula e 12 sopra e sotto) come la barra di stato: la riga dei tasti e il titolo grande stanno **sotto** la capsula, e il
+contenuto ci scorre sotto, col bordo dello scorrimento. Quando la capsula va di lato e diventa la barra laterale la fascia
+si stringe con lei fino a zero, e le pagine risalgono; nelle altre forme (tab bar in basso, rail) non c'è. Le pagine non
+fanno niente: lo sa l'engine. Un contenuto che non è una `FluidScreen` usa `insets.top`, come prima; **non** si dà
+`insets.top` a una `FluidScreen`, che conterebbe la fascia due volte. I fogli stanno davanti alla capsula e non la contano.
+Perché sotto e non nella stessa riga (com'è su iPadOS): nella stessa riga ogni barra di pagina dovrebbe sapere dove sta la
+capsula nella finestra e togliere i suoi tasti e il suo titolo da quel tratto, e con due pannelli la capsula sta a cavallo
+fra la barra della lista e quella del dettaglio; sotto, nessuna sovrapposizione è possibile, qualunque cosa ci sia nelle
+barre. Il telefono, il target principale, non ha mai la tab bar in alto (sotto i 1000 dp). Lo prova
+`FluidAdaptiveFormsTest` (sample): la Posta in nove forme (telefono a 360 e 412 dp in verticale e in orizzontale,
+pieghevole, tablet in verticale e in orizzontale anche con la barra laterale, finestra divisa stretta), a riposo e in
+selezione; i riquadri delle schede, dei tasti delle barre e dei titoli non si intersecano.
 
 La barra laterale resta **flottante e monocroma**, con 12 dp di margine: divergenza scelta da iPadOS 27, dove arriva ai
 bordi con le icone d'accento. Il pannello prende la luce della pagina: col materiale Liquid la sonda del fondale tinge
@@ -430,7 +471,7 @@ mano (anche su telefono, se l'app la sceglie).
 **`fluidBackgroundExtension(start = null, end = 0.dp)`** va sull'immagine o sulla decorazione a tutta larghezza, prima
 del suo disegno: registra il disegno una volta, mostra l'originale al centro e ne ripete il bordo ribaltato e sfocato
 (12 dp) sotto la colonna. Sul bordo della pagina il riflesso parte nitido e si sfoca solo nell'estensione, così i colori
-si raccordano durante il viaggio. Il margine viene dal contenitore; `start` ed `end` espliciti servono a un ispettore
+si raccordano durante il viaggio. Copre lo sfondo di serie della colonna. Il margine viene dal contenitore; `start` ed `end` espliciti servono a un ispettore
 posato dall'app. Rispetta il verso di lettura. Sotto Android 12 resta il riflesso senza sfocatura. Il testo va su un altro
 nodo, e resta nitido.
 

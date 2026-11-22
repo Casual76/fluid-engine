@@ -63,6 +63,16 @@ internal object FluidActionGlyphProfile {
   fun saveClosure(ms: Float) = glassContentSmoothstep(0f, SaveCloseMs.toFloat(), ms)
   fun saveRingAlpha(ms: Float) = 1f - glassContentSmoothstep(SaveCloseMs.toFloat(), SaveDrawStartMs.toFloat(), ms)
   fun saveReveal(ms: Float) = checkReveal(ms - SaveDrawStartMs)
+
+  /**
+   * L'icona di Salva che esce mentre la spunta si disegna: le curve di chi esce di R7 sul loro T (300 ms,
+   * [GlassContentDefaults.DurationMs]), sparita a 0,66 T ≈ 198 ms. Così la spunta, che comincia a [SaveDrawStartMs],
+   * entra mentre l'icona è ancora lì, sfocata, e non resta un attimo di vetro vuoto (scelta di Alessio del 22 novembre
+   * 2026, sulle riprese di F6B.12: prima l'icona usciva tutta nei primi 67 ms). R7, alta, come ogni scambio d'icona.
+   */
+  val SaveBaseExitMs: Float = GlassContentDefaults.DurationMs * GlassContentDefaults.ExitEnd
+  fun saveBaseAlpha(ms: Float) = GlassContentCurves.exitAlpha.at((ms / GlassContentDefaults.DurationMs).coerceAtLeast(0f))
+  fun saveBaseBlur(ms: Float) = GlassContentCurves.blurRise((ms / GlassContentDefaults.DurationMs).coerceAtLeast(0f))
   const val DrawMs = 267
   const val CheckWidth = .46f
   /** Caduta della freccia prima della spunta: a occhio, 21 novembre 2026. */
@@ -215,10 +225,15 @@ private object SaveGlyph : FluidActionGlyph {
       return
     }
     val sequence = remember { arrayOf(Any()) }
+    val lastRest = remember { arrayOf(face) }
     val group = remember(face.checked) {
-      if (!face.checked) sequence[0] = Any()
+      // Con l'anello la spunta si disegna dove l'anello si chiude (anello → spunta, UIKit 243). Senza anello (un lavoro
+      // sotto la soglia dei 300 ms) non c'è niente da chiudere: la spunta entra con lo scambio sfocato di R7 mentre
+      // l'icona esce, sovrapposte, invece di aspettare la fine dell'icona (scelta di Alessio del 22 novembre 2026).
+      if (!face.checked || !lastRest[0].working) sequence[0] = Any()
       sequence[0]
     }
+    if (!face.checked) lastRest[0] = face
     FluidGlassContentTransition(group to face, modifier, key = { it.first }, blurReference = look.iconSize) { (_, shown) ->
       SaveSequence(shown, progress, look)
     }
@@ -233,7 +248,7 @@ private fun SaveSequence(face: FluidActionFace, progress: FluidActionProgress, l
   val lastBase = remember { arrayOf(face) }
   if (!face.checked) lastBase[0] = face
   val base = lastBase[0]
-  val showBase by remember { derivedStateOf { time < profile.SaveDrawStartMs } }
+  val showBase by remember { derivedStateOf { time < profile.SaveBaseExitMs } }
   Box(Modifier.requiredSize(look.iconSize * FluidActionProfile.RingDiameter), contentAlignment = Alignment.Center) {
     if (showBase && !base.checked) {
       if (base.working) Box(Modifier.graphicsLayer { alpha = profile.saveRingAlpha(time) }) {
@@ -241,10 +256,10 @@ private fun SaveSequence(face: FluidActionFace, progress: FluidActionProgress, l
       }
       FluidGlassContentTransition(base, key = { it.copy(paused = false) }, blurReference = look.iconSize) { shown ->
         Box(Modifier.graphicsLayer {
-          val u = (time / profile.SaveDrawStartMs).coerceIn(0f, 1f)
-          alpha = 1f - glassContentSmoothstep(0f, 1f, u)
+          // L'icona esce con le curve di R7 e si sovrappone alla spunta che comincia a disegnarsi (saveBaseAlpha).
+          alpha = profile.saveBaseAlpha(time)
           if (Build.VERSION.SDK_INT >= 31) renderEffect = glassContentBlurEffect(
-            glassContentSigmaPx(GlassContentDefaults.PeakBlur * GlassContentCurves.blurRise(u), look.iconSize.toPx()))
+            glassContentSigmaPx(GlassContentDefaults.PeakBlur * profile.saveBaseBlur(time), look.iconSize.toPx()))
         }) { FluidActionFaceDrawing(shown.copy(ring = FluidActionRing.None), progress, look) }
       }
     }

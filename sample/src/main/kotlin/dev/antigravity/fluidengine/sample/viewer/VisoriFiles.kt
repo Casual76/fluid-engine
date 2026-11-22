@@ -63,7 +63,7 @@ internal object VisoriFiles {
     VisoreFile("fiori", "Fiori al vento", "Fiori al vento.mp4", "video/mp4", R.raw.viewer_flower, VisoreTipo.Video,
       "Video CC0 della raccolta MDN", cover = R.drawable.viewer_flower),
     VisoreFile("campanelle", "Campanelle", "Campanelle.m4a", "audio/mp4", R.raw.viewer_campanelle, VisoreTipo.Audio,
-      "Dodici secondi di note pure, generate per la galleria"),
+      "Dodici secondi di note pure, generate per la galleria. Copertina della raccolta MDN.", cover = R.drawable.viewer_flower),
     VisoreFile("quaderno", "Quaderno di campo", "Quaderno di campo.pdf", "application/pdf", R.raw.viewer_notes,
       VisoreTipo.Pagine, "PDF di sei pagine, quattro verticali e due orizzontali"),
     VisoreFile("diario", "Diario di bordo", "Diario di bordo.txt", "text/plain", R.raw.viewer_diario, VisoreTipo.Testo,
@@ -73,7 +73,7 @@ internal object VisoriFiles {
     VisoreFile("scena", "Scena 3D", "Scena.blend", null, R.raw.viewer_scena, VisoreTipo.Sconosciuto,
       "Un file di Blender: il 3D è fuori dalla prima versione"),
     VisoreFile("aggiornamento", "Aggiornamento", "Aggiornamento.apk", "application/vnd.android.package-archive",
-      R.raw.viewer_installer, VisoreTipo.Eseguibile, "Un .apk finto: solo la firma di uno zip"),
+      R.raw.viewer_installer, VisoreTipo.Eseguibile, "Il pacchetto installato di Fluid Glass"),
   )
 
   /**
@@ -122,8 +122,10 @@ internal object VisoriFiles {
       val app = context.applicationContext
       val dir = folder(app, converter).apply { mkdirs() }
       files.map { file ->
-        val target = File(dir, file.name)
+        val installed = if (file.id == "aggiornamento") File(app.applicationInfo.sourceDir).takeIf { it.isFile } else null
+        val target = installed ?: File(dir, file.name)
         when {
+          installed != null -> Unit
           file.tipo == VisoreTipo.Sparito -> target.delete()
           file.resource == null -> if (!target.exists() || target.length() != 0L) target.writeBytes(ByteArray(0))
           // Le risorse compresse non danno un descrittore: la cartella porta la versione dei file ([Version]).
@@ -138,8 +140,14 @@ internal object VisoriFiles {
     }
 
   /** L'indirizzo della risorsa da cui viene il file: lo leggono anche le altre app, senza un FileProvider. */
-  fun shareableUri(context: Context, file: VisoreFile): Uri? = file.resource?.let {
+  fun shareableUri(context: Context, file: VisoreFile): Uri? {
+    if (file.id == "aggiornamento") {
+      val installed = File(context.applicationInfo.sourceDir)
+      if (installed.isFile) return VisoriPackageProvider.uri(context)
+    }
+    return file.resource?.let {
     Uri.Builder().scheme(ContentResolver.SCHEME_ANDROID_RESOURCE).authority(context.packageName).appendPath(it.toString()).build()
+    }
   }
 
   /**

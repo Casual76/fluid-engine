@@ -26,6 +26,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.VideoSize
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidMediaDurationLoader
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidMediaSession
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidVideoGeometry
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
@@ -50,7 +51,7 @@ import kotlinx.coroutines.flow.first
  * Si crea con [rememberFluidMedia3Session]; fuori da Compose, [attach] e [close] a mano.
  */
 @Stable
-class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeometry, AutoCloseable {
+class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidMediaDurationLoader, FluidVideoGeometry, AutoCloseable {
 
   override var playing: Boolean by mutableStateOf(false)
     private set
@@ -106,6 +107,12 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
     if (!attached) return
     attached = false
     player.removeListener(listener)
+  }
+
+  /** F6C.9: la pagina audio chiede la durata prima del primo Play; si prepara il player, senza farlo partire. */
+  override fun requestDuration() {
+    if (!player.playWhenReady && player.playbackState == Player.STATE_IDLE &&
+      player.isCommandAvailable(Player.COMMAND_PREPARE)) player.prepare()
   }
 
   override fun play() {

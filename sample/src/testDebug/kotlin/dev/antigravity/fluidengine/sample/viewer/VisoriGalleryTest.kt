@@ -135,6 +135,31 @@ class VisoriGalleryTest {
   /** Il preset video: Play e la barra del tempo, senza la forma d'onda dell'audio. */
   private fun videoPage() = described("Riproduci") && described("Posizione di riproduzione") && !wave()
 
+  @Test fun sfogliaDaFotoATestoCodiceEDocumentoFreddi() {
+    val context = compose.activity.applicationContext
+    val files = listOf("lancio", "diario", "codice", "quaderno").map { id -> VisoriFiles.gallery.first { it.id == id } }
+    val prepared = kotlinx.coroutines.runBlocking { VisoriFiles.prepare(context, files, false) }
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        VisoriViewer(files, prepared, resumeVideo = false, onBack = {}, deps = deps)
+      }
+    }
+    waitFor("foto di partenza") { described("Lancio.jpg") }
+    page(next = true)
+    waitFor("testo aperto sfogliando") { shown("Lunedì", substring = true) }
+    page(next = true)
+    waitFor("codice aperto sfogliando") { shown("package dev.antigravity", substring = true) }
+    // A long line owns horizontal motion while wrap is off. Give this swipe to the pager.
+    compose.onNodeWithContentDescription("A capo").performClick()
+    compose.waitForIdle()
+    page(next = true)
+    waitFor("documento a sei pagine aperto sfogliando") { pagesOf(6) }
+    compose.onNodeWithContentDescription("Miniature delle pagine").performClick()
+    compose.onNode(hasContentDescription("Pagina 3 di 6") and hasClickAction()).performClick()
+    compose.onNodeWithContentDescription("Miniature delle pagine")
+      .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Pagina 3 di 6"))
+  }
+
   @Test fun ogniTipoSiApreColSuoPreset() {
     show()
     val markers: List<Pair<String, () -> Boolean>> = listOf(

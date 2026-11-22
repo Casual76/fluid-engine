@@ -39,6 +39,8 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
 import dev.antigravity.fluidengine.ui.fluid.icons.Refresh
+import dev.antigravity.fluidengine.ui.fluid.icons.IosShare
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
 import dev.antigravity.fluidengine.viewer.*
 import java.util.Locale
@@ -133,18 +135,24 @@ private fun VisoriMedia.videoContent(): FluidViewerContent.Media {
   })
 }
 
-private fun VisoriMedia.audioContent(): FluidViewerContent.Media = FluidViewerContent.Media(session, artwork = {
-  FollowPage(this)
-  Waveform(session)
-})
+private fun VisoriMedia.audioContent(): FluidViewerContent.Media {
+  val audio = object : FluidMediaSession by session, FluidMediaDurationLoader {
+    override fun requestDuration() {
+      val player = session.player
+      if (!player.playWhenReady && player.playbackState == Player.STATE_IDLE &&
+        player.isCommandAvailable(Player.COMMAND_PREPARE)) player.prepare()
+    }
+  }
+  return FluidViewerContent.Media(audio)
+}
 
 /** La forma d'onda è dell'app (il preset audio la ospita): barre fisse, colorate fin dove è arrivato il player. */
 @Composable
-private fun Waveform(session: FluidMediaSession) {
+internal fun Waveform(session: FluidMediaSession) {
   val played = MaterialTheme.colorScheme.primary
   val rest = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
   val duration = session.durationMillis?.takeIf { it > 0 }
-  Canvas(Modifier.fillMaxWidth(0.86f).height(140.dp).testTag("visori-onda")) {
+  Canvas(Modifier.fillMaxWidth(0.86f).height(36.dp).testTag("visori-onda")) {
     val bars = 48
     val step = size.width / bars
     val fraction = duration?.let { session.positionMillis.toFloat() / it } ?: 0f
@@ -196,24 +204,38 @@ internal fun VisoriViewer(
   var current by rememberSaveable { mutableIntStateOf(-1) }
   val crop = remember { CropState() }
   val count = if (files == null) 0 else catalog.size
-  FluidFileViewer(
-    count = count,
-    content = { i -> deps.content(catalog[i]) ?: opened.content(i) },
-    onBack = onBack,
-    onPageChange = { current = it },
-    tools = {
-      // «Ritaglia» è uno strumento dell'app: c'è sulle foto, e la barra in basso diventa la sua finché non si tocca Fine.
-      val photo = catalog.getOrNull(current)
-      if (photo?.tipo == VisoreTipo.Foto && photo.cover != null) {
-        tool("ritaglia", FluidIcons.Edit, "Ritaglia", actions = { _ ->
-          button("ruota", FluidIcons.Refresh, "Ruota", { crop.rotate() })
-          button("formato", FluidIcons.GridView, "Formato ${crop.format.label}", { crop.next() })
-        }) { i -> FakeCrop(catalog[i], crop) }
-      }
-    },
-    info = { i -> VisoriInfo(catalog[i], list.getOrNull(i), opened.document(i), if (catalog[i].tipo == VisoreTipo.Video) video else null, resumeVideo) },
-    renderContent = { file, visible -> VisoriBody(file, visible, catalog, list, converter) },
-  )
+  FluidViewerInfoProvider(info = { i ->
+    val sample = catalog[i]
+    visoriDetails(sample, list[i], opened.document(i), video, audio, resumeVideo)
+  }) {
+    FluidFileViewer(
+      count = count,
+      content = { i -> deps.content(catalog[i]) ?: opened.content(i) },
+      onBack = onBack,
+      onPageChange = { current = it },
+      toolbar = { index ->
+        val sample = catalog[index]
+        if (sample.resource != null && sample.tipo !in setOf(VisoreTipo.Sconosciuto, VisoreTipo.Eseguibile)) {
+          button("share", FluidIcons.IosShare, "Condividi", { VisoriFiles.share(context, sample) },
+            placement = FluidToolbarPlacement.BottomBar)
+        }
+      },
+      tools = {
+        // «Ritaglia» è uno strumento dell'app: c'è sulle foto, e la barra in basso diventa la sua finché non si tocca Fine.
+        val photo = catalog.getOrNull(current)
+        if (photo?.tipo == VisoreTipo.Foto && photo.cover != null) {
+          tool("ritaglia", FluidIcons.Edit, "Ritaglia", actions = { _ ->
+            button("ruota", FluidIcons.Refresh, "Ruota", { crop.rotate() })
+            button("formato", FluidIcons.GridView, "Formato ${crop.format.label}", { crop.next() })
+          }) { i -> FakeCrop(catalog[i], crop) }
+        }
+      },
+      renderContent = { file, visible ->
+        if (file is FluidViewerContent.Media && file.videoSurface == null && audio != null) FollowPage(audio)
+        VisoriBody(file, visible, catalog, list, converter)
+      },
+    )
+  }
   LaunchedEffect(current) { crop.reset() }
 }
 
@@ -223,7 +245,9 @@ private fun VisoriBody(file: FluidViewerContent, visible: Boolean, catalog: List
   list: List<FluidViewerFile>, converter: Boolean) {
   when (file) {
     is FluidViewerContent.Image -> FluidImagePreset(file)
-    is FluidViewerContent.Media -> FluidMediaPreset(file, visible)
+    is FluidViewerContent.Media -> if (file.videoSurface == null) FluidMediaPreset(file, visible,
+      strings = FluidMediaPresetStrings(skipBack = "Indietro di 15 secondi", skipForward = "Avanti di 15 secondi", skipSeconds = 15))
+      else FluidMediaPreset(file, visible)
     is FluidViewerContent.Pages -> FluidPagesPreset(file, visible)
     is FluidViewerContent.Text -> FluidTextPreset(file)
     is FluidViewerContent.Unknown -> {
@@ -234,7 +258,7 @@ private fun VisoriBody(file: FluidViewerContent, visible: Boolean, catalog: List
           noPreview = "Il file non si legge: è stato spostato o cancellato dopo la conversione."))
       } else {
         val bytes: (suspend () -> ByteArray)? = remember(index, converter) {
-          if (converter && index >= 0) ({ VisoriFiles.firstBytes(list[index], FluidUnknownPresetDefaults.HexDumpBytes) }) else null
+          if (index >= 0 && (converter || sample?.tipo == VisoreTipo.Eseguibile || sample?.tipo == VisoreTipo.Sconosciuto)) ({ VisoriFiles.firstBytes(list[index], FluidUnknownPresetDefaults.HexDumpBytes) }) else null
         }
         FluidUnknownPreset(file, firstBytes = bytes)
       }
@@ -331,39 +355,6 @@ private fun FakeCrop(file: VisoreFile, state: CropState) {
 
 // --- Il pannello info ----------------------------------------------------------------------------------------------
 
-@Composable
-private fun VisoriInfo(sample: VisoreFile, file: FluidViewerFile?, document: FluidViewerDocument?, video: VisoriMedia?,
-  resumeVideo: Boolean) {
-  val type = document?.type ?: file?.type
-  Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    Text(sample.name, style = MaterialTheme.typography.titleMedium)
-    InfoRow("Tipo", buildString {
-      append(sample.tipo.etichetta)
-      val kind = type?.kind ?: FluidFileKind.from(sample.mime, sample.name)
-      append(" · ").append(kindName(kind))
-    })
-    InfoRow("Preset", type?.preset?.let(::presetName) ?: "—")
-    InfoRow("MIME", type?.mimeType ?: sample.mime ?: "dall'estensione")
-    InfoRow("Dimensione", file?.sizeBytes?.let(::formatBytes) ?: "Sconosciuta")
-    decodedBy(document)?.let { InfoRow("Aperto da", it) }
-    document?.failure?.let { InfoRow("Non si apre", it.message ?: it.failure.toString()) }
-    if (video != null) {
-      InfoRow("Sfogliato via", "Si ferma. Al ritorno " + if (resumeVideo) "riprende, se suonava." else "resta in pausa.")
-      InfoRow("Fermate", video.stops.toString())
-    }
-    sample.today?.let { InfoRow("Oggi in Universal Converter", it) }
-    InfoRow("Fonte", sample.credit)
-  }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-  Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
-    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(value, style = MaterialTheme.typography.bodyLarge)
-  }
-}
-
 internal fun kindName(kind: FluidFileKind): String = when (kind) {
   FluidFileKind.Image -> "immagine"
   FluidFileKind.Pdf -> "PDF"
@@ -387,7 +378,7 @@ internal fun presetName(preset: FluidViewerPreset): String = when (preset) {
   else -> "Sconosciuto"
 }
 
-private fun decodedBy(document: FluidViewerDocument?): String? {
+internal fun decodedBy(document: FluidViewerDocument?): String? {
   val content = document?.content ?: return null
   return when (content) {
     is FluidViewerContent.Text -> (content.source as? FluidTextDocument)?.let { text ->

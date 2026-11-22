@@ -5,6 +5,7 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -53,6 +54,21 @@ data class FluidViewerStrings(
   val empty: String = "Nessun file",
   val showControls: String = "Mostra controlli",
   val hideControls: String = "Nascondi controlli",
+  val close: String = "Chiudi",
+  val copy: String = "Copia valore",
+  val file: String = "File",
+  val name: String = "Nome",
+  val type: String = "Tipo",
+  val size: String = "Dimensione",
+  val openWith: String = "Apri con…",
+  val share: String = "Condividi",
+  val actionFailed: String = "Impossibile completare l’azione",
+  val pages: (Int) -> String = { "$it pagine" },
+  val lines: (Int) -> String = { "$it righe" },
+  val location: String = "Luogo",
+  val coordinates: String = "Coordinate",
+  val openMap: String = "Apri in Mappe",
+  val chapters: String = "Capitoli",
 )
 
 internal class ViewerTool(
@@ -94,7 +110,7 @@ internal fun BoxScope.ViewerChrome(
   index: Int, count: Int, ink: Color, visible: Boolean, backdrop: GlassBackdropState,
   toolbar: FluidToolbarScope.(Int) -> Unit, tools: List<ViewerTool>, tool: ViewerTool?,
   select: (String?) -> Unit, onBack: () -> Unit, onInfo: (() -> Unit)?, strings: FluidViewerStrings,
-  preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity,
+  preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity, fileName: String? = null,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -111,13 +127,18 @@ internal fun BoxScope.ViewerChrome(
       override val reducedMotion = policy.reducedMotion
     }
   }
+  // Both lines have to fit the shared glass row. At large font scales give the title its whole height.
+  val singleLineTitle = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+  val counter = if (count > 0) strings.counter(index + 1, count) else ""
   val declaration = buildFluidToolbar(onBack) {
     if (count > 0 && tool == null) toolbar(index)
     // F6C.2: i comandi del preset della pagina corrente («Trova», «A capo») e il suo campo.
     if (count > 0 && tool == null) preset?.invoke(this)
+    if (fileName != null && count > 0 && !singleLineTitle) subtitle(counter)
+    if (tool == null && onInfo != null) button(ViewerButton.Info, FluidIcons.Info, strings.info,
+      placement = FluidToolbarPlacement.Trailing, onClick = onInfo)
     group(ViewerButton.Tools, placement = FluidToolbarPlacement.BottomBar) {
       if (tool == null) {
-        if (onInfo != null) button(ViewerButton.Info, FluidIcons.Info, strings.info, onClick = onInfo)
         if (count > 0) for (item in tools) button(ToolButton(item.id), item.icon, item.label, { select(item.id) })
       } else {
         tool.actions(this, index)
@@ -125,7 +146,11 @@ internal fun BoxScope.ViewerChrome(
       }
     }
   }
-  val title = if (count == 0) "" else strings.counter(index + 1, count)
+  val title = when {
+    fileName == null -> counter
+    singleLineTitle -> "$counter · $fileName"
+    else -> fileName
+  }
   val front by LocalFluidRouteFront.current
   val chrome = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
   val replacement = remember { FluidBottomReplacement() }
@@ -154,6 +179,13 @@ internal fun BoxScope.ViewerChrome(
 }
 
 @Composable
+internal fun viewerPhotoSpace(compactInspector: Boolean): Float {
+  val target = if (compactInspector) 1f - FluidSheetMediumFraction else 1f
+  if (LocalFluidMotionPolicy.current.reducedMotion) return target
+  return animateFloatAsState(target, FluidMotion.gentle(), label = "ViewerPhotoSpace").value
+}
+
+@Composable
 internal fun BoxScope.ViewerInfo(
   open: Boolean, wide: Boolean, backdrop: GlassBackdropState, strings: FluidViewerStrings,
   close: () -> Unit, body: @Composable () -> Unit,
@@ -176,10 +208,8 @@ internal fun BoxScope.ViewerInfo(
       .width(FluidDrawerDefaults.Width).fillMaxHeight()
       .glassSurface(backdrop, GlassDefaults.panelTint(), ContinuousCornerShape(FluidRadius.Sheet))
       .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } }
-      .semantics { paneTitle = strings.info }.padding(FluidScreenDefaults.HorizontalPadding)) {
-      FluidToolbarBar(buildFluidToolbar(null) { close(onClick = close) })
-      Text(strings.info, style = MaterialTheme.typography.titleLarge)
-      Column(Modifier.verticalScroll(rememberScrollState())) { body() }
+      .semantics { paneTitle = strings.info }) {
+      body()
     }
   }
 }

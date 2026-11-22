@@ -121,7 +121,7 @@ fun FluidFileViewer(
   var selected by rememberSaveable { mutableStateOf<String?>(null) }
   val available = FluidViewerToolsScope().apply(tools).items
   val tool = available.firstOrNull { it.id == selected }?.takeIf { count > 0 }
-  val hasInfo = info != null && count > 0
+  val hasInfo = count > 0
   LaunchedEffect(hasInfo, tool?.id) {
     if (!hasInfo) infoOpen = false
     if (count > 0 && tool == null) selected = null
@@ -157,12 +157,28 @@ fun FluidFileViewer(
   val presetBar = remember { ViewerPresetBar() }
   val outerModal = LocalFluidGlassModalHostState.current
   val modal = outerModal ?: rememberFluidGlassModalHostState()
-  val file = if (count > 0) content(index) else null
+  // Opening a file can start asynchronous work in the owner's registry. A speculative pager
+  // subcomposition may be discarded: it must not be the first caller that opens the file.
+  // Resolve the visible neighbours in the frame, then the current page (the registry's centre).
+  val visible by remember(pager, count) {
+    derivedStateOf { pager?.layoutInfo?.visiblePagesInfo.orEmpty().map { it.index }.filter { it in 0 until count } }
+  }
+  val files = buildMap {
+    for (page in visible) if (page != index && kotlin.math.abs(page - index) <= 1) put(page, content(page))
+    if (count > 0) put(index, content(index))
+  }
+  val file = files[index]
+  val infoSource = LocalViewerInfoSource.current
+  val pageDetails = mutableMapOf<Int, FluidViewerInfo?>()
+  for (page in files.keys) pageDetails[page] = key(page) { infoSource(page) }
+  val suppliedInfo = pageDetails[index]
   val photo = file?.blackBackground == true
   val pageColor = if (photo) Color.Black else MaterialTheme.colorScheme.surface
   SideEffect { if (pageSpace != null) pageSpace.host.ownPageBackground[pageSpace.page] = pageColor }
   CompositionLocalProvider(LocalFluidGlassModalHostState provides modal) {
     BoxWithConstraints(modifier.fillMaxSize()) {
+      val wideInspector = maxWidth >= ViewerInfoBreakpoint
+      val photoSpace = viewerPhotoSpace(infoOpen && !wideInspector && file is FluidViewerContent.Image)
       val theme = MaterialTheme.colorScheme
       val ink = if (photo) Color.White else theme.onSurface
       val body = Modifier.fillMaxSize().glassBackdropSource(backdrop)
@@ -183,14 +199,19 @@ fun FluidFileViewer(
               Text(strings.empty)
             }
             else -> HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
-              val item = if (page == index) requireNotNull(file) else content(page)
+              val item = files[page]
+              if (item == null) {
+                Spacer(Modifier.fillMaxSize())
+                return@HorizontalPager
+              }
               // F6C.2: la pagina del preset immagine, condivisa con FluidImageViewer, e il canale dei preset.
               val video = (item as? FluidViewerContent.Media)?.takeIf { it.videoSurface != null }
               val ratio = (item as? FluidViewerContent.Image)?.aspectRatio
                 ?: (video?.session as? FluidVideoGeometry)?.videoAspectRatio
               val pageScope = rememberViewerPage(pager, page, item.frameZoomed, presetBar)
               val zoom = pageScope.zoom
-              val gestures = Modifier.fillMaxSize().viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
+              val gestures = Modifier.fillMaxSize().viewerPullForInfo(hasInfo && !infoOpen && !zoom.isZoomed, openInfo)
+                .viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
               val input = if (item.frameZoomed) {
                 gestures.viewerPinchDismiss(pageSpace, zoom, enabled = !infoOpen)
                   .fluidZoomInput(zoom, ratio, onTap = toggle, immediateTap = video != null)
@@ -200,11 +221,17 @@ fun FluidFileViewer(
               val source = route?.thumbnail?.invoke(page)
               val shared = if (source != null) Modifier.fluidSharedElement(source.id, source.namespace) else Modifier
               Box(input.viewerBackdrop(if (item.blackBackground) Color.Black else theme.surface), contentAlignment = Alignment.Center) {
+                val pageInfo = pageDetails[page]
                 val fitted = if (item is FluidViewerContent.Image) Modifier.viewerFit(ratio).then(shared).fluidZoomLayer(zoom)
                   else if (video != null) Modifier.fillMaxSize() else Modifier.fillMaxSize().then(shared)
                 CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface,
-                  LocalViewerPage provides pageScope, LocalVideoShared provides shared.takeIf { video != null }) {
-                  Box(fitted, contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
+                  LocalViewerInfo provides pageInfo, LocalViewerPage provides pageScope, LocalVideoShared provides shared.takeIf { video != null }) {
+                  if (item is FluidViewerContent.Image) {
+                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(photoSpace),
+                      contentAlignment = Alignment.Center) {
+                      Box(fitted, contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
+                    }
+                  } else Box(fitted, contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
                 }
               }
             }
@@ -214,10 +241,12 @@ fun FluidFileViewer(
       BlackMediaAppearance(photo) {
         ViewerChrome(index, count, ink, chromeVisible, backdrop, toolbar, available, tool,
         select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,
-          preset = presetBar.of(index), width = maxWidth)
+          preset = presetBar.of(index), width = maxWidth, fileName = suppliedInfo?.file?.name)
       }
-      if (hasInfo) ViewerInfo(infoOpen, maxWidth >= ViewerInfoBreakpoint, backdrop, strings, { infoOpen = false }) {
-        info?.invoke(index)
+      if (file != null) ViewerInfo(infoOpen, wideInspector, backdrop, strings, { infoOpen = false }) {
+        ViewerInfoBody(suppliedInfo ?: defaultViewerInfo(file, strings), backdrop, strings, { infoOpen = false }) {
+          info?.invoke(index)
+        }
       }
       if (outerModal == null) FluidGlassModalHost(modal, backdrop)
     }

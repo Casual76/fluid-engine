@@ -4,6 +4,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.LocalContentColor
@@ -19,7 +27,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
-import dev.antigravity.fluidengine.ui.fluid.icons.MusicNote
+import dev.antigravity.fluidengine.ui.fluid.icons.GridView
 import dev.antigravity.fluidengine.ui.fluid.icons.Pause
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
@@ -34,6 +42,8 @@ data class FluidMediaPresetStrings(
   val skipForward: String = "Avanti di 10 secondi",
   val unknownDuration: String = "Durata sconosciuta",
   val time: (elapsed: String, total: String) -> String = { elapsed, total -> "$elapsed di $total" },
+  val skipSeconds: Int = 10,
+  val chapters: String = "Capitoli",
 )
 
 /**
@@ -62,7 +72,7 @@ fun FluidMediaPreset(
     val backdrop = rememberGlassBackdrop()
     val bottom = fluidBottomBarExtraInset(LocalFluidBottomInset.current)
     val policy = LocalFluidMotionPolicy.current
-    val art = content.artwork
+    val active = currentFluidViewerPageActive()
     val page = LocalViewerPage.current
     val surfaceColor = if (video != null) Color.Black else MaterialTheme.colorScheme.surface
     Box(modifier.fillMaxSize().then(if (page == null) Modifier.background(surfaceColor) else Modifier)) {
@@ -105,43 +115,99 @@ fun FluidMediaPreset(
           }
         }
       } else {
-        Column(
-          Modifier.matchParentSize()
-            .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.union(WindowInsets.navigationBarsIgnoringVisibility))
-            .padding(horizontal = FluidScreenDefaults.HorizontalPadding).padding(bottom = bottom),
-          horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-          Box(Modifier.weight(1f).fillMaxWidth().glassBackdropSource(backdrop), contentAlignment = Alignment.Center) {
-            if (art != null) art() else FluidIcon(FluidIcons.MusicNote, contentDescription = null,
-              modifier = Modifier.size(FluidGlassSize.Large.touchTarget), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-          }
-          // Reserve the transport's space so artwork or a waveform does not resize on a tap.
-          Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Column(
-              Modifier.fillMaxWidth().layout { measurable, constraints ->
-                val controls = measurable.measure(constraints)
-                layout(controls.width, controls.height) {
-                  if (chromeVisible) controls.placeRelative(0, 0)
-                }
-              },
-              horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-              Row(horizontalArrangement = Arrangement.spacedBy(FluidScreenDefaults.HorizontalPadding),
-                verticalAlignment = Alignment.CenterVertically) {
-                if (canSeek) SkipButton(strings.skipBack, false, backdrop, chromeVisible) { session.skipBy(-MediaSkipMillis) }
-                PlaybackButton(session, chromeVisible && error == null, backdrop, strings)
-                if (canSeek) SkipButton(strings.skipForward, true, backdrop, chromeVisible) { session.skipBy(MediaSkipMillis) }
-              }
-              PlaybackTimeline(session, duration, chromeVisible && canSeek, backdrop, video = false, strings = strings)
-            }
-          }
+        LaunchedEffect(session, active) {
+          if (active && session.durationMillis == null) (session as? FluidMediaDurationLoader)?.requestDuration()
         }
+        AudioPanel(content, duration, canSeek, chromeVisible, backdrop, bottom, strings)
       }
       if (error != null) {
         val colors = MaterialTheme.colorScheme
         Text(error, Modifier.align(Alignment.Center).padding(FluidScreenDefaults.HorizontalPadding)
           .background(colors.errorContainer, MaterialTheme.shapes.medium).padding(FluidScreenDefaults.HorizontalPadding)
           .semantics { liveRegion = LiveRegionMode.Polite }, color = colors.onErrorContainer)
+      }
+    }
+  }
+}
+
+@Composable
+private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSeek: Boolean, chromeVisible: Boolean,
+  backdrop: GlassBackdropState, bottom: androidx.compose.ui.unit.Dp, strings: FluidMediaPresetStrings) {
+  val session = content.session
+  val info = LocalViewerInfo.current
+  val colors = MaterialTheme.colorScheme
+  val accent = viewerAccent(info, colors.primary)
+  val shape = ContinuousCornerShape(FluidRadius.Card)
+  val step = strings.skipSeconds.coerceAtLeast(1) * 1000L
+  val chapters = info?.chapters.orEmpty()
+  var showingChapters by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+  if (chapters.isNotEmpty()) {
+    ViewerPresetToolbar {
+      button("viewer.audio.chapters", FluidIcons.GridView, strings.chapters,
+        { showingChapters = true }, placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar)
+    }
+    FluidGlassSheet(showingChapters, { showingChapters = false }, paneTitle = strings.chapters,
+      detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {
+      Column(Modifier.verticalScroll(rememberScrollState()).padding(FluidScreenDefaults.HorizontalPadding)) {
+        FluidSectionHeader(strings.chapters)
+        chapters.forEach { chapter ->
+          FluidButton(FluidScrubbing.clock(chapter.startMillis) + " · " + chapter.title, {
+            session.seekTo(chapter.startMillis.inMediaBounds(duration))
+            showingChapters = false
+          }, enabled = canSeek, style = FluidButtonStyle.Plain)
+        }
+      }
+    }
+  }
+  BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent))
+    val coverSize = minOf(ViewerMixProfile.CoverSize, maxWidth * .72f, maxHeight * .35f)
+    Column(Modifier.widthIn(max = ViewerMixProfile.PanelWidth).fillMaxWidth().verticalScroll(rememberScrollState())
+      .padding(horizontal = FluidScreenDefaults.HorizontalPadding)
+      .padding(top = FluidScreenDefaults.topBarHeight(), bottom = WindowInsets.navigationBars.asPaddingValues()
+        .calculateBottomPadding() + bottom + FluidScreenDefaults.ItemSpacing),
+      verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+      Box(Modifier.fillMaxWidth().height(coverSize + 28.dp).viewerWash(accent, halo = true), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(coverSize).clip(shape), contentAlignment = Alignment.Center) {
+          val artwork = content.artwork
+          val thumb = info?.thumbnail
+          when {
+            artwork != null -> artwork()
+            thumb != null -> Image(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            else -> {
+              Canvas(Modifier.fillMaxSize()) {
+                drawRect(Brush.linearGradient(listOf(accent, colors.tertiaryContainer)))
+                val ink = colors.onPrimary
+                for (n in 0 until 27) {
+                  val x = size.width * (.12f + n * .76f / 26)
+                  val wave = kotlin.math.abs(kotlin.math.sin(n * .6f) * kotlin.math.cos(n * .14f))
+                  val half = size.height * (.025f + wave * .17f)
+                  drawLine(ink, Offset(x, center.y - half), Offset(x, center.y + half), size.width / 65,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                }
+              }
+            }
+          }
+        }
+      }
+      info?.let {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+          Text(it.title, style = MaterialTheme.typography.titleLarge)
+          it.subtitle?.let { subtitle -> Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
+        }
+      }
+      // Keep the cover in place when a tap hides the controls.
+      Column(Modifier.fillMaxWidth().layout { measurable, constraints ->
+        val controls = measurable.measure(constraints)
+        layout(controls.width, controls.height) { if (chromeVisible) controls.placeRelative(0, 0) }
+      }.viewerGlass(backdrop, shape).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        info?.audioWaveform?.invoke()
+        PlaybackTimeline(session, duration, chromeVisible && canSeek, backdrop, video = false, strings = strings)
+        Row(horizontalArrangement = Arrangement.spacedBy(FluidScreenDefaults.HorizontalPadding), verticalAlignment = Alignment.CenterVertically) {
+          if (canSeek) SkipButton(strings.skipBack, -strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(-step) }
+          PlaybackButton(session, chromeVisible && session.error == null, backdrop, strings)
+          if (canSeek) SkipButton(strings.skipForward, strings.skipSeconds, backdrop, chromeVisible) { session.skipBy(step) }
+        }
       }
     }
   }
@@ -175,9 +241,9 @@ private fun PlaybackButton(
 }
 
 @Composable
-private fun SkipButton(label: String, forward: Boolean, backdrop: GlassBackdropState, enabled: Boolean, click: () -> Unit) {
+private fun SkipButton(label: String, seconds: Int, backdrop: GlassBackdropState, enabled: Boolean, click: () -> Unit) {
   FluidGlassIconButton(click, backdrop = backdrop, enabled = enabled) {
-    Text(if (forward) "+10" else "−10", Modifier.clearAndSetSemantics { contentDescription = label },
+    Text(if (seconds > 0) "+$seconds" else "−${-seconds}", Modifier.clearAndSetSemantics { contentDescription = label },
       style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
   }
 }
@@ -212,7 +278,7 @@ private fun PlaybackTimeline(
           FluidScrubbing.clock(if (duration == null) session.positionMillis else shown.toLong()),
           total ?: strings.unknownDuration,
         ) },
-        keyStep = MediaSkipMillis.toFloat(),
+        keyStep = strings.skipSeconds.coerceAtLeast(1) * 1000f,
         stepBackLabel = strings.skipBack,
         stepForwardLabel = strings.skipForward,
         backdrop = backdrop,

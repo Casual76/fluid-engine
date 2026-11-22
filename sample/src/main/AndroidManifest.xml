@@ -17,6 +17,8 @@
       android:label="@string/app_name"
       android:supportsRtl="true"
       android:theme="@style/Theme.FluidSample">
+    <provider android:name=".viewer.VisoriPackageProvider"
+        android:authorities="${applicationId}.visori" android:exported="false" android:grantUriPermissions="true" />
     <!--
       configChanges: la galleria e' una pagina di prova con uno stato che non si vuole perdere (il
       registro aptico, la grana tarata, dove si era arrivati): passare al tema scuro di sistema, ruotare

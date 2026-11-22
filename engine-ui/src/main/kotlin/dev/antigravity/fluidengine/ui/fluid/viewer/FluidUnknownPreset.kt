@@ -1,6 +1,11 @@
 package dev.antigravity.fluidengine.ui.fluid.viewer
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -153,16 +158,28 @@ fun FluidUnknownPreset(
   var failure by remember(file) { mutableStateOf<String?>(null) }
   var showBytes by rememberSaveable { mutableStateOf(false) }
   val gap = FluidScreenDefaults.ItemSpacing
+  val details = LocalViewerInfo.current
+  val accent = viewerAccent(details, if (info.kind == FluidFileKind.Executable) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)
+  val backdrop = rememberGlassBackdrop()
   Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent))
     Column(
-      Modifier.widthIn(max = FluidScreenDefaults.ContentMaxWidth).fillMaxWidth().verticalScroll(rememberScrollState())
+      Modifier.widthIn(max = ViewerMixProfile.PanelWidth).fillMaxWidth().verticalScroll(rememberScrollState())
         .padding(top = FluidScreenDefaults.topBarHeight(),
           bottom = FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize))
         .padding(horizontal = FluidScreenDefaults.HorizontalPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(gap),
     ) {
-      FileIcon(info.kind, size = 72)
+      Box(Modifier.fillMaxWidth().height(ViewerMixProfile.IconSize + 32.dp).viewerWash(accent, halo = true),
+        contentAlignment = Alignment.Center) {
+        val icon = details?.thumbnail
+        if (icon != null) Image(icon, null, Modifier.size(ViewerMixProfile.IconSize).clip(MaterialTheme.shapes.large),
+          contentScale = ContentScale.Fit)
+        else Box(Modifier.scale(ViewerMixProfile.IconSize / dev.antigravity.fluidengine.ui.theme.FluidToneTileSize)) {
+          FileIcon(info.kind, size = dev.antigravity.fluidengine.ui.theme.FluidToneTileSize.value.toInt())
+        }
+      }
       val nameStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center)
       val measurer = rememberTextMeasurer()
       BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -172,8 +189,13 @@ fun FluidUnknownPreset(
       }
       Text(fluidUnknownDetails(info, labels.fileKind(info.kind), strings), style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+      val facts = details?.facts?.takeIf { it.isNotEmpty() } ?: listOfNotNull(
+        info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.uppercase(), info.mimeType)
+      ViewerFacts(facts, backdrop)
       if (info.kind == FluidFileKind.Executable) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap / 2), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().viewerGlass(backdrop, MaterialTheme.shapes.large,
+          ViewerMixProfile.Amber.copy(alpha = ViewerMixProfile.FileTint))
+          .padding(FluidScreenDefaults.HorizontalPadding), horizontalArrangement = Arrangement.spacedBy(gap / 2), verticalAlignment = Alignment.CenterVertically) {
           FluidToneTile(FluidTone.Warning) { Icon(FluidIcons.Warning, contentDescription = null) }
           Text(strings.executableWarning, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         }

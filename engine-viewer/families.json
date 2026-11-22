@@ -57,7 +57,7 @@
       "label": "Modelli 3D: GLB, glTF, OBJ, STL (Filament, con i materiali e la luce come AR Quick Look)",
       "weight": "7.234.617 B arm64-v8a / 5.672.477 B armeabi-v7a / 7.883.581 B x86 / 7.759.497 B x86_64 (DEX, asset e librerie nell'APK debug di prova)",
       "assets": [
-        { "name": "Piano d'ombra e ambiente IBL originali", "license": "GPL-3.0 (Fluid Engine)", "weight": "171.343 B non compressi, 58.654 B nelle voci ZIP dell'APK debug di prova" }
+        { "name": "Piano d'ombra e ambiente IBL originali", "license": "originali del Fluid Engine, stessa licenza dell'engine", "weight": "171.343 B non compressi, 58.654 B nelle voci ZIP dell'APK debug di prova" }
       ],
       "libraries": [
         { "coordinates": "com.google.android.filament:filament-android", "license": "Apache-2.0", "weight": "3.012.616 B per arm64-v8a nell'APK debug di prova" },

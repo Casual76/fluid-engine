@@ -26,7 +26,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
-import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsule
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsuleDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsulePlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
@@ -49,12 +48,13 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Link
 import dev.antigravity.fluidengine.ui.fluid.icons.Redo
 import dev.antigravity.fluidengine.ui.fluid.icons.TextFormat
 import dev.antigravity.fluidengine.ui.fluid.icons.Undo
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidKeyboardBar
 
 /**
  * La barra di formattazione sopra la tastiera: «Aa», grassetto, corsivo, sottolineato, elenco puntato,
  * elenco numerato, citazione, riduci e aumenta rientro, link, e annulla/ripeti.
  *
- * **Compare quando serve e non occupa spazio altrimenti.** E' una [FluidFloatingCapsule] con
+ * **Compare quando serve e non occupa spazio altrimenti.** E' un preset di [FluidKeyboardBar] con
  * `avoidKeyboard`: galleggia sopra la pagina (che non le lascia uno spazio suo) e sale con la tastiera.
  * E' in scena solo con l'editor che ha il fuoco e del testo selezionato, o dopo un tocco su «Aa"
  * ([FluidRichTextState.isFormattingBarVisible]); entra e esce col movimento della capsula, che con il
@@ -108,12 +108,11 @@ fun FluidRichTextToolbar(
   DisposableEffect(state) {
     onDispose { state.formattingBarTop = Float.NaN }
   }
-  FluidFloatingCapsule(
+  FluidKeyboardBar(
     modifier = modifier.onGloballyPositioned { state.formattingBarTop = it.positionInRoot().y },
     backdrop = backdrop,
     visible = state.isFormattingBarVisible,
     placement = placement,
-    fillWidth = true,
     avoidKeyboard = avoidKeyboard,
     label = labels.formattingBar,
   ) {

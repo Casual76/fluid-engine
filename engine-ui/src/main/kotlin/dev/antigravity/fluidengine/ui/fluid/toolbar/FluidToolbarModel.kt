@@ -27,7 +27,7 @@ internal enum class FluidToolbarRole {
 }
 
 internal enum class FluidToolbarSide { Leading, Center, Trailing }
-internal enum class FluidToolbarBar { Top, Bottom, TopOnly }
+internal enum class FluidToolbarBar { Top, Bottom, TopOnly, Keyboard }
 internal enum class FluidToolbarTransition { Automatic, Materialize, Identity }
 internal enum class FluidToolbarMotion { Full, Reduced, Identity }
 internal enum class FluidToolbarTrigger {
@@ -76,6 +76,8 @@ internal interface FluidToolbarKind {
 internal object FluidToolbarKinds {
   /** Il tasto con esito (F6B.3a): `button`, `primary` e `confirm` con `action` e `state`. */
   const val Action: String = "action"
+  /** Il contatore di «Trova» accanto alle frecce della barra della tastiera. */
+  const val KeyboardFindCounter: String = "keyboard-find-counter"
 }
 
 private data class FluidToolbarKindContent(val type: String, val value: Any?, val identity: Any?, val state: Any?)
@@ -108,6 +110,7 @@ internal data class FluidToolbarItem(
   val contentKey: Any? = null,
   /** Il tipo registrato dell'elemento, se ne ha uno ([FluidToolbarKind], F6B.3a); null: un tasto di sempre. */
   val kind: FluidToolbarKind? = null,
+  val keyboardContext: Any? = null,
 ) {
   init {
     require(widthDp == null || widthDp.isFinite() && widthDp >= 0f)
@@ -121,19 +124,23 @@ internal data class FluidToolbarItem(
   val isExit: Boolean get() = role == FluidToolbarRole.Back || role == FluidToolbarRole.Close
 
   /** Che cosa mostra il posto, stato del tipo compreso: quando cambia, il contenuto si scambia sfocato. */
-  val content: Any? get() = contentKey ?: kind?.let { FluidToolbarKindContent(it.type, symbol ?: label, it.identity, it.state) }
-    ?: ToolbarContentKey(symbol != null, symbol ?: label)
+  val content: Any? get() = faceKey(kind?.state)
 
   /**
    * Che cosa porta il vetro (F4A.5b, il respiro del tondo che cambia simbolo): come [content], ma **senza** lo stato di un
    * tipo registrato ([FluidToolbarKind]). Per un tasto senza tipo è [content].
    */
-  val glassContent: Any? get() = if (contentKey == null && kind != null) {
-    FluidToolbarKindContent(kind.type, symbol ?: label, kind.identity, null)
-  } else content
+  val glassContent: Any? get() = faceKey(null)
+
+  private fun faceKey(state: Any?): Any {
+    val face = contentKey ?: kind?.let { FluidToolbarKindContent(it.type, symbol ?: label, it.identity, state) }
+      ?: ToolbarContentKey(symbol != null, symbol ?: label)
+    return keyboardContext?.let { ToolbarKeyboardContent(it, face) } ?: face
+  }
 }
 
 private data class ToolbarContentKey(val isSymbol: Boolean, val value: Any?)
+private data class ToolbarKeyboardContent(val context: Any, val face: Any)
 
 internal data class FluidToolbarTitles(val inline: String? = null, val large: String? = null, val subtitle: String? = null)
 internal enum class FluidToolbarPresentationKind { Menu, Sheet }
@@ -242,7 +249,7 @@ private fun toolbarTokens(items: List<FluidToolbarItem>, bar: FluidToolbarBar): 
     )
     if (inherited.role == FluidToolbarRole.Group) {
       inherited.children.forEach { add(it, path + inherited.id, inherited) }
-    } else if (bar == FluidToolbarBar.TopOnly ||
+    } else if (bar == FluidToolbarBar.Keyboard || bar == FluidToolbarBar.TopOnly ||
       (bar == FluidToolbarBar.Bottom) == (inherited.placement == FluidToolbarPlacement.BottomBar)) {
       val lowerFallback = bar == FluidToolbarBar.TopOnly && inherited.placement == FluidToolbarPlacement.BottomBar
       if (!lowerFallback || !inherited.isSpacer) {
@@ -264,7 +271,9 @@ private fun toolbarTokens(items: List<FluidToolbarItem>, bar: FluidToolbarBar): 
       count == total -> FluidToolbarSide.Trailing
       else -> FluidToolbarSide.Center
     }
-    token.copy(side = side)
+    val keyboardLeading = bar == FluidToolbarBar.Keyboard && total == 0 &&
+      token.item.placement == FluidToolbarPlacement.Automatic && !token.item.isPrimary && !token.item.isExit
+    token.copy(side = if (keyboardLeading) FluidToolbarSide.Leading else side)
   }
 }
 

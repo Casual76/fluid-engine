@@ -503,6 +503,7 @@ internal fun buildFluidScreenToolbar(onBack: (() -> Unit)?, block: FluidToolbarS
     subtitle = declared.subtitle
     search = declared.search
     overflowLabel = declared.overflowLabel
+    keyboard = declared.keyboard
   }
 }
 

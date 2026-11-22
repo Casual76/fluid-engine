@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid.toolbar
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+
 import android.graphics.Rect
 import android.os.Build
 import android.view.ViewTreeObserver
@@ -422,6 +424,7 @@ internal fun FluidToolbarSearchOverlay(
 ) {
   val active = search.spec.active
   val bottom = search.occupiesBottom
+  val keyboardDock = LocalFluidKeyboardDock.current?.takeIf { it.visible && bottom }
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val position = animateFloatAsState(if (bottom) 1f else 0f,
     if (reduced) snap() else FluidMotion.standard(), label = "search keyboard position")
@@ -432,8 +435,9 @@ internal fun FluidToolbarSearchOverlay(
   val reserved = PaddingValues(bottom = bottomPadding)
   CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalFluidCanvasBackdrop provides null,
     LocalFluidGlassQuality provides null) {
-    BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
-      .padding(reserved).searchImeViewport()) {
+    val viewport = if (keyboardDock == null) Modifier.padding(reserved).searchImeViewport()
+      else Modifier.windowInsetsPadding(keyboardDock.insets).padding(bottom = FluidKeyboardSearchClearance)
+    BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().then(viewport)) {
       val available = constraints.maxHeight
       val page = declaration ?: SearchOnly
       val model = fluidToolbarModelOf(page, null)

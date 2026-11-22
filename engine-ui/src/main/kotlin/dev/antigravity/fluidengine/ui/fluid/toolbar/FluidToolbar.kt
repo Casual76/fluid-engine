@@ -227,6 +227,7 @@ internal data class FluidToolbarLocalId(val kind: String, val index: Int, val gr
 @FluidToolbarDsl
 class FluidToolbarScope internal constructor() {
   internal val entries = ArrayList<FluidToolbarEntry>()
+  internal var keyboard: FluidKeyboardDeclaration? = null
   internal var titleMode: FluidToolbarTitleMode = FluidToolbarTitleMode.Large
   internal var subtitle: String? = null
   internal var search: FluidSearchSpec? = null
@@ -498,6 +499,20 @@ class FluidToolbarScope internal constructor() {
   fun search(spec: FluidSearchSpec) {
     search = spec
   }
+
+  /**
+   * Dichiara i comandi della tastiera per il [context] corrente. Un id comune resta ancorato quando il contesto cambia.
+   * [fieldFocused] può seguire il focus del campo con `onFocusChanged`; la schermata rileva il focus al suo interno
+   * quando è null. [alwaysVisible] tiene i comandi in vista anche quando si chiude la tastiera.
+   */
+  fun keyboard(
+    context: Any,
+    alwaysVisible: Boolean = false,
+    fieldFocused: Boolean? = null,
+    content: FluidToolbarScope.() -> Unit,
+  ) {
+    keyboard = FluidKeyboardDeclaration(context, alwaysVisible, fieldFocused, buildFluidToolbar(null, content))
+  }
 }
 
 private fun FluidButtonRole?.toolbarRole(otherwise: FluidToolbarRole): FluidToolbarRole = when (this) {
@@ -616,6 +631,7 @@ internal class FluidToolbarDeclaration(
   val subtitle: String?,
   val search: FluidSearchSpec?,
   val overflowLabel: String?,
+  val keyboard: FluidKeyboardDeclaration? = null,
 ) {
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
@@ -661,14 +677,14 @@ internal class FluidToolbarDeclaration(
  */
 internal fun buildFluidToolbar(onBack: (() -> Unit)?, block: FluidToolbarScope.() -> Unit): FluidToolbarDeclaration {
   val scope = FluidToolbarScope().apply(block)
-  val declared = FluidToolbarDeclaration(scope.entries.toList(), scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel)
+  val declared = FluidToolbarDeclaration(scope.entries.toList(), scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel, scope.keyboard)
   val exits = declared.buttons.values.any { it.role == FluidToolbarRole.Back || it.role == FluidToolbarRole.Close }
   if (onBack == null || exits) return declared
   val back = FluidToolbarButtonEntry(
     id = FluidToolbarIds.Back, role = FluidToolbarRole.Back, placement = FluidToolbarPlacement.Navigation,
     icon = FluidIcons.ArrowBackIosNew, onClick = onBack, defaultLabel = FluidToolbarDefaultLabel.Back,
   )
-  return FluidToolbarDeclaration(listOf(back) + declared.entries, scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel)
+  return FluidToolbarDeclaration(listOf(back) + declared.entries, scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel, scope.keyboard)
 }
 
 /** La tinta di un tasto come numero ARGB per il modello, o null. */
@@ -685,6 +701,7 @@ internal fun fluidToolbarModel(
   textWidthDp: (String) -> Float,
   tintOf: (FluidToolbarButtonEntry) -> Color = { it.tint },
   title: String? = null,
+  keyboardContext: Any? = null,
 ): FluidToolbarModel {
   fun convert(entry: FluidToolbarEntry): FluidToolbarItem = when (entry) {
     is FluidToolbarSpacerEntry -> FluidToolbarItem(
@@ -728,6 +745,7 @@ internal fun fluidToolbarModel(
       contentKey = if (entry.custom != null) FluidToolbarCustomContent(entry.id) else null,
       kind = entry.type?.kind,
       transition = if (entry.transientUndo) FluidToolbarTransition.Materialize else FluidToolbarTransition.Automatic,
+      keyboardContext = keyboardContext,
     )
   }
   return FluidToolbarModel(
@@ -781,6 +799,7 @@ internal fun fluidToolbarGlassIds(
   previous: Map<FluidToolbarGroupId, FluidToolbarGlassId> = emptyMap(),
   before: FluidToolbarResolved? = null,
   diff: FluidToolbarDiff? = null,
+  keepUnmatchedGroupsBySide: Boolean = false,
 ): Map<FluidToolbarGroupId, FluidToolbarGlassId> {
   val result = LinkedHashMap<FluidToolbarGroupId, FluidToolbarGlassId>()
   if (before != null && diff != null) {
@@ -801,6 +820,15 @@ internal fun fluidToolbarGlassIds(
       val inherited = previous[from] ?: continue
       result[to] = inherited
       taken += from
+    }
+    // Nella tastiera lo stesso posto passa fra contesti anche se cambiano tutti i comandi.
+    if (keepUnmatchedGroupsBySide) for (group in resolved.groups) {
+      if (group.id in result) continue
+      val source = before.groups
+        .filter { it.side == group.side && it.id !in taken && it.id in previous }
+        .minByOrNull { kotlin.math.abs(it.leftDp - group.leftDp) } ?: continue
+      result[group.id] = previous.getValue(source.id)
+      taken += source.id
     }
   }
   val used = HashSet<FluidToolbarGlassId>(previous.values)
@@ -869,7 +897,10 @@ internal class FluidToolbarMemory {
       previousIds = emptySet()
     } else {
       val diff = diffFluidToolbar(before, next, FluidToolbarTrigger.State, motion)
-      val ids = fluidToolbarGlassIds(next, glassIds, before, diff)
+      val oldContext = before.elements.firstNotNullOfOrNull { it.item.keyboardContext }
+      val newContext = next.elements.firstNotNullOfOrNull { it.item.keyboardContext }
+      val changesKeyboardContext = oldContext != null && newContext != null && oldContext != newContext
+      val ids = fluidToolbarGlassIds(next, glassIds, before, diff, keepUnmatchedGroupsBySide = changesKeyboardContext)
       // Il rinculo del vetro può trascinare anche un posto fermo quando cambia un gruppo vicino
       // (Note → Nota). Tienilo all'ancora fino alla posa. Il badge non muove il vetro.
       val glassChanges = before.groups.size != next.groups.size || before.groups.indices.any { index ->
@@ -1114,14 +1145,15 @@ internal fun FluidToolbarBar(
   title: String? = null,
   onExtent: ((FluidToolbarExtent) -> Unit)? = null,
   bar: FluidToolbarBar = FluidToolbarBar.Top,
+  keyboardContext: Any? = null,
 ) {
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
-  val model = fluidToolbarModelOf(declaration, title)
-  val metrics = if (bar == FluidToolbarBar.Bottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  val model = fluidToolbarModelOf(declaration, title, keyboardContext)
+  val metrics = if (bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard) fluidBottomBarMetrics() else fluidToolbarMetrics()
   BoxWithConstraints(modifier.fillMaxWidth().height(metrics.buttonWidthDp.dp).fluidToolbarMinimizeLayer(towardsBottom = bar == FluidToolbarBar.Bottom)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
-    val search = LocalToolbarSearch.current
+    val search = LocalToolbarSearch.current.takeUnless { bar == FluidToolbarBar.Keyboard }
     if (search != null && search.owns(bar) && search.hasDeclaration) {
       val pose = search.layout(model, width, metrics)
       SideEffect {
@@ -1131,8 +1163,8 @@ internal fun FluidToolbarBar(
       return@BoxWithConstraints
     }
     // Un campo che a riposo non c'è («trova», F6B.6) non tocca questa barra: i suoi fissati restano dove sono.
-    val active = fluidToolbarSearchTouchesBar(search?.spec)
-      ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true)
+    val active = bar != FluidToolbarBar.Keyboard && (fluidToolbarSearchTouchesBar(search?.spec)
+      ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true))
     val resolved = remember(model, width, bar, active) { resolveFluidToolbar(model, width, active, metrics, bar) }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
@@ -1171,7 +1203,7 @@ internal fun FluidToolbarGroups(
 ) {
     val memory = remember { FluidToolbarMemory() }
     memory.update(resolved, if (reducedMotion) FluidToolbarMotion.Reduced else FluidToolbarMotion.Full, searchActive,
-      ridesEdge = bar == FluidToolbarBar.Bottom)
+      ridesEdge = bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard)
     val searchInk = if (searchActive != null && !reducedMotion) rememberToolbarSearchInk(searchActive) else null
     val selection = HashMap<Any, State<Float>>()
     val duration = (GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale).toInt()
@@ -1244,6 +1276,7 @@ internal fun FluidToolbarGroups(
               menuSource = menuSource,
               menuFaces = faces.takeIf { heldGroup === group },
               modifier = Modifier.align(Alignment.CenterStart).offset(x = group.leftDp.dp),
+              keyboardVeil = bar == FluidToolbarBar.Keyboard && group.sharedBackground,
             )
           }
         }
@@ -1417,7 +1450,7 @@ internal val FluidToolbarSelectionEasing = androidx.compose.animation.core.Easin
  * geometria di una barra senza disegnarla (la barra dell'host fra due pagine, F4A.3).
  */
 @Composable
-internal fun fluidToolbarModelOf(declaration: FluidToolbarDeclaration, title: String?): FluidToolbarModel {
+internal fun fluidToolbarModelOf(declaration: FluidToolbarDeclaration, title: String?, keyboardContext: Any? = null): FluidToolbarModel {
   val density = LocalDensity.current
   val measurer = rememberTextMeasurer()
   val textStyle = FluidToolbarDefaults.textStyle()
@@ -1430,6 +1463,7 @@ internal fun fluidToolbarModelOf(declaration: FluidToolbarDeclaration, title: St
     },
     tintOf = { fluidToolbarTint(it, scheme.primary, scheme.error) },
     title = title,
+    keyboardContext = keyboardContext,
   )
 }
 
@@ -1469,6 +1503,7 @@ private fun FluidToolbarGroupPiece(
   menuSource: FluidToolbarMenuSource,
   menuFaces: GraphicsLayer?,
   modifier: Modifier,
+  keyboardVeil: Boolean,
 ) {
   val scheme = MaterialTheme.colorScheme
   val single = group.items.singleOrNull()
@@ -1502,6 +1537,7 @@ private fun FluidToolbarGroupPiece(
       // Che cosa porta il vetro (F4A.5b): un tondo che cambia simbolo respira, come in Apple.
       .fluidGlassContentKey(fluidToolbarGlassContentKey(group))
       .fluidGlass(surface, FluidCapsuleShape)
+      .then(if (keyboardVeil) Modifier.fluidKeyboardVeil(if (primary) scheme.primary else scheme.surface) else Modifier)
       .size(group.widthDp.dp, resolved.metrics.buttonWidthDp.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {

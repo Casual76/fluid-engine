@@ -208,6 +208,14 @@ internal object ToolbarLaunch {
 @Composable
 internal fun ToolbarPage(bottomInset: Dp, onBack: () -> Unit) {
   val context = LocalContext.current
+  val keyboardScene = remember(context) {
+    context.isDebuggableApp() &&
+      context.findActivity()?.intent?.getStringExtra(ToolbarLaunch.ExtraScene)?.trim().equals("keyboard", ignoreCase = true)
+  }
+  if (keyboardScene) {
+    ToolbarDemoPolicy { KeyboardBarPage(onBack) }
+    return
+  }
   val launched = remember(context) {
     val activity = context.findActivity()
     if (context.isDebuggableApp() && activity != null) {

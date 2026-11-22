@@ -1,5 +1,12 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.onFocusChanged
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidKeyboardBarContent
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidKeyboardBarHeight
+import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidKeyboardDock
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidKeyboardDock
+
 import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
@@ -1193,6 +1200,14 @@ private fun FluidScreenLayout(
   // predittivo questa schermata resta la sorgente del vetro finche' il gesto non e' confermato.
   val routeFront = LocalFluidRouteFront.current
   val isRouteFront by routeFront
+  val keyboard = toolbar?.keyboard?.takeIf { it.bar.buttons.isNotEmpty() }
+  var keyboardOwnerFocused by remember { mutableStateOf(false) }
+  val keyboardDock = if (keyboard != null && isRouteFront && !LocalFluidPagePreparing.current) {
+    rememberFluidKeyboardDock(keyboard, ownerFocused = keyboardOwnerFocused || search?.active == true)
+  } else {
+    null
+  }
+  val keyboardRoom = if (keyboardDock?.visible == true) FluidKeyboardBarHeight else 0.dp
   val minimizeDirection = fluidBarMinimizeDirection(barMinimize, search?.placement)
   val minimize = remember(minimizeDirection, reducedMotion, listState) {
     minimizeDirection.takeIf { it != 0f }?.let { FluidToolbarMinimizeState(it, reducedMotion) }
@@ -1209,12 +1224,12 @@ private fun FluidScreenLayout(
   val expandedProgress = remember { mutableFloatStateOf(0f) }
   val listPadding = remember(
     minimize, density, horizontalPadding, topBarHeight, bottomPadding, bottomExtra, barMinimizeAdjustsInsets, titleGapPx,
-    headerGapPx, largeTitle, pinnedSearch != null,
+    headerGapPx, largeTitle, pinnedSearch != null, keyboardRoom,
   ) {
-    val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding)
+    val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding + keyboardRoom)
     if (minimize == null) rest else object : PaddingValues by rest {
       override fun calculateBottomPadding(): Dp = if (barMinimizeAdjustsInsets && bottomExtra > 0.dp)
-        bottomPadding - bottomExtra * minimize.progress else bottomPadding
+        bottomPadding + keyboardRoom - bottomExtra * minimize.progress else bottomPadding + keyboardRoom
 
       override fun calculateTopPadding(): Dp = with(density) {
         val extra = headingHeightPx + titleGapPx + searchHeightPx + if (pinnedSearch != null) headerGapPx else 0
@@ -1364,10 +1379,12 @@ private fun FluidScreenLayout(
     LocalFluidGlassQuality provides glassQuality,
     LocalFluidScreenBottomEdges provides bottomEdges,
     LocalFluidScreenChrome provides (pageChrome ?: enclosingChrome),
+    LocalFluidKeyboardDock provides keyboardDock,
   ) {
   Box(
     modifier = Modifier
       .fillMaxSize()
+      .then(if (keyboard == null) Modifier else Modifier.onFocusChanged { keyboardOwnerFocused = it.hasFocus }.focusGroup())
       // Opaca solo quando il fondale e' suo: dentro un pannello lo dipinge la finestra, e coprirlo
       // qui rimetterebbe la cucitura che la superficie condivisa esiste per togliere.
       .then(if (inheritedCanvas == null) Modifier.background(MaterialTheme.colorScheme.background) else Modifier)
@@ -1586,6 +1603,9 @@ private fun FluidScreenLayout(
       }
     }
 
+    if (keyboard != null && keyboardDock != null) {
+      FluidKeyboardBarContent(keyboard, keyboardDock, chromeBackdrop, Modifier.align(Alignment.BottomCenter))
+    }
     if (floatingSearch != null && LocalFluidPageBar.current == null) {
       FluidToolbarSearchOverlay(floatingSearch, toolbar, chromeBackdrop, minimize)
     }

@@ -10,7 +10,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 14 | 210 |
+| [Barre di navigazione e di azione](barre.md) | 15 | 218 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 29 | 256 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |

@@ -139,6 +139,8 @@ data class FluidGridSheet(
   val merges: List<FluidGridRange> = emptyList(),
   val headers: Boolean = true,
   val countFinal: Boolean = true,
+  /** Tab colour saved by the workbook, shown alongside the sheet name when present. */
+  val color: Color? = null,
 ) {
   companion object {
     /** 80 × 24 dp: a spreadsheet's default column and row at 100% with room for a finger. A occhio, 22 novembre 2026. */

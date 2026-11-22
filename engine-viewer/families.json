@@ -6,9 +6,9 @@
       "family": "office",
       "package": "dev.antigravity.fluidengine.viewer.office",
       "label": "Office: DOCX, ODT e RTF a pagine, XLSX e ODS in griglia, PPTX e ODP a slide",
-      "weight": "0,2-0,4 MB di codice dopo R8, piu' 3-6 MB di caratteri metrici (stima)",
+      "weight": "APK debug, byte con/senza font: arm64-v8a 930251/137912, armeabi-v7a 930251/137912, x86 930251/137912, x86_64 930251/137912, universale 930251/137912",
       "assets": [
-        { "name": "Carlito, Caladea, Liberation Sans, Serif e Mono", "license": "OFL-1.1, Apache-2.0", "weight": "3-6 MB (stima)" }
+        { "name": "Carlito, Caladea, Liberation Sans, Serif e Mono (sottoinsiemi latini, quattro stili)", "license": "OFL-1.1", "weight": "1293496 B TTF latini, 789549 B nelle voci APK" }
       ],
       "libraries": []
     },

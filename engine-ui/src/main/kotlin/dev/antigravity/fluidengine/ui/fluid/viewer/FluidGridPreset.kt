@@ -2,9 +2,10 @@ package dev.antigravity.fluidengine.ui.fluid.viewer
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
-import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
@@ -108,9 +111,16 @@ private fun GridSheet(
   val density = LocalDensity.current
   val theme = MaterialTheme.colorScheme
   val measurer = rememberTextMeasurer(cacheSize = GridTextCache)
-  val baseStyle = MaterialTheme.typography.bodySmall
+  val typography = MaterialTheme.typography
+  val baseStyle = if (sheet.headers) typography.bodyMedium else typography.bodySmall
+  val headerStyle = typography.labelMedium
+  // Coordinate sheets use the 15 sp reading body at 100%. Scale the saved dimensions by the
+  // same ratio, including the device's text scale, independently of the user's pinch.
+  val sheetDensity = if (sheet.headers) with(density) {
+    baseStyle.fontSize.toPx() / typography.bodySmall.fontSize.value
+  } else density.density
   val store = remember(source, index) { GridCellStore(source, index) }
-  val columns = remember(sheet) { GridAxis(sheet.columnCount, sheet.columnWidth, sheet.columnWidths) }
+  val fileColumns = remember(sheet) { GridAxis(sheet.columnCount, sheet.columnWidth, sheet.columnWidths) }
   val merges = remember(sheet) { GridMerges(sheet.merges) }
   var scale by rememberSaveable { mutableFloatStateOf(1f) }
   var offsetX by remember { mutableFloatStateOf(0f) }
@@ -118,14 +128,25 @@ private fun GridSheet(
   val list = rememberLazyListState()
   val backdrop = rememberGlassBackdrop()
 
-  val px = density.density * scale
-  val headerWidth = if (sheet.headers) gridRowHeaderWidth(sheet.rowCount, measurer, baseStyle, density.density) * scale else 0f
+  val px = sheetDensity * scale
+  val rowExtent = remember(sheet) {
+    sheet.rowHeights.entries.fold(sheet.rowCount * sheet.rowHeight) { total, (row, height) ->
+      if (row in 0 until sheet.rowCount) total + height.coerceAtLeast(0f) - sheet.rowHeight else total
+    }
+  }
+  val visibleRows = if (sheet.headers) gridDisplayCount(sheet.rowCount, rowExtent, sheet.rowHeight, viewport.height / px) else sheet.rowCount
+  val headerWidth = if (sheet.headers) gridRowHeaderWidth(visibleRows, measurer, headerStyle, sheetDensity) * scale else 0f
+  val visibleColumns = if (sheet.headers) gridDisplayCount(sheet.columnCount, fileColumns.total, sheet.columnWidth,
+    (viewport.width - headerWidth) / px) else sheet.columnCount
+  val columns = remember(fileColumns, visibleColumns) {
+    if (visibleColumns == sheet.columnCount) fileColumns else GridAxis(visibleColumns, sheet.columnWidth, sheet.columnWidths)
+  }
   val headerHeight = if (sheet.headers) GridHeaderHeight * px else 0f
   val frozenColumns = sheet.frozenColumns.coerceIn(0, sheet.columnCount)
   val frozenRows = sheet.frozenRows.coerceIn(0, sheet.rowCount)
   val frozenWidth = columns.start(frozenColumns) * px
   val scrollArea = (viewport.width - headerWidth - frozenWidth).coerceAtLeast(0f)
-  val maxOffset = ((columns.total * px - frozenWidth) - scrollArea).coerceAtLeast(0f)
+  val maxOffset = ((fileColumns.total * px - frozenWidth) - scrollArea).coerceAtLeast(0f)
   LaunchedEffect(maxOffset) { if (offsetX > maxOffset) offsetX = maxOffset }
   val sideways = rememberScrollableState { delta ->
     val before = offsetX
@@ -140,20 +161,19 @@ private fun GridSheet(
     }
   }
   val currentZoomTo by rememberUpdatedState(zoomTo)
-  val transform = rememberTransformableState { zoom, _, _ -> currentZoomTo(scale * zoom) }
 
   // Le celle attorno a ciò che si vede, a blocchi, più le celle che danno il contenuto alle unioni in vista.
   val currentHeaderWidth by rememberUpdatedState(headerWidth)
-  LaunchedEffect(store, columns, merges) {
+  LaunchedEffect(store, fileColumns, merges, sheetDensity) {
     snapshotFlow {
-      val unit = density.density * scale
+      val unit = sheetDensity * scale
       val visible = list.layoutInfo.visibleItemsInfo
       val firstRow = frozenRows + (visible.firstOrNull()?.index ?: 0)
       val lastRow = (frozenRows + (visible.lastOrNull()?.index ?: 0)).coerceAtMost(sheet.rowCount - 1)
-      val origin = columns.start(frozenColumns)
+      val origin = fileColumns.start(frozenColumns)
       val area = (viewport.width - currentHeaderWidth - origin * unit).coerceAtLeast(0f)
-      val left = columns.indexAt(origin + offsetX / unit).coerceAtLeast(frozenColumns)
-      val right = columns.indexAt(origin + (offsetX + area) / unit)
+      val left = fileColumns.indexAt(origin + offsetX / unit).coerceAtLeast(frozenColumns)
+      val right = fileColumns.indexAt(origin + (offsetX + area) / unit)
       GridWindow(firstRow, lastRow, left, right, frozenRows, frozenColumns) to store.attempt
     }.collectLatest { (window, _) -> store.ensure(window, merges) }
   }
@@ -166,19 +186,35 @@ private fun GridSheet(
   val bottom = bottomBar + if (tabs) tabHeight + gap else 0.dp
   val painter = GridPainter(
     measurer = measurer, sheet = sheet, columns = columns, merges = merges, store = store,
-    style = baseStyle.copy(color = theme.onSurface), headerStyle = baseStyle.copy(color = theme.onSurfaceVariant),
-    line = theme.outlineVariant, header = theme.surfaceContainer, density = density.density, scale = scale,
+    style = baseStyle.copy(color = theme.onSurface), headerStyle = headerStyle.copy(color = theme.onSurfaceVariant),
+    line = theme.outlineVariant, header = theme.surfaceContainer, density = sheetDensity, scale = scale,
     headerWidth = headerWidth, frozenColumns = frozenColumns, offsetX = { offsetX },
   )
 
-  Box(modifier.fillMaxSize().onSizeChanged { viewport = it }.clipToBounds()) {
+  // The row list, horizontal scroll and outer pager all watch single-finger drags. Read changes
+  // in the two-finger span before those handlers consume movement; leave single touches alone.
+  Box(modifier.fillMaxSize().onSizeChanged { viewport = it }.clipToBounds().pointerInput(Unit) {
+    awaitEachGesture {
+      awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+      do {
+        val event = awaitPointerEvent(PointerEventPass.Initial)
+        if (event.changes.count { it.pressed && it.previousPressed } >= 2 && event.changes.none { it.isConsumed }) {
+          val factor = event.calculateZoom()
+          if (factor.isFinite() && factor > 0f && factor != 1f) {
+            currentZoomTo(scale * factor)
+            event.changes.forEach { it.consume() }
+          }
+        }
+      } while (event.changes.any { it.pressed })
+    }
+  }) {
     Column(Modifier.fillMaxSize().padding(top = top)) {
       if (sheet.headers) {
         Box(Modifier.fillMaxWidth().height(with(density) { headerHeight.toDp() }).drawBehind { painter.drawColumnHeader(this) }
           .clearAndSetSemantics {})
       }
       for (row in 0 until frozenRows) {
-        GridRow(painter, row, sheet, store, strings, Modifier)
+        GridRow(painter, row, store, strings, Modifier)
       }
       if (sheet.rowCount == 0 || sheet.columnCount == 0) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(strings.empty) }
@@ -200,12 +236,11 @@ private fun GridSheet(
                 if (scale > GridMinScale) add(CustomAccessibilityAction(strings.zoomOut) { zoomTo(scale / 1.5f); true })
               }
             }
-            .transformable(transform, canPan = { false })
-            .scrollable(sideways, Orientation.Horizontal),
+            .scrollable(sideways, Orientation.Horizontal, enabled = maxOffset > 0f),
           contentPadding = PaddingValues(bottom = bottom),
         ) {
-          items(count = (sheet.rowCount - frozenRows).coerceAtLeast(0)) { item ->
-            GridRow(painter, frozenRows + item, sheet, store, strings, Modifier)
+          items(count = (visibleRows - frozenRows).coerceAtLeast(0)) { item ->
+            GridRow(painter, frozenRows + item, store, strings, Modifier)
           }
         }
       }
@@ -228,12 +263,16 @@ private fun GridSheet(
       ) {
         sheets.forEachIndexed { i, other ->
           val current = i == index
-          Text(other.name, Modifier.heightIn(min = tabHeight).fluidGlass(backdrop = backdrop)
+          Row(Modifier.heightIn(min = tabHeight).fluidGlass(backdrop = backdrop)
             .fluidPressable(onClick = { if (!current) select(i) }, role = Role.Tab)
             .semantics { selected = current; contentDescription = strings.sheet(other.name, i + 1, sheets.size) }
-            .padding(horizontal = gap * 2).wrapContentHeight(),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal),
-            color = if (current) theme.primary else theme.onSurface, maxLines = 1)
+            .padding(horizontal = gap * 2), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(gap)) {
+            other.color?.let { color -> Spacer(Modifier.size(7.dp).drawBehind { drawCircle(color) }) }
+            Text(other.name,
+              style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal),
+              color = if (current) theme.primary else theme.onSurface, maxLines = 1)
+          }
         }
       }
     }
@@ -241,13 +280,18 @@ private fun GridSheet(
 }
 
 @Composable
-private fun GridRow(painter: GridPainter, row: Int, sheet: FluidGridSheet, store: GridCellStore, strings: FluidGridPresetStrings, modifier: Modifier) {
-  val height = sheet.rowHeights[row] ?: sheet.rowHeight
+private fun GridRow(painter: GridPainter, row: Int, store: GridCellStore, strings: FluidGridPresetStrings, modifier: Modifier) {
   val density = LocalDensity.current
   val description = store.rowText(row)
-  Box(modifier.fillMaxWidth().height(with(density) { (height * painter.scale * density.density).toDp() })
+  Box(modifier.fillMaxWidth().height(with(density) { painter.rowHeight(row).toDp() })
     .drawBehind { painter.drawRow(this, row) }
     .semantics { contentDescription = if (description.isEmpty()) strings.row(row + 1) else strings.row(row + 1) + ": " + description })
+}
+
+/** Empty trailing cells complete a spreadsheet viewport without changing the data source's extent. */
+private fun gridDisplayCount(used: Int, extent: Float, step: Float, viewport: Float): Int {
+  if (used == 0 || step <= 0f || extent >= viewport) return used
+  return used + kotlin.math.ceil((viewport - extent) / step.coerceAtLeast(1f)).toInt()
 }
 
 /** The visible block: rows and columns, both ends included, plus the frozen ones that are always in view. */
@@ -438,7 +482,7 @@ private class GridPainter(
   private val frozenRight = headerWidth + columns.start(frozenColumns) * px
   private val padding = GridCellPadding * px
 
-  private fun rowHeight(row: Int): Float = (sheet.rowHeights[row] ?: sheet.rowHeight).coerceAtLeast(0f) * px
+  fun rowHeight(row: Int): Float = (sheet.rowHeights[row] ?: sheet.rowHeight).coerceAtLeast(0f) * px
 
   /** Where column [column] starts on screen. */
   private fun columnX(column: Int): Float =
@@ -541,7 +585,8 @@ private class GridPainter(
     val layout = measurer.measure(cell.text, textStyle, overflow = TextOverflow.Clip, softWrap = look.wrap,
       maxLines = if (look.wrap) Int.MAX_VALUE else 1, constraints = Constraints(maxWidth = room))
     val left = x + padding + gridHorizontal(cell).align(layout.size.width, room, LayoutDirection.Ltr)
-    val top = y + look.vertical.align(layout.size.height, (h - 2 * padding).roundToInt().coerceAtLeast(0)) + padding
+    val verticalPadding = minOf(padding, (h - layout.size.height).coerceAtLeast(0f) / 2)
+    val top = y + look.vertical.align(layout.size.height, (h - 2 * verticalPadding).roundToInt().coerceAtLeast(0)) + verticalPadding
     clipRect(x, y, x + w, y + h) { drawText(layout, topLeft = Offset(left, top)) }
   }
 

@@ -1,0 +1,32 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.office'
+  compileSdk engine.compileSdk
+  defaultConfig {
+    minSdk engine.minSdk
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+  kotlinOptions { jvmTarget = engine.jvmTarget }
+  buildFeatures { compose = true }
+  testOptions { unitTests.includeAndroidResources = true }
+  sourceSets.androidTest.assets.srcDir 'src/test/resources/corpus'
+}
+
+dependencies {
+  api project(':engine-viewer')
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  androidTestImplementation 'androidx.test:runner:1.7.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+}

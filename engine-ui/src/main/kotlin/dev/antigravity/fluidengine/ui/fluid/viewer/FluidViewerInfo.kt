@@ -46,7 +46,9 @@ interface FluidMediaDurationLoader {
   fun requestDuration()
 }
 
-data class FluidViewerInfoRow(val label: String, val value: String)
+data class FluidViewerInfoRow(val label: String, val value: String,
+  /** Original value copied on long press when the displayed value is localized. */
+  val copyValue: String = value)
 data class FluidViewerInfoSection(val title: String, val rows: List<FluidViewerInfoRow>,
   val content: (@Composable () -> Unit)? = null)
 data class FluidAudioChapter(val title: String, val startMillis: Long)
@@ -271,8 +273,8 @@ internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState,
 @Composable
 private fun ViewerInfoRow(row: FluidViewerInfoRow, copyLabel: String) {
   val clipboard = LocalClipboardManager.current
-  val copy = { clipboard.setText(AnnotatedString(row.value)) }
-  Row(Modifier.fillMaxWidth().pointerInput(row.value, clipboard) { detectTapGestures(onLongPress = { copy() }) }
+  val copy = { clipboard.setText(AnnotatedString(row.copyValue)) }
+  Row(Modifier.fillMaxWidth().pointerInput(row.copyValue, clipboard) { detectTapGestures(onLongPress = { copy() }) }
     .semantics(mergeDescendants = true) { onLongClick(copyLabel) { copy(); true } }
     .padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(row.label, Modifier.weight(.42f), style = MaterialTheme.typography.bodyMedium)

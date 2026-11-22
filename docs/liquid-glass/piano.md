@@ -1003,14 +1003,14 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
 | F6 | Controlli e tocco | 9 | 9 | S5 |
 | F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre, scritta il 21) | 18 | 17 | una sua |
-| F6C | Visori di file (aggiunta il 21 novembre; seconda ondata il 22) | 16 | 14 | con F6B o una sua |
+| F6C | Visori di file (aggiunta il 21 novembre; seconda ondata il 22) | 17 | 15 | con F6B o una sua |
 | F6D | Lo scurimento nelle transizioni (aggiunta il 22 novembre) | 3 | 2 | con F6B.14 |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 | F9 | Documentazione estesa e verifica d'adozione (aggiunta l'11 novembre) | 7 | 2 | — |
 
 F6B e F6C sono state scritte il 21 novembre: F6C parte dopo F6B.5a e F6B.1, in parallelo alla seconda metà di F6B, e
-chiude prima di F7. Il 22 novembre, dopo le riprese della galleria «Visori», F6C ha avuto una seconda ondata (F6C.7–F6C.15)
+chiude prima di F7. Il 22 novembre, dopo le riprese della galleria «Visori», F6C ha avuto una seconda ondata (F6C.7–F6C.16)
 ed è nata F6D, lo scurimento della pagina sotto in ogni transizione: anche loro chiudono prima di F7. Con loro i pacchetti del piano diventano **109**, **97** con Gradle; il conto qui sotto è quello
 di partenza.
 
@@ -3895,6 +3895,22 @@ decodificatori.
 - **Le forme di contenuto nuove** `Grid`, per fogli e CSV, e `Custom`, per archivi, JSON, EPUB e il resto, stanno in
   `engine-ui` e le fa F6C.8. Il contratto non è ancora uscito in una versione, quindi aggiungerle non rompe nessuno.
 
+**Dopo la tavola «D · Mix», 22 novembre 2026:**
+- **Aspetto: «D · Mix» va bene** (`ricerca/visori-2.md` §5.1 e §5.2). La base è A. Da C vengono:
+  - la tinta leggera del file, solo su audio, eseguibile, sconosciuto e archivio, mai su documenti, testo, dati e slide;
+    sparisce con «Riduci trasparenza» e con il contrasto alto;
+  - il lettore audio in un pannello di vetro, con la copertina e il suo alone;
+  - l'eseguibile con l'icona e l'alone, i fatti in capsule e l'avviso in vetro ambra;
+  - le cartelle dell'archivio come tessere di vetro;
+  - i punti colorati per fogli, tipi del JSON e lingua del codice.
+
+  Il tasto «i» apre il pannello con le informazioni di B: a Medium sopra il contenuto senza velo, a Large col velo.
+- **Caratteri di Office: solo latino**, 1,25 MB. Greco, cirillico, arabo e CJK vanno a capo in modo approssimato, e il
+  pannello info lo dice.
+- **3D anche in AR, con ARCore.** Il modello si posa nella stanza come in AR Quick Look. Sta in un modulo facoltativo a
+  parte, `engine-viewer-ar`, che chiede la fotocamera e un dispositivo certificato ARCore. Senza, il visore 3D resta
+  quello di Filament sul fondo del tema. È il pacchetto F6C.16.
+
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 
 | modulo | famiglia |
@@ -3904,7 +3920,8 @@ decodificatori.
 | `engine-viewer-archive` | archivi |
 | `engine-viewer-data` | testi ricchi e dati |
 | `engine-viewer-graphics` | immagini speciali e font |
-| `engine-viewer-3d` | modelli 3D. Se F6C.7 trova un motore leggero, può stare in `graphics` |
+| `engine-viewer-3d` | modelli 3D con Filament (scelta di Alessio) |
+| `engine-viewer-ar` | il modello 3D posato nella stanza con ARCore (scelta di Alessio); dipende da `engine-viewer-3d` |
 | `engine-viewer-all` | li raccoglie tutti, per Universal Converter |
 
 Ogni modulo dichiara il suo peso nell'APK, misurato da F6C.15, ed è scritto nella scheda. Una libreria esterna entra solo
@@ -3926,9 +3943,10 @@ se:
 | F6C.13 | **Testi ricchi e dati**: Markdown, HTML, CSV, JSON, XML, EPUB, EML, ICS, VCF | `engine-viewer-data/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Opus (Claude secondary) |
 | F6C.14 | **Immagini speciali, font, 3D** | `engine-viewer-graphics/**`, `engine-viewer-3d/**` (nuovi), `settings.gradle` (una riga) | F6C.8 | G | Sol |
 | F6C.15 | **La galleria «Visori» rifatta**, partendo da F6C.5: ogni famiglia, l'apertura dalla miniatura, il peso di ogni modulo, le tracce nuove e le schede. Il visore universale di Universal Converter, in sola lettura | `sample/…/viewer/`, `test/glass/field/trace/F6c*`, `tools/glassbench/traces/f6c/`, `ref/componenti/visori.md`, `ref/moduli/viewer*.md` | tutti | G | Opus (Claude secondary) |
+| F6C.16 | **AR**: il modello 3D posato nella stanza con ARCore, come AR Quick Look; il tasto «AR» nel visore 3D solo dove ARCore c'è; la fotocamera chiesta al tocco | `engine-viewer-ar/**` (nuovo), `settings.gradle` (una riga) | F6C.14 | G, D | Sol |
 
 F6C.11–F6C.14 hanno perimetri disgiunti e partono insieme dopo F6C.8, tranne la riga di `settings.gradle`, che
-l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.6, la sessione sul tablet, si fa dopo F6C.15.
+l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.16 parte dopo F6C.14. F6C.6, la sessione sul tablet, si fa dopo F6C.15 e F6C.16.
 
 **Risultati osservabili in più.**
 - Un DOCX si apre a pagine come il documento, un PPTX a slide, un XLSX in griglia.

@@ -569,7 +569,7 @@ private fun <K : Any> PageLayer(
       .then(
         if (isUpper && (entering || state.pendingPlacement == page)) {
           Modifier.onGloballyPositioned {
-            if (state.pendingPlacement == page) {
+            if (state.pendingPlacement == page && state.zoom == null) {
               fluidGlassTraced("FluidPage.pushPlaced") { state.pagePlaced(page, System.nanoTime()) }
             }
           }
@@ -579,6 +579,7 @@ private fun <K : Any> PageLayer(
       .pageLayer(state, page, shadowColor, elevationPx, signals)
       .drawWithContent {
         drawContent()
+        if (state.zoom == null || !state.zoomCrossfade) state.zoomFrontDrawn(page)
         val dim = state.dimOn(page)
         if (dim > 0f) drawRect(Color.Black, alpha = dim)
       }
@@ -659,30 +660,40 @@ private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageCol
   val sourceFace = rememberGraphicsLayer()
   return drawWithContent {
     val zoom = state.zoomShape()
-    if (zoom == null || state.roleOf(page) != PageRole.Upper ||
-      (page in state.ownPageBackground && state.sharedPair == null)) {
+    if (zoom == null || state.roleOf(page) != PageRole.Upper) {
       drawContent()
+      return@drawWithContent
+    }
+    if (page in state.ownPageBackground && state.sharedPair == null) {
+      drawContent()
+      if (!size.isEmpty()) state.zoomFrontDrawn(page)
       return@drawWithContent
     }
     val target = Rect(Offset.Zero, size)
     val clip = FluidZoom.contentClip(zoom, target, FluidZoom.content(zoom, target)).bounds
     val look = state.zoomFaces()
     val grow = state.growing != null
-    if (!grow && pageColor.isSpecified && page !in state.ownPageBackground) drawRect(pageColor)
     // Anche quando l'alfa è zero, i figli marcati possono registrarsi per il disegno dell'host.
     face.record { this@drawWithContent.drawContent() }
     face.alpha = if (grow) state.solidOpacity else look.pageAlpha
+    val snapshot = state.zoomSnapshot()
+    val sourceRect = snapshot?.takeIf { look.sourceAlpha > 0f && !it.size.isEmpty() }?.let {
+      FluidZoom.snapshotRect(clip, it.size)
+    }
+    // Lascia vedere la griglia se il primo layer può disegnare soltanto il fondo della pagina.
+    if (state.awaitingZoomDraw(page) && face.alpha <= 0f && sourceRect == null) return@drawWithContent
+    if (!grow && pageColor.isSpecified && page !in state.ownPageBackground) drawRect(pageColor)
     if (face.alpha > 0f) {
       face.renderEffect = if (grow) null else look.pageBlurEffect(density)
       translate(top = if (grow) 0f else look.riseDp * density) { drawLayer(face) }
     }
-    val snapshot = state.zoomSnapshot()
-    if (snapshot != null && look.sourceAlpha > 0f && snapshot.size.width > 0f) {
+    val drewSource = if (snapshot != null && sourceRect != null) {
       sourceFace.record(size = snapshot.layer.size) { drawLayer(snapshot.layer) }
       sourceFace.alpha = look.sourceAlpha
       sourceFace.renderEffect = zoomFaceEffect(look.sourceBlur, density)
-      drawPageInk(sourceFace, FluidZoom.snapshotRect(clip, snapshot.size))
-    }
+      drawPageInk(sourceFace, sourceRect)
+    } else false
+    if (state.sharedPair == null && !clip.isEmpty && (drewSource || face.alpha > 0f)) state.zoomFrontDrawn(page)
   }
 }
 

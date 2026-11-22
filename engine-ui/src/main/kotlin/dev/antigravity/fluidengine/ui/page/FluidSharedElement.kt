@@ -120,16 +120,21 @@ private fun Modifier.pageInk(identity: SharedKey?): Modifier = composed {
     val host = space?.host
     // La sorgente può vivere in una shell esterna all'host. Quando è consumata, la fotografia del
     // genitore deve escludere l'immagine che il palco già disegna.
+    val owner = host ?: if (identity != null) placedInk.firstNotNullOfOrNull { other ->
+      other.space?.host?.takeIf { it.sharedPair?.first?.ink === ink }
+    } else null
+    val pair = owner?.sharedPair
     val owned = if (identity == null) {
       host != null && host.growing != null && host.upper == space.page && host.zoom != null
     } else {
-      (host?.sharedPair?.let { it.first.ink === ink || it.second === ink } == true) ||
-        (space == null && placedInk.any { it.space?.host?.sharedPair?.first?.ink === ink })
+      pair?.first?.ink === ink || pair?.second === ink
     }
     if (owned) {
       val layer = ink.layer ?: graphics.createGraphicsLayer()
       layer.record { this@drawWithContent.drawContent() }
       ink.layer = layer
+      // Prima del primo disegno dell'overlay la miniatura deve restare visibile anche nella sua riga.
+      if (owner != null && pair?.first?.ink === ink && owner.upper?.let(owner::awaitingZoomDraw) == true) drawLayer(layer)
     } else {
       ink.release()
       drawContent()
@@ -196,11 +201,12 @@ internal fun FluidPageHostState.sharedImageBounds(origin: Rect, target: Rect, pr
     else androidx.compose.ui.geometry.lerp(held, origin, (exit - via) / (1f - via))
 }
 
-internal fun DrawScope.drawPageInk(layer: GraphicsLayer, rect: Rect) {
-  if (layer.size.width <= 0 || layer.size.height <= 0 || rect.isEmpty) return
+internal fun DrawScope.drawPageInk(layer: GraphicsLayer, rect: Rect): Boolean {
+  if (layer.size.width <= 0 || layer.size.height <= 0 || rect.isEmpty) return false
   translate(rect.left, rect.top) {
     scale(rect.width / layer.size.width, rect.height / layer.size.height, Offset.Zero) { drawLayer(layer) }
   }
+  return true
 }
 
 @Composable
@@ -213,7 +219,7 @@ internal fun SharedPageOverlay(state: FluidPageHostState, modifier: Modifier) {
       state.sharedPair?.let { (origin, target) ->
         val layer = target.layer ?: origin.ink.layer ?: return@let
         val box = state.sharedImageBounds(origin.bounds, target.bounds!!, p, zoom)
-        drawPageInk(layer, box)
+        if (drawPageInk(layer, box)) state.upper?.let(state::zoomFrontDrawn)
       }
       if (state.growing != null) {
         val frame = FluidZoom.faces(p)

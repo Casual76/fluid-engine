@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -63,7 +64,7 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
   // F5B.3: la sorgente «consumata». Una presentazione nata da qui (lo zoom di una pagina o di un foglio) la nasconde
   // finché è aperta e la restituisce al ritorno, nello stesso fotogramma in cui la sagoma ci rientra: la sorgente e
   // l'arrivo non si vedono mai insieme. Un contatore per identità, perché due presentazioni possono tenere la stessa.
-  private var held = false
+  private var held by mutableStateOf(false)
   private var heldSnapshot = false
 
   /**
@@ -77,10 +78,14 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
       held = true
       consumedSources[key] = (consumedSources[key] ?: 0) + 1
     }
-    if (snapshot && !heldSnapshot) {
-      heldSnapshot = true
-      snapshotRequests[key] = (snapshotRequests[key] ?: 0) + 1
-    }
+    if (snapshot) prepareSnapshot()
+  }
+
+  /** Prepara la foto per il primo disegno dello zoom mentre la card originale è ancora visibile. */
+  internal fun prepareSnapshot() {
+    if (heldSnapshot) return
+    heldSnapshot = true
+    snapshotRequests[key] = (snapshotRequests[key] ?: 0) + 1
   }
 
   /** Restituisce la sorgente tenuta da [consume]. Idempotente. */
@@ -88,7 +93,10 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
     if (heldSnapshot) {
       heldSnapshot = false
       val requests = (snapshotRequests[key] ?: 1) - 1
-      if (requests <= 0) snapshotRequests.remove(key) else snapshotRequests[key] = requests
+      if (requests <= 0) {
+        snapshotRequests.remove(key)
+        sourceSnapshots.remove(key)
+      } else snapshotRequests[key] = requests
     }
     if (!held) return
     held = false
@@ -97,8 +105,7 @@ class FluidTransitionSource internal constructor(private val key: FluidTransitio
   }
 
   /**
-   * La fotografia della vista consumata con `consume(snapshot = true)`, alla sua misura, o null finché non si è disegnata
-   * una volta consumata. La disegna chi presenta, dentro la sua sagoma.
+   * La fotografia della vista alla sua misura, disponibile dopo il primo disegno con una richiesta attiva.
    */
   internal val snapshot: FluidTransitionSnapshot? get() = sourceSnapshots[key]
 
@@ -220,13 +227,14 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
   // Se chi presenta ne vuole la fotografia (la variante con la dissolvenza), la vista si registra in un layer suo.
   override fun ContentDrawScope.draw() {
     val key = source.key
-    if (key !in consumedSources) {
-      drawContent()
+    val hidden = key in consumedSources
+    if (key !in snapshotRequests) {
+      if (!hidden) drawContent()
       return
     }
-    if (key !in snapshotRequests) return
     val layer = snapshotLayer ?: requireGraphicsContext().createGraphicsLayer().also { snapshotLayer = it }
     layer.record { this@draw.drawContent() }
+    if (!hidden) drawLayer(layer)
     val current = sourceSnapshots[key]
     if (current == null || current.layer !== layer || current.size != size) {
       sourceSnapshots[key] = FluidTransitionSnapshot(layer, size)
@@ -255,6 +263,8 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
   }
 
   private fun unregister() {
+    val layer = snapshotLayer
+    if (layer != null && sourceSnapshots[source.key]?.layer === layer) sourceSnapshots.remove(source.key)
     val remaining = transitionSources[source.key].orEmpty() - this
     if (remaining.isEmpty()) transitionSources.remove(source.key)
     else transitionSources[source.key] = remaining
@@ -265,7 +275,6 @@ private class FluidTransitionSourceNode(source: FluidTransitionSourceElement) :
     coordinates = null
     placedBounds = null
     snapshotLayer?.let { layer ->
-      if (sourceSnapshots[source.key]?.layer === layer) sourceSnapshots.remove(source.key)
       requireGraphicsContext().releaseGraphicsLayer(layer)
     }
     snapshotLayer = null

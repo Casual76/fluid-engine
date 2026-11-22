@@ -315,6 +315,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class FluidVividEffect`
 - `@Composable fun FluidVividCard(colors: FluidVividColors, modifier: Modifier = Modifier, effect: FluidVividEffect = FluidVividEffect.None, onClick: (() -> Unit)? = null, onLongClick: (() -> Unit)? = null, contextActions: (() -> List<FluidContextAction>)? = null, contentPadding: PaddingValues = PaddingValues(18.dp), content: @Composable ColumnScope.() -> Unit)` — A surface that is entirely its own colour: saturated gradient, on-colour content.
 
+## `engine-ui/ui/fluid/viewer/FluidCustomPreset.kt`
+
+- `@Composable fun FluidCustomPreset(content: FluidViewerContent.Custom, chromeVisible: Boolean, modifier: Modifier = Modifier)` — A page drawn by a module ([FluidViewerContent.Custom]) inside the [FluidFileViewer] renderer slot. The module's [FluidViewerContent.Custom.actions] go to the viewer's bar for this page; with [FluidViewerContent.Custom.find] the bar gets «Trova», which opens the find field above the keyboard (F6B.6) and closes when the page is left or on back.
+
 ## `engine-ui/ui/fluid/viewer/FluidFileViewer.kt`
 
 - `data class FluidViewerThumbnail(val id: Any, val namespace: FluidGlassNamespace)` — Put [fluidViewerThumbnail] before the thumbnail's drawing and clipping modifiers.
@@ -322,6 +326,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun NavGraphBuilder.fluidFileViewerRoute(route: String, arguments: List<NamedNavArgument> = emptyList(), deepLinks: List<NavDeepLink> = emptyList(), initial: (NavBackStackEntry) -> Int = { 0 }, thumbnail: (NavBackStackEntry, Int) -> FluidViewerThumbnail? = { _, _ -> null }, content: @Composable (NavBackStackEntry) -> Unit)` — Register the destination on a FluidNavHost. [initial] resolves the file requested by a deep link. Once a page settles, the entry remembers that page for both recreation and the return thumbnail. The source may disappear (for instance a filtered grid). Expand then uses its normal source-free exit.
 - `@Composable fun FluidFileViewer(count: Int, initial: Int = LocalViewerRoute.current?.initial ?: 0, content: (index: Int) -> FluidViewerContent, toolbar: FluidToolbarScope.(index: Int) -> Unit = {}, tools: FluidViewerToolsScope.() -> Unit = {}, info: (@Composable (index: Int) -> Unit)? = null, onBack: () -> Unit = viewerBackAction(), modifier: Modifier = Modifier, onPageChange: (Int) -> Unit = {}, strings: FluidViewerStrings = FluidViewerStrings(), renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, visible -> ViewerBody(file, visible) })` — A full-screen file on a real route. Give the graph [fluidFileViewerRoute] for a zoom from the grid, downward dismissal and a restorable deep link. [onBack] defaults to the host's back dispatcher. [toolbar] uses the engine toolbar DSL. A tool owns the body and its own bottom actions until Done or Back. [renderContent] is the integration point for a preset or an app renderer (tiles, PDF, player, code).
 - `@Composable fun FluidFileViewer(count: Int, initial: Int = LocalViewerRoute.current?.initial ?: 0, content: (index: Int) -> FluidViewerContent, toolbar: FluidToolbarScope.(index: Int) -> Unit = {}, tools: FluidViewerToolsScope.() -> Unit = {}, info: (@Composable (index: Int) -> Unit)? = null, onBack: () -> Unit = viewerBackAction(), modifier: Modifier = Modifier, onPageChange: (Int) -> Unit = {}, strings: FluidViewerStrings = FluidViewerStrings(), renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, visible -> ViewerBody(file, visible) }, onDismissRequest: (() -> Unit)?)` — Standalone variant. With [onDismissRequest], a downward drag or an inward pinch at 1× shrinks the media into the underlying app and calls the owner after the exit. Pass null, or use the overload without the callback, to leave standalone dismissal off. Inside a page host its route owns dismissal. [onBack] continues to handle the explicit back button. Video playback controls stay outside the zoom.
+
+## `engine-ui/ui/fluid/viewer/FluidGridPreset.kt`
+
+- `data class FluidGridPresetStrings(val empty: String = "Foglio vuoto", val noSheets: String = "Nessun foglio", val error: String = "Impossibile leggere le celle", val retry: String = "Riprova", val sheets: String = "Fogli", val sheet: (name: String, current: Int, count: Int) -> String = { name, current, count -> "$name, foglio $curre…, val row: (row: Int) -> String = { "Riga $it" }, val scrollEnd: String = "Colonne successive", val scrollStart: String = "Colonne precedenti", val zoomIn: String = "Ingrandisci", val zoomOut: String = "Riduci", val zoom: (percent: Int) -> String = { "Zoom $it%" })` — Labels of the grid preset. Numbers passed to labels are one based.
+- `@Composable fun FluidGridPreset(content: FluidViewerContent.Grid, chromeVisible: Boolean, modifier: Modifier = Modifier, strings: FluidGridPresetStrings = FluidGridPresetStrings())` — A spreadsheet or a table ([FluidViewerContent.Grid]) inside the [FluidFileViewer] renderer slot: rows scroll vertically, columns sideways (the pager takes over at the edges), a pinch changes the zoom from half to four times. The frozen rows and columns of the sheet stay in place; merged cells draw once across their block.
 
 ## `engine-ui/ui/fluid/viewer/FluidImagePreset.kt`
 
@@ -334,12 +343,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/viewer/FluidMediaPreset.kt`
 
-- `data class FluidMediaPresetStrings(val play: String = "Riproduci", val pause: String = "Pausa", val position: String = "Posizione di riproduzione", val skipBack: String = "Indietro di 10 secondi", val skipForward: String = "Avanti di 10 secondi", val unknownDuration: String = "Durata sconosciuta", val time: (elapsed: String, total: String) -> String = { elapsed, total -> "$elapsed di $total" })` — Labels for the viewer's single set of playback controls. The time arguments are already formatted.
+- `data class FluidMediaPresetStrings(val play: String = "Riproduci", val pause: String = "Pausa", val position: String = "Posizione di riproduzione", val skipBack: String = "Indietro di 10 secondi", val skipForward: String = "Avanti di 10 secondi", val unknownDuration: String = "Durata sconosciuta", val time: (elapsed: String, total: String) -> String = { elapsed, total -> "$elapsed di $total" }, val skipSeconds: Int = 10, val chapters: String = "Capitoli")` — Labels for the viewer's single set of playback controls. The time arguments are already formatted.
 - `@Composable fun FluidMediaPreset(content: FluidViewerContent.Media, chromeVisible: Boolean, modifier: Modifier = Modifier, sampleVideo: Boolean = content.sampleVideo, strings: FluidMediaPresetStrings = FluidMediaPresetStrings())` — Video or audio controls for the [FluidFileViewer] renderer slot. Pass its `chromeVisible` unchanged so a tap on the file remains the sole toggle. Play, pause and seek operate on the owner's session, which also controls autoplay, errors, and release. The supplied video surface should have its own controls disabled.
 
 ## `engine-ui/ui/fluid/viewer/FluidPagesPreset.kt`
 
-- `data class FluidPagesPresetStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current/$count" }, val page: (current: Int, count: Int) -> String = { current, count -> "Pagina $current di $count"…, val thumbnails: String = "Miniature delle pagine", val empty: String = "Nessuna pagina", val loading: String = "Caricamento pagina", val error: String = "Impossibile mostrare la pagina", val retry: String = "Riprova", val zoomIn: String = "Ingrandisci", val zoomOut: String = "Riduci", val zoom: (percent: Int) -> String = { "Zoom $it%" })` — Labels for a document's pages and the available reading actions. Numbers passed to labels are one based.
+- `data class FluidPagesPresetStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" }, val page: (current: Int, count: Int) -> String = { current, count -> "Pagina $current di $count"…, val thumbnails: String = "Miniature delle pagine", val empty: String = "Nessuna pagina", val loading: String = "Caricamento pagina", val error: String = "Impossibile mostrare la pagina", val retry: String = "Riprova", val zoomIn: String = "Ingrandisci", val zoomOut: String = "Riduci", val zoom: (percent: Int) -> String = { "Zoom $it%" }, val find: String = "Trova", val searchError: String = "Impossibile cercare nel documento")` — Labels for a document's pages and the available reading actions. Numbers passed to labels are one based.
 - `@Composable fun FluidPagesPreset(content: FluidViewerContent.Pages, chromeVisible: Boolean, modifier: Modifier = Modifier, strings: FluidPagesPresetStrings = FluidPagesPresetStrings())` — A continuous vertical reader for the [FluidFileViewer] renderer slot. A pinch changes the width of the whole column, preserving its place in the vertical list. Open the thumbnail sheet to jump directly to a page. The source is borrowed for as long as this preset is composed. Use a new source when the document changes.
 
 ## `engine-ui/ui/fluid/viewer/FluidTextPreset.kt`
@@ -366,7 +375,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/viewer/FluidViewerChrome.kt`
 
-- `data class FluidViewerStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" }, val info: String = "Informazioni", val done: String = "Fine", val empty: String = "Nessun file", val showControls: String = "Mostra controlli", val hideControls: String = "Nascondi controlli")`
+- `data class FluidViewerStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" }, val info: String = "Informazioni", val done: String = "Fine", val empty: String = "Nessun file", val showControls: String = "Mostra controlli", val hideControls: String = "Nascondi controlli", val close: String = "Chiudi", val copy: String = "Copia valore", val file: String = "File", val name: String = "Nome", val type: String = "Tipo", val size: String = "Dimensione", val openWith: String = "Apri con…", val share: String = "Condividi", val actionFailed: String = "Impossibile completare l’azione", val pages: (Int) -> String = { "$it pagine" }, val lines: (Int) -> String = { "$it righe" }, val location: String = "Luogo", val coordinates: String = "Coordinate", val openMap: String = "Apri in Mappe", val chapters: String = "Capitoli")`
 - `class FluidViewerToolsScope internal constructor()`
   - `fun tool(id: String, icon: ImageVector, label: String, actions: FluidToolbarScope.(index: Int) -> Unit = {}, content: @Composable (index: Int) -> Unit)` — Stable [id] restores the editor after recreation. Its actions share one capsule with Done.
 
@@ -388,13 +397,68 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val count: Int`
   - `suspend fun size(index: Int): IntSize`
   - `suspend fun render(index: Int, target: IntSize): ImageBitmap`
+  - `val countFinal: Boolean get()` — False while [count] can still grow (a document being laid out). Publish it as Compose state.
+  - `suspend fun sheet(index: Int): FluidPageSheet` — The sheet of page [index]: its exact measure, its margins and the paper it is printed on. Every section of a document may change sheet and orientation. The default is [size] on white paper, without margins (a PDF).
+- `data class FluidPageSheet(val width: Float, val height: Float, val margins: FluidPageMargins = FluidPageMargins.None, val paper: Color = Color.White)` — The sheet of a page, as the document declares it: [width] and [height] in points (1/72 inch, 72 dpi), the [margins] in points and the [paper] colour behind the ink (also the colour to show while the page renders).
+  - `val aspectRatio: Float get()` — Width over height, the only number the page preset needs.
+  - `companion object`
+    - `val A4: FluidPageSheet` — ISO A4, 210 × 297 mm.
+    - `val Letter: FluidPageSheet` — US Letter, 8.5 × 11 in.
+- `data class FluidPageMargins(val left: Float = 0f, val top: Float = 0f, val right: Float = 0f, val bottom: Float = 0f)` — The margins of a [FluidPageSheet] in points, on the physical sides of the paper.
+  - `companion object`
+    - `val None: FluidPageMargins`
 - `interface FluidTextSource` — Read at most [count] lines from a zero-based offset. A short chunk marks the end of the file.
   - `val language: String? get()`
   - `val lineCount: Int? get()`
   - `suspend fun readLines(start: Int, count: Int): List<String>`
+- `interface FluidGridSource` — F6C.8 · A table of cells in one or more sheets: a spreadsheet (XLSX, ODS) from the Office family, a CSV or TSV from the data family. Rows and columns are zero based. [sheets] may grow while the file is read: publish it as Compose state. [cells] is safe to call on the main dispatcher; it reads a block and returns only the cells that have something to show (text, fill or borders), in any order.
+  - `val sheets: List<FluidGridSheet>`
+  - `suspend fun cells(sheet: Int, rows: IntRange, columns: IntRange): List<FluidGridCell>`
+- `data class FluidGridSheet(val name: String, val rowCount: Int, val columnCount: Int, val frozenRows: Int = 0, val frozenColumns: Int = 0, val columnWidth: Float = DefaultColumnWidth, val rowHeight: Float = DefaultRowHeight, val columnWidths: Map<Int, Float> = emptyMap(), val rowHeights: Map<Int, Float> = emptyMap(), val merges: List<FluidGridRange> = emptyList(), val headers: Boolean = true, val countFinal: Boolean = true, val color: Color? = null)` — A sheet of a [FluidGridSource]. Lengths are dp at 100% zoom (a spreadsheet's pixels at 100%): [columnWidth] and [rowHeight] by default, [columnWidths] and [rowHeights] where a column or a row differs; zero hides it. The first [frozenRows] and [frozenColumns] stay in place while the rest scrolls. [headers] shows the column letters and the row numbers of a spreadsheet;
+  - `companion object`
+    - `const val DefaultColumnWidth: Float` — 80 × 24 dp: a spreadsheet's default column and row at 100% with room for a finger. A occhio, 22 novembre 2026.
+    - `const val DefaultRowHeight: Float`
+- `data class FluidGridRange(val firstRow: Int, val firstColumn: Int, val lastRow: Int, val lastColumn: Int)` — A block of cells, both ends included: a merged cell, or a selection.
+  - `operator fun contains(cell: Pair<Int, Int>): Boolean`
+- `data class FluidGridCell(val row: Int, val column: Int, val text: String, val style: FluidGridStyle = FluidGridStyle.Default, val numeric: Boolean = false)` — One cell as it shows: [text] is the value already formatted by the family (the saved result of a formula, a date in its format). [numeric] aligns it to the end when [FluidGridStyle.horizontal] is null, as spreadsheets do.
+- `data class FluidGridStyle(val bold: Boolean = false, val italic: Boolean = false, val underline: Boolean = false, val strikethrough: Boolean = false, val color: Color = Color.Unspecified, val fill: Color = Color.Unspecified, val horizontal: Alignment.Horizontal? = null, val vertical: Alignment.Vertical = Alignment.Bottom, val wrap: Boolean = false, val fontScale: Float = 1f, val borders: FluidGridBorders = FluidGridBorders.None)` — How a cell looks. Unspecified colours take the theme's (ink, no fill, no border). [horizontal] null is automatic: numbers at the end, text at the start. [fontScale] multiplies the grid's text size.
+  - `companion object`
+    - `val Default: FluidGridStyle`
+- `data class FluidGridBorders(val top: Color = Color.Unspecified, val bottom: Color = Color.Unspecified, val left: Color = Color.Unspecified, val right: Color = Color.Unspecified)` — The lines around a cell, one colour per side; unspecified draws only the grid's own hairline.
+  - `companion object`
+    - `val None: FluidGridBorders`
+- `value class FluidViewerBackground private constructor(private val id: Int)` — The page colour of a [FluidViewerContent.Custom]: the theme's surface for documents and data, or black, as photos and videos (scelta di Alessio del 21 novembre). Not an `enum` on purpose (rule 3.11): another value is a constant.
+  - `companion object`
+    - `val Theme: FluidViewerBackground`
+    - `val Black: FluidViewerBackground`
+- `interface FluidViewerFind` — «Trova» on a [FluidViewerContent.Custom] page (F6B.6). The frame shows the button and the field above the keyboard; the page searches its own content and highlights the [navigation]'s current match. Publish [query] and [navigation] as Compose state.
+  - `val query: String`
+  - `fun onQueryChange(query: String)`
+  - `val navigation: FluidSearchNavigation`
+  - `val label: String get()` — The button's label.
+- `interface FluidViewerCustomScope` — What the frame tells a [FluidViewerContent.Custom] page while it draws.
+  - `val chromeVisible: Boolean` — False after a tap has hidden the bars.
+  - `val finding: Boolean` — True while «Trova» is open on this page.
+  - `val active: Boolean` — True on the settled page; false while the pager or a finger carries it away, and on the pages next to it.
+  - `val contentPadding: PaddingValues` — Below the top bar and above the bottom capsule (and above the keyboard while finding): where content can rest.
 - `interface FluidViewerContent` — An open contract so applications and future presets may supply another representation. The frame owns geometry and gestures. A renderer can read the sources without owning their lifecycle.
   - `class Image(val aspectRatio: Float? = null, val draw: @Composable () -> Unit) : FluidViewerContent`
   - `class Media(val session: FluidMediaSession, val sampleVideo: Boolean, val videoSurface: (@Composable () -> Unit)? = null, val artwork: (@Composable () -> Unit)? = null) : FluidViewerContent` — A non-null video surface identifies a video, even while it is buffering.
   - `class Pages(val source: FluidPageSource) : FluidViewerContent`
   - `class Text(val source: FluidTextSource) : FluidViewerContent`
   - `class Unknown(val info: FluidFileInfo, val openWith: (() -> Unit)? = null, val share: (() -> Unit)? = null) : FluidViewerContent`
+  - `class Grid(val source: FluidGridSource) : FluidViewerContent` — F6C.8 · A spreadsheet or a table: sheets of cells, frozen rows and columns, merges ([FluidGridSource]).
+  - `class Custom(val background: FluidViewerBackground = FluidViewerBackground.Theme, val find: FluidViewerFind? = null, val actions: FluidToolbarScope.() -> Unit = {}, val draw: @Composable FluidViewerCustomScope.() -> Unit) : FluidViewerContent` — F6C.8 · A page that a module draws itself with the engine's public components (an archive's list, a JSON tree, a book, a mail, a font, a 3D model). It declares its [background], whether it has «Trova» ([find]) and the [actions] it adds to the viewer's bar («Estrai tutto», «Albero | Testo», «Presenta»). The frame keeps the chrome, the pager, the info panel and dismissal;
+
+## `engine-ui/ui/fluid/viewer/FluidViewerInfo.kt`
+
+- `interface FluidMediaDurationLoader` — Optional player capability. Publish the result through durationMillis, without starting playback.
+  - `fun requestDuration()`
+- `data class FluidViewerInfoRow(val label: String, val value: String, val copyValue: String = value)`
+- `data class FluidViewerInfoSection(val title: String, val rows: List<FluidViewerInfoRow>, val content: (@Composable () -> Unit)? = null)`
+- `data class FluidAudioChapter(val title: String, val startMillis: Long)`
+- `data class FluidViewerInfoAction(val label: String, val onClick: () -> Unit)`
+- `data class FluidViewerLocation(val coordinates: String, val map: (@Composable () -> Unit)? = null, val openMap: (() -> Unit)? = null)` — Coordinates stay copyable when the app supplies a map. Navigation belongs to the app.
+- `data class FluidViewerInfo(val file: FluidFileInfo, val title: String = file.name, val subtitle: String? = null, val thumbnail: ImageBitmap? = null, val facts: List<String> = emptyList(), val sections: List<FluidViewerInfoSection> = emptyList(), val actions: List<FluidViewerInfoAction> = emptyList(), val audioWaveform: (@Composable () -> Unit)? = null, val location: FluidViewerLocation? = null, val reading: FluidViewerInfoSection? = null, val searchPages: (suspend (String) -> List<FluidViewerPageMatch>)? = null, val chapters: List<FluidAudioChapter> = emptyList())` — Metadata from the owner. A location section can contain coordinates and, optionally, the app's map. Supply a small [thumbnail] of the file, its cover or its application icon.
+- `data class FluidViewerPageMatch(val page: Int, val bounds: List<androidx.compose.ui.geometry.Rect>)` — Each rectangle is in page-relative coordinates (0..1), with the origin at the top left.
+- `@Composable fun FluidViewerInfoProvider(info: @Composable (Int) -> FluidViewerInfo?, content: @Composable () -> Unit)` — Associates rich metadata with pager indices, including when adjacent pages are composed together.

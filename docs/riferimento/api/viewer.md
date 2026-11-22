@@ -5,6 +5,85 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-viewer-3d/viewer/scene/FluidSceneFamily.kt`
+
+- `val FluidSceneViewerLicenses: List<FluidLicense>` — Licenze da aggiungere alla lista di [dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection].
+- `class FluidSceneFamily : FluidViewerFamily` — Famiglia opt-in dei modelli 3D, scoperta dal registro dei visori.
+
+## `engine-viewer-3d/viewer/scene/FluidSceneModel.kt`
+
+- `interface FluidSceneSource : FluidViewerSource` — Sorgente di un modello con file a fianco. L'app apre solo percorsi relativi nella cartella concessa.
+  - `suspend fun openRelative(path: String): InputStream?`
+- `data class FluidSceneStats(val triangles: Long, val vertices: Long, val materials: Int, val textures: Int, val animations: Int, val width: Double, val height: Double, val depth: Double)` — Contatori e misure del glTF preparato, nelle unità originali del modello.
+- `class FluidSceneModel internal constructor(private val bytes: ByteArray, private val sidecars: Map<String, ByteArray>, val stats: FluidSceneStats)` — Modello riusabile, letto senza Filament. [load] crea un'istanza per l'engine dell'app, senza applicare l'inquadratura o il piano d'ombra del visore. Funziona anche dopo la chiusura della sorgente.
+  - `fun load(engine: Engine): FluidLoadedScene` — Da chiamare sul thread dell'engine. L'istanza va chiusa sullo stesso thread, prima dell'engine.
+  - `companion object`
+    - `const val MaxTriangles` — Tetto del visore per glTF e GLB. Si contano anche le istanze ripetute della stessa mesh.
+- `class FluidLoadedScene internal constructor(val asset: FilamentAsset, private val loader: AssetLoader, private val resources: ResourceLoader, private val materials: UbershaderProvider) : Closeable` — Istanza legata a un engine Filament. L'app può usare [asset] e collegarlo a una scena qui o nel proprio renderer.
+  - `fun attach(scene: Scene)`
+  - `fun detach(scene: Scene)`
+  - `fun updateResources(): Float` — Da chiamare a ogni fotogramma fino a 1, mentre Filament decodifica le texture.
+- `suspend fun openFluidSceneModel(source: FluidViewerSource): FluidSceneModel` — Prepara GLB, glTF, OBJ o STL. Chi chiama mantiene la proprietà della sorgente e la chiude quando gli serve.
+
+## `engine-viewer-archive/viewer/archive/FluidArchiveFamily.kt`
+
+- `data class FluidArchiveEntry(val path: String, val sizeBytes: Long?)` — A regular file that the archive can safely offer to the app's extraction destination. [path] is relative.
+- `data class FluidArchiveProgress(val completedFiles: Int, val totalFiles: Int, val writtenBytes: Long)` — Results written so far by [FluidArchiveExtraction.writeFiles]. Totals exclude links and unsafe entries.
+- `class FluidArchiveExtraction internal constructor(val files: List<FluidArchiveEntry>, private val copy: suspend (suspend (FluidArchiveEntry) -> OutputStream) -> Unit)` — The app chooses a destination and owns its I/O policy, collision handling and rollback. Use [writeFiles] once, after choosing the destination, inside the extraction callback. Each output is closed after its file. An error or cancellation can leave partial output in the app's destination. Empty folders are omitted.
+  - `suspend fun writeFiles(openOutput: suspend (FluidArchiveEntry) -> OutputStream)`
+- `class FluidArchiveFamily @JvmOverloads constructor(private val onExtractAll: (suspend (FluidArchiveExtraction) -> Unit)? = null) : FluidViewerFamily` — Optional archive viewer discovered automatically by [FluidViewerRegistry]. Install a configured instance with `FluidViewerRegistry.install(FluidArchiveFamily(onExtractAll = …))` when the app offers «Estrai tutto». The callback runs on the UI dispatcher, and [FluidArchiveExtraction.writeFiles] copies on the I/O dispatcher.
+- `@Composable fun FluidViewerDocument.fluidArchiveViewerInfo(): FluidViewerInfo?` — Use in `FluidViewerInfoProvider` to show the archive facts, sections, and available actions.
+- `class ArchivePreviewProvider : FileProvider()` — A dedicated, non-exported FileProvider grants read access only to previews explicitly sent out of the viewer.
+
+## `engine-viewer-archive/viewer/archive/FluidArchiveLicenses.kt`
+
+- `val FluidArchiveLicenses: List<FluidLicense>` — Add to `FluidEngineLicenses` in `fluidLicensesSection(licences = …)` when the app includes the archive family.
+
+## `engine-viewer-data/viewer/data/FluidDataFamily.kt`
+
+- `class FluidDataFamily(val settings: FluidDataSettings = FluidDataSettings()) : FluidViewerFamily` — F6C.13 · La famiglia «data» dei visori: testi ricchi e dati, con una **lettura propria** sopra engine-ui (`docs/liquid-glass/ricerca/visori-2.md` §1.3). Si registra da sola con `META-INF/services`: basta la dipendenza `implementation project(':engine-viewer-data')`, o `engine-viewer-all`.
+  - `companion object`
+    - `const val Id: String` — L'id della famiglia, nel pannello info e in `FluidViewerType.family`.
+    - `const val Markdown: String`
+    - `const val Html: String`
+    - `const val Csv: String`
+    - `const val Tsv: String`
+    - `const val Json: String`
+    - `const val Ndjson: String`
+    - `const val Xml: String`
+    - `const val Plist: String`
+    - `const val Epub: String`
+    - `const val Eml: String`
+    - `const val Ics: String`
+    - `const val Vcf: String`
+
+## `engine-viewer-data/viewer/data/FluidDataInfo.kt`
+
+- `fun fluidDataViewerInfo(document: FluidViewerDocument, actions: List<FluidViewerInfoAction> = emptyList(), thumbnail: ImageBitmap? = null): FluidViewerInfo` — F6C.13 · Il pannello info (D · Mix, `visori-2.md` §5.2) di un documento aperto dal registro: i [FluidViewerDetail] della famiglia diventano un `FluidViewerInfo`. Le righe senza sezione sono i **fatti in capsule** (il loro valore), le altre le **sezioni**, nell'ordine in cui arrivano; [actions] sono quelle dell'app («Apri con…», «Condividi»).
+- `fun fluidDataViewerInfo(file: FluidFileInfo, details: List<FluidViewerDetail>, label: String? = null, actions: List<FluidViewerInfoAction> = emptyList(), thumbnail: ImageBitmap? = null): FluidViewerInfo` — Lo stesso, da un [FluidFileInfo] e da una lista di dettagli (per un'app che li tiene da sé).
+
+## `engine-viewer-data/viewer/data/FluidDataSettings.kt`
+
+- `data class FluidDataSettings(val resources: ((source: FluidViewerSource, path: String) -> InputStream?)? = null, val remoteImages: ((Uri) -> FluidWebResponse)? = null, val openLink: ((String) -> Unit)? = null, val openFile: ((name: String, mimeType: String?, file: File) -> Unit)? = null, val strings: FluidDataStrings = FluidDataStrings())` — F6C.13 · Ciò che un'app può dare alla famiglia «data». Di serie niente: la famiglia trovata con `ServiceLoader` apre ogni file da sola, **senza rete** e senza leggere fuori dal file. Un'app che vuole di più installa un'istanza sua:
+- `data class FluidDataStrings(val rendered: String = "Reso", val source: String = "Sorgente", val tree: String = "Albero", val text: String = "Testo", val find: String = "Trova", val showMore: (shown: Int, total: Int) -> String = { shown, total -> "Mostra altri ${minOf(DataPro…, val truncated: (nodes: Int) -> String = { "Il file continua: mostrati i primi ${DataTex…, val invalid: String = "Il file non è valido", val showInText: String = "Mostra nel testo", val loadImages: String = "Carica immagini", val remoteBlocked: (count: Int) -> String = { if (it == 1) "1 immagine remota bloccata" els…, val contents: String = "Indice", val previousChapter: String = "Capitolo precedente", val nextChapter: String = "Capitolo successivo", val chapter: (current: Int, count: Int, percent: Int) -> String = { current, count, percent -> "Capitolo $current…, val attachments: String = "Allegati", val backToMessage: String = "Torna al messaggio", val from: String = "Da", val to: String = "A", val cc: String = "Cc", val date: String = "Data", val noSubject: String = "(senza oggetto)", val addToCalendar: String = "Aggiungi al calendario", val addToContacts: String = "Aggiungi ai contatti", val allDay: String = "Tutto il giorno", val copied: String = "Copiato", val empty: String = "Il file è vuoto", val webFailed: String = "La pagina non si può mostrare qui", val loading: String = "Caricamento", val protectedTitle: String = "Protetto da DRM", val openWith: String = "Apri con…", val share: String = "Condividi")` — Le parole delle pagine della famiglia «data». Come le altre `Fluid*Strings`: un'app tradotta le passa tutte.
+
+## `engine-viewer-graphics/viewer/graphics/FluidGraphicsFamily.kt`
+
+- `val FluidGraphicsViewerLicenses: List<FluidLicense>` — Licenze da aggiungere alla lista di [dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection].
+- `class FluidGraphicsFamily : FluidViewerFamily` — Famiglia opt-in delle immagini speciali e dei caratteri, scoperta dal registro dei visori.
+
+## `engine-viewer-office/viewer/office/FluidOfficeFamily.kt`
+
+- `class FluidOfficeFamily : FluidViewerFamily` — Optional offline Office readers. ServiceLoader discovers this class when the application includes the module.
+
+## `engine-viewer-office/viewer/office/OfficeDocument.kt`
+
+- `val FluidOfficeLicenses: List<FluidLicense>` — Pass FluidEngineLicenses + FluidOfficeLicenses to fluidLicensesSection when distributing Office.
+
+## `engine-viewer-office/viewer/office/OfficeViewerInfo.kt`
+
+- `fun FluidViewerDocument.officeInfo(): FluidViewerInfo` — Metadata for FluidViewerInfoProvider. Read it inside composition to follow progressive pagination.
+
 ## `engine-viewer/viewer/FluidDecodedImage.kt`
 
 - `class FluidDecodedImage private constructor(val width: Int, val height: Int, val sourceWidth: Int, val sourceHeight: Int, private val bitmap: ImageBitmap?, val animation: Drawable?)` — Un'immagine decodificata dal modulo, ferma o animata, pronta per il preset immagine.
@@ -27,7 +106,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-viewer/viewer/FluidMedia3.kt`
 
-- `class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeometry, AutoCloseable` — Il `Player` di Media3 dell'app come `FluidMediaSession` del visore. Il player resta **dell'app**: lo crea, lo prepara, sceglie il file e lo rilascia lei; la sessione lo legge e gli passa play, pausa e salto.
+- `class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidMediaDurationLoader, FluidVideoGeometry, AutoCloseable` — Il `Player` di Media3 dell'app come `FluidMediaSession` del visore. Il player resta **dell'app**: lo crea, lo prepara, sceglie il file e lo rilascia lei; la sessione lo legge e gli passa play, pausa e salto.
   - `var buffering: Boolean by mutableStateOf(false)` — Vero mentre il player carica (`STATE_BUFFERING`).
   - `var ended: Boolean by mutableStateOf(false)` — Vero quando il file è finito (`STATE_ENDED`): [play] riparte da capo.
   - `fun attach()` — Comincia ad ascoltare il player. Si chiama una volta; [close] smette.
@@ -125,13 +204,32 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Unsupported: FluidViewerFailure` — La piattaforma non sa decodificare questo tipo (un HEIF sotto Android 9, un formato sconosciuto).
 - `class FluidViewerException(val failure: FluidViewerFailure, message: String, cause: Throwable? = null) : IOException(message, cause)` — Un file che il modulo non ha potuto aprire, con il motivo.
 
+## `engine-viewer/viewer/FluidViewerFamily.kt`
+
+- `interface FluidViewerFamily` — F6C.8 · Una famiglia di tipi in un modulo facoltativo (`engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`). **Si registra da sola**: il modulo la dichiara in `META-INF/services/dev.antigravity.fluidengine.viewer.FluidViewerFamily` e [FluidViewerRegistry] la trova con `ServiceLoader` la prima volta che risolve. Basta la dipendenza Gradle;
+  - `val id: String` — «office», «archive», «data», «graphics», «3d»: unico; compare nel pannello info (`FluidViewerType.family`).
+  - `val types: List<FluidViewerFamilyType>` — I tipi che sa aprire, ognuno con le sue regole di riconoscimento.
+  - `suspend fun open(request: FluidViewerRequest): FluidViewerOpened?` — Apre il file di [FluidViewerRequest.source] come [FluidViewerRequest.type]. `null`, oppure una [FluidViewerException], vuol dire «non questo»: il registro prova il candidato dopo, e tiene la prima eccezione come motivo. Un'altra eccezione vale come un file rotto ([FluidViewerFailure.Corrupt]). La sorgente non si chiude qui: è del documento, che la chiude con [FluidViewerOpened.close].
+  - `suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap?` — La miniatura per la griglia dell'app e per l'apertura (F6C.10), larga al più [sizePx]. `null`: l'icona del tipo.
+- `data class FluidViewerFamilyType(val id: String, val label: String, val extensions: Set<String> = emptySet(), val mimeTypes: Set<String> = emptySet(), val signature: FluidViewerSignature? = null, val kind: FluidFileKind = FluidFileKind.Document, val priority: Int = 0, val preset: FluidViewerPreset = FluidViewerPreset.Custom)` — Un tipo di una [FluidViewerFamily] e come si riconosce. Il registro sceglie fra i candidati con quest'ordine: **la firma** ([signature], dai primi byte o da una voce del pacchetto ZIP) vale più dell'**estensione** ([extensions], senza il punto), che vale più del **MIME** ([mimeTypes]; «image/» seguito dall'asterisco vale per il gruppo);
+- `class FluidViewerSignature private constructor(private val offset: Int, private val bytes: ByteArray?, private val entries: List<String>, private val alternatives: List<FluidViewerSignature>)` — Come si riconosce un tipo dai suoi byte. Due specie: - **i primi byte** ([bytes], [ascii]) a una posizione, entro i primi [HeaderBytes]; - **una voce del pacchetto** ([zipEntry]): il file è uno ZIP e il suo indice ha quella voce. Vale più dei primi byte, perché dice cosa c'è dentro: un DOCX è anche uno ZIP, e vince chi lo riconosce come Word.
+  - `companion object`
+    - `const val HeaderBytes: Int` — Quanti byte di testa legge il registro: le firme stanno qui dentro (il TAR, a 257, ci sta).
+    - `fun bytes(vararg bytes: Int, offset: Int = 0): FluidViewerSignature` — I byte [bytes] (0–255) a partire da [offset].
+    - `fun ascii(text: String, offset: Int = 0): FluidViewerSignature` — Il testo [text] in ASCII a partire da [offset] («%PDF-», «glTF», «8BPS»).
+    - `fun zipEntry(vararg names: String): FluidViewerSignature` — Uno ZIP con almeno una di queste voci; un nome che finisce con «/» vale per ogni voce sotto quella cartella.
+    - `fun anyOf(vararg signatures: FluidViewerSignature): FluidViewerSignature` — Una qualunque di queste: vale la più forte che si riconosce.
+- `class FluidViewerRequest internal constructor(val context: Context, val source: FluidViewerSource, val type: FluidViewerFamilyType, val options: FluidViewerOptions, val openWith: (() -> Unit)?, val share: (() -> Unit)?, val media: ((FluidViewerType) -> FluidViewerContent?)?)` — Quello che una famiglia riceve per aprire un file: la [source] (che resta del documento), il [type] riconosciuto, i tetti dell'app in [options] e il suo [context] (l'applicazione). [openWith], [share] e [media] sono quelli che l'app ha dato al registro: una famiglia che apre un file dentro il suo (la voce di un archivio, un allegato) li passa a [FluidViewerRegistry.open] insieme a una nuova [FluidViewerSource].
+- `class FluidViewerOpened(val content: FluidViewerContent, val details: List<FluidViewerDetail> = emptyList(), private val onClose: () -> Unit = {}) : Closeable` — Un file aperto da una famiglia: il [content] per il visore (`Pages`, `Grid`, `Text`, `Image`, `Custom`…), i [details] per il pannello info («Pagine 9», «Calibri → Carlito») e la chiusura ([onClose]), che il documento chiama una volta sola quando la pagina esce.
+- `data class FluidViewerDetail(val label: String, val value: String, val section: String? = null)` — Una riga del pannello info: «Pagine» → «9». [section] le raggruppa («Documento», «Caratteri»), `null` in testa.
+
 ## `engine-viewer/viewer/FluidViewerFiles.kt`
 
 - `data class FluidViewerFile(val uri: Uri, val name: String, val mimeType: String? = null, val sizeBytes: Long? = null)` — Un file da mostrare: dove sta e cosa ne sa l'app. [sizeBytes] `null` è ignoto, zero è vuoto.
   - `val info: FluidFileInfo get()` — Le informazioni per lo sconosciuto e per il pannello: nome, MIME, dimensione e il tipo di `FluidFileKind`.
   - `val type: FluidViewerType get()` — Il tipo per il visore, da MIME e nome (senza leggere il file).
-- `data class FluidViewerOptions(val textLimitBytes: Int = FluidTextDocument.DefaultLimitBytes, val textMaxLineChars: Int = FluidTextDocument.DefaultMaxLineChars, val imageMaxPixels: Long = FluidDecodedImage.DefaultMaxPixels, val animateImages: Boolean = true, val pdfMaxCopyBytes: Long = FluidPdfPageSource.DefaultMaxCopyBytes)` — I tetti con cui il modulo apre un file. I valori di serie sono quelli dei singoli decodificatori.
-- `class FluidViewerDocument internal constructor(val file: FluidViewerFile, val type: FluidViewerType, val content: FluidViewerContent, val failure: FluidViewerException?, private val resource: Closeable?) : Closeable` — Un file aperto dal modulo: il contenuto per il visore, il tipo, e se qualcosa è andato storto il motivo. Va chiuso quando la pagina esce ([close]): libera il PDF e le sue copie. Il ripiego è sempre lo sconosciuto con «Apri con…» e «Condividi» dell'app, mai un vicolo cieco.
+- `data class FluidViewerOptions(val textLimitBytes: Int = FluidTextDocument.DefaultLimitBytes, val textMaxLineChars: Int = FluidTextDocument.DefaultMaxLineChars, val imageMaxPixels: Long = FluidDecodedImage.DefaultMaxPixels, val animateImages: Boolean = true, val pdfMaxCopyBytes: Long = FluidPdfPageSource.DefaultMaxCopyBytes, val sourceMaxCopyBytes: Long = FluidViewerSource.DefaultMaxCopyBytes)` — I tetti con cui il modulo apre un file. I valori di serie sono quelli dei singoli decodificatori.
+- `class FluidViewerDocument internal constructor(val file: FluidViewerFile, val type: FluidViewerType, val content: FluidViewerContent, val failure: FluidViewerException?, private val resource: Closeable?, val details: List<FluidViewerDetail> = emptyList()) : Closeable` — Un file aperto dal modulo: il contenuto per il visore, il tipo, e se qualcosa è andato storto il motivo. Va chiuso quando la pagina esce ([close]): libera il PDF e le sue copie. Il ripiego è sempre lo sconosciuto con «Apri con…» e «Condividi» dell'app, mai un vicolo cieco.
 - `suspend fun fluidReadTextFile(context: Context, uri: Uri, fileName: String, mimeType: String? = null, sizeBytes: Long? = null, limitBytes: Int = FluidTextDocument.DefaultLimitBytes, maxLineChars: Int = FluidTextDocument.DefaultMaxLineChars): FluidTextDocument?` — Legge un file di testo da un `Uri`, con [FluidTextDecoder.read]; `null` se i byte non sono testo.
 - `suspend fun FluidViewerFile.open(context: Context, options: FluidViewerOptions = FluidViewerOptions(), openWith: (() -> Unit)? = null, share: (() -> Unit)? = null, media: ((FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerDocument` — Apre [FluidViewerFile] col decodificatore del suo tipo: l'immagine (anche animata), il PDF, il testo. Un video o un audio ha bisogno del player dell'app: [media] lo trasforma in contenuto (per esempio con [fluidMedia3Content]), e senza [media] il file va allo sconosciuto.
 - `class FluidViewerFiles internal constructor(private val context: Context, private val scope: CoroutineScope)` — I file di un visore, aperti col modulo attorno alla pagina corrente: [content] dà il contenuto della pagina, e la prima volta comincia ad aprirla. Tiene aperti i file entro [window] pagine dall'ultima chiesta e chiude gli altri (un PDF lontano non tiene il suo renderer). Si crea con [rememberFluidViewerFiles]:
@@ -140,9 +238,32 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun content(index: Int): FluidViewerContent` — Il contenuto della pagina [index]. La prima volta comincia ad aprire il file e chiude quelli lontani.
 - `@Composable fun rememberFluidViewerFiles(files: List<FluidViewerFile>, options: FluidViewerOptions = FluidViewerOptions(), window: Int = 1, openWith: ((FluidViewerFile) -> Unit)? = null, share: ((FluidViewerFile) -> Unit)? = null, media: ((FluidViewerFile, FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerFiles` — I file di [files] per il visore, aperti col modulo attorno alla pagina corrente e chiusi quando la composizione esce. [media] dà il contenuto di un video o di un audio col player dell'app (per esempio `{ _, type -> fluidMedia3Content(session, video = type.preset == FluidViewerPreset.Video) }`); senza, i video vanno allo sconosciuto. [openWith] e [share] diventano «Apri con…» e «Condividi» dello sconosciuto.
 
+## `engine-viewer/viewer/FluidViewerRegistry.kt`
+
+- `object FluidViewerRegistry` — F6C.8 · Il registro dei moduli dei visori. Un modulo di famiglia aggiunge i suoi tipi al risolutore **senza toccarlo**: basta che dichiari la sua [FluidViewerFamily] in `META-INF/services`, e il registro la trova con `ServiceLoader` la prima volta che serve. Niente App Startup, niente codice nell'`Application`.
+  - `val families: List<FluidViewerFamily>` — Le famiglie trovate con `ServiceLoader` (`META-INF/services`), più quelle installate a mano con [install], meno quelle tolte con [uninstall]. Una famiglia installata con l'`id` di una trovata la sostituisce.
+  - `fun install(vararg family: FluidViewerFamily)` — Aggiunge famiglie a mano: per i test, e per chi vuole un'istanza configurata al posto di quella trovata.
+  - `fun uninstall(vararg id: String)` — Toglie le famiglie con questi `id`, trovate o installate: il loro tipo torna allo sconosciuto.
+  - `suspend fun open(context: Context, source: FluidViewerSource, options: FluidViewerOptions = FluidViewerOptions(), openWith: (() -> Unit)? = null, share: (() -> Unit)? = null, media: ((FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerDocument` — Apre [source] con il risolutore: un tipo di famiglia se un modulo lo conosce, altrimenti i preset di serie, e lo sconosciuto con «Apri con…» se niente lo apre. Serve anche ai moduli per i file dentro i file (la voce di un archivio, l'allegato di una mail): un PDF dentro uno ZIP usa il preset PDF, un DOCX allegato usa Office se c'è. Il documento **possiede** la sorgente e la chiude con sé;
+  - `suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap?` — La miniatura di [source] dalla famiglia che lo apre, larga al più [sizePx]; `null` se nessuna famiglia ne dà una (per le foto e i PDF la miniatura è dell'app). Non chiude [source].
+
+## `engine-viewer/viewer/FluidViewerSource.kt`
+
+- `interface FluidViewerSource : Closeable` — Il file da aprire con il registro (F6C.8): un `Uri` dell'app, un file suo, una voce di un archivio, un allegato. Si legge sempre dall'inizio con [open]; chi ha bisogno di spostarsi (uno ZIP, il `PdfRenderer`) chiede [seekable].
+  - `val name: String` — Il nome con l'estensione vera, come lo vede chi usa l'app.
+  - `val mimeType: String? get()`
+  - `val sizeBytes: Long? get()` — `null` è ignoto, zero è vuoto.
+  - `suspend fun open(): InputStream`
+  - `suspend fun seekable(): ParcelFileDescriptor`
+  - `companion object`
+    - `const val DefaultMaxCopyBytes: Long` — Il tetto della copia di una sorgente che non si può spostare: 512 MB come il PDF di F6C.4, a occhio, 22 novembre 2026. Più grande, `FluidViewerFailure.TooLarge`: è un caso da «Apri con…».
+    - `fun of(context: Context, uri: Uri, name: String, mimeType: String? = null, sizeBytes: Long? = null, maxCopyBytes: Long = DefaultMaxCopyBytes): FluidViewerSource` — Un `Uri` (`content://`, `file://`, `android.resource://`). [seekable] apre il descrittore del provider e, se è una pipe o un flusso, copia il file nella cache dell'app (`cacheDir/fluid-viewer`), al più [maxCopyBytes].
+    - `fun of(file: File, name: String = file.name, mimeType: String? = null, deleteOnClose: Boolean = false): FluidViewerSource` — Un file dell'app. Con [deleteOnClose] il file si cancella alla chiusura (una voce estratta in cache).
+    - `fun of(name: String, cacheDir: File, mimeType: String? = null, sizeBytes: Long? = null, maxCopyBytes: Long = DefaultMaxCopyBytes, read: suspend () -> InputStream): FluidViewerSource` — Un flusso che si può solo leggere dall'inizio (una voce di un archivio, un allegato decodificato): [open] lo chiede di nuovo a [read] ogni volta, [seekable] lo copia una volta in [cacheDir], al più [maxCopyBytes].
+
 ## `engine-viewer/viewer/FluidViewerType.kt`
 
-- `value class FluidViewerPreset private constructor(private val id: Int)` — Quale preset del visore mostra un file: [Image], [Video], [Audio], [Pages], [Text] o [Unknown].
+- `value class FluidViewerPreset private constructor(private val id: Int)` — Quale preset del visore mostra un file: [Image], [Video], [Audio], [Pages], [Text], [Grid], [Custom] o [Unknown].
   - `companion object`
     - `val Image: FluidViewerPreset` — Una foto, anche animata (GIF, WebP): `FluidViewerContent.Image`.
     - `val Video: FluidViewerPreset` — Un video: `FluidViewerContent.Media` con la superficie. Il player è dell'app.
@@ -150,7 +271,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Pages: FluidViewerPreset` — Un documento a pagine (PDF): `FluidViewerContent.Pages`.
     - `val Text: FluidViewerPreset` — Testo e codice: `FluidViewerContent.Text`.
     - `val Unknown: FluidViewerPreset` — Tutto il resto, e ogni eseguibile: `FluidViewerContent.Unknown`, con «Apri con…». Mai un vicolo cieco.
-- `data class FluidViewerType(val preset: FluidViewerPreset, val kind: FluidFileKind, val mimeType: String?, val language: String?)` — Il tipo di un file per il visore, deciso da MIME, nome e, solo quando i due tacciono, dai primi byte.
+    - `val Grid: FluidViewerPreset` — F6C.8 · Un foglio di calcolo o una tabella (XLSX, ODS, CSV): `FluidViewerContent.Grid`. Lo danno le famiglie.
+    - `val Custom: FluidViewerPreset` — F6C.8 · Una pagina disegnata dal modulo (archivio, albero JSON, EPUB, font, 3D): `FluidViewerContent.Custom`.
+- `data class FluidViewerType(val preset: FluidViewerPreset, val kind: FluidFileKind, val mimeType: String?, val language: String?, val family: String? = null, val label: String? = null, val familyType: String? = null)` — Il tipo di un file per il visore, deciso da MIME, nome e, solo quando i due tacciono, dai primi byte.
   - `val executable: Boolean get()` — Vero se il file è un eseguibile: il preset è sempre [FluidViewerPreset.Unknown] e mostra l'avviso.
   - `companion object`
     - `fun of(mimeType: String?, fileName: String, header: ByteArray? = null): FluidViewerType` — Risolve un file. Precedenza, come in `FluidFileKind.from`: l'eseguibile vince sempre; poi l'estensione (l'ultima: `archivio.tar.gz` è `gz`), poi il MIME, poi la firma dei primi byte ([header], se c'è). Un MIME con parametri o in maiuscolo (`Text/Plain; charset=UTF-8`) vale come quello pulito; un MIME generico o malformato vale come nessun MIME. Un MIME in conflitto con l'estensione perde, salvo che sia eseguibile.

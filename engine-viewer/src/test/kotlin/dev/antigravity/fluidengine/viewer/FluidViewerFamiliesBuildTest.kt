@@ -42,7 +42,14 @@ class FluidViewerFamiliesBuildTest {
       assertTrue("${f.module}: il peso", f.weight.isNotBlank())
     }
     // Le librerie esterne scelte da Alessio il 22 novembre, ognuna nella sua famiglia sola.
-    assertEquals(listOf("me.zhanghai.android.libarchive:library"), families.single { it.family == "archive" }.libraries)
+    // Archivi: libarchive, piu' il ripiego per i soli 7z cifrati approvato il 22 novembre (F6C.12) con le sue dipendenze.
+    assertEquals(
+      listOf(
+        "me.zhanghai.android.libarchive:library", "org.apache.commons:commons-compress", "org.tukaani:xz",
+        "commons-io:commons-io", "commons-codec:commons-codec", "org.apache.commons:commons-lang3",
+      ),
+      families.single { it.family == "archive" }.libraries,
+    )
     assertEquals(listOf("com.caverock:androidsvg-aar", "androidx.exifinterface:exifinterface"), families.single { it.family == "graphics" }.libraries)
     assertTrue(families.single { it.family == "3d" }.libraries.all { it.startsWith("com.google.android.filament:") })
     assertEquals(emptyList<String>(), families.single { it.family == "office" }.libraries)

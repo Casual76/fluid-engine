@@ -172,7 +172,10 @@ internal fun SelectionMailScene(onBack: () -> Unit) {
     items = MailTabs,
     selectedRoute = tab,
     onSelect = { tab = it.route },
-    modifier = Modifier.navigationBarsPadding().testTag(SelectionSceneTags.MailNavigation),
+    // Lo sfondo prima del margine della barra di navigazione, come nell'esempio della scheda (barre.md): senza, sotto la
+    // maniglia dei gesti si vedeva la finestra, una striscia nera (riprese di F6B.12, 22 novembre 2026).
+    modifier = Modifier.background(MaterialTheme.colorScheme.background).navigationBarsPadding()
+      .testTag(SelectionSceneTags.MailNavigation),
   ) { _ ->
     FluidListDetailScaffold(
       ambient = null,

@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -289,6 +290,18 @@ private fun Modifier.adaptiveColumnGround(start: () -> Dp, color: Color) = drawB
   drawRect(color, topLeft = Offset(left, 0f), size = Size(width, size.height))
 }
 
+/**
+ * L'inchiostro delle voci della tab bar in alto e della barra laterale (scelta di Alessio del 22 novembre 2026, sulle
+ * riprese di F6B.12: in scuro, senza una `Surface` sopra la navigazione, le voci uscivano nere sul vetro scuro).
+ * Se l'app ha dato un colore del contenuto (una `Surface`, o `LocalContentColor` a mano) vale il suo, come prima;
+ * altrimenti l'inchiostro del tema, lo stesso del rail ([fluidChromeInk], `onSurface`). Senza nessuno che lo dia,
+ * `LocalContentColor` vale il suo valore di serie, `Color.Black`: quello si legge come «nessun colore dato». Un'app che
+ * desse proprio `Color.Black` avrebbe `onSurface`, che in chiaro è quasi lo stesso nero (#121214).
+ */
+@Composable
+@ReadOnlyComposable
+private fun adaptiveTabsInk(): Color = LocalContentColor.current.takeIf { it != Color.Black } ?: fluidChromeInk()
+
 private fun Modifier.adaptiveInk(clarity: Float) = graphicsLayer {
   alpha = clarity
   val blur = (1f - clarity) * 5.dp.toPx()
@@ -311,8 +324,10 @@ private fun AdaptiveTabs(
   val u = stage.poses.unfold(r)
   val clarity = stage.poses.ink(r)
   val labels = LocalFluidLabels.current
-  val ink = LocalContentColor.current
+  val ink = adaptiveTabsInk()
   val slots = AdaptiveCells(r, u)
+  // Le icone e le scritte prendono l'inchiostro da qui (FluidIcon e Text leggono LocalContentColor).
+  CompositionLocalProvider(LocalContentColor provides ink) {
   Box(Modifier.fillMaxSize().clip(if (u == 0f) FluidCapsuleShape else ContinuousCornerShape(FluidRadius.Group))) {
     Box(Modifier.offset(slots.toggleX.dp, pad.dp).size(row.dp)
       .fluidPressable(onClick = toggle, role = Role.Button), contentAlignment = Alignment.Center) {
@@ -355,5 +370,6 @@ private fun AdaptiveTabs(
         }
       }
     }
+  }
   }
 }

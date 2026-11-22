@@ -431,6 +431,13 @@ e la barra laterale ci posano sopra come sulla pagina. Un fondale che vuole cont
 ancora `fluidBackgroundExtension()`: la sua estensione si disegna sopra lo sfondo di serie, e vince. Senza colonna (la tab
 bar in basso, quella in alto) non cambia niente. Lo prova `FluidAdaptiveColumnGroundTest` (sample).
 
+**L'inchiostro delle voci** (F6B.12, stessa sera). Le voci della tab bar in alto e della barra laterale prendono da sole il
+colore del contenuto dal tema (`onSurface`, lo stesso del rail), in chiaro e in scuro, senza bisogno di una `Surface` sopra
+la navigazione: prima, in scuro e senza `Surface`, uscivano nere sul vetro scuro. Se l'app dà un colore del contenuto (una
+`Surface`, o `LocalContentColor`) vale il suo, come prima; il valore di serie di `LocalContentColor` (`Color.Black`, quello
+che c'è quando nessuno lo dà) si legge come «nessun colore dato». Il rail resta com'era: l'inchiostro del tema, sempre. Lo
+prova `FluidAdaptiveNavigationInkTest` (sample).
+
 **La conversione è un viaggio del piano, in due tratte.** La capsula e la colonna sono lo stesso pannello: all'apertura
 la capsula va prima al margine iniziale mentre la pagina le fa posto (400 ms), poi la lastra scende fino in fondo (500
 ms) e le voci passano da riga a colonna, sfocate nel cambio; alla chiusura la colonna si raccoglie (430 ms) e la capsula

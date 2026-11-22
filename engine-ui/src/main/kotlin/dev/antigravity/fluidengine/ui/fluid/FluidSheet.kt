@@ -187,7 +187,9 @@ fun FluidSheet(
           .fluidStaticGlassSurface(shape = sheetShape)
       },
     ) {
-      CompositionLocalProvider(LocalGlassPaintedPanel provides if (liquid) body else null) {
+      // Un foglio sta davanti alla tab bar in alto della navigazione adattiva: le barre al suo interno non ne contano la
+      // fascia (F6B.12).
+      CompositionLocalProvider(LocalGlassPaintedPanel provides if (liquid) body else null, LocalFluidTopChromeBand provides 0.dp) {
         if (title != null) {
           Text(
             text = title,
@@ -293,7 +295,7 @@ private fun FluidSheetInHost(
         textAlign = TextAlign.Center,
       )
     }
-    content()
+    CompositionLocalProvider(LocalFluidTopChromeBand provides 0.dp) { content() }
   }
 }
 

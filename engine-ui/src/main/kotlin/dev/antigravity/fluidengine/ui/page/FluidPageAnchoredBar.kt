@@ -27,6 +27,7 @@ import kotlin.math.ceil
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import dev.antigravity.fluidengine.ui.fluid.fluidTopChromeInset
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidMetrics
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
@@ -72,11 +73,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -257,7 +255,7 @@ internal fun BoxScope.FluidAnchoredBar(
     }
   }
   val density = LocalDensity.current
-  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val statusBar = fluidTopChromeInset()
   val hasBar = upperSpec != null || lowerSpec != null
   val barBottomPx = with(density) { (statusBar + FluidScreenDefaults.ControlRowHeight).toPx() }
   SideEffect { state.barBottomPx = if (hasBar) barBottomPx else 0f }
@@ -1210,7 +1208,7 @@ internal fun FluidPageChromeContent(
     return
   }
 
-  val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val statusBar = fluidTopChromeInset()
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = if (backdrop != null) {
     key(backdrop) { rememberCombinedGlassBackdrop(backdrop, barGlass) }

@@ -449,6 +449,23 @@ punto raggiunto, anche dentro la prima tratta. Le voci, il tasto, il velo della 
 seguono il rettangolo corrente del vetro; il tasto resta azionabile durante la sfocatura. Il contenuto riceve in
 `insets` lo spazio sopra la capsula o sotto la tab bar; lo spazio laterale lo riserva il contenitore.
 
+**Le barre delle pagine sotto la tab bar in alto** (F6B.12, scelta di Alessio del 22 novembre 2026: «le sovrapposizioni di
+elementi UI sono da evitare quanto più possibile»). Nella forma «tab bar in alto» la capsula sta al centro, sotto la barra
+di stato; prima le barre delle pagine (il «‹» e «Seleziona» della lista, il titolo del dettaglio) ci finivano sotto. Ora le
+barre in alto dell'engine, `FluidScreen` e la barra dell'host delle pagine, contano la fascia della capsula (la capsula
+più i suoi margini, 80 dp: 56 di capsula e 12 sopra e sotto) come la barra di stato: la riga dei tasti e il titolo grande stanno **sotto** la capsula, e il
+contenuto ci scorre sotto, col bordo dello scorrimento. Quando la capsula va di lato e diventa la barra laterale la fascia
+si stringe con lei fino a zero, e le pagine risalgono; nelle altre forme (tab bar in basso, rail) non c'è. Le pagine non
+fanno niente: lo sa l'engine. Un contenuto che non è una `FluidScreen` usa `insets.top`, come prima; **non** si dà
+`insets.top` a una `FluidScreen`, che conterebbe la fascia due volte. I fogli stanno davanti alla capsula e non la contano.
+Perché sotto e non nella stessa riga (com'è su iPadOS): nella stessa riga ogni barra di pagina dovrebbe sapere dove sta la
+capsula nella finestra e togliere i suoi tasti e il suo titolo da quel tratto, e con due pannelli la capsula sta a cavallo
+fra la barra della lista e quella del dettaglio; sotto, nessuna sovrapposizione è possibile, qualunque cosa ci sia nelle
+barre. Il telefono, il target principale, non ha mai la tab bar in alto (sotto i 1000 dp). Lo prova
+`FluidAdaptiveFormsTest` (sample): la Posta in nove forme (telefono a 360 e 412 dp in verticale e in orizzontale,
+pieghevole, tablet in verticale e in orizzontale anche con la barra laterale, finestra divisa stretta), a riposo e in
+selezione; i riquadri delle schede, dei tasti delle barre e dei titoli non si intersecano.
+
 La barra laterale resta **flottante e monocroma**, con 12 dp di margine: divergenza scelta da iPadOS 27, dove arriva ai
 bordi con le icone d'accento. Il pannello prende la luce della pagina: col materiale Liquid la sonda del fondale tinge
 l'ombra e un velo del colore medio che arriva al 12% sulla colonna. `FluidSidebar` è la stessa barra laterale chiamata a

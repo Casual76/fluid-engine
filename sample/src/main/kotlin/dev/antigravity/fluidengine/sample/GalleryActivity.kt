@@ -128,7 +128,12 @@ class GalleryActivity : ComponentActivity() {
     // Android, da 10 in su, sotto la barra di navigazione a tre tasti stende un velo di contrasto (un nero al 40%
     // circa, su tutta la larghezza): sopra un foglio di vetro e' una fascia scura in fondo. La galleria disegna da
     // se' fino al bordo, quindi lo spegne (F1B.5: misurato sul Tab S9 in tema scuro).
-    if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
+      window.isNavigationBarContrastEnforced = false
+      // `enableEdgeToEdge()` lo riaccende a ogni cambio di configurazione (una sua vista rimette lo stile delle barre, e
+      // la galleria la rotazione la gestisce da sé): dopo, lo si rispegne (F6B.12, riprese del 22 novembre 2026).
+      addOnConfigurationChangedListener { window.decorView.post { window.isNavigationBarContrastEnforced = false } }
+    }
     // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug, e la `bench` (la release
     // misurabile: non debuggable ma profilabile, vedi `build.gradle`): servono al giro di verifica su emulatore e sul
     // tablet, e la galleria pubblicata non ha scorciatoie nascoste. Decide `isDebuggableApp()`, un punto solo.

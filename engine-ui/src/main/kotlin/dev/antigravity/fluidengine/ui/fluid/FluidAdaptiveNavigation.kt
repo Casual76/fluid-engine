@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.only
@@ -25,6 +26,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -171,6 +174,10 @@ private class AdaptiveStage(
  * di stato compresa) mette lo sfondo del tema, `MaterialTheme.colorScheme.background`: la finestra non si vede mai
  * (scelta di Alessio del 22 novembre 2026). Un fondale che vuole continuare sotto il vetro, come su iPad, usa
  * [fluidBackgroundExtension]: la sua estensione si disegna sopra lo sfondo di serie, e vince.
+ * Nella forma «tab bar in alto» le barre delle pagine stanno **sotto** la capsula, non dietro (scelta di Alessio del 22
+ * novembre 2026: «le sovrapposizioni di elementi UI sono da evitare quanto più possibile»): [FluidScreen] e la barra
+ * dell'host delle pagine contano la sua fascia come la barra di stato ([LocalFluidTopChromeBand]), e il contenuto ci
+ * scorre sotto. Un contenuto che non è una [FluidScreen] usa `insets.top`, come prima.
  */
 @Composable
 fun FluidAdaptiveNavigation(
@@ -213,8 +220,17 @@ fun FluidAdaptiveNavigation(
       }
     }
     val ground = MaterialTheme.colorScheme.background
+    // La fascia in alto della capsula (F6B.12): si stringe mentre la capsula va di lato verso la barra laterale. Derivata,
+    // così la pagina si ricompone solo quando la fascia cambia, non a ogni passo del piano di vetro.
+    val band by remember(stage) {
+      derivedStateOf { if (stage == null) 0.dp else ((stage.poses.top.bottom + edge) * (1f - stage.poses.slide(stage.current()))).dp }
+    }
     Box(Modifier.adaptiveWindowPage(statusTop).glassBackdropSource(backdrop).adaptiveColumnGround(start, ground)) {
-      CompositionLocalProvider(LocalBackgroundExtensionStart provides start, LocalFluidChromeController provides chrome) {
+      CompositionLocalProvider(
+        LocalBackgroundExtensionStart provides start,
+        LocalFluidChromeController provides chrome,
+        LocalFluidTopChromeBand provides band,
+      ) {
         Box(Modifier.fillMaxSize().layout { measurable, constraints ->
           val dx = start().roundToPx().coerceIn(0, constraints.maxWidth)
           val page = measurable.measure(constraints.offset(horizontal = -dx))
@@ -265,6 +281,23 @@ fun FluidAdaptiveNavigation(
    }
   }
 }
+
+/**
+ * La fascia in alto che la navigazione adattiva occupa sopra le pagine, sotto la barra di stato: nella forma «tab bar in
+ * alto» la capsula con i suoi margini (F6B.12). Le barre in alto dell'engine la contano come la barra di stato
+ * ([fluidTopChromeInset]): i tasti e il titolo stanno sotto la capsula, e il contenuto ci scorre sotto, col bordo dello
+ * scorrimento. Mentre la capsula va di lato per diventare la barra laterale si stringe fino a zero; zero nelle altre forme.
+ * I fogli la rimettono a zero, perché stanno davanti alla capsula.
+ */
+internal val LocalFluidTopChromeBand = compositionLocalOf { 0.dp }
+
+/**
+ * Lo spazio in alto sopra la riga dei tasti di una barra dell'engine: la barra di stato (gli inset grezzi, come sempre) più
+ * la fascia della tab bar in alto ([LocalFluidTopChromeBand]). Un punto solo, per `FluidScreen` e la barra dell'host.
+ */
+@Composable
+internal fun fluidTopChromeInset(): Dp =
+  WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + LocalFluidTopChromeBand.current
 
 /** La pagina a finestra intera dentro il riquadro sotto la barra di stato: misurata più alta di [top] e posata più su. */
 private fun Modifier.adaptiveWindowPage(top: Dp): Modifier = layout { measurable, constraints ->

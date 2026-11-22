@@ -1003,13 +1003,15 @@ F0 ─▶ F1A ─▶ F1B ─▶ F2 ─▶ F3 ─▶ F4A ─▶ F4B ─▶ F5A �
 | F5B | Popover, avvisi, fogli, zoom | 5 | 5 | S4 |
 | F6 | Controlli e tocco | 9 | 9 | S5 |
 | F6B | Elementi dinamici preconfigurati (aggiunta l'11 novembre, scritta il 21) | 18 | 17 | una sua |
-| F6C | Visori di file (aggiunta il 21 novembre) | 7 | 6 | con F6B o una sua |
+| F6C | Visori di file (aggiunta il 21 novembre; seconda ondata il 22) | 16 | 14 | con F6B o una sua |
+| F6D | Lo scurimento nelle transizioni (aggiunta il 22 novembre) | 3 | 2 | con F6B.14 |
 | F7 | Ottimizzazione | 7 | 7 | S5, S6 |
 | F8 | Consegna | 6 | 4 | S6 |
 | F9 | Documentazione estesa e verifica d'adozione (aggiunta l'11 novembre) | 7 | 2 | — |
 
 F6B e F6C sono state scritte il 21 novembre: F6C parte dopo F6B.5a e F6B.1, in parallelo alla seconda metà di F6B, e
-chiude prima di F7. Con loro i pacchetti del piano diventano **109**, **97** con Gradle; il conto qui sotto è quello
+chiude prima di F7. Il 22 novembre, dopo le riprese della galleria «Visori», F6C ha avuto una seconda ondata (F6C.7–F6C.15)
+ed è nata F6D, lo scurimento della pagina sotto in ogni transizione: anche loro chiudono prima di F7. Con loro i pacchetti del piano diventano **109**, **97** con Gradle; il conto qui sotto è quello
 di partenza.
 
 In tutto **84 pacchetti** (83 nel piano di partenza, più F4A.7 nato dalle misure di S1-bis), **74** dei quali chiedono almeno una volta un posto Gradle, e **6 sessioni** per 14–19 ore
@@ -3691,7 +3693,8 @@ archivio futura.
 - gli strumenti di modifica veri: l'engine dà il posto e la barra, l'app fa lo strumento. In Gallery-2 ci sono già il
   ritaglio del soggetto e il testo nell'immagine;
 - il trasporto: SMB, rete, cache;
-- i documenti Office, che non hanno un decodificatore leggero.
+- i documenti Office, che non hanno un decodificatore leggero. **Superato il 22 novembre:** entrano con la seconda
+  ondata, in moduli facoltativi (sotto).
 
 **Cosa fanno oggi le app (lettura del 2026-11-19, in sola lettura).**
 
@@ -3835,6 +3838,130 @@ F6C.2, F6C.3 e F6C.4 hanno perimetri disgiunti e possono scrivere insieme dopo F
   documenti Office, gli archivi, gli ebook e il 3D: per loro il visore offre «Apri con…».
 - **GIF e WebP animate le decodifica il modulo facoltativo** `engine-viewer` (da un file o un URI); `engine-ui` resta
   senza decoder.
+
+#### F6C, seconda ondata (22 novembre 2026)
+
+**Da dove nasce.** Alessio ha guardato le riprese di F6C.5 sul tablet: «vanno più o meno bene», ma:
+- le pagine dei preset sono «ancora molto spoglie e brutte, non ciò che mi aspetterei da uno strumento così profondo»;
+- l'apertura dei file che non sono foto o video è «scattosa e davvero poco naturale»;
+- a molte transizioni manca lo scurimento della pagina sotto, anche nel back predittivo: è la fase F6D, qui sotto;
+- il visore deve essere «quanto più universale possibile», a moduli da aggiungere alla singola app, perché un'app che non
+  ha bisogno di tutti i visori non paghi lo spazio. Universal Converter avrà il visore universale;
+- restano i due difetti visti nelle riprese: «Trova» con la tastiera finisce sotto la barra di stato, e l'audio mostra
+  la durata «—» finché non si preme Play.
+
+**F6C.5 aspetta** (scelta di Alessio): la galleria non entra nel ramo finché i preset non sono rifatti. La sua patch è un
+commit locale sul ramo di lavoro `t3/visori-2`, da cui partono i pacchetti della seconda ondata. Il ramo rientra in
+`t3/liquid-glass-engine` quando Alessio approva F6C.15.
+
+**Cambia rispetto alla prima ondata.** Fra i tipi esclusi, «i documenti Office, gli archivi, gli ebook e il 3D» entrano.
+Ciascuna famiglia è un **modulo facoltativo separato**, che si registra presso il risolutore di `engine-viewer`; un
+modulo unico li raccoglie tutti per chi, come Universal Converter, vuole il visore universale. `engine-ui` resta senza
+decodificatori.
+
+**Scelte di Alessio del 22 novembre 2026.**
+- **Documenti Office:** «pagine come il documento». I fogli sono impaginati uno sotto l'altro e si zoomano come un PDF,
+  come Quick Look; le slide sono una per pagina, i fogli di calcolo una griglia.
+- **Apertura dei file che non sono foto o video:** dalla miniatura. La miniatura o l'icona cresce fino alla pagina, il
+  fondo arriva verso la fine, la pagina sotto si scurisce (F6D). La chiusura fa il percorso inverso, anche col dito.
+- **Prima ondata delle famiglie: tutte e quattro.**
+  - **Office:** DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF.
+  - **Archivi:** ZIP, 7z, RAR, TAR. Mostrano l'elenco del contenuto e l'anteprima dei file dentro, aperti dallo stesso
+    risolutore.
+  - **Testi ricchi e dati:** Markdown e HTML resi, CSV come tabella, JSON e XML come albero, EPUB, EML, ICS, VCF.
+  - **Immagini speciali, font, 3D:** HEIC, AVIF, RAW, TIFF, SVG, PSD; l'anteprima dei font; modelli GLB, OBJ, STL.
+- **L'aspetto delle pagine rifatte** si sceglie dalle proposte di F6C.7, mostrate in chat come immagini.
+
+**Moduli** (i nomi sono proposte; li fissa F6C.7):
+
+| modulo | famiglia |
+|---|---|
+| `engine-viewer` | quello di oggi: Media3, PDF, testo, GIF/WebP animate, risolutore. Diventa il **registro** dei moduli |
+| `engine-viewer-office` | Office |
+| `engine-viewer-archive` | archivi |
+| `engine-viewer-data` | testi ricchi e dati |
+| `engine-viewer-graphics` | immagini speciali e font |
+| `engine-viewer-3d` | modelli 3D. Se F6C.7 trova un motore leggero, può stare in `graphics` |
+| `engine-viewer-all` | li raccoglie tutti, per Universal Converter |
+
+Ogni modulo dichiara il suo peso nell'APK, misurato da F6C.15, ed è scritto nella scheda. Una libreria esterna entra solo
+se:
+- la licenza è compatibile con un'app pubblicata, cioè Apache, MIT, BSD o simili, senza GPL;
+- il peso è dichiarato;
+- non esiste una lettura propria ragionevole.
+
+**Pacchetti.**
+
+| id | cosa | perimetro di scrittura | dipende da | G/D | modello |
+|---|---|---|---|---|---|
+| F6C.7 | **Ricerca e proposte.** Le pagine di Quick Look e di File di iOS 26 per ogni tipo; l'apertura di un documento dalla miniatura; per ogni famiglia come si legge (lettura propria o libreria, licenza, peso, versione minima di Android). **Due o tre proposte d'aspetto** per le pagine di audio, documento, testo, sconosciuto, Office, archivio e dati, rese come immagini per Alessio | `docs/liquid-glass/ricerca/visori-2.md`, `artifacts/liquid-glass/ricerca/visori-2/` | — | — | Opus (Claude secondary) |
+| F6C.8 | **Il registro dei moduli.** I moduli di famiglia aggiungono tipi al risolutore senza toccarlo, con priorità e ripiego; il contratto `Pages` serve anche a Office; `engine-viewer-all`; `engine-install.ps1` conosce i moduli | `engine-viewer/**`, `engine-viewer-all/**` (nuovo), `settings.gradle`, `tools/engine-install.ps1` | F6C.7 | G | Opus (Claude secondary) |
+| F6C.9 | **I preset rifatti** come scelto dalle proposte: audio, documento a pagine, testo e codice, sconosciuto ed eseguibile, pannello info. Più i due difetti: «Trova» sotto la barra di stato con la tastiera, durata dell'audio prima di Play | `ui/fluid/viewer/*Preset.kt`, `ui/fluid/viewer/FluidViewerChrome.kt`, `test/fluid/viewer/` | F6C.7, scelte di Alessio | G | Astra |
+| F6C.10 | **L'apertura dalla miniatura per ogni tipo**, e la chiusura inversa col dito, con lo scurimento di F6D | `ui/fluid/viewer/FluidFileViewer.kt`, `test/fluid/viewer/` | F6C.9, F6D.1 | G | Sol |
+| F6C.11 | **Office**: DOCX, ODT e RTF impaginati; XLSX e ODS in griglia; PPTX e ODP a slide | `engine-viewer-office/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Astra |
+| F6C.12 | **Archivi**: elenco, cartelle, anteprima dei file dentro tramite il risolutore, file protetti e danneggiati | `engine-viewer-archive/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Sol |
+| F6C.13 | **Testi ricchi e dati**: Markdown, HTML, CSV, JSON, XML, EPUB, EML, ICS, VCF | `engine-viewer-data/**` (nuovo), `settings.gradle` (una riga) | F6C.8 | G | Opus (Claude secondary) |
+| F6C.14 | **Immagini speciali, font, 3D** | `engine-viewer-graphics/**`, `engine-viewer-3d/**` (nuovi), `settings.gradle` (una riga) | F6C.8 | G | Sol |
+| F6C.15 | **La galleria «Visori» rifatta**, partendo da F6C.5: ogni famiglia, l'apertura dalla miniatura, il peso di ogni modulo, le tracce nuove e le schede. Il visore universale di Universal Converter, in sola lettura | `sample/…/viewer/`, `test/glass/field/trace/F6c*`, `tools/glassbench/traces/f6c/`, `ref/componenti/visori.md`, `ref/moduli/viewer*.md` | tutti | G | Opus (Claude secondary) |
+
+F6C.11–F6C.14 hanno perimetri disgiunti e partono insieme dopo F6C.8, tranne la riga di `settings.gradle`, che
+l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.6, la sessione sul tablet, si fa dopo F6C.15.
+
+**Risultati osservabili in più.**
+- Un DOCX si apre a pagine come il documento, un PPTX a slide, un XLSX in griglia.
+- Uno ZIP mostra il suo contenuto, e un file dentro si apre col suo preset.
+- Un Markdown è reso, un CSV è una tabella, un JSON un albero, un EPUB si legge a capitoli.
+- Un HEIC, un SVG, un font e un modello 3D hanno ognuno la sua anteprima.
+- Ogni file che non è foto o video si apre dalla sua miniatura e ci torna.
+- Un'app che non aggiunge un modulo non ne paga il peso, e il tipo che non conosce resta sconosciuto, con «Apri con…».
+
+**Sottocategorie in più.**
+
+| id | sottocategoria | minimo |
+|---|---|---|
+| F6C-f | le pagine dei preset sono ricche e curate quanto lo strumento (giudizio di Alessio sulle riprese) | 8,5 |
+| F6C-g | l'apertura dalla miniatura è continua per ogni tipo; niente scatti | 9 |
+| F6C-h | ogni famiglia è un modulo a parte: chi non lo aggiunge non lo paga, e la build lo controlla | 9 |
+| F6C-i | Office a pagine somiglia al documento: titoli, stili, tabelle, immagini, a capo | 8 |
+
+---
+
+### F6D · Lo scurimento nelle transizioni
+
+**Fase aggiunta il 22 novembre 2026 su richiesta di Alessio:** «ciò che manca a tante transizioni è lo scurimento delle
+pagine (anche tipo nella predictive back gesture la pagina non in primo piano non è scurita come su iOS)».
+
+**Oggi.** `FluidPageTransition.Slide` lascia la pagina sotto piena e opaca: arretra di un terzo con l'ombra di 36 dp sul
+bordo della pagina che arriva, ma non si scurisce. Solo «Cresce» scurisce lo sfondo (`FluidPageMotion.GrowDim` = 0,18).
+
+**Scopo.** In ogni transizione fra due pagine quella che non è in primo piano si scurisce come su iOS. Vale:
+- quando una pagina arriva o se ne va;
+- quando il dito la tiene, nel back predittivo di sistema e nel back col dito dell'app: lo scurimento segue il dito;
+- nel visore che si apre dalla miniatura;
+- nello zoom di `Expand`;
+- in «Cresce», che si allinea alla stessa curva se F6D.0 lo chiede.
+
+Le due pagine non si leggono mai una attraverso l'altra: lo scurimento è un velo nero sulla pagina sotto, non una
+sfumatura di quella sopra.
+
+**Pacchetti.**
+
+| id | cosa | perimetro di scrittura | dipende da | G/D | modello |
+|---|---|---|---|---|---|
+| F6D.0 | **Misura**: quanto e con che curva iOS 26 scurisce la pagina sotto nel push, nel pop, nel pop col dito, nello zoom e nell'apertura di Quick Look, in chiaro e in scuro, dai video di Apple fotogramma per fotogramma | `docs/liquid-glass/ricerca/scurimento.md`, `artifacts/liquid-glass/ricerca/scurimento/` | — | — | Sol xhigh |
+| F6D.1 | **Lo scurimento nell'host delle pagine**: `Slide`, `ShrinkSlide`, `Expand`, back predittivo e back col dito; il numero e la curva in `FluidPageMotion`, con la fonte; le tracce del banco | `ui/page/FluidPageHost.kt`, `ui/page/FluidPageMotion.kt`, `ui/navigation/FluidNavHost.kt`, `test/page/`, `test/glass/field/trace/F6d*`, `tools/glassbench/traces/f6d/` | F6D.0 | G | Astra |
+| F6D.2 | Si prova sul tablet con F6B.14 e F6C.6 | — | F6D.1 | D | orchestratore + Sol xhigh |
+
+**Come si verifica.**
+- Tracce a 120 Hz, in chiaro e in scuro, con il collage di ogni fotogramma: `pagina-arriva`, `pagina-col-dito`,
+  `pagina-col-dito-annullata`, `zoom-scurisce`. Ognuna si confronta col video di Apple.
+- Test: con il dito fermo a metà lo scurimento è a metà della sua curva; annullando torna a zero senza salti; nessun
+  fotogramma ha due pagine leggibili una attraverso l'altra.
+- Per Alessio: le stesse quattro, a tempo vero e rallentate 4×, accanto ad Apple.
+
+| id | sottocategoria | minimo |
+|---|---|---|
+| F6D-a | la pagina sotto si scurisce come su iOS, in ogni transizione e col dito | 9 |
 
 ---
 

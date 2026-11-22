@@ -3662,6 +3662,13 @@ aggiunto parole sue ha preso l'opzione consigliata):
     diventa la pagina;
   - l'avviso che nasce dal tasto resta nell'engine, **non di serie**, per chi vuole un avviso con testo.
 
+**22 novembre 2026:**
+- **«Seleziona tutto»** resta un tasto visibile quando nella barra c'è spazio; va in «Altro» solo quando non ci sta
+  (F6B.12).
+- **La pillola di attività a barra ritirata** «resta come anellino»: quando la barra in alto si ritira scorrendo, della
+  pillola resta visibile solo l'anello, piccolo, in alto; quando la barra torna, torna compatta (F6B.10). Con due barre
+  in vista (lista e dettaglio) la pillola è una sola, di serie in quella del dettaglio.
+
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
 ---

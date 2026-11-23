@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.viewer.data
 
 import android.os.ParcelFileDescriptor
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.antigravity.fluidengine.ui.fluid.FluidWebResponse
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
@@ -491,10 +492,26 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
   }
 }
 
-/** I dati del pannello info che arrivano dopo l'apertura (il conto delle righe di un CSV): la lista è uno stato. */
+/**
+ * I dati del pannello info che arrivano dopo l'apertura (il conto delle righe di un CSV): la lista è uno stato. La
+ * sostituzione arriva da un filo in sottofondo e si applica in un colpo solo: chi legge la lista (la composizione, il
+ * pannello) vede i dati di prima o quelli nuovi, mai la lista vuota a metà.
+ */
 internal fun SnapshotStateList<FluidViewerDetail>.replaceWith(items: List<FluidViewerDetail>) {
-  clear()
-  addAll(items)
+  Snapshot.withMutableSnapshot {
+    clear()
+    addAll(items)
+  }
+}
+
+/** Una copia ferma della lista, letta in un'istantanea: fuori dalla composizione la sostituzione può arrivare a metà lettura. */
+internal fun <T> List<T>.consistentCopy(): List<T> {
+  val snapshot = Snapshot.takeSnapshot()
+  try {
+    return snapshot.enter { toList() }
+  } finally {
+    snapshot.dispose()
+  }
 }
 
 /** Come si vede una pagina web nel tema scuro, per il pannello info. */

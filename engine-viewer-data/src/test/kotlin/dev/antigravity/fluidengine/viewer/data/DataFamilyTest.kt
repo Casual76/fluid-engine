@@ -97,8 +97,8 @@ class DataFamilyTest {
         assertNull("$name: ${document.failure}", document.failure)
         assertEquals(name, "data", document.type.family)
         assertTrue("$name: ${document.content::class}", kind.isInstance(document.content))
-        assertTrue("$name: dati del pannello", document.details.any { it.section == null })
-        assertTrue("$name: sezioni del pannello", document.details.any { it.section != null })
+        assertTrue("$name: dati del pannello", document.details.consistentCopy().any { it.section == null })
+        assertTrue("$name: sezioni del pannello", document.details.consistentCopy().any { it.section != null })
         val info = fluidDataViewerInfo(document)
         assertTrue(name, info.facts.isNotEmpty())
         assertTrue(name, info.sections.isNotEmpty())
@@ -114,13 +114,13 @@ class DataFamilyTest {
       // Non lo sconosciuto generico: la pagina del libro protetto, con i dati del pannello.
       assertTrue(document.content is FluidViewerContent.Custom)
       assertNull(document.failure)
-      val facts = document.details.filter { it.section == null }.map { it.value }
+      val facts = document.details.consistentCopy().filter { it.section == null }.map { it.value }
       assertTrue(facts.toString(), "Protetto da DRM" in facts)
       assertTrue(facts.toString(), "cifratura del file" in facts)
-      val protection = document.details.filter { it.section == "Protezione" }.associate { it.label to it.value }
+      val protection = document.details.consistentCopy().filter { it.section == "Protezione" }.associate { it.label to it.value }
       assertEquals("1", protection["Risorse cifrate"])
       assertTrue(protection["Motivo"], protection["Motivo"]!!.contains("aes128-cbc"))
-      assertEquals("Quaderno di campo", document.details.first { it.section == "Libro" && it.label == "Titolo" }.value)
+      assertEquals("Quaderno di campo", document.details.consistentCopy().first { it.section == "Libro" && it.label == "Titolo" }.value)
     } finally {
       document.close()
     }
@@ -193,7 +193,7 @@ class DataFamilyTest {
       grid.awaitIndex()
       assertEquals(6, grid.rowCount)
       assertTrue(grid.header)
-      val facts = document.details.filter { it.section == null }.map { it.value }
+      val facts = document.details.consistentCopy().filter { it.section == null }.map { it.value }
       assertTrue(facts.toString(), "5 righe" in facts)
       assertTrue(facts.toString(), "; (punto e virgola)" in facts)
       val cells = grid.cells(0, 0..5, 0..3)

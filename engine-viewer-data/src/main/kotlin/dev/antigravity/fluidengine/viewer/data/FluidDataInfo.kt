@@ -31,7 +31,7 @@ fun fluidDataViewerInfo(
   thumbnail: ImageBitmap? = null,
 ): FluidViewerInfo {
   val file = FluidFileInfo(document.file.name, document.file.mimeType, document.file.sizeBytes, document.type.kind)
-  return fluidDataViewerInfo(file, document.details, document.type.label, actions, thumbnail)
+  return fluidDataViewerInfo(file, document.details.consistentCopy(), document.type.label, actions, thumbnail)
 }
 
 /** Lo stesso, da un [FluidFileInfo] e da una lista di dettagli (per un'app che li tiene da sé). */

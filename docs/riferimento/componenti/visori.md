@@ -106,7 +106,7 @@ il posto a destra e la condivisione offerta dall'app è nel menu «Altro».
 
 **La base è A**: il contenuto pulito come Quick Look, sul fondo del tema per documenti, testo, dati, griglia e slide (la carta dei documenti Office resta bianca anche in scuro). **Da C vengono i tocchi, solo dove non c'è niente da leggere:**
 
-- **la tinta del file** su audio, eseguibile, sconosciuto e archivio, **mai** su documenti, testo, dati, griglia, slide. Il colore viene dalla copertina o dall'icona (il colore più frequente di un'immagine ridotta a 8 × 8), oppure dal tono di `FluidFileKind`. Il velo dell'audio e dello sconosciuto usa il 20% per il file e il 16% per i campi in basso, l'ambra dell'avviso il 27% (`ViewerMixProfile`, a occhio, 22 novembre 2026). Con «Riduci trasparenza» o col contrasto alto di sistema la tinta e l'alone spariscono e le superfici sono piene;
+- **la tinta del file** su audio, eseguibile, sconosciuto e archivio, **mai** su documenti, testo, dati, griglia, slide. Il colore viene dalla copertina o dall'icona (il colore più frequente di un'immagine ridotta a 8 × 8), oppure dal tono di `FluidFileKind`. Il velo dell'audio e dello sconosciuto usa il 20% per il file e il 16% per i campi in basso (`ViewerMixProfile`). L'avviso e il pannello audio hanno una superficie piena per ogni tema, campionata dalla tavola D. Con «Riduci trasparenza» o col contrasto alto di sistema la tinta e l'alone spariscono;
 - **l'alone** della copertina e dell'icona, un'ombra del loro colore;
 - **i pannelli di vetro per i comandi**: il lettore audio, i fatti dell'eseguibile in capsule, le cartelle dell'archivio come tessere, l'avviso in vetro ambra;
 - **i punti colorati**: il colore di ogni foglio nella capsula delle schede, il tipo di ogni valore nel JSON, la lingua del codice nel sottotitolo.
@@ -120,13 +120,15 @@ il posto a destra e la condivisione offerta dall'app è nel menu «Altro».
 | **Testo e codice** | monospazio e numeri di riga, lettura a pezzi da 400 righe, il punto della lingua, «a capo» (di serie sì per il testo, no per il codice), «Trova» di F6B.6 nel file intero, sopra la tastiera e sotto la barra in alto; i colori dei ruoli col tema; «Riprova» e il file vuoto | le righe e la lingua (o `FluidTextDocument` di `engine-viewer`, che riconosce il charset e colora 19 lingue) |
 | **Griglia** | celle a blocchi (64 × 32, ne tiene 48), righe e colonne bloccate, celle unite, schede con il punto del colore del foglio. Le schede stanno nella capsula centrale quando entrano. Con testi grandi o molte schede scorrono in una riga sopra la barra. A fine scorrimento l'ultima riga si legge intera, lo zoom va da ½ a 4× e il pager prende il gesto ai bordi | il libro di lavoro (Office) o la tabella (CSV dei dati) |
 | **Pagina del modulo** (`Custom`) | la chrome, «Trova» se la pagina lo dichiara, lo spazio fra le barre (`contentPadding`), le azioni nella barra in basso; l'ultimo preset che registra la barra vince (una mail che apre un allegato la riprende quando si chiude) | tutto il resto: la pagina la disegna il modulo con i componenti pubblici dell'engine |
-| **Sconosciuto ed eseguibile** | icona da 136 dp con alone, il nome con l'estensione vera, tipo e dimensione, fatti in capsule da 26 dp, «Apri con…» e «Condividi» in tasti da 46 dp. Gli eseguibili hanno un avviso ambra. «Mostra i primi byte» compare se l'app passa `firstBytes` | il permesso di leggere il file, l'icona e i dati del pacchetto, le azioni per aprire e condividere |
+| **Sconosciuto ed eseguibile** | icona da 136 dp con alone, il nome con l'estensione vera, tipo, peso e data se nota. Fatti in capsule da 26 dp, «Apri con…» e «Condividi» in tasti da 46 dp. Il tasto pieno ha testo bianco in grassetto e il suo riempimento mantiene almeno 4,5:1. L'APK con icona usa lo stesso lettore delle miniature di F6C.17. L'avviso è crema in chiaro e ambra scura in scuro. «Mostra i primi byte» compare se l'app passa `firstBytes` | il permesso di leggere il file, eventualmente `modifiedAtMillis` in `FluidViewerFile` o `FluidFileInfo`, e le azioni per aprire e condividere |
 
 Il contatore da 34 dp apre le miniature dei documenti. `officeInfo()` attiva «Trova» sui documenti Word,
 ODT e RTF e fornisce il sottotitolo del formato. PPTX e ODP hanno «Presenta», che apre le slide a schermo
 pieno. Il codice mette il punto della lingua e il numero di righe nel sottotitolo e offre «Aa», a capo e ricerca.
 L'albero JSON ha righe da 33 dp e la capsula «Albero | Testo». L'archivio aggiunge la ricerca per percorso. Il
-comando «Estrai tutto» usa il callback di destinazione configurato dall'app in `FluidArchiveFamily`.
+comando «Estrai tutto» usa il callback di destinazione configurato dall'app in `FluidArchiveFamily`. Le righe
+visibili usano le anteprime di immagini e PDF per gli archivi di dimensione contenuta. Le altre voci hanno
+un'icona colorata per tipo. Il peso compresso e quello estratto condividono l'unità quando è la stessa.
 
 Le misure della colonna (fino a 552 dp), della copertina e dell'icona stanno in `ViewerMixProfile` (`FluidViewerInfo.kt`), scelte a occhio il 22 novembre 2026.
 
@@ -180,6 +182,9 @@ Ogni file si apre dalla sua miniatura (o dall'icona, se la miniatura manca) e la
 - **La forma che cresce è la miniatura vera** (F6C.17): la transizione registra la tessera così com'è disegnata, quindi con le miniature di sotto la sagoma cresce mostrando le prime righe, l'albero, la tabella, l'icona d'archivio che c'erano nella tessera, e ci torna. La cache le dà alla prima composizione: tornando dal visore la tessera è già piena.
 
 ## Le miniature (F6C.17)
+
+Un modulo che possiede già una sorgente può chiamare `FluidFileThumbnails.read(context, source, sizePx)`
+per leggere la miniatura senza generare un'icona sostitutiva. La sorgente resta del chiamante.
 
 **Ogni file mostra il suo contenuto in miniatura, come in File di iOS** (scelta di Alessio del 23 novembre 2026), e l'apertura parte da lì. Una chiamata, sempre un'immagine:
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -161,6 +162,9 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
   val colors = MaterialTheme.colorScheme
   val accent = viewerAccent(info, colors.primary)
   val shape = ContinuousCornerShape(ViewerMixProfile.CoverRadius)
+  val playerShape = ContinuousCornerShape(ViewerMixProfile.PlayerRadius)
+  val playerSurface = if (GlassDefaults.isDarkSurface()) ViewerMixProfile.PlayerDark else ViewerMixProfile.PlayerLight
+  val playerBackdrop = rememberGlassBackdrop()
   val step = strings.skipSeconds.coerceAtLeast(1) * 1000L
   val chapters = info?.chapters.orEmpty()
   val parentMenu = LocalFluidMorphMenuState.current
@@ -241,53 +245,56 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
             style = MaterialTheme.typography.bodyMedium, color = colors.error)
         }
         // Keep the cover in place when a tap hides the controls.
-        Column(Modifier.fillMaxWidth().padding(top = if (info == null) 24.dp else 27.dp).layout { measurable, constraints ->
+        Box(Modifier.fillMaxWidth().padding(top = if (info == null) 24.dp else 22.dp).layout { measurable, constraints ->
           val controls = measurable.measure(constraints)
           layout(controls.width, controls.height) { if (chromeVisible) controls.placeRelative(0, 0) }
-        }.viewerGlass(backdrop, ContinuousCornerShape(ViewerMixProfile.PlayerRadius))
-          .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
-          horizontalAlignment = Alignment.CenterHorizontally) {
-          AudioWave(session, duration, canSeek, info?.audioWaveform, strings)
-          val timeStyle = MaterialTheme.typography.labelMedium.viewerSize(12f, FontWeight.SemiBold)
-            .copy(fontFeatureSettings = "tnum")
-          Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(FluidScrubbing.clock(session.positionMillis.inMediaBounds(duration)), style = timeStyle)
-            Text(info?.audioFormat.orEmpty(), Modifier.weight(1f).padding(horizontal = 6.dp),
-              style = timeStyle.copy(fontWeight = FontWeight.Medium), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-              maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(duration?.let { "−" + FluidScrubbing.clock(it - session.positionMillis.inMediaBounds(it)) } ?: "—",
-              style = timeStyle)
-          }
-          Row(Modifier.padding(top = 6.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (canSeek) SkipButton(strings.skipBack, -strings.skipSeconds) { session.skipBy(-step) }
-            PlaybackButton(session, chromeVisible && session.error == null, backdrop, strings, audioSize = 68.dp)
-            if (canSeek) SkipButton(strings.skipForward, strings.skipSeconds) { session.skipBy(step) }
-          }
-          val speed = session as? FluidAudioSpeed
-          val chapterIndex = chapters.indexOfLast { it.startMillis <= session.positionMillis }.coerceAtLeast(0)
-          if (speed != null || chapters.isNotEmpty() || info?.audioOutput != null) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-              Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                if (speed != null) {
-                  val value = speed.playbackSpeed
-                  val rates = listOf(1f, 1.25f, 1.5f, 2f, .75f)
-                  val shown = java.text.NumberFormat.getNumberInstance().format(value) + "×"
-                  Text(shown, Modifier.fluidPressable(role = Role.Button, enabled = speed.canChangePlaybackSpeed,
-                    onClick = { speed.changePlaybackSpeed(rates[(rates.indexOf(value) + 1) % rates.size]) })
-                    .semantics { contentDescription = "${strings.speed}, $shown" }.padding(4.dp), style = timeStyle)
+        }.shadow(6.dp, playerShape, clip = false).clip(playerShape)) {
+          // The play lens reads the solid panel without capturing its own foreground.
+          Box(Modifier.matchParentSize().glassBackdropSource(playerBackdrop).background(playerSurface))
+          Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            AudioWave(session, duration, canSeek, info?.audioWaveform, strings)
+            val timeStyle = MaterialTheme.typography.labelMedium.viewerSize(12f, FontWeight.SemiBold)
+              .copy(fontFeatureSettings = "tnum")
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+              Text(FluidScrubbing.clock(session.positionMillis.inMediaBounds(duration)), style = timeStyle)
+              Text(info?.audioFormat.orEmpty(), Modifier.weight(1f).padding(horizontal = 6.dp),
+                style = timeStyle.copy(fontWeight = FontWeight.Medium), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+              Text(duration?.let { "−" + FluidScrubbing.clock(it - session.positionMillis.inMediaBounds(it)) } ?: "—",
+                style = timeStyle)
+            }
+            Row(Modifier.padding(top = 6.dp, bottom = 8.dp),
+              horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+              if (canSeek) SkipButton(strings.skipBack, -strings.skipSeconds) { session.skipBy(-step) }
+              PlaybackButton(session, chromeVisible && session.error == null, playerBackdrop, strings, audioSize = 68.dp)
+              if (canSeek) SkipButton(strings.skipForward, strings.skipSeconds) { session.skipBy(step) }
+            }
+            val speed = session as? FluidAudioSpeed
+            val chapterIndex = chapters.indexOfLast { it.startMillis <= session.positionMillis }.coerceAtLeast(0)
+            if (speed != null || chapters.isNotEmpty() || info?.audioOutput != null) {
+              Row(Modifier.fillMaxWidth().heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                  if (speed != null) {
+                    val value = speed.playbackSpeed
+                    val rates = listOf(1f, 1.25f, 1.5f, 2f, .75f)
+                    val shown = java.text.NumberFormat.getNumberInstance().format(value) + "×"
+                    Text(shown, Modifier.fluidPressable(role = Role.Button, enabled = speed.canChangePlaybackSpeed,
+                      onClick = { speed.changePlaybackSpeed(rates[(rates.indexOf(value) + 1) % rates.size]) })
+                      .semantics { contentDescription = "${strings.speed}, $shown" }.padding(4.dp), style = timeStyle)
+                  }
                 }
-              }
-              if (chapters.isNotEmpty()) Row(Modifier.fluidPressable(onClick = { showingChapters = true }, role = Role.Button),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FluidIcon(FluidIcons.FormatListBulleted, null, size = 15.dp)
-                Text(strings.currentChapter(chapterIndex + 1, chapters.size), style = timeStyle)
-              }
-              Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                info?.audioOutput?.let { output ->
-                  Box(Modifier.size(48.dp, 32.dp).fluidPressable(onClick = output, role = Role.Button),
-                    contentAlignment = Alignment.CenterEnd) {
-                    FluidIcon(FluidIcons.GraphicEq, strings.output, size = 21.dp)
+                if (chapters.isNotEmpty()) Row(Modifier.fluidPressable(onClick = { showingChapters = true }, role = Role.Button),
+                  verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                  FluidIcon(FluidIcons.FormatListBulleted, null, size = 15.dp)
+                  Text(strings.currentChapter(chapterIndex + 1, chapters.size), style = timeStyle)
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                  info?.audioOutput?.let { output ->
+                    Box(Modifier.size(48.dp, 32.dp).fluidPressable(onClick = output, role = Role.Button),
+                      contentAlignment = Alignment.CenterEnd) {
+                      FluidIcon(FluidIcons.GraphicEq, strings.output, size = 21.dp)
+                    }
                   }
                 }
               }

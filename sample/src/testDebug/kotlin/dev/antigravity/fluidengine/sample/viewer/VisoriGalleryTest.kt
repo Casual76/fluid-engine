@@ -210,7 +210,7 @@ class VisoriGalleryTest {
       "diario" to { shown("Lunedì", substring = true) },
       "codice" to { shown("package dev.antigravity", substring = true) },
       "scena" to { shown("Scena.blend") && shown("Apri con…") },
-      "aggiornamento" to { shown("Aggiornamento.apk") && shown("È un'app o un programma", substring = true) },
+      "aggiornamento" to { shown("Aggiornamento.apk") && shown("È un'app da installare.", substring = true) },
     )
     for ((index, marker) in markers.withIndex()) {
       val (id, visible) = marker
@@ -320,7 +320,7 @@ class VisoriGalleryTest {
     // L'eseguibile: l'avviso, il nome con l'estensione vera, e «Apri con…» lo stesso.
     open("aggiornamento")
     waitFor("eseguibile") { shown("Aggiornamento.apk") && shown("Apri con…") }
-    assertTrue(shown("È un'app o un programma", substring = true))
+    assertTrue(shown("È un'app da installare.", substring = true))
     assertTrue(described("Indietro"))
   }
 

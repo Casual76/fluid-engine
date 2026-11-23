@@ -36,6 +36,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `fun from(mimeType: String?, fileName: String): FluidFileKind` — L'ultima estensione prevale; un MIME eseguibile non viene mai declassato da un nome innocuo.
 - `fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): String` — Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante.
+- `fun fluidFormatFileSizeRange(before: Long?, after: Long?, locale: Locale = Locale.getDefault()): String?` — The original and expanded sizes share a unit when both values use the same one.
+- `fun fluidFormatFileDate(instant: Instant, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault(), today: LocalDate = LocalDate.now(zone), includeTime: Boolean = false): String` — A file timestamp in the user's time zone. The current day and its predecessor use the locale's relative names.
 
 ## `engine-ui/ui/fluid/FluidFileTile.kt`
 
@@ -367,7 +369,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/viewer/FluidUnknownPreset.kt`
 
-- `data class FluidUnknownPresetStrings(val openWith: String = "Apri con…", val share: String = "Condividi", val unknownSize: String = "Dimensione sconosciuta", val emptyFile: String = "File vuoto", val noPreview: String = "Nessuna anteprima per questo tipo di file", val executableWarning: String = "È un'app o un programma: aprilo solo se ti fid…, val openFailed: String = "Nessuna app può aprire questo file", val shareFailed: String = "Il file non si può condividere", val showBytes: String = "Mostra i primi byte", val hideBytes: String = "Nascondi i byte", val bytesFailed: String = "I byte non si possono leggere")` — Le parole del preset sconosciuto, in italiano di serie.
+- `data class FluidUnknownPresetStrings(val openWith: String = "Apri con…", val share: String = "Condividi", val unknownSize: String = "Dimensione sconosciuta", val emptyFile: String = "File vuoto", val noPreview: String = "Nessuna anteprima per questo tipo di file", val executableWarning: String = "È un'app o un programma: aprilo solo se ti fid…, val openFailed: String = "Nessuna app può aprire questo file", val shareFailed: String = "Il file non si può condividere", val showBytes: String = "Mostra i primi byte", val hideBytes: String = "Nascondi i byte", val bytesFailed: String = "I byte non si possono leggere", val androidPackage: String = "Pacchetto Android", val executableType: String = "File eseguibile", val apkWarning: String = "È un'app da installare. Aprila solo se ti fidi…)` — Le parole del preset sconosciuto, in italiano di serie.
 - `object FluidUnknownPresetDefaults` — I numeri del preset sconosciuto.
   - `const val HexDumpBytes: Int` — Quanti byte mostra il dump: il primo KB, come Universal Converter (F6C.0 §6).
   - `const val HexRowBytes: Int` — Byte per riga del dump: otto stanno in monospazio su un telefono da 360 dp. A occhio, 22/11/2026.
@@ -381,7 +383,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/viewer/FluidViewerContent.kt`
 
-- `data class FluidFileInfo(val name: String, val mimeType: String? = null, val sizeBytes: Long? = null, val kind: FluidFileKind = FluidFileKind.from(mimeType, name))` — Metadata supplied by the owner of the file. A null size is unknown, zero means empty.
+- `data class FluidFileInfo(val name: String, val mimeType: String? = null, val sizeBytes: Long? = null, val kind: FluidFileKind = FluidFileKind.from(mimeType, name), val modifiedAtMillis: Long? = null)` — Metadata supplied by the owner of the file. A null size is unknown, zero means empty.
 - `interface FluidMediaSession` — A player owned by the app. Publish changing properties as Compose state. Times are milliseconds.
   - `val playing: Boolean`
   - `val positionMillis: Long`
@@ -450,7 +452,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `class Media(val session: FluidMediaSession, val sampleVideo: Boolean, val videoSurface: (@Composable () -> Unit)? = null, val artwork: (@Composable () -> Unit)? = null) : FluidViewerContent` — A non-null video surface identifies a video, even while it is buffering.
   - `class Pages(val source: FluidPageSource) : FluidViewerContent`
   - `class Text(val source: FluidTextSource) : FluidViewerContent`
-  - `class Unknown(val info: FluidFileInfo, val openWith: (() -> Unit)? = null, val share: (() -> Unit)? = null) : FluidViewerContent`
+  - `class Unknown(val info: FluidFileInfo, val openWith: (() -> Unit)? = null, val share: (() -> Unit)? = null, val icon: ImageBitmap? = null) : FluidViewerContent`
   - `class Grid(val source: FluidGridSource) : FluidViewerContent` — F6C.8 · A spreadsheet or a table: sheets of cells, frozen rows and columns, merges ([FluidGridSource]).
   - `class Custom(val background: FluidViewerBackground = FluidViewerBackground.Theme, val find: FluidViewerFind? = null, val actions: FluidToolbarScope.() -> Unit = {}, val draw: @Composable FluidViewerCustomScope.() -> Unit, internal val firstFrameReady: (() -> Boolean)? = null) : FluidViewerContent` — F6C.8 · A page that a module draws itself with the engine's public components (an archive's list, a JSON tree, a book, a mail, a font, a 3D model). It declares its [background], whether it has «Trova» ([find]) and the [actions] it adds to the viewer's bar («Estrai tutto», «Albero | Testo», «Presenta»). The frame keeps the chrome, the pager, the info panel and dismissal;
 

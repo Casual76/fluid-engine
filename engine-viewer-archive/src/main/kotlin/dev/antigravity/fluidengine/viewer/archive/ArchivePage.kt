@@ -38,15 +38,19 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
@@ -79,6 +83,8 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidReduceTransparency
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.fluidFormatFileSize
+import dev.antigravity.fluidengine.ui.fluid.fluidFormatFileSizeRange
+import dev.antigravity.fluidengine.ui.fluid.rememberCurrentDate
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
@@ -97,13 +103,24 @@ import dev.antigravity.fluidengine.ui.theme.FluidGroupSegment
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
+import dev.antigravity.fluidengine.viewer.FluidFileThumbnailImage
+import dev.antigravity.fluidengine.viewer.rememberFluidThumbnailLook
 import java.text.Collator
+import java.text.NumberFormat
+import java.time.LocalDate
+import java.util.Locale
 
 /** The D Mix archive wash, chosen by eye on 22 November 2026. */
 private object ArchiveMixProfile {
   const val Tint = .20f
   /** The last 12% is the viewer backdrop window chosen in F6C.1. */
   const val BackdropStart = .88f
+  // Tiles in D: graphite for plain documents, violet for code, blue/red/green for file types.
+  val NeutralTile = Color(0xFF67676E)
+  val CodeTile = Color(0xFF6947D8)
+  val MediaTile = Color(0xFF177C60)
+  val PdfTile = Color(0xFFAD3937)
+  val ArchiveTile = Color(0xFF376DA2)
 }
 
 internal fun archiveBackdropAlpha(move: FluidPageMove?, progress: Float): Float = when (move) {
@@ -180,6 +197,8 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
   val top = viewer.contentPadding.calculateTopPadding()
   val bottom = viewer.contentPadding.calculateBottomPadding()
   val fontScale = LocalDensity.current.fontScale
+  val locale = LocalConfiguration.current.locales.get(0) ?: Locale.getDefault()
+  val today = rememberCurrentDate()
   val searching = viewer.finding && find.query.isNotBlank()
   val files = if (searching) remember(index, find.query) { find.results } else listedFiles
   val searchList = remember { LazyListState() }
@@ -211,10 +230,9 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
               Text(session.request.source.name.substringBeforeLast('.').replaceFirstChar { it.titlecase() },
                 Modifier.semantics { heading() },
                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold))
-              val packed = index.compressedSize?.let(::fluidFormatFileSize)
-              val expanded = index.expandedSize?.let(::fluidFormatFileSize)
-              val sizes = listOfNotNull(packed, expanded).joinToString(" → ").takeIf(String::isNotEmpty)
-              Text(listOfNotNull(session.request.type.label ?: index.format, "${index.items.size} elementi", sizes).joinToString(" · "),
+              val sizes = fluidFormatFileSizeRange(index.compressedSize, index.expandedSize, locale)
+              val count = NumberFormat.getIntegerInstance(locale).format(index.items.size)
+              Text(listOfNotNull(session.request.type.label, "$count elementi", sizes).joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp), color = scheme.onSurfaceVariant)
             }
           }
@@ -226,7 +244,8 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
         Row(Modifier.fillMaxWidth().padding(bottom = if (tiles.last() == folders.last()) 18.dp else 10.dp),
           horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           for (tile in tiles) {
-            ArchiveFolderTile(tile, index.tree.children(tile.path).size, index.tree.bytesIn(tile.path), flat, backdrop, Modifier.weight(1f)) {
+            ArchiveFolderTile(tile, index.tree.children(tile.path).size, index.tree.bytesIn(tile.path), flat, backdrop,
+              locale, Modifier.weight(1f)) {
               folder = tile.path
             }
           }
@@ -235,12 +254,6 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
       }
       items(files.size, key = { "entry:${files[it].ordinal}" }) { i ->
         val item = files[i]
-        val subtitle = when {
-          item.kind == ArchiveKind.Link -> "Collegamento"
-          item.kind == ArchiveKind.Special -> "Voce speciale"
-          item.encrypted -> "Protetto da password"
-          else -> item.name.substringAfterLast('.', "").uppercase().takeIf(String::isNotEmpty).orEmpty()
-        }
         val open: (() -> Unit)? = if (!session.busy && session.canOpen(item)) ({ session.requestOpen(item) }) else null
         // The segments share one silhouette while the list composes only the visible rows.
         FluidListGroup(segment = when {
@@ -250,8 +263,8 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
           else -> FluidGroupSegment.Middle
         }) {
           if (i != 0) FluidListDivider(Modifier.padding(start = 42.dp))
-          ArchiveFileRow(item, if (searching) item.parent.ifBlank { subtitle } else subtitle,
-            selected = searching && i == find.current, open = open)
+          ArchiveFileRow(session, item, locale, today, active = viewer.active && !session.busy,
+            path = item.parent.takeIf { searching && it.isNotBlank() }, selected = searching && i == find.current, open = open)
         }
       }
       if (files.isEmpty() && folders.isEmpty() && index.problem == null && index.protection != ArchiveProtection.Rar &&
@@ -294,8 +307,16 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
 }
 
 @Composable
-private fun ArchiveFileRow(item: ArchiveItem, subtitle: String, selected: Boolean, open: (() -> Unit)?) {
+private fun ArchiveFileRow(session: ArchiveSession, item: ArchiveItem, locale: Locale, today: LocalDate,
+  active: Boolean, path: String?, selected: Boolean, open: (() -> Unit)?) {
   val scheme = MaterialTheme.colorScheme
+  val look = rememberFluidThumbnailLook()
+  val edge = with(LocalDensity.current) { 40.dp.roundToPx() }
+  val index = session.index
+  val preview by produceState<ArchiveRowPreview?>(null, session, item, index, look, edge, active) {
+    if (active) value = session.rowPreview(item, edge, look)
+  }
+  val subtitle = listOfNotNull(archiveRowSubtitle(item, preview, locale, today), path).joinToString(" · ")
   val action = if (open == null) Modifier else Modifier.fluidPressable(onClick = open, role = Role.Button,
     grip = FluidPressGrip.YieldsToScroll)
   Row(Modifier.fillMaxWidth().heightIn(min = 58.dp).then(action).drawBehind {
@@ -303,9 +324,12 @@ private fun ArchiveFileRow(item: ArchiveItem, subtitle: String, selected: Boolea
   }.semantics(mergeDescendants = true) { if (selected) this.selected = true }
     .padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.CenterVertically) {
-    Box(Modifier.size(40.dp).background(scheme.surfaceContainerHighest, ContinuousCornerShape(10.dp)),
+    val thumb = preview?.thumbnail
+    Box(Modifier.size(40.dp).clip(ContinuousCornerShape(10.dp)).then(
+      if (thumb == null) Modifier.background(archiveFileTileColor(item)) else Modifier),
       contentAlignment = Alignment.Center) {
-      Icon(fileIcon(item), null, Modifier.size(22.dp), tint = scheme.primary)
+      if (thumb != null) FluidFileThumbnailImage(thumb)
+      else Icon(fileIcon(item), null, Modifier.size(22.dp), tint = Color.White)
     }
     Column(Modifier.weight(1f)) {
       Text(item.name, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.5.sp, lineHeight = 19.sp,
@@ -314,7 +338,7 @@ private fun ArchiveFileRow(item: ArchiveItem, subtitle: String, selected: Boolea
         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
     item.bytes?.let { size ->
-      Text(fluidFormatFileSize(size), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontFeatureSettings = "tnum"),
+      Text(fluidFormatFileSize(size, locale), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontFeatureSettings = "tnum"),
         color = scheme.onSurfaceVariant, maxLines = 1, softWrap = false)
     }
   }
@@ -337,7 +361,7 @@ private fun ArchiveBreadcrumbs(folder: String, go: (String) -> Unit) {
 
 @Composable
 private fun ArchiveFolderTile(item: ArchiveItem, count: Int, bytes: Long?, flat: Boolean, backdrop: GlassBackdropState,
-  modifier: Modifier, open: () -> Unit) {
+  locale: Locale, modifier: Modifier, open: () -> Unit) {
   val scheme = MaterialTheme.colorScheme
   val shape = ContinuousCornerShape(FluidRadius.Group)
   val material = if (flat) Modifier.background(scheme.surfaceContainerHigh, shape)
@@ -348,7 +372,8 @@ private fun ArchiveFolderTile(item: ArchiveItem, count: Int, bytes: Long?, flat:
     Column {
       Text(item.name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.5.sp, lineHeight = 18.sp),
         maxLines = 1, overflow = TextOverflow.Ellipsis)
-      Text(listOfNotNull("$count el.", bytes?.let(::fluidFormatFileSize)).joinToString(" · "),
+      Text(listOfNotNull("${NumberFormat.getIntegerInstance(locale).format(count)} el.",
+        bytes?.let { fluidFormatFileSize(it, locale) }).joinToString(" · "),
         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = scheme.onSurfaceVariant)
     }
   }
@@ -429,11 +454,23 @@ private fun <T> ArchiveChoices(title: String, values: List<T>, selected: T, labe
 private fun fileIcon(item: ArchiveItem): ImageVector = when {
   item.kind == ArchiveKind.Link -> FluidIcons.Link
   item.encrypted -> FluidIcons.Lock
+  item.name.substringAfterLast('.').lowercase(Locale.ROOT) in setOf("kt", "kts", "js", "ts", "py") -> FluidIcons.Code
   else -> when (FluidFileKind.from(null, item.name)) {
     FluidFileKind.Pdf -> FluidIcons.PictureAsPdf
     FluidFileKind.Image -> FluidIcons.Image
     FluidFileKind.Archive -> FluidIcons.FolderZip
     else -> FluidIcons.Description
+  }
+}
+
+private fun archiveFileTileColor(item: ArchiveItem): Color = when {
+  item.encrypted || item.kind != ArchiveKind.File -> ArchiveMixProfile.NeutralTile
+  fileIcon(item) == FluidIcons.Code -> ArchiveMixProfile.CodeTile
+  else -> when (FluidFileKind.from(null, item.name)) {
+    FluidFileKind.Pdf -> ArchiveMixProfile.PdfTile
+    FluidFileKind.Image, FluidFileKind.Audio, FluidFileKind.Video -> ArchiveMixProfile.MediaTile
+    FluidFileKind.Archive, FluidFileKind.Spreadsheet, FluidFileKind.Presentation -> ArchiveMixProfile.ArchiveTile
+    else -> ArchiveMixProfile.NeutralTile
   }
 }
 

@@ -328,13 +328,13 @@ class FluidViewerPresetsUiTest {
           openWith = { throw ActivityNotFoundException("nessuna app") }, share = { shared++ })
       }, onBack = { backs++ })
     }
-    compose.onNodeWithText("È un'app o un programma: aprilo solo se ti fidi di chi te l'ha mandato.").assertIsDisplayed()
+    compose.onNodeWithText("È un'app da installare.", substring = true).assertIsDisplayed()
     val shown = compose.onNode(SemanticsMatcher("il nome") {
       it.config.getOrNull(SemanticsProperties.Heading) != null
     }).fetchSemanticsNode().config[SemanticsProperties.Text].single().text
     assertTrue(shown, shown.endsWith(".apk"))
     assertTrue(shown, shown.length < name.length && "…" in shown)
-    compose.onNodeWithText("Eseguibile o pacchetto, attenzione", substring = true).assertIsDisplayed()
+    compose.onNodeWithText("Pacchetto Android", substring = true).assertIsDisplayed()
     compose.onNodeWithText("MB", substring = true).assertIsDisplayed()
     compose.onNodeWithText("Apri con…").performClick()
     compose.waitForIdle()

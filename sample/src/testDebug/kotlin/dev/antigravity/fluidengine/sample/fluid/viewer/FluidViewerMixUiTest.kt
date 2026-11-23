@@ -108,7 +108,8 @@ class FluidViewerMixUiTest {
         }
         compose.waitForIdle()
         compose.onNodeWithText("File di prova").performScrollTo().assertIsDisplayed()
-        val warning = compose.onNodeWithText("È un'app o un programma", substring = true)
+        val warning = compose.onNodeWithText(
+          if (fileName.endsWith(".apk")) "È un'app da installare." else "È un'app o un programma", substring = true)
         if (fileName.endsWith(".bin")) warning.assertDoesNotExist()
         else warning.performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Apri con…").performScrollTo().assertIsDisplayed()

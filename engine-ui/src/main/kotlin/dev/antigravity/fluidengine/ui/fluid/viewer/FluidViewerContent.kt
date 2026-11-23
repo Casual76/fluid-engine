@@ -23,6 +23,7 @@ data class FluidFileInfo(
   val mimeType: String? = null,
   val sizeBytes: Long? = null,
   val kind: FluidFileKind = FluidFileKind.from(mimeType, name),
+  val modifiedAtMillis: Long? = null,
 )
 
 /** A player owned by the app. Publish changing properties as Compose state. Times are milliseconds. */
@@ -294,6 +295,7 @@ interface FluidViewerContent {
     val info: FluidFileInfo,
     val openWith: (() -> Unit)? = null,
     val share: (() -> Unit)? = null,
+    val icon: ImageBitmap? = null,
   ) : FluidViewerContent
 
   /** F6C.8 · A spreadsheet or a table: sheets of cells, frozen rows and columns, merges ([FluidGridSource]). */

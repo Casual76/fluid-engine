@@ -1,7 +1,11 @@
 package dev.antigravity.fluidengine.sample.viewer
 
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
@@ -15,10 +19,13 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.font.FontWeight
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.sample.R
@@ -28,6 +35,9 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.viewer.FluidTextDecoder
+import dev.antigravity.fluidengine.viewer.FluidFileThumbnails
+import dev.antigravity.fluidengine.viewer.FluidViewerFile
+import dev.antigravity.fluidengine.viewer.open
 import dev.antigravity.fluidengine.viewer.FluidViewerDocument
 import dev.antigravity.fluidengine.viewer.data.fluidDataViewerInfo
 import dev.antigravity.fluidengine.viewer.rememberFluidViewerFiles
@@ -43,10 +53,13 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.zip.ZipFile
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w412dp-h891dp-mdpi")
+@Config(sdk = [35], qualifiers = "it-rIT-w412dp-h891dp-mdpi")
 open class ViewerBoardPhoneTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
   protected open val screen = 412
@@ -105,15 +118,53 @@ open class ViewerBoardPhoneTest {
     scenes("testo", FluidViewerInfo(FluidFileInfo("VisoriFiles.kt"))) { FluidViewerContent.Text(source) }
   }
 
-  @Test fun executable() = unknown("apk", "Aggiornamento.apk", "application/vnd.android.package-archive")
-  @Test fun unknownFile() = unknown("sconosciuto", "Scena.blend", null)
+  @Test fun executable() {
+    val context = compose.activity
+    val apk = File.createTempFile("aggiornamento-", ".apk", context.cacheDir)
+    try {
+      context.resources.openRawResource(R.raw.viewer_installer).use { input ->
+        apk.outputStream().use { input.copyTo(it) }
+      }
+      // Route the JVM platform call to the real PNG in the APK. Both production paths still use the same reader.
+      val fixturePackage = "dev.antigravity.fluidglass.boardfixture"
+      val iconId = 0x7f010000
+      val icon = ZipFile(apk).use { zip ->
+        val entry = requireNotNull(zip.getEntry("res/drawable-nodpi-v4/board_icon.png"))
+        zip.getInputStream(entry).use { requireNotNull(BitmapFactory.decodeStream(it)) }
+      }
+      val shadows = shadowOf(context.packageManager)
+      shadows.setPackageArchiveInfo(apk.path, PackageInfo().apply {
+        packageName = fixturePackage
+        applicationInfo = ApplicationInfo().apply {
+          packageName = fixturePackage
+          this.icon = iconId
+        }
+      })
+      shadows.addDrawableResolution(fixturePackage, iconId, BitmapDrawable(context.resources, icon))
+      val modified = LocalDate.now().atTime(9, 41).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+      val file = FluidViewerFile(Uri.fromFile(apk), "Aggiornamento.apk", "application/vnd.android.package-archive",
+        sizeBytes = 12_400_000, modifiedAtMillis = modified)
+      val actual = runBlocking {
+        assertTrue(!FluidFileThumbnails.load(context, file, 160).isPlaceholder)
+        file.open(context, openWith = {}, share = {}).use { it.content as FluidViewerContent.Unknown }
+      }
+      val image = requireNotNull(actual.icon)
+      assertEquals(image.width, image.height)
+      unknown("apk", actual)
+    } finally {
+      apk.delete()
+    }
+  }
 
-  private fun unknown(scene: String, name: String, mime: String?) {
-    val info = FluidViewerInfo(FluidFileInfo(name, mime, 12_400_000), facts = if (mime != null)
-      listOf("Fluid Glass 4.0.1", "Firmato", "Non installato") else listOf("BLEND"))
+  @Test fun unknownFile() = unknown("sconosciuto",
+    FluidViewerContent.Unknown(FluidFileInfo("Scena.blend", sizeBytes = 12_400_000), openWith = {}, share = {}))
+
+  private fun unknown(scene: String, file: FluidViewerContent.Unknown) {
+    val info = FluidViewerInfo(file.info, facts = if (scene == "apk")
+      listOf("Fluid Glass 4.0.1", "Non installata") else listOf("BLEND"))
     scenes(scene, info, share = false, renderer = { content, _ ->
       FluidUnknownPreset(content as FluidViewerContent.Unknown, firstBytes = { byteArrayOf(1, 2, 3) })
-    }) { FluidViewerContent.Unknown(info.file, openWith = {}, share = {}) }
+    }) { file }
   }
 
   @Test fun word() = family("word", VisoriFamiglia.Office, "office-docx")
@@ -206,6 +257,14 @@ open class ViewerBoardPhoneTest {
         val share = text("Condividi")
         assertEquals(46f, open.height, 2f)
         assertTrue(open.bottom + 9f <= share.top)
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("Apri con…", useUnmergedTree = true)
+          .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(FontWeight.Bold, layouts.single().layoutInput.style.fontWeight)
+        if (scene == "apk") {
+          text("Pacchetto Android · 12,4 MB · oggi 9:41")
+          compose.onNodeWithText("È un'app da installare.", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        }
       }
       "foglio" -> {
         val share = action("Condividi")
@@ -223,8 +282,8 @@ open class ViewerBoardPhoneTest {
 
   private fun capture(scene: String, theme: String) {
     if (screen != 412) return
-    val output = System.getenv("FLUID_F6C18_EVIDENCE") ?: return
-    val folder = File(output, theme).apply { mkdirs() }
+    val folder = System.getenv("FLUID_F6C18_EVIDENCE")?.let { File(it, theme).apply { mkdirs() } }
+    if (folder == null && scene != "apk" && scene != "audio") return
     val nodes = compose.onRoot(useUnmergedTree = true).fetchSemanticsNode()
     val report = buildString {
       fun appendNode(node: androidx.compose.ui.semantics.SemanticsNode) {
@@ -237,7 +296,7 @@ open class ViewerBoardPhoneTest {
       }
       appendNode(nodes)
     }
-    File(folder, "$scene.tsv").writeText(report, Charsets.UTF_8)
+    if (folder != null) File(folder, "$scene.tsv").writeText(report, Charsets.UTF_8)
     val window = compose.activity.window
     val view = window.decorView
     val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
@@ -249,7 +308,11 @@ open class ViewerBoardPhoneTest {
       }
       shadowOf(Looper.getMainLooper()).idle()
       assertEquals(PixelCopy.SUCCESS, result)
-      File(folder, "$scene.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+      if (scene == "audio") assertEquals(if (theme == "chiaro") 0xFFF1F5F7.toInt() else 0xFF252A2D.toInt(),
+        bitmap.getPixel(28, 535))
+      if (scene == "apk") assertEquals(if (theme == "chiaro") 0xFFFCF0DE.toInt() else 0xFF2F1F01.toInt(),
+        bitmap.getPixel(40, 505))
+      if (folder != null) File(folder, "$scene.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     } finally {
       bitmap.recycle()
     }
@@ -258,7 +321,7 @@ open class ViewerBoardPhoneTest {
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w360dp-h780dp-mdpi")
+@Config(sdk = [35], qualifiers = "it-rIT-w360dp-h780dp-mdpi")
 class ViewerBoardNarrowPhoneTest : ViewerBoardPhoneTest() {
   override val screen = 360
 }

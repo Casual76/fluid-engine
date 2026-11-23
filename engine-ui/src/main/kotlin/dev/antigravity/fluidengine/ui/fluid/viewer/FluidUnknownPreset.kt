@@ -15,12 +15,17 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -30,6 +35,7 @@ import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Warning
 import java.util.Locale
+import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
 // F6C.2 · Il preset del file sconosciuto: mai un vicolo cieco. L'icona del tipo (FluidFileKind), il nome con
@@ -51,6 +57,9 @@ data class FluidUnknownPresetStrings(
   val showBytes: String = "Mostra i primi byte",
   val hideBytes: String = "Nascondi i byte",
   val bytesFailed: String = "I byte non si possono leggere",
+  val androidPackage: String = "Pacchetto Android",
+  val executableType: String = "File eseguibile",
+  val apkWarning: String = "È un'app da installare. Aprila solo se ti fidi di chi te l'ha mandata: può leggere i tuoi dati.",
 )
 
 /** I numeri del preset sconosciuto. */
@@ -71,14 +80,23 @@ internal fun fluidUnknownDetails(
   kind: String,
   strings: FluidUnknownPresetStrings,
   locale: Locale = Locale.getDefault(),
+  today: LocalDate? = null,
 ): String {
   val size = when (val bytes = info.sizeBytes) {
     null -> strings.unknownSize
     0L -> strings.emptyFile
     else -> if (bytes < 0) strings.unknownSize else fluidFormatFileSize(bytes, locale)
   }
-  return "$kind · $size"
+  val date = info.modifiedAtMillis?.let {
+    fluidFormatFileDate(java.time.Instant.ofEpochMilli(it), locale = locale, today = today ?: LocalDate.now(),
+      includeTime = true)
+  }
+  return listOfNotNull(kind, size, date).joinToString(" · ")
 }
+
+internal fun viewerIsApk(file: FluidFileInfo): Boolean =
+  file.name.endsWith(".apk", ignoreCase = true) ||
+    file.mimeType?.substringBefore(';')?.trim()?.equals("application/vnd.android.package-archive", ignoreCase = true) == true
 
 /** Il dump di [bytes]: indirizzo, byte in esadecimale e caratteri stampabili (gli altri sono un punto), [perRow] per riga. */
 internal fun fluidHexDump(
@@ -159,7 +177,18 @@ fun FluidUnknownPreset(
   val gap = 10.dp
   val details = LocalViewerInfo.current
   val colors = MaterialTheme.colorScheme
-  val accent = viewerAccent(details, colors.primary)
+  val image = file.icon ?: details?.thumbnail
+  val accent = viewerAccent(details?.copy(thumbnail = image) ?: FluidViewerInfo(info, thumbnail = image), colors.primary)
+  val dark = GlassDefaults.isDarkSurface()
+  val locale = LocalConfiguration.current.locales.get(0) ?: Locale.getDefault()
+  val displayFile = details?.file ?: info
+  val today = if (displayFile.modifiedAtMillis != null) rememberCurrentDate() else null
+  val apk = viewerIsApk(info)
+  val kind = when {
+    apk -> strings.androidPackage
+    info.kind == FluidFileKind.Executable -> strings.executableType
+    else -> labels.fileKind(info.kind)
+  }
   val backdrop = rememberGlassBackdrop()
   Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent,
@@ -177,7 +206,7 @@ fun FluidUnknownPreset(
       ) {
         Box(Modifier.size(iconSize).viewerHalo(accent, ViewerMixProfile.FileIconRadius),
           contentAlignment = Alignment.Center) {
-          val icon = details?.thumbnail
+          val icon = image
           if (icon != null) Image(icon, null, Modifier.fillMaxSize().clip(iconShape),
             contentScale = ContentScale.Fit)
           else Box(Modifier.fillMaxSize().background(colors.primary, iconShape), contentAlignment = Alignment.Center) {
@@ -191,7 +220,7 @@ fun FluidUnknownPreset(
           val shown = remember(info.name, width, nameStyle, measurer) { fluidFitFileName(info.name, measurer, nameStyle, width, 2) }
           Text(shown, Modifier.fillMaxWidth().semantics { heading() }, style = nameStyle, maxLines = 2)
         }
-        Text(details?.subtitle ?: fluidUnknownDetails(info, labels.fileKind(info.kind), strings), Modifier.padding(top = 5.dp),
+        Text(details?.subtitle ?: fluidUnknownDetails(displayFile, kind, strings, locale, today), Modifier.padding(top = 5.dp),
           style = MaterialTheme.typography.bodyLarge.viewerSize(15f),
           color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         val facts = details?.facts?.takeIf { it.isNotEmpty() } ?: listOfNotNull(
@@ -200,14 +229,21 @@ fun FluidUnknownPreset(
         if (info.kind == FluidFileKind.Executable) {
           Spacer(Modifier.height(44.dp))
           Row(Modifier.fillMaxWidth().heightIn(min = 90.dp)
-            .viewerGlass(backdrop, ContinuousCornerShape(ViewerMixProfile.WarningRadius),
-            ViewerMixProfile.Amber.copy(alpha = ViewerMixProfile.WarningTint))
+            .background(if (dark) ViewerMixProfile.WarningDark else ViewerMixProfile.WarningLight,
+              ContinuousCornerShape(ViewerMixProfile.WarningRadius))
             .padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(36.dp).background(ViewerMixProfile.Amber, ContinuousCornerShape(11.dp)),
               contentAlignment = Alignment.Center) {
-              Icon(FluidIcons.Warning, contentDescription = null, modifier = Modifier.size(21.dp), tint = colors.onPrimary)
+              Icon(FluidIcons.Warning, contentDescription = null, modifier = Modifier.size(21.dp), tint = Color.White)
             }
-            Text(strings.executableWarning, Modifier.weight(1f), color = colors.onSurface,
+            val warning = if (apk) strings.apkWarning else strings.executableWarning
+            val first = warning.indexOfFirst { it == '.' || it == ':' }
+            val text = buildAnnotatedString {
+              val end = if (first == -1) warning.length else first + 1
+              withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(warning.substring(0, end)) }
+              append(warning.substring(end))
+            }
+            Text(text, Modifier.weight(1f), color = if (dark) ViewerMixProfile.WarningInkDark else ViewerMixProfile.WarningInkLight,
               style = MaterialTheme.typography.bodyLarge.viewerSize(14.5f, FontWeight.Medium, 20f))
           }
         }

@@ -42,9 +42,10 @@ data class FluidViewerFile(
   val name: String,
   val mimeType: String? = null,
   val sizeBytes: Long? = null,
+  val modifiedAtMillis: Long? = null,
 ) {
   /** Le informazioni per lo sconosciuto e per il pannello: nome, MIME, dimensione e il tipo di `FluidFileKind`. */
-  val info: FluidFileInfo get() = FluidFileInfo(name, mimeType, sizeBytes)
+  val info: FluidFileInfo get() = FluidFileInfo(name, mimeType, sizeBytes, modifiedAtMillis = modifiedAtMillis)
 
   /** Il tipo per il visore, da MIME e nome (senza leggere il file). */
   val type: FluidViewerType get() = FluidViewerType.of(mimeType, name)
@@ -129,7 +130,7 @@ suspend fun FluidViewerFile.open(
 ): FluidViewerDocument {
   val app = context.applicationContext
   val families = FluidViewerRegistry.families
-  if (families.isNotEmpty()) {
+  if (families.isNotEmpty() || type.executable) {
     val source = FluidViewerSource.of(app, uri, name, mimeType, sizeBytes, options.sourceMaxCopyBytes)
     return fluidOpenSource(app, this, source, families, options, openWith, share, media)
   }

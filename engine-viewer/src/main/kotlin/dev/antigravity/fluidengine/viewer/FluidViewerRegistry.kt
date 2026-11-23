@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileInfo
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
+import java.io.File
 import java.util.Locale
 import java.util.ServiceConfigurationError
 import java.util.ServiceLoader
@@ -84,7 +86,10 @@ object FluidViewerRegistry {
   ): FluidViewerDocument {
     val app = context.applicationContext ?: context
     val uri = (source as? FluidViewerUriSource)?.uri ?: (source as? FluidViewerFileSource)?.file?.let(Uri::fromFile) ?: Uri.EMPTY
-    val file = FluidViewerFile(uri, source.name, source.mimeType, source.sizeBytes)
+    val modified = uri.path?.takeIf { uri.scheme == "file" }?.let { path ->
+      withContext(Dispatchers.IO) { File(path).lastModified().takeIf { it > 0 } }
+    }
+    val file = FluidViewerFile(uri, source.name, source.mimeType, source.sizeBytes, modified)
     return fluidOpenSource(app, file, source, families, options, openWith, share, media)
   }
 
@@ -335,13 +340,13 @@ internal suspend fun fluidOpenSource(
   share: (() -> Unit)?,
   media: ((FluidViewerType) -> FluidViewerContent?)?,
 ): FluidViewerDocument {
-  val opening = fluidOpenWithRegistry(context, source, families, options, openWith, share, media)
+  val opening = fluidOpenWithRegistry(context, source, families, options, openWith, share, media, file.info)
   return FluidViewerDocument(file, opening.type, opening.content, opening.failure, opening.resource, opening.details)
 }
 
 /**
  * L'apertura col registro di un file già in una sorgente: i candidati di [families], i preset di serie su [source]
- * (per un `Uri` dell'app, le funzioni di F6C.4) e lo sconosciuto. Un eseguibile non si legge nemmeno. La sorgente
+ * (per un `Uri` dell'app, le funzioni di F6C.4) e lo sconosciuto. Di un APK si può leggere solo l'icona. La sorgente
  * passa al documento, o si chiude subito se niente la tiene: dopo un ripiego, un errore o un annullamento.
  */
 internal suspend fun fluidOpenWithRegistry(
@@ -352,13 +357,25 @@ internal suspend fun fluidOpenWithRegistry(
   openWith: (() -> Unit)?,
   share: (() -> Unit)?,
   media: ((FluidViewerType) -> FluidViewerContent?)?,
+  info: FluidFileInfo = FluidFileInfo(source.name, source.mimeType, source.sizeBytes),
 ): FluidViewerOpening {
-  val info = FluidFileInfo(source.name, source.mimeType, source.sizeBytes)
   val unknown = FluidViewerContent.Unknown(info, openWith, share)
   var handed = false
   try {
     val start = FluidViewerType.builtin(source.mimeType, source.name, null).type
-    if (start.executable) return FluidViewerOpening(start, unknown, null, null, emptyList())
+    if (start.executable) {
+      val icon = if (fluidIsApk(source)) {
+        try {
+          fluidApkIcon(context, source, 416)?.asImageBitmap()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+          throw e
+        } catch (_: Exception) {
+          null
+        }
+      } else null
+      val content = if (icon == null) unknown else FluidViewerContent.Unknown(info, openWith, share, icon)
+      return FluidViewerOpening(start, content, null, null, emptyList())
+    }
     val needsHeader = start.preset == FluidViewerPreset.Unknown && start.mimeType == null
     val probe = FluidViewerProbe.read(source, families, always = needsHeader)
     val candidates = FluidViewerResolver.candidates(families, source.mimeType, source.name, probe.header, probe.entries)

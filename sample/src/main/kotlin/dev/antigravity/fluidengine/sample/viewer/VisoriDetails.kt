@@ -2,7 +2,6 @@ package dev.antigravity.fluidengine.sample.viewer
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.ExifInterface
 import android.media.MediaExtractor
@@ -13,7 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
-import androidx.core.graphics.drawable.toBitmap
+import dev.antigravity.fluidengine.ui.fluid.fluidFormatFileSize
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
 import dev.antigravity.fluidengine.viewer.*
 import dev.antigravity.fluidengine.viewer.archive.fluidArchiveViewerInfo
@@ -72,7 +71,8 @@ internal fun visoriDetails(sample: VisoreFile, file: FluidViewerFile, document: 
   val output: (() -> Unit)? = if (sample.tipo == VisoreTipo.Audio && Build.VERSION.SDK_INT >= 34) ({
     android.media.MediaRouter2.getInstance(context).showSystemOutputSwitcher()
   }) else null
-  return metadata.copy(reading = reading, actions = actions, audioOutput = output,
+  val apkIcon = (document?.content as? FluidViewerContent.Unknown)?.icon
+  return metadata.copy(reading = reading, actions = actions, audioOutput = output, thumbnail = apkIcon ?: metadata.thumbnail,
     audioWaveform = if (sample.tipo == VisoreTipo.Audio && audio != null) ({ Waveform(audio.session) }) else null)
 }
 
@@ -130,7 +130,8 @@ private suspend fun readDetails(context: Context, sample: VisoreFile, file: Flui
       val paper = source.render(0, target)
       val version = disk.bufferedReader(Charsets.ISO_8859_1).use { it.readLine()?.take(12)?.removePrefix("%PDF-") }
       val formats = sizes.groupingBy { "${it.width} × ${it.height} pt" }.eachCount()
-      info.copy(thumbnail = paper, searchPages = if (Build.VERSION.SDK_INT >= 35) ({ phrase -> searchPdf(disk, phrase) }) else null, subtitle = "Documento a pagine · ${file.sizeBytes?.let(::formatBytes).orEmpty()}",
+      info.copy(thumbnail = paper, searchPages = if (Build.VERSION.SDK_INT >= 35) ({ phrase -> searchPdf(disk, phrase) }) else null,
+        subtitle = listOfNotNull("Documento a pagine", file.sizeBytes?.let { fluidFormatFileSize(it) }).joinToString(" · "),
         facts = listOfNotNull("${source.count} pagine", version?.let { "PDF $it" }),
         sections = listOf(section("Documento", "Titolo" to sample.title, "Versione PDF" to version),
           FluidViewerInfoSection("Pagine", formats.map { FluidViewerInfoRow(it.key, it.value.toString()) }),
@@ -197,8 +198,6 @@ private fun apkDetails(context: Context, disk: File, info: FluidViewerInfo): Flu
     PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
   val archive = pm.getPackageArchiveInfo(disk.path, flags) ?: return info
   val app = archive.applicationInfo ?: return info
-  app.sourceDir = disk.path
-  app.publicSourceDir = disk.path
   val signature = if (Build.VERSION.SDK_INT >= 28) archive.signingInfo?.apkContentsSigners?.firstOrNull()
     else archive.signatures?.firstOrNull()
   val cert = signature?.let { CertificateFactory.getInstance("X.509")
@@ -209,8 +208,9 @@ private fun apkDetails(context: Context, disk: File, info: FluidViewerInfo): Flu
     Triple(names.size, names.count { it.endsWith(".dex") },
       names.filter { it.startsWith("lib/") && it.endsWith(".so") }.map { it.split('/')[1] }.distinct())
   }
-  return info.copy(thumbnail = app.takeIf { it.icon != 0 }?.loadIcon(pm)?.toBitmap(512, 512, Bitmap.Config.ARGB_8888)?.asImageBitmap(),
-    facts = listOfNotNull("APK", archive.versionName, if (cert != null) "Firmato" else null, if (installed) "Installata" else "Non installata"),
+  val nameAndVersion = listOfNotNull(app.nonLocalizedLabel?.toString(), archive.versionName).joinToString(" ").ifBlank { null }
+  return info.copy(facts = listOfNotNull(nameAndVersion ?: "APK", if (cert != null) "Firmato" else null,
+      if (installed) "Installata" else "Non installata"),
     sections = listOf(
       section("App", "ID" to archive.packageName, "Versione" to archive.versionName,
         "Android minimo / destinazione" to "${app.minSdkVersion} / ${app.targetSdkVersion}"),

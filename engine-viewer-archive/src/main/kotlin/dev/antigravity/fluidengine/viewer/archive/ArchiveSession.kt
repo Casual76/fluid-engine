@@ -11,6 +11,9 @@ import dev.antigravity.fluidengine.viewer.FluidViewerDocument
 import dev.antigravity.fluidengine.viewer.FluidViewerRegistry
 import dev.antigravity.fluidengine.viewer.FluidViewerRequest
 import dev.antigravity.fluidengine.viewer.FluidViewerSource
+import dev.antigravity.fluidengine.viewer.FluidThumbnailLook
+import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -37,6 +41,7 @@ internal class ArchiveSession(
   val format: ArchiveFormat,
   private val reader: NativeArchive,
   initialIndex: ArchiveIndex,
+  private val readRowFile: (suspend (ArchiveItem, File) -> Unit)? = null,
   private val onExtractAll: (suspend (FluidArchiveExtraction) -> Unit)?,
 ) {
   var index by mutableStateOf(initialIndex)
@@ -55,6 +60,7 @@ internal class ArchiveSession(
   var problem by mutableStateOf<ArchiveProblem?>(null)
     private set
   private val operations = Mutex()
+  private val rowPreviews = android.util.LruCache<ArchiveRowKey, ArchiveRowPreview>(64)
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
   private var password: CharArray? = null
   private var sharedArchive: File? = null
@@ -70,12 +76,45 @@ internal class ArchiveSession(
 
   fun canOpen(item: ArchiveItem): Boolean = canRead && item.kind == ArchiveKind.File && (item.bytes ?: 0) <= ArchiveEntryLimit
 
+  suspend fun rowPreview(item: ArchiveItem, sizePx: Int, look: FluidThumbnailLook): ArchiveRowPreview? {
+    val indexSnapshot = index
+    val kind = FluidFileKind.from(null, item.name)
+    if (!canRead || busy || closed || !canPreviewArchiveRow(indexSnapshot, item, kind)) return null
+    val key = ArchiveRowKey(item.ordinal, sizePx, look)
+    rowPreviews.get(key)?.let { return it }
+    val result = withTimeoutOrNull(2_500) {
+      withContext(Dispatchers.IO) {
+        var temporary: File? = null
+        try {
+          val staged = createPreviewFile("thumbnail-").also { temporary = it }
+          operations.withLock {
+            if (index !== indexSnapshot || busy || closed) return@withContext null
+            if (readRowFile != null) readRowFile.invoke(item, staged)
+            else reader.extract(listOf(item), encoding, null) { _, write ->
+              staged.outputStream().use { write(ArchiveRowSink(it)) }
+            }
+          }
+          readArchiveRowPreview(request.context, staged, item, kind, sizePx, look, request.options)
+        } catch (cancelled: CancellationException) {
+          throw cancelled
+        } catch (_: Exception) {
+          null
+        } finally {
+          temporary?.delete()
+        }
+      }
+    }
+    if (result != null && !closed && index === indexSnapshot) rowPreviews.put(key, result)
+    return result
+  }
+
   fun changeEncoding(value: ArchiveEncoding) {
     if (encoding == value) return
     run {
       val updated = withContext(Dispatchers.IO) { operations.withLock { reader.index(value) } }
       encoding = value
       index = updated
+      rowPreviews.evictAll()
       replacePassword(null)
     }
   }
@@ -146,6 +185,7 @@ internal class ArchiveSession(
           operations.withLock { SevenZipAes.unlock(request.source, index, checkNotNull(key)) }
         }
         index = unlockedIndex
+        rowPreviews.evictAll()
       }
       ArchiveAction.Export -> export(key)
       is ArchiveAction.Open -> open(action.item, key)
@@ -307,6 +347,7 @@ internal class ArchiveSession(
   fun close() {
     closed = true
     scope.cancel()
+    rowPreviews.evictAll()
     dismissPreview()
     sharedArchive?.delete()
     sharedArchive = null

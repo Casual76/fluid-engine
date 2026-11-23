@@ -226,7 +226,25 @@ private suspend fun audioThumbnail(source: FluidViewerSource, size: Int): FluidF
  * L'icona di un APK, letta dal pacchetto come fa il preset sconosciuto per il suo avviso, con un alone del suo colore
  * (§5.1, «l'eseguibile con l'icona e l'alone»). Il pacchetto non si installa e non si esegue.
  */
-private suspend fun apkThumbnail(context: Context, source: FluidViewerSource, size: Int): FluidFileThumbnail? =
+private suspend fun apkThumbnail(context: Context, source: FluidViewerSource, size: Int): FluidFileThumbnail? {
+  val glyph = fluidApkIcon(context, source, (size * .56f).roundToInt()) ?: return null
+  val halo = averageColor(glyph)
+  val image = FluidThumbnailPainter.symbol(size) { canvas, side ->
+    val edge = glyph.width.toFloat()
+    val left = (side - edge) / 2f
+    val top = (side - edge) / 2f
+    canvas.drawCircle(side / 2f, side / 2f, side * 0.48f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      shader = RadialGradient(side / 2f, side / 2f, side * 0.48f,
+        intArrayOf(Color.argb(110, Color.red(halo), Color.green(halo), Color.blue(halo)), Color.TRANSPARENT),
+        floatArrayOf(0.35f, 1f), Shader.TileMode.CLAMP)
+    })
+    canvas.drawBitmap(glyph, null, RectF(left, top, left + edge, top + edge), Paint(Paint.FILTER_BITMAP_FLAG))
+  }
+  return FluidFileThumbnail.of(image, fillsByKind = false)
+}
+
+/** Read the actual declared application icon. The page and the thumbnail supply their own shape and halo. */
+internal suspend fun fluidApkIcon(context: Context, source: FluidViewerSource, size: Int): Bitmap? =
   withContext(Dispatchers.IO) {
     val direct = when (source) {
       is FluidViewerFileSource -> source.file.takeIf { it.isFile }?.path
@@ -241,23 +259,13 @@ private suspend fun apkThumbnail(context: Context, source: FluidViewerSource, si
       val application = info.applicationInfo ?: return@withContext null
       application.sourceDir = path
       application.publicSourceDir = path
-      val icon = application.loadIcon(pm) ?: return@withContext null
-      val image = FluidThumbnailPainter.symbol(size) { canvas, side ->
-        val edge = side * 0.56f
-        val left = (side - edge) / 2f
-        val top = (side - edge) / 2f
-        val glyph = Bitmap.createBitmap(max(1, edge.roundToInt()), max(1, edge.roundToInt()), Bitmap.Config.ARGB_8888)
-        icon.setBounds(0, 0, glyph.width, glyph.height)
-        icon.draw(Canvas(glyph))
-        val halo = averageColor(glyph)
-        canvas.drawCircle(side / 2f, side / 2f, side * 0.48f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-          shader = RadialGradient(side / 2f, side / 2f, side * 0.48f,
-            intArrayOf(Color.argb(110, Color.red(halo), Color.green(halo), Color.blue(halo)), Color.TRANSPARENT),
-            floatArrayOf(0.35f, 1f), Shader.TileMode.CLAMP)
-        })
-        canvas.drawBitmap(glyph, null, RectF(left, top, left + edge, top + edge), Paint(Paint.FILTER_BITMAP_FLAG))
+      if (application.icon == 0) return@withContext null
+      val icon = pm.getDrawable(application.packageName, application.icon, application) ?: return@withContext null
+      val edge = size.coerceIn(1, FluidThumbnailPainter.MaxSizePx)
+      Bitmap.createBitmap(edge, edge, Bitmap.Config.ARGB_8888).also { bitmap ->
+        icon.setBounds(0, 0, edge, edge)
+        icon.draw(Canvas(bitmap))
       }
-      FluidFileThumbnail.of(image, fillsByKind = false)
     } finally {
       descriptor?.close()
     }

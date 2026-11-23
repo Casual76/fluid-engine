@@ -40,6 +40,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -55,6 +56,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** Optional player capability. Publish the result through durationMillis, without starting playback. */
 interface FluidMediaDurationLoader {
@@ -133,7 +135,7 @@ internal fun defaultViewerInfo(file: FluidViewerContent, strings: FluidViewerStr
       else -> info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
     }
   }
-  return FluidViewerInfo(info, facts = facts, actions = actions)
+  return FluidViewerInfo(info, thumbnail = (file as? FluidViewerContent.Unknown)?.icon, facts = facts, actions = actions)
 }
 
 /**
@@ -155,7 +157,13 @@ internal object ViewerMixProfile {
   val FactPadding = 11.dp
   const val FileTint = .20f
   const val LowerTint = .16f
-  const val WarningTint = .27f
+  // Tinte piene campionate all'interno delle superfici D chiara e scura (F6C.18 v2).
+  val WarningLight = Color(0xFFFCF0DE)
+  val WarningDark = Color(0xFF2F1F01)
+  val WarningInkLight = Color(0xFF211C15)
+  val WarningInkDark = Color(0xFFFDF6EA)
+  val PlayerLight = Color(0xFFF1F5F7)
+  val PlayerDark = Color(0xFF252A2D)
   val Amber = Color(0xFFFF9500)
   val HaloDrop = 6.dp
   fun haloSpread(itemSize: Dp): Dp = (itemSize * .16f).coerceIn(20.dp, 46.dp)
@@ -174,13 +182,13 @@ internal fun ViewerBoardButton(text: String, onClick: () -> Unit, modifier: Modi
   style: FluidButtonStyle = FluidButtonStyle.Filled, height: Dp = 46.dp, textSize: Float = 15.5f) {
   val colors = MaterialTheme.colorScheme
   val fill = when (style) {
-    FluidButtonStyle.Filled -> colors.primary
+    FluidButtonStyle.Filled -> viewerWhiteButtonFill(colors.primary)
     FluidButtonStyle.Tinted -> colors.primary.copy(alpha = .12f)
     FluidButtonStyle.Destructive -> colors.errorContainer
     FluidButtonStyle.Plain -> Color.Transparent
   }
   val ink = when (style) {
-    FluidButtonStyle.Filled -> colors.onPrimary
+    FluidButtonStyle.Filled -> Color.White
     FluidButtonStyle.Destructive -> colors.onErrorContainer
     else -> colors.primary
   }
@@ -188,9 +196,23 @@ internal fun ViewerBoardButton(text: String, onClick: () -> Unit, modifier: Modi
     feedback = FluidPressFeedback.Expand, grip = FluidPressGrip.YieldsToScroll)
     .background(fill, FluidCapsuleShape).padding(horizontal = 14.dp, vertical = 4.dp),
     contentAlignment = Alignment.Center) {
-    Text(text, style = MaterialTheme.typography.bodyMedium.viewerSize(textSize, FontWeight.SemiBold),
+    val weight = if (style == FluidButtonStyle.Filled) FontWeight.Bold else FontWeight.SemiBold
+    Text(text, style = MaterialTheme.typography.bodyMedium.viewerSize(textSize, weight),
       color = ink, textAlign = TextAlign.Center)
   }
+}
+
+/** Keep the board's white ink readable even when the app's accent was chosen for dark ink. */
+internal fun viewerWhiteButtonFill(accent: Color): Color {
+  if (fluidContrastRatio(Color.White, accent) >= 4.5f) return accent
+  var low = 0f
+  var high = 1f
+  repeat(10) {
+    val mid = (low + high) / 2f
+    val color = androidx.compose.ui.graphics.lerp(accent, Color.Black, mid)
+    if (fluidContrastRatio(Color.White, color) >= 4.5f) high = mid else low = mid
+  }
+  return androidx.compose.ui.graphics.lerp(accent, Color.Black, high)
 }
 
 /** Bound the reading column independently of Android's density, text settings and the window insets. */
@@ -381,12 +403,19 @@ internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState,
 private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropState, strings: FluidViewerStrings,
   close: () -> Unit, title: ViewerInfoText?, fact: ViewerInfoText?, extra: @Composable () -> Unit) {
   val colors = MaterialTheme.colorScheme
-  val kind = LocalFluidLabels.current.fileKind(info.file.kind)
-  val summary = info.subtitle ?: fluidUnknownDetails(info.file, kind, FluidUnknownPresetStrings())
+  val fileStrings = FluidUnknownPresetStrings()
+  val kind = when {
+    viewerIsApk(info.file) -> fileStrings.androidPackage
+    info.file.kind == FluidFileKind.Executable -> fileStrings.executableType
+    else -> LocalFluidLabels.current.fileKind(info.file.kind)
+  }
+  val locale = LocalConfiguration.current.locales.get(0) ?: Locale.getDefault()
+  val today = if (info.file.modifiedAtMillis != null) rememberCurrentDate() else null
+  val summary = info.subtitle ?: fluidUnknownDetails(info.file, kind, fileStrings, locale, today)
   val rows = buildList {
     add(FluidViewerInfoRow(strings.name, info.file.name))
     info.file.mimeType?.let { add(FluidViewerInfoRow(strings.type, it)) }
-    info.file.sizeBytes?.takeIf { it >= 0 }?.let { add(FluidViewerInfoRow(strings.size, fluidFormatFileSize(it))) }
+    info.file.sizeBytes?.takeIf { it >= 0 }?.let { add(FluidViewerInfoRow(strings.size, fluidFormatFileSize(it, locale))) }
   }
   val location = info.location
   val sections = buildList {

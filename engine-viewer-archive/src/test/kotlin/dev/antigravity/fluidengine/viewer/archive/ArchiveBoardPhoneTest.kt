@@ -1,6 +1,9 @@
 package dev.antigravity.fluidengine.viewer.archive
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
@@ -35,17 +38,26 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w412dp-h891dp-mdpi")
+@Config(sdk = [35], qualifiers = "it-rIT-w412dp-h891dp-mdpi")
 class ArchiveBoardPhoneTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
   @Test fun archiveAt412Dp() = checkArchive(412)
 
-  @Config(sdk = [35], qualifiers = "w360dp-h780dp-mdpi")
+  @Config(sdk = [35], qualifiers = "it-rIT-w360dp-h780dp-mdpi")
   @Test fun archiveAt360Dp() = checkArchive(360)
+
+  @Test fun pdfPageCountIsShownWhenTheReaderProvidesIt() {
+    val pdf = ArchiveItem(0, "relazione.pdf", ArchiveKind.File, 412_000, null)
+    assertEquals("PDF · 9 pagine", archiveRowSubtitle(pdf, ArchiveRowPreview(null, pages = 9),
+      Locale.ITALY, LocalDate.now()))
+  }
 
   private fun checkArchive(expectedWidth: Int) {
     val context = compose.activity
@@ -59,12 +71,18 @@ class ArchiveBoardPhoneTest {
         val files = listOf(
           "app/settings.kt" to 6_200_000L, "docs/guida.md" to 3_100_000L,
           "immagini/paesaggio.png" to 2_900_000L, "README.md" to 4_000L, "logo.png" to 86_000L,
-          "relazione.pdf" to 412_000L, "build.gradle.kts" to 3_000L, "chiavi.txt" to 1_000L,
+          "relazione.pdf" to 512_000L, "build.gradle.kts" to 3_000L, "chiavi.txt" to 1_000L,
         ).mapIndexed { index, (name, bytes) ->
-          ArchiveItem(index, name, ArchiveKind.File, bytes, null, encrypted = name == "chiavi.txt")
+          val modified = if (name == "README.md")
+            LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() else null
+          ArchiveItem(index, name, ArchiveKind.File, bytes, modified, encrypted = name == "chiavi.txt")
         }
         val index = ArchiveIndex("ZIP", null, 4_100_000L, files, ArchiveProtection.Entries, null)
-        val session = ArchiveSession(request, ArchiveFormat.Zip, NativeArchive(request.source, ArchiveFormat.Zip), index) {}
+        val session = ArchiveSession(request, ArchiveFormat.Zip, NativeArchive(request.source, ArchiveFormat.Zip), index,
+          readRowFile = { item, staged ->
+            if (item.name == "logo.png") writeLogo(staged)
+            else throw java.io.IOException("The Android PDF renderer is outside this fixture")
+          }, onExtractAll = {})
         return FluidViewerOpened(archivePageContent(session), onClose = session::close)
       }
     }
@@ -84,6 +102,9 @@ class ArchiveBoardPhoneTest {
           }
         }
         assertEquals(expectedWidth.toFloat(), compose.onRoot().fetchSemanticsNode().boundsInRoot.width, 1f)
+        compose.waitUntil(10_000) {
+          compose.onAllNodesWithText("Immagine PNG · 512 × 512", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
         if (expectedWidth == 412) capture("chiaro")
         assertLayout()
         compose.runOnIdle { dark = true }
@@ -101,6 +122,10 @@ class ArchiveBoardPhoneTest {
   }
 
   private fun assertLayout() {
+    compose.onNodeWithText("4,1 → 12,8 MB", substring = true).assertIsDisplayed()
+    compose.onNodeWithText("Markdown · ieri", useUnmergedTree = true).assertIsDisplayed()
+    compose.onNodeWithText("Kotlin script", useUnmergedTree = true).assertIsDisplayed()
+    compose.onNodeWithText("Protetto da password", useUnmergedTree = true).assertIsDisplayed()
     val left = compose.onNodeWithContentDescription("Altro").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     val center = compose.onNodeWithContentDescription("Estrai tutto").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     val right = compose.onNodeWithContentDescription("Trova").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
@@ -112,6 +137,21 @@ class ArchiveBoardPhoneTest {
     val first = compose.onNodeWithText("build.gradle.kts", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     val second = compose.onNodeWithText("chiavi.txt", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     assertEquals(58f, second.top - first.top, 6f)
+  }
+
+  private fun writeLogo(file: File) {
+    val bitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+    try {
+      val canvas = Canvas(bitmap)
+      canvas.drawColor(Color.rgb(31, 158, 110))
+      canvas.drawText("F", 256f, 360f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textAlign = Paint.Align.CENTER
+        textSize = 320f
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+      })
+      file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    } finally { bitmap.recycle() }
   }
 
   private fun capture(theme: String) {

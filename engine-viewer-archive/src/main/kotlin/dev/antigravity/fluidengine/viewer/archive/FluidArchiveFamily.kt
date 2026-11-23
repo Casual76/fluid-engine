@@ -88,7 +88,7 @@ class FluidArchiveFamily @JvmOverloads constructor(
     if (format == ArchiveFormat.Zip && request.source.name.hasDedicatedViewerWithoutModule()) return@withContext null
     val reader = NativeArchive(request.source, format)
     val index = reader.index(ArchiveEncoding.Cp437)
-    val session = ArchiveSession(request, format, reader, index, onExtractAll)
+    val session = ArchiveSession(request, format, reader, index, onExtractAll = onExtractAll)
     val content = archivePageContent(session)
     ArchivePages[content] = session
     FluidViewerOpened(content, session.details) {

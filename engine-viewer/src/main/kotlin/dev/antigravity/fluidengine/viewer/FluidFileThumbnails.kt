@@ -142,6 +142,22 @@ fun rememberFluidThumbnailLook(): FluidThumbnailLook {
  */
 object FluidFileThumbnails {
   /**
+   * Read a content thumbnail from a source already owned by the caller, for example an item of an archive.
+   * The caller keeps the source open until the read completes. Returns null when only a placeholder is available.
+   */
+  suspend fun read(
+    context: Context,
+    source: FluidViewerSource,
+    sizePx: Int,
+    look: FluidThumbnailLook = FluidThumbnailLook.Light,
+    options: FluidViewerOptions = FluidViewerOptions(),
+  ): FluidFileThumbnail? = withContext(Dispatchers.IO + look) {
+    permits.withPermit {
+      fluidThumbnailOf(context, source, FluidThumbnailPainter.clampSize(sizePx), options, everything = true)
+        ?.takeUnless { it.isPlaceholder }
+    }
+  }
+  /**
    * Il tempo massimo di serie: 2,5 s. Office si dà 2 s per disegnare una pagina (F6C.15b) e un file grande deve
    * ancora copiarsi; oltre, l'icona è meglio di una tessera vuota. A occhio, 23 novembre 2026.
    */

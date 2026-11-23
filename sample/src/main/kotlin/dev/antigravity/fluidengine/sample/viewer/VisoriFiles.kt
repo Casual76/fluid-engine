@@ -153,7 +153,7 @@ internal object VisoriFiles {
   )
 
   /** Cambia quando cambiano i file di esempio: una cartella nuova li ricopia tutti. */
-  private const val Version = 2
+  private const val Version = 3
 
   /** La radice dei file della galleria; [VisoriPackageProvider] serve solo quello che sta qui sotto. */
   fun root(context: Context): File = File(context.filesDir, "visori-v$Version")
@@ -196,7 +196,9 @@ internal object VisoriFiles {
             }
           }
         }
-        FluidViewerFile(Uri.fromFile(target), file.name, file.mime, target.takeIf { it.exists() }?.length())
+        val present = target.takeIf { it.exists() }
+        FluidViewerFile(Uri.fromFile(target), file.name, file.mime, present?.length(),
+          present?.lastModified()?.takeIf { it > 0 })
       }
     }
 

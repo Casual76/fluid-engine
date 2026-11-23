@@ -122,6 +122,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `suspend fun current(): FluidThumbnailLook` — I colori del contesto, o [Light].
 - `@Composable fun rememberFluidThumbnailLook(): FluidThumbnailLook` — I colori del tema Material corrente per le miniature: l'accento, il terziario, la superficie e il tema.
 - `object FluidFileThumbnails` — F6C.17 · Le miniature dei file per l'app: **una chiamata, sempre un'immagine**.
+  - `suspend fun read(context: Context, source: FluidViewerSource, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light, options: FluidViewerOptions = FluidViewerOptions()): FluidFileThumbnail?` — Read a content thumbnail from a source already owned by the caller, for example an item of an archive. The caller keeps the source open until the read completes. Returns null when only a placeholder is available.
   - `const val DefaultTimeoutMillis: Long` — Il tempo massimo di serie: 2,5 s. Office si dà 2 s per disegnare una pagina (F6C.15b) e un file grande deve ancora copiarsi; oltre, l'icona è meglio di una tessera vuota. A occhio, 23 novembre 2026.
   - `const val RetryAfterTimeoutMillis: Long` — Dopo quanto si riprova un file che aveva superato il tempo: 30 s, a occhio, 23 novembre 2026.
   - `const val Parallelism: Int` — Quanti file si leggono insieme: 3, come i nuclei grandi di un telefono di fascia media. A occhio, 23 novembre 2026.
@@ -297,7 +298,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-viewer/viewer/FluidViewerFiles.kt`
 
-- `data class FluidViewerFile(val uri: Uri, val name: String, val mimeType: String? = null, val sizeBytes: Long? = null)` — Un file da mostrare: dove sta e cosa ne sa l'app. [sizeBytes] `null` è ignoto, zero è vuoto.
+- `data class FluidViewerFile(val uri: Uri, val name: String, val mimeType: String? = null, val sizeBytes: Long? = null, val modifiedAtMillis: Long? = null)` — Un file da mostrare: dove sta e cosa ne sa l'app. [sizeBytes] `null` è ignoto, zero è vuoto.
   - `val info: FluidFileInfo get()` — Le informazioni per lo sconosciuto e per il pannello: nome, MIME, dimensione e il tipo di `FluidFileKind`.
   - `val type: FluidViewerType get()` — Il tipo per il visore, da MIME e nome (senza leggere il file).
 - `data class FluidViewerOptions(val textLimitBytes: Int = FluidTextDocument.DefaultLimitBytes, val textMaxLineChars: Int = FluidTextDocument.DefaultMaxLineChars, val imageMaxPixels: Long = FluidDecodedImage.DefaultMaxPixels, val animateImages: Boolean = true, val pdfMaxCopyBytes: Long = FluidPdfPageSource.DefaultMaxCopyBytes, val sourceMaxCopyBytes: Long = FluidViewerSource.DefaultMaxCopyBytes)` — I tetti con cui il modulo apre un file. I valori di serie sono quelli dei singoli decodificatori.

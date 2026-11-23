@@ -18,20 +18,26 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerDiagnostics
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivity
 import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityHost
 import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityHostState
+import dev.antigravity.fluidengine.sample.dynamic.ActivityPillScene
+import dev.antigravity.fluidengine.sample.dynamic.ActivitySceneTags
 import dev.antigravity.fluidengine.ui.fluid.icons.Archive
 import dev.antigravity.fluidengine.ui.fluid.icons.FilterList
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -45,6 +51,7 @@ import java.time.Duration
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -76,16 +83,20 @@ class FluidActivityPhoneUiTest {
   /** xhdpi: 2 px per dp. */
   private val pxPerDp = 2f
   private var themeInk = Color.Unspecified
+  private var diagnosticsWere = false
   private val out = File("build/reports/f6b-10")
 
   @Before fun start() {
+    diagnosticsWere = FluidGlassDiagnostics.enabled
     FluidGlassDiagnostics.resetForTesting()
     FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = false)
     out.mkdirs()
   }
 
   @After fun stop() {
+    FluidGlassDiagnostics.enabled = diagnosticsWere
     FluidGlassDiagnostics.resetForTesting()
+    FluidGlassContainerDiagnostics.resetForTesting()
   }
 
   private fun advance(ms: Long) {
@@ -246,5 +257,42 @@ class FluidActivityPhoneUiTest {
 
   @Test fun `la card in chiaro e chiara, con la scritta scura del tema`() {
     checkCardTheme(ThemeMode.LIGHT, "card-chiaro")
+  }
+
+  @Test fun `Filtri resta sul piano e la sua sorgente resta ceduta a fine sync`() {
+    FluidGlassDiagnostics.enabled = true
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
+    compose.mainClock.autoAdvance = false
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings(themeMode = ThemeMode.DARK, dynamicColorEnabled = false) }) {
+        val modals = rememberFluidGlassModalHostState()
+        CompositionLocalProvider(LocalFluidGlassModalHostState provides modals) {
+          Box(Modifier.fillMaxSize()) {
+            ActivityPillScene(onBack = {})
+            FluidGlassModalHost(modals, backdrop = null)
+          }
+        }
+      }
+    }
+    advance(900)
+    fun filterGlass() = FluidGlassContainerDiagnostics.lastRest.singleOrNull { it.id.toString().contains("FluidToolbarGlassId(filtri#") }
+    fun clickOn(node: SemanticsNode) {
+      val click = node.config[SemanticsActions.OnClick].action
+      compose.runOnUiThread { check(click?.invoke() == true) }
+      advance(600)
+    }
+    fun button(label: String) = compose.onAllNodesWithContentDescription(label).fetchSemanticsNodes()
+      .single { SemanticsActions.OnClick in it.config }
+    val glass = checkNotNull(filterGlass())
+    clickOn(compose.onNodeWithTag(ActivitySceneTags.Start).fetchSemanticsNode())
+    clickOn(button("Filtri"))
+    assertTrue(compose.onAllNodesWithText("Non lette").fetchSemanticsNodes().isNotEmpty())
+    assertEquals("il vetro non esce dal piano mentre è in prestito", glass.id, filterGlass()?.id)
+    advance(11_000)
+    assertTrue(compose.onAllNodesWithText("Non lette").fetchSemanticsNodes().isNotEmpty())
+    assertEquals(glass.id, filterGlass()?.id)
+    assertTrue(compose.onAllNodesWithContentDescription("Filtri").fetchSemanticsNodes().none {
+      SemanticsActions.OnClick in it.config && it.config.getOrNull(SemanticsProperties.ContentDescription) == listOf("Filtri")
+    })
   }
 }

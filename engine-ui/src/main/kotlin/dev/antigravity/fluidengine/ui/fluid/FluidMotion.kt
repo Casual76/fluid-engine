@@ -23,6 +23,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Motion tokens calibrated the way Apple parameterises its springs.
@@ -304,6 +306,34 @@ object FluidMotion {
   internal const val MenuButtonLensInkPivot = 0.32f
   internal const val MenuLiquidCloseStiffness = 900f
   internal const val MenuContentFocusMillis = 270
+  /**
+   * Messa a fuoco del menu contestuale, il percorso usato da «Altro».
+   * F5A.2 (Apple f13046 e seguenti): leggibile a 234–267 ms, nitido a 334 ms.
+   * La scelta di Alessio del 23 novembre estende questo orologio ai popover.
+   */
+  internal const val ContextMenuFocusMillis = 334
+
+  internal val ContextMenuFocusEasing = Easing { f ->
+    1f - sqrt((1f - f).coerceIn(0f, 1f))
+  }
+
+  /**
+   * I due bordi di «Altro» (F5A.2) danno la fase del popover: sale il bordo lontano, poi quello
+   * vicino copre l'ultimo tratto fino alla posa a vista nelle riprese F6B.10.
+   * Il solo bordo lontano arrivava presto: sul Tab S9 la card era già entro 2 px dalla posa
+   * circa 240 ms dopo l'inizio del viaggio, prima che il menu avesse finito di posarsi.
+   */
+  internal val PopoverTravelOpen: TweenSpec<Float> = tween(
+    durationMillis = FluidContextBirthProfile.VisibleSettleMillis.roundToInt(),
+    easing = Easing { fraction ->
+      val profile = FluidContextBirthProfile
+      val elapsed = fraction * profile.VisibleSettleMillis
+      val near = profile.Near.at(elapsed)
+      val nearAtRest = profile.Near.at(profile.VisibleSettleMillis)
+      val remaining = (near - nearAtRest).coerceAtLeast(0f)
+      minOf(fluidContextBirthProgress(elapsed), 1f - remaining)
+    },
+  )
   internal const val MenuContentExitMillis = 185
   internal const val MenuReturnMillis = 233
   internal const val MenuReturnFocusMillis = 100

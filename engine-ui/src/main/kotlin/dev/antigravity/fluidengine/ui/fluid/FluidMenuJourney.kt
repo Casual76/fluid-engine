@@ -1536,7 +1536,8 @@ internal class FluidMenuJourney {
     launch {
       val f = focus.value
       val spec = if (group) {
-        tween<Float>((FluidContextFocusMillis * (1f - f)).toInt().coerceAtLeast(1), easing = FluidContextFocusEasing)
+        tween<Float>((FluidMotion.ContextMenuFocusMillis * (1f - f)).toInt().coerceAtLeast(1),
+          easing = FluidMotion.ContextMenuFocusEasing)
       } else {
         tween((FluidMotion.MenuContentFocusMillis * (1f - f)).roundToInt(), easing = LinearEasing)
       }

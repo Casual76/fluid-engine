@@ -48,6 +48,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidUndoFill
 import dev.antigravity.fluidengine.ui.fluid.GlassContentRole
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainerState
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.unit.LayoutDirection
@@ -134,7 +135,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassTransition
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassTransition
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidLabels
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
-import dev.antigravity.fluidengine.ui.fluid.fluidContextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.contextMenuAnchor
+import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassContentAnchor
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassId
@@ -1440,19 +1442,7 @@ internal fun FluidToolbarGroups(
     }
     val namespace = rememberFluidGlassNamespace()
     val menuSource = remember { FluidToolbarMenuSource() }
-    LaunchedEffect(menuSource.handoff) {
-      if (menuSource.instant) {
-        // Il piano pubblica il riposo al prossimo frame e monta i grappoli al successivo.
-        repeat(2) { withFrameNanos { } }
-        menuSource.instant = false
-      }
-    }
-    // Il passaggio a un modale che toglie il pezzo salta l'animazione del piano per due fotogrammi.
-    val animation = when {
-      menuSource.instant -> FluidGlassAnimation.None
-      searchField == null -> FluidGlassAnimation.Default
-      else -> ToolbarSearchAnimation
-    }
+    val animation = if (searchField == null) FluidGlassAnimation.Default else ToolbarSearchAnimation
     val menuLease = menuSource.menuLease
     val heldGroup = menuLease?.let { lease -> resolved.groups.firstOrNull { memory.glassIds[it.id] == lease.first } }
     val faces = if (heldGroup != null && menuLease?.second?.groupBounds != null) rememberGraphicsLayer() else null
@@ -1479,7 +1469,24 @@ internal fun FluidToolbarGroups(
         translate(left, (size.height - faces.size.height) / 2f) { drawLayer(faces) }
       }
     }
-    FluidGlassContainer(Modifier.fillMaxSize().then(mask), animation = animation) {
+    val groupsWithGlass = resolved.groups.mapNotNull { group -> memory.glassIds[group.id]?.let { it to group } }
+    val modalMask = Modifier.drawWithContent {
+      val covered = groupsWithGlass.filter { (glass, _) -> menuSource.modalOwns(glass) }
+      if (covered.isEmpty()) {
+        drawContent()
+      } else {
+        val halfGap = resolved.metrics.groupSpacingDp.dp.toPx() / 2f
+        val cutout = Path()
+        for ((_, group) in covered) {
+          val start = group.leftDp.dp.roundToPx().toFloat()
+          val width = group.widthDp.dp.roundToPx().toFloat()
+          val left = if (layoutDirection == LayoutDirection.Ltr) start else size.width - start - width
+          cutout.addRect(Rect(left - halfGap, -size.height, left + width + halfGap, size.height * 2f))
+        }
+        clipPath(cutout, ClipOp.Difference) { this@drawWithContent.drawContent() }
+      }
+    }
+    FluidGlassContainer(Modifier.fillMaxSize().then(modalMask).then(mask), animation = animation) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       Box(Modifier.fillMaxSize()) {
         for (group in resolved.groups) {
@@ -1580,7 +1587,8 @@ private fun FluidToolbarTravellingButton(
   } else null
   val qualified = remember(namespace, trip) { FluidGlassQualifiedId(namespace, trip.glass) }
   val labels = LocalFluidLabels.current
-  val touchable = interactive && entry.onClick != null
+  val source = rememberFluidToolbarTransitionSource(id)
+  val touchable = interactive && entry.onClick != null && !source.isHidden
   val haptics = LocalFluidHaptics.current
   // Un tipo registrato viaggia con la sua faccia; il posto vero, nascosto mentre viaggia, resta quello che suona e dice.
   val typeSlot = entry.type?.resolvedAs(element.item.kind)?.rememberSlot(live = false)
@@ -1601,7 +1609,7 @@ private fun FluidToolbarTravellingButton(
       else this.size.width / 2f
     val base = (if (rtl) widthPx - this.size.width else 0f) + localCenter
     translationX = x - base
-    alpha = if (entry.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+    alpha = fluidToolbarTransientFaceAlpha(source, if (entry.enabled) 1f else FluidToolbarDefaults.DisabledAlpha, "travel")
   }.then(if (touchable) Modifier.clickable(
     interactionSource = remember { MutableInteractionSource() }, indication = null,
     enabled = entry.enabled && entry.type?.acceptsTap != false, role = Role.Button,
@@ -1732,7 +1740,6 @@ private fun FluidToolbarGroupPiece(
   val primaryEntry = single?.let { declaration.buttons[it.id] }
   val leased = menuSource.anchor(glass)
   val surface = when {
-    menuFaces == null && menuSource.modalOwns(glass) -> FluidGlass.Identity
     !group.sharedBackground -> FluidGlass.Identity
     // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4); la sua icona è chiara.
     primary -> FluidGlass.Regular.tint(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary).interactive()
@@ -1815,10 +1822,6 @@ internal class FluidToolbarMenuSource {
   var menuLease by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
     private set
   private var modalLeases by mutableStateOf(emptyMap<FluidToolbarGlassId, FluidMenuAnchor>())
-  var instant by mutableStateOf(false)
-  var handoff by mutableStateOf(0)
-    private set
-
   fun anchor(glass: FluidToolbarGlassId): FluidMenuAnchor? =
     menuLease?.takeIf { it.first == glass }?.second ?: modalLeases[glass]
 
@@ -1827,9 +1830,6 @@ internal class FluidToolbarMenuSource {
   fun transferModal(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
     if (consumed) modalLeases = modalLeases + (glass to anchor)
     else if (modalLeases[glass] === anchor) modalLeases = modalLeases - glass
-    else return
-    instant = true
-    handoff++
   }
 
   fun transfer(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
@@ -1969,12 +1969,12 @@ private fun FluidToolbarSlot(
     null
   }
   val declaredMenu = if (entry?.menu != null && interactive) rememberFluidToolbarMenu() else null
-  val source = if (declaredMenu != null) rememberFluidToolbarTransitionSource(item.id) else null
+  val source = rememberFluidToolbarTransitionSource(item.id)
   val sourceCanTravel = declaredMenu != null && groupShared && fluidMenuUsesField()
   val active = menuSource.anchor(glass)
   val groupInMenu = active?.groupBounds != null
-  // Il piano possiede il vetro del tasto singolo. Lo cede con lo stesso passaggio istantaneo
-  // del menu; su una capsula condivisa il singolo slot cede solo la propria faccia.
+  // Il piano tiene il vetro del tasto singolo registrato e ne maschera la corsia.
+  // Su una capsula condivisa il singolo slot cede solo la propria faccia.
   val modalHandoff: ((Boolean) -> Unit)? = if (interactive && groupShared && groupCount == 1) {
     remember(menuSource, glass) {
       val anchor = FluidMenuAnchor()
@@ -2006,7 +2006,7 @@ private fun FluidToolbarSlot(
         sourcePlane?.adaptive?.let { ink.bind(it, sourceDark) } ?: ink.unbind()
         anchor.ink = ink
       }
-      val groupBounds = if (sourceCanTravel) source?.resolve()?.bounds else null
+      val groupBounds = if (sourceCanTravel) source.resolve()?.bounds else null
       if (declaredMenu.open(entry.menu.invoke(), groupBounds) { consumed ->
           if (groupCount == 1 || anchor.groupBounds != null) {
             menuSource.transfer(glass, anchor, consumed)
@@ -2028,7 +2028,7 @@ private fun FluidToolbarSlot(
       .then(if (declaredMenu != null) Modifier
         .fluidMenuPointerRelay(declaredMenu.anchor.handOff)
         .onGloballyPositioned { declaredMenu.anchor.restBounds = it.boundsInRoot() } else Modifier)
-      .then(if (menu != null) Modifier.fluidContextMenuAnchor(menu) else Modifier),
+      .then(if (menu != null) Modifier.contextMenuAnchor(menu, listRow = false, group = null, captureOnLift = true) else Modifier),
     contentAlignment = Alignment.Center,
   ) {
     if (active == null && (item.selected || selection.value > 0f)) {
@@ -2081,9 +2081,11 @@ private fun FluidToolbarSlot(
             declaredMenu?.anchor?.hidden == true -> 0f
             else -> dim
           }
-          (live ?: declaredMenu?.anchor)?.let { anchor ->
-            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", anchor) {
-              "phase=$phase alpha=$alpha group=$liveGroup leased=${live != null}"
+          val sourceHidden = source.isHidden
+          if (live != null || declaredMenu != null || menu != null || sourceHidden) {
+            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", source) {
+              "item=${item.id} phase=$phase alpha=${if (sourceHidden || menu?.entry?.lifted == true) 0f else alpha} " +
+                "group=$liveGroup leased=${live != null || sourceHidden} path=slot"
             }
           }
           val s = if (liveGroup) GlassContentCurves.scale(role, u) else 1f
@@ -2119,7 +2121,8 @@ private fun FluidToolbarSlot(
     }
     val menuName = entry?.type?.menuZoneLabel ?: label?.let { "${labels.more} ($it)" } ?: labels.more
     val zone = entry?.type?.menuZone?.takeIf { primaryAction != null }
-    val targetsShown = interactive && (active == null || declaredMenu?.anchor === active) && item.id !in memory.transfers
+    val targetsShown = interactive && !source.isHidden &&
+      (active == null || declaredMenu?.anchor === active) && item.id !in memory.transfers
     if (targetsShown && zone != null) {
       FluidToolbarSplitTargets(
         width = width, zone = zone, enabled = enabled, hideSemantics = active != null, label = label, menuName = menuName,
@@ -2261,6 +2264,7 @@ private fun FluidToolbarFadingFace(
   searchInk: State<Float>? = null, finished: () -> Unit,
 ) {
   val item = element.item
+  val source = rememberFluidToolbarTransitionSource(item.id)
   val overflow = item.id == FluidToolbarOverflowId
   val role = if (entering) GlassContentRole.Enter else GlassContentRole.Exit
   val duration = GlassContentDefaults.DurationMs * LocalFluidMotionPolicy.current.durationScale
@@ -2314,7 +2318,8 @@ private fun FluidToolbarFadingFace(
       val inkPhase = searchInk?.value
       val opacity = if (inkPhase == null) GlassContentCurves.alpha(role, u, blurAvailable)
         else toolbarSearchInkAlpha(inkPhase, overflow)
-      alpha = opacity * if (item.enabled) 1f else FluidToolbarDefaults.DisabledAlpha
+      alpha = fluidToolbarTransientFaceAlpha(source, opacity * if (item.enabled) 1f else FluidToolbarDefaults.DisabledAlpha,
+        if (entering) "arrival" else "exit")
       scaleX = if (inkPhase == null) GlassContentCurves.scale(role, u) else 1f
       scaleY = scaleX
       val blur = (if (inkPhase == null) GlassContentCurves.blur(role, u)
@@ -2323,6 +2328,15 @@ private fun FluidToolbarFadingFace(
     }, contentAlignment = Alignment.Center) {
     FluidToolbarFaceContent(face, FluidToolbarDefaults.textStyle())
   }
+}
+
+/** Le copie che viaggiano nel piano non passano dal modificatore che nasconde lo slot originale. */
+private fun fluidToolbarTransientFaceAlpha(source: FluidTransitionSource, opacity: Float, path: String): Float {
+  if (!source.isHidden) return opacity
+  dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", source) {
+    "alpha=0.0 leased=true path=$path"
+  }
+  return 0f
 }
 
 @Composable

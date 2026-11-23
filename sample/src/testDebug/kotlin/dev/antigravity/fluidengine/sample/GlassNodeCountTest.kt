@@ -106,6 +106,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.util.ReflectionHelpers
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
+import dev.antigravity.fluidengine.sample.dynamic.ActivityPillScene
 
 /**
  * Quanti nodi e quanti layer costa una lastra ferma (piano «iOS in Android», 3.3, 4.4, F1A-f), contati in due modi
@@ -325,6 +328,40 @@ class GlassNodeCountTest {
         }
       }
       CompositionLocalProvider(LocalViewConfiguration provides tablet) { ScenarioScene(scenario, actions, 0.dp) }
+    }
+  }
+
+  @Test fun altroRegistraLaFacciaAncheQuandoApreSenzaUnFotogrammaDiPressione() {
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        val modals = rememberFluidGlassModalHostState()
+        CompositionLocalProvider(LocalFluidGlassModalHostState provides modals) {
+          Box(Modifier.fillMaxSize()) {
+            ActivityPillScene(onBack = {})
+            FluidGlassModalHost(modals, backdrop = null)
+          }
+        }
+      }
+    }
+    compose.waitForIdle()
+    val before = ShadowLog.getLogsForTag(FrameTag).size
+    compose.onNodeWithContentDescription("Altro").performClick()
+    val display = RenderNode("Altro")
+    try {
+      compose.runOnIdle {
+        val view = compose.activity.window.decorView
+        display.setPosition(0, 0, view.width, view.height)
+        val canvas = display.beginRecording()
+        try {
+          view.draw(canvas)
+        } finally {
+          display.endRecording()
+        }
+      }
+      val captures = ShadowLog.getLogsForTag(FrameTag).drop(before).count { " kind=menu.preview.record " in it.msg }
+      assertEquals("un'unica registrazione della faccia nel menu", 1, captures)
+    } finally {
+      display.discardDisplayList()
     }
   }
 

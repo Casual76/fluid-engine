@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.scrimBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -412,7 +413,19 @@ private fun FluidGlassModalPaneLayer(
       fade.snapTo(if (entry.visible) 1f else 0f)
       return@LaunchedEffect
     }
-    if (entry.visible) {
+    if (entry.visible && entry.presentation == FluidGlassModalPresentation.Popover) {
+      // Il popover con sorgente guida da sé il contorno e l'inchiostro. Senza sorgente si
+      // parte dal perno di sempre, sugli stessi orologi di apertura.
+      withContext(fluidSteadyFrames(coroutineContext)) {
+        launch {
+          fade.animateTo(1f, FluidMotion.fadeIn(FluidMotion.ContextMenuFocusMillis))
+        }
+        if (sourceJourney == null) {
+          launch { scaleX.animateTo(1f, FluidMotion.PopoverTravelOpen) }
+          launch { scaleY.animateTo(1f, FluidMotion.PopoverTravelOpen) }
+        }
+      }
+    } else if (entry.visible) {
       // Opacity arrives well before the geometry finishes. Tying them together makes the pop-up
       // fade *in* as it grows, which reads as a dissolve; separating them lets the shape do the
       // arriving while the content is already legible.

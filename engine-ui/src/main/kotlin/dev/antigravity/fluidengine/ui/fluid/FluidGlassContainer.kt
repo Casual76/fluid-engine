@@ -2791,12 +2791,14 @@ internal class FluidGlassContainerState {
     }
   }
 
-  private fun publishRest(state: GlassPlaneState) {
+  internal fun publishRest(state: GlassPlaneState) {
     val margin = shadowMarginPx()
     val fields = state.clusters.map { cluster ->
       val first = cluster.pieces.first()
       val look = looks[first.key] ?: (first.key as FluidGlassPiece).look!!
-      if (cluster.pieces.size == 1) {
+      // La pillola nasce sul palco con la lastra fisica. La mantiene anche a riposo: sullo
+      // sfondo scuro il cambio di renderer spegneva di colpo il vetro mentre la faccia restava.
+      if (cluster.pieces.size == 1 && !first.softMaterialize) {
         val node = first.bounds.snapped()
         FluidGlassRestField(
           key = first.key,
@@ -2817,7 +2819,7 @@ internal class FluidGlassContainerState {
           FluidForm.Slab(it.bounds.translate(-node.left, -node.top), it.radii, smoothingOf(it))
         }
         FluidGlassRestField(
-          key = cluster.id,
+          key = fluidGlassRestKey(cluster),
           presses = presses,
           node = node,
           look = look,

@@ -1,13 +1,18 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidVariant
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlanePiece
+import dev.antigravity.fluidengine.ui.glass.field.GlassPlaneState
+import dev.antigravity.fluidengine.ui.fluidphysics.FluidCornerRadii
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -32,6 +37,23 @@ class FluidGlassContainerPanelTest {
   )
 
   private val shape = ContinuousCornerShape(FluidRadius.Sheet)
+
+  @Test fun `la pillola mantiene una lastra fisica a riposo`() {
+    val container = FluidGlassContainerState()
+    val piece = FluidGlassPiece(container).apply {
+      look = fluidGlassPanelLook(backdrop, modal, FluidCapsuleShape, GlassRole.Interactive,
+        GlassDefaults.buttonOptics(), large = null, exports = null, resampleIntervalMillis = 0)
+    }
+    val capsule = GlassPlanePiece(piece, Rect(10f, 10f, 160f, 56f), FluidCornerRadii.all(23f),
+      softMaterialize = true)
+    val bounds = Rect(0f, 0f, 288f, 96f)
+    container.publishRest(GlassPlaneState(listOf(capsule), 0f, bounds))
+    val rest = container.restFields.single()
+    assertSame(piece, rest.key)
+    assertNotNull("la lastra continua ad essere disegnata come sul palco", rest.plane)
+    container.publishRest(GlassPlaneState(listOf(capsule.copy(softMaterialize = false)), 0f, bounds))
+    assertNull("i controlli con la comparsa normale tengono il disegno di prima", container.restFields.single().plane)
+  }
 
   private fun look(role: GlassRole, large: Boolean?, exports: GlassBackdropState? = material, resample: Long = 0L) =
     fluidGlassPanelLook(

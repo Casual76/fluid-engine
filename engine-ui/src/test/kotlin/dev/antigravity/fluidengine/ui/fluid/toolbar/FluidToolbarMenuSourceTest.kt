@@ -23,7 +23,6 @@ class FluidToolbarMenuSourceTest {
     anchor.consume(true)
     assertSame(anchor, source.anchor(glass))
     assertFalse("il menu cede il disegno, il pezzo resta iscritto", source.modalOwns(glass))
-    assertFalse("il piano non ha un cambio istantaneo da fare", source.instant)
 
     anchor.consume(false)
     assertNull(source.anchor(glass))

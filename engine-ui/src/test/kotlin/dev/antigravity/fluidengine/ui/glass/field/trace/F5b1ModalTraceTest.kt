@@ -77,10 +77,14 @@ class F5b1ModalTraceTest {
   @Test fun dialogsHoldTheSeedAndTheirLensFocusesWithTheMovingContour() {
     val popover = FluidModalSourceMotion.Popover
     val focus = TodaySpring(fluidModalFocusSpec(popover, opening = true, from = 0f, fresh = true), 0f, 1f)
-    assertEquals(0f, focus.value(100_000_000), 0.0001f)
-    assertTrue(fluidMenuLensBlurDp(focus.value(133_000_000)) > 3f)
-    assertTrue(fluidMenuLensBlurDp(focus.value(200_000_000)) in 0.7f..1f)
-    assertTrue(fluidMenuLensBlurDp(focus.value(267_000_000)) < 0.01f)
+    for (time in 0..FluidMotion.ContextMenuFocusMillis) {
+      val expected = FluidMotion.ContextMenuFocusEasing.transform(time.toFloat() / FluidMotion.ContextMenuFocusMillis)
+      assertEquals("messa a fuoco di Altro a ${time} ms", expected, focus.value(time * 1_000_000L), 0.0001f)
+    }
+    val contour = TodaySpring(fluidModalGeometrySpec(popover, opening = true, from = 0f), 0f, 1f)
+    assertTrue("il pannello è ancora in viaggio a 300 ms", contour.value(300_000_000) < 1f)
+    assertTrue("il bordo vicino è ancora in viaggio a 400 ms", contour.value(400_000_000) < 0.99f)
+    assertEquals(1f, contour.value(467_000_000), 0f)
     for (motion in listOf(FluidModalSourceMotion.Confirmation, FluidModalSourceMotion.Alert)) {
       val contour = TodaySpring(fluidModalGeometrySpec(motion, opening = true, from = 0f), 0f, 1f)
       val held = contour.value(67_000_000)

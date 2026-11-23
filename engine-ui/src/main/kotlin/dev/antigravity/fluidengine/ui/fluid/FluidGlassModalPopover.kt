@@ -252,8 +252,12 @@ internal fun FluidAnchoredPopover(
     // viaggio non c'entra: il materiale e' costante, cosi' quello che si vede attraverso il
     // vetro non pulsa ("il testo dietro non deve muoversi").
     val windowAmount: () -> Float = {
-      sourceJourney?.bodyAlpha(progress(), windowPhysics)
-        ?: (presence() * (if (open()) 1f else minOf(growth(), growthCross()).coerceIn(0f, 1f)))
+      sourceJourney?.bodyAlpha(progress(), windowPhysics) ?: run {
+        val travel = minOf(growth(), growthCross()).coerceIn(0f, 1f)
+        // All'inizio del profilo di «Altro» il viaggio resta fermo mentre parte il velo.
+        // Il corpo aspetta il viaggio, così il nodo non cattura prima da fermo e poi in moto.
+        if (travel == 0f) 0f else presence() * (if (open()) 1f else travel)
+      }
     }
     // La finestra: una superficie a tutto schermo la cui silhouette e' il lerp ancora->pannello
     // al passo delle molle del modale. Il clip del layer resta fermo, la sagoma la scolpisce lo

@@ -275,6 +275,7 @@ internal fun Modifier.contextMenuAnchor(
   controller: FluidContextMenuController,
   listRow: Boolean,
   group: FluidListContextPress?,
+  captureOnLift: Boolean = false,
 ): Modifier {
   // La riga sollevata lascia il suo posto vuoto. La pagina sottostante continua a essere campionata
   // anche dopo il rilascio del dito, fino alla riconsegna o alla rimozione dell’ancora.
@@ -363,7 +364,7 @@ internal fun Modifier.contextMenuAnchor(
     // sitting wherever the finger happened to be on the frame the press was recognised.
     .then(highlight.modifier)
     .then(highlight.gestureModifier)
-    .then(if (listRow) Modifier.drawListPreview(controller) else Modifier.recordContextPreview(controller))
+    .then(if (listRow) Modifier.drawListPreview(controller) else Modifier.recordContextPreview(controller, captureOnLift))
 }
 
 /** Il dito e le righe ancora sollevate tengono il ritaglio del gruppo per la propria durata. */
@@ -392,7 +393,10 @@ private fun Modifier.drawListPreview(controller: FluidContextMenuController): Mo
   }
 }
 
-internal fun Modifier.recordContextPreview(controller: FluidContextMenuController): Modifier =
+internal fun Modifier.recordContextPreview(
+  controller: FluidContextMenuController,
+  captureOnLift: Boolean = false,
+): Modifier =
   this
     // Il bagliore ridisegna a ogni passo della pressione. Isoliamo la registrazione durante
     // l'armamento: Compose la invalida ancora se cambiano contenuto o misura della riga.
@@ -413,7 +417,16 @@ internal fun Modifier.recordContextPreview(controller: FluidContextMenuControlle
       // page was being refracted through it and arriving a second time, blurred and a few pixels
       // off — every line of it doubled behind itself. The space stays reserved, because this is a
       // draw and not a layout, so nothing below it moves while the menu is up.
-      if (controller.entry.lifted) return@drawWithContent
+      if (controller.entry.lifted) {
+        // Il menu della barra apre al rilascio, anche senza un frame disegnato durante la
+        // pressione (o da TalkBack). Registra la faccia una volta sola al sollevamento.
+        if (captureOnLift && controller.copyRowOnLift) {
+          controller.layer.record { this@drawWithContent.drawContent() }
+          controller.rowCopied()
+          GlassFrameDiagnostics.event("menu.preview.record", controller.layer)
+        }
+        return@drawWithContent
+      }
       if (controller.recording) {
         controller.layer.record { this@drawWithContent.drawContent() }
         GlassFrameDiagnostics.event("menu.preview.record", controller.layer)
@@ -682,10 +695,16 @@ internal class FluidMeasuredCurve(private val ms: FloatArray, private val values
  * quello lontano supera del 3% fra 367 e 467 ms, la larghezza del 3% fra 400 e 534 ms, e il menu e' fermo a ~770 ms.
  */
 internal object FluidContextBirthProfile {
+  /**
+   * La posa a vista di «Altro» nelle riprese F6B.10 del 23 novembre (450–500 ms): il campione
+   * da 467,1 ms del profilo F5A.2. Il contestuale continua la sua coda sotto la soglia visiva.
+   */
+  const val VisibleSettleMillis = 467.1f
+
   /** I tempi dei fotogrammi letti, in ms: f13046 + k, k = 0..12, 14, 16, 18, 20, 23, 26 (29,97 fps). */
   private val Ms = floatArrayOf(
     0f, 33.4f, 66.7f, 100.1f, 133.5f, 166.8f, 200.2f, 233.6f, 266.9f, 300.3f, 333.7f, 367.0f, 400.4f,
-    467.1f, 533.9f, 600.6f, 667.3f, 767.4f, 867.5f,
+    VisibleSettleMillis, 533.9f, 600.6f, 667.3f, 767.4f, 867.5f,
   )
 
   /** Il bordo vicino (quello della sorgente), in `u`: si stacca fino a 0,15 a 234 ms e torna a 0 a ~600 ms. */
@@ -969,17 +988,8 @@ internal fun fluidContextBirthPresence(ms: Float): Float = birthStep(ms, 0f, Flu
 
 internal const val FluidContextBirthPresenceMillis = 50f
 
-/**
- * La messa a fuoco delle voci nella nascita: nitide a [FluidContextFocusMillis] (Apple: leggibili a 234-267 ms, nitide a
- * ~334). L'andamento e' 1 − √(1 − f): la sfocatura della lente va col quadrato di quanto manca
- * (`fluidMenuLensBlurDp`), e cosi' cala **dritta** nel tempo, come nei fotogrammi di Apple (a 234 ms le voci sono ancora
- * morbide; con la rampa lineare dei menu dal tasto sarebbero gia' nitide).
- */
-internal const val FluidContextFocusMillis = 334
-
-internal val FluidContextFocusEasing = Easing { f ->
-  1f - kotlin.math.sqrt((1f - f).coerceIn(0f, 1f))
-}
+internal const val FluidContextFocusMillis = FluidMotion.ContextMenuFocusMillis
+internal val FluidContextFocusEasing get() = FluidMotion.ContextMenuFocusEasing
 
 /**
  * L'istante della nascita a cui corrisponde [progress], per una nascita ripresa a meta' (un menu riaperto mentre si
@@ -1118,7 +1128,7 @@ internal class FluidContextBirth {
 
   /**
    * L'apertura: l'orologio fino alla fine, il progresso del viaggio sul profilo di Apple, la messa a fuoco in
-   * [FluidContextFocusMillis], la card con la sua molla. Da dove si trova: un menu riaperto a meta' chiusura riprende la
+   * [FluidMotion.ContextMenuFocusMillis], la card con la sua molla. Da dove si trova: un menu riaperto a meta' chiusura riprende la
    * nascita dall'istante del suo progresso.
    */
   suspend fun open(journey: FluidMenuJourney): Unit = coroutineScope {
@@ -1133,8 +1143,8 @@ internal class FluidContextBirth {
     launch { clock.animateTo(FluidContextBirthProfile.EndMillis, tween(millis, easing = LinearEasing)) }
     launch {
       val focus = journey.focus
-      val left = (FluidContextFocusMillis * (1f - focus.value)).toInt().coerceAtLeast(1)
-      focus.animateTo(1f, tween(left, easing = FluidContextFocusEasing))
+      val left = (FluidMotion.ContextMenuFocusMillis * (1f - focus.value)).toInt().coerceAtLeast(1)
+      focus.animateTo(1f, tween(left, easing = FluidMotion.ContextMenuFocusEasing))
     }
     launch { journey.contentVisibility.snapTo(1f) }
     launch { card.animateTo(1f, FluidMotion.dropOpen(), initialVelocity = card.velocity) }

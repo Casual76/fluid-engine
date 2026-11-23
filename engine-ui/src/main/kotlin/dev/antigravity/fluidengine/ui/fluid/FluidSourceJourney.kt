@@ -42,8 +42,10 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.field.GlassContentLensEffect
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.coroutines.coroutineContext
 
 /** Il ritaglio del contenuto sul corpo della finestra in viaggio: un rettangolo arrotondato posato. */
 internal class FluidPopoverTravelClipShape(private val round: RoundRect) : Shape {
@@ -76,7 +78,6 @@ internal enum class FluidModalSourceMotion { Popover, Confirmation, Alert }
 // WWDC25 323, Delete: la goccia resta sul comando fino al quarto intervallo video da 33 ms.
 private const val FluidModalGatherMillis = 133
 private const val FluidModalDialogOpenMillis = 400
-private const val FluidPopoverLensHoldMillis = 100
 // WWDC25 284 e F5A.2: il ritorno entra nella posa a vista attorno a 233 ms, prima della fine della traiettoria.
 private const val FluidModalReturnMillis = 250
 private val FluidModalLateFocusEasing = Easing {
@@ -89,6 +90,7 @@ internal fun fluidModalGeometrySpec(
   opening: Boolean,
   from: Float,
 ): AnimationSpec<Float> = when {
+  opening && from == 0f && motion == FluidModalSourceMotion.Popover -> FluidMotion.PopoverTravelOpen
   opening && from == 0f && motion != FluidModalSourceMotion.Popover -> keyframes {
     durationMillis = FluidModalDialogOpenMillis
     FluidMotion.MenuButtonGatherEnd at 67
@@ -111,14 +113,13 @@ internal fun fluidModalFocusSpec(
   fresh: Boolean,
 ): AnimationSpec<Float> {
   if (!opening) return fluidMenuReturnFocusSpec(from)
+  if (motion == FluidModalSourceMotion.Popover) return tween(
+    durationMillis = (FluidMotion.ContextMenuFocusMillis * (1f - from)).toInt().coerceAtLeast(1),
+    easing = FluidMotion.ContextMenuFocusEasing,
+  )
   val freshOpen = opening && fresh
-  val late = freshOpen && motion != FluidModalSourceMotion.Popover
-  // Nel popover la lente resta al massimo durante la crescita, poi percorre la curva del menu.
-  val delay = when {
-    late -> FluidModalGatherMillis
-    freshOpen -> FluidPopoverLensHoldMillis
-    else -> 0
-  }
+  val late = freshOpen
+  val delay = if (late) FluidModalGatherMillis else 0
   val endAt = if (late) FluidModalDialogOpenMillis else FluidMotion.MenuContentFocusMillis
   return tween(
     durationMillis = ((endAt - delay) * abs((if (opening) 1f else 0f) - from)).roundToInt(),
@@ -228,6 +229,12 @@ internal class FluidSourceJourney(
   }
 
   suspend fun run(reduced: Boolean) {
+    if (motion == FluidModalSourceMotion.Popover && !reduced) {
+      withContext(fluidSteadyFrames(coroutineContext)) { animate(reduced = false) }
+    } else animate(reduced)
+  }
+
+  private suspend fun animate(reduced: Boolean) {
     val end = target
     if (reduced) {
       clock.snapTo(end)

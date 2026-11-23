@@ -1,9 +1,10 @@
 # F6B: le tracce del banco del movimento degli elementi dinamici
 
-Le tracce della tabella «Il banco del movimento» del piano (`docs/liquid-glass/piano.md`, sezione F6B) per la selezione,
-i tasti con esito, «Annulla» e l'avviso dal tasto, l'elemento che diventa pagina. Le ha raccolte F6B.12 (22 novembre
-2026) dal commit `35bb23b`, che contiene F6B.1–F6B.9: ogni `trace.json` è quello che il test del pacchetto esporta
-**sul codice integrato**, con la variabile d'ambiente del pacchetto. Nessuna è scritta a mano nel banco.
+Le tracce della tabella «Il banco del movimento» del piano (`docs/liquid-glass/piano.md`, sezione F6B). La prima parte
+(selezione, tasti con esito, «Annulla» e l'avviso dal tasto, l'elemento che diventa pagina) l'ha raccolta F6B.12 (22
+novembre 2026) dal commit `35bb23b`; la seconda (campo e composer, pillole, tastiera, attività, tasto diviso e titolo) F6B.13
+(23 novembre 2026), dal codice di F6B.13 sopra `9b60863`. Ogni `trace.json` è quello che il test del pacchetto esporta **sul
+codice integrato**, con la variabile d'ambiente del pacchetto. Nessuna è scritta a mano nel banco.
 
 Il confronto con le tracce consegnate dai pacchetti (`artifacts/liquid-glass/sessioni/f6b-12/tracce-confronto.json`,
 script `raccogli-tracce.py` e `differenze-tracce.py` nella stessa cartella):
@@ -41,6 +42,39 @@ script `raccogli-tracce.py` e `differenze-tracce.py` nella stessa cartella):
 | `elemento-dalla-barra` | Dalla barra: «Scrivi» → compositore | `FluidZoomPresetsTest` | `GLASS_F6B5C_DIR` | `f6b-5c/tracce/elemento-dalla-barra/elemento-dalla-barra-collage.jpg` |
 | `elemento-giu-chiude` | la pagina chiusa trascinando in giù | `FluidZoomPresetsTest` | `GLASS_F6B5C_DIR` | `f6b-5c/tracce/elemento-giu-chiude/elemento-giu-chiude-collage.jpg` |
 
+### La seconda parte (F6B.13)
+
+Il confronto (`artifacts/liquid-glass/sessioni/f6b-13/tracce-confronto.json`, script `raccogli-tracce.py` nella stessa
+cartella): **uguali al byte** a quelle consegnate dai pacchetti tutte tranne `trova-sopra-tastiera`, **uguale nei numeri**:
+cambia solo la pagina col testo e gli evidenziatori, che il preparatore di F6B.6 aggiunge prima di rendere
+(`artifacts/liquid-glass/sessioni/f6b-6/strumenti/pagina_trova.py`). `titolo-pannello` è nuova. Qui ci sono le chiare; le
+scure stanno nelle cartelle dei pacchetti.
+
+| traccia | elemento | la scrive | variabile | collage di tutti i fotogrammi (in `artifacts/liquid-glass/sessioni/`) |
+|---|---|---|---|---|
+| `campo-messaggio` | il campo «Messaggio» sale con la tastiera, «Invia», resta aperto | `FluidToolbarSearchPresetsTest` | `GLASS_F6B6_DIR` | `f6b-6/banco/campo-messaggio/campo-messaggio-collage.jpg` |
+| `campo-alto-inghiotte` | il campo in alto inghiotte i tasti accanto e li restituisce | `FluidToolbarSearchPresetsTest` | `GLASS_F6B6_DIR` | `f6b-6/banco/campo-alto-inghiotte/campo-alto-inghiotte-collage.jpg` |
+| `trova-sopra-tastiera` | «trova» nasce sopra la tastiera, «1/3», la barra in alto ferma | `FluidToolbarSearchPresetsTest` | `GLASS_F6B6_DIR` | `f6b-6/banco/trova-sopra-tastiera/trova-sopra-tastiera-collage.jpg` (con la pagina) |
+| `composer-righe` | il «Messaggio» da una a cinque righe, il bordo basso fermo | `ComposerTracesTest` | `GLASS_F6B7_DIR` | `f6b-7/banco/composer-righe/composer-righe-collage.jpg` |
+| `composer-allegati` | il vassoio che si apre verso l'alto e si richiude | `ComposerTracesTest` | `GLASS_F6B7_DIR` | `f6b-7/banco/composer-allegati/composer-allegati-collage.jpg` |
+| `composer-tasto-stati` | microfono, «Invia», l'anello, la spunta, la voce, lo stop | `ComposerTracesTest` | `GLASS_F6B7_DIR` | `f6b-7/banco/composer-tasto-stati/composer-tasto-stati-collage.jpg` |
+| `composer-alone` | l'alone animato dell'assistente (`trace.json.gz`: va decompressa prima di rendere) | `ComposerTracesTest` | `GLASS_F6B7_DIR` | `f6b-7/banco/composer-alone/composer-alone-collage.jpg` |
+| `pillole-menu-200` | la fila a 200% che diventa «Filtri · 2», il menu dal vetro come dal gruppo | `F6b8FilterTracesTest` | sempre, `engine-ui/build/reports/f6b-8/tracce/` | `f6b-8/tracce/pillole-menu-200/pillole-menu-200-collage-ogni-fotogramma.jpg` |
+| `pillola-periodo-menu` | la pillola «Periodo» che si apre nei valori | `F6b8FilterTracesTest` | sempre | `f6b-8/tracce/pillola-periodo-menu/pillola-periodo-menu-collage-ogni-fotogramma.jpg` |
+| `tastiera-contesto` | la barra sopra la tastiera che cambia contesto | `FluidKeyboardBarTraceTest` | `GLASS_F6B9_DIR` | `f6b-9/banco/tastiera-contesto/tastiera-contesto-collage.jpg` |
+| `tastiera-in-ritardo` | la tastiera che dà solo l'altezza finale: la molla insegue | `FluidKeyboardBarTraceTest` | `GLASS_F6B9_DIR` | `f6b-9/banco/tastiera-in-ritardo/tastiera-in-ritardo-collage.jpg` |
+| `attivita-compare` | la pillola compare al posto del titolo (terzo giro, provvisoria) | `FluidActivityTraceTest` | `GLASS_F6B10_DIR` | `f6b-13/banco/attivita-compare/attivita-compare-collage.jpg` |
+| `attivita-estesa` | la card che nasce dalla pillola | `FluidActivityTraceTest` | `GLASS_F6B10_DIR` | `f6b-13/banco/attivita-estesa/attivita-estesa-collage.jpg` |
+| `attivita-esito` | la spunta, il battito, l'uscita | `FluidActivityTraceTest` | `GLASS_F6B10_DIR` | `f6b-13/banco/attivita-esito/attivita-esito-collage.jpg` |
+| `attivita-anellino` | a barra ritirata resta l'anellino | `FluidActivityTraceTest` | `GLASS_F6B10_DIR` | `f6b-13/banco/attivita-anellino/attivita-anellino-collage.jpg` |
+| `tasto-cambia-un-vetro` | l'indietro che diventa «Seleziona tutto» nello stesso vetro (provvisoria) | `FluidToolbarSplitTitleTraceTest` | `GLASS_F6B11_DIR` (senza la fase) | `f6b-11/banco/tasto-cambia-un-vetro/tasto-cambia-un-vetro-collage.jpg` |
+| `tasto-diviso-menu` | «Invia ▾»: il menu dal vetro intero (il «diviso-menu» del piano) | `FluidToolbarSplitTitleTraceTest` | `GLASS_F6B11_DIR` | `f6b-11/banco/tasto-diviso-menu/tasto-diviso-menu-collage.jpg` |
+| `titolo-selettore` | il titolo agganciato apre gli account (il «titolo-menu» del piano) | `FluidToolbarSplitTitleTraceTest` | `GLASS_F6B11_DIR` | `f6b-11/banco/titolo-selettore/titolo-selettore-collage.jpg` |
+| `titolo-pannello` | il titolo apre il pannello delle località, popover dal titolo (tablet) | `F6b13TitlePanelTraceTest` (nuovo) | `GLASS_F6B13_DIR`, e sempre `engine-ui/build/reports/f6b-13/tracce/` | `f6b-13/banco/titolo-pannello/titolo-pannello-collage.jpg` |
+
+**Manca `pillola-gettone`**: manca il comportamento nell'engine (la pillola che diventa gettone dentro il campo della
+ricerca, la seconda metà di F6B.8). Non c'è una traccia onesta da esportare.
+
 Le curve dei tasti sono `curve.csv` e non `trace.json`: i fotogrammi dei tasti con esito sono le riprese della finestra
 vera (PixelCopy dei `FluidActionButton`, `F6b3GlyphFramesTest` e `FluidActionFramesTest` nel modulo sample), e le curve
 dicono i canali del disegno dai profili Kotlin (`FluidActionGlyphProfile`, R7), campionati ogni 16 ms. Le versioni
@@ -49,7 +83,7 @@ scure, dove ci sono, restano nelle cartelle dei pacchetti.
 ## Come si rifanno
 
 ```powershell
-$env:GLASS_F6B2_DIR = "<cartella>"     # e le altre variabili della tabella
+$env:GLASS_F6B2_DIR = "<cartella>"     # e le altre variabili delle tabelle
 # il lotto di engine-ui (le tracce le scrive il test, a fine prova)
 $py = "artifacts\liquid-glass\venv\Scripts\python"
 & $py tools\glassbench\glassmotion.py validate tools\glassbench\traces\f6b\elemento-zoom\trace.json

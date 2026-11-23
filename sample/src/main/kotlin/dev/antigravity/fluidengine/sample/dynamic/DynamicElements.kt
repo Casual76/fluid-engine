@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -20,14 +21,16 @@ import dev.antigravity.fluidengine.sample.toolbar.ToolbarDemoPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 
-// «Elementi dinamici» (piano «iOS in Android», F6B.12): la galleria degli elementi che sono parte dell'interfaccia e non
-// della pagina e che si trasformano. Un file per elemento, in questa cartella; ogni scena è il caso di un'app di Alessio
-// rifatto **solo con l'engine** (F6B.0, §12): Mail, Notes, Gallery, Fluidify, Weather. Le app non migrano (scelta di
-// Alessio del 21 novembre 2026): sono scene della galleria, e provano che i preset bastano senza codice di movimento.
+// «Elementi dinamici» (piano «iOS in Android», F6B.12 e F6B.13): la galleria degli elementi che sono parte dell'interfaccia
+// e non della pagina e che si trasformano. Un file per elemento, in questa cartella; ogni scena è il caso di un'app di
+// Alessio rifatto **solo con l'engine** (F6B.0, §12): Mail, Notes, Gallery, Fluidify, Weather, Transit, PampAI. Le app
+// non migrano (scelta di Alessio del 21 novembre 2026): sono scene della galleria, e provano che i preset bastano senza
+// codice di movimento.
 //
 // La scheda è `skill/fluid-engine/references/componenti/elementi-dinamici.md`.
 
@@ -41,6 +44,11 @@ internal enum class DynamicElement(val title: String) {
   Activity("La pillola di attività"),
   Split("Il tasto diviso"),
   TitleSelector("Il titolo che diventa selettore"),
+  // F6B.13
+  Field("Il campo e «trova nella pagina»"),
+  Composer("Il composer dentro il campo"),
+  Filters("Filtri e suggerimenti a pillole"),
+  KeyboardBar("La barra sopra la tastiera"),
 }
 
 /**
@@ -102,6 +110,38 @@ internal enum class DynamicScene(
     "titolo-pannello", DynamicElement.TitleSelector, "La località col pannello",
     "Weather · il titolo apre il pannello delle località; sul telefono un foglio dal titolo (F6B.11)",
   ),
+  FieldPresets(
+    "campo", DynamicElement.Field, "La ricerca della posta e i preset",
+    "Mail · in alto il campo inghiotte «Scrivi» e l'account; Ricerca, Messaggio, Nota, Assistente (F6B.6)",
+  ),
+  FindInPage(
+    "trova", DynamicElement.Field, "«Trova» in una trascrizione",
+    "Notes · «3/12» sopra la tastiera, e la barra in alto resta com'è (F6B.6)",
+  ),
+  MessageComposer(
+    "messaggio", DynamicElement.Composer, "«Messaggio» in una chat",
+    "Messaggi, Mail · righe, allegati, il tasto a stati; la lista resta sopra il campo (F6B.7)",
+  ),
+  AssistantComposer(
+    "assistente", DynamicElement.Composer, "L'assistente con l'alone",
+    "PampAI · chip, pillole, voce, alone; mentre risponde, la pillola di attività (F6B.7)",
+  ),
+  Filters(
+    "filtri", DynamicElement.Filters, "Le fermate coi filtri",
+    "Transit · la fila sotto il campo, «Filtri · N» a testo grande, «Periodo», i recenti (F6B.8)",
+  ),
+  Tokens(
+    "gettoni", DynamicElement.Filters, "«da: persona»",
+    "Mail · la pillola scelta diventa gettone nel campo «Da» (F6B.8)",
+  ),
+  KeyboardBar(
+    "tastiera", DynamicElement.KeyboardBar, "«Scrivi» con una barra per campo",
+    "Mail · suggerimenti, azioni rapide, formattazione e «Fatto»; «Invia ▾» (F6B.9)",
+  ),
+  RichTextKeyboard(
+    "testo-ricco", DynamicElement.KeyboardBar, "La barra del testo ricco",
+    "Notes · la formattazione come preset della barra sopra la tastiera (F6B.9)",
+  ),
   ;
 
   companion object {
@@ -162,6 +202,14 @@ internal fun DynamicElementsPage(onBack: () -> Unit, initial: DynamicScene? = nu
         DynamicScene.SplitButton -> SplitButtonScene(onBack = close)
         DynamicScene.TitleMenu -> TitleMenuScene(onBack = close)
         DynamicScene.TitlePanel -> TitlePanelScene(onBack = close)
+        DynamicScene.FieldPresets -> FieldPresetsScene(onBack = close)
+        DynamicScene.FindInPage -> FindInPageScene(onBack = close)
+        DynamicScene.MessageComposer -> MessageComposerScene(onBack = close)
+        DynamicScene.AssistantComposer -> AssistantComposerScene(onBack = close)
+        DynamicScene.Filters -> FiltersScene(onBack = close)
+        DynamicScene.Tokens -> TokensScene(onBack = close)
+        DynamicScene.KeyboardBar -> KeyboardBarScene(onBack = close)
+        DynamicScene.RichTextKeyboard -> RichTextKeyboardScene(onBack = close)
       }
     }
   }
@@ -173,24 +221,31 @@ private fun DynamicElementsIndex(onBack: () -> Unit, onOpen: (DynamicScene) -> U
   FluidScreen(
     title = "Elementi dinamici",
     // Il segno della pagina per le prove della galleria (`FluidBetaTest`): la sigla del pacchetto.
-    subtitle = "F6B.12 · selezione, tasti con esito, Annulla, avviso dal tasto, elemento che diventa pagina",
+    subtitle = "F6B.12 · F6B.13 · gli elementi che si trasformano, coi casi delle app",
     onBack = onBack,
     modifier = Modifier.testTag(DynamicTags.Index),
+    // Con venti scene l'indice tiene il titolo agganciato (il sottotitolo sta nella barra) e un elemento per voce della
+    // lista, l'intestazione col suo gruppo: così sta in una pagina alta (la prova dell'indice).
+    toolbar = { title(FluidToolbarTitleMode.Inline) },
   ) {
     DynamicElement.entries.forEach { element ->
       val scenes = DynamicScene.entries.filter { it.element == element }
-      item(key = "${element.name}-intestazione") { FluidSectionHeader(title = element.title) }
       item(key = "${element.name}-scene") {
-        FluidListGroup {
-          scenes.forEachIndexed { index, scene ->
-            if (index > 0) FluidListDivider()
-            FluidListRow(
-              title = scene.title,
-              subtitle = scene.detail,
-              meta = "dynamic.scene ${scene.key}",
-              modifier = Modifier.testTag(DynamicTags.row(scene)),
-              onClick = { onOpen(scene) },
-            )
+        Column {
+          FluidSectionHeader(title = element.title)
+          FluidListGroup {
+            scenes.forEachIndexed { index, scene ->
+              if (index > 0) FluidListDivider()
+              // Il caso dell'app su una riga (TalkBack lo legge intero).
+              FluidListRow(
+                title = scene.title,
+                subtitle = scene.detail,
+                subtitleMaxLines = 1,
+                meta = "dynamic.scene ${scene.key}",
+                modifier = Modifier.testTag(DynamicTags.row(scene)),
+                onClick = { onOpen(scene) },
+              )
+            }
           }
         }
       }

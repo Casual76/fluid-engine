@@ -135,6 +135,27 @@ allineata in basso. Ogni stile è un interruttore: `FluidCapsuleAction(selected 
 annulla e ripeti sono tasti semplici, spenti quando non c'è niente da fare. Toccare un tasto **non toglie il fuoco all'editor**: la tastiera resta e la selezione pure. Il **link** apre un foglio con testo e indirizzo (un
 portale: **serve un `FluidGlassModalHost` alla radice**, come ogni foglio dell'engine). Su un telefono stretto o col testo al 200% i tasti scorrono di lato nella capsula; sono sempre da 48 dp.
 
+### Un preset della barra sopra la tastiera (F6B.9)
+
+Dalla F6B.9 la barra del testo ricco è **un preset della barra sopra la tastiera** dell'engine
+([../componenti/elementi-dinamici.md](../componenti/elementi-dinamici.md), «La barra sopra la tastiera»), **con la firma di
+sempre**: `FluidRichTextToolbar(state, modifier, backdrop, placement, showHistory, avoidKeyboard)` non cambia, e un'app che la
+usa non tocca niente (`GlassCompatSignaturesTest` tiene la firma). Dentro, la capsula è `FluidKeyboardBar(visible, …)`, la
+variante a capsula della sede comune: la stessa **quota della tastiera** della barra dichiarata (i campioni veri dell'IME
+fotogramma per fotogramma, la molla di F4B.2 quando Android dà solo l'altezza finale), gli stessi ingressi e il bordo dello
+scorrimento delle capsule. Gli interruttori di stile, lo scorrimento di lato dei tasti e la misura detta al cursore (sotto)
+restano quelli di prima.
+
+Due strade, secondo la pagina:
+
+| la pagina | la barra |
+|---|---|
+| un editor in una pagina qualsiasi, con «Aa» | `FluidRichTextToolbar(state)` nell'overlay, come sempre (la scena `testo-ricco` della galleria) |
+| più campi, ognuno con la sua barra (destinatari, oggetto, testo) | `FluidScreen(toolbar = { keyboard(context = campo) { … } })` coi preset dell'engine e, per il testo, i tasti di stile scritti con `button(…, selected = state.format.bold)` e `history(state.canUndo, state.canRedo, …)` (la scena `tastiera`) |
+
+Nella seconda strada la barra si trasforma passando da un campo all'altro come una barra in alto che cambia stato; nella
+prima compare e scompare con la capsula. **Da non fare**: le due insieme sullo stesso editor (due barre sopra la tastiera).
+
 ### La riga che si scrive sta sopra la barra (3.1.2)
 
 La pagina non lascia alla barra uno spazio suo: la barra galleggia sopra il fondo della pagina, proprio dove ogni campo di testo porta il cursore. Senza altro, chi scrive in fondo a un testo con la barra accesa scriverebbe
@@ -217,7 +238,7 @@ tasto «Aa» ha il suo nome (`FluidRichTextLabels.formatting`), la barra ha un t
 | `FluidRichTextEditor.kt` | il campo, le trasformazioni d'ingresso e d'uscita, i segni accanto al testo, gli appunti |
 | `FluidRichTextEdits.kt` | le modifiche pure del testo sul documento (interno, testato) |
 | `FluidRichTextCaretAvoidance.kt` | i passi che portano la riga del cursore sopra la barra (interno, Kotlin puro, testato) |
-| `FluidRichTextToolbar.kt` | la barra e il tasto «Aa» |
+| `FluidRichTextToolbar.kt` | la barra e il tasto «Aa»; la barra è un preset di `FluidKeyboardBar` (engine-ui, F6B.9) |
 | `FluidRichTextHtml.kt`, `FluidRichTextMarkdown.kt`, `FluidRichTextLinks.kt` | i tre formati, la sicurezza dei link, il testo semplice |
 | `FluidRichTextLabels.kt` | le parole del modulo, in italiano e in inglese |
 | `sample/.../catalog/RichTextDemo.kt` | il call-site vero: editor, barra, incolla di HTML sporco, le tre uscite |

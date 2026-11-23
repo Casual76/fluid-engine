@@ -54,10 +54,14 @@ elimina nascono **in un vetro solo** (sono icone vicine), la conferma nasce tint
 | `flexibleSpacer()` | uno spazio flessibile: spinge ciò che segue all'altro estremo | — |
 | `group(id, placement, priority, sharedBackground) { … }` | un gruppo esplicito: i suoi tasti stanno insieme e non si uniscono ai vicini di fuori | il suo |
 | `overflow(label?) { … }` | ciò che sta **sempre** nel menu «Altro» (il tasto coi tre puntini) | — |
-| `title(mode, subtitle?)`, `subtitle(text)` | il modo del titolo (`Large`, `Inline`, `None`) e il sottotitolo | — |
+| `title(mode, subtitle?, menu?, panel?, selectorHint?)`, `subtitle(text)` | il modo del titolo (`Large`, `Inline`, `None`) e il sottotitolo; con `menu` o `panel` il titolo è un **selettore** (vedi «Il titolo che diventa selettore», F6B.11) | — |
 | `search(spec)` | la ricerca della pagina (vedi «La ricerca») | — |
 | `selection(state, count, onSelectAll, onDone, placement, labels, doneId) { … }`, `selectButton(onClick)` | la barra in selezione e il tasto «Seleziona» (vedi «La selezione», F6B.1) | il conteggio al centro, «Fine» e «Seleziona tutto» a sé; le azioni nei loro gruppi |
 | `undoCountdown(id, countdown, placement, priority)` | un «Annulla» temporaneo col suo vetro, che si riempie e poi esce (vedi «Il contatore Annulla», F6B.4) | a sé |
+| `split(id, text, onClick, label, menuLabel, placement, priority, enabled, menu)`, `split(id, icon, label, onClick, …)` | il **tasto diviso**: l'azione e la freccia in un vetro solo, divise da un filo (vedi «Il tasto diviso», F6B.11) | a sé |
+| `action(id, icon, label, onClick, placement, priority, enabled, menu)` | un'icona col menu nascosto: tocco = azione, pressione lunga = menu (R1 N5, F6B.11). La forma senza `onClick`, col solo menu, è quella di F5A | con le icone vicine |
+| `keyboard(context, alwaysVisible, fieldFocused) { … }` | la **barra sopra la tastiera**, una per campo: `context` è la chiave di contesto (vedi «La barra sopra la tastiera», F6B.9) | la sua barra |
+| `activity(hidden = false, placement = FluidActivityPlacement.Title)` | dove questa pagina mostra la **pillola di attività**: di serie al posto del titolo; `hidden` la toglie, `Trailing` la tiene fra i tasti (vedi «La pillola di attività», F6B.10) | al posto del titolo |
 
 `role`: `FluidButtonRole.Destructive` colora l'icona (e la voce del menu) col colore d'errore; `Confirm` e `Close` fanno
 del tasto una conferma o un Chiudi; `Cancel` lo mette a sinistra. `placement` (`FluidToolbarPlacement`) e `priority`
@@ -190,7 +194,14 @@ La pagina passa `FluidScreen(search = FluidSearchSpec(…))` oppure `search(spec
 | `TopBar` | Sul lato finale della testata | Resta in alto. Con `expansion = AboveKeyboard` lo stesso editor scende sopra l’IME |
 | `Principal` | Sotto il titolo | Segue il ritiro della testata |
 
-Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale: `CollapseToButton` è la ricerca **minimizzata**, sempre un tasto a riposo. Il campo è un vetro del piano: la lente da 46 dp si allunga nella capsula alta 40 dp (la riga del tocco è alta 48 dp) mentre i vicini le fanno posto, senza ricatture durante il viaggio; il contenuto sta al layout d’arrivo. L’attivazione dà fuoco al campo e raccoglie in «Altro» i comandi dichiarati della riga. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`. Sopra un fondo carico il campo aperto si vela secondo l’inchiostro del piano (nero al 40% o bianco al 16%), in proporzione all’apertura.
+Con `behavior = Automatic` più di due comandi nella stessa barra riducono il campo a una lente. `AlwaysVisible` e `CollapseToButton` scelgono esplicitamente la posa iniziale: `CollapseToButton` è la ricerca **minimizzata**, sempre un tasto a riposo. Il campo è un vetro del piano: la lente da 46 dp si allunga nella capsula alta 40 dp (la riga del tocco è alta 48 dp) mentre i vicini le fanno posto, senza ricatture durante il viaggio; il contenuto sta al layout d’arrivo. L’attivazione dà fuoco al campo. In basso, e in alto con `expansion = AboveKeyboard`, i comandi dichiarati della riga si raccolgono in «Altro»; **in alto, il campo che resta in cima (`StayAtTop`, e `Automatic` in alto) li inghiotte** (F6B.6): le icone si sfocano subito, i loro vetri confluiscono nel vetro del campo, e alla chiusura rinascono da lui col viaggio inverso. Testo e chiusura entrano con la sfocatura del contenuto. La X o il ritorno richiudono la ricerca conservando la query. `scopes` occupa la riga dell’editor, `suggestions` lo spazio accanto alla barra. Con `purpose = Input` il tasto mostra la matita e l’IME propone Fine. Entrambi i modi chiamano `onSearch` alla conferma. Il segnaposto si personalizza con `prompt`. Sopra un fondo carico il campo aperto si vela secondo l’inchiostro del piano (nero al 40% o bianco al 16%), in proporzione all’apertura.
+
+**I preset d'uso** (F6B.6): `FluidSearchSpec.search`, `.message`, `.note`, `.assistant` e `.findInPage` scelgono icona,
+segnaposto, tasto a destra, invio che chiude o resta aperto e righe; la tabella è in
+[elementi-dinamici.md](elementi-dinamici.md), «Il campo: i preset d'uso». **«Trova nella pagina» non tocca la barra in
+alto**: il campo nasce in fondo sopra la tastiera, e i fissati della barra (l'avatar) restano dove sono invece di passare in
+«Altro». Il campo con più righe che cresce, il vassoio e il tasto a stati (F6B.7) sono in [barre.md](barre.md), «Il campo che
+cresce».
 
 La galleria prova tutte le sedi su una pagina sola: Chrome → «Barra in basso», capitolo «Ricerca» (in basso con gli ambiti, automatica, minimizzata, in alto, in alto fino alla tastiera, il campo di inserimento); il campo fissato `Principal` è nella pagina «Ricerca» di «Barre fra pagine». Il confronto con Apple (Salute, WWDC25 256) è la traccia `tools/glassbench/traces/f4b-5/ricerca-apre`.
 
@@ -228,7 +239,8 @@ del contenitore:
 | lo stesso `id` con un'icona diversa | il vetro non si muove, le icone si incrociano sfocandosi (nessun viaggio del piano); se nello stesso cambio un altro vetro cambia forma, respira con lui (F4A.5b) |
 | un `id` nuovo accanto a un vetro | nasce dal fianco del vicino col collo (D3) |
 | un `id` nuovo senza vicini | compare per lente, sul posto |
-| indietro o Chiudi che arrivano o se ne vanno | lente sul posto anche con altri tasti a sinistra; se l'`id` resta, lo stesso vetro fermo (`MaterializeWhenAlone`, R7 21) |
+| indietro o Chiudi che arrivano o se ne vanno **davvero** (nessuno al loro posto) | lente sul posto anche con altri tasti a sinistra; se l'`id` resta, lo stesso vetro fermo (`MaterializeWhenAlone`, R7 21) |
+| un tasto che ne prende **lo stesso posto** (l'indietro che diventa «Seleziona tutto», Chiudi al posto dell'indietro) | **lo stesso vetro**, anche con un `id` diverso: cambia misura con la molla e il contenuto si scambia sfocato (F6B.11, «La regola dello stesso posto») |
 | un `id` che se ne va | confluisce nel vicino, o scompare per lente |
 | icone separate che diventano un gruppo, o il contrario | lo stesso vetro che si fonde o si divide; le icone che restano nitide |
 | il titolo in linea | si scambia sfocandosi, con un passo di 8 dp nel verso della navigazione (nessuno fra schede) |
@@ -244,8 +256,8 @@ all'annullo non succede niente (D1). Un cambio di scheda è come un cambio di st
 arriva a metà riparte da dove si trova.
 
 **Perché funzioni, gli `id`.** Lo stesso tasto ha lo stesso `id` in tutte le pagine: `FluidToolbarIds.Back` lo dà la
-DSL all'indietro di ogni pagina, gli altri li sceglie l'app. Per Chiudi al posto dell'indietro nello stesso vetro (un
-foglio sopra una figlia), `close(onClick, id = FluidToolbarIds.Back)`.
+DSL all'indietro di ogni pagina, gli altri li sceglie l'app. Chiudi al posto dell'indietro è già lo stesso vetro per la
+regola dello stesso posto (F6B.11): `close(onClick, id = FluidToolbarIds.Back)` non serve più, e resta valido.
 
 **Le pagine con lo slot `actions` di sempre** non cambiano finché l'host non mostra una barra dichiarata: un host di sole
 pagine di sempre è quello di prima. Da quando ne mostra una, l'indietro di ogni pagina è del modello (fermo al pixel) e le
@@ -377,6 +389,107 @@ primary("nuova", FluidIcons.Add, "Nuova mail", onClick = scrivi,
 
 La galleria: «Elementi dinamici», scena `invia` e scena `selezione-posta`; e la voce «Avvisi con azione».
 
+## La regola dello stesso posto (F6B.11)
+
+> **Provvisoria**: F6B.11 è integrata in modo provvisorio, Alessio la deve ancora confermare.
+
+**Un tasto che cambia nello stesso posto resta un vetro solo.** Parole di Alessio (22 novembre), sulle riprese della
+selezione: «i tasti della barra quando cambiano non cambiano solo icona, ma è come se ci fossero due tasti durante lo
+scambio». Come in iOS, quando nello stesso posto un tasto ne diventa un altro il vetro resta uno: cambia misura con la
+molla, se serve (respira appena, come il tondo di Apple che cambia simbolo), e il contenuto si scambia sfocato (R7). La lente
+resta per un tasto che nasce o se ne va **davvero**.
+
+- **Che cos'è «lo stesso posto»**: due vetri senza un tasto in comune, uno che se ne va e uno che arriva, sullo stesso lato
+  della barra e sovrapposti per almeno metà del più stretto (`FluidToolbarInPlaceOverlap`, 0,5, a occhio). L'indietro e
+  «Seleziona tutto» si coprono per intero; due tasti vicini (12 dp fra loro) per niente.
+- **Quando scatta**: quando uno dei due è un vetro che compare per lente (l'indietro, Chiudi, la pillola di attività). Fra
+  due vetri ordinari il piano faceva già un vetro solo (la staffetta di F3.11).
+- **Chi tiene la lente**: un tasto che c'è nei due stati, il contatore temporaneo `undoCountdown` (scelta di F6B.4) e un
+  tasto senza vetro.
+- **Fra le pagine dell'host** vale lo stesso (la barra dell'host usa la stessa differenza): una figlia con l'indietro al posto
+  di «Modifica» della radice è lo stesso vetro.
+
+Il modello lega i due gruppi orfani con un arco «sul posto» (`FluidToolbarGroupDiff.inPlace`); il gruppo d'arrivo eredita
+l'identità del vetro (`fluidToolbarGlassIds`), quindi il piano fa un viaggio `Matched`. Tutto interno: per l'app non cambia
+niente. La traccia del banco è `tasto-cambia-un-vetro`.
+
+## Il tasto diviso e `action(…, onClick)` (F6B.11)
+
+> **Provvisorio**, come il resto di F6B.11.
+
+`split(id, text, onClick, menuLabel = …, menu = { … })` (o con un'icona) è un elemento **a sé**: un vetro solo con
+l'azione e la freccia, divise da un filo sottile (`FluidSplitButtonDefaults`: il filo alto 20 dp all'inchiostro del tasto al
+28%, la freccia da 20 dp in una zona di 38). La regola «simboli e testo mai nello stesso gruppo» non si applica: è un comando
+solo. Due bersagli **disgiunti**, ognuno di almeno 48 × 48 dp: dove la zona disegnata è più stretta, il bersaglio esce dal
+vetro verso il bordo che non tocca l'altro. Toccare la freccia apre il menu **dallo stesso vetro** (il viaggio del tasto
+singolo di F5A.2: il vetro intero diventa il menu e ci rientra); la pressione lunga sull'azione fa lo stesso. TalkBack legge
+due pulsanti, l'azione e il suo «Altro» (`menuLabel`).
+
+`action(id, icon, label, onClick, menu = { … })` è il comando di R1 N5 senza freccia visibile: il tocco fa l'azione, la
+pressione lunga apre il menu dallo stesso vetro. È un sovraccarico: la forma col solo menu resta quella di sempre.
+
+Da solo: `FluidSplitButton(label, onClick, menu, icon?, menuLabel?, enabled, style)`. Quando il menu rientra, la faccia del
+tasto torna e resta (F6B.11b: la barra tiene il vetro del tasto sul piano mentre il menu ce l'ha in prestito).
+
+## Il titolo che diventa selettore (F6B.11)
+
+> **Provvisorio**, come il resto di F6B.11.
+
+`title(mode, subtitle?, menu = { … })` o `title(mode, subtitle?, panel = { … })` fanno del titolo la **sorgente** di un menu
+o di un pannello; `selectorHint` è l'azione detta da TalkBack («Cambia casella»). Il titolo, in linea e grande, porta accanto
+un piccolo disco con la freccia (misure in frazioni del carattere: il disco del titolo grande è grande, e si trasforma con
+lui quando si aggancia). Si tocca il titolo grande quando si vede, quello agganciato quando è agganciato; il bersaglio
+comprende il disco. Per TalkBack è un «elenco a discesa» (`Role.DropdownList`). Il titolo grande è alto quanto la sua riga
+(≈41 dp), quello agganciato ha un bersaglio di almeno 48 dp.
+
+- **Il menu** nasce dal disco (un quadrato di almeno 44 dp attorno a lui, `fluidTitleSelectorAnchor`) e ci rientra; il disco
+  non si disegna finché è il menu.
+- **Il pannello** (`FluidTitlePanelScope`: una colonna, con `dismiss()`) è un popover dal titolo; **sotto i 600 dp** è un
+  foglio che **nasce dal titolo** (lo zoom di F5B.3), a mezza altezza e a tutta altezza.
+- **Con la pillola di attività**: un titolo che è un selettore è un comando, e la pillola non gli prende il posto: sta
+  minima accanto, fra i tasti. Se la pagina dichiara `activity(placement = Title)` vince la pagina.
+
+## La barra sopra la tastiera: `keyboard { }` (F6B.9)
+
+`keyboard(context, alwaysVisible = false, fieldFocused = null) { … }` dichiara, dentro la barra della pagina, i comandi
+**sopra la tastiera**. È una sede interna del modello (nessun valore nuovo in `FluidToolbarPlacement`, 3.11): ha i suoi
+gruppi, priorità e trabocco, e la stessa differenza fra due stati. `context` è la **chiave di contesto**: quando cambia (un
+altro campo prende il fuoco) la barra si trasforma come una barra in alto che cambia stato, e i vetri dei gruppi
+corrispondenti restano gli stessi. Si vede quando l'IME è su e un campo della pagina ha il fuoco (`fieldFocused` lo dice
+l'app, se vuole), o sempre con `alwaysVisible`; con la tastiera fisica resta in fondo alla finestra.
+
+```kotlin
+FluidScreen(title = "Nuova mail", toolbar = {
+  split("invia", "Invia", onClick = invia, menu = { opzioni })
+  keyboard(context = campo, fieldFocused = campo != null) {
+    if (campo == Destinatari) suggestions(proposte) { aggiungi(it) } else quickActions(onAttach = allega)
+    fieldNavigation(focusManager, keyboardController, hasPrevious = campo != Destinatari, hasNext = campo != Testo)
+  }
+}) { … }
+```
+
+I preset: `fieldNavigation`, `quickActions`, `suggestions`, `history`, `findInText` (in `FluidKeyboardBar.kt`). La sede segue
+la quota dell'IME in misura, fotogramma per fotogramma, e la insegue con la molla di F4B.2 quando Android dà solo l'altezza
+finale. Con «trova» aperto (`AboveKeyboard`) il campo sta sopra la barra. La lista della pagina lascia in fondo il posto alla
+barra. Fuori da `FluidScreen`: `FluidKeyboardBar(toolbar = { … })` in un `Box` che riempie la finestra. La famiglia e le
+scene: [elementi-dinamici.md](elementi-dinamici.md), «La barra sopra la tastiera».
+
+## La pillola di attività: `activity` (F6B.10)
+
+> **Provvisoria**: F6B.10 è integrata in modo provvisorio. Le due domande aperte (i tempi della card, il posto dell'anellino
+> sul tablet) sono in [elementi-dinamici.md](elementi-dinamici.md), «La pillola di attività».
+
+Con un `FluidActivityHost` alla radice e un'attività pubblicata, **ogni barra dichiarata** (`FluidScreen(toolbar = …)`,
+`FluidPageChrome`, `FluidCollapsingTopBar` e la barra dell'host delle pagine) mostra la pillola **al posto del titolo**: è un
+elemento `Principal` del modello, che entra nella risoluzione delle larghezze e non conta nel tetto dei tre gruppi. Al centro
+se ci sta, altrimenti nello spazio libero fra i due lati, come il titolo di UIKit. Quando la barra è piena (o il centro è
+occupato, o la pagina usa lo slot `actions`) diventa **minima**, il solo anello, prima di far uscire un tasto. A barra
+ritirata ne resta l'anellino, fuori dal livello che ritira la barra. Fra due pagine dell'host la pillola è lo stesso vetro,
+fermo.
+
+Nello scope: `activity(hidden = true)` la toglie dalla pagina; `activity(placement = FluidActivityPlacement.Trailing)` la
+tiene fra i tasti e lascia il titolo. La coda, i preset e le forme: [elementi-dinamici.md](elementi-dinamici.md).
+
 ## Limiti noti
 
 - **Il menu «Altro»** è il menu contestuale dell'engine (senza un host dei modali non si apre: le azioni restano
@@ -431,3 +544,7 @@ La galleria: «Elementi dinamici», scena `invia` e scena `selezione-posta`; e l
 - `…/ui/fluid/toolbar/FluidSelectionToolbar.kt`: la selezione (F6B.1); `…/ui/fluid/action/`: il tasto con esito e il suo tipo
   (F6B.3a); `…/ui/fluid/FluidUndoCountdown.kt`: il contatore (F6B.4). Le scene: `sample/…/dynamic/` («Elementi dinamici»).
 - `…/ui/page/FluidPageAnchoredBar.kt` e `FluidPageBar.kt`: la barra dell'host disegnata dal modello (F4A.3).
+- `…/ui/fluid/toolbar/FluidKeyboardBar.kt`: la barra sopra la tastiera e i suoi preset (F6B.9);
+  `…/ui/fluid/activity/FluidActivity.kt`: la pillola di attività (F6B.10); `…/ui/fluid/FluidSplitButton.kt` e
+  `…/ui/fluid/toolbar/FluidToolbarTitleSelector.kt`: il tasto diviso e il titolo selettore (F6B.11). La regola dello stesso
+  posto sta in `FluidToolbarModel.kt` (`fluidToolbarInPlace`) e in `FluidToolbar.kt` (`fluidToolbarGlassIds`).

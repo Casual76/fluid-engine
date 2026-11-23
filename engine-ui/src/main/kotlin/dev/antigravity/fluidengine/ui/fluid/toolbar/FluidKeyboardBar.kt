@@ -282,6 +282,14 @@ private class KeyboardImeInsets(
     sample(density).layoutBottom(followingPlatform, reduced, fallback.value.roundToInt())
 }
 
+/**
+ * La quota della tastiera della barra sopra la tastiera, per chi sta fuori dalla barra (F6B.13: la lista che lascia il
+ * posto al campo in fondo). È la stessa: i campioni veri dell'IME fotogramma per fotogramma, la molla di F4B.2 se Android
+ * consegna solo l'altezza finale. Va letta nel layout o nel disegno.
+ */
+@Composable
+internal fun rememberFluidKeyboardQuota(): WindowInsets = rememberKeyboardImeInsets()
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun rememberKeyboardImeInsets(): KeyboardImeInsets {

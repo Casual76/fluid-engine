@@ -21,7 +21,8 @@ parole in [ai-ui-stringhe.md](ai-ui-stringhe.md); le firme complete in [../api/a
 | una domanda scritta mentre l'assistente lavora, in attesa | `FluidQueuedBubble` |
 | la pagina vuota con nome, frase e suggerimenti | `FluidEmptyGreeting` |
 | cosa dire di una risposta senza testo (fallita, fermata, vuota) | `fluidOutcomeLines` + `FluidBubbleOutcome` |
-| la barra in fondo (campo, +, chip del modello, microfono/invio/stop) | `FluidComposer` |
+| il campo dell'assistente **dentro la barra** di `FluidScreen`, che cresce di riga in riga, con l'alone animato | `fluidAssistantField(state, action, onSend, …)` (vedi «Il composer dentro il campo») |
+| la barra in fondo (campo, +, chip del modello, microfono/invio/stop) | `FluidComposer` (il composer di prima, che resta) |
 | quale tasto mostrare a destra del composer | `fluidComposerAction(...)` |
 | il testo scritto dal composer, anche scritto da fuori | `FluidComposerState` / `rememberFluidComposerState()` |
 | l'alone mentre ascolta, e la riga con le parole che arrivano | `rememberFluidListeningGlow` + `FluidComposerVoiceLine` |
@@ -315,6 +316,79 @@ lo sfondo (un contenitore con un pezzo solo). **La capsula del composer gira** (
 (`fluidGlassPanel`, ruolo `Floating`, la sua pellicola, `large = false`) in un contenitore con un pezzo solo, l'alone resta
 fuori, attorno a lei: [ai-ui-overlay.md](ai-ui-overlay.md), «Il vetro e il lato».
 
+## Il composer dentro il campo
+
+**Cos'è.** Il composer **nuovo** dell'assistente (F6B.7), costruito sul campo della barra di `engine-ui` invece che su una
+capsula sua: `fluidAssistantField(…)` restituisce una `FluidSearchSpec` già piena (il preset `assistant` con le parti del
+composer, `FluidComposerSlots`), da passare a `FluidScreen(search = …)`. Il campo sta in basso sopra la tastiera, **cresce di
+riga in riga** col bordo basso fermo e sale con la tastiera; la lista della chat gli lascia il posto in fondo, con e senza
+tastiera (F6B.13). Le meccaniche del campo (la crescita, il vassoio, il tasto a stati, niente doppio invio) sono in
+[../componenti/barre.md](../componenti/barre.md), «Il campo che cresce».
+
+È la scelta di Alessio del 21 novembre: «ne costruiamo uno nuovo sui nuovi componenti aggiornati, sempre reso un po'
+speciale (tipo campo di testo con alone attorno può essere un'idea)»; e del 22: «l'alone deve essere animato».
+**`FluidComposer` di prima resta com'è**: le app che lo usano (ClasseViva, PampAI) passano al nuovo a mano, quando lo decide
+Alessio.
+
+**Uso.**
+
+```kotlin
+val composer = rememberFluidComposerState()
+val action = fluidComposerAction(composer.text.isNotBlank(), busy = state.isBusy,
+  listening = state is AssistantState.Listening, speaking = speaking)
+FluidScreen(
+  title = "Assistente",
+  search = fluidAssistantField(composer, action, onSend = { if (vm.send(composer.text)) composer.sent() },
+    onStop = vm::cancel, onVoice = vm::startListening, onStopListening = vm::stopListening, onAdd = { menu = true },
+    chips = { FluidComposerChip("Modello · Auto", onClick = {}) },
+    pills = if (allegato != null) { { FluidComposerPill(FluidIcons.Image, allegato.nome, onClick = togli) } } else null,
+    voiceLine = { FluidComposerVoiceLine(partial, transcribing, amplitude = { level }, onTap = vm::stopListening) },
+    voiceActive = state.isVoiceActive(), level = { micLevel }, failed = state is AssistantState.Failed),
+) { /* la conversazione: FluidUserBubble, FluidAssistantBubble, … */ }
+```
+
+**Le parti.** Il «+» (`onAdd`, o un `leading` suo), il vassoio sopra il testo con `chips` e `pills` (una riga che scorre di
+lato), la riga della voce al posto del testo (`voiceLine`, finché `voiceActive`), il tasto a destra e l'alone. `sending` dà
+alla faccia «Invia» lo stato del tasto con esito (l'anello mentre lavora). `halo = false` toglie l'alone.
+
+**Il tasto a destra** viene da `fluidComposerAction`, come nel composer di prima, ma è **un tasto solo** sulla stessa sagoma
+(`fluidAssistantFieldTrailing`, pura):
+
+| `FluidComposerAction` | il tasto |
+|---|---|
+| `Voice`, e `Send` con del testo | il microfono a campo vuoto, «Invia» con del testo (`FluidSearchTrailing.voice`) |
+| `Send` a campo vuoto (niente microfono) | «Invia», che a campo vuoto è la X |
+| `Stop`, `StopAndQueue` | lo stop; con del testo la tastiera manda in coda (il composer di prima aveva due tasti) |
+| `StopListening` | lo stop dell'ascolto |
+| `Mute` | «Zitta», con l'altoparlante barrato |
+
+**L'alone** (`FluidAssistantFieldHalo`, da `rememberFluidAssistantFieldHalo`): le macchie del campo di luce viaggiano sul
+bordo del vetro **dietro** di lui (dentro le copre il vetro, fuori sbordano di una decina di dp) e un anello sottile coi colori
+del tema che girano sta **sopra** il bordo. A riposo è fermo al 70% e **non chiede fotogrammi**. A campo attivo (aperto, o
+l'assistente che ascolta, lavora o legge) **si muove**: un giro di luce lungo un sesto del bordo fa il giro in 5 s (in
+ascolto 4,2, al lavoro 3,1, mentre legge 3,6), tutto respira del 12% in 4,5 s, e il moto entra in 400 ms ed esce in 600
+rallentando fino a fermarsi. Prende i colori dell'errore se l'ultima risposta è fallita (`failed`). Col movimento ridotto è
+fermo. Sta nella barra, sopra la pagina: **non entra nella cattura del vetro** e non la fa rifare. I numeri sono in
+`FluidAssistantFieldHaloProfile`, a occhio (21 e 22 novembre 2026), dal `glow` del composer di prima: sei macchie da 26 dp
+all'alfa 0,45, l'anello da 2 dp che gira in 8 s, la testa del giro da 2,5 dp all'alfa 0,65 in un bagliore da 7 dp.
+
+**Trappole.**
+
+- `addDescription = "Aggiungi"` è in italiano e non sta in `FluidChatStrings`: un'app tradotta lo passa.
+- Il campo dice all'alone se è aperto (`FluidComposerHalo.fieldActiveChanged`): un alone su misura deve ascoltarlo, o resta
+  fermo anche a campo aperto.
+- Le pillole e i chip del vassoio (`FluidComposerPill`, `FluidComposerChip`) sono alti 30 dp, e il «+» e il tasto a destra
+  40 dp: sotto i 48 dp degli altri tasti (lo dice il test delle scene di F6B.13; da decidere con Alessio).
+
+**In galleria**: «Elementi dinamici», `--es dynamic.scene assistente` (PampAI, con la pillola di attività mentre risponde) e
+`messaggio` (il campo «Messaggio» con le parti, senza alone). La scena è `sample/…/dynamic/ComposerScenes.kt`.
+
+**I test.** `FluidComposerInFieldTest` (engine-ai-ui: il tasto per ogni azione, l'umore dell'alone, il respiro e il giro di
+luce senza salti, fermo a riposo e col movimento ridotto), `FluidComposerInFieldTest` e `ComposerTracesTest` (engine-ui: la
+crescita, il vassoio, il tasto a stati, le tracce del banco `composer-righe`, `composer-allegati`, `composer-tasto-stati`,
+`composer-alone`), `FluidAssistantFieldHaloTest` (galleria: l'alone fermo a riposo, animato a campo aperto senza catture), e
+le scene in `FluidDynamicFieldsUiTest`.
+
 ## Il Markdown dell'assistente
 
 `FluidAssistantMarkdownOptions = FluidMarkdownOptions(hideChipMarkers = true)`: i marcatori `[[chip]]` che il modello scrive per i chip sotto la risposta spariscono dal testo (a fine
@@ -337,4 +411,5 @@ trascrive (`fluidComposerShowsVoiceLine`). **Non verificati** (si guardano in ma
 | `FluidChatBubbles.kt` | bolle, esiti (`FluidBubbleOutcome`, `fluidOutcomeLines`), `FluidLiveBubble`, `FluidEmptyGreeting`, `FluidMessageStyle` |
 | `FluidChatActions.kt` | `FluidSmallAction`, `FluidPillAction`, copia e condividi |
 | `FluidComposer.kt` | composer, stato, tasto, alone, riga della voce, chip e pillole |
+| `FluidComposerInField.kt` | il composer nuovo dentro il campo: `fluidAssistantField`, il tasto a destra, l'alone e il suo profilo (F6B.7) |
 | `../markdown/FluidAssistantMarkdown.kt` | `FluidAssistantMarkdownOptions` |

@@ -20,9 +20,10 @@ schede di casa: la barra in [toolbar.md](toolbar.md), la tab bar in [barre.md](b
 [notifiche.md](notifiche.md), le pagine in [pagine.md](pagine.md). Le firme: [../api/barre.md](../api/barre.md),
 [../api/menu-modali.md](../api/menu-modali.md), [../api/pagine.md](../api/pagine.md).
 
-Questa è la prima parte (F6B.12): selezione, tasti con esito, «Annulla», avviso dal tasto, elemento → pagina. Il
-campo e il composer, le pillole dei filtri, la barra sopra la tastiera, la pillola di attività, il tasto diviso e il
-titolo che diventa selettore arrivano con F6B.13.
+La prima parte (F6B.12) è la selezione, i tasti con esito, «Annulla», l'avviso dal tasto e l'elemento che diventa
+pagina; la seconda (F6B.13) il campo coi preset e «trova», il composer, le pillole dei filtri, la barra sopra la
+tastiera, la pillola di attività, il tasto diviso e il titolo che diventa selettore. La pillola di attività, il tasto
+diviso, il titolo selettore e la regola dello stesso posto sono **provvisori**: Alessio li deve ancora confermare.
 
 ## Scegliere in fretta
 
@@ -38,6 +39,17 @@ titolo che diventa selettore arrivano con F6B.13.
 | un «Annulla» temporaneo che compare nella barra e poi esce | `undoCountdown(id, FluidUndoCountdown(…))` |
 | un avviso con testo che nasce dal tasto (non è di serie) | `host.show(FluidNotification.undo(title, seconds, onUndo, source = rememberFluidToolbarTransitionSource(id)))` |
 | un mini lettore, una miniatura, una pillola o un tasto della barra che diventa la pagina | `composable(route, zoom = FluidZoomStyle.Rise)` e `Modifier.fluidZoomSource(…)` ([pagine.md](pagine.md)) |
+| un campo di ricerca, di messaggio, di nota o per l'assistente, coi suoi tasti e il suo invio | `FluidScreen(search = FluidSearchSpec.search(…))`, `.message(…)`, `.note(…)`, `.assistant(…)` |
+| la ricerca in alto che inghiotte i tasti accanto e li restituisce | `FluidSearchSpec.search(…, placement = TopBar, behavior = CollapseToButton, expansion = StayAtTop)` |
+| cercare una parola nel testo della pagina, con «3/12» sopra la tastiera | `FluidSearchSpec.findInPage(…)` con `rememberFluidFindState(testo)` |
+| un campo che cresce di riga in riga col «+», gli allegati, il microfono che diventa «Invia» | `FluidSearchSpec.message(…, composer = FluidComposerSlots(leading, attachments, trailing, voiceLine))` |
+| il campo dell'assistente con l'alone | `fluidAssistantField(state, action, onSend, …)` (engine-ai-ui) |
+| una fila di filtri che si raccoglie in «Filtri · N» se non ci sta | `FluidFilterChips(filters, selection, onChange, mode)` |
+| i suggerimenti sotto il campo, coi recenti | `FluidSearchSuggestions(query, suggestions, onSuggestionClick, onRemoveRecent = …)` |
+| una barra di comandi sopra la tastiera, per campo | `toolbar { keyboard(context = campo) { fieldNavigation(…); suggestions(…); history(…) } }` |
+| un lavoro lungo che si vede in ogni barra, al posto del titolo | `FluidActivityHost(state)` alla radice e `state.publish(FluidActivity.sync(…))` |
+| un'azione con le sue varianti in un vetro solo | `split(id, text, onClick, menu = { … })`, `FluidSplitButton(…)` |
+| il titolo che apre la scelta dell'account o della località | `title(mode, menu = { … })` o `title(mode, panel = { … })` |
 
 ## La selezione
 
@@ -298,16 +310,387 @@ in un grafo annidato perché un collegamento ricostruisca la pagina sotto.
 **In galleria**: `--es dynamic.scene elemento` (le quattro scene di F6B.5c: il mini lettore di Fluidify, la griglia di
 Gallery, la pillola di Weather, «Scrivi» di Mail), `sample/…/dynamic/ElementToPage.kt` ed `ElementToPageScenes.kt`.
 
+## Il campo: i preset d'uso
+
+**Cosa fa.** Il campo della barra (la lente che diventa campo, F4B.2) ha cinque **preset**, costruttori di
+`FluidSearchSpec`: ognuno sceglie l'icona, il segnaposto, il tasto a destra (cancella o «Invia»), che cosa fa l'invio
+(chiude o resta aperto) e se il testo va a capo. In alto, il campo che **resta in cima** (`StayAtTop`) inghiotte la riga:
+i tasti accanto si sfocano subito (a 100 ms sono sotto il 6%), i loro vetri confluiscono nel vetro del campo, e alla
+chiusura rinascono da lui col viaggio inverso.
+
+**Quando usarlo.** Ogni campo che non è della pagina ma dell'interfaccia: la ricerca, il messaggio di una chat, una nota
+veloce, la domanda all'assistente, «trova» (sotto).
+
+**L'API.**
+
+```kotlin
+FluidScreen(title = "Posta in arrivo", search = FluidSearchSpec.search(query, { query = it }, prompt = "Cerca nella posta",
+  placement = FluidSearchPlacement.TopBar, behavior = FluidSearchBehavior.CollapseToButton,
+  expansion = FluidSearchExpansion.StayAtTop)) { … }
+
+FluidScreen(title = "Anna", search = FluidSearchSpec.message(text, { text = it }, onSend = { invia(text); text = "" })) { … }
+```
+
+| preset | scopo | icona | tasto a destra | tastiera | invio | righe |
+|---|---|---|---|---|---|---|
+| `search` | Search | lente | cancella + X | Cerca | `onSearch`, **chiude** (la parola resta) | 1 |
+| `message` | Input | fumetti | X → **Invia** con del testo | Invia | `onSend`, **resta aperto**; a testo vuoto niente | 5, va a capo |
+| `note` | Input | matita | cancella + X | Fine | `onDone`, **chiude** | 4, va a capo |
+| `assistant` | Input | scintilla | X → **Invia** con del testo | Invia | `onAsk`, **resta aperto** | 6, va a capo |
+| `findInPage` | Search | lente | cancella + «3/12» ↑ ↓ + X | Cerca | risultato **successivo**, resta aperto | 1 |
+
+I campi in coda a `FluidSearchSpec` (F6B.6), tutti con un valore di serie che rifà il campo di prima: `navigation`,
+`onSubmit` (`FluidSearchSubmit.Close` o `StayOpen`; `null` è la regola di prima), `maxLines`, `icon`, `trailing`
+(`FluidSearchTrailing`), `showsAtRest`.
+
+**Le scelte di Alessio.** Dove sta il campo lo decide **l'app, pagina per pagina** (`expansion = StayAtTop` o
+`AboveKeyboard`); i tasti inglobati si sfocano, rientrano nel campo e tornano alla chiusura (11 novembre).
+
+**Cosa fa da solo l'engine.** Il viaggio della lente da 46 dp nel campo da 40 (la riga del tocco è 48), i vicini che
+rientrano e tornano, la salita sopra la tastiera, il segnaposto che lascia subito il posto al testo (mai due scritte nello
+stesso posto), l'invio che chiude o resta aperto, lo stato salvato.
+
+**Cosa resta all'app.** Il testo (`query`, `onQueryChange`), cosa fa l'invio, e l'apertura se la vuole tenere lei
+(`active` e `onActiveChange` insieme).
+
+**In galleria**: `--es dynamic.scene campo` (Mail: la ricerca in alto che inghiotte «Scrivi» e l'account, il titolo che
+sceglie l'account; una lista sceglie il preset). La scena è `sample/…/dynamic/FieldScenes.kt`.
+
+## «Trova nella pagina»
+
+**Cosa fa.** Un modo del campo: a riposo **non c'è**; aperto nasce per lente in fondo, sale sopra la tastiera, mostra
+«3/12» con le frecce (un'area viva per TalkBack, «3 di 12») e **non tocca la barra in alto**. L'invio passa al risultato
+successivo e il campo resta aperto. Se la tastiera scende resta in fondo, come in Apple; si chiude con la X o con
+indietro.
+
+**Quando usarlo.** Una pagina lunga di testo in cui si cerca una parola: una trascrizione, un documento, una mail lunga.
+
+**L'API.**
+
+```kotlin
+val find = rememberFluidFindState(trascrizione)               // String o AnnotatedString; senza maiuscole né accenti
+var finding by rememberSaveable { mutableStateOf(false) }
+var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+FluidScreen(title = "Riunione", toolbar = { button("trova", FluidIcons.Search, "Trova", onClick = { finding = true }) },
+  search = FluidSearchSpec.findInPage(find.query, find::onQueryChange, find.navigation, finding, { finding = it })) {
+  item { Text(find.highlight(FluidFindDefaults.highlights()), onTextLayout = { layout = it }) }
+}
+LaunchedEffect(find.scrollRequest) { find.scrollRequest?.let { request -> layout?.let { scorriA(request.boundsIn(it).top) } } }
+```
+
+`FluidFindState`: `matches`, `total`, `current`, `currentRange`, `next()`, `previous()`, `highlight(…)` e
+`scrollRequest` (cambia a ogni cambio dell'occorrenza corrente). Le app con contenuti complessi contano da sé le occorrenze
+e passano una `FluidSearchNavigation`.
+
+**Le scelte di Alessio.** «Ci sta sì»: un modo del campo, non un componente a sé (11 novembre).
+
+**Cosa fa da solo l'engine.** La nascita senza predecessore (il contenuto entra da 0,75, R7 A6), la salita con la
+tastiera, il contatore e le frecce, l'area viva, la barra in alto ferma (i suoi fissati non vanno in «Altro»).
+
+**Cosa resta all'app.** Portare in vista l'occorrenza corrente (lo scorrimento è suo: `scrollRequest` dice dove).
+
+**In galleria**: `--es dynamic.scene trova` (Notes: una trascrizione). Il banco: la traccia `trova-sopra-tastiera`.
+
+## Il composer dentro il campo
+
+**Cosa fa.** Il campo con più righe (`message`, `note`, `assistant`) **cresce di riga in riga** fino a `maxLines`, poi il
+testo scorre dentro. È un pannello che cresce: il **bordo basso resta sopra la tastiera** e sale quello alto. Dentro il
+campo ci sono le parti del composer:
+- il **vassoio degli allegati** sopra il testo, che cresce verso l'alto e si richiude col bordo basso fermo;
+- lo **slot a sinistra** (il «+»);
+- il **tasto a destra a stati**, una sagoma sola: il microfono a campo vuoto, «Invia» appena c'è del testo (con l'anello
+  del tasto con esito mentre l'invio lavora, poi la spunta), lo stop mentre si detta; le facce si incrociano sfocate;
+- la **riga della voce** al posto del testo mentre si ascolta.
+
+**La lista lascia il posto al campo cresciuto** (F6B.13): `FluidScreen` aggiunge in fondo alla lista l'altezza in più del
+campo e la quota della tastiera, così a fine scorrimento l'ultima riga si legge sopra il vetro del campo, con e senza
+tastiera. Lo spazio si legge mentre la lista si misura: la crescita e la tastiera non ricompongono la pagina. Vale per
+ogni campo che occupa il fondo (in basso, o aperto sopra la tastiera); un campo a riposo che si ritira con la barra porta
+via anche questo spazio. Conta solo la parte di tastiera che copre davvero la schermata: non quella già tolta da un
+`imePadding()` attorno a `FluidScreen`, né quella che Android ha scavalcato spostando in su la finestra (`adjustPan`, il
+modo di serie di un'Activity che non dichiara `windowSoftInputMode`).
+
+**Quando usarlo.** Una chat (Messaggi, Mail), una risposta veloce, la domanda all'assistente.
+
+**L'API.**
+
+```kotlin
+val send = rememberFluidActionRunner(FluidActionPreset.Send)
+FluidScreen(title = "Anna", search = FluidSearchSpec.message(text, { text = it },
+  onSend = { val t = text; text = ""; send.run { api.invia(t) } },
+  composer = FluidComposerSlots(
+    leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli, size = 40.dp) },
+    attachments = if (allegati.isEmpty()) null else { { Allegati(allegati) } },
+    trailing = if (detta) FluidSearchTrailing.stop(onStop = fermaDettatura)
+      else FluidSearchTrailing.voice(onVoice = detta, sending = send.state),
+    voiceLine = if (detta) { { FluidComposerVoiceLine(parziale, false, { livello }, onTap = fermaDettatura) } } else null,
+  ))) { items(messaggi) { … } }
+```
+
+`FluidSearchTrailing` è una classe (non un enum, 3.11): `Clear` e `Send` come prima, più `send(sending)`,
+`voice(onVoice, sending)` e `stop(onStop, label, icon)`. Il composer nuovo dell'assistente, con l'alone, è
+`fluidAssistantField(…)` di engine-ai-ui: [../moduli/ai-ui-chat.md](../moduli/ai-ui-chat.md), «Il composer dentro il campo».
+
+**Le scelte di Alessio.** «Ne costruiamo uno nuovo sui nuovi componenti aggiornati, sempre reso un po' speciale (tipo
+campo di testo con alone attorno)» (21 novembre): il campo dell'engine ospita le parti, engine-ai-ui costruisce su di lui il
+composer dell'assistente con l'alone; `FluidComposer` di prima resta com'è. «L'alone deve essere animato» (22 novembre).
+
+**Cosa fa da solo l'engine.** La crescita con la molla del cromo e il piano che la segue **senza viaggio**
+(`FluidGlassAnimation.None`); il vetro che sborda dalla riga (i vicini e il bersaglio da 48 dp non si spostano); il
+vassoio; lo scambio sfocato delle facce del tasto; **niente doppio invio** (a testo vuoto niente, con l'invio che lavora
+niente, e per 345 ms dopo un invio né lo stesso testo né un tocco sul tasto che cambia faccia); la riga della voce; il
+margine della lista (sopra).
+
+**Cosa resta all'app.** Gli allegati veri (i launcher, le miniature), la dettatura vera, cosa fa l'invio, e la chat.
+
+**In galleria**: `--es dynamic.scene messaggio` (Messaggi e Mail: le righe, il vassoio, il tasto a stati, la lista che
+resta sopra il campo) e `assistente` (PampAI: l'alone, i chip, le pillole, la voce; mentre risponde, la pillola di
+attività). Le scene sono in `sample/…/dynamic/ComposerScenes.kt`.
+
+## Filtri e suggerimenti a pillole
+
+**Cosa fa.** Una **fila di pillole dichiarata** (`FluidFilterChips`), a scelta singola o multipla, che si usa sotto il
+campo (nello slot `suggestions`), nel pannello dei suggerimenti o nella pagina. **Quando non ci sta nella larghezza**,
+testo grande compreso, le pillole che non ci stanno si raccolgono in **un** tasto di vetro «Filtri · 2» (il numero conta
+le accese che contiene): il menu nasce dal suo vetro **come dal gruppo della barra** (F5A.2), con le stesse voci a
+interruttore che lasciano il menu aperto. Un'etichetta non si tronca mai. Una pillola a più valori («Periodo»: 7 giorni,
+30 giorni, Altro) si apre nei suoi valori dal suo vetro. I **suggerimenti** (`FluidSearchSuggestions`) sono una lista
+sola per pertinenza, coi recenti che si tolgono dalla ✕, e mai «Nessun risultato» prima del primo carattere.
+
+**Quando usarlo.** Ogni ricerca con dei filtri (Transit, Mail, Foto); una fila di ambiti esclusivi; i recenti.
+
+**L'API.**
+
+```kotlin
+var filtri by rememberSaveable(stateSaver = FluidFilterSelection.Saver) { mutableStateOf(FluidFilterSelection.of("aperti")) }
+FluidScreen(title = "Fermate", search = FluidSearchSpec.search(query, { query = it }, suggestions = {
+  Column {
+    FluidFilterChips(listOf(FluidFilter("aperti", "Aperti ora", priority = FluidToolbarPriority.High),
+      FluidFilter("metro", "Metro", priority = FluidToolbarPriority.Low), FluidFilterPresets.lastDays()),
+      filtri, { filtri = it })
+    FluidSearchSuggestions(query, suggerimenti, onSuggestionClick = apri, onRemoveRecent = togli)
+  }
+})) { … }
+```
+
+I preset (`FluidFilterPresets`): `scopes` (ambiti, esclusivi), `choices` (scelta multipla), `range` e `lastDays`
+(intervalli), `recent`, `nearby`, `popular`, `nearbyAndPopular`. Le parole: `FluidFilterLabels`, `LocalFluidFilterLabels`.
+
+**Le scelte di Alessio.** La fila che diventa menu è un **comportamento di serie** dei filtri, non un componente: quando
+non ci sta nella larghezza, testo grande compreso (21 novembre). Il menu nasce come dal gruppo della barra, non dal
+tasto singolo (22 novembre, dopo i video).
+
+**Cosa fa da solo l'engine.** La misura delle pillole al testo di adesso, la priorità di chi esce (prima le `Low`, poi
+dalla coda), il tasto «Filtri · N», il menu dal vetro, la pillola a più valori, l'ordine dei suggerimenti, la ✕ dei recenti
+(48 dp, e la stessa azione per TalkBack sulla riga).
+
+**Cosa resta all'app.** I filtri e cosa vogliono dire, la pertinenza dei suggerimenti, i recenti veri.
+
+**La pillola che diventa gettone: com'è oggi.** Il piano chiede che una pillola scelta diventi **gettone dentro il campo
+della ricerca**, e che il suo posto si richiuda. Nell'engine i gettoni stanno solo in `FluidTokenField`: dentro
+`FluidSearchSpec` e `FluidSearchField` **non ci sono ancora** (la seconda metà di F6B.8, non fatta), e quindi nemmeno il
+viaggio della pillola nel campo. La scena `gettoni` fa il caso di Mail con quello che c'è: la fila è `FluidFilterChips`,
+il campo «Da» è `FluidTokenField`; la pillola scelta diventa gettone e il suo posto si richiude, senza viaggio.
+
+**In galleria**: `--es dynamic.scene filtri` (Transit: la fila sotto il campo, «Periodo», i recenti; le linee nella
+pagina; con `--es gallery.text 2.0` la fila diventa «Filtri · N») e `gettoni` (Mail, «da: persona»). Le scene sono in
+`sample/…/dynamic/FilterScenes.kt`.
+
+## La barra sopra la tastiera
+
+**Cosa fa.** Una barra di comandi **sopra la tastiera**, una per campo: si vede quando l'IME è su e un campo ha il fuoco
+(o sempre, se lo si chiede), segue l'altezza della tastiera **fotogramma per fotogramma**, e quando la tastiera arriva in
+ritardo (Android dà solo l'altezza finale) la insegue con la molla di F4B.2. Fra due campi **si trasforma** come una barra
+in alto che cambia stato: gruppi, priorità, trabocco e scambio sfocato sono quelli della barra dichiarata.
+
+**Quando usarlo.** Un modulo con più campi (passare al successivo e «Fatto»), il compositore di una mail (suggerimenti
+dei destinatari, allegati, formattazione), un editor (annulla e ripeti), la ricerca nel testo.
+
+**L'API.**
+
+```kotlin
+FluidScreen(title = "Nuova mail", toolbar = {
+  keyboard(context = campo, fieldFocused = campo != Nessuno) {          // la chiave di contesto: un cambio è una trasformazione
+    when (campo) {
+      Destinatari -> suggestions(proposte) { aggiungi(it) }
+      Oggetto -> quickActions(onAttach = allega, onPhoto = foto)
+      Testo -> { button("b", FluidIcons.FormatBold, "Grassetto", grassetto, selected = acceso); history(puoi, rifai, annulla, ripeti) }
+    }
+    fieldNavigation(focusManager, keyboardController, hasPrevious = campo != Destinatari, hasNext = campo != Testo)
+  }
+}) { … }
+// Fuori da FluidScreen: FluidKeyboardBar(toolbar = { … }) in un Box che riempie la finestra.
+```
+
+I preset, funzioni dello scope: `fieldNavigation` (precedente, successivo, «Fatto», col `FocusManager`), `quickActions`
+(allega, foto, dettatura, «Scrivi con Aria»), `suggestions` (con `FluidTokenSuggestion`), `history` (annulla e ripeti),
+`findInText` (il contatore di «trova»). La **barra del testo ricco** è un preset con la firma di sempre:
+[../moduli/richtext.md](../moduli/richtext.md), «La barra e il tasto «Aa»».
+
+**Le scelte di Alessio.** «Ottima idea, con dei preset e poi la possibilità di crearla su misura» (11 novembre); con la
+**tastiera fisica** la barra resta in fondo alla finestra (21 novembre).
+
+**Cosa fa da solo l'engine.** La quota dell'IME letta in misura (nessun fotogramma di ritardo quando la tastiera anima i
+suoi inset), il ripiego con la molla, la tastiera flottante o divisa (la barra sul bordo basso della finestra), il back
+che chiude tastiera e barra insieme, il campo di «trova» sopra la barra, il velo più pieno sul bordo verso la tastiera
+(il vetro non rifrange un'altra finestra).
+
+**Cosa resta all'app.** La chiave di contesto (quale campo ha il fuoco), i comandi veri.
+
+**In galleria**: `--es dynamic.scene tastiera` (Mail «Scrivi»: una barra per campo, «Fatto»; in alto «Invia ▾») e
+`testo-ricco` (Notes: la barra del testo ricco). Le scene sono in `sample/…/dynamic/KeyboardBarScenes.kt`; la scena
+minima di F6B.9 resta in «Barre (prova)» (`--es toolbar.scene keyboard`).
+
+## La pillola di attività
+
+> **Provvisoria.** F6B.10 è integrata in modo provvisorio: Alessio la deve ancora confermare. Restano aperte due domande:
+> **i tempi della card** (oggi quelli del popover dalla sorgente, F5B.1: si legge a ~200 ms e si ferma a ~250, più svelta
+> del menu della barra; oppure quelli del menu, F5A.2, per la sola card o per tutti i popover) e **il posto dell'anellino
+> sul tablet** (oggi al centro della striscia della barra di stato, dove sul Tab S9 c'è la maniglia della finestra di
+> Samsung; oppure un poco a destra del centro, ~44 dp, sempre).
+
+**Cosa fa.** Un lavoro lungo dell'app (una sincronizzazione, un trasferimento, una registrazione, l'assistente che
+risponde, un timer) si pubblica **una volta alla radice**, e **ogni barra in alto** lo mostra **al posto del titolo**
+finché dura: il titolo esce sfocato sopra il vetro che nasce sul posto, e la scritta della pillola entra sfocata (lo
+scambio di R7). Tre forme: **compatta** (l'anello o l'icona, una frase breve, la percentuale o il tempo a cifre tabulari),
+**minima** (il solo anello, quando la barra è piena o il centro è occupato) ed **estesa** (al tocco, una card che nasce
+dalla pillola, con i dettagli, le altre attività e i comandi). **L'esito**: riuscito, la spunta e un battito, poi esce;
+non riuscito, il segno d'errore nella tinta d'errore. A barra ritirata della pillola resta **l'anellino**, piccolo, nella
+striscia della barra di stato.
+
+**Quando usarlo.** Ogni lavoro che dura più di qualche secondo e che l'utente deve poter seguire da ogni pagina.
+
+**L'API.**
+
+```kotlin
+val attivita = rememberFluidActivityHostState()
+FluidActivityHost(attivita) {                                  // alla radice, dentro l'host dei modali (la card è un popover)
+  App()
+}
+attivita.publish(FluidActivity.sync(progress = { avanzamento }, detail = "Posta in arrivo"))
+attivita.finish("sync", FluidActivityOutcome.succeeded())      // o failed(…), o HandedOff: l'esito lo dice un altro
+// In una pagina: activity(hidden = true) per non mostrarla, activity(placement = Trailing) per tenerla fra i tasti.
+```
+
+I preset: `FluidActivity.sync`, `.transfer`, `.recording`, `.assistant`, `.timer`. La coda (`FluidActivityHostState`): chi
+prende la pillola è l'attività della card aperta, poi un esito in vista, poi la più importante, a parità la prima
+arrivata; le altre sono il contatore («+2»). Con due barre in vista (lista e dettaglio) la pillola è **una sola**, di serie
+in quella del dettaglio (`pane`).
+
+**Le scelte di Alessio.** Una per l'app, pubblicata alla radice e mostrata da ogni barra; una pagina può nasconderla (21
+novembre); **al posto del titolo**, «in quanto già il titolo è dinamico in base alla pagina» (21 novembre); a barra
+ritirata «resta come anellino» (22 novembre); con due barre in vista una pillola sola (22 novembre). Dopo i video del
+secondo giro: niente entrata da fuori, uscita continua, card nel tema (terzo giro, da confermare).
+
+**Cosa fa da solo l'engine.** La coda e le priorità, le tre forme, la comparsa morbida e l'uscita inversa, l'esito, la
+card, l'anellino, la larghezza che cambia solo con la frase, TalkBack (nome, stato, «Mostra i dettagli», l'esito).
+L'anello, le cifre e il battito si ridisegnano soltanto: non ricatturano il vetro.
+
+**Cosa resta all'app.** Il lavoro vero, il suo avanzamento, i comandi (pausa, annulla, apri) e quando finisce.
+
+**In galleria**: `--es dynamic.scene attivita` (Mail che sincronizza, con la barra dichiarata: la pillola, la card,
+l'esito, l'anellino), `titolo-menu` (la pillola accanto al titolo che è un selettore) e `assistente` (la pillola mentre
+l'assistente risponde). Le scene sono in `sample/…/dynamic/ActivityPillScene.kt`, `SplitTitleScenes.kt` e `ComposerScenes.kt`.
+
+## Il tasto diviso
+
+> **Provvisorio.** F6B.11 è integrata in modo provvisorio: Alessio la deve ancora confermare.
+
+**Cosa fa.** Un vetro solo con due zone, l'azione (una scritta o un'icona) e la freccia, divise da un filo sottile.
+Toccare l'azione la fa; la freccia, o la pressione lunga sull'azione, apre il menu **dallo stesso vetro** (il vetro intero
+del tasto diventa il menu e ci rientra). Due bersagli disgiunti, ognuno di almeno 48 × 48 dp.
+
+**Quando usarlo.** Un'azione principale con delle varianti: «Invia ▾ Programma invio», «Esporta ▾ come PDF».
+
+**L'API.**
+
+```kotlin
+toolbar = {
+  split("invia", "Invia", onClick = invia, menuLabel = "Opzioni di invio",
+    menu = { listOf(FluidContextAction("Programma invio", icon = FluidIcons.Schedule, onClick = programma)) })
+  action("allega", FluidIcons.Image, "Allega", onClick = allegaFoto, menu = { altriAllegati })  // tocco = azione, pressione = menu
+}
+FluidSplitButton(label = "Esporta", onClick = esporta, menu = { formati }, menuLabel = "Formati di esportazione")
+```
+
+**Le scelte di Alessio.** Un vetro solo, con un filo sottile fra azione e freccia (21 novembre).
+
+**Cosa fa da solo l'engine.** Il filo e la freccia (`FluidSplitButtonDefaults`, a occhio), i due bersagli, il menu dal
+vetro, la faccia che torna quando il menu rientra (F6B.11b), TalkBack (due pulsanti).
+
+**Cosa resta all'app.** L'azione e le voci del menu.
+
+**In galleria**: `--es dynamic.scene tasto-diviso` (Mail «Scrivi»: «Invia ▾» nella barra, «Esporta ▾» da solo) e
+`tastiera` («Invia ▾» sopra il compositore con la barra sopra la tastiera).
+
+## Il titolo che diventa selettore
+
+> **Provvisorio.** F6B.11 è integrata in modo provvisorio: Alessio la deve ancora confermare.
+
+**Cosa fa.** Il titolo, grande e agganciato, porta accanto un piccolo disco con la freccia ed è la **sorgente** di un menu
+(gli account, le cartelle) o di un pannello (le località). Il menu nasce dal disco e ci rientra; il pannello è un popover
+dal titolo, e sul telefono un foglio che nasce dal titolo. Per TalkBack il titolo è un «elenco a discesa».
+
+**Quando usarlo.** Quando il titolo dice dove si è e da lì si cambia: la casella di posta, la cartella, la località.
+
+**L'API.**
+
+```kotlin
+toolbar = {
+  title(FluidToolbarTitleMode.Large, selectorHint = "Cambia casella",
+    menu = { account.map { FluidContextAction(it, selected = it == scelto, onClick = { scelto = it }) } })
+  // oppure: title(FluidToolbarTitleMode.Inline, panel = { Localita(onScelta = { dismiss() }) })
+}
+```
+
+**Le scelte di Alessio.** Il titolo nudo con la freccia; la pillola di vetro è uno stile a scelta (21 novembre), che oggi
+non c'è.
+
+**Cosa fa da solo l'engine.** Il disco (misure in frazioni del carattere: segue il titolo grande che diventa quello
+agganciato), il bersaglio che comprende il disco, l'ancora del menu, il popover e il foglio dal titolo. **Con un'attività
+in corso** la pillola **non** prende il posto di un titolo che è un selettore (è un comando): sta minima accanto, fra i
+tasti, e la card si apre dall'anello. Se la pagina dichiara `activity(placement = Title)` vince la pagina.
+
+**Cosa resta all'app.** Le voci o il contenuto del pannello, e cosa cambia la scelta.
+
+**In galleria**: `--es dynamic.scene titolo-menu` (Mail: gli account), `titolo-pannello` (Weather: le località) e
+`campo` (Mail: il titolo che sceglie l'account accanto alla ricerca che resta in cima).
+
+## Un tasto che cambia resta un vetro solo
+
+> **Provvisorio** come il resto di F6B.11.
+
+Quando nello stesso posto della barra un tasto ne diventa un altro (l'indietro che diventa «Seleziona tutto», Chiudi,
+la pillola), **il vetro resta uno**: cambia misura con la molla, se serve, e il contenuto si scambia sfocato (R7). La lente
+resta per un tasto che nasce o se ne va **davvero**. È la scelta di Alessio del 22 novembre («è come se ci fossero due
+tasti durante lo scambio»). Il dettaglio è in [toolbar.md](toolbar.md), «La regola dello stesso posto».
+
 ## Come si prova
 
-**I test.** Un test Robolectric per scena, `FluidDynamicElementsUiTest` (sample): la scena si apre, i bersagli sono di
+**I test.** Un test Robolectric per scena: `FluidDynamicElementsUiTest` (sample, le scene di F6B.12) e
+`FluidDynamicFieldsUiTest` (sample, quelle di F6B.13: campo, «trova», composer, pillole, gettoni, barra sopra la tastiera,
+testo ricco; e a 360 e 412 dp nessun bersaglio sopra un altro in ognuna, la pillola di attività compresa). `FluidSplitTitleUiTest`
+(sample) prova il tasto diviso e il titolo selettore, `FluidActivityPhoneUiTest` la pillola sul telefono. Ogni test: la scena si apre, i bersagli sono di
 almeno 48 dp, la semantica è giusta (i nomi dei tasti, il ruolo di pulsante, il conteggio, le aree vive dell'esito e del
 contatore), e il gesto principale fa ciò che deve. Sotto, i test di ogni pacchetto: `FluidSelectionToolbarTest` (D1 col
 dispatcher vero, «Seleziona tutto» su `AllExcept`), `FluidFloatingTabBarSelectionTest` e `FluidTabSelectionHostTest` (la
 tab bar che diventa le azioni e torna al pixel), `FluidActionStateTest`, `FluidActionToolbarTest` e
 `FluidActionButtonUiTest` (soglia, tenuta, ripresa, parole, bersagli), `FluidActionGlyphsTest`, `FluidUndoCountdownTest` e
 `FluidUndoCountdownUiTest`, `FluidNotificationSourceTest`, `FluidPageOpenGestureTest`, `FluidSharedElementTest`,
-`FluidZoomPresetsTest` e `FluidElementToPageUiTest`.
+`FluidZoomPresetsTest` e `FluidElementToPageUiTest`; della seconda parte `FluidToolbarSearchPresetsTest` (i preset,
+«trova»), `FluidComposerInFieldTest` e `ComposerTracesTest` (la crescita, il vassoio, il tasto a stati), `FluidSearchListRoomTest`
+e `FluidScreenGrownFieldListTest` (la lista sotto il campo cresciuto, F6B.13, a 360 e 412 dp, una e cinque righe, con e senza
+tastiera, e dentro `imePadding()`), `FluidFilterChipsTest` e `FluidFilterChipsUiTest` (la fila che diventa menu alle scale 1,0,
+1,3 e 2,0), `FluidKeyboardBarTest` e `FluidKeyboardBarComposeTest` (la quota che segue un IME finto), `FluidActivityQueueTest`
+(priorità e contatore), `FluidToolbarSplitTitleTest` e `FluidToolbarMenuSourceTest` (il vetro solo, il tasto diviso, il
+titolo, la faccia che torna dopo il menu). Le scene di «Misure» (F7.1) per gli elementi che si ripetono: `selezione`,
+`campo-composer`, `tastiera-contesto` (`MeasureScenarioUiTest`).
+
+**I bersagli sotto i 48 dp, dell'engine.** Il test delle scene di F6B.13 li dichiara uno per uno: la lente della ricerca a
+riposo (46 × 46 dp: i tasti della barra hanno un bersaglio da 48 attorno al vetro da 46, la lente no); i comandi dentro il
+campo (le frecce e la X di «trova», il «+» e il tasto a destra del composer: 40 dp; la X che cancella: 28); le pillole e i
+chip del vassoio del composer dell'assistente (30 dp); il titolo grande che è un selettore (≈41 dp, scelta di F6B.11); la
+fascia del titolo agganciato che riporta in cima (46 dp). Sono da decidere con Alessio.
 
 **Le tracce del banco** stanno in `tools/glassbench/traces/f6b/`, una cartella per traccia, con le righe del piano (F6B,
 «Il banco del movimento»):
@@ -318,13 +701,20 @@ tab bar che diventa le azioni e torna al pixel), `FluidActionStateTest`, `FluidA
 | tasti con esito | `tasto-invia-riuscito`, `tasto-invia-fallito`, `tasto-salva`, `tasto-copia`, `tasto-scarica-percentuale`, `tasto-preferito-rifiutato`, `tasto-lavoro-breve` (curve `curve.csv`: i fotogrammi sono riprese della finestra) |
 | «Annulla» e avviso | `invia-composto`, `annulla-contatore`, `annulla-scade`, `avviso-dal-tasto`, `avviso-annulla-torna`, `avviso-sorgente-sparita` |
 | elemento → pagina | `elemento-zoom`, `elemento-sale-col-dito`, `elemento-cresce`, `elemento-dalla-barra`, `elemento-interrotto-25`, `elemento-interrotto-50`, `elemento-interrotto-75`, `elemento-giu-chiude` |
+| campo e composer | `campo-messaggio`, `campo-alto-inghiotte`, `trova-sopra-tastiera`, `composer-righe`, `composer-allegati`, `composer-tasto-stati`, `composer-alone` |
+| pillole | `pillole-menu-200`, `pillola-periodo-menu` (`pillola-gettone` manca: manca il gettone nel campo) |
+| tastiera | `tastiera-contesto`, `tastiera-in-ritardo` |
+| attività | `attivita-compare`, `attivita-estesa`, `attivita-esito`, `attivita-anellino` |
+| diviso, titolo, stesso posto | `tasto-diviso-menu` (il «diviso-menu» del piano), `titolo-selettore` (il «titolo-menu»), `titolo-pannello`, `tasto-cambia-un-vetro` |
 
 Il `README.md` della cartella dice, per ogni traccia, il test che la scrive, la variabile d'ambiente e dove sta il collage
 di tutti i fotogrammi.
 
 **Non verificato dai test**: come si vede in mano. Il collaudo sul Tab S9 (F6B.14) guarda la tab bar che diventa le
 azioni a 120 Hz, il gesto indietro di One UI in selezione, TalkBack sugli esiti e sul contatore, il testo al 200%, il mini
-lettore tirato col dito, il ripristino dopo `am kill` e la rotazione a metà viaggio.
+lettore tirato col dito, il ripristino dopo `am kill` e la rotazione a metà viaggio; e, per la seconda parte, la tastiera
+vera (Samsung Keyboard, Gboard, flottante e fisica) sotto il campo che cresce e la barra sopra la tastiera, l'alone a 120 Hz e
+il suo costo sul GPU, la fila a testo grande, la pillola di attività e il suo anellino.
 
 ## Dove guardare
 
@@ -334,4 +724,13 @@ lettore tirato col dito, il ripristino dopo `am kill` e la rotazione a metà via
   barra), `FluidActionGlyphs.kt` (i glifi).
 - `…/ui/fluid/FluidUndoCountdown.kt`: il contatore; `FluidNotification.kt` e `FluidNotificationSource.kt`: l'avviso dal tasto.
 - `…/ui/page/FluidZoomPresets.kt`, `FluidSharedElement.kt`, `FluidPageHostState.kt`: l'elemento che diventa pagina.
-- La galleria: `sample/…/dynamic/` (`DynamicElements.kt` è l'indice).
+- `…/ui/fluid/FluidSearch.kt` (i preset del campo, `FluidComposerSlots`, `FluidSearchTrailing`), `FluidFindInText.kt`
+  («trova»), `toolbar/FluidToolbarSearch.kt` (il campo che cresce, la lista che gli lascia il posto: `ToolbarSearchListRoom`).
+- `…/ui/fluid/FluidFilterChips.kt`: la fila, il menu, i suggerimenti, i preset.
+- `…/ui/fluid/toolbar/FluidKeyboardBar.kt`: la barra sopra la tastiera, la quota e i preset.
+- `…/ui/fluid/activity/FluidActivity.kt`: la pillola di attività, la coda, l'host, la card, l'anellino.
+- `…/ui/fluid/FluidSplitButton.kt`, `toolbar/FluidToolbarTitleSelector.kt`: il tasto diviso e il titolo selettore.
+- `engine-ai-ui/…/aiui/chat/FluidComposerInField.kt`: il composer dell'assistente con l'alone.
+- La galleria: `sample/…/dynamic/` (`DynamicElements.kt` è l'indice). Le scene di F6B.13: `FieldScenes.kt`, `ComposerScenes.kt`, `FilterScenes.kt`,
+  `KeyboardBarScenes.kt`; quelle di F6B.10 e F6B.11: `ActivityPillScene.kt`, `SplitTitleScenes.kt`. Gli scenari di «Misure»:
+  `sample/…/measure/MeasureScenarioScenes.kt`.

@@ -42,6 +42,20 @@ import dev.antigravity.fluidengine.sample.material.MaterialTarget
 import dev.antigravity.fluidengine.sample.material.trackBounds
 import dev.antigravity.fluidengine.sample.playground.PlaygroundStage
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
+import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
+import dev.antigravity.fluidengine.ui.fluid.FluidComposerSlots
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionLeading
+import dev.antigravity.fluidengine.ui.fluid.FluidSelectionState
+import dev.antigravity.fluidengine.ui.fluid.FluidTokenSuggestion
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatBold
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatItalic
+import dev.antigravity.fluidengine.ui.fluid.icons.FormatUnderlined
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionActions
+import dev.antigravity.fluidengine.ui.fluid.toolbar.history
+import dev.antigravity.fluidengine.ui.fluid.toolbar.selectButton
+import dev.antigravity.fluidengine.ui.fluid.toolbar.selection
+import dev.antigravity.fluidengine.ui.fluid.toolbar.suggestions
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
@@ -115,6 +129,9 @@ internal fun ScenarioScene(scenario: MeasureScenario, actions: ScenarioActions, 
     // La cadenza di F1B: la riga tenuta 800 ms come `swipe 235 1906 235 1906 800` di `lotto-gfx-cfh.sh`.
     MeasureScenario.F1bContext -> ContextScene(actions, bottomInset, holdFloorMillis = 800L, holdExact = true)
     MeasureScenario.F1bCard -> F1bCardScene(actions, bottomInset)
+    MeasureScenario.Selection -> SelectionScene(actions, bottomInset)
+    MeasureScenario.ComposerField -> ComposerFieldScene(actions, bottomInset)
+    MeasureScenario.KeyboardBar -> KeyboardBarScene(actions, bottomInset)
   }
 }
 
@@ -752,4 +769,142 @@ private fun F1bCardScene(actions: ScenarioActions, bottomInset: Dp) {
   actions.on("apre") { row.bounds?.let { finger.tap(it.center) } }
   actions.on("chiude") { open = false }
   LaunchedEffect(actions) { actions.readyWhenPlaced(row) }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Elementi dinamici (F6B.13)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * La selezione della posta (F6B.1, F6B.2): «Seleziona» e tre righe scelte. Con la tab bar della galleria in fondo la
+ * pillola delle schede diventa la capsula delle azioni nello stesso vetro; «Fine» la riporta com'era.
+ */
+@Composable
+private fun SelectionScene(actions: ScenarioActions, bottomInset: Dp) {
+  val state = remember { FluidSelectionState<Int>() }
+  var selecting by remember { mutableStateOf(false) }
+  FluidScreen(
+    title = "Posta",
+    subtitle = "F7.1 · selezione",
+    extraBottomPadding = bottomInset,
+    toolbar = {
+      if (selecting) {
+        selection(
+          state = state,
+          count = state.countIn(SelectionRows),
+          onSelectAll = { state.selectAll() },
+          onDone = { selecting = false },
+          actions = FluidSelectionActions.mail(onDelete = {}, onArchive = {}, onMove = {}, onMarkRead = {}),
+        )
+      } else {
+        selectButton(onClick = { selecting = true })
+      }
+    },
+  ) {
+    item(key = "rows") {
+      FluidListGroup(glass = true) {
+        repeat(SelectionRows) { index ->
+          if (index > 0) FluidListDivider()
+          val picked = selecting && state.isSelected(index)
+          FluidListRow(
+            title = "Messaggio ${index + 1}",
+            subtitle = "Una riga della posta",
+            leadingTile = false,
+            selected = picked,
+            leading = { FluidSelectionLeading(selecting, picked) {} },
+            onClick = { if (selecting) state.toggle(index) },
+          )
+        }
+      }
+    }
+  }
+  actions.on("entra") {
+    selecting = true
+    listOf(0, 2, 3).forEach(state::select)
+  }
+  actions.on("esce") {
+    selecting = false
+    state.clear()
+  }
+  LaunchedEffect(actions) { actions.ready = true }
+}
+
+private const val SelectionRows = 12
+
+/** Le cinque righe del campo che cresce: la stessa bozza a ogni lancio. */
+private val ComposerLines = listOf("Prima riga", "Seconda riga", "Terza riga", "Quarta riga", "Quinta riga")
+
+/** L'a capo fra le righe della bozza. */
+private const val LineBreak = "\n"
+
+/** Ogni quanto arriva una riga nel tratto «cresce»: cinque righe in 800 ms, poi la molla della crescita si posa. */
+private const val ComposerLineMillis = 200L
+
+/**
+ * Il campo «Messaggio» col composer (F6B.7), chiuso (senza tastiera: a riposo tiene le sue righe), sopra una chat: cresce
+ * da una a cinque righe, apre il vassoio di un allegato, torna a una riga. La crescita segue senza viaggio del piano; la
+ * lista rimisura il suo margine in fondo (F6B.13).
+ */
+@Composable
+private fun ComposerFieldScene(actions: ScenarioActions, bottomInset: Dp) {
+  var text by remember { mutableStateOf(ComposerLines.first()) }
+  var attached by remember { mutableStateOf(false) }
+  val composer = FluidComposerSlots(
+    leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = {}, size = 40.dp) },
+    attachments = if (attached) {
+      { Text("Foto della sede", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp)) }
+    } else null,
+  )
+  FluidScreen(
+    title = "Anna",
+    subtitle = "F7.1 · campo col composer",
+    extraBottomPadding = bottomInset,
+    search = FluidSearchSpec.message(text, { text = it }, onSend = {}, composer = composer),
+  ) {
+    items(count = 24, key = { it }) { index -> TextBlock(index) }
+  }
+  actions.on("cresce") {
+    for (lines in 2..ComposerLines.size) {
+      delay(ComposerLineMillis)
+      text = ComposerLines.take(lines).joinToString(separator = LineBreak)
+    }
+  }
+  actions.on("allegato") { attached = true }
+  actions.on("torna") {
+    attached = false
+    text = ComposerLines.first()
+  }
+  LaunchedEffect(actions) { actions.ready = true }
+}
+
+/**
+ * La barra sopra la tastiera (F6B.9) in vista anche senza tastiera (`alwaysVisible`, come con la tastiera fisica): passa
+ * dai suggerimenti alla formattazione e torna. Il cambio di contesto è un cambio di stato della barra dichiarata.
+ */
+@Composable
+private fun KeyboardBarScene(actions: ScenarioActions, bottomInset: Dp) {
+  var formatting by remember { mutableStateOf(false) }
+  FluidScreen(
+    title = "Nuova mail",
+    subtitle = "F7.1 · barra sopra la tastiera",
+    extraBottomPadding = bottomInset,
+    toolbar = {
+      keyboard(context = if (formatting) "formattazione" else "destinatari", alwaysVisible = true) {
+        if (formatting) {
+          button("grassetto", FluidIcons.FormatBold, "Grassetto", onClick = {})
+          button("corsivo", FluidIcons.FormatItalic, "Corsivo", onClick = {})
+          button("sottolineato", FluidIcons.FormatUnderlined, "Sottolineato", onClick = {})
+          history(canUndo = true, canRedo = false, onUndo = {}, onRedo = {})
+        } else {
+          suggestions(listOf(FluidTokenSuggestion("anna", "Anna"), FluidTokenSuggestion("luca", "Luca"))) {}
+        }
+      }
+    },
+  ) {
+    item(key = "rows") { PlainRows("Campo", 4) }
+    items(count = 8, key = { "text-$it" }) { index -> TextBlock(index) }
+  }
+  actions.on("cambia") { formatting = true }
+  actions.on("torna") { formatting = false }
+  LaunchedEffect(actions) { actions.ready = true }
 }

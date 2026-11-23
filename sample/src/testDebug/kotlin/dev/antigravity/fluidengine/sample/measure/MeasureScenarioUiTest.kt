@@ -260,6 +260,37 @@ class MeasureScenarioUiTest {
     ),
   )
 
+  // F6B.13: gli elementi dinamici che si ripetono spesso.
+
+  @Test fun selezione() = runs(
+    MeasureScenario.Selection,
+    mapOf(
+      "entra" to { assertTrue("la selezione non è partita", described("Elimina") && shown("3 selezionati")) },
+      "esce" to { assertTrue("la selezione non è finita", shown("Seleziona") && !shown("3 selezionati")) },
+    ),
+  )
+
+  @Test fun campoComposer() {
+    fun says(text: String) = compose.onAllNodesWithText(text, substring = true, useUnmergedTree = true)
+      .fetchSemanticsNodes().isNotEmpty()
+    runs(
+      MeasureScenario.ComposerField,
+      mapOf(
+        "cresce" to { assertTrue("il campo non ha cinque righe", says("Quinta riga")) },
+        "allegato" to { assertTrue("il vassoio non si è aperto", says("Foto della sede")) },
+        "torna" to { assertTrue("il campo non è tornato a una riga", !says("Quinta riga") && !says("Foto della sede")) },
+      ),
+    )
+  }
+
+  @Test fun tastieraContesto() = runs(
+    MeasureScenario.KeyboardBar,
+    mapOf(
+      "cambia" to { assertTrue("la barra non è passata alla formattazione", described("Grassetto")) },
+      "torna" to { assertTrue("la barra non è tornata ai suggerimenti", !described("Grassetto")) },
+    ),
+  )
+
   @Test
   fun `ogni scenario ha la sua prova qui`() {
     val tested = MeasureScenarioUiTest::class.java.declaredMethods

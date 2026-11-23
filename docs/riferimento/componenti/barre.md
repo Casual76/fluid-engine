@@ -150,8 +150,11 @@ tab bar: non va sommato a `ContentInset`.
 La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la
 toolbar ha la precedenza. `query` e `onQueryChange` restano dell'app. Il campo è un vetro del piano con un'identità
 stabile: la lente da 46 dp si allunga nella capsula del campo, alta 40 dp (la riga del tocco è alta 48 dp), mentre i vicini
-le fanno posto raccogliendosi in «Altro»; il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
-sfocati e scalati, nitidi verso la fine del moto. Un solo editor attraversa tutte le pose, anche quando cambia quota.
+le fanno posto: in basso, e in alto con `expansion = AboveKeyboard`, raccogliendosi in «Altro»; **in alto, col campo che
+resta in cima (`StayAtTop`), rientrando nel campo** (F6B.6): le loro icone si sfocano subito, i vetri confluiscono in quello
+del campo, e alla chiusura rinascono da lui. Il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
+sfocati e scalati, nitidi verso la fine del moto; scrivendo, il segnaposto lascia subito il posto al testo. Un solo editor
+attraversa tutte le pose, anche quando cambia quota.
 
 | `placement` | a riposo | attiva |
 |---|---|---|
@@ -175,10 +178,63 @@ toolbar = {
 }
 ```
 
+**I preset d'uso** (F6B.6) sono costruttori di `FluidSearchSpec`: `search`, `message`, `note`, `assistant` e `findInPage`
+(«trova nella pagina», con `rememberFluidFindState(testo)` per le occorrenze in una `String` o in un `AnnotatedString`). Ognuno
+sceglie icona, segnaposto, tasto a destra, invio che chiude o resta aperto (`onSubmit`) e righe (`maxLines`). La tabella e le
+scene sono in [elementi-dinamici.md](elementi-dinamici.md), «Il campo: i preset d'uso» e «Trova nella pagina».
+
 Sopra un fondo carico il campo aperto si vela secondo l'inchiostro che il piano gli dà (nero al 40% sotto un inchiostro
 chiaro, bianco al 16% sotto uno scuro), in proporzione all'apertura: sul ritaglio carico di prova del banco il testo
 tiene almeno 7,9:1 in chiaro e 5,3:1 in scuro. Sopra la tastiera il campo non la rifrange (è un'altra finestra). Il dettaglio delle
 sedi, del ritiro con `Principal` e dell'host è in [toolbar.md](toolbar.md), «La ricerca».
+
+### Il campo che cresce, il vassoio e il tasto a stati (F6B.7)
+
+Un campo con più righe (`message`, `note`, `assistant`) o col composer **cresce di riga in riga** fino a `maxLines`, poi il
+testo scorre dentro. È un pannello che cresce: il **bordo basso resta sopra la tastiera** e sale quello alto (in alto, per il
+campo che resta in cima, il contrario). La riga della barra non cambia misura: il vetro **sborda** dalla riga, quindi i
+vicini, «Altro» e il bersaglio da 48 dp restano dove sono. Mentre cresce il piano lo segue **senza viaggio**
+(`FluidGlassAnimation.None`) e l'altezza va con la molla del cromo (`FluidMotion.snappy`, a occhio); aprire e chiudere il
+campo restano viaggi sulla curva della ricerca da 334 ms. A riposo un campo su più righe tiene le sue righe; la sagoma è
+quella del campo di testo (raggio 20 dp), che a una riga coincide con la capsula.
+
+Le parti stanno in `FluidComposerSlots`, in coda a `FluidSearchSpec` (`composer`) e ai preset `message` e `assistant`:
+
+```kotlin
+FluidSearchSpec.message(text, { text = it }, onSend = invia, composer = FluidComposerSlots(
+  leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli, size = 40.dp) },  // il «+»
+  attachments = if (allegati.isEmpty()) null else { { Allegati(allegati) } },  // il vassoio, sopra il testo
+  trailing = FluidSearchTrailing.voice(onVoice = detta, sending = invio.state),   // il tasto a destra a stati
+  voiceLine = if (ascolta) { { RigaDellaVoce() } } else null,                      // al posto del testo, finché c'è
+  halo = null,                                                                     // l'alone (FluidComposerHalo)
+))
+```
+
+- **Il vassoio** cresce verso l'alto dentro il vetro; quando l'app toglie l'ultimo allegato il contenuto esce sfocato e poi
+  il vetro si richiude, sempre col bordo basso fermo.
+- **Il tasto a destra** è una sagoma sola: `FluidSearchTrailing.voice(onVoice, sending)` è il microfono a campo vuoto e
+  «Invia» appena c'è del testo; `send(sending)` è «Invia» (a campo vuoto la X); `stop(onStop, label, icon)` lo stop. Le facce
+  si incrociano sfocate (R7); sulla faccia «Invia» c'è il tasto con esito di F6B.3a (l'anello mentre lavora, poi la spunta).
+  `FluidSearchTrailing` è una classe con i valori nel companion (`Clear`, `Send` come prima).
+- **Niente doppio invio**: a testo vuoto niente, con l'invio che lavora niente, e per 345 ms dopo un invio né lo stesso testo
+  né un tocco sul tasto che cambia faccia.
+- **La riga della voce** prende il posto del testo mentre si ascolta; l'editor resta composto, col suo fuoco.
+- **L'alone** (`FluidComposerHalo`: disegna dietro e sopra il vetro, e sa se il campo è aperto) è del composer
+  dell'assistente di engine-ai-ui (`fluidAssistantField`): [../moduli/ai-ui-chat.md](../moduli/ai-ui-chat.md).
+- **La lista lascia il posto al campo cresciuto** (F6B.13): `FluidScreen` aggiunge in fondo alla lista quanto il vetro del
+  campo supera la riga e la quota della tastiera (quella della barra sopra la tastiera, F6B.9), così a fine scorrimento
+  l'ultima riga si legge sopra il campo, con e senza tastiera. Vale per ogni campo che occupa il fondo (in basso, o aperto
+  sopra la tastiera); lo spazio si legge mentre la lista si misura, quindi la crescita e la tastiera non ricompongono la
+  pagina. Un genitore che ha già tolto la tastiera (`Modifier.imePadding()` attorno a `FluidScreen`) non la fa contare due
+  volte, e nemmeno una finestra che Android ha spostato in su per mostrare il cursore (`adjustPan`, il modo di serie di
+  un'Activity che non dichiara `windowSoftInputMode`: sul Tab S9 la galleria saliva di ~560 px), che il campo conosce già
+  perché si posa con le coordinate dello schermo. Un campo a riposo che si ritira con la barra porta via anche questo spazio. La lista non scorre da sola: a fine
+  scorrimento l'ultima riga è libera, ma una lista ferma a metà resta dov'era (come in UIKit).
+
+**Limiti.** Il tocco sulla parte del vetro che sborda dalla riga arriva perché nessun antenato ritaglia (c'è un gestore
+apposta): una barra dentro un contenitore che ritaglia lo perde. I comandi dentro il campo (il «+», il tasto a destra, la X,
+le frecce di «trova») sono da 40 dp e la X che cancella da 28: sotto i 48 dp degli altri tasti, da decidere con Alessio
+(F6B.13).
 
 ### `FluidSearchField`, il campo nella pagina
 
@@ -201,7 +257,8 @@ FluidSearchField(query = q, onQueryChange = { q = it; current = 0 }, backdrop = 
 - `autoFocus` prende il fuoco all'apertura; il fuoco si toglie solo quando il campo si chiude. «Cerca» sulla tastiera
   chiama `onSearch`; senza, nasconde la tastiera e lascia il testo.
 - Il contatore: niente a query vuota, «3/12» entro i limiti, «Nessun risultato» con le frecce spente; TalkBack «3 di
-  12». Comandi interni da 40 dp.
+  12». Comandi interni da 40 dp. Lo stesso contatore sta nel preset `findInPage` della barra e nel preset `findInText`
+  della barra sopra la tastiera.
 - Di serie il fondale è il canvas della pagina, se c'è; altrimenti la chrome.
 - Nello slot `searchBarContent` della tab bar prende misura, identità e materiale del tondo:
   `searchBarContent = { field -> FluidSearchField(query, { query = it }, field) }`.

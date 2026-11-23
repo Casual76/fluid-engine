@@ -125,6 +125,8 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.ToolbarSearch
 import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalToolbarSearch
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberOwnedSearch
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberToolbarSearch
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberToolbarSearchListRoom
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidConsumedInsets
 import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalPrincipalSearchActive
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidSearchLegacyActions
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarSearchSite
@@ -1226,6 +1228,13 @@ private fun FluidScreenLayout(
     null
   }
   val keyboardRoom = if (keyboardDock?.visible == true) FluidKeyboardBarHeight else 0.dp
+  // F6B.13: la lista sotto il campo che occupa il fondo. Il campo cresce di riga in riga (F6B.7) e sale con la tastiera
+  // (F6B.9): a fine scorrimento l'ultima riga si legge sopra il suo vetro, con e senza tastiera. Lo spazio si legge
+  // mentre la lista si misura, quindi la crescita e la tastiera non ricompongono la pagina.
+  val searchRoom = floatingSearch?.takeIf { it.occupiesBottom }?.let { rememberToolbarSearchListRoom(it, keyboardDock) }
+  // Lo spazio che la lista lascia già alla riga del campo, sopra la barra di sistema: la riga a riposo (bottomExtra),
+  // la tab bar dell'app e la barra sopra la tastiera.
+  val searchAssumed = LocalFluidBottomInset.current + bottomExtra + keyboardRoom
   val minimizeDirection = fluidBarMinimizeDirection(barMinimize, search?.placement)
   val minimize = remember(minimizeDirection, reducedMotion, listState) {
     minimizeDirection.takeIf { it != 0f }?.let { FluidToolbarMinimizeState(it, reducedMotion) }
@@ -1242,14 +1251,20 @@ private fun FluidScreenLayout(
   val expandedProgress = remember { mutableFloatStateOf(0f) }
   val listPadding = remember(
     minimize, density, horizontalPadding, topBarHeight, bottomPadding, bottomExtra, barMinimizeAdjustsInsets, titleGapPx,
-    headerGapPx, largeTitle, pinnedSearch != null, keyboardRoom,
+    headerGapPx, largeTitle, pinnedSearch != null, keyboardRoom, searchRoom, searchAssumed,
   ) {
     val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding + keyboardRoom)
-    if (minimize == null) rest else object : PaddingValues by rest {
-      override fun calculateBottomPadding(): Dp = if (barMinimizeAdjustsInsets && bottomExtra > 0.dp)
-        bottomPadding + keyboardRoom - bottomExtra * minimize.progress else bottomPadding + keyboardRoom
+    if (minimize == null && searchRoom == null) rest else object : PaddingValues by rest {
+      override fun calculateBottomPadding(): Dp {
+        val base = if (minimize != null && barMinimizeAdjustsInsets && bottomExtra > 0.dp)
+          bottomPadding + keyboardRoom - bottomExtra * minimize.progress else bottomPadding + keyboardRoom
+        if (searchRoom == null) return base
+        // Il campo a riposo si ritira con la barra, e il suo spazio con lui; aperto resta.
+        val hidden = if (minimize != null && barMinimizeAdjustsInsets && !searchRoom.active) minimize.progress else 0f
+        return base + with(density) { searchRoom.extraPx(this, searchAssumed.toPx(), hidden).toDp() }
+      }
 
-      override fun calculateTopPadding(): Dp = with(density) {
+      override fun calculateTopPadding(): Dp = if (minimize == null) topBarHeight else with(density) {
         val extra = headingHeightPx + titleGapPx + searchHeightPx + if (pinnedSearch != null) headerGapPx else 0
         val reduction = if (barMinimizeAdjustsInsets) minimize.offsetPx else 0f
         topBarHeight + (extra - reduction).toDp()
@@ -1403,6 +1418,8 @@ private fun FluidScreenLayout(
     modifier = Modifier
       .fillMaxSize()
       .then(if (keyboard == null) Modifier else Modifier.onFocusChanged { keyboardOwnerFocused = it.hasFocus }.focusGroup())
+      // F6B.13: la tastiera che un genitore ha già tolto (imePadding) non si conta due volte nel margine della lista.
+      .then(if (searchRoom == null) Modifier else Modifier.fluidConsumedInsets { searchRoom.consumed = it })
       // Opaca solo quando il fondale e' suo: dentro un pannello lo dipinge la finestra, e coprirlo
       // qui rimetterebbe la cucitura che la superficie condivisa esiste per togliere.
       .then(if (inheritedCanvas == null) Modifier.background(MaterialTheme.colorScheme.background) else Modifier)

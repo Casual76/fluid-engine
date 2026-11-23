@@ -345,7 +345,8 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
         FluidListDivider()
         FluidListRow(
           title = "Elementi dinamici",
-          subtitle = "F6B.12: selezione, tasti con esito, «Annulla» nel tasto, avviso dal tasto, elemento che diventa pagina",
+          subtitle = "F6B.12 e F6B.13: selezione, tasti con esito, «Annulla», avviso, elemento che diventa pagina, " +
+            "campo, composer, pillole, tastiera, attività, tasto diviso, titolo",
           modifier = Modifier.testTag("chrome-open-dynamic-elements"),
           onClick = { onOpen(GalleryPage.DynamicElements) },
         )

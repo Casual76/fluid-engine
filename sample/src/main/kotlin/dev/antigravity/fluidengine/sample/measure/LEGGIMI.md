@@ -385,6 +385,9 @@ adb logcat -v monotonic -s FluidMisure
 | `f1b-c` | F1B (c): il palco del Playground, Menù → Pop-up → Menù → Tasti | quattro tratti da 1200+400 | 2 |
 | `f1b-f` | F1B (f): riga tenuta 800 ms, menu aperto 1,4 s, chiuso, 1,8 s | `apre` 2200+0 · `chiude` 1800+0 | 3 |
 | `f1b-h` | F1B (h): «Card che si espande» toccata, pop-up 1,9 s, chiuso, 1,9 s | `apre` 1900+0 · `chiude` 1900+0 | 3 |
+| `selezione` | F6B.13: «Seleziona» e tre righe della posta; con la tab bar della galleria in fondo la pillola delle schede diventa la capsula delle azioni, «Fine» la riporta | `entra` 900+1200 · `esce` 900+1200 | 3 |
+| `campo-composer` | F6B.13: il campo «Messaggio» col composer, chiuso, cresce da una a cinque righe (una ogni 200 ms), apre il vassoio di un allegato, torna a una riga | `cresce` 1200+1200 (sonda a 600) · `allegato` 900+1200 · `torna` 900+1200 | 3 |
+| `tastiera-contesto` | F6B.13: la barra sopra la tastiera in vista senza tastiera (`alwaysVisible`) passa dai suggerimenti alla formattazione e torna | `cambia` 900+1200 · `torna` 900+1200 | 3 |
 
 Ogni corsa parte allo stesso modo: 3 s di attesa (`measure.warmup`), la riga `PRONTO`, 1,5 s di margine
 (`measure.lead`: lo script azzera gfxinfo lì dentro), poi i tratti. Gli extra: `measure.cycles`, `measure.warmup` e

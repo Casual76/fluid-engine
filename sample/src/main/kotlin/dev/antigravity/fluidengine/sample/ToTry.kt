@@ -858,6 +858,36 @@ private val Stable = TryRound(
         "giudica se l'esito si capisce dall'icona senza leggere.",
       TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Tasti con esito"),
     ),
+    TryItem(
+      "elementi-dinamici-campo-cresce", TryArea.FieldsEditors, "Il campo che cresce",
+      "Apri «Messaggio in una chat», scrivi cinque righe e scorri fino in fondo, con e senza tastiera: " +
+        "giudica se l'ultimo messaggio resta sempre sopra il campo.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Il composer dentro il campo"),
+    ),
+    TryItem(
+      "elementi-dinamici-assistente", TryArea.FieldsEditors, "L'assistente con l'alone",
+      "Apri «L'assistente con l'alone», fai una domanda e guarda il titolo mentre risponde: " +
+        "giudica se l'alone e la pillola di attività restano discreti.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Il composer dentro il campo"),
+    ),
+    TryItem(
+      "elementi-dinamici-trova", TryArea.FieldsEditors, "Trova nella pagina",
+      "Apri «Trova in una trascrizione», cerca «progetto» e passa da un risultato all'altro: " +
+        "giudica se il campo sta sopra la tastiera e la barra in alto resta ferma.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Il campo e «trova nella pagina»"),
+    ),
+    TryItem(
+      "elementi-dinamici-filtri", TryArea.Capsules, "Filtri a pillole",
+      "Apri «Le fermate coi filtri» col testo grande e tocca «Filtri»: " +
+        "giudica se il menu nasce dal vetro del tasto come dal gruppo della barra.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › Filtri e suggerimenti a pillole"),
+    ),
+    TryItem(
+      "elementi-dinamici-tastiera", TryArea.FieldsEditors, "Barra sopra la tastiera",
+      "Apri «Scrivi con una barra per campo» e passa dai destinatari all'oggetto e al testo: " +
+        "giudica se la barra si trasforma senza salti e segue la tastiera.",
+      TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › La barra sopra la tastiera"),
+    ),
   ),
 )
 

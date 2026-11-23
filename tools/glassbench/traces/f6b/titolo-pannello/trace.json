@@ -1,0 +1,4989 @@
+{
+  "schema": 1,
+  "name": "titolo-pannello",
+  "phase": "f6b-13",
+  "fps": 60,
+  "durationMs": 600,
+  "density": 1,
+  "theme": "light",
+  "size": [360, 520],
+  "background": {
+    "kind": "color",
+    "color": "#E7EBF4"
+  },
+  "_": "F6B.13: il titolo «Firenze ▾» apre il pannello delle località come popover dal titolo (F6B.11, tablet). L'ancora è il quadrato di 44 dp attorno al disco (fluidTitleSelectorAnchor); il viaggio è il popover dalla sorgente di F5B.1. Nel banco la sorgente è il disco con la freccia in un tondo di vetro; sul dispositivo il disco non ha vetro.",
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["222.21dp", "55dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["22dp", "22dp", "22dp", "22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "10.56dp",
+              "refraction": "-9.504dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["222.21dp", "55dp"],
+              "glowRadius": "44dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.7dp"],
+              "shadowRadii": ["0dp", "34dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "sorgente",
+              "x": 200.21,
+              "y": 33,
+              "w": 44,
+              "h": 44,
+              "icon": "fluid:expand_more|circle",
+              "iconSizeDp": 22,
+              "color": "#000000FF",
+              "alpha": 1,
+              "scale": 1
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.5,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["222.21dp", "55dp", "20.369dp", "20.369dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["20.369dp", "20.369dp", "20.369dp", "20.369dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "9.777dp",
+              "refraction": "-8.8dp",
+              "dome": 0.5,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "20.369dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.109401,
+              "reflexDepth": "6.518dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["222.21dp", "55dp"],
+              "glowRadius": "40.739dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "6.203dp"],
+              "shadowRadii": ["0dp", "31.48dp"],
+              "shadowAlphas": [0, 0.09],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "sorgente",
+              "x": 201.841,
+              "y": 34.631,
+              "w": 40.739,
+              "h": 40.739,
+              "icon": "fluid:expand_more|circle",
+              "iconSizeDp": 22,
+              "color": "#000000FF",
+              "alpha": 0.846473,
+              "scale": 0.925883
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 4.948417,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["208.625dp", "137.974dp", "74.793dp", "68.681dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["68.681dp", "68.681dp", "68.681dp", "68.681dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "32.967dp",
+              "refraction": "-29.67dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["208.625dp", "137.974dp"],
+              "glowRadius": "149.587dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "7.101dp"],
+              "shadowRadii": ["0dp", "36.033dp"],
+              "shadowAlphas": [0, 0.093587],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "sorgente",
+              "x": 133.832,
+              "y": 69.294,
+              "w": 149.587,
+              "h": 137.361,
+              "icon": "fluid:expand_more|circle",
+              "iconSizeDp": 22,
+              "color": "#000000FF",
+              "alpha": 0.460814,
+              "scale": 3.121848
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.620753,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["181.289dp", "250.663dp", "147.833dp", "141.36dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["141.36dp", "141.36dp", "141.36dp", "141.36dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["181.289dp", "250.663dp"],
+              "glowRadius": "295.666dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.595dp"],
+              "shadowRadii": ["0dp", "43.614dp"],
+              "shadowAlphas": [0, 0.106966],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 42.841,
+                  "y": 111.503,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 42.841,
+                  "y": 159.783,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 42.841,
+                  "y": 208.063,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 42.841,
+                  "y": 256.343,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 42.841,
+                  "y": 304.623,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.028956,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["181.289dp", "250.663dp", "147.833dp", "141.36dp"],
+                  "pieceRadii": ["141.36dp", "141.36dp", "141.36dp", "141.36dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 33.456,
+              "y": 109.303,
+              "w": 295.666,
+              "h": 282.72,
+              "radius": [141.36, 141.36, 141.36, 141.36]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.58409,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["184.698dp", "251.713dp", "144.967dp", "138.718dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["138.718dp", "138.718dp", "138.718dp", "138.718dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["184.698dp", "251.713dp"],
+              "glowRadius": "289.935dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.562dp"],
+              "shadowRadii": ["0dp", "43.448dp"],
+              "shadowAlphas": [0, 0.106673],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 46.25,
+                  "y": 112.553,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 46.25,
+                  "y": 160.833,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 46.25,
+                  "y": 209.113,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 46.25,
+                  "y": 257.393,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 46.25,
+                  "y": 305.673,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.28,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["184.698dp", "251.713dp", "144.967dp", "138.718dp"],
+                  "pieceRadii": ["138.718dp", "138.718dp", "138.718dp", "138.718dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 39.731,
+              "y": 112.995,
+              "w": 289.935,
+              "h": 277.437,
+              "radius": [138.718, 138.718, 138.718, 138.718]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.548014,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180.474dp", "250.825dp", "142.478dp", "136.354dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["127.103dp", "127.103dp", "127.103dp", "127.103dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "2.542dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180.474dp", "250.825dp"],
+              "glowRadius": "284.956dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.53dp"],
+              "shadowRadii": ["0dp", "43.284dp"],
+              "shadowAlphas": [0, 0.106384],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 42.026,
+                  "y": 111.665,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 42.026,
+                  "y": 159.945,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 42.026,
+                  "y": 208.225,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 42.026,
+                  "y": 256.505,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 42.026,
+                  "y": 304.785,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.28,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180.474dp", "250.825dp", "142.478dp", "136.354dp"],
+                  "pieceRadii": ["127.103dp", "127.103dp", "127.103dp", "127.103dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 37.996,
+              "y": 114.471,
+              "w": 284.956,
+              "h": 272.708,
+              "radius": [127.103, 127.103, 127.103, 127.103]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.517223,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["176.721dp", "250.118dp", "140.497dp", "134.473dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["112.005dp", "112.005dp", "112.005dp", "112.005dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "2.24dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["176.721dp", "250.118dp"],
+              "glowRadius": "280.995dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.502dp"],
+              "shadowRadii": ["0dp", "43.145dp"],
+              "shadowAlphas": [0, 0.106138],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 38.273,
+                  "y": 110.958,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 38.273,
+                  "y": 159.238,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 38.273,
+                  "y": 207.518,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 38.273,
+                  "y": 255.798,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 38.273,
+                  "y": 304.078,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.28,
+              "blurDp": 7.1,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["176.721dp", "250.118dp", "140.497dp", "134.473dp"],
+                  "pieceRadii": ["112.005dp", "112.005dp", "112.005dp", "112.005dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 36.224,
+              "y": 115.645,
+              "w": 280.995,
+              "h": 268.945,
+              "radius": [112.005, 112.005, 112.005, 112.005]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["177.163dp", "242.091dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["101.946dp", "101.946dp", "101.946dp", "101.946dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "2.039dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["177.163dp", "242.091dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 38.715,
+                  "y": 102.932,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 38.715,
+                  "y": 151.211,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 38.715,
+                  "y": 199.491,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 38.715,
+                  "y": 247.771,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 38.715,
+                  "y": 296.051,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.378039,
+              "blurDp": 5.776086,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["177.163dp", "242.091dp", "140dp", "134dp"],
+                  "pieceRadii": ["101.946dp", "101.946dp", "101.946dp", "101.946dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 37.163,
+              "y": 108.091,
+              "w": 280,
+              "h": 268,
+              "radius": [101.946, 101.946, 101.946, 101.946]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["178.786dp", "232.886dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["91.167dp", "91.167dp", "91.167dp", "91.167dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "1.823dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["178.786dp", "232.886dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 40.338,
+                  "y": 93.726,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 40.338,
+                  "y": 142.006,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 40.338,
+                  "y": 190.286,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 40.338,
+                  "y": 238.566,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 40.338,
+                  "y": 286.846,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.476078,
+              "blurDp": 4.588658,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["178.786dp", "232.886dp", "140dp", "134dp"],
+                  "pieceRadii": ["91.167dp", "91.167dp", "91.167dp", "91.167dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 38.786,
+              "y": 98.886,
+              "w": 280,
+              "h": 268,
+              "radius": [91.167, 91.167, 91.167, 91.167]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["179.858dp", "226.804dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["31.839dp", "31.839dp", "31.839dp", "31.839dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.637dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["179.858dp", "226.804dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 41.41,
+                  "y": 87.644,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 41.41,
+                  "y": 135.924,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 41.41,
+                  "y": 184.204,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 41.41,
+                  "y": 232.484,
+                  "sizeDp": 22.72
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 41.41,
+                  "y": 280.764,
+                  "sizeDp": 22.72
+                }
+              ],
+              "alpha": 0.574118,
+              "blurDp": 3.537716,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.96dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["179.858dp", "226.804dp", "140dp", "134dp"],
+                  "pieceRadii": ["31.839dp", "31.839dp", "31.839dp", "31.839dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 39.858,
+              "y": 92.804,
+              "w": 280,
+              "h": 268,
+              "radius": [31.839, 31.839, 31.839, 31.839]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.538927,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "141.867dp", "135.787dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.32dp", "24.32dp", "24.32dp", "24.32dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.486dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "283.734dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.521dp"],
+              "shadowRadii": ["0dp", "43.243dp"],
+              "shadowAlphas": [0, 0.106311],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 42.783,
+                  "y": 90.348,
+                  "sizeDp": 22.147
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 42.783,
+                  "y": 137.411,
+                  "sizeDp": 22.147
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 42.783,
+                  "y": 184.474,
+                  "sizeDp": 22.147
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 42.783,
+                  "y": 231.537,
+                  "sizeDp": 22.147
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 42.783,
+                  "y": 278.6,
+                  "sizeDp": 22.147
+                }
+              ],
+              "alpha": 0.672157,
+              "blurDp": 2.55714,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "15.547dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180dp", "226dp", "141.867dp", "135.787dp"],
+                  "pieceRadii": ["24.32dp", "24.32dp", "24.32dp", "24.32dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 38.133,
+              "y": 90.213,
+              "w": 283.734,
+              "h": 271.574,
+              "radius": [24.32, 24.32, 24.32, 24.32]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.558923,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "143.185dp", "137.049dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.546dp", "24.546dp", "24.546dp", "24.546dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.491dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "286.37dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.539dp"],
+              "shadowRadii": ["0dp", "43.334dp"],
+              "shadowAlphas": [0, 0.106471],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 48.231,
+                  "y": 105.868,
+                  "sizeDp": 19.613
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 48.231,
+                  "y": 147.546,
+                  "sizeDp": 19.613
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 48.231,
+                  "y": 189.225,
+                  "sizeDp": 19.613
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 48.231,
+                  "y": 230.903,
+                  "sizeDp": 19.613
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 48.231,
+                  "y": 272.582,
+                  "sizeDp": 19.613
+                }
+              ],
+              "alpha": 0.770196,
+              "blurDp": 1.592975,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "12.218dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180dp", "226dp", "143.185dp", "137.049dp"],
+                  "pieceRadii": ["24.546dp", "24.546dp", "24.546dp", "24.546dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 36.815,
+              "y": 88.951,
+              "w": 286.37,
+              "h": 274.097,
+              "radius": [24.546, 24.546, 24.546, 24.546]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.565005,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "143.597dp", "137.443dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.617dp", "24.617dp", "24.617dp", "24.617dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.492dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "287.195dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.545dp"],
+              "shadowRadii": ["0dp", "43.361dp"],
+              "shadowAlphas": [0, 0.10652],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 53.679,
+                  "y": 121.388,
+                  "sizeDp": 17.079
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 53.679,
+                  "y": 157.682,
+                  "sizeDp": 17.079
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 53.679,
+                  "y": 193.976,
+                  "sizeDp": 17.079
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 53.679,
+                  "y": 230.27,
+                  "sizeDp": 17.079
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 53.679,
+                  "y": 266.564,
+                  "sizeDp": 17.079
+                }
+              ],
+              "alpha": 0.868235,
+              "blurDp": 0.904945,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "8.889dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180dp", "226dp", "143.597dp", "137.443dp"],
+                  "pieceRadii": ["24.617dp", "24.617dp", "24.617dp", "24.617dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 36.403,
+              "y": 88.557,
+              "w": 287.195,
+              "h": 274.886,
+              "radius": [24.617, 24.617, 24.617, 24.617]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.562991,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "143.46dp", "137.312dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.593dp", "24.593dp", "24.593dp", "24.593dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.492dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "286.921dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.543dp"],
+              "shadowRadii": ["0dp", "43.352dp"],
+              "shadowAlphas": [0, 0.106504],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 0.966274,
+              "blurDp": 0.492119,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "5.56dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180dp", "226dp", "143.46dp", "137.312dp"],
+                  "pieceRadii": ["24.593dp", "24.593dp", "24.593dp", "24.593dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 36.54,
+              "y": 88.688,
+              "w": 286.921,
+              "h": 274.624,
+              "radius": [24.593, 24.593, 24.593, 24.593]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.55622,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "143.004dp", "136.875dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.515dp", "24.515dp", "24.515dp", "24.515dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.49dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "286.008dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.537dp"],
+              "shadowRadii": ["0dp", "43.322dp"],
+              "shadowAlphas": [0, 0.10645],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0.232603,
+              "effect": {
+                "source": "kotlin:GlassContentLensSlabShaderString",
+                "uniforms": {
+                  "offset": [0, 0],
+                  "flex": [1, 0, 0, 1],
+                  "flexCenter": [0, 0],
+                  "menuOrigin": ["0dp", "0dp"],
+                  "menuScale": 1,
+                  "lensDepth": "38dp",
+                  "lensPull": "2.231dp",
+                  "pieceCount": 1,
+                  "pieceRect": ["180dp", "226dp", "143.004dp", "136.875dp"],
+                  "pieceRadii": ["24.515dp", "24.515dp", "24.515dp", "24.515dp"],
+                  "pieceBlend": [0],
+                  "pieceSmooth": [0.6]
+                }
+              }
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 36.996,
+              "y": 89.125,
+              "w": 286.008,
+              "h": 273.75,
+              "radius": [24.515, 24.515, 24.515, 24.515]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.547254,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "142.409dp", "136.306dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.413dp", "24.413dp", "24.413dp", "24.413dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.488dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "284.819dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.529dp"],
+              "shadowRadii": ["0dp", "43.281dp"],
+              "shadowAlphas": [0, 0.106378],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0.069204
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 37.591,
+              "y": 89.694,
+              "w": 284.819,
+              "h": 272.612,
+              "radius": [24.413, 24.413, 24.413, 24.413]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.538435,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "141.835dp", "135.757dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.315dp", "24.315dp", "24.315dp", "24.315dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.486dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "283.671dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.521dp"],
+              "shadowRadii": ["0dp", "43.241dp"],
+              "shadowAlphas": [0, 0.106307],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0.001922
+            }
+          ],
+          "contentClip": [
+            {
+              "x": 38.165,
+              "y": 90.243,
+              "w": 283.671,
+              "h": 271.513,
+              "radius": [24.315, 24.315, 24.315, 24.315]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.529763,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "141.281dp", "135.226dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.22dp", "24.22dp", "24.22dp", "24.22dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.484dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "282.561dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.513dp"],
+              "shadowRadii": ["0dp", "43.202dp"],
+              "shadowAlphas": [0, 0.106238],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica in viaggio, luce in corpo",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.522438,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140.819dp", "134.784dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24.14dp", "24.14dp", "24.14dp", "24.14dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.483dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "281.638dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.507dp"],
+              "shadowRadii": ["0dp", "43.168dp"],
+              "shadowAlphas": [0, 0.10618],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "kind": "material",
+          "name": "pannello",
+          "_ricetta": "fisica ferma",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 520,
+          "radius": 0,
+          "clip": false,
+          "capture": {
+            "saturation": 1.5,
+            "blurDp": 6.509211,
+            "w": 0,
+            "paddingDp": 6,
+            "scale": 1
+          },
+          "body": {
+            "source": "kotlin:GlassBody8ShaderString",
+            "uniforms": {
+              "offset": "$offset",
+              "flex": [1, 0, 0, 1],
+              "flexCenter": [0, 0],
+              "pieceCount": 1,
+              "pieceRect": [["180dp", "226dp", "140dp", "134dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceRadii": [["24dp", "24dp", "24dp", "24dp"], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+              "pieceBlend": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "pieceSmooth": [0.6, 0, 0, 0, 0, 0, 0, 0],
+              "pieceSoft": ["0dp", 0, 0, 0, 0, 0, 0, 0],
+              "thickness": "40dp",
+              "refraction": "-36dp",
+              "dome": 0,
+              "dispersion": 0,
+              "magnify": 0,
+              "materialize": 1,
+              "veilColor": "#F5F5F775",
+              "veilAdapt": 0.7,
+              "tintColor": "#00000000",
+              "tintMode": 0,
+              "tintFollow": 0.42,
+              "bodyShade": "#00000012",
+              "bodyShadeDepth": "22dp",
+              "bodyShadeLean": [0, -0.6],
+              "dim": 0,
+              "grain": 0,
+              "aa": 1.25,
+              "lightInBody": 1,
+              "nodeClip": [1, "0.48dp"],
+              "rimWidth": "0.6dp",
+              "rimDark": "#00000052",
+              "rimFeather": 0.4,
+              "rimLift": 0.3,
+              "reflexDir": [0, -1],
+              "reflexWidths": [1.396, 1.396],
+              "reflexStrength": 0.12,
+              "reflexDepth": "7dp",
+              "reflexFloor": 0,
+              "reflexHalo": 0.45,
+              "glowCenter": ["180dp", "226dp"],
+              "glowRadius": "280dp",
+              "glow": 0,
+              "glowFill": 0.4,
+              "lightColor": "#FFFFFFFF",
+              "shadowOffset": ["0dp", "8.495dp"],
+              "shadowRadii": ["0dp", "43.108dp"],
+              "shadowAlphas": [0, 0.106074],
+              "shadowColor": "#000000FF"
+            }
+          },
+          "content": [
+            {
+              "name": "arrivo",
+              "x": 0,
+              "y": 0,
+              "w": 360,
+              "h": 520,
+              "items": [
+                {
+                  "kind": "text",
+                  "text": "Le tue località",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 128,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Firenze",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 162,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Milano",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 196,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Roma",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 230,
+                  "sizeDp": 16
+                },
+                {
+                  "kind": "text",
+                  "text": "Bologna",
+                  "color": "#101015",
+                  "x": 56,
+                  "y": 264,
+                  "sizeDp": 16
+                }
+              ],
+              "alpha": 1,
+              "blurDp": 0
+            }
+          ],
+          "contentClip": "alpha"
+        }
+      ]
+    }
+  ]
+}

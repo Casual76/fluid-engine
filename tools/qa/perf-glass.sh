@@ -47,7 +47,7 @@ ACTIVITY="dev.antigravity.fluidengine.sample.GalleryActivity"
 TRACE_DIR="/data/misc/perfetto-traces"
 
 # Gli scenari fissi della pagina «Misure» (sample/.../measure/MeasureScenario.kt), nell'ordine del piano.
-ALL_SCENARIOS="scorrimento-foto,scorrimento-testo,menu-tasto,menu-gruppo,contestuale,barra-contesto,capsula-premuta,foglio-sale,foglio-trascinato,otto-lastre,push-pop,zoom-card,f1b-c,f1b-f,f1b-h"
+ALL_SCENARIOS="scorrimento-foto,scorrimento-testo,menu-tasto,menu-gruppo,contestuale,barra-contesto,capsula-premuta,foglio-sale,foglio-trascinato,otto-lastre,push-pop,zoom-card,f1b-c,f1b-f,f1b-h,selezione,campo-composer,tastiera-contesto"
 
 SERIAL="${ANDROID_SERIAL:-}"
 OUT=""

@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.onConsumedWindowInsetsChanged
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -91,6 +94,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
@@ -291,12 +295,15 @@ internal fun rememberToolbarSearch(spec: FluidSearchSpec?, width: Dp, declared: 
   val editor = rememberSaveable(stateSaver = TextFieldValue.Saver) {
     mutableStateOf(TextFieldValue(spec.query, TextRange(spec.query.length)))
   }
+  // Il campo che cresce (F6B.7) vive con la schermata, non con la sovrapposizione che lo disegna: la lista lo legge per
+  // lasciargli il posto in fondo (F6B.13), anche quando il campo lo disegna l'host delle pagine.
+  val growth = remember { ToolbarSearchGrowth() }
   // La pagina riconcilia anche cancellazioni e trasformazioni richieste dall'app. Un normale eco della
   // query conserva sia la selezione sia la regione di composizione che Gboard ha appena consegnato.
   if (editor.value.text != spec.query) SideEffect {
     editor.value = TextFieldValue(spec.query, editor.value.selection)
   }
-  return ToolbarSearch(spec, bar, declared, editor)
+  return ToolbarSearch(spec, bar, declared, editor, growth)
 }
 
 internal data class ToolbarSearch(
@@ -304,6 +311,8 @@ internal data class ToolbarSearch(
   val bar: FluidToolbarBar,
   val hasDeclaration: Boolean,
   val editor: MutableState<TextFieldValue> = mutableStateOf(TextFieldValue(spec.query)),
+  /** Quanto il vetro del campo supera la sua riga (F6B.7); la lista lo legge per il suo margine in fondo (F6B.13). */
+  val growth: ToolbarSearchGrowth = ToolbarSearchGrowth(),
 ) {
   val atBottom get() = bar == FluidToolbarBar.Bottom
   val takesTop get() = !atBottom && spec.active
@@ -426,6 +435,9 @@ internal fun toolbarSearchOffset(availablePx: Int, rowPx: Int, fraction: Float):
 internal fun searchImeHeight(hostHeight: Int, hostTop: Int, imeTop: Int, gap: Int): Int =
   (imeTop - hostTop - gap).coerceIn(0, hostHeight)
 
+/** Lo spazio fra il campo e la tastiera: il campo sta 4 dp sopra di lei (F4B.2). */
+internal val ToolbarSearchImeGap = 4.dp
+
 /** Il sistema può traslare la vista per mostrare il cursore anche in una finestra edge-to-edge. */
 @Composable
 private fun Modifier.searchImeViewport(): Modifier {
@@ -443,7 +455,7 @@ private fun Modifier.searchImeViewport(): Modifier {
     val windowBottom = if (Build.VERSION.SDK_INT >= 30) {
       view.context.getSystemService(WindowManager::class.java)?.currentWindowMetrics?.bounds?.bottom
     } else null
-    val gap = with(density) { 4.dp.roundToPx() }
+    val gap = with(density) { ToolbarSearchImeGap.roundToPx() }
     fun update() {
       view.getLocationOnScreen(location)
       val keyboardTop = if (windowBottom != null) windowBottom - ime.getBottom(density)
@@ -475,13 +487,14 @@ internal fun FluidToolbarSearchOverlay(
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val position = animateFloatAsState(if (bottom) 1f else 0f,
     if (reduced) snap() else FluidMotion.standard(), label = "search keyboard position")
-  val metrics = if (search.atBottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  val metrics = toolbarSearchMetrics(search)
   val rowHeight = metrics.buttonWidthDp.dp
   val appInset = LocalFluidBottomInset.current
   val bottomPadding = fluidBottomBarOffset(appInset)
   val reserved = PaddingValues(bottom = bottomPadding)
-  // Il campo che cresce (F6B.7): quanto il suo vetro supera la riga, e dove sta il vetro per l'alone.
-  val growth = remember { ToolbarSearchGrowth() }
+  // Il campo che cresce (F6B.7): quanto il suo vetro supera la riga (della schermata, F6B.13), e dove sta il vetro per
+  // l'alone.
+  val growth = search.growth
   val frame = remember { ToolbarSearchFieldFrame() }
   CompositionLocalProvider(LocalGlassBackdrop provides backdrop, LocalFluidCanvasBackdrop provides null,
     LocalFluidGlassQuality provides null) {
@@ -671,6 +684,165 @@ internal data class ToolbarSearchGrowthPlace(val top: Int, val height: Int) {
 internal fun toolbarSearchGrowthPlace(basePx: Int, extraPx: Int, upward: Boolean): ToolbarSearchGrowthPlace {
   val extra = extraPx.coerceAtLeast(0)
   return ToolbarSearchGrowthPlace(if (upward) -extra else 0, basePx + extra)
+}
+
+// ================================================================================================================
+// La lista sotto il campo cresciuto (F6B.13)
+// ================================================================================================================
+
+/** Le misure della riga del campo: quelle della barra in basso se ci sta, se no quelle della barra in alto. */
+internal fun toolbarSearchMetrics(search: ToolbarSearch): FluidToolbarMetrics =
+  if (search.atBottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
+
+/**
+ * Dove sta il fondo della riga del campo che occupa il fondo, in px dal fondo della finestra (F6B.13). Pura. È la posa
+ * di [FluidToolbarSearchOverlay]: a riposo sopra la barra di sistema ([navigationPx]) col margine della barra in basso
+ * ([restPx]); con la tastiera su, [gapPx] sopra la sua quota ([keyboardPx], la quota di F6B.9, che comprende la barra di
+ * sistema); con la barra sopra la tastiera in vista (F6B.9) sopra di lei, [dockClearancePx] oltre la quota.
+ */
+internal fun toolbarSearchRowBottomPx(
+  navigationPx: Int, restPx: Int, keyboardPx: Int, gapPx: Int, dockClearancePx: Int? = null,
+): Int = if (dockClearancePx != null) {
+  maxOf(navigationPx, keyboardPx) + dockClearancePx
+} else {
+  maxOf(navigationPx + restPx, if (keyboardPx > 0) keyboardPx + gapPx else 0)
+}
+
+/**
+ * Quanto Android ha spostato in su la finestra (`adjustPan`), in px (F6B.13). Pura. [windowTopPx] è il bordo alto della
+ * finestra sullo schermo, [rootTopPx] quello della vista radice: spostata, la radice sta più in alto della finestra.
+ */
+internal fun toolbarSearchWindowPanPx(windowTopPx: Int, rootTopPx: Int): Int = (windowTopPx - rootTopPx).coerceAtLeast(0)
+
+/**
+ * Quanto la lista aggiunge in fondo per il campo che occupa il fondo (F6B.13), in px. Pura. [fieldTopPx] è il bordo alto
+ * del vetro del campo dal fondo della finestra (la riga, cresciuta e alzata dalla tastiera); [assumedPx] è lo spazio che
+ * la lista gli lascia già, cioè la riga a riposo. Mai meno di zero: il margine di oggi resta il minimo. Un campo a riposo
+ * che si ritira con la barra ([hidden] da 0 a 1) porta via con sé anche questo spazio.
+ */
+internal fun toolbarSearchListExtraPx(fieldTopPx: Float, assumedPx: Float, hidden: Float = 0f): Float =
+  (fieldTopPx - assumedPx).coerceAtLeast(0f) * (1f - hidden.coerceIn(0f, 1f))
+
+/**
+ * Lo spazio che il campo in fondo chiede alla lista della sua schermata (F6B.13). Il campo «Messaggio» cresce fino a
+ * cinque righe (F6B.7) e sale con la tastiera (F6B.9): senza questo, a fine scorrimento le ultime righe della chat
+ * restavano sotto il suo vetro, e con la tastiera su anche sotto la tastiera. La lista lo legge **mentre si misura**
+ * ([extraPx]): la crescita e la tastiera, che cambiano a ogni fotogramma, rimisurano la lista e non la ricompongono.
+ */
+@Stable
+internal class ToolbarSearchListRoom(
+  private val keyboard: WindowInsets,
+  private val navigation: WindowInsets,
+) {
+  // Il campo, scritto dopo ogni composizione con valori semplici: una composizione che non cambia niente non rimisura.
+  /** Il campo occupa il fondo (sta in basso, o è aperto sopra la tastiera). */
+  internal var bottom by mutableStateOf(false)
+
+  /** La riga del campo è quella della barra in basso (altrimenti quella in alto, aperta sopra la tastiera). */
+  internal var atBottom by mutableStateOf(false)
+
+  /** Il vetro oltre la riga (F6B.7). */
+  internal var growth by mutableStateOf<ToolbarSearchGrowth?>(null)
+
+  /** Vero se il campo è aperto: allora non si ritira con la barra. */
+  internal var active by mutableStateOf(false)
+
+  /** La quota della barra sopra la tastiera, quando la barra è in vista e il campo le sta sopra (F6B.9). */
+  internal var dock by mutableStateOf<WindowInsets?>(null)
+
+  /** Il margine della barra in basso sopra la barra di sistema (`fluidBottomBarOffset`). */
+  internal var rest by mutableStateOf(0.dp)
+
+  /**
+   * Gli inset che un genitore della schermata ha già consumato (per esempio `Modifier.imePadding()` attorno a
+   * `FluidScreen`, come chiede l'editor di testo ricco): la schermata sta già sopra quella parte di tastiera, e la lista non
+   * la conta due volte.
+   */
+  internal var consumed by mutableStateOf(WindowInsets(0, 0, 0, 0))
+
+  /**
+   * Quanto Android ha spostato in su la finestra per mostrare il cursore, in px (`adjustPan`, il modo di serie di
+   * un'Activity che non lo dichiara): la schermata sta già più in alto di tanto, e la tastiera la copre di tanto meno. Il
+   * campo lo sa già (si posa con le coordinate dello schermo, `searchImeViewport`); la lista lo toglie dalla quota.
+   */
+  internal var panPx by mutableIntStateOf(0)
+
+  /** I px da aggiungere in fondo alla lista oltre [assumedPx], lo spazio che la lista lascia già alla riga del campo. */
+  fun extraPx(density: Density, assumedPx: Float, hidden: Float): Float {
+    if (!bottom) return 0f
+    val dockInsets = dock
+    val row = toolbarSearchRowBottomPx(
+      navigationPx = navigation.getBottom(density),
+      restPx = with(density) { rest.roundToPx() },
+      // La barra sopra la tastiera si posa con gli inset (come la lista): lo spostamento della finestra vale solo per il
+      // campo che si posa con le coordinate dello schermo.
+      keyboardPx = ((dockInsets ?: keyboard).getBottom(density) - consumed.getBottom(density) -
+        (if (dockInsets == null) panPx else 0)).coerceAtLeast(0),
+      gapPx = with(density) { ToolbarSearchImeGap.roundToPx() },
+      dockClearancePx = dockInsets?.let { with(density) { FluidKeyboardSearchClearance.roundToPx() } },
+    )
+    val metrics = if (atBottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
+    val rowHeight = with(density) { metrics.buttonWidthDp.dp.toPx() }
+    val top = row + rowHeight + (growth?.extra?.value ?: 0f).coerceAtLeast(0f)
+    return toolbarSearchListExtraPx(top, assumedPx, hidden)
+  }
+}
+
+/**
+ * Chi sta sotto riceve gli inset che i genitori hanno già consumato (F6B.13): la lista della schermata li toglie dalla
+ * quota della tastiera. È `onConsumedWindowInsetsChanged` di Compose, sperimentale: chiusa qui, in un punto solo.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+internal fun Modifier.fluidConsumedInsets(onChange: (WindowInsets) -> Unit): Modifier =
+  onConsumedWindowInsetsChanged(onChange)
+
+/**
+ * Lo spazio del campo in fondo per la lista di una schermata (F6B.13). [dock] è la barra sopra la tastiera della
+ * schermata, se c'è: quando è in vista il campo le sta sopra, come lo posa [FluidToolbarSearchOverlay].
+ */
+@Composable
+internal fun rememberToolbarSearchListRoom(search: ToolbarSearch, dock: FluidKeyboardDock?): ToolbarSearchListRoom {
+  val keyboard = rememberFluidKeyboardQuota()
+  val navigation = WindowInsets.navigationBars
+  val room = remember(keyboard, navigation) { ToolbarSearchListRoom(keyboard, navigation) }
+  // Lo spostamento della finestra (adjustPan), letto prima di ogni disegno finché la tastiera è su, come fa il campo.
+  val view = LocalView.current
+  val density = LocalDensity.current
+  val showing = WindowInsets.ime.getBottom(density) > 0
+  if (showing) DisposableEffect(view, room) {
+    val location = IntArray(2)
+    val windowTop = if (Build.VERSION.SDK_INT >= 30) {
+      view.context.getSystemService(WindowManager::class.java)?.currentWindowMetrics?.bounds?.top
+    } else null
+    fun update() {
+      if (windowTop == null) return
+      view.rootView.getLocationOnScreen(location)
+      val pan = toolbarSearchWindowPanPx(windowTop, location[1])
+      if (room.panPx != pan) room.panPx = pan
+    }
+    update()
+    val observer = view.viewTreeObserver
+    val listener = ViewTreeObserver.OnPreDrawListener { update(); true }
+    observer.addOnPreDrawListener(listener)
+    onDispose {
+      if (observer.isAlive) observer.removeOnPreDrawListener(listener)
+      room.panPx = 0
+    }
+  }
+  val rest = fluidBottomBarOffset(LocalFluidBottomInset.current)
+  val dockInsets = dock?.takeIf { it.visible && search.occupiesBottom }?.insets
+  val bottom = search.occupiesBottom
+  val atBottom = search.atBottom
+  val active = search.spec.active
+  SideEffect {
+    room.bottom = bottom
+    room.atBottom = atBottom
+    room.growth = search.growth
+    room.active = active
+    room.dock = dockInsets
+    room.rest = rest
+  }
+  return room
 }
 
 /** La riga della voce prende il posto del testo (F6B.7): l'app la dà, e il campo non è chiuso in una lente. Pura. */

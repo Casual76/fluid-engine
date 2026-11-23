@@ -145,6 +145,36 @@ internal enum class MeasureScenario(
     cycles = 3,
     probes = false,
   ),
+
+  // F6B.13: gli elementi dinamici che si ripetono spesso, perché F7 misuri anche loro.
+
+  /** F6B.1 e F6B.2: la selezione di una lista con la tab bar della galleria che diventa la capsula delle azioni. */
+  Selection(
+    "selezione", "Selezione con la tab bar",
+    "«Seleziona» e tre righe scelte: la tab bar diventa le azioni e «Fine» la riporta com'era.",
+    listOf(ScenarioPhase("entra", 900, 1_200), ScenarioPhase("esce", 900, 1_200)),
+    cycles = 3,
+  ),
+
+  /** F6B.7: il campo «Messaggio» col composer che cresce di riga in riga e apre il vassoio, senza tastiera. */
+  ComposerField(
+    "campo-composer", "Campo col composer",
+    "Il campo «Messaggio» cresce da una a cinque righe, apre il vassoio di un allegato e torna a una riga.",
+    listOf(
+      ScenarioPhase("cresce", 1_200, 1_200, probeMillis = 600),
+      ScenarioPhase("allegato", 900, 1_200),
+      ScenarioPhase("torna", 900, 1_200),
+    ),
+    cycles = 3,
+  ),
+
+  /** F6B.9: la barra sopra la tastiera che cambia contesto, in vista senza tastiera (`alwaysVisible`). */
+  KeyboardBar(
+    "tastiera-contesto", "Barra sopra la tastiera",
+    "La barra sopra la tastiera passa dai suggerimenti alla formattazione e torna, trasformandosi.",
+    listOf(ScenarioPhase("cambia", 900, 1_200), ScenarioPhase("torna", 900, 1_200)),
+    cycles = 3,
+  ),
 }
 
 /** Un tratto con il suo posto nella corsa: il ciclo, quanti sono, e i suoi tempi. */

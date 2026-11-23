@@ -99,7 +99,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | vetri che cambiano insieme con un `if` (un tasto che diventa due, una barra che cambia azioni, un tasto che compare), il contenuto che si sfoca, gli angoli concentrici: il **piano flottante** della 4.0 (`FluidGlassContainer`) | `componenti/piano-flottante.md` |
 | la barra in alto dichiarata (`toolbar { … }` su `FluidScreen`: tasti, gruppi, principale, indietro e Chiudi, spaziatori, trabocco «Altro», titolo e sottotitolo, ricerca) che si trasforma da sola quando la pagina cambia stato: la **toolbar** della 4.0 | `componenti/toolbar.md` |
 | più pagine, migrare da `NavHost` | `componenti/pagine.md` |
-| ciò che si trasforma da solo (F6B): la selezione con la tab bar che diventa le azioni, un tasto che lavora e dice l'esito, «Annulla» nel tasto, l'avviso che nasce dal tasto, un elemento che diventa pagina | `componenti/elementi-dinamici.md` |
+| ciò che si trasforma da solo (F6B): la selezione con la tab bar che diventa le azioni, un tasto che lavora e dice l'esito, «Annulla» nel tasto, l'avviso che nasce dal tasto, un elemento che diventa pagina, il campo coi preset e «trova», il composer che cresce nel campo, i filtri a pillole, la barra sopra la tastiera, la pillola di attività, il tasto diviso, il titolo selettore | `componenti/elementi-dinamici.md` |
 | back col dito, `BackHandler`, l'ordine del back (menu → pannello → selezione → pagina), barra unica e ancorata | `componenti/pagine-back-e-barra.md` |
 | colori, tipografia, angoli, tema, accento, la palette d'identità | `componenti/tema.md` |
 | sezione aspetto, aggiornamento in-app, parole traducibili, licenze | `componenti/impostazioni.md` |

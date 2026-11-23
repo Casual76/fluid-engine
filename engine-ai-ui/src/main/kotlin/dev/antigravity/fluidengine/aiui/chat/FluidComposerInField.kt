@@ -26,16 +26,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,10 +38,8 @@ import dev.antigravity.fluidengine.aiui.halo.FluidHaloColours
 import dev.antigravity.fluidengine.aiui.halo.FluidHaloFieldSpec
 import dev.antigravity.fluidengine.aiui.halo.FluidHaloMood
 import dev.antigravity.fluidengine.aiui.halo.HaloPresenceFloor
-import dev.antigravity.fluidengine.aiui.halo.drawFluidHaloField
 import dev.antigravity.fluidengine.aiui.halo.haloApproach
 import dev.antigravity.fluidengine.aiui.halo.haloBlendForTheme
-import dev.antigravity.fluidengine.aiui.halo.sampleCycle
 import dev.antigravity.fluidengine.aiui.halo.wrap01
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
@@ -67,7 +59,6 @@ import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.VolumeOff
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
 import kotlin.math.sin
 
 // Il composer nuovo dell'assistente (F6B.7, piano F6B §7). Scelta di Alessio del 21 novembre 2026: «ne costruiamo uno
@@ -85,8 +76,9 @@ import kotlin.math.sin
  * - il **tasto a destra a stati** sulla stessa sagoma ([fluidAssistantFieldTrailing]): il microfono a campo vuoto,
  *   «Invia» con del testo, lo stop mentre l'assistente lavora o ascolta, «Zitta» mentre legge;
  * - la **riga della voce** al posto del testo mentre ascolta ([voiceLine], per esempio [FluidComposerVoiceLine]);
- * - **l'alone attorno al vetro** ([FluidAssistantFieldHalo]): fermo e basso a riposo, vivo quando si scrive, segue la voce
- *   in ascolto e scorre mentre l'assistente lavora o scrive.
+ * - **l'alone attorno al vetro** ([FluidAssistantFieldHalo]): una luce continua che abbraccia il bordo e sfuma fuori
+ *   (F6B.16), ferma e bassa a riposo, viva quando si scrive, segue la voce in ascolto e scorre mentre l'assistente lavora
+ *   o scrive.
  *
  * Come in [FluidComposer], il campo è sempre usabile: mentre l'assistente lavora si scrive e si manda lo stesso (la
  * tastiera invia e la domanda va in coda); il tasto a destra resta lo stop. [onSend] svuota il campo
@@ -224,6 +216,11 @@ fun fluidAssistantFieldMood(action: FluidComposerAction, failed: Boolean = false
 /**
  * I numeri dell'alone del campo (F6B.7).
  *
+ * **Dalla F6B.16 l'alone non ha più macchie, anello né scia**: è la luce continua di `FluidAssistantFieldGlow.kt` (uno
+ * shader, un disegno per fotogramma), coi suoi numeri. Di qui restano in uso presenza, ampiezze, passi per umore, respiro
+ * e dissolvenze; [Spec], i numeri dell'anello (`Ring…`) e della scia (`Comet…`) restano per compatibilità e non si
+ * disegnano più.
+ *
  * **La luce e i colori: a occhio**, scelti il 21 novembre 2026 partendo da `glow` del [FluidComposer] di prima (sei
  * macchie da 28 dp all'alfa 0,40, anello da 1,5 dp che gira in 8 s): Apple non ha un campo con l'alone da misurare (il
  * campo di «Scrivi a Siri» ha un bordo luminoso, nessuna clip nel progetto). Il campo è alto 40 dp e non due righe: le
@@ -360,20 +357,21 @@ fun fluidAssistantFieldCometWeight(slice: Int, slices: Int = FluidAssistantField
 }
 
 /**
- * L'alone attorno al campo del composer dell'assistente (F6B.7): le macchie del campo di luce viaggiano sul bordo del
- * vetro **dietro** di lui (dentro le copre il vetro, fuori sbordano); un anello sottile con i colori del tema che girano
- * sta **sopra** il bordo, e mentre il campo è attivo un **giro di luce** gli corre sopra e tutto **respira** piano. Lo
- * costruisce [rememberFluidAssistantFieldHalo].
+ * L'alone attorno al campo del composer dell'assistente (F6B.7, rifatto in F6B.16): **una luce continua** che abbraccia il
+ * bordo del vetro e sfuma verso l'esterno, disegnata **dietro** di lui (dentro la copre il vetro). I colori del tema
+ * scorrono piano lungo il perimetro e un'onda larga di luce (due creste, mai una macchia) gira col suo passo; mentre il
+ * campo è attivo tutto **respira** piano. Niente sfere: parole di Alessio del 23 novembre 2026, «un alone non è composto
+ * da sfere, ma è qualcosa più dinamico», con Gemini come riferimento. Lo costruisce [rememberFluidAssistantFieldHalo].
  *
- * - **Vivo ma non fastidioso**: fermo e basso a riposo; attivo (aperto, in ascolto, al lavoro) la scia fa il giro del
- *   bordo in 5 s e l'alfa respira del 12% in 4,5 s; il moto entra in 400 ms ed esce in 600, rallentando fino a fermarsi.
- * - **Movimento ridotto**: niente si muove e la voce non fa pulsare; restano i colori, che entrano ed escono in
+ * - **Vivo ma non fastidioso**: fermo e basso a riposo; attivo (aperto, in ascolto, al lavoro) i colori fanno il giro del
+ *   bordo in 14 s e l'alfa respira del 12% in 4,5 s; il moto entra in 400 ms ed esce in 600, rallentando fino a fermarsi.
+ * - **Movimento ridotto**: la luce è ferma e la voce non la fa pulsare; restano i colori, che entrano ed escono in
  *   dissolvenza.
  * - **Niente ricatture del vetro**: il campo lo disegna nella barra, sopra la pagina, fuori dalla cattura del vetro
  *   ([FluidComposerHalo]). Tempo, ampiezza, presenza e moto si leggono nel disegno: a centoventi hertz si ridisegna solo
  *   il suo strato, e nessuno ricompone. A riposo l'orologio non gira.
- * - **Il costo** di un fotogramma è il solo disegno dell'alone: sei cerchi a gradiente radiale, un tracciato col gradiente
- *   a ventaglio e la scia (cinque fette, due tratti l'una); i tracciati si rifanno solo quando cambia la sagoma.
+ * - **Il costo** di un fotogramma è un disegno solo: un rettangolo attorno al vetro con lo shader della luce (Android 13+),
+ *   o un filo col gradiente a ventaglio dove lo shader non c'è.
  */
 @Stable
 class FluidAssistantFieldHalo internal constructor(
@@ -385,19 +383,8 @@ class FluidAssistantFieldHalo internal constructor(
   private val blend: BlendMode,
   private val fieldActive: MutableState<Boolean>,
 ) : FluidComposerHalo {
-  private val spec = FluidAssistantFieldHaloProfile.Spec.copy(blendMode = blend)
-  private val frameColours = MutableList(blobs.size) { Color.Transparent }
-  private val stops = MutableList(FluidAssistantFieldHaloProfile.RingStops + 1) { Color.Transparent }
-  private var shape: RoundRect? = null
-  private val path = Path()
-  private val measure = PathMeasure()
-  private val comet = Path()
-  private var strokesFor = Float.NaN
-  private var ringStroke = Stroke(1f)
-  private var cometStroke = Stroke(1f)
-  private var cometHeadStroke = Stroke(1f)
-  private var glowStroke = Stroke(1f)
-  private var glowHeadStroke = Stroke(1f)
+  private val frameColours = MutableList(GlowColours) { Color.Transparent }
+  private val painter = FluidAssistantFieldGlowPainter()
 
   /** La presenza di adesso, 0..1. */
   val presenceNow: Float get() = presence.value
@@ -410,84 +397,25 @@ class FluidAssistantFieldHalo internal constructor(
     if (fieldActive.value != active) fieldActive.value = active
   }
 
-  private fun ensure(glass: RoundRect) {
-    if (glass == shape) return
-    shape = glass
-    path.reset()
-    path.addRoundRect(glass)
-    measure.setPath(path, forceClosed = true)
-  }
+  /** Vero se la luce si disegna con lo shader (Android 13+); falso col ripiego, il solo filo sul bordo. */
+  internal val shaded: Boolean get() = painter.shaded
 
-  private fun DrawScope.ensureStrokes() {
-    if (strokesFor == density) return
-    strokesFor = density
-    ringStroke = Stroke(width = FluidAssistantFieldHaloProfile.RingWidth.toPx())
-    cometStroke = Stroke(width = FluidAssistantFieldHaloProfile.CometWidth.toPx(), cap = StrokeCap.Butt)
-    cometHeadStroke = Stroke(width = FluidAssistantFieldHaloProfile.CometWidth.toPx(), cap = StrokeCap.Round)
-    glowStroke = Stroke(width = FluidAssistantFieldHaloProfile.CometGlowWidth.toPx(), cap = StrokeCap.Butt)
-    glowHeadStroke = Stroke(width = FluidAssistantFieldHaloProfile.CometGlowWidth.toPx(), cap = StrokeCap.Round)
-  }
-
+  /** La luce continua, un disegno solo, dietro il vetro (dentro la copre lui). */
   override fun DrawScope.drawBehindGlass(glass: RoundRect) {
     val p = presence.value
     if (p <= HaloPresenceFloor) return
-    ensure(glass)
-    for (i in frameColours.indices) frameColours[i] = blobs[i].value
+    // I tre colori del ciclo dell'umore (animati quando l'umore cambia): quelli del tema, o l'errore.
+    for (i in frameColours.indices) frameColours[i] = blobs[i % blobs.size].value
     val breath = fluidAssistantFieldBreath(clock.time, motion.value)
-    drawFluidHaloField(measure, path, clock.time, clock.amplitude, p * breath, frameColours, spec)
+    with(painter) { draw(glass, frameColours, clock.time, clock.amplitude, p * breath, blend) }
   }
 
-  override fun DrawScope.drawOverGlass(glass: RoundRect) {
-    val p = presence.value
-    if (p <= HaloPresenceFloor) return
-    ensure(glass)
-    ensureStrokes()
-    val m = motion.value
-    val breath = fluidAssistantFieldBreath(clock.time, m)
-    // I colori girano sull'anello: fermate fisse, colore campionato dal ciclo con la fase che avanza col tempo.
-    val phase = wrap01(clock.time * FluidAssistantFieldHaloProfile.RingCyclesPerSec)
-    val n = FluidAssistantFieldHaloProfile.RingStops
-    for (k in 0..n) stops[k] = sampleCycle(ring, k / n.toFloat() - phase)
-    val center = Offset(glass.left + glass.width / 2f, glass.top + glass.height / 2f)
-    drawPath(path = path, brush = Brush.sweepGradient(stops, center = center),
-      alpha = (fluidAssistantFieldRingAlpha(clock.amplitude, p) * breath).coerceIn(0f, 1f), style = ringStroke, blendMode = blend)
-    if (m > MotionFloor) drawComet(center, phase, p * m * breath)
-  }
-
-  /** Il giro di luce: la scia di [FluidAssistantFieldHaloProfile.CometLength] del bordo, dalla coda alla testa. */
-  private fun DrawScope.drawComet(center: Offset, phase: Float, strength: Float) {
-    val length = measure.length
-    if (length <= 0f) return
-    val head = fluidAssistantFieldCometHead(clock.time) * length
-    val span = FluidAssistantFieldHaloProfile.CometLength * length
-    // Il colore della testa è quello dell'anello sotto di lei: la scia accende l'anello, non lo copre.
-    val at = measure.getPosition(head)
-    val angle = (atan2(at.y - center.y, at.x - center.x) / (2f * PI.toFloat()) + 1f) % 1f
-    val colour = sampleCycle(ring, angle - phase)
-    val slices = FluidAssistantFieldHaloProfile.CometSlices
-    for (k in 0 until slices) {
-      segment(head - span + span * k / slices, head - span + span * (k + 1) / slices, length)
-      val w = fluidAssistantFieldCometWeight(k, slices) * strength
-      val last = k == slices - 1
-      drawPath(comet, colour, alpha = (FluidAssistantFieldHaloProfile.CometGlowAlpha * w).coerceIn(0f, 1f),
-        style = if (last) glowHeadStroke else glowStroke, blendMode = blend)
-      drawPath(comet, colour, alpha = (FluidAssistantFieldHaloProfile.CometAlpha * w).coerceIn(0f, 1f),
-        style = if (last) cometHeadStroke else cometStroke, blendMode = blend)
-    }
-  }
-
-  /** Il tratto del bordo da [from] a [to] (in px lungo il bordo, anche oltre il giro) nel tracciato della scia. */
-  private fun segment(from: Float, to: Float, length: Float) {
-    comet.reset()
-    val start = ((from % length) + length) % length
-    val end = start + (to - from)
-    if (end <= length) measure.getSegment(start, end, comet, true)
-    else {
-      measure.getSegment(start, length, comet, true)
-      measure.getSegment(0f, end - length, comet, true)
-    }
-  }
+  /** Sopra il vetro niente (F6B.16): il filo di luce sta appena fuori dal bordo, nella luce sola. */
+  override fun DrawScope.drawOverGlass(glass: RoundRect) = Unit
 }
+
+/** Quanti colori scorrono lungo il bordo: i primi tre del ciclo dell'umore. */
+private const val GlowColours: Int = 3
 
 /**
  * L'alone del campo per [mood] (di solito [fluidAssistantFieldMood]): [focused] è il campo aperto, [level] il livello del

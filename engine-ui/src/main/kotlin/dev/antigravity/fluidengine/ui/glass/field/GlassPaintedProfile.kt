@@ -180,6 +180,9 @@ internal fun glassPaintedControlSeen(panel: Color?, page: Color, darkSide: Boole
  * @param preference il cursore dell'utente (`LocalFluidGlassPreference`, giro di correzione di F2), come lo riceve il
  *   pannello di vetro vero: del dipinto muove il velo (la smerigliatura su un colore pieno non cambia niente). Di
  *   serie a metà corsa, dove non tocca niente.
+ * @param tint la tinta di Apple (`GlassTintMode.Colored`) del vetro tinto (F6B.16, `FluidTintedGlass.kt`): sta sopra il
+ *   velo, segue la luminosità di ciò che il vetro vede e dà il filo chiaro e l'ombra del suo colore, come nel vetro vero.
+ *   `Unspecified` (di serie) per un vetro senza tinta.
  */
 internal fun glassPaintedRecipe(
   widthDp: Float,
@@ -192,6 +195,7 @@ internal fun glassPaintedRecipe(
   preference: Float = FluidGlassPreference.Default,
   out: GlassRecipe = GlassRecipe(),
   accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
+  tint: Color = Color.Unspecified,
 ): GlassRecipe = glassRecipe(
   role = GlassRole.Modal,
   widthDp = widthDp,
@@ -199,6 +203,7 @@ internal fun glassPaintedRecipe(
   darkSide = darkSide,
   optics = GlassDefaults.panelOptics(),
   film = film,
+  tint = tint,
   nested = nested,
   profile = profile,
   largeVeil = largeVeil,
@@ -563,6 +568,7 @@ private fun paintedOutline(
  * @param extendBottomPx di quanti px la sagoma scende sotto il nodo (il fondo del foglio sta oltre lo schermo).
  * @param preference il cursore dell'utente (`LocalFluidGlassPreference`), letto da chi chiama dove legge il modello del
  *   vetro: vedi [glassPaintedRecipe].
+ * @param tint la tinta del vetro tinto (F6B.16): vedi [glassPaintedRecipe].
  */
 @Composable
 internal fun Modifier.glassPainted(
@@ -578,6 +584,7 @@ internal fun Modifier.glassPainted(
   extendBottomPx: Float = 0f,
   preference: Float = FluidGlassPreference.Default,
   accessibility: GlassMaterialAccessibility = rememberGlassMaterialAccessibility().value,
+  tint: Color = Color.Unspecified,
 ): Modifier = this.drawWithCache {
   val top = max(extendTop().let { if (it.isFinite()) it else 0f }, 0f)
   val area = Size(size.width, size.height + top + max(extendBottomPx, 0f))
@@ -592,6 +599,7 @@ internal fun Modifier.glassPainted(
     profile = profile,
     preference = preference,
     accessibility = accessibility,
+    tint = if (tint.isSpecified) tint else Color.Unspecified,
   )
   val corners = glassPaintedCorners(shape, area, this, layoutDirection)
   val plan = glassPaintedPlan(recipe, seen, area.width, area.height, density, corners)

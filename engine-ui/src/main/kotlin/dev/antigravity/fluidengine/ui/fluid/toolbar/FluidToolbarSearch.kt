@@ -102,6 +102,8 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.fluidTintedGlassFill
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidTintedGlassInk
 import dev.antigravity.fluidengine.ui.fluid.FluidGlass
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassAnimation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
@@ -1784,13 +1786,15 @@ private fun SearchSendButton(
     .size(FluidSearchFieldDefaults.ActionSize + (outset?.let { it.start + it.end } ?: 0.dp),
       FluidSearchFieldDefaults.ActionSize + (outset?.let { it.top + it.bottom } ?: 0.dp))
     .then(press).fluidTargetInner(outset), contentAlignment = Alignment.Center) {
-    Box(Modifier.size(SearchSendDisc).background(scheme.primary, FluidCapsuleShape), contentAlignment = Alignment.Center) {
-      if (preset == null) FluidIcon(FluidIcons.ArrowUpward, null, size = SearchSendGlyph, tint = scheme.onPrimary)
+    // F6B.16: il disco è vetro tinto dipinto, annidato nel vetro del campo, con l'inchiostro adattivo del vetro tinto.
+    val discInk = rememberFluidTintedGlassInk(scheme.primary)
+    Box(Modifier.size(SearchSendDisc).fluidTintedGlassFill(FluidCapsuleShape, scheme.primary, nested = true), contentAlignment = Alignment.Center) {
+      if (preset == null) FluidIcon(FluidIcons.ArrowUpward, null, size = SearchSendGlyph, tint = discInk)
       else {
         val presentation = rememberFluidActionPresentation(preset, sending, live = onClick != null)
         // Sull'accento il rosso non si legge: il fallimento resta nell'inchiostro del disco, come sui tasti pieni.
         FluidActionGlyphContent(preset, sending, presentation,
-          FluidActionLook(SearchSendGlyph, scheme.onPrimary, scheme.onPrimary, LocalFluidMotionPolicy.current.reducedMotion))
+          FluidActionLook(SearchSendGlyph, discInk, discInk, LocalFluidMotionPolicy.current.reducedMotion))
       }
     }
   }

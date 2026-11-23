@@ -36,6 +36,13 @@ import dev.antigravity.fluidengine.ui.theme.highestContrastContent
  *   prende l'inchiostro che sulla tinta si legge meglio, nero o bianco, e non gira col fondo: il tasto pieno e' lui
  *   stesso il fondo. Come in Apple, un tasto in evidenza per schermata.
  *
+ *   **Dalla F6B.16, col materiale nuovo**, il tasto in evidenza è **vetro tinto** come il `.glassProminent` di iOS 26: la
+ *   tinta dell'accento schiarita e spenta, mescolata al vetro (la tinta di Apple, `GlassTintMode.Colored`, con la
+ *   luminosità che segue lo sfondo), col filo chiaro e l'ombra del suo colore; il vetro gira col fondo come gli altri tasti
+ *   e l'etichetta prende l'inchiostro adattivo che regge 4,5:1 dal suo lato (`FluidTintedGlass.kt`). Quanto si schiarisce
+ *   e quanto copre lo dice una dose sola per tutta l'app. La pellicola che copre quanto serve, qui sopra, resta col vetro
+ *   di prima ([FluidGlassModel.Classic], sotto Android 13), dove la tinta di Apple non si legge.
+ *
  * Il tasto reagisce sempre al dito: l'`interactive` del vetro passato non conta, come per lo stile `.glass` di SwiftUI.
  *
  * Uguaglianza strutturale: uno stile ricreato a ogni ricomposizione non invalida niente.

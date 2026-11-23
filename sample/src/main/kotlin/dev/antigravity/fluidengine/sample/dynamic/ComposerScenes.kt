@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.aiui.chat.FluidAssistantBubble
 import dev.antigravity.fluidengine.aiui.chat.FluidComposerChip
-import dev.antigravity.fluidengine.aiui.chat.FluidComposerPill
 import dev.antigravity.fluidengine.aiui.chat.FluidComposerVoiceLine
 import dev.antigravity.fluidengine.aiui.chat.FluidUserBubble
 import dev.antigravity.fluidengine.aiui.chat.fluidAssistantField
@@ -43,8 +42,6 @@ import dev.antigravity.fluidengine.ui.fluid.activity.rememberFluidActivityHostSt
 import dev.antigravity.fluidengine.ui.fluid.icons.Add
 import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
-import dev.antigravity.fluidengine.ui.fluid.icons.Image
-import dev.antigravity.fluidengine.ui.fluid.icons.Movie
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.theme.FluidCard
 import kotlinx.coroutines.Job
@@ -109,6 +106,8 @@ internal fun MessageComposerScene(onBack: () -> Unit) {
   var listening by remember { mutableStateOf(false) }
   val lines = remember { mutableStateListOf<ChatLine>().apply { addAll(ChatOpening) } }
   val attachments = remember { mutableStateListOf<String>() }
+  // F6B.16: allegati veri con l'anteprima (una foto, poi il PDF del quaderno, poi l'altra foto…).
+  val files by rememberComposerAttachmentFiles()
   val send = rememberFluidActionRunner(FluidActionPreset.Send)
   val trailing = if (listening) {
     FluidSearchTrailing.stop(onStop = { listening = false; text = "Ci vediamo domani alle dieci" }, label = "Smetti di dettare")
@@ -118,19 +117,18 @@ internal fun MessageComposerScene(onBack: () -> Unit) {
   val composer = FluidComposerSlots(
     leading = {
       FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = {
-        attachments += if (attachments.size % 2 == 0) "Foto ${attachments.size + 1}" else "Video ${attachments.size + 1}"
+        attachments += if (attachments.size % 2 == 0) "Foto ${attachments.size + 1}" else "Documento ${attachments.size + 1}"
       }, size = FluidSearchFieldDefaults.ActionSize)
     },
     attachments = if (attachments.isEmpty()) null else {
       {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
           attachments.forEach { name ->
-            FluidComposerPill(
-              icon = if (name.startsWith("Foto")) FluidIcons.Image else FluidIcons.Movie,
-              label = name,
-              onClick = { attachments.remove(name) },
-              removeDescription = "Togli $name",
-            )
+            val photo = name.startsWith("Foto")
+            val index = name.substringAfter(' ').toIntOrNull() ?: 1
+            val source = if (photo) ComposerAttachmentFiles.photos[(index / 2) % ComposerAttachmentFiles.photos.size]
+            else ComposerAttachmentFiles.document
+            ComposerFileAttachment(files?.get(source.id), name, photo, onRemove = { attachments.remove(name) })
           }
         }
       }
@@ -194,6 +192,8 @@ internal fun AssistantComposerScene(onBack: () -> Unit) {
   var busy by remember { mutableStateOf(false) }
   var listening by remember { mutableStateOf(false) }
   var attached by remember { mutableStateOf(false) }
+  // F6B.16: l'allegato è una foto vera con la sua anteprima, e il quaderno in PDF con la prima pagina.
+  val files by rememberComposerAttachmentFiles()
   var job by remember { mutableStateOf<Job?>(null) }
   val turns = remember { mutableStateListOf<AssistantTurn>().apply { addAll(AssistantOpening) } }
   val action = fluidComposerAction(composer.text.isNotBlank(), busy = busy, listening = listening, speaking = false)
@@ -239,7 +239,12 @@ internal fun AssistantComposerScene(onBack: () -> Unit) {
         onAdd = { attached = true },
         chips = { FluidComposerChip("Modello · Auto", onClick = {}) },
         pills = if (attached) {
-          { FluidComposerPill(FluidIcons.Image, "Pianta del secondo piano", onClick = { attached = false }) }
+          {
+            ComposerFileAttachment(files?.get(ComposerAttachmentFiles.photos.first().id), "Pianta del secondo piano", photo = true,
+              onRemove = { attached = false })
+            ComposerFileAttachment(files?.get(ComposerAttachmentFiles.document.id), "Quaderno di campo", photo = false,
+              onRemove = { attached = false })
+          }
         } else null,
         voiceLine = { FluidComposerVoiceLine(partial = null, transcribing = false, amplitude = { 0.5f }, onTap = { listening = false }) },
         requestMicPermission = false,

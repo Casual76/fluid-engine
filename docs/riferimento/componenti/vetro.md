@@ -471,7 +471,23 @@ di serie nessuno lo legge.
 - **La tinta** `GlassTintMode.Colored`: la tonalità resta, la luminosità segue lo sfondo (piena su bianco, al 58% su nero).
   Per un tasto tinto il corpo prende **l'alone del colore del tasto e un filo chiaro**, come in iOS 26 (scelta C di Alessio,
   un'eccezione al filo scuro scelto per gli altri tasti). Si ottiene con una `GlassTint` a tre argomenti più `mode =
-  GlassTintMode.Colored`, su un `glassSurface`; oggi non c'è un componente «tasto tinto» pronto.
+  GlassTintMode.Colored`, su un `glassSurface`.
+- **Il vetro tinto degli elementi dell'engine** (4.0, F6B.16). Gli elementi che l'engine riempiva col colore del tema sono
+  vetro tinto: il chip e la pillola scelti (e ogni `glassControlSurface(selected = true)`), il gettone nel campo, la
+  principale della barra, il disco di «Invia», il tasto in evidenza (`FluidGlassButtonStyle.Prominent`), il `FluidButton`
+  pieno e i tasti pieni dei visori. Parole di Alessio del 23 novembre 2026: «sembrano voler essere in vetro senza esserlo, e
+  con dei colori molto spinti rispetto a tutto il resto». La tinta è l'accento **schiarito e spento in OKLab** (la tonalità
+  resta) e **mescolato al vetro** (la tinta `Colored` sopra il velo, con un'alfa minore di uno): rifrazione, filo chiaro,
+  riflesso e ombra del suo colore dove c'è una cattura; il **vetro dipinto** con la stessa ricetta dove l'elemento sta dentro
+  un altro vetro (il gettone e «Invia» nel campo) o non ha niente da catturare (`FluidButton`). Lo scritto prende
+  l'**inchiostro adattivo** del vetro: quello del lato, lo stesso di ogni altro vetro (`#121214` sul chiaro, `#F2F2F5` sullo
+  scuro), che cade sul nero o sul bianco pieni dove non regge 4,5:1 (provato su ogni accento della palette, in chiaro e in
+  scuro). **La dose è una per tutta l'app**: la C della tavola di F6B.16, la più piena (un decimo verso il bianco, croma al
+  95%, copertura 0,78), scelta da Alessio il 23 novembre 2026, in `FluidTintedGlassProfile.Shipped`
+  (`fluid/FluidTintedGlass.kt`); le altre due colonne della tavola non sono rimaste nel codice, e non c'è una manopola. La
+  scena `vetro-tinto` degli «Elementi dinamici» mostra gli elementi tinti su tre fondi. Col vetro di prima (`Classic`, sotto Android 13) restano l'accento pieno, la pellicola
+  d'accento della selezione e il tasto in evidenza di prima. Restano pieni, come in iOS, i segni che non sono vetro: i
+  badge, i pallini, la spunta della selezione, la piastrella dell'icona di una notifica.
 - **Il cursore dell'utente** (sotto).
 
 **Il giro dei piccoli.** Quando lo sfondo sotto un vetro piccolo passa da chiaro a scuro (o il contrario) il vetro **gira**: il
@@ -531,8 +547,8 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   [../moduli/ai-ui-overlay.md](../moduli/ai-ui-overlay.md). Un'app fa lo stesso coi suoi pannelli: `fluidGlassPanel` in un
   contenitore ([piano-flottante.md](piano-flottante.md), «I pannelli e il vetro annidato»).
 - **Tengono il lato del tema**, con velo, ombra e tinta che seguono comunque lo sfondo: un `glassSurface` o
-  `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto tinto
-  (pellicola fissa), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei
+  `glassControlSurface` dell'app (non hanno un contenuto loro: l'engine non sa cosa ci disegna sopra l'app), il tasto in
+  evidenza col vetro di prima (pellicola fissa; col materiale nuovo è vetro tinto e gira, F6B.16), un vetro annidato (prende il lato dall'host), le card di vetro e le righe raggruppate, il binario dei
   segmenti, la bolla dello scorrimento veloce, le gocce di slider, switch e scrubber, la barra ancorata, la barra `Classic` di
   `FluidTopBarGlass`. Le superfici di `engine-ai-ui` dentro un vetro adattivo dell'engine (un foglio, un pop-up) prendono
   il lato da lui, come ogni vetro annidato. Con `Classic` e sotto Android 13 niente di questo cambia, al pixel.

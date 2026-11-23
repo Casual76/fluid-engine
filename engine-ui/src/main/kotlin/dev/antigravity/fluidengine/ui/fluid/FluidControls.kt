@@ -170,6 +170,11 @@ object FluidButtonDefaults {
  * @param grip di chi e' il dito quando la pagina sotto vuole scorrere: del pulsante
  *   ([FluidPressGrip.HoldsFinger], di serie) o della pagina ([FluidPressGrip.YieldsToScroll], per un
  *   pulsante in una riga di una lista che scorre). Dalla 3.0.
+ *
+ * **Il pulsante pieno è vetro tinto (4.0, F6B.16).** [FluidButtonStyle.Filled] non è più l'accento pieno: è il vetro tinto
+ * dipinto dell'engine (`FluidTintedGlass.kt`), cioè la tinta dell'accento schiarita e mescolata al vetro, col filo chiaro,
+ * la riga di luce e l'ombra del vetro, e l'etichetta nell'inchiostro adattivo che regge 4,5:1. Col vetro di prima
+ * ([FluidGlassModel.Classic], sotto Android 13) resta l'accento pieno.
  */
 @Composable
 fun FluidButton(
@@ -192,13 +197,17 @@ fun FluidButton(
     FluidButtonStyle.Destructive -> scheme.errorContainer
     FluidButtonStyle.Plain -> Color.Transparent
   }
-  val content = when (style) {
+  val plainContent = when (style) {
     FluidButtonStyle.Filled -> scheme.onPrimary
     FluidButtonStyle.Tinted -> scheme.onPrimaryContainer
     FluidButtonStyle.Destructive -> scheme.onErrorContainer
     FluidButtonStyle.Plain -> scheme.primary
   }
   val shape = FluidButtonDefaults.shape(size)
+  // F6B.16: il pulsante pieno è vetro tinto dipinto, con l'inchiostro adattivo del vetro tinto.
+  val tinted = style == FluidButtonStyle.Filled && rememberFluidTintedGlassActive()
+  val tintedInk = if (tinted) rememberFluidTintedGlassInk(scheme.primary) else Color.Unspecified
+  val content = if (tinted) tintedInk else plainContent
 
   Box(
     modifier = modifier
@@ -212,8 +221,7 @@ fun FluidButton(
         feedback = FluidPressFeedback.Expand,
         grip = grip,
       )
-      .clip(shape)
-      .background(container)
+      .then(if (tinted) Modifier.fluidTintedGlassFill(shape, scheme.primary) else Modifier.clip(shape).background(container))
       .heightIn(min = FluidButtonDefaults.height(size))
       .padding(horizontal = FluidButtonDefaults.horizontalPadding(size)),
     contentAlignment = Alignment.Center,
@@ -797,6 +805,10 @@ internal fun FluidChipCore(
 ) {
   val scheme = MaterialTheme.colorScheme
   val glass = fluidControlGlassBackdrop()
+  // F6B.16: scelto, il chip è vetro tinto (vero dove c'è un vetro da attraversare, dipinto altrove), con l'inchiostro
+  // adattivo del vetro tinto. Col vetro di prima resta com'era.
+  val tinted = selected && rememberFluidTintedGlassActive()
+  val tintedInk = if (tinted) rememberFluidTintedGlassInk() else Color.Unspecified
 
   val container by animateColorAsState(
     targetValue = if (selected) scheme.primary else scheme.onSurface.copy(alpha = 0.06f),
@@ -805,6 +817,7 @@ internal fun FluidChipCore(
   )
   val content by animateColorAsState(
     targetValue = when {
+      tinted -> tintedInk
       // Come il tasto di vetro scelto: l'accento e' nel materiale, e l'etichetta sta sul suo
       // contenitore, non su un riempimento pieno.
       glass != null -> if (selected) scheme.onPrimaryContainer else scheme.onSurface
@@ -955,8 +968,7 @@ internal fun FluidChipCore(
         longClickHaptic = if (menu != null) null else FluidHapticEvent.GestureStart,
         grip = FluidPressGrip.YieldsToScroll,
       )
-      .clip(FluidCapsuleShape)
-      .background(container)
+      .then(if (tinted) Modifier.fluidTintedGlassFill(FluidCapsuleShape) else Modifier.clip(FluidCapsuleShape).background(container))
       .padding(horizontal = FluidChipHorizontalPadding, vertical = FluidChipVerticalPadding)
       .then(faceRecord),
     contentAlignment = Alignment.Center,

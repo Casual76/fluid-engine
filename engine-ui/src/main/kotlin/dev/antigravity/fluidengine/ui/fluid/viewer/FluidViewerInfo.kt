@@ -193,14 +193,19 @@ internal fun ViewerBoardButton(text: String, onClick: () -> Unit, modifier: Modi
     FluidButtonStyle.Destructive -> colors.errorContainer
     FluidButtonStyle.Plain -> Color.Transparent
   }
+  // F6B.16: il tasto pieno è vetro tinto (dipinto: il visore non ha una cattura sotto il tasto), con l'inchiostro
+  // adattivo del vetro tinto; col vetro di prima resta l'accento pieno con l'etichetta bianca.
+  val tinted = style == FluidButtonStyle.Filled && rememberFluidTintedGlassActive()
+  val tintedInk = if (tinted) rememberFluidTintedGlassInk(colors.primary) else Color.Unspecified
   val ink = when (style) {
-    FluidButtonStyle.Filled -> Color.White
+    FluidButtonStyle.Filled -> if (tinted) tintedInk else Color.White
     FluidButtonStyle.Destructive -> colors.onErrorContainer
     else -> colors.primary
   }
   Box(modifier.heightIn(min = height).fluidPressable(onClick = onClick, role = Role.Button,
     feedback = FluidPressFeedback.Expand, grip = FluidPressGrip.YieldsToScroll)
-    .background(fill, FluidCapsuleShape).padding(horizontal = 14.dp, vertical = 4.dp),
+    .then(if (tinted) Modifier.fluidTintedGlassFill(FluidCapsuleShape, colors.primary, shadow = false) else Modifier.background(fill, FluidCapsuleShape))
+    .padding(horizontal = 14.dp, vertical = 4.dp),
     contentAlignment = Alignment.Center) {
     val weight = if (style == FluidButtonStyle.Filled) FontWeight.Bold else FontWeight.SemiBold
     Text(text, style = MaterialTheme.typography.bodyMedium.viewerSize(textSize, weight),

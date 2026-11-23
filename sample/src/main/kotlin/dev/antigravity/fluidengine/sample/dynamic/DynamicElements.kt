@@ -142,6 +142,10 @@ internal enum class DynamicScene(
     "gettoni-pagina", DynamicElement.Filters, "Le etichette delle note",
     "Notes · i gettoni nel campo di ricerca dentro la pagina, con lo stesso viaggio dalla pillola (F6B.15)",
   ),
+  TintedGlass(
+    "vetro-tinto", DynamicElement.Filters, "Il vetro tinto",
+    "Pillola scelta, tasto in evidenza, pulsante pieno, principale, «Invia» su tre fondi (F6B.16)",
+  ),
   KeyboardBar(
     "tastiera", DynamicElement.KeyboardBar, "«Scrivi» con una barra per campo",
     "Mail · suggerimenti, azioni rapide, formattazione e «Fatto»; «Invia ▾» (F6B.9)",
@@ -218,6 +222,7 @@ internal fun DynamicElementsPage(onBack: () -> Unit, initial: DynamicScene? = nu
         DynamicScene.Tokens -> TokensScene(onBack = close)
         DynamicScene.TokensUnderTitle -> TokensUnderTitleScene(onBack = close)
         DynamicScene.TokensInPage -> TokensInPageScene(onBack = close)
+        DynamicScene.TintedGlass -> TintedGlassScene(onBack = close)
         DynamicScene.KeyboardBar -> KeyboardBarScene(onBack = close)
         DynamicScene.RichTextKeyboard -> RichTextKeyboardScene(onBack = close)
       }

@@ -370,10 +370,10 @@ internal fun rememberToolbarSearchTokenStage(): ToolbarSearchTokenStage = rememb
 internal fun fluidSearchTokenFill(selected: Boolean): Color =
   if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
 
-/** L'inchiostro dell'etichetta del gettone. */
+/** L'inchiostro dell'etichetta del gettone: sul vetro tinto quello adattivo del vetro tinto (F6B.16). */
 @Composable
 internal fun fluidSearchTokenInk(selected: Boolean): Color =
-  if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onPrimary
+  if (selected) MaterialTheme.colorScheme.surface else rememberFluidTintedGlassInk()
 
 /** Lo stile dell'etichetta: quello del chip, così la scritta viaggia dalla pillola al gettone senza cambiare. */
 @Composable
@@ -390,7 +390,10 @@ internal fun FluidSearchTokenFace(label: String, icon: ImageVector?, ink: () -> 
   }
 }
 
-/** Il gettone disegnato: la capsula tinta e la faccia. Il bersaglio lo decide chi lo posa. */
+/**
+ * Il gettone disegnato: la capsula tinta e la faccia. Il bersaglio lo decide chi lo posa. Dalla F6B.16 la capsula è
+ * vetro tinto dipinto, annidato nel vetro del campo; scelto (pronto a togliersi) resta la capsula piena di sempre.
+ */
 @Composable
 internal fun FluidSearchTokenCapsule(label: String, icon: ImageVector?, selected: Boolean, modifier: Modifier = Modifier) {
   val fill = fluidSearchTokenFill(selected)
@@ -399,7 +402,7 @@ internal fun FluidSearchTokenCapsule(label: String, icon: ImageVector?, selected
     modifier
       .defaultMinSize(minWidth = FluidSearchTokenDefaults.MinWidth)
       .height(FluidSearchTokenDefaults.Height)
-      .background(fill, FluidCapsuleShape)
+      .then(if (selected) Modifier.background(fill, FluidCapsuleShape) else Modifier.fluidTintedGlassFill(FluidCapsuleShape, nested = true))
       .padding(horizontal = FluidSearchTokenDefaults.HorizontalPadding),
     contentAlignment = Alignment.Center,
   ) { FluidSearchTokenFace(label, icon) { ink } }
@@ -680,8 +683,8 @@ private fun ToolbarSearchTokenFlyer(stage: ToolbarSearchTokenStage, flight: Tool
   val density = LocalDensity.current
   val tokenHeightPx = with(density) { FluidSearchTokenDefaults.Height.toPx() }
   val scheme = MaterialTheme.colorScheme
-  val fill = scheme.primary
-  val tokenInk = scheme.onPrimary
+  // F6B.16: il gettone è vetro tinto dipinto, col suo inchiostro adattivo.
+  val tokenInk = rememberFluidTintedGlassInk()
   val glassInk = rememberGlassInk()
   val mix = { FluidSearchTokenRules.mix(flight.progress.value, flight.inward) }
   Box(
@@ -707,7 +710,7 @@ private fun ToolbarSearchTokenFlyer(stage: ToolbarSearchTokenStage, flight: Tool
     ) else Box(Modifier.matchParentSize().graphicsLayer { alpha = 1f - mix() }
       .background(scheme.onSurface.copy(alpha = 0.06f), FluidCapsuleShape))
     // La tinta del gettone, che entra.
-    Box(Modifier.matchParentSize().graphicsLayer { alpha = mix() }.background(fill, FluidCapsuleShape))
+    Box(Modifier.matchParentSize().graphicsLayer { alpha = mix() }.fluidTintedGlassFill(FluidCapsuleShape, nested = true))
     GlassInkContent(glassInk, LocalContentColor.current) {
       val pillInk = LocalContentColor.current
       FluidSearchTokenFace(flight.token.label, flight.icon) { lerp(pillInk, tokenInk, mix()) }

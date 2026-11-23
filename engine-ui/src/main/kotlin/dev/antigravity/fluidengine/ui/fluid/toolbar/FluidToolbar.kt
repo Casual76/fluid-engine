@@ -111,6 +111,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidBadge
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlass
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidTintedGlassColorOf
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidTintedGlassInkOf
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassAnimation
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentAnchor
@@ -1601,8 +1603,10 @@ private fun FluidToolbarTravellingButton(
   val stationary = trip.sameSlot
   val restX = if (stationary) fluidToolbarIconCenterPx(resolved, element, density.density, rtl) else 0f
   val glyphWidthPx = with(density) { size.roundToPx() }
+  // F6B.16: la principale è vetro tinto, e la sua icona l'inchiostro adattivo del vetro tinto.
+  val primaryInk = rememberFluidTintedGlassInkOf(scheme.onPrimary)
   fun color(item: FluidToolbarItem): Color = when {
-    item.isPrimary -> scheme.onPrimary
+    item.isPrimary -> primaryInk(item.tintArgb?.let { Color(it) } ?: scheme.primary)
     item.selected -> scheme.primary
     item.tintArgb != null -> Color(item.tintArgb)
     else -> ink
@@ -1771,14 +1775,16 @@ private fun FluidToolbarGroupPiece(
   keyboardVeil: Boolean,
 ) {
   val scheme = MaterialTheme.colorScheme
+  val tintedColor = rememberFluidTintedGlassColorOf()
   val single = group.items.singleOrNull()
   val primary = single?.isPrimary == true
   val primaryEntry = single?.let { declaration.buttons[it.id] }
   val leased = menuSource.anchor(glass)
   val surface = when {
     !group.sharedBackground -> FluidGlass.Identity
-    // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4); la sua icona è chiara.
-    primary -> FluidGlass.Regular.tint(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary).interactive()
+    // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4). Dalla F6B.16 la tinta è quella del vetro
+    // tinto (schiarita e mescolata al vetro), e la sua icona prende l'inchiostro adattivo.
+    primary -> FluidGlass.Regular.tint(tintedColor(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary)).interactive()
     else -> FluidGlass.Regular.interactive()
   }
   Row(
@@ -1949,8 +1955,10 @@ private fun FluidToolbarSlot(
   val ink = LocalContentColor.current
   val overflow = item.role == FluidToolbarRole.Overflow
   val tint = entry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: Color.Unspecified
+  // F6B.16: sul vetro tinto della principale, l'inchiostro adattivo del vetro tinto.
+  val primaryInk = rememberFluidTintedGlassInkOf(scheme.onPrimary)
   val color = when {
-    onGlass -> scheme.onPrimary
+    onGlass -> primaryInk(if (tint != Color.Unspecified) tint else scheme.primary)
     tint != Color.Unspecified -> tint
     else -> ink
   }
@@ -2322,11 +2330,13 @@ private fun FluidToolbarFadingFace(
   val ink = LocalContentColor.current
   val scheme = MaterialTheme.colorScheme
   val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  // F6B.16: sul vetro tinto della principale, l'inchiostro adattivo del vetro tinto.
+  val primaryInk = rememberFluidTintedGlassInkOf(scheme.onPrimary)
   val face = FluidToolbarFace(item.content,
     if (item.role == FluidToolbarRole.Overflow) FluidIcons.MoreHoriz else item.symbol as? ImageVector,
     item.label.takeIf { item.symbol == null && item.contentKey == null },
     when {
-      item.isPrimary -> scheme.onPrimary
+      item.isPrimary -> primaryInk(item.tintArgb?.let { Color(it) } ?: scheme.primary)
       item.selected -> scheme.primary
       item.tintArgb != null -> Color(item.tintArgb)
       else -> ink

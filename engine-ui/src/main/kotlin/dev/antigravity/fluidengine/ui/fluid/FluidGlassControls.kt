@@ -327,9 +327,14 @@ internal fun Modifier.glassControlSurfaceInked(
     )
   }
   val systemContrast = LocalFluidSystemContrast.current
-  val selectionTint = remember(tint, selected, accent, systemContrast) {
+  // F6B.16: col materiale nuovo il controllo scelto è vetro tinto (la tinta di Apple, schiarita e mescolata al vetro);
+  // col vetro di prima resta la pellicola d'accento qui sotto.
+  val tinted = selected && rememberFluidTintedGlassActive()
+  val selectionTint = remember(tint, selected, accent, systemContrast, tinted) {
     if (!selected) {
       tint
+    } else if (tinted) {
+      fluidTintedGlassTint(accent, tint).forContrast(systemContrast)
     } else {
       // Selection is carried by the accent joining the material, not by an opaque fill replacing it.
       //
@@ -357,8 +362,9 @@ internal fun Modifier.glassControlSurfaceInked(
   // ingressi, quindi le due risposte coincidono; qui serve saperlo prima, perche' col materiale nuovo il
   // bagliore del dito non e' piu' un disegno a parte sopra il vetro: passa dalla sua luce.
   val resolvedOptics = remember(optics) { optics.sanitized() }
+  val marked = if (tinted) this.fluidTintedGlassMark(FluidTintedGlassMark(painted = false, liquid = true)) else this
   if (planeContainer != null) {
-    return this.glassControlPiece(
+    return marked.glassControlPiece(
       container = planeContainer,
       attributes = attributes,
       backdrop = backdrop,
@@ -385,7 +391,7 @@ internal fun Modifier.glassControlSurfaceInked(
     else -> remember(press, reducedMotion) { fluidGlassPressLayer(press, reducedMotion) }
   }
 
-  return this
+  return marked
     .then(fit.modifier)
     .then(if (gel != null && !materialSuppressed) Modifier.fingerGlowAlone(press, reducedMotion, onDark, shape, gel) else Modifier)
     .then(
@@ -596,7 +602,8 @@ internal const val FluidGelBlurFloorPx: Float = 0.75f
  * piattaforma dell'engine la superficie sa di stare su quel pannello, e vi si posa come un vetro annidato (velo e
  * ombra ridotti, come un tasto dentro una notifica).
  *
- * @param selected la pellicola d'accento della selezione al posto del velo, come in [glassControlSurface].
+ * @param selected scelta: dalla 4.0 (F6B.16) vetro tinto, la tinta dell'accento schiarita e mescolata al vetro
+ *   (`FluidTintedGlass.kt`), come in [glassControlSurface]; col vetro di prima la pellicola d'accento di sempre.
  * @param pressure 0..1: il bagliore del vetro premuto, uniforme (un dipinto non sa dov'e' il dito).
  */
 @Composable
@@ -620,7 +627,8 @@ fun Modifier.fluidStaticGlassSurface(
   // Il cursore dell'utente (giro di correzione di F2), come nel pannello dipinto che lo porta.
   val preference = LocalFluidGlassPreference.current
   val seen = glassPaintedControlSeen(panel, scheme.background, darkSide)
-  val film = if (selected) scheme.primary.copy(alpha = GlassPaintedSelectionAlpha) else Color.Unspecified
+  // F6B.16: scelta, la superficie dipinta è vetro tinto (la tinta di Apple della ricetta), non più la pellicola d'accento.
+  val tint = if (selected) fluidTintedGlassColor(scheme.primary) else Color.Unspecified
   // L'ombra e' quella del vetro (le maschere della ricetta, o quella di prima dove il materiale e' `Classic`); da
   // annidato pesa quanto la regola dell'annidato del profilo dice.
   val shadowOptics = remember(panel != null, darkSide) {
@@ -632,15 +640,16 @@ fun Modifier.fluidStaticGlassSurface(
     }
   }
   return this
+    .then(if (selected) Modifier.fluidTintedGlassMark(FluidTintedGlassMark(painted = true, liquid = true)) else Modifier)
     .glassShadow(shape, shadowOptics)
     .glassPainted(
       shape = shape,
       darkSide = darkSide,
       seen = seen,
       nested = panel != null,
-      film = film,
       pressure = pressure,
       preference = preference,
+      tint = tint,
     )
 }
 
@@ -992,6 +1001,9 @@ internal fun FluidGlassIconButtonCore(
  *
  * @property ink l'inchiostro dell'etichetta di un tasto in evidenza, o [Color.Unspecified]: allora il contenuto segue il
  *   lato del vetro come sempre ([GlassInkContent]).
+ * @property tintedAccent (F6B.16) per il tasto in evidenza col materiale nuovo, l'accento del suo vetro tinto: il vetro
+ *   gira col fondo come gli altri tasti e l'etichetta prende l'inchiostro adattivo del vetro tinto
+ *   ([rememberFluidTintedGlassInk]). [Color.Unspecified] altrimenti.
  */
 @Immutable
 internal class FluidGlassButtonLook(
@@ -999,15 +1011,34 @@ internal class FluidGlassButtonLook(
   val variant: GlassLiquidVariant,
   val glassless: Boolean,
   val ink: Color,
-)
+  val tintedAccent: Color = Color.Unspecified,
+) {
+  /** Il tasto in evidenza: niente stato scelto, la sua tinta è il suo vetro. */
+  val prominent: Boolean get() = ink.isSpecified || tintedAccent.isSpecified
+}
 
 /**
  * La resa di [style] con la tinta dei controlli [base] e l'accento del tema [accent]. Pura: lo stile di serie e il
  * limpido tengono la tinta dei controlli di sempre, quindi un tasto `Glass` si disegna con gli stessi ingressi di prima.
+ *
+ * @param tinted (F6B.16) vero col materiale nuovo: il tasto in evidenza è vetro tinto ([fluidTintedGlassTint]) con
+ *   l'inchiostro adattivo. Falso, col vetro di prima: la pellicola che copre quanto serve perché l'etichetta stia ad
+ *   almeno 4,5:1 su qualunque fondo ([fluidProminentTint]), com'era, perché lì la tinta `Colored` non si legge e il
+ *   vetro non gira.
  */
-internal fun resolveFluidGlassButtonLook(style: FluidGlassButtonStyle, base: GlassTint, accent: Color): FluidGlassButtonLook =
+internal fun resolveFluidGlassButtonLook(
+  style: FluidGlassButtonStyle,
+  base: GlassTint,
+  accent: Color,
+  tinted: Boolean = false,
+): FluidGlassButtonLook =
   when {
     style.glass.isIdentity -> FluidGlassButtonLook(base, GlassLiquidVariant.Regular, glassless = true, Color.Unspecified)
+    style.isProminent && tinted -> {
+      val tint = if (style.tint.isSpecified) style.tint else accent
+      FluidGlassButtonLook(fluidTintedGlassTint(tint, base), GlassLiquidVariant.Regular, glassless = false,
+        Color.Unspecified, tintedAccent = tint.copy(alpha = 1f))
+    }
     style.isProminent -> {
       val tint = if (style.tint.isSpecified) style.tint else accent
       FluidGlassButtonLook(fluidProminentTint(tint, base), GlassLiquidVariant.Regular, glassless = false, fluidProminentInk(tint))
@@ -1019,7 +1050,8 @@ internal fun resolveFluidGlassButtonLook(style: FluidGlassButtonStyle, base: Gla
 private fun rememberFluidGlassButtonLook(style: FluidGlassButtonStyle): FluidGlassButtonLook {
   val base = GlassDefaults.controlTint()
   val accent = MaterialTheme.colorScheme.primary
-  return remember(style, base, accent) { resolveFluidGlassButtonLook(style, base, accent) }
+  val tinted = style.isProminent && rememberFluidTintedGlassActive()
+  return remember(style, base, accent, tinted) { resolveFluidGlassButtonLook(style, base, accent, tinted) }
 }
 
 /**
@@ -1041,14 +1073,20 @@ private fun Modifier.glassButtonSurface(
   labelAnchor: FluidGlassLabelAnchor?,
   blurIcon: Boolean,
 ): Modifier {
+  // F6B.16: il tasto in evidenza col materiale nuovo si registra come vetro tinto.
+  val head = if (look.tintedAccent.isSpecified) {
+    this.fluidTintedGlassMark(FluidTintedGlassMark(painted = false, liquid = true))
+  } else {
+    this
+  }
   val surface: @Composable () -> Modifier = {
-    glassControlSurfaceInked(
+    head.glassControlSurfaceInked(
       backdrop = backdrop,
       shape = shape,
       tint = look.tint,
       optics = GlassDefaults.buttonOptics(),
       // Il tasto in evidenza non ha uno stato scelto: la sua pellicola e' la tinta, non l'accento della selezione.
-      selected = selected && !look.ink.isSpecified,
+      selected = selected && !look.prominent,
       interactive = interactive,
       depth = FullDepth,
       frozen = NeverFrozen,
@@ -1074,6 +1112,11 @@ private fun Modifier.glassButtonSurface(
 private fun FluidGlassButtonInk(look: FluidGlassButtonLook, ink: GlassInk, themeInk: Color, content: @Composable () -> Unit) {
   if (look.ink.isSpecified) {
     CompositionLocalProvider(LocalContentColor provides look.ink, content = content)
+  } else if (look.tintedAccent.isSpecified) {
+    // F6B.16: il vetro tinto gira col fondo; dentro, l'inchiostro adattivo del vetro tinto per il lato del vetro.
+    GlassInkContent(ink, themeInk) {
+      CompositionLocalProvider(LocalContentColor provides rememberFluidTintedGlassInk(look.tintedAccent), content = content)
+    }
   } else {
     GlassInkContent(ink, themeInk, content)
   }
@@ -1124,8 +1167,10 @@ fun FluidGlassButton(
   sizing: FluidButtonSizing = LocalFluidButtonSizing.current,
 ) {
   val look = rememberFluidGlassButtonLook(style)
+  // F6B.16: scelto col materiale nuovo, il tasto è vetro tinto e l'etichetta prende il suo inchiostro.
+  val tintedInk = if (selected && rememberFluidTintedGlassActive()) rememberFluidTintedGlassInk() else Color.Unspecified
   val contentColor = if (selected) {
-    MaterialTheme.colorScheme.onPrimaryContainer
+    if (tintedInk.isSpecified) tintedInk else MaterialTheme.colorScheme.onPrimaryContainer
   } else {
     MaterialTheme.colorScheme.onSurface
   }

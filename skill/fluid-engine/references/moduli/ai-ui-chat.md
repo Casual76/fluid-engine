@@ -341,7 +341,11 @@ FluidScreen(
   search = fluidAssistantField(composer, action, onSend = { if (vm.send(composer.text)) composer.sent() },
     onStop = vm::cancel, onVoice = vm::startListening, onStopListening = vm::stopListening, onAdd = { menu = true },
     chips = { FluidComposerChip("Modello · Auto", onClick = {}) },
-    pills = if (allegato != null) { { FluidComposerPill(FluidIcons.Image, allegato.nome, onClick = togli) } } else null,
+    pills = if (allegato != null) { {
+      FluidComposerAttachment(allegato.nome, onRemove = togli, style = FluidComposerAttachmentStyle.Photo) {
+        rememberFluidFileThumbnail(allegato.file, px)?.let { FluidFileThumbnailImage(it) }   // engine-viewer, F6C.17
+      }
+    } } else null,
     voiceLine = { FluidComposerVoiceLine(partial, transcribing, amplitude = { level }, onTap = vm::stopListening) },
     voiceActive = state.isVoiceActive(), level = { micLevel }, failed = state is AssistantState.Failed),
 ) { /* la conversazione: FluidUserBubble, FluidAssistantBubble, … */ }
@@ -350,6 +354,20 @@ FluidScreen(
 **Le parti.** Il «+» (`onAdd`, o un `leading` suo), il vassoio sopra il testo con `chips` e `pills` (una riga che scorre di
 lato), la riga della voce al posto del testo (`voiceLine`, finché `voiceActive`), il tasto a destra e l'alone. `sending` dà
 alla faccia «Invia» lo stato del tasto con esito (l'anello mentre lavora). `halo = false` toglie l'alone.
+
+**Gli allegati con l'anteprima** (`FluidComposerAttachment`, F6B.16; Alessio, 23 novembre 2026: «voglio anche le anteprime
+delle foto caricate»). Nel vassoio un allegato è un riquadro alto 64 dp (`FluidComposerAttachmentDefaults.Height`, a occhio:
+a 40 dp, l'altezza della pillola, una foto ritagliata non si riconosce): con `FluidComposerAttachmentStyle.Photo` la foto
+riempie il riquadro, ritagliata, senza scritta (il nome lo legge TalkBack) e con la X in un cerchio scuro nell'angolo; con
+`File` la miniatura (un foglio da 44 × 56 dp) sta accanto al nome, su due righe, e la X in fondo. L'anteprima la dà l'app
+(`preview`): il composer non legge file; con `engine-viewer` è la miniatura vera di `FluidFileThumbnails` con la sua cache
+(`rememberFluidFileThumbnail(file, px)` e `FluidFileThumbnailImage`), che per un PDF è la prima pagina. Il tocco sul riquadro
+toglie l'allegato, come la pillola: il bersaglio è il riquadro; con `onOpen` il riquadro apre e la X ha un bersaglio suo da
+48 dp. Il vassoio cresce sopra il testo quanto il riquadro: il campo non cambia. **L'allegato che compare si porta in
+vista** (`BringIntoViewRequester`): nel vassoio dell'assistente, che scorre di lato sotto il chip del modello, l'ultimo
+aggiunto si vede intero con la sua X anche a 360 dp (prima, sul telefono, il PDF usciva a destra finché non si scorreva a
+mano); un vassoio che non scorre non si muove. `FluidComposerPill` resta per ciò che non è un file (il plugin, la
+modalità, la strada per le impostazioni).
 
 **Il tasto a destra** viene da `fluidComposerAction`, come nel composer di prima, ma è **un tasto solo** sulla stessa sagoma
 (`fluidAssistantFieldTrailing`, pura):
@@ -362,15 +380,21 @@ alla faccia «Invia» lo stato del tasto con esito (l'anello mentre lavora). `ha
 | `StopListening` | lo stop dell'ascolto |
 | `Mute` | «Zitta», con l'altoparlante barrato |
 
-**L'alone** (`FluidAssistantFieldHalo`, da `rememberFluidAssistantFieldHalo`): le macchie del campo di luce viaggiano sul
-bordo del vetro **dietro** di lui (dentro le copre il vetro, fuori sbordano di una decina di dp) e un anello sottile coi colori
-del tema che girano sta **sopra** il bordo. A riposo è fermo al 70% e **non chiede fotogrammi**. A campo attivo (aperto, o
-l'assistente che ascolta, lavora o legge) **si muove**: un giro di luce lungo un sesto del bordo fa il giro in 5 s (in
-ascolto 4,2, al lavoro 3,1, mentre legge 3,6), tutto respira del 12% in 4,5 s, e il moto entra in 400 ms ed esce in 600
-rallentando fino a fermarsi. Prende i colori dell'errore se l'ultima risposta è fallita (`failed`). Col movimento ridotto è
-fermo. Sta nella barra, sopra la pagina: **non entra nella cattura del vetro** e non la fa rifare. I numeri sono in
-`FluidAssistantFieldHaloProfile`, a occhio (21 e 22 novembre 2026), dal `glow` del composer di prima: sei macchie da 26 dp
-all'alfa 0,45, l'anello da 2 dp che gira in 8 s, la testa del giro da 2,5 dp all'alfa 0,65 in un bagliore da 7 dp.
+**L'alone** (`FluidAssistantFieldHalo`, da `rememberFluidAssistantFieldHalo`): **una luce continua** (dalla F6B.16) che
+abbraccia il bordo del vetro e sfuma verso l'esterno, disegnata **dietro** di lui (dentro la copre il vetro). Niente macchie,
+anello né scia: Alessio, 23 novembre 2026, «un alone non è composto da sfere, ma è qualcosa più dinamico», con l'alone di
+Gemini come riferimento. I tre colori del tema (o quelli dell'errore, con `failed`) scorrono piano lungo il perimetro (un
+giro in 14 s a campo aperto) e un'onda larga di luce, due creste, gira in 9 s: il colore cambia solo lungo il bordo e la
+luce solo allontanandosi da lui, quindi niente punti né macchie tonde. A riposo è ferma al 70% e **non chiede fotogrammi**.
+A campo attivo (aperto, o l'assistente che ascolta, lavora o legge) **si muove**, la voce la accende e la allarga (fino al
+30% in più), tutto respira del 12% in 4,5 s, e il moto entra in 400 ms ed esce in 600 rallentando fino a fermarsi. Col
+movimento ridotto è **una luce ferma**. È **un disegno solo** per fotogramma: un rettangolo attorno al vetro con uno shader
+AGSL (Android 13+); sotto, un filo col gradiente a ventaglio sul bordo. Sta nella barra, sopra la pagina: **non entra nella
+cattura del vetro** e non la fa rifare. I numeri della luce sono in `FluidAssistantFieldGlowProfile`
+(`FluidAssistantFieldGlow.kt`): l'intensità è una, la vivida della tavola di F6B.16 (la luce cala a un terzo in 13 dp, filo
+da 2,2 dp), scelta da Alessio il 23 novembre 2026; la discreta non è rimasta nel codice. Presenza, ampiezze, passi, respiro e
+dissolvenze restano in `FluidAssistantFieldHaloProfile`, dove `Spec`, `Ring…` e `Comet…` restano per compatibilità e non si
+disegnano più.
 
 **Trappole.**
 

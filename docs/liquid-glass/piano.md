@@ -3691,6 +3691,15 @@ aggiunto parole sue ha preso l'opzione consigliata):
 - **F6B.13 va bene.** I bersagli sotto i 48 dp: **«tasti più grandi»**, cioè più grandi anche a vista, non solo
   nell'area che si tocca (F6B.8b). Lente e tasti della barra restano a 46 di vetro con 48 di bersaglio.
 
+**23 novembre 2026, pomeriggio** (dopo le riprese della build integrata):
+- **«Invia» da 44 dp e il campo aperto a 52** (prima 40 dentro 48).
+- **La pillola dell'assistente non esce mai dallo schermo:** quando c'è un campo, l'engine fa ridimensionare la finestra
+  invece di spostarla (`adjustPan`), così la barra in alto resta in vista. Lo fa da solo, senza chiederlo all'app.
+- **I gettoni anche negli altri campi:** il campo sotto il titolo (`Principal`) e `FluidSearchField` nella pagina.
+- Da correggere i difetti delle riprese: i puntini di «Altro» che spariscono per un fotogramma all'avvio della
+  sincronizzazione; nei gettoni sul tablet la prima pillola vuota con la scritta fuori posto e la fila sopra
+  l'intestazione della lista. Le quattro tracce `composer-*` si riesportano col campo nuovo (F6B.15).
+
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
 ---
@@ -3948,6 +3957,10 @@ decodificatori.
 - **Alle 11:30 le pagine vanno bene** («Sì, vanno bene»), sui confronti del secondo giro di F6C.18 accanto alla tavola,
   con le miniature di F6C.17. Restano la piastra dietro il titolo del pannello info (terzo giro), la freccia accanto al
   titolo che apre il menu del file (il titolo selettore di F6B.11, dopo l'unione col ramo principale) e le riprese.
+- **23 novembre, pomeriggio:** «•••» con voci vere per tutti i tipi (Markdown, HTML, EPUB, mail, calendario, contatti,
+  caratteri, 3D, testo e codice), le tracce del banco delle aperture dei visori, le miniature del 3D con le texture e
+  dell'HTML con stili e immagini locali. Da correggere dalle riprese: «Estrai tutto» a metà schermo sopra l'ultima riga
+  dell'archivio sul tablet, e la miniatura del DNG che resta un'icona anche sul dispositivo (F6C.20, F6C.21).
 
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 

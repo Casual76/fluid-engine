@@ -4059,6 +4059,14 @@ sfumatura di quella sopra.
 
 ---
 
+### Prima del push finale in `main`: la repo pulita (Alessio, 23 novembre 2026)
+
+Il ramo porta un diff di +7,28 milioni di righe: 7,01 milioni sono le tracce del banco (`tools/glassbench/traces/`,
+~232 MB di JSON che si rigenerano dai test), e il codice vero, test compresi, è ~250 mila righe. Alla fine di F6, prima
+di unire in `main`, un pacchetto di pulizia toglie da git ciò che si rigenera (tenendolo in locale o compresso con un
+manifesto SHA), lascia ciò che serve ai test (golden, file di prova) e scrive le regole in `.gitignore`. L'unione in
+`main` si fa schiacciata, così la sua storia non si porta i 300 MB del ramo; prima si chiede ad Alessio.
+
 ### F7 · Ottimizzazione
 
 **Le indicazioni di Alessio, 23 novembre 2026** (prima di cominciare F7):

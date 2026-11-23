@@ -163,6 +163,9 @@ internal data class Paper(
 
 internal data class Section(val paper: Paper, val blocks: List<Block>)
 
+/** La sezione del pannello info con le note del relatore di una presentazione («Slide 3»: il testo). */
+internal const val SpeakerNotesSection = "Note del relatore"
+
 internal class OfficeInfo {
   val details = mutableListOf<FluidViewerDetail>()
   val fonts = linkedSetOf<String>()

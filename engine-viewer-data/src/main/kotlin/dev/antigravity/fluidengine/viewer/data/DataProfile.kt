@@ -21,6 +21,13 @@ internal object DataProfile {
   /** Sotto questo numero di nodi si aprono da soli anche i figli della radice. A occhio. */
   const val ExpandSmallTree: Int = 600
 
+  /**
+   * F6C.19 · «Espandi tutto» apre i contenitori finché le righe in vista restano sotto questo tetto (a occhio, 23
+   * novembre 2026): un albero di 150.000 nodi non diventa una lista che non finisce più. Oltre, restano chiusi i più
+   * profondi, e «Mostra altri» resta dov'era.
+   */
+  const val ExpandAllRows: Int = 5_000
+
   /** I byte letti al più da un testo intero (Markdown, HTML, mail, calendario, contatti, plist binario): 16 MiB. */
   const val MaxTextBytes: Int = 16 * 1024 * 1024
 

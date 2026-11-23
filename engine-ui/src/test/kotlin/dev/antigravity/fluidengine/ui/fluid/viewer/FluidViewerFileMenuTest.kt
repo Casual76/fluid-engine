@@ -70,6 +70,26 @@ class FluidViewerFileMenuTest {
     assertTrue(viewerFileMenuEntries(null, emptyList(), null, null, emptySet(), strings).isEmpty())
   }
 
+  @Test fun `Vai alla cella legge i riferimenti dei fogli di calcolo`() {
+    assertEquals(0 to 0, fluidCellReference("A1"))
+    assertEquals(1 to 11, fluidCellReference(" b12 "))
+    assertEquals(26 to 2, fluidCellReference("AA3"))
+    assertEquals(2 to 6, fluidCellReference("\$C\$7"))
+    assertEquals(null, fluidCellReference("12B"))
+    assertEquals(null, fluidCellReference("A0"))
+    assertEquals(null, fluidCellReference(""))
+    assertEquals(null, fluidCellReference("Riga 4"))
+  }
+
+  @Test fun `il timer finisce col brano, anche quando il brano ricomincia, ma non con un salto indietro`() {
+    assertTrue(ViewerAudioMenu.endOfTrack(221_000, 221_700, 222_000))
+    assertTrue("ripete: dalla fine all'inizio", ViewerAudioMenu.endOfTrack(221_000, 300, 222_000))
+    assertTrue("un salto indietro di 15 s non è la fine", !ViewerAudioMenu.endOfTrack(100_000, 85_000, 222_000))
+    assertTrue("a metà no", !ViewerAudioMenu.endOfTrack(84_000, 84_500, 222_000))
+    assertTrue("senza durata no", !ViewerAudioMenu.endOfTrack(84_000, 84_500, null))
+    assertEquals(listOf(.75f, 1f, 1.25f, 1.5f, 2f), ViewerAudioMenu.Speeds)
+  }
+
   @Test fun `il nome per la coda di stampa finisce con pdf`() {
     assertEquals("Quaderno di campo.pdf", viewerPrintFileName("Quaderno di campo"))
     assertEquals("relazione.PDF", viewerPrintFileName("relazione.PDF"))

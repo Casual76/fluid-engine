@@ -70,14 +70,14 @@ class FluidMediaPagesPresetUiTest {
     val player = Session()
     compose.setContent { Viewer(FluidViewerContent.Media(player, artwork = { Box(Modifier.size(80.dp).testTag("onda")) })) }
     compose.onNodeWithTag("onda").assertIsDisplayed()
-    compose.onNodeWithContentDescription("Indietro di 10 secondi").performClick()
-    compose.onNodeWithContentDescription("Avanti di 10 secondi").performClick()
-    assertEquals(listOf(0L, 10_000L), player.seeks)
+    compose.onNodeWithContentDescription("Indietro di 15 secondi").performClick()
+    compose.onNodeWithContentDescription("Avanti di 15 secondi").performClick()
+    assertEquals(listOf(0L, 15_000L), player.seeks)
     compose.runOnIdle { player.durationMillis = null }
     val timeline = compose.onNodeWithContentDescription("Posizione di riproduzione")
     timeline.assertIsNotEnabled().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
-      "0:10 di Durata sconosciuta"))
-    compose.onNodeWithContentDescription("Avanti di 10 secondi").assertDoesNotExist()
+      "0:15 di Durata sconosciuta"))
+    compose.onNodeWithContentDescription("Avanti di 15 secondi").assertDoesNotExist()
     compose.runOnIdle { player.error = "File illeggibile" }
     compose.onNodeWithText("File illeggibile").assertIsDisplayed()
     compose.onNodeWithContentDescription("Riproduci").assertIsNotEnabled()

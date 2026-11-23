@@ -140,6 +140,8 @@ internal fun BoxScope.ViewerChrome(
   file: FluidViewerContent? = null, info: FluidViewerInfo? = null,
   /** F6C.19 · Le azioni del file della pagina e la stampa del visore: il menu che nasce dal nome. */
   fileActions: FluidViewerFileActions? = null, print: (() -> Unit)? = null,
+  /** F6C.19 · «Nascondi controlli» nel «•••» di una pagina che non ha azioni del tipo. */
+  onHideControls: (() -> Unit)? = null,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -219,20 +221,28 @@ internal fun BoxScope.ViewerChrome(
         val archiveSearch = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
           isArchive && it.id == CustomPresetButton.Find
         }
-        val archiveMenu = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
-          isArchive && it.icon == FluidIcons.MoreHoriz && it.menu != null
+        // F6C.19: il «•••» della pagina, con le azioni del suo tipo (`viewerTypeActions`, o un «•••» con menu come quello
+        // dell'archivio di prima).
+        val typeEntry = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
+          it.id == ViewerTypeActionsId || it.icon == FluidIcons.MoreHoriz && it.menu != null
         }
-        menu = fileMenu(viewerEntryLabels(page.entries.filter { it.declaresBottomAction(false) && it !== archiveMenu }) +
+        menu = fileMenu(viewerEntryLabels(page.entries.filter { it.declaresBottomAction(false) && it !== typeEntry }) +
           listOfNotNull(share?.label))
         // «•••» tiene solo le azioni del tipo: quelle del file stanno nel titolo, senza doppioni.
-        val typeMenu = archiveMenu?.withoutMenuLabels(menu?.mapTo(HashSet()) { it.label }.orEmpty())
+        val typeMenu = typeEntry?.withoutMenuLabels(menu?.mapTo(HashSet()) { it.label }.orEmpty())
         entries += app.entries.filterNot { it === share }
         entries += page.entries.filter { !it.declaresBottomAction(false) }
         group(ViewerButton.BoardDock, placement = FluidToolbarPlacement.BottomBar) {
           if (isText) flexibleSpacer()
           else if (onInfo != null) {
             if (typeMenu != null) entries += typeMenu
-            else if (menu == null) action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
+            // Scelta di Alessio del 23 novembre: «•••» c'è sempre. Una pagina senza azioni del tipo ha la sola che vale
+            // per ogni pagina, «Nascondi controlli» (il tocco sul file, per chi non lo conosce e per TalkBack).
+            else if (menu != null) {
+              if (onHideControls != null) action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
+                listOf(FluidContextAction(strings.hideControls, onClick = onHideControls))
+              }
+            } else action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
               info?.actions.orEmpty().filterNot { it.label == strings.share && share != null }
                 .map { item ->
                   FluidContextAction(item.label) {
@@ -244,7 +254,7 @@ internal fun BoxScope.ViewerChrome(
             }
             flexibleSpacer()
           }
-          entries += page.entries.filter { it.declaresBottomAction(false) && it !== archiveSearch && it !== archiveMenu }
+          entries += page.entries.filter { it.declaresBottomAction(false) && it !== archiveSearch && it !== typeEntry }
             .map { it.withViewerLabels(faceWidth, faceStyle) }
           if (isText) {
             if (share != null) group(ViewerButton.TextShare) { entries += share }
@@ -353,8 +363,8 @@ private fun viewerEntryLabels(entries: List<FluidToolbarEntry>): Set<String> = b
  */
 private fun FluidToolbarButtonEntry.withoutMenuLabels(labels: Set<String>): FluidToolbarButtonEntry? {
   val original = menu ?: return this
-  if (labels.isEmpty()) return this
   if (original().none { it.label !in labels }) return null
+  if (labels.isEmpty()) return this
   return FluidToolbarButtonEntry(id, role, placement, priority, icon = icon, text = text, label = label, onClick = onClick,
     tint = tint, selected = selected, enabled = enabled, badgeCount = badgeCount, badgeDot = badgeDot,
     sharedBackground = sharedBackground, destructive = destructive, width = width, custom = custom,

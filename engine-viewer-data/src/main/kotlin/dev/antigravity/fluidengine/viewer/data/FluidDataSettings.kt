@@ -72,4 +72,8 @@ data class FluidDataStrings(
   val protectedTitle: String = "Protetto da DRM",
   val openWith: String = "Apri con…",
   val share: String = "Condividi",
+  /** F6C.19 · Le azioni del tipo dell'albero in «•••». */
+  val more: String = "Altro",
+  val expandAll: String = "Espandi tutto",
+  val collapseAll: String = "Comprimi tutto",
 )

@@ -23,6 +23,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,16 +60,47 @@ data class FluidMediaPresetStrings(
   val play: String = "Riproduci",
   val pause: String = "Pausa",
   val position: String = "Posizione di riproduzione",
-  val skipBack: String = "Indietro di 10 secondi",
-  val skipForward: String = "Avanti di 10 secondi",
+  val skipBack: String = "Indietro di 15 secondi",
+  val skipForward: String = "Avanti di 15 secondi",
   val unknownDuration: String = "Durata sconosciuta",
   val time: (elapsed: String, total: String) -> String = { elapsed, total -> "$elapsed di $total" },
-  val skipSeconds: Int = 10,
+  /** 15 s come AVKit e la tavola «D · Mix» (F6C.19, 23 novembre 2026). */
+  val skipSeconds: Int = 15,
   val chapters: String = "Capitoli",
   val currentChapter: (Int, Int) -> String = { index, count -> "Capitolo $index di $count" },
   val speed: String = "Velocità",
   val output: String = "Uscita audio",
+  /** F6C.19 · Le azioni del tipo in «•••»: la velocità e il timer di spegnimento. */
+  val more: String = "Altro",
+  val sleepTimer: String = "Timer di spegnimento",
+  val sleepOff: String = "Spento",
+  val sleepMinutes: (minutes: Int) -> String = { if (it == 60) "1 ora" else "$it minuti" },
+  val sleepEndOfTrack: String = "Fine del brano",
 )
+
+/**
+ * F6C.19 · Le scelte del «•••» dell'audio. Le velocità sono quelle del tasto «1×» del lettore, in ordine. Il timer è
+ * quello di Podcast di iOS (5, 10, 15, 30, 45 minuti, 1 ora, fine dell'episodio), ridotto a quattro durate a occhio
+ * (23 novembre 2026). Il timer vive con la pagina: lasciando il visore si spegne.
+ */
+internal object ViewerAudioMenu {
+  val Speeds = listOf(.75f, 1f, 1.25f, 1.5f, 2f)
+  val SleepMinutes = listOf(5, 15, 30, 60)
+  const val SleepOff = 0
+  const val SleepEndOfTrack = -1
+
+  /** Quanto prima della fine il brano si considera finito: il player si ferma o ricomincia prima dell'ultimo ms. */
+  const val EndSlackMillis = 400L
+
+  /** Un brano che ricomincia (ripetizione): era a meno di 2 s dalla fine e torna nei primi 2 s. */
+  const val WrapMillis = 2_000L
+
+  /** Se il brano è finito (o è ricominciato da capo) passando da [last] a [position]. Pura. */
+  fun endOfTrack(last: Long, position: Long, duration: Long?): Boolean {
+    if (duration == null || duration <= 0) return false
+    return position >= duration - EndSlackMillis || last >= duration - WrapMillis && position < WrapMillis && position < last
+  }
+}
 
 /**
  * Video or audio controls for the [FluidFileViewer] renderer slot. Pass its `chromeVisible` unchanged so a tap
@@ -175,11 +207,63 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
   val more = LocalFluidLabels.current.more
   var actionFailed by remember(content.session) { mutableStateOf(false) }
   var showingChapters by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-  if (chapters.isNotEmpty()) {
-    ViewerPresetToolbar {
-      button("viewer.audio.chapters", FluidIcons.FormatListBulleted, strings.chapters, { showingChapters = true },
-        placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar)
+  // F6C.19: il timer di spegnimento, come in Musica e Podcast: pausa dopo il tempo scelto, o alla fine del brano.
+  var sleepMinutes by androidx.compose.runtime.saveable.rememberSaveable(session) { mutableIntStateOf(ViewerAudioMenu.SleepOff) }
+  var sleepAt by androidx.compose.runtime.saveable.rememberSaveable(session) { mutableLongStateOf(0L) }
+  LaunchedEffect(session, sleepMinutes, sleepAt) {
+    when {
+      sleepMinutes > 0 -> {
+        kotlinx.coroutines.delay((sleepAt - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L))
+        session.pause()
+        sleepMinutes = ViewerAudioMenu.SleepOff
+      }
+      sleepMinutes == ViewerAudioMenu.SleepEndOfTrack -> {
+        var last = session.positionMillis
+        snapshotFlow { session.positionMillis to session.durationMillis }.first { (position, total) ->
+          ViewerAudioMenu.endOfTrack(last, position, total).also { last = position }
+        }
+        session.pause()
+        sleepMinutes = ViewerAudioMenu.SleepOff
+      }
     }
+  }
+  val rate: (Float) -> String = { java.text.NumberFormat.getNumberInstance().format(it) + "×" }
+  val speedControl = (session as? FluidAudioSpeed)?.takeIf { it.canChangePlaybackSpeed }
+  // F6C.19: le azioni del tipo in «•••» (Musica e Podcast di iOS 26): la velocità e il timer di spegnimento.
+  ViewerPresetToolbar {
+    if (chapters.isNotEmpty()) button("viewer.audio.chapters", FluidIcons.FormatListBulleted, strings.chapters,
+      { showingChapters = true }, placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar)
+    viewerTypeActions(strings.more) {
+      buildList {
+        speedControl?.let { control ->
+          add(FluidContextAction(strings.speed, subtitle = rate(control.playbackSpeed), onClick = {},
+            children = ViewerAudioMenu.Speeds.map { value ->
+              FluidContextAction(rate(value), selected = value == control.playbackSpeed) { control.changePlaybackSpeed(value) }
+            }))
+        }
+        val timerLabel = when (sleepMinutes) {
+          ViewerAudioMenu.SleepOff -> strings.sleepOff
+          ViewerAudioMenu.SleepEndOfTrack -> strings.sleepEndOfTrack
+          else -> strings.sleepMinutes(sleepMinutes)
+        }
+        add(FluidContextAction(strings.sleepTimer, subtitle = timerLabel, onClick = {}, children = buildList {
+          add(FluidContextAction(strings.sleepOff, selected = sleepMinutes == ViewerAudioMenu.SleepOff) {
+            sleepMinutes = ViewerAudioMenu.SleepOff
+          })
+          ViewerAudioMenu.SleepMinutes.forEach { minutes ->
+            add(FluidContextAction(strings.sleepMinutes(minutes), selected = sleepMinutes == minutes) {
+              sleepAt = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+              sleepMinutes = minutes
+            })
+          }
+          add(FluidContextAction(strings.sleepEndOfTrack, selected = sleepMinutes == ViewerAudioMenu.SleepEndOfTrack) {
+            sleepMinutes = ViewerAudioMenu.SleepEndOfTrack
+          })
+        }))
+      }
+    }
+  }
+  if (chapters.isNotEmpty()) {
     FluidGlassSheet(showingChapters, { showingChapters = false }, paneTitle = strings.chapters,
       detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {
       Column(Modifier.verticalScroll(rememberScrollState()).padding(FluidScreenDefaults.HorizontalPadding)) {

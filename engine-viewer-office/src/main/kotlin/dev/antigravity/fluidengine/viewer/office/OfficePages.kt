@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageNotes
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageSource
 import kotlin.math.*
 import kotlinx.coroutines.*
@@ -200,8 +201,16 @@ internal fun drawOfficePage(page: OfficePage, target: IntSize): Bitmap {
 }
 
 internal class OfficePages(private val worker: CoroutineScope) :
-  FluidPageSource, java.io.Closeable {
+  FluidPageSource, FluidPageNotes, java.io.Closeable {
   private val pages = ArrayList<OfficePage>()
+
+  /** F6C.19 · Le note del relatore delle slide (PPTX e ODP), per «Note del relatore» in «•••» del visore. */
+  @Volatile var speakerNotes: Map<Int, String> = emptyMap()
+
+  override fun notes(index: Int): String? = speakerNotes[index]
+
+  override val hasNotes: Boolean
+    get() = speakerNotes.isNotEmpty()
   private val first = CompletableDeferred<Unit>()
   override var count by mutableIntStateOf(0)
     private set

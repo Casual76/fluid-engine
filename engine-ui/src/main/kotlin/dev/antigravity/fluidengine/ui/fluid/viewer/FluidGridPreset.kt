@@ -68,6 +68,14 @@ data class FluidGridPresetStrings(
   val zoomIn: String = "Ingrandisci",
   val zoomOut: String = "Riduci",
   val zoom: (percent: Int) -> String = { "Zoom $it%" },
+  /** F6C.19 · Le azioni del tipo in «•••»: vai a una cella, torna alle dimensioni reali. */
+  val more: String = "Altro",
+  val goToCell: String = "Vai alla cella…",
+  val cell: String = "Cella",
+  val cellHint: String = "Per esempio B12",
+  val go: String = "Vai",
+  val cancel: String = "Annulla",
+  val actualSize: String = "Dimensioni reali",
 )
 
 /**
@@ -198,8 +206,17 @@ private fun GridSheet(
   val tabsInDock = hasBoardTitle && tabs && density.fontScale < 1.5f && with(density) {
     tabWidths.sumOf { it.value.toDouble() } + 136.0 <= viewport.width.toDp().value
   }
-  if (tabsInDock) ViewerPresetToolbar {
-    group("viewer.grid.tabs", placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar) {
+  // F6C.19: le azioni del tipo in «•••»: «Vai alla cella…» (come il riquadro dei nomi di Numbers ed Excel) e, da
+  // ingranditi, «Dimensioni reali». La cella scelta va in cima a sinistra dell'area che scorre.
+  var goingTo by rememberSaveable { mutableStateOf(false) }
+  ViewerPresetToolbar {
+    viewerTypeActions(strings.more) {
+      buildList {
+        add(FluidContextAction(strings.goToCell) { goingTo = true })
+        if (scale != 1f) add(FluidContextAction(strings.actualSize) { zoomTo(1f) })
+      }
+    }
+    if (tabsInDock) group("viewer.grid.tabs", placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar) {
       sheets.forEachIndexed { i, other ->
         entries += dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarButtonEntry(
           id = "viewer.grid.tab.$i", role = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole.Action,
@@ -216,6 +233,13 @@ private fun GridSheet(
       }
     }
   }
+  ViewerGoToAlert(goingTo, strings.goToCell, strings.cell, strings.cellHint, numeric = false,
+    parse = { text -> fluidCellReference(text)?.takeIf { (column, row) -> column < sheet.columnCount && row < sheet.rowCount } },
+    onGo = { (column, row) ->
+      list.requestScrollToItem((row - frozenRows).coerceAtLeast(0))
+      offsetX = if (column < frozenColumns) 0f
+        else ((fileColumns.start(column) - fileColumns.start(frozenColumns)) * px).coerceIn(0f, maxOffset)
+    }, onDismiss = { goingTo = false }, go = strings.go, cancel = strings.cancel)
   // F6C.15b, come Numbers: le schede stanno sopra la capsula in basso, dove la capsula è davvero (con una tab bar
   // nell'app sale con il suo inset), e le righe scorrono fino a stare tutte sopra le schede. Il margine in fondo è
   // l'altezza misurata delle schede (due righe di testo a scala 2,0) più il loro spazio sopra e sotto.

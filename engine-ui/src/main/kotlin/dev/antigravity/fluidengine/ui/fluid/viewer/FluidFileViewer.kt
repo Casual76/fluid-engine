@@ -333,7 +333,7 @@ fun FluidFileViewer(
         select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,
           preset = presetBar.of(index), width = maxWidth, fileName = suppliedInfo?.file?.name,
           documentRoute = documentRoute, file = file, info = suppliedInfo, fileActions = pageActions[index],
-          print = printFor(index))
+          print = printFor(index), onHideControls = { chromeVisible = false })
       }
       if (file != null) ViewerInfo(infoOpen, wideInspector, backdrop, strings, { infoOpen = false }) {
         ViewerInfoBody(suppliedInfo ?: defaultViewerInfo(file, strings), backdrop, strings, { infoOpen = false }) {

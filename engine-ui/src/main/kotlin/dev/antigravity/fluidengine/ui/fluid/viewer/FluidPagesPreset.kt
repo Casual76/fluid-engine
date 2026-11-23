@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.Description
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
@@ -72,6 +74,20 @@ data class FluidPagesPresetStrings(
   val searchError: String = "Impossibile cercare nel documento",
   val present: String = "Presenta",
   val endPresentation: String = "Chiudi presentazione",
+  /** F6C.19 · Le azioni del tipo in «•••»: vai a una pagina o a una slide, le miniature, le note, lo zoom. */
+  val more: String = "Altro",
+  val goToPage: String = "Vai a pagina…",
+  val goToSlide: String = "Vai alla slide…",
+  val pageNumber: String = "Numero di pagina",
+  val slideNumber: String = "Numero della slide",
+  val range: (count: Int) -> String = { "Da 1 a $it" },
+  val go: String = "Vai",
+  val cancel: String = "Annulla",
+  val pageThumbnails: String = "Miniature",
+  val speakerNotes: String = "Note del relatore",
+  val slideNotes: (current: Int, count: Int) -> String = { current, count -> "Slide $current di $count" },
+  val noNotes: String = "Nessuna nota per questa slide",
+  val fitWidth: String = "Adatta alla larghezza",
 )
 
 /**
@@ -124,14 +140,6 @@ fun FluidPagesPreset(
       }
     }
     val match = hits.getOrNull(cursor)
-    if (searchPages != null || slides) ViewerPresetToolbar {
-      if (finding) search(FluidSearchSpec.findInPage(query, { query = it }, FluidSearchNavigation(cursor, hits.size,
-        { if (hits.isNotEmpty()) cursor = (cursor + hits.size - 1) % hits.size },
-        { if (hits.isNotEmpty()) cursor = (cursor + 1) % hits.size }), true, { finding = it }))
-      if (slides) button("viewer.document.present", FluidIcons.PlayArrow, strings.present, { presenting = true },
-        placement = FluidToolbarPlacement.BottomBar)
-      else button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true }, placement = FluidToolbarPlacement.BottomBar)
-    }
     if (finding && active) FluidSelectionBackEffect(enabled = true) { finding = false }
     var scale by rememberSaveable { mutableFloatStateOf(FluidZoom.MinScale) }
     var thumbnails by rememberSaveable { mutableStateOf(false) }
@@ -151,6 +159,33 @@ fun FluidPagesPreset(
       }
     }
     val currentZoomTo by rememberUpdatedState(zoomTo)
+    // F6C.19: le azioni del tipo in «•••» (Anteprima e Keynote di iOS 26): vai a una pagina o a una slide, le miniature,
+    // le note del relatore se la sorgente le conosce (`FluidPageNotes`), e da ingranditi «Adatta alla larghezza».
+    var goingTo by rememberSaveable { mutableStateOf(false) }
+    var showingNotes by rememberSaveable { mutableStateOf(false) }
+    val notes = source as? FluidPageNotes
+    ViewerPresetToolbar {
+      if (searchPages != null && finding) search(FluidSearchSpec.findInPage(query, { query = it },
+        FluidSearchNavigation(cursor, hits.size,
+          { if (hits.isNotEmpty()) cursor = (cursor + hits.size - 1) % hits.size },
+          { if (hits.isNotEmpty()) cursor = (cursor + 1) % hits.size }), true, { finding = it }))
+      if (slides) button("viewer.document.present", FluidIcons.PlayArrow, strings.present, { presenting = true },
+        placement = FluidToolbarPlacement.BottomBar)
+      else if (searchPages != null) button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true },
+        placement = FluidToolbarPlacement.BottomBar)
+      viewerTypeActions(strings.more) {
+        buildList {
+          add(FluidContextAction(if (slides) strings.goToSlide else strings.goToPage) { goingTo = true })
+          add(FluidContextAction(strings.pageThumbnails, icon = FluidIcons.GridView) { thumbnails = true })
+          if (slides && notes?.hasNotes == true) add(FluidContextAction(strings.speakerNotes, icon = FluidIcons.Description) {
+            showingNotes = true
+          })
+          if (FluidZoom.isZoomed(scale)) add(FluidContextAction(strings.fitWidth, startsSection = true) {
+            zoomTo(FluidZoom.MinScale)
+          })
+        }
+      }
+    }
     val transform = rememberTransformableState { zoom, _, _ -> currentZoomTo(scale * zoom) }
     val preview by remember { derivedStateOf { scrolling || transform.isTransformInProgress } }
     val current by remember(pages, count) {
@@ -225,6 +260,25 @@ fun FluidPagesPreset(
           }
         }
         if (presenting) ViewerSlideShow(cache, count, current, strings) { presenting = false }
+        ViewerGoToAlert(goingTo, if (slides) strings.goToSlide else strings.goToPage,
+          if (slides) strings.slideNumber else strings.pageNumber, strings.range(count), numeric = true,
+          parse = { text -> text.trim().toIntOrNull()?.takeIf { it in 1..count } },
+          onGo = { number ->
+            pages.requestScrollToItem(number - 1)
+            selectedPage = number - 1
+          }, onDismiss = { goingTo = false }, go = strings.go, cancel = strings.cancel)
+        if (notes != null) FluidGlassSheet(visible = showingNotes, onDismissRequest = { showingNotes = false },
+          paneTitle = strings.speakerNotes, detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {
+          Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(FluidScreenDefaults.HorizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(strings.speakerNotes, Modifier.semantics { heading() },
+              style = MaterialTheme.typography.titleLarge.viewerSize(18f, FontWeight.Bold))
+            Text(strings.slideNotes(current + 1, count), color = MaterialTheme.colorScheme.onSurfaceVariant,
+              style = MaterialTheme.typography.bodySmall.viewerSize(13.5f))
+            Text(notes.notes(current)?.takeIf(String::isNotBlank) ?: strings.noNotes,
+              style = MaterialTheme.typography.bodyLarge.viewerSize(16f))
+          }
+        }
         if (searchFailed) Text(strings.searchError, Modifier.align(Alignment.Center).semantics { liveRegion = LiveRegionMode.Polite })
         FluidGlassSheet(visible = thumbnails, onDismissRequest = { thumbnails = false }, paneTitle = strings.thumbnails,
           detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {

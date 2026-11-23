@@ -406,7 +406,7 @@ internal class PowerPointReader(
             shapes(notes)
               .filter { it.first("ph")?.get("type") in setOf(null, "body") }
               .flatMap { it.all("t").map(Node::text).toList() }
-          info.add("Slide ${index+1}", lines.joinToString("\n"), "Note del relatore")
+          info.add("Slide ${index+1}", lines.joinToString("\n"), SpeakerNotesSection)
         }
         OfficePage(paper, marks)
       }
@@ -466,7 +466,7 @@ internal fun OdfReader.slides(fonts: OfficeFonts): List<OfficePage> {
         ?.filter { it["class"] == "notes" || it.name == "p" }
         ?.flatMap { if (it.name == "p") listOf(it) else it.all("p").toList() }
         ?.joinToString("\n", transform = ::odfText),
-      "Note del relatore",
+      SpeakerNotesSection,
     )
     OfficePage(paper, marks)
   }

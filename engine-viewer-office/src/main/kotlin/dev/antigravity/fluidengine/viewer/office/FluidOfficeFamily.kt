@@ -133,6 +133,10 @@ class FluidOfficeFamily : FluidViewerFamily {
         val laidOut = sections
         val fixed = slides
         if (fixed != null) info.add("Slide", fixed.size, "Contenuto")
+        // F6C.19: le note del relatore lette con le slide («Slide 3» nella sezione delle note) vanno anche alla sorgente.
+        if (fixed != null) pages.speakerNotes = info.details.filter { it.section == SpeakerNotesSection }
+          .mapNotNull { detail -> detail.label.removePrefix("Slide ").trim().toIntOrNull()?.let { it - 1 to detail.value } }
+          .toMap()
         val paper =
           laidOut?.firstOrNull()?.paper ?: fixed?.firstOrNull()?.paper ?: damaged("Nessuna pagina")
         info.add(

@@ -293,11 +293,17 @@ open class FluidViewerFileMenuUiTest {
     assertEquals(2, more.size)
     assertTrue("nessuna voce doppia: $title / $more", title.intersect(more.toSet()).isEmpty())
     assertFalse("«Estrai tutto» resta nella barra in basso", title.contains("Estrai tutto"))
-    // Un documento e un audio non hanno azioni del tipo oltre a quelle della barra: niente «•••».
-    for (kind in listOf(Kind.Pdf, Kind.Audio, Kind.Unknown)) {
+    // Secondo giro (Alessio, 23 novembre): «•••» c'è sempre sulle pagine della tavola, con le azioni del tipo, e non
+    // ripete il titolo. Lo sconosciuto (la scheda coi suoi tasti) non ha la barra in basso della tavola.
+    for (kind in listOf(Kind.Pdf, Kind.Audio)) {
       switchTo(Scene(kind))
-      assertTrue("$kind: niente «•••»", compose.onAllNodesWithContentDescription("Altro").fetchSemanticsNodes().isEmpty())
+      val typeItems = opened { tap(button("Altro")) }.map { it.text()!! }
+      assertTrue("$kind: «•••» ha le sue voci", typeItems.isNotEmpty())
+      assertTrue("$kind: nessuna voce doppia: $title / $typeItems",
+        typeItems.none { item -> title.any { item == it || item.startsWith("$it ") } })
     }
+    switchTo(Scene(Kind.Unknown))
+    assertTrue("lo sconosciuto non ha «•••»", compose.onAllNodesWithContentDescription("Altro").fetchSemanticsNodes().isEmpty())
   }
 
   @Test fun `n di N resta sotto il nome, e nessun bersaglio della barra ne tocca un altro`() {

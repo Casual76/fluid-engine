@@ -3945,6 +3945,9 @@ decodificatori.
 - **Il peso di Fluid Glass con tutti i visori** (~46 MB la bench): per lo store **solo arm64**. Alessio aveva scelto
   gli APK divisi per architettura; il Pampa Store conosce un solo APK per versione (`apkAsset`), e alle 11 ha scelto
   arm64 (~20 MB stimati). Si fa alla prima pubblicazione con i visori.
+- **Alle 11:30 le pagine vanno bene** («Sì, vanno bene»), sui confronti del secondo giro di F6C.18 accanto alla tavola,
+  con le miniature di F6C.17. Restano la piastra dietro il titolo del pannello info (terzo giro), la freccia accanto al
+  titolo che apre il menu del file (il titolo selettore di F6B.11, dopo l'unione col ramo principale) e le riprese.
 
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 

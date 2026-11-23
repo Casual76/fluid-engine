@@ -3704,6 +3704,10 @@ aggiunto parole sue ha preso l'opzione consigliata):
   sincronizzazione; nei gettoni sul tablet la prima pillola vuota con la scritta fuori posto e la fila sopra
   l'intestazione della lista. Le quattro tracce `composer-*` si riesportano col campo nuovo (F6B.15).
 
+**Scelte di Alessio sulle tavole di F6B.16 (23 novembre 2026, sera).** Il vetro tinto di serie è l'intensità **C**, la
+più piena: è la più vicina al tinto saturo di iOS 26 e resta vetro sopra le foto. L'alone dell'assistente di serie è
+l'**alone 2**, vivido e continuo attorno al campo; la luce larga sulla pagina alla Gemini non serve.
+
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
 ---

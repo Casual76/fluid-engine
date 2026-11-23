@@ -96,6 +96,11 @@ class FluidArchiveFamily @JvmOverloads constructor(
     }
   }
 
+  /** F6C.17 · L'icona d'archivio nello stile della pagina D, con l'estensione ([archiveThumbnail]). */
+  override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int) =
+    if (ArchiveFormat.valueOf(request.type.id) == ArchiveFormat.Zip && request.source.name.hasDedicatedViewerWithoutModule()) null
+    else archiveThumbnail(request, sizePx)
+
   private fun type(format: ArchiveFormat, label: String, extensions: Set<String>, mimeTypes: Set<String>,
     signature: FluidViewerSignature) = FluidViewerFamilyType(format.name, label, extensions, mimeTypes, signature,
     kind = FluidFileKind.Archive)

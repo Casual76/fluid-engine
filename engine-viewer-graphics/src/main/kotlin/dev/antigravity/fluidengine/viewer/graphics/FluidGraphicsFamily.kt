@@ -140,6 +140,8 @@ class FluidGraphicsFamily : FluidViewerFamily {
       }
       "dng", "cr2", "cr3", "nef", "arw" -> CameraRaw(request.source.open().use { it.readGraphic() }, format)
         .preview(limit, edge)?.asImageBitmap()
+      // F6C.17: un carattere mostra «Aa» nel suo disegno, come in File.
+      "ttf", "otf", "ttc", "woff" -> fontThumbnail(request, edge)
       else -> null
     }
   }

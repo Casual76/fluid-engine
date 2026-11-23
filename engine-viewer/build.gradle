@@ -66,6 +66,8 @@ dependencies {
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
   testImplementation "androidx.media3:media3-common:${media3Test}"
+  // F6C.17: le miniature si disegnano con android.graphics, che sulla JVM c'e' solo con Robolectric (grafica nativa).
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
 
   // Solo per :engine-viewer:connectedDebugAndroidTest, mai in un'app: il player vero alla versione dei test.
   androidTestImplementation 'androidx.test:runner:1.7.0'

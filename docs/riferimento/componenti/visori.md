@@ -14,6 +14,7 @@ Il visore a tutto schermo di un file, **che si adatta a ciò che mostra**: foto 
 | aprire una miniatura a tutto schermo, sfogliare, chiudere tornando alla miniatura | `fluidFileViewerRoute(...)` nel `FluidNavHost` + `FluidFileViewer(count, content = …)`; la miniatura ha `Modifier.fluidViewerThumbnail(...)` |
 | aprire file dal disco (PDF, testo, GIF, video) senza scrivere decodificatori | `rememberFluidViewerFiles(files, …)` di `engine-viewer`, e `content = files::content` |
 | aprire anche DOCX, ZIP, Markdown, JSON, HEIC, SVG, font, modelli 3D | aggiungere il modulo della famiglia (o `engine-viewer-all`): si registra da solo e `rememberFluidViewerFiles` lo usa ([`../moduli/viewer-famiglie.md`](../moduli/viewer-famiglie.md)) |
+| la miniatura di un file nella griglia (il contenuto in piccolo, come File di iOS) | `rememberFluidFileThumbnail(file, sizePx)` e `FluidFileThumbnailImage(it)`; fuori da Compose `FluidFileThumbnails.load(context, file, sizePx)` (cache, tempo massimo, tetto di memoria) |
 | mostrare un contenuto che ho già (un painter di Coil, un mio player, un mio lettore) | `FluidViewerContent.Image`, `Media`, `Pages`, `Text`, `Grid`, `Custom`, `Unknown`: il telaio sceglie il preset |
 | un foglio di calcolo o una tabella | `FluidViewerContent.Grid(source)` con un `FluidGridSource` (fogli, righe e colonne bloccate, celle a blocchi) |
 | una pagina mia dentro il visore (un albero, una scheda, un provino) | `FluidViewerContent.Custom(background, find, actions) { … }`: la chrome, «Trova» e lo spazio fra le barre sono del telaio |
@@ -163,6 +164,55 @@ Ogni file si apre dalla sua miniatura (o dall'icona, se la miniatura manca) e la
 - La forma segue la molla di 0,355 s; **la pagina sotto si scurisce** col velo di F6D.1 (il profilo dello zoom dell'host, al massimo 18%); il fondo pieno del visore e la tinta di «D · Mix» arrivano nell'ultimo 12% della corsa; le barre entrano sfocate e sono nitide in 350 ms. L'icona che diventa pagina entra sfocata (R7). Il pannello info aperto durante la chiusura si chiude prima. Nel ritorno la tinta va a zero.
 - **Niente scatti**: il documento tiene la miniatura fino alla prima pagina, al primo blocco di testo o di celle pronto da mostrare. Una superficie che dipinge in modo asincrono dichiara `firstFrameReady = { … }` in coda a `FluidViewerContent.Custom`: una funzione che legge stato osservabile e diventa vera alla prima pittura o a un errore che il contenuto può mostrare (la pagina web la prima pittura, il 3D un fotogramma con le risorse). Senza, vale il primo layout con contenuto.
 - **L'app può preparare il primo fotogramma.** La galleria apre il file scelto e lo aspetta per al più 120 ms prima di navigare (`prepareVisoriFirstContent` del sample); oltre, naviga lo stesso e il documento arriva dopo.
+- **La forma che cresce è la miniatura vera** (F6C.17): la transizione registra la tessera così com'è disegnata, quindi con le miniature di sotto la sagoma cresce mostrando le prime righe, l'albero, la tabella, l'icona d'archivio che c'erano nella tessera, e ci torna. La cache le dà alla prima composizione: tornando dal visore la tessera è già piena.
+
+## Le miniature (F6C.17)
+
+**Ogni file mostra il suo contenuto in miniatura, come in File di iOS** (scelta di Alessio del 23 novembre 2026), e l'apertura parte da lì. Una chiamata, sempre un'immagine:
+
+```kotlin
+// In una griglia: la prima composizione legge la cache, poi la miniatura arriva fuori dal filo principale.
+val sizePx = with(LocalDensity.current) { 180.dp.roundToPx() }      // il lato lungo della tessera
+val thumbnail = rememberFluidFileThumbnail(FluidViewerFile(uri, name, mime, size), sizePx)
+Box(Modifier.size(180.dp, 120.dp).fluidViewerThumbnail(FluidViewerThumbnail(id, ns), shape).clip(shape)
+  .background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+  thumbnail?.let { FluidFileThumbnailImage(it, Modifier.fillMaxSize()) }   // Crop se è una figura, Fit se no
+}
+
+// Fuori da Compose (un worker, un widget): non lancia, al peggio dà l'icona del documento.
+val t: FluidFileThumbnail = FluidFileThumbnails.load(context, file, sizePx = 480, look = FluidThumbnailLook.Dark)
+```
+
+| tipo | miniatura | chi la dà |
+|---|---|---|
+| testo | le prime righe su un foglio bianco, che vanno a capo | `engine-viewer` |
+| codice (con una lingua riconosciuta) | le prime righe a spaziatura fissa coi colori di Xcode, senza a capo | `engine-viewer` |
+| APK | l'icona dell'app, letta dal pacchetto, con l'alone del suo colore; il pacchetto non si apre | `engine-viewer` |
+| foto, video, audio, PDF | la foto ridotta, un fotogramma, la copertina, la prima pagina (le app che hanno già le loro possono tenerle) | `engine-viewer` (solo `FluidFileThumbnails`) |
+| Word, Excel, PowerPoint e gemelli | la miniatura salvata se dice qualcosa, altrimenti la prima pagina, slide o foglio (F6C.15b) | `engine-viewer-office` |
+| Markdown, HTML | resi: titoli, elenchi, codice, tabelle; l'HTML senza rete né script (`Html.fromHtml`), senza immagini | `engine-viewer-data` |
+| CSV, TSV | un pezzo di tabella su un foglio orizzontale: intestazione, griglia, numeri a destra | `engine-viewer-data` |
+| JSON | un pezzo dell'albero coi punti colorati dei tipi, come la pagina | `engine-viewer-data` |
+| XML, plist, NDJSON | il testo coi colori; un plist binario come albero | `engine-viewer-data` |
+| EML | mittente con le iniziali, data, oggetto, l'inizio del corpo | `engine-viewer-data` |
+| ICS, VCF | la tessera della data del primo evento; la foto del primo contatto o le sue iniziali (con «+N») | `engine-viewer-data` |
+| EPUB | la copertina; senza, una copertina col titolo e l'autore | `engine-viewer-data` |
+| font | «Aa» nel carattere, l'alfabeto e il nome della famiglia | `engine-viewer-graphics` |
+| HEIC, AVIF, RAW, TIFF, PSD, SVG | l'immagine | `engine-viewer-graphics` |
+| GLB, OBJ, STL | **il modello disegnato** a tre quarti con l'ombra a terra; disegnato dal modulo sulla CPU, non da Filament (ripiego dichiarato: niente texture); glTF con file esterni e USDZ hanno il simbolo del 3D | `engine-viewer-3d` |
+| archivi | l'icona d'archivio nello stile della pagina D (la tessera con la tinta leggera, la cartella con la cerniera, l'estensione): mai una tessera grigia | `engine-viewer-archive` |
+| uno sconosciuto, un file rotto, un tipo senza il suo modulo | l'icona del documento con l'angolo piegato e l'estensione, come File | `engine-viewer` |
+
+**Come lavora `FluidFileThumbnails.load`.**
+- L'ordine è quello del registro: la famiglia che apre il file (`FluidViewerFamily.thumbnail`), poi i tipi di serie, poi l'icona del documento. Un eseguibile non arriva mai a una famiglia: di un APK si legge solo l'icona.
+- **Fuori dal filo principale**: legge e disegna su `Dispatchers.IO`, al più `Parallelism` (3) file insieme.
+- **Tempo massimo** `DefaultTimeoutMillis` (2,5 s): oltre, torna subito con l'icona del documento e annulla il lavoro; il file si riprova dopo `RetryAfterTimeoutMillis` (30 s).
+- **Cache** in memoria con un tetto in byte, `memoryLimitBytes` (un ottavo della memoria dell'app, al più 48 MB): le meno usate escono per prime. La chiave è il file (`Uri`, nome, MIME, dimensione), il lato arrotondato a 32 px, i colori (`FluidThumbnailLook`) e i moduli presenti; due richieste uguali fanno un lavoro solo. `cached(file, sizePx)` legge senza lavorare, `evict(file)` toglie un file che è cambiato, `clear()` svuota.
+- `FluidFileThumbnail` dice come sta nella tessera: `fillsFrame` (foto, fotogramma, modello: `ContentScale.Crop`) o no (foglio e simbolo: `Fit`), e `isPlaceholder` quando l'immagine dice solo il tipo.
+- **I colori**: la carta dei documenti è bianca nei due temi, come Quick Look. I simboli (archivio, audio senza copertina, 3D che non si legge) prendono l'accento, il terziario e la superficie dal `FluidThumbnailLook`: `rememberFluidThumbnailLook()` li legge dal `MaterialTheme`.
+- `FluidViewerRegistry.thumbnail(context, source, sizePx)` resta per chi ha già una sorgente: dà solo il contenuto (famiglie, testo, codice, APK), senza cache, e `null` per le foto, i PDF e i tipi senza contenuto.
+
+**Per chi scrive un modulo di famiglia.** `FluidViewerFamily.thumbnail(request, sizePx)` restituisce un `ImageBitmap`; gli attrezzi di `FluidThumbnailPainter` danno la grammatica comune: `page` (il foglio, con i margini e l'unità del testo), `codePage`, `linesPage`, `prosePage`, `symbol`, `kindSymbol`, `documentIcon`, `picture`, `syntaxColor`. Un'immagine fatta con loro porta con sé come sta nella tessera; i colori dell'app arrivano col contesto (`FluidThumbnailLook.current()`), senza cambiare la firma. Un `null` o un'eccezione passano al candidato dopo.
 
 ## Cosa fa l'engine, cosa i moduli, cosa l'app
 
@@ -250,7 +300,8 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 - **Un file per tipo di ogni famiglia**, ordinati per famiglia, ognuno aperto dalla sua miniatura e col pannello della sua famiglia:
   - **di serie** (`engine-viewer`): due foto, una WebP animata, un video e un audio con ExoPlayer, un PDF di sei pagine, un testo, un file Kotlin, un `.blend` sconosciuto e un `.apk`, con lo strumento «Ritaglia», l'interruttore «Riprendi al ritorno», il collegamento `fluidglass://visori/file/7` e il ripristino;
   - **Office**: DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF; **archivi**: ZIP, 7z, RAR, TAR, TGZ, GZ; **dati**: Markdown, HTML, CSV, TSV, JSON, NDJSON, XML, plist, EPUB, EML, ICS, VCF; **immagini speciali e caratteri**: HEIC, AVIF, DNG, TIFF, PSD, SVG, TTF, TTF variabile, OTF, TTC, WOFF; **3D**: GLB, OBJ, STL. Sono i corpi di prova dei moduli (F6C.11–F6C.14), copiati byte per byte in `sample/src/main/assets/visori/`.
-- **«Senza moduli»**: gli stessi file come li apre un'app con il solo `engine-viewer`. I tipi che il modulo di serie conosce (il testo, il Markdown come codice, l'HEIC col decoder di Android) si aprono; gli altri sono sconosciuti con «Apri con…» e «Condividi», mai un vicolo cieco. La scena toglie le famiglie dal registro (`FluidViewerRegistry.uninstall`) finché è aperta e le rimette uscendo.
+- **Le tessere mostrano le miniature vere** (F6C.17): le foto, il video, l'audio e il PDF la copertina dell'app; tutto il resto `rememberFluidFileThumbnail`. Niente più tessere grigie con la sigla.
+- **«Senza moduli»**: gli stessi file come li apre un'app con il solo `engine-viewer`. I tipi che il modulo di serie conosce (il testo, il Markdown come codice, l'HEIC col decoder di Android) si aprono; gli altri sono sconosciuti con «Apri con…» e «Condividi», mai un vicolo cieco. Ogni riga ha la sua miniatura: testo e codice le loro prime righe, i tipi delle famiglie l'icona del documento con l'estensione. La scena toglie le famiglie dal registro (`FluidViewerRegistry.uninstall`) finché è aperta e le rimette uscendo.
 - **«Pesi»**: il peso di ogni modulo per architettura, con le licenze, letto da `engine-viewer/families.json` (il build lo copia negli asset).
 - **«Universal Converter»**, in sola lettura con `engine-viewer-all`: i tipi delle prove di quell'app (PNG, JPEG, GIF, SVG, Markdown, HTML, XML, JSON, testo UTF-16, DOCX, PDF, MP3, WAV, MP4, ZIP, OBJ, un `.wld`, il file vuoto, il file sparito), ognuno col suo preset al posto del dump esadecimale; il dump resta a richiesta per lo sconosciuto.
 - La galleria include `engine-viewer-all` **senza `engine-viewer-ar`**: l'AR chiede la fotocamera, e Fluid Glass è un'app pubblicata che non la chiede (lo controlla `checkArViewerManifests`). Il tasto «AR» si prova nell'APK di prova del modulo.
@@ -277,6 +328,8 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 - `FluidViewerMixUiTest`, `FluidViewerReadingMatrixTest`, `FluidViewerInfoContrastUiTest` (sample): i preset di «D · Mix», la tinta solo dove va, il pannello a Medium, Large e laterale, il contrasto di titolo e capsule.
 - `FluidDocumentJourneyUiTest` (sample) e `F6cDocumentViewerTraceTest` (engine-ui): l'apertura dalla miniatura per ogni tipo e il ritorno, a 360 e 412 dp.
 - `VisoriGalleryTest` (sample): ogni tipo di serie si apre col suo preset; **ogni file di ogni famiglia si apre dalla sua miniatura col suo modulo**; il video si ferma quando lo si sfoglia via e riprende come sceglie l'app; lo strumento prende la barra; lo sconosciuto non è mai un vicolo cieco; **«Senza moduli» non è mai un vicolo cieco** e rimette le famiglie uscendo; **la pagina «Pesi» legge `families.json`**; la rotta col collegamento e il ripristino; **i tipi di Universal Converter col loro preset**.
+- `FluidFileThumbnailsTest` (engine-viewer, Robolectric): testo e codice disegnati, l'icona del documento per lo sconosciuto e l'APK illeggibile, la cache (stessa istanza, richiesta doppia, altri colori, senza moduli), il tetto di memoria, il tempo massimo con un decodificatore che si blocca, il file sparito e la famiglia che cade.
+- `VisoriMiniatureTest` (sample, Robolectric): **ogni file del corpo di prova ha una miniatura non vuota e non uniforme**, in chiaro e in scuro, e i tipi con un contenuto lo mostrano; «Senza moduli» testo e codice hanno la loro e gli altri l'icona; **l'apertura dalla miniatura di un JSON e di un archivio parte dall'immagine vera e ci torna** (i fotogrammi in `sample/build/visori-apertura`). `VisoriTavolaTest`: le schermate della galleria nel formato del telefono, per la tavola prima e dopo.
 - `F6cViewerTraceTest` e le tracce `tools/glassbench/traces/f6c/` (`visore-apre`, `visore-barre-tocco`, `visore-info-su`, `visore-chiude-giu`, `visore-chiude-pizzico`, `video-comandi` contro B3, `pdf-pagine`, `testo-trova`, e le aperture dalla miniatura di F6C.10), a 120 Hz: il movimento si giudica dai fotogrammi.
 
 ## Dove guardare
@@ -290,7 +343,8 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 | il pizzico che chiude | `FluidViewerPinch.kt` |
 | i preset | `FluidImagePreset.kt`, `FluidMediaPreset.kt`, `FluidPagesPreset.kt`, `FluidTextPreset.kt`, `FluidGridPreset.kt`, `FluidCustomPreset.kt`, `FluidUnknownPreset.kt` |
 | i decodificatori e il registro | `engine-viewer/` ([`../moduli/viewer.md`](../moduli/viewer.md)) |
+| le miniature | `engine-viewer/.../FluidFileThumbnails.kt` (la funzione pubblica e la cache), `FluidThumbnailPainter.kt` (gli attrezzi), `FluidBuiltinThumbnails.kt` (testo, codice, APK, immagini, PDF); nelle famiglie `DataThumbnail.kt`, `FontThumbnail.kt`, `SceneThumbnail.kt`, `ArchiveThumbnail.kt`, `OfficeThumbnail.kt` |
 | le famiglie | `engine-viewer-office/`, `-archive/`, `-data/`, `-graphics/`, `-3d/`, `-ar/`, `-all/` ([`../moduli/viewer-famiglie.md`](../moduli/viewer-famiglie.md)) |
 | la galleria | `sample/.../ViewerGallery.kt`, `sample/.../viewer/` (`VisoriViewer.kt`, `VisoriFiles.kt`, `VisoriFamilies.kt`, `VisoriDetails.kt`, `VisoriPesi.kt`, `VisoriSenzaModuli.kt`) |
 
-**Versione.** 4.0 (F6C): telaio F6C.1, preset F6C.2 e F6C.3, modulo F6C.4, prima galleria F6C.5; registro e forme `Grid` e `Custom` F6C.8, preset «D · Mix» e pannello info F6C.9, apertura dalla miniatura F6C.10, famiglie F6C.11–F6C.14 e F6C.16, galleria rifatta e schede F6C.15; lo scurimento F6D.1.
+**Versione.** 4.0 (F6C): telaio F6C.1, preset F6C.2 e F6C.3, modulo F6C.4, prima galleria F6C.5; registro e forme `Grid` e `Custom` F6C.8, preset «D · Mix» e pannello info F6C.9, apertura dalla miniatura F6C.10, famiglie F6C.11–F6C.14 e F6C.16, galleria rifatta e schede F6C.15; le miniature vere F6C.17; lo scurimento F6D.1.

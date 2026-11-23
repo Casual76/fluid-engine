@@ -89,31 +89,16 @@ object FluidViewerRegistry {
   }
 
   /**
-   * La miniatura di [source] dalla famiglia che lo apre, larga al più [sizePx]; `null` se nessuna famiglia ne dà una
-   * (per le foto e i PDF la miniatura è dell'app). Non chiude [source].
+   * La miniatura del contenuto di [source], larga al più [sizePx]: quella della famiglia che lo apre, nell'ordine dei
+   * candidati, e (F6C.17) quelle di engine-viewer di serie, cioè le prime righe del testo e del codice coi colori e
+   * l'icona di un APK. `null` se niente ne dà una: per le foto e i PDF la miniatura è dell'app, e un tipo che niente
+   * legge non ha contenuto da mostrare. Non chiude [source].
+   *
+   * Per una griglia usare [FluidFileThumbnails.load], che aggiunge la cache, il tempo massimo, le immagini e i PDF, e
+   * dà sempre un'immagine (l'icona del documento con l'estensione, come File, se non c'è altro).
    */
-  suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap? {
-    val all = families
-    if (all.isEmpty() || FluidFileKind.from(source.mimeType, source.name) == FluidFileKind.Executable) return null
-    val probe = FluidViewerProbe.read(source, all)
-    for (candidate in FluidViewerResolver.candidates(all, source.mimeType, source.name, probe.header, probe.entries)) {
-      val family = candidate.family ?: continue
-      val type = candidate.familyType ?: continue
-      val request = FluidViewerRequest(context.applicationContext ?: context, source, type, options, null, null, null)
-      val image = try {
-        family.thumbnail(request, sizePx)
-      } catch (e: CancellationException) {
-        throw e
-      } catch (_: Exception) {
-        null
-      } catch (_: LinkageError) {
-        // La libreria nativa della famiglia non si carica su questo dispositivo: niente miniatura, l'app mette la sua.
-        null
-      }
-      if (image != null) return image
-    }
-    return null
-  }
+  suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap? =
+    fluidThumbnailOf(context, source, sizePx, options, everything = false)?.takeUnless { it.isPlaceholder }?.image
 
   private fun discover(): List<FluidViewerFamily> {
     discovered?.let { return it }

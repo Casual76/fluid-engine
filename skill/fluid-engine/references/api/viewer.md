@@ -108,6 +108,30 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `suspend fun decode(context: Context, uri: Uri, maxPixels: Long = DefaultMaxPixels, animate: Boolean = true): FluidDecodedImage` — Decodifica da un `Uri` (`content://`, `file://`, `android.resource://`).
     - `suspend fun decode(file: File, maxPixels: Long = DefaultMaxPixels, animate: Boolean = true): FluidDecodedImage` — Decodifica da un file dell'app.
 
+## `engine-viewer/viewer/FluidFileThumbnails.kt`
+
+- `class FluidFileThumbnail internal constructor(val image: ImageBitmap, val fillsFrame: Boolean, val isPlaceholder: Boolean)` — F6C.17 · La miniatura di un file, come la mostra File di iOS: il contenuto in piccolo (le prime righe, la tabella, l'albero, la pagina, la copertina, l'icona dell'app, il modello) oppure, per un tipo che niente legge, l'icona del documento con l'estensione. Si chiede con [FluidFileThumbnails.load].
+  - `val contentScale: ContentScale get()` — [ContentScale.Crop] per una figura, [ContentScale.Fit] per un foglio o un simbolo.
+- `data class FluidThumbnailLook(val accent: Color, val accentSecondary: Color, val surface: Color, val dark: Boolean) : AbstractCoroutineContextElement(FluidThumbnailLook)` — I colori dell'app per le miniature che ne hanno (la tinta leggera dell'archivio, dei simboli): l'accento, il secondo accento, la superficie e il tema. La carta dei documenti resta bianca in tutti e due i temi.
+  - `companion object Key : CoroutineContext.Key<FluidThumbnailLook>`
+    - `val Light: FluidThumbnailLook get()` — Il chiaro di serie: systemBlue e systemIndigo di Apple sul grigio di sistema.
+    - `val Dark: FluidThumbnailLook get()` — Lo scuro di serie.
+    - `suspend fun current(): FluidThumbnailLook` — I colori del contesto, o [Light].
+- `@Composable fun rememberFluidThumbnailLook(): FluidThumbnailLook` — I colori del tema Material corrente per le miniature: l'accento, il terziario, la superficie e il tema.
+- `object FluidFileThumbnails` — F6C.17 · Le miniature dei file per l'app: **una chiamata, sempre un'immagine**.
+  - `const val DefaultTimeoutMillis: Long` — Il tempo massimo di serie: 2,5 s. Office si dà 2 s per disegnare una pagina (F6C.15b) e un file grande deve ancora copiarsi; oltre, l'icona è meglio di una tessera vuota. A occhio, 23 novembre 2026.
+  - `const val RetryAfterTimeoutMillis: Long` — Dopo quanto si riprova un file che aveva superato il tempo: 30 s, a occhio, 23 novembre 2026.
+  - `const val Parallelism: Int` — Quanti file si leggono insieme: 3, come i nuclei grandi di un telefono di fascia media. A occhio, 23 novembre 2026.
+  - `var memoryLimitBytes: Long` — Il tetto della cache in byte. Di serie un ottavo della memoria dell'app, al più 48 MB: una griglia di sessanta tessere da 450 px sta intera. Abbassarlo toglie subito le miniature in più.
+  - `val cachedCount: Int get()` — Quante miniature e quanti byte tiene la cache adesso: per i test e per chi misura.
+  - `val cachedBytes: Long get()`
+  - `fun cached(file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light): FluidFileThumbnail?` — La miniatura già pronta, senza leggere niente: per la prima composizione di una tessera. `null` se non c'è.
+  - `suspend fun load(context: Context, file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light, timeoutMillis: Long = DefaultTimeoutMillis, options: FluidViewerOptions = FluidViewerOptions()): FluidFileThumbnail` — La miniatura di [file], larga al più [sizePx] sul lato lungo (fra 32 e 1024), con i colori [look]. Dalla cache se c'è; altrimenti letta e disegnata fuori dal filo principale, entro [timeoutMillis]. Non lancia: un file rotto, che manca o che supera il tempo dà l'icona del documento con l'estensione.
+  - `fun evict(file: FluidViewerFile)` — Toglie dalla cache le miniature di [file], a ogni misura e con ogni colore.
+  - `fun clear()` — Svuota la cache.
+- `@Composable fun rememberFluidFileThumbnail(file: FluidViewerFile?, sizePx: Int, look: FluidThumbnailLook = rememberFluidThumbnailLook(), timeoutMillis: Long = FluidFileThumbnails.DefaultTimeoutMillis): FluidFileThumbnail?` — La miniatura di [file] in Compose: la cache alla prima composizione (la tessera che torna dal visore è già piena, e l'apertura dalla miniatura parte dalla stessa immagine), poi [FluidFileThumbnails.load]. `null` finché non c'è.
+- `@Composable fun FluidFileThumbnailImage(thumbnail: FluidFileThumbnail, modifier: Modifier = Modifier.fillMaxSize(), contentDescription: String? = null)` — [thumbnail] nella sua tessera: ritagliata se è una figura, intera se è un foglio o un simbolo.
+
 ## `engine-viewer/viewer/FluidImageHeader.kt`
 
 - `data class FluidImageHeader(val format: String, val width: Int, val height: Int, val animated: Boolean, val frameCount: Int?, val loopCount: Int?)` — Cosa dicono i primi byte di una GIF o di una WebP: misura, se è animata, quanti fotogrammi e quanti giri.
@@ -204,6 +228,40 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val DefaultLimitBytes: Int` — Il tetto di serie: 4 MiB. Un sorgente o un registro normale ci sta intero; uno di centinaia di MB si apre subito e dice di essere troncato. In memoria sono al più circa 8 MB di caratteri. A occhio, 22 novembre 2026 (Universal Converter usava 256 KiB, che tagliava già un registro di un giorno).
     - `const val DefaultMaxLineChars: Int` — La riga più lunga che il preset riceve intera: oltre si spezza. A occhio, 22 novembre 2026.
 
+## `engine-viewer/viewer/FluidThumbnailPainter.kt`
+
+- `object FluidThumbnailPainter` — F6C.17 · Gli attrezzi con cui engine-viewer e i moduli di famiglia disegnano le miniature, nella grammatica di File e Quick Look di iOS 26 (`docs/liquid-glass/ricerca/visori-2.md` §2 e §3): - **il foglio** ([page]): la miniatura di un documento è la sua prima pagina, su carta bianca in chiaro e in scuro, come Quick Look. Testo, codice, Markdown, tabelle, alberi e mail si disegnano qui sopra;
+  - `const val PageAspect: Float` — Il foglio dei documenti: 3:4, verticale, come le miniature di File per testo e codice. A occhio, 23 novembre 2026 (fiducia bassa sulle proporzioni esatte di Apple, che dipendono dal formato della pagina).
+  - `const val TableAspect: Float` — Il foglio delle tabelle (CSV, TSV): 4:3, orizzontale, perché si legga «un pezzo di tabella». A occhio, 23 novembre 2026.
+  - `const val MinSizePx: Int` — Il lato lungo più piccolo e più grande di una miniatura, in pixel: oltre, un'anteprima costa più di quanto mostra.
+  - `const val MaxSizePx: Int`
+  - `const val Paper: Int` — La carta: bianca anche nel tema scuro, come Quick Look (§2, «per i documenti è bianco»).
+  - `const val Ink: Int` — L'inchiostro sulla carta, e quello attenuato (date, didascalie, intestazioni secondarie). Dai grigi di sistema di Apple.
+  - `const val InkSecondary: Int`
+  - `const val Rule: Int` — Le righe sottili (la griglia di una tabella, il bordo dell'icona del documento) e il fondo delle intestazioni.
+  - `const val Fill: Int`
+  - `const val Link: Int` — Il blu dei collegamenti sulla carta (systemBlue di Apple, chiaro).
+  - `const val PageMargin: Float` — Il margine del foglio, sul lato corto: 8%, a occhio, 23 novembre 2026.
+  - `const val CodeLinesPerPage: Int` — Quante righe di testo stanno nell'altezza di un foglio: 17 per il codice, 15 per la prosa. Abbastanza da «leggere le prime righe» su un tablet e da vedere la forma del testo su un telefono. A occhio, 23 novembre 2026.
+  - `const val ProseLinesPerPage: Int`
+  - `fun clampSize(sizePx: Int): Int` — Il lato lungo di [sizePx] riportato fra [MinSizePx] e [MaxSizePx].
+  - `fun page(sizePx: Int, aspect: Float = PageAspect, clip: Boolean = true, draw: (canvas: Canvas, content: RectF, unit: Float) -> Unit): ImageBitmap` — Un foglio bianco di lato lungo [sizePx] e proporzioni [aspect] (larghezza su altezza). [draw] riceve la tela, il rettangolo dentro i margini e l'unità del testo (l'altezza di una riga di prosa). Con [clip] la tela è tagliata ai margini (il testo lungo non esce); senza, si può disegnare a vivo (una copertina).
+  - `fun symbol(sizePx: Int, placeholder: Boolean = false, draw: (canvas: Canvas, size: Float) -> Unit): ImageBitmap` — Una tela quadrata trasparente di lato [sizePx] per un simbolo. [placeholder] vero: non mostra il contenuto.
+  - `fun picture(bitmap: Bitmap): ImageBitmap` — [bitmap] come figura che riempie la tessera (una foto, un fotogramma, un modello disegnato).
+  - `fun paint(textSize: Float, color: Int = Ink, monospace: Boolean = false, bold: Boolean = false): TextPaint` — Un pennello per il testo sulla carta.
+  - `fun layout(text: CharSequence, paint: TextPaint, width: Int, wrap: Boolean = true, spacing: Float = 1.18f): StaticLayout` — Il testo [text], con i suoi span (colori, grassetto, dimensioni), largo [width]. Con [wrap] falso ogni riga resta intera e il foglio la taglia, come il codice nel visore.
+  - `fun draw(canvas: Canvas, layout: StaticLayout, x: Float, y: Float): Float` — Disegna [layout] con l'angolo in alto a sinistra in ([x], [y]); dà la y sotto l'ultima riga.
+  - `fun ellipsize(text: CharSequence, paint: TextPaint, width: Float): CharSequence` — [text] tagliato con «…» per stare in [width].
+  - `fun syntaxColor(role: FluidSyntaxRole): Int` — Il colore di un ruolo di sintassi sulla carta: i colori di Xcode in chiaro, gli stessi della tavola D (parole chiave viola, tipi blu, stringhe rosse, numeri blu scuro, commenti grigi). Fissi, perché la carta è bianca in tutti e due i temi. A occhio, 23 novembre 2026.
+  - `fun syntaxText(lines: List<String>, highlighter: FluidSyntaxHighlighter?): CharSequence` — Le righe [lines] colorate con [highlighter] (o in un colore solo, senza), una per riga, pronte per [layout].
+  - `fun codePage(lines: List<String>, highlighter: FluidSyntaxHighlighter?, sizePx: Int): ImageBitmap` — Un foglio con le prime righe di codice, coi colori: carattere a spaziatura fissa, senza a capo, [CodeLinesPerPage] righe nell'altezza.
+  - `fun linesPage(text: CharSequence, sizePx: Int, monospace: Boolean = true, linesPerPage: Int = CodeLinesPerPage, aspect: Float = PageAspect): ImageBitmap` — Un foglio di righe che non vanno a capo ([text], una per `\n`, coi suoi span): [linesPerPage] righe nell'altezza, a spaziatura fissa se [monospace]. Serve al codice, agli alberi di dati e ai testi strutturati.
+  - `fun prosePage(text: CharSequence, sizePx: Int, aspect: Float = PageAspect): ImageBitmap` — Un foglio di prosa: [text] (anche con i suoi span) va a capo nella colonna, [ProseLinesPerPage] righe nell'altezza.
+  - `fun documentIcon(extension: String, sizePx: Int): ImageBitmap` — L'icona di File per un tipo che non mostra il contenuto: un foglio bianco con l'angolo piegato, il bordo grigio e [extension] in maiuscolo sotto il centro. Uguale nei due temi, come in iOS. È un segnaposto: dice il tipo, non il contenuto. Le misure (foglio alto il 62% del lato, piega del 26%) sono a occhio, 23 novembre 2026.
+  - `fun kindSymbol(glyph: ImageVector, label: String?, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light, placeholder: Boolean = false): ImageBitmap` — Il simbolo di un tipo nello stile della pagina «D · Mix»: una tessera arrotondata con la tinta leggera del file (la stessa sfumatura della pagina dell'archivio, più piena perché la tessera è piccola: [FluidThumbnailLook.accent] al 30% in alto, al 10% al centro, [FluidThumbnailLook.accentSecondary] al 30% in basso, sulla superficie; a occhio, 23 novembre 2026), il glifo nell'accento e, sotto, [label] in una capsula.
+  - `fun drawGlyph(canvas: Canvas, vector: ImageVector, bounds: RectF, color: Int)` — Disegna l'icona [vector] (un `ImageVector` di `FluidIcons`) dentro [bounds], nel colore [color].
+  - `fun blend(a: Int, b: Int, t: Float): Int` — [a] verso [b] di [t] (0–1), alfa compresa.
+
 ## `engine-viewer/viewer/FluidViewerException.kt`
 
 - `value class FluidViewerFailure private constructor(private val id: Int)` — Perché un file non si è aperto. Non è un `enum` di proposito (regola 3.11): un motivo nuovo è una costante in più. Ogni motivo porta allo stesso ripiego, lo sconosciuto con «Apri con…»: il motivo serve al testo che lo spiega.
@@ -256,7 +314,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun install(vararg family: FluidViewerFamily)` — Aggiunge famiglie a mano: per i test, e per chi vuole un'istanza configurata al posto di quella trovata.
   - `fun uninstall(vararg id: String)` — Toglie le famiglie con questi `id`, trovate o installate: il loro tipo torna allo sconosciuto.
   - `suspend fun open(context: Context, source: FluidViewerSource, options: FluidViewerOptions = FluidViewerOptions(), openWith: (() -> Unit)? = null, share: (() -> Unit)? = null, media: ((FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerDocument` — Apre [source] con il risolutore: un tipo di famiglia se un modulo lo conosce, altrimenti i preset di serie, e lo sconosciuto con «Apri con…» se niente lo apre. Serve anche ai moduli per i file dentro i file (la voce di un archivio, l'allegato di una mail): un PDF dentro uno ZIP usa il preset PDF, un DOCX allegato usa Office se c'è. Il documento **possiede** la sorgente e la chiude con sé;
-  - `suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap?` — La miniatura di [source] dalla famiglia che lo apre, larga al più [sizePx]; `null` se nessuna famiglia ne dà una (per le foto e i PDF la miniatura è dell'app). Non chiude [source].
+  - `suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap?` — La miniatura del contenuto di [source], larga al più [sizePx]: quella della famiglia che lo apre, nell'ordine dei candidati, e (F6C.17) quelle di engine-viewer di serie, cioè le prime righe del testo e del codice coi colori e l'icona di un APK. `null` se niente ne dà una: per le foto e i PDF la miniatura è dell'app, e un tipo che niente legge non ha contenuto da mostrare. Non chiude [source].
 
 ## `engine-viewer/viewer/FluidViewerSource.kt`
 

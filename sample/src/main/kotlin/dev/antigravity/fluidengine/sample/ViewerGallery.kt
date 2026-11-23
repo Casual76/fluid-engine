@@ -41,8 +41,8 @@ import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 import dev.antigravity.fluidengine.viewer.FluidViewerFile
 import dev.antigravity.fluidengine.viewer.FluidViewerPreset
-import dev.antigravity.fluidengine.viewer.FluidViewerRegistry
-import dev.antigravity.fluidengine.viewer.FluidViewerSource
+import dev.antigravity.fluidengine.viewer.FluidFileThumbnailImage
+import dev.antigravity.fluidengine.viewer.rememberFluidFileThumbnail
 import dev.antigravity.fluidengine.viewer.FluidViewerType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +50,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.File
 
 /** Il collegamento del visore della galleria: `fluidglass://visori/file/{indice}` (F6C.5). */
 internal const val VisoriDeepLink = "fluidglass://visori/file/{index}"
@@ -284,8 +283,16 @@ private fun VisoriSenzaModuliPage(files: List<VisoreFile>, prepared: List<FluidV
               modifier = Modifier.testTag("senza-${file.id}"),
               meta = prepared?.getOrNull(index)?.sizeBytes?.let(::formatBytes),
               leading = {
-                Box(Modifier.fluidViewerThumbnail(FluidViewerThumbnail("senza-${file.id}", namespace),
-                  ContinuousCornerShape(FluidRadius.Card))) { Icon(iconOf(file)) }
+                // F6C.17: la miniatura come la dà il solo engine-viewer. Testo e codice hanno la loro; i tipi delle
+                // famiglie, senza il modulo, l'icona del documento con l'estensione.
+                val shape = ContinuousCornerShape(FluidRadius.Card)
+                val sizePx = with(LocalDensity.current) { SenzaThumbnail.roundToPx() }
+                val shown = rememberFluidFileThumbnail(prepared?.getOrNull(index), sizePx)
+                Box(Modifier.size(SenzaThumbnail).fluidViewerThumbnail(FluidViewerThumbnail("senza-${file.id}", namespace),
+                  shape).clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                  contentAlignment = Alignment.Center) {
+                  shown?.let { FluidFileThumbnailImage(it, Modifier.fillMaxSize().testTag("senza-miniatura-${file.id}")) }
+                }
               },
               onClick = { if (prepared != null) onOpen(index) })
           }
@@ -322,54 +329,41 @@ internal fun iconOf(file: VisoreFile): ImageVector = when (file.tipo) {
 }
 
 /**
- * La miniatura: la foto, il primo fotogramma della WebP, la prima pagina del PDF, quella che dà la famiglia (la
- * miniatura salvata nel documento Office, la copertina dell'EPUB, l'immagine speciale) o l'icona del tipo.
+ * La tessera di un file (F6C.17): il suo contenuto in miniatura, come in File di iOS. Le foto, il video, l'audio e il
+ * PDF hanno la copertina dell'app, la WebP animata il suo primo fotogramma; tutto il resto chiede la miniatura a
+ * engine-viewer ([rememberFluidFileThumbnail]): le prime righe del testo e del codice, la pagina di Office, il Markdown
+ * reso, la tabella, l'albero, la mail, la data, il contatto, il carattere, il modello, l'icona dell'app, l'archivio e,
+ * per un tipo che niente legge, l'icona del documento con l'estensione. La cache dà la stessa immagine alla prima
+ * composizione: l'apertura dalla miniatura (F6C.10) parte da lì e ci torna.
  */
 @Composable
 private fun Tile(file: VisoreFile, prepared: FluidViewerFile?, thumbnail: FluidViewerThumbnail, modifier: Modifier,
   onClick: () -> Unit) {
   val context = LocalContext.current
-  val density = LocalDensity.current
-  val still by produceState<ImageBitmap?>(null, file, prepared) {
-    value = withContext(Dispatchers.IO) {
+  val still by produceState<ImageBitmap?>(null, file) {
+    if (file.tipo == VisoreTipo.Animata && file.resource != null) value = withContext(Dispatchers.IO) {
       try {
-        when {
-          file.tipo == VisoreTipo.Animata && file.resource != null ->
-            context.resources.openRawResource(file.resource).use { BitmapFactory.decodeStream(it) }?.asImageBitmap()
-          file.family != VisoriFamiglia.Serie && prepared != null -> {
-            val path = prepared.uri.path?.let(::File)?.takeIf { it.isFile }
-            path?.let { disk ->
-              FluidViewerSource.of(disk, prepared.name, prepared.mimeType).use { source ->
-                FluidViewerRegistry.thumbnail(context, source, with(density) { 240.dp.roundToPx() })
-              }
-            }
-          }
-          else -> null
-        }
+        context.resources.openRawResource(file.resource).use { BitmapFactory.decodeStream(it) }?.asImageBitmap()
       } catch (e: CancellationException) {
         throw e
-      } catch (_: Throwable) {
-        // A thumbnail is a nicety: a native decoder missing on this device leaves the type's icon.
+      } catch (_: Exception) {
         null
       }
     }
   }
   Column(modifier.clickable(onClick = onClick)) {
     val shape = ContinuousCornerShape(FluidRadius.Card)
-    Box(Modifier.fillMaxWidth().aspectRatio(1.5f).fluidViewerThumbnail(thumbnail, shape).clip(shape)
+    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(1.5f).fluidViewerThumbnail(thumbnail, shape).clip(shape)
       .background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
+      val sizePx = with(LocalDensity.current) { maxWidth.roundToPx() }
+      val engine = if (file.cover == null && file.tipo != VisoreTipo.Animata) rememberFluidFileThumbnail(prepared, sizePx)
+        else null
       val picture = still
       when {
         file.cover != null -> Image(painterResource(file.cover), null, Modifier.fillMaxSize(),
           contentScale = if (file.tipo == VisoreTipo.Pagine) ContentScale.Fit else ContentScale.Crop)
-        picture != null -> Image(picture, null, Modifier.fillMaxSize(),
-          contentScale = if (file.tipo.preparesDocument && file.tipo != VisoreTipo.Grafica) ContentScale.Fit
-          else ContentScale.Crop)
-        else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          FluidIcon(iconOf(file), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-          Text(file.name.substringAfterLast('.', "").uppercase(), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        picture != null -> Image(picture, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        engine != null -> FluidFileThumbnailImage(engine, Modifier.fillMaxSize().testTag("visori-miniatura-${file.id}"))
       }
     }
     Text(file.title, Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleSmall, maxLines = 1,
@@ -379,3 +373,6 @@ private fun Tile(file: VisoreFile, prepared: FluidViewerFile?, thumbnail: FluidV
       color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
   }
 }
+
+/** Il lato della miniatura nelle righe di «Senza moduli»: quello delle righe di File in elenco, a occhio, 23 novembre 2026. */
+private val SenzaThumbnail = 44.dp

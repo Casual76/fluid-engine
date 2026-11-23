@@ -121,20 +121,13 @@ class FluidDataFamily(val settings: FluidDataSettings = FluidDataSettings()) : F
     }
   }
 
-  /** La copertina di un EPUB, la foto del primo contatto di un VCF; per il resto l'icona del tipo. */
+  /**
+   * F6C.17 · Il contenuto in miniatura, come in File di iOS ([DataThumbnail]): il Markdown e l'HTML resi, un pezzo di
+   * tabella, un pezzo dell'albero coi punti dei tipi, il testo di XML, plist e NDJSON, la copertina, la mail, la tessera
+   * della data, la foto o le iniziali del contatto. `null` se il file non si legge: il registro passa al testo di serie.
+   */
   override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
-    val bytes: ByteArray? = when (request.type.id) {
-      Epub -> DataOpen(request, settings).zip().use { zip ->
-        val book = DataEpub.read(zip)
-        book.coverPath?.let { zip.read(it) }
-      }
-      Vcf -> {
-        val text = request.source.open().use { DataText.decode(DataText.read(it, DataProfile.MaxTextBytes, request.source.sizeBytes)).text }
-        DataVcard.parse(text).firstNotNullOfOrNull { it.photo }
-      }
-      else -> null
-    }
-    bytes?.let { decodePicture(it, sizePx) }
+    DataThumbnail.of(request, settings, sizePx)
   }
 
   companion object {

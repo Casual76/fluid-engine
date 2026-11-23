@@ -33,8 +33,9 @@ Le cartelle `artifacts/` sono fuori da git e restano sul PC.
   - Nell'engine si continua come ora sul ramo `t3/liquid-glass-engine`, con push. In main si entra solo alla fine,
     con un'unione schiacciata, dopo la pulizia della repo (§ 9) e con l'ok di Alessio.
 - **Prove sul Tab S9.**
-  - Le app si installano sopra le versioni vere di Alessio, tranne ClasseViva Expressive e MyCloud Gallery: per queste
-    due si fa una variante dev affiancata (applicationId con suffisso), e l'accesso lo fa Alessio quando serve.
+  - Le app si installano sopra le versioni vere di Alessio, tranne ClasseViva Expressive, MyCloud Gallery e Fluidify:
+    per queste tre si fa una variante dev affiancata (applicationId con suffisso), e l'accesso lo fa Alessio quando
+    serve.
   - Restano le regole di sempre: un agente alla volta, `install -r`, ripristino completo, niente S25 né emulatore.
 - **Qualità.**
   - Ogni elemento con un equivalente Apple si confronta con Apple: misure, tempi, comportamento.
@@ -239,8 +240,8 @@ Le idee di questa fase sono nove: `connettori-mcp`, `consumi-assistente`, `fonti
   - Niente sezione info dentro le app (nota su `centro-aiuto`).
 - **F9.8 PampAI rifatta.**
   - Chat, schede dei risultati, overlay di sistema, tastiera, navigazione e allegati, sul nuovo vetro.
-  - Alessio parla di «widget che non funzionano» e pieni di glitch, ma PampAI non ha widget per la home: quasi certamente
-    sono le **schede dei risultati in chat**. Si guarda insieme sul tablet prima di rifarle.
+  - I «widget che non funzionano» e pieni di glitch di cui parla Alessio sono **le schede dei risultati in chat**
+    (calendario, musica, timer…), come ha confermato il 23 novembre. Vanno rifatte.
 - **F9.9 Le app passano da PampAI.**
   - Gli assistenti di ClasseViva, Fluid Transit, Fluid Weather e Pampa Notes diventano clienti di PampAI e smettono di
     tenere chiavi proprie.
@@ -321,8 +322,8 @@ problemi di migrazione. Le dimensioni vengono dalla ricognizione.
 | **Pampa Notes** | 590 file Kotlin; Worker Cloudflare; accesso Google; engine 3.0.5 | Ascolto dal paragrafo (F8.13), IA via PampAI, login nell'Account Pampa, ingresso dallo scanner |
 | **ClasseViva Expressive** | 287 file Kotlin; sessioni ClasseViva/CIE; engine 3.0.5 più un commit | La diagnosi del crash sull'A52s; voto e impegno come immagine (F8.10); IA via PampAI. Variante dev sul tablet. *Minore* |
 | **Fluid Transit** | Orari offline e realtime via Worker; mappa MapLibre; engine 3.0.5 | La Live Update del viaggio (F8.19); il contrasto del testo bianco su 9 tinte di linea su 12 (`APERTO.md`); IA via PampAI. *Minore* |
-| **Fluid Weather** | Nowcast sul telefono, widget, notifiche durevoli; ramo `reliability/daily-use-20261117`; engine 3.0.5 | Promemoria affidabili, notifiche educate, IA via PampAI. *Minore* |
-| **Fluidify** | 683 file Kotlin; player Spotify, AirPods, Wear; engine 3.0.6 più 7 commit | Colore dal contenuto dall'engine (F8.7). È la migrazione più delicata: player, AirPods, Wear, audio nativo |
+| **Fluid Weather** | Nowcast sul telefono, widget, notifiche durevoli; engine 3.0.5 | Promemoria affidabili, notifiche educate, IA via PampAI. *Minore* |
+| **Fluidify** | 683 file Kotlin; player Spotify, AirPods, Wear; engine 3.0.6 più 7 commit | Colore dal contenuto dall'engine (F8.7). È la migrazione più delicata: player, AirPods, Wear, audio nativo. Variante dev sul tablet |
 
 Altri dettagli:
 - **Il crash di ClasseViva sull'A52s** non ha ancora un log. La ricognizione indica due piste:
@@ -333,7 +334,8 @@ Altri dettagli:
 - **Fluidify.** Il 23 novembre la linea beta (2.1.0-beta.5 e la parità LibrePods del 21) è stata unita in master in
   locale: master ora è a `215d59aa`, 2.1.0-beta.7. Lo stato non salvato del 10 novembre è nel ramo locale
   `archivio/candidata-beta2-20261110`.
-- **Fluid Weather.** Prima di migrare si decide se il ramo `reliability/daily-use-20261117` entra nel ramo principale.
+- **Fluid Weather.** Il 23 novembre il ramo `reliability/daily-use-20261117` (2.2.0-beta.1) è stato unito in main in
+  locale: main ora è a `776ec51`.
 
 ## 9. Pulizia della repo e uscita
 
@@ -350,12 +352,11 @@ Le 64 idee scartate sono elencate in `scelte-alessio.md`. Due note valgono come 
 - `licenze-e-abbonamenti`: le app sono open source e gratuite, e restano così;
 - `avanzamento-accessibile`: l'accessibilità ha priorità inferiore, con risultati più permissivi (§ 2).
 
-## 11. Domande aperte
+## 11. Domande chiuse il 23 novembre sera
 
-- **Fluidify sul tablet.** Finora era vietata sul dispositivo; la risposta del 23 dice «tutte sopra le vere». Prima di
-  F12 serve una conferma esplicita.
-- **I «widget» di PampAI.** Da guardare insieme in F9.8 (§ 5).
-- **Il ramo di Fluid Weather.** Da decidere prima di migrarla (§ 8).
+- **Fluidify sul tablet**: con una variante dev affiancata, come ClasseViva e MyCloud Gallery.
+- **I «widget» di PampAI**: sono le schede dei risultati in chat (§ 5, F9.8).
+- **Il ramo di Fluid Weather**: unito in main, in locale (§ 8).
 
 ## 12. Dove va ogni idea scelta
 

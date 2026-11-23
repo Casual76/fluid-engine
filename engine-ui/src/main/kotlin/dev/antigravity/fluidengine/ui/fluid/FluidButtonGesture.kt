@@ -315,12 +315,21 @@ internal fun Modifier.fluidButtonGesture(
 
     state.touchDown(down.position, down.uptimeMillis)
     state.press()
+    // Per le sessioni sul dispositivo (F6B.15, «Anna» sul Tab S9): inizio, fine e annullo del gesto, spenti di serie
+    // (`log.tag.FluidGlassFrame`). L'id è quello della pressione, lo stesso della riga `chip.ink`.
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("press.gesture", state) {
+      "start at=${down.position} size=${size.width}x${size.height} grip=$grip"
+    }
+    var endReason = "cancelled"
     if (playsHaptics) state.haptics.play(FluidHapticEvent.PressDown)
 
     var finished = false
     fun finish(haptic: Boolean) {
       if (finished) return
       finished = true
+      dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("press.gesture", state) {
+        "end reason=$endReason haptic=$haptic"
+      }
       state.touchEnd()
       state.release()
       if (haptic && playsHaptics && !gesture.longPressed) state.haptics.play(FluidHapticEvent.PressRelease)
@@ -347,7 +356,8 @@ internal fun Modifier.fluidButtonGesture(
         }
 
         // Il puntatore e' sparito senza un rilascio: e' un annullo, e finisce uguale.
-        val change = event.changes.fastFirstOrNull { it.id == id } ?: break
+        val change = event.changes.fastFirstOrNull { it.id == id }
+        if (change == null) { endReason = "pointer-gone"; break }
         lastUptime = max(lastUptime, change.uptimeMillis)
         if (gesture.advance(lastUptime)) onLongClick?.invoke()
 
@@ -363,10 +373,11 @@ internal fun Modifier.fluidButtonGesture(
             change.consume()
             clicks = true
           }
+          endReason = if (change.isConsumed && !clicks) "up-consumed" else "up"
           break
         }
         // Un discendente se l'e' preso, o un antenato nell'Initial: il gesto e' suo, e finisce qui.
-        if (change.isConsumed) break
+        if (change.isConsumed) { endReason = "consumed type=${event.type}"; break }
         // La rotella di un mouse non e' un movimento del dito.
         if (event.type == PointerEventType.Scroll) continue
 
@@ -389,7 +400,7 @@ internal fun Modifier.fluidButtonGesture(
           // scorrimento partito, e il pulsante lascia andare il dito.
           val after = awaitPointerEvent(PointerEventPass.Final)
           val seen = after.changes.fastFirstOrNull { it.id == id }
-          if (seen == null || seen.isConsumed) break
+          if (seen == null || seen.isConsumed) { endReason = "yielded"; break }
         }
       }
       finish(haptic = true)

@@ -18,6 +18,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
@@ -188,6 +190,11 @@ class F6b15FieldsUiTest {
     compose.onNode(SemanticsMatcher("il campo") { it.id == search }).performTouchInput { click() }
     Snapshot.sendApplyNotifications()
     advance(600)
+    // Dove sta la fila: sul Tab S9 sotto il campo in alto (la riga della barra in alto), altrove sopra la tastiera.
+    val anna = pills("Anna").single().dp()
+    val field = compose.onNode(hasSetTextAction()).fetchSemanticsNode().dp()
+    println("$width: la fila ${if (anna.top >= field.bottom - 0.5f) "sotto" else "sopra"} il campo $field, «Anna» $anna, " +
+      "lo schermo ${screenDp()}")
     for (name in listOf("Anna", "Luca")) {
       val id = pills(name).single().id
       compose.onNode(SemanticsMatcher("pillola $name") { it.id == id }).performTouchInput { click() }
@@ -201,6 +208,152 @@ class F6b15FieldsUiTest {
   fun `sul tablet in verticale la prima pillola prende il dito`() = checkFirstPillTakesTheFinger("tablet")
 
   @Test fun `a 412 dp la prima pillola prende il dito`() = checkFirstPillTakesTheFinger("412")
+
+  @Test @Config(qualifiers = "w1205dp-h753dp-xhdpi")
+  fun `sul tablet in orizzontale la prima pillola prende il dito`() = checkFirstPillTakesTheFinger("1205")
+
+  /** Lo stesso col vetro vero (verdetti degli shader accettati), se Robolectric lo regge: sul Tab S9 c'è lui. */
+  @Test @Config(qualifiers = "w753dp-h1205dp-xhdpi")
+  fun `sul tablet in verticale col vetro vero la prima pillola prende il dito`() {
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
+    try {
+      checkFirstPillTakesTheFinger("tablet, vetro vero")
+    } catch (e: AssertionError) {
+      // Per capire chi prende il dito, se torna rossa: il percorso dell'hit test e gli strati del chip.
+      runCatching { dumpTouchNodesAt("Anna") }.onFailure { println("TOCCO: diagnosi non riuscita, ${it::class.simpleName}") }
+      throw e
+    }
+  }
+
+  /** Per capire chi prende il dito: i nodi di layout sul centro di [name], con i loro modificatori, in ordine d'albero. */
+  private fun dumpTouchNodesAt(name: String) {
+    val target = (pills(name).singleOrNull() ?: compose.onAllNodesWithText(name).fetchSemanticsNodes().first()).boundsInRoot.center
+    compose.runOnUiThread {
+      val composeView = generateSequence(listOf<View>(compose.activity.window.decorView)) { level ->
+        level.flatMap { v -> if (v is android.view.ViewGroup) (0 until v.childCount).map { v.getChildAt(it) } else emptyList() }
+          .takeIf { it.isNotEmpty() }
+      }.flatten().first { it.javaClass.simpleName == "AndroidComposeView" }
+      val root = composeView.javaClass.getMethod("getRoot").invoke(composeView)!!
+      fun children(node: Any): List<Any> {
+        val m = node.javaClass.methods.firstOrNull { it.name == "getChildren\$ui_release" && it.parameterCount == 0 }
+          ?: return emptyList()
+        return (m.invoke(node) as? List<*>)?.filterNotNull().orEmpty()
+      }
+      fun walk(node: Any, depth: Int) {
+        val info = node as androidx.compose.ui.layout.LayoutInfo
+        val coords = info.coordinates
+        val bounds = if (coords.isAttached) coords.boundsInRoot() else null
+        val mods = info.getModifierInfo().map { it.modifier.toString().substringBefore('(').substringAfterLast('.').take(60) }
+        if (bounds != null && bounds.contains(target) &&
+          mods.any { "ointer" in it || "lick" in it || "ress" in it || "Gesture" in it || "Scroll" in it }) {
+          println("TOCCO d=$depth $bounds ${mods.joinToString()}")
+        }
+        // Tutti i cliccabili vicini alla fila (anche quelli che non coprono il punto), con la semantica.
+        if (bounds != null && mods.any { "Clickable" in it } && bounds.top < target.y + 200 && bounds.bottom > target.y - 200) {
+          val label = (node as? androidx.compose.ui.layout.LayoutInfo)?.let { li ->
+            runCatching { li.javaClass.getMethod("getCollapsedSemantics\$ui_release").invoke(li)?.toString()?.take(120) }.getOrNull()
+          }
+          println("CLIC d=$depth $bounds sem=$label")
+        }
+        for (child in children(node)) walk(child, depth + 1)
+      }
+      println("TOCCO: il centro di «$name» = $target")
+      walk(root, 0)
+      // Il percorso vero dell'hit test di Compose, sul centro di [name] e su quello di «Luca».
+      for ((who, point) in listOf(name to target) +
+        listOfNotNull(pills("Luca").singleOrNull()?.let { "Luca" to it.boundsInRoot.center })) {
+        runCatching {
+          val resultClass = Class.forName("androidx.compose.ui.node.HitTestResult")
+          val result = resultClass.getDeclaredConstructor().apply { isAccessible = true }.newInstance()
+          val hit = root.javaClass.declaredMethods.first { it.name.startsWith("hitTest") && it.parameterTypes.size >= 3 &&
+            it.parameterTypes[1] == resultClass }
+          hit.isAccessible = true
+          val packed = (point.x.toRawBits().toLong() shl 32) or (point.y.toRawBits().toLong() and 0xFFFFFFFFL)
+          val args = arrayOfNulls<Any>(hit.parameterTypes.size)
+          args[0] = packed; args[1] = result
+          for (i in 2 until args.size) args[i] = when (hit.parameterTypes[i]) {
+            Int::class.javaPrimitiveType -> 1; Boolean::class.javaPrimitiveType -> true; else -> null
+          }
+          hit.invoke(root, *args)
+          val nodes = (result as List<*>).map { it?.javaClass?.name?.substringAfterLast('.') + "@" + System.identityHashCode(it) }
+          println("PERCORSO $who $point: ${nodes.joinToString(" > ")}")
+          // Tutti gli strati del percorso: misura, spostamento, ritaglio, e la misura del coordinatore.
+          for (n in (result as List<*>).filterNotNull()) {
+            val name = n.javaClass.simpleName
+            if ("GraphicsLayer" !in name) continue
+            runCatching {
+              val co = n.javaClass.methods.first { it.name.startsWith("getCoordinator") && it.parameterCount == 0 }.invoke(n)!!
+              val ly = co.javaClass.methods.firstOrNull { it.name.startsWith("getLayer") && it.parameterCount == 0 &&
+                !it.name.contains("Block") && !it.name.contains("Positional") }?.invoke(co)
+              val gf = ly?.javaClass?.declaredFields?.firstOrNull { it.type.name.endsWith("layer.GraphicsLayer") }?.apply { isAccessible = true }
+              val g = gf?.get(ly) as? androidx.compose.ui.graphics.layer.GraphicsLayer
+              val lc = co as androidx.compose.ui.layout.LayoutCoordinates
+              println("STRATI $who $name@${System.identityHashCode(n)} coord=${lc.size} at=${if (lc.isAttached) lc.positionInRoot() else null} " +
+                "layer=${g?.size} tx=${g?.translationX} ty=${g?.translationY} sx=${g?.scaleX} clip=${g?.clip} released=${g?.isReleased}")
+            }.onFailure { println("STRATI $who $name: ${it::class.simpleName} ${it.message}") }
+          }
+          // La catena dei nodi dopo l'ultimo strato del percorso, fino al clic: coordinatore, strato, ritaglio, contorno.
+          run {
+            val pill = pills(who).singleOrNull()
+            val chipLayout = pill?.layoutInfo
+            val chain = chipLayout?.javaClass?.methods?.firstOrNull { it.name.startsWith("getNodes") && it.parameterCount == 0 }?.invoke(chipLayout)
+            var n: Any? = chain?.javaClass?.methods?.firstOrNull { it.name.startsWith("getHead") && it.parameterCount == 0 }?.invoke(chain)
+            var guard = 0
+            while (n != null && guard++ < 25) {
+              val co = runCatching { n.javaClass.methods.first { it.name.startsWith("getCoordinator") && it.parameterCount == 0 }.invoke(n) }.getOrNull()
+              val ly = co?.let { c -> c.javaClass.methods.firstOrNull { it.name.startsWith("getLayer") && it.parameterCount == 0 &&
+                !it.name.contains("Block") && !it.name.contains("Positional") }?.invoke(c) }
+              val gf = ly?.javaClass?.declaredFields?.firstOrNull { it.type.name.endsWith("layer.GraphicsLayer") }?.apply { isAccessible = true }
+              val g = gf?.get(ly) as? androidx.compose.ui.graphics.layer.GraphicsLayer
+              val lc = co as? androidx.compose.ui.layout.LayoutCoordinates
+              val local = runCatching { lc?.let { it.windowToLocal(point) } }.getOrNull()
+              val outline = runCatching { g?.outline }.getOrNull()
+              val ownSize = runCatching { ly!!.javaClass.getDeclaredField("size").apply { isAccessible = true }.getLong(ly).let { "${it shr 32}x${it and 0xFFFFFFFFL}" } }.getOrNull()
+              val ownOutline = runCatching { ly!!.javaClass.getDeclaredField("outline").apply { isAccessible = true }.get(ly)?.let { o ->
+                (o as? androidx.compose.ui.graphics.Outline)?.bounds } }.getOrNull()
+              println("SEGUE $who ${n.javaClass.simpleName} strato=$ownSize contorno=$ownOutline gl=${runCatching { g?.outline?.bounds }.getOrNull()} " +
+                "inLayer=${runCatching { ly?.javaClass?.methods?.first { it.name.startsWith("isInLayer") }?.invoke(ly, (local!!.x.toRawBits().toLong() shl 32) or (local.y.toRawBits().toLong() and 0xFFFFFFFFL)) }.getOrNull()}")
+              n = n.javaClass.methods.firstOrNull { it.name.startsWith("getChild") && it.parameterCount == 0 }?.invoke(n)
+            }
+          }
+          // Il livello dove il percorso si ferma: le sue proprietà (scala, spostamento, ritaglio, forma).
+          val last = (result as List<*>).last()!!
+          val coordinator = last.javaClass.methods.first { it.name.startsWith("getCoordinator") && it.parameterCount == 0 }
+            .invoke(last)!!
+          val props = coordinator.javaClass.methods.firstOrNull { it.name.startsWith("getLayerPositionalProperties") }
+            ?.invoke(coordinator)
+          val layer = coordinator.javaClass.methods.firstOrNull { it.name.startsWith("getLayer") && it.parameterCount == 0 &&
+            !it.name.contains("Block") && !it.name.contains("Positional") }?.invoke(coordinator)
+          val dump = props?.javaClass?.declaredFields?.joinToString { f -> f.isAccessible = true; "${f.name}=${f.get(props)}" }
+          println("LIVELLO $who: coordinatore ${coordinator.javaClass.simpleName} ${coordinator.javaClass.methods.firstOrNull { it.name.startsWith("getSize") }?.let { runCatching { it.invoke(coordinator) }.getOrNull() }}, livello ${layer?.javaClass?.simpleName}, $dump")
+          // Il livello vero (GraphicsLayerOwnerLayer → GraphicsLayer): spostamento, scala, ritaglio.
+          runCatching {
+            val f = layer!!.javaClass.declaredFields.first { it.type.name.endsWith("layer.GraphicsLayer") }
+            f.isAccessible = true
+            val g = f.get(layer) as androidx.compose.ui.graphics.layer.GraphicsLayer
+            println("STRATO $who: tx=${g.translationX} ty=${g.translationY} sx=${g.scaleX} sy=${g.scaleY} clip=${g.clip} " +
+              "size=${g.size} topLeft=${g.topLeft} alpha=${g.alpha} effect=${g.renderEffect}")
+          }.onFailure { println("STRATO $who: ${it::class.simpleName} ${it.message} ${layer?.javaClass?.declaredFields?.map { f -> f.name + ":" + f.type.simpleName }}") }
+          val layoutNode = coordinator.javaClass.methods.first { it.name.startsWith("getLayoutNode") && it.parameterCount == 0 }
+            .invoke(coordinator) as androidx.compose.ui.layout.LayoutInfo
+          for (info in layoutNode.getModifierInfo()) {
+            val c = info.coordinates
+            println("CATENA $who ${info.modifier.toString().substringBefore('(').substringAfterLast('.').take(40)} " +
+              "size=${c.size} at=${if (c.isAttached) c.positionInRoot() else null}")
+          }
+          // Anche i modificatori del layout col blocco del livello: la scala e lo spostamento in uso.
+          val block = last.javaClass.methods.firstOrNull { it.name.startsWith("getLayerBlock") }?.invoke(last)
+          if (block != null) {
+            val scope = Class.forName("androidx.compose.ui.graphics.ReusableGraphicsLayerScope").getDeclaredConstructor().newInstance()
+            @Suppress("UNCHECKED_CAST")
+            (block as (androidx.compose.ui.graphics.GraphicsLayerScope) -> Unit)(scope as androidx.compose.ui.graphics.GraphicsLayerScope)
+            println("BLOCCO $who: scale=${scope.scaleX}x${scope.scaleY} tx=${scope.translationX} ty=${scope.translationY} " +
+              "clip=${scope.clip} shape=${scope.shape} alpha=${scope.alpha} effect=${scope.renderEffect}")
+          }
+        }.onFailure { println("PERCORSO $who: ${it::class.simpleName} ${it.message} ${root.javaClass.declaredMethods.filter { m -> m.name.startsWith("hitTest") }.map { m -> m.name + m.parameterTypes.toList() }}") }
+      }
+    }
+  }
 
   // --- La finestra che non si sposta -------------------------------------------------------------------------------------
 

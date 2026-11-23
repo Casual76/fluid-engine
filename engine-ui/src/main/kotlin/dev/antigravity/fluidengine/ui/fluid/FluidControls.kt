@@ -915,7 +915,7 @@ internal fun FluidChipCore(
           dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("chip.ink", chipInk) {
             val state = chipInk.state
             "label=$label darkSide=${chipInk.darkSide} onDark=${state?.inkOnDark} alpha=${state?.inkAlpha()} side=${state?.sideNow} " +
-              "home=$chipHome press=${press.progress} size=${size.width.toInt()}x${size.height.toInt()}"
+              "home=$chipHome press=${press.progress} pressId=${System.identityHashCode(press)} size=${size.width.toInt()}x${size.height.toInt()}"
           }
           drawContent()
         },

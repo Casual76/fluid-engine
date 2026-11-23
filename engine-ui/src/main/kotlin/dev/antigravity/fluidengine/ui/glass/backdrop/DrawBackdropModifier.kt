@@ -817,7 +817,8 @@ private class DrawBackdropNode(
         // on the surface, and those keep the exact continuous silhouette; the layer clip only has
         // to stop the refracted image spilling, which a rounded rect at the same radii does to
         // within a fraction of a pixel.
-        shape = shapeProvider.fastClipShape
+        // F6B.15: il contorno del ritaglio alla misura della posa (vedi [placedLayerSize] e [SizedClipShape]).
+        shape = SizedClipShape(shapeProvider.fastClipShape, placedLayerSize)
         // Fluid Engine change: upstream forces `CompositingStrategy.Offscreen` here. That routes the
         // whole surface — backdrop draw, tint, and every child — through a texture the size of the
         // node, re-rasterised on every frame in which the refracted image changes... which while the
@@ -1240,13 +1241,29 @@ private class DrawBackdropNode(
         }
     }
 
+    /**
+     * F6B.15: la misura con cui lo strato della posa ha letto la forma, e il blocco di quella misura. Compose ricalcola il
+     * contorno del ritaglio di uno strato quando il blocco gli dà una forma diversa, non quando lo strato cambia misura con
+     * la stessa forma: sul Tab S9 la prima pillola della fila in alto si posava la prima volta larga 0 (`Rect(0, 0, 0, 51)`)
+     * e il ritaglio restava quello. Il vetro usciva senza bordo né scritta (tagliati via) e il tocco non arrivava al chip
+     * (fuori dal contorno: l'hit test si ferma allo strato). Un blocco nuovo a ogni cambio di misura (non a ogni fotogramma)
+     * fa rileggere la forma, legata alla misura ([SizedClipShape]).
+     */
+    private var placedLayerSize = IntSize(-1, -1)
+    private var sizedLayoutLayerBlock: GraphicsLayerScope.() -> Unit = layoutLayerBlock
+
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints
     ): MeasureResult {
         val placeable = measurable.measure(constraints)
+        val placed = IntSize(placeable.width, placeable.height)
+        if (placed != placedLayerSize) {
+            placedLayerSize = placed
+            sizedLayoutLayerBlock = { layoutLayerBlock() }
+        }
         return layout(placeable.width, placeable.height) {
-            placeable.placeWithLayer(IntOffset.Zero, layerBlock = layoutLayerBlock)
+            placeable.placeWithLayer(IntOffset.Zero, layerBlock = sizedLayoutLayerBlock)
             // Fluid Engine addition (F1A.7): il layer della posa nasce alla prima posa e vive fino al distacco.
             census.layer(FluidGlassLayerKind.Placement)
         }
@@ -1823,5 +1840,28 @@ internal class BackdropEffectsUpdates(
         if (dirty || scopeChanged) {
             refresh()
         }
+    }
+}
+
+/**
+ * F6B.15: [shape] alla misura della posa ([size], quella del placeable che `DrawBackdropNode` posa col suo strato). Due
+ * misure diverse sono due forme diverse, e il contorno si calcola con la misura della posa, non con quella che Compose dà
+ * al blocco dello strato: per la prima pillola della fila in alto sul Tab S9 il blocco girava una volta sola, con lo scope a
+ * `0 × 51` (il contenuto non ancora alla sua misura) e la posa già a `131 × 96`; poi Compose ridimensionava lo strato senza
+ * rieseguire il blocco, e il ritaglio restava `Rect(0, 0, 0, 51)`. Senza una misura di posa, quella dello scope.
+ */
+private data class SizedClipShape(val shape: Shape, val size: IntSize) : Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density,
+    ): androidx.compose.ui.graphics.Outline {
+        val placed = this.size
+        val outlineSize = if (placed.width >= 0 && placed.height >= 0) {
+            androidx.compose.ui.geometry.Size(placed.width.toFloat(), placed.height.toFloat())
+        } else {
+            size
+        }
+        return shape.createOutline(outlineSize, layoutDirection, density)
     }
 }

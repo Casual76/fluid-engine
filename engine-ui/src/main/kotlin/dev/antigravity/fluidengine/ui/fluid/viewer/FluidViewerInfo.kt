@@ -42,7 +42,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -84,6 +88,8 @@ data class FluidViewerInfo(
   val reading: FluidViewerInfoSection? = null,
   val searchPages: (suspend (String) -> List<FluidViewerPageMatch>)? = null,
   val chapters: List<FluidAudioChapter> = emptyList(),
+  val audioFormat: String? = null,
+  val audioOutput: (() -> Unit)? = null,
 )
 
 /** Each rectangle is in page-relative coordinates (0..1), with the origin at the top left. */
@@ -131,32 +137,68 @@ internal fun defaultViewerInfo(file: FluidViewerContent, strings: FluidViewerStr
 }
 
 /**
- * Tavola D · Mix, a occhio, 22 novembre 2026, secondo giro sul Tab S9.
- * La colonna è larga fino a 552 dp, con 16 dp di margine interno per lato. Copertina al 73,5%,
- * fino a 400 dp; icona al 35%, fino a 184 dp. Da 390 a 552 dp il respiro verticale aumenta
- * di 8 dp. La tipografia conserva gli sp del tema e la scala del testo di sistema.
+ * Tavola D · Mix (F6C.7, tavole_base.py e tavole_d.py, 22 novembre 2026).
+ * Le misure CSS dei controlli e gli sp sono fissi. La colonna cresce fino a 552 dp.
+ * Le tinte e l'alone sono scelti a occhio, 22 novembre.
  */
 internal object ViewerMixProfile {
   val ColumnWidth = 552.dp
-  val CoverLimit = 400.dp
-  val IconLimit = 184.dp
-  const val CoverFraction = .735f
-  const val IconFraction = .35f
-  const val FileTint = .34f
-  const val LowerTint = .24f
+  val Cover = 280.dp
+  val CoverRadius = 22.dp
+  val FileIcon = 136.dp
+  val FileIconRadius = 32.dp
+  val PlayerRadius = 30.dp
+  val WarningRadius = 24.dp
+  val Edge = 16.dp
+  val FactsHeight = 28.dp
+  val FileFactsHeight = 26.dp
+  val FactPadding = 11.dp
+  const val FileTint = .20f
+  const val LowerTint = .16f
   const val WarningTint = .27f
   val Amber = Color(0xFFFF9500)
   val HaloDrop = 6.dp
   fun haloSpread(itemSize: Dp): Dp = (itemSize * .16f).coerceIn(20.dp, 46.dp)
-  fun verticalBreath(width: Dp): Dp = ((width - 390.dp) * .05f).coerceIn(0.dp, 8.dp)
+}
+
+/** The board uses the Fluid font families at these exact sizes. Font scaling still comes from the system. */
+internal fun TextStyle.viewerSize(size: Float, weight: FontWeight = fontWeight ?: FontWeight.Normal,
+  line: Float = size * 1.2f): TextStyle =
+  copy(fontSize = size.sp, fontWeight = weight, lineHeight = line.sp, letterSpacing = 0.sp)
+
+@Composable
+internal fun viewerBoardTop(position: Dp): Dp = maxOf(position, FluidScreenDefaults.topBarHeight() + 8.dp)
+
+@Composable
+internal fun ViewerBoardButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
+  style: FluidButtonStyle = FluidButtonStyle.Filled, height: Dp = 46.dp, textSize: Float = 15.5f) {
+  val colors = MaterialTheme.colorScheme
+  val fill = when (style) {
+    FluidButtonStyle.Filled -> colors.primary
+    FluidButtonStyle.Tinted -> colors.primary.copy(alpha = .12f)
+    FluidButtonStyle.Destructive -> colors.errorContainer
+    FluidButtonStyle.Plain -> Color.Transparent
+  }
+  val ink = when (style) {
+    FluidButtonStyle.Filled -> colors.onPrimary
+    FluidButtonStyle.Destructive -> colors.onErrorContainer
+    else -> colors.primary
+  }
+  Box(modifier.heightIn(min = height).fluidPressable(onClick = onClick, role = Role.Button,
+    feedback = FluidPressFeedback.Expand, grip = FluidPressGrip.YieldsToScroll)
+    .background(fill, FluidCapsuleShape).padding(horizontal = 14.dp, vertical = 4.dp),
+    contentAlignment = Alignment.Center) {
+    Text(text, style = MaterialTheme.typography.bodyMedium.viewerSize(textSize, FontWeight.SemiBold),
+      color = ink, textAlign = TextAlign.Center)
+  }
 }
 
 /** Bound the reading column independently of Android's density, text settings and the window insets. */
 @Composable
 internal fun ViewerMixColumn(modifier: Modifier, content: @Composable (width: Dp) -> Unit) {
-  BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+  BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
     val width = minOf(maxWidth, ViewerMixProfile.ColumnWidth)
-    Box(Modifier.width(width), contentAlignment = Alignment.Center) { content(width) }
+    Box(Modifier.width(width), contentAlignment = Alignment.TopCenter) { content(width) }
   }
 }
 
@@ -262,15 +304,17 @@ internal fun Modifier.viewerHalo(accent: Color, corner: Dp): Modifier {
 
 @Composable
 internal fun ViewerFacts(facts: List<String>, backdrop: GlassBackdropState, modifier: Modifier = Modifier,
-  contrast: ViewerInfoText? = null) {
+  contrast: ViewerInfoText? = null, height: Dp = ViewerMixProfile.FactsHeight) {
   if (facts.isEmpty()) return
   Row(modifier.horizontalScroll(rememberScrollState()).semantics { isTraversalGroup = true },
     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
     facts.forEach { fact ->
-      Text(fact, Modifier.viewerGlass(backdrop).then(if (contrast == null) Modifier else
-        Modifier.background(contrast.support, FluidCapsuleShape)).padding(horizontal = 12.dp, vertical = 6.dp),
-        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        color = contrast?.ink ?: MaterialTheme.colorScheme.onSurface)
+      Box(Modifier.viewerGlass(backdrop).then(if (contrast == null) Modifier else
+        Modifier.background(contrast.support, FluidCapsuleShape)).heightIn(min = height)
+        .padding(horizontal = ViewerMixProfile.FactPadding), contentAlignment = Alignment.Center) {
+        Text(fact, style = MaterialTheme.typography.labelLarge.viewerSize(12.5f, FontWeight.SemiBold),
+          color = contrast?.ink ?: MaterialTheme.colorScheme.onSurfaceVariant)
+      }
     }
   }
 }
@@ -358,31 +402,36 @@ private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropSta
   var actionFailed by remember(info.file) { mutableStateOf(false) }
   ViewerMixColumn(Modifier.fillMaxWidth()) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).semantics { isTraversalGroup = true }
-      .padding(FluidScreenDefaults.HorizontalPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+      .padding(start = ViewerMixProfile.Edge, end = ViewerMixProfile.Edge, bottom = ViewerMixProfile.Edge)) {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val thumb = info.thumbnail
         if (thumb == null) FileIcon(info.file.kind, 44)
+        else if (info.file.kind in setOf(FluidFileKind.Pdf, FluidFileKind.Document)) Image(thumb, null,
+          Modifier.size(38.dp, 54.dp).clip(ContinuousCornerShape(2.dp)), contentScale = ContentScale.Fit)
         else Image(thumb, null, Modifier.size(48.dp).clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
         Column(Modifier.weight(1f).wrapContentWidth(Alignment.Start)
           .then(if (title == null) Modifier else Modifier.background(title.support, MaterialTheme.shapes.small)
             .padding(horizontal = 6.dp, vertical = 3.dp))
           .semantics(mergeDescendants = true) { heading() }) {
-          Text(info.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = title?.ink ?: colors.onSurface)
-          if (summary != info.title) Text(summary, style = MaterialTheme.typography.bodySmall, color = title?.ink ?: colors.onSurfaceVariant)
+          Text(info.title, style = MaterialTheme.typography.titleLarge.viewerSize(18f, FontWeight.Bold),
+            color = title?.ink ?: colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          if (summary != info.title) Text(summary, style = MaterialTheme.typography.bodySmall.viewerSize(13.5f),
+            color = title?.ink ?: colors.onSurfaceVariant)
         }
-        FluidGlassIconButton(close, backdrop = backdrop, size = FluidGlassSize.Compact) {
+        FluidGlassIconButton(close, backdrop = backdrop, size = 32.dp) {
           Box(Modifier.fillMaxSize().then(if (fact == null) Modifier else Modifier.background(fact.support, FluidCapsuleShape)),
             contentAlignment = Alignment.Center) {
-            FluidIcon(FluidIcons.Close, strings.close, tint = fact?.ink ?: colors.onSurface)
+            FluidIcon(FluidIcons.Close, strings.close, tint = fact?.ink ?: colors.onSurface, size = 16.dp)
           }
         }
       }
-      ViewerFacts(info.facts, backdrop, contrast = fact)
+      ViewerFacts(info.facts, backdrop, Modifier.padding(top = 12.dp), contrast = fact)
       extra()
       sections.forEach { section ->
         if (section.rows.isNotEmpty() || section.content != null) {
-          FluidSectionHeader(section.title)
+          Text(section.title.uppercase(), Modifier.padding(start = 16.dp, top = 14.dp, bottom = 7.dp)
+            .semantics { heading() }, color = colors.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium.viewerSize(12f, FontWeight.SemiBold).copy(letterSpacing = 0.6.sp))
           if (section.rows.isNotEmpty()) FluidListGroup {
             section.rows.forEachIndexed { index, row ->
               if (index > 0) FluidListDivider()
@@ -393,12 +442,12 @@ private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropSta
         }
       }
       if (actions.isNotEmpty()) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           actions.forEach { action ->
-            FluidButton(action.label, {
+            ViewerBoardButton(action.label, {
               actionFailed = false
               fluidRunFileAction(action.onClick) { actionFailed = true }
-            }, style = FluidButtonStyle.Tinted)
+            }, Modifier.weight(1f), style = FluidButtonStyle.Tinted, height = 40.dp, textSize = 13.5f)
           }
         }
         if (actionFailed) Text(strings.actionFailed, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
@@ -415,10 +464,11 @@ private fun ViewerInfoRow(row: FluidViewerInfoRow, copyLabel: String) {
   val copy = { clipboard.setText(AnnotatedString(row.copyValue)) }
   Row(Modifier.fillMaxWidth().pointerInput(row.copyValue, clipboard) { detectTapGestures(onLongPress = { copy() }) }
     .semantics(mergeDescendants = true) { onLongClick(copyLabel) { copy(); true } }
-    .padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text(row.label, Modifier.weight(.42f), style = MaterialTheme.typography.bodyMedium)
-    Text(row.value, Modifier.weight(.58f), style = MaterialTheme.typography.bodyMedium,
-      color = MaterialTheme.colorScheme.onSurfaceVariant)
+    .heightIn(min = 38.dp).padding(horizontal = 16.dp, vertical = 4.dp),
+    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Text(row.label, Modifier.weight(.38f), style = MaterialTheme.typography.bodyMedium.viewerSize(14f))
+    Text(row.value, Modifier.weight(.62f), style = MaterialTheme.typography.bodyMedium.viewerSize(13.5f),
+      textAlign = TextAlign.End, color = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }
 

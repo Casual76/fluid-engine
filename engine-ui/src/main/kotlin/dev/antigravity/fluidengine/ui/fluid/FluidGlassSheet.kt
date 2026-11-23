@@ -143,7 +143,8 @@ fun FluidGlassSheet(
   undimmedUpTo: FluidSheetDetent?,
   content: @Composable ColumnScope.() -> Unit,
 ) {
-  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source, undimmedUpTo)
+  val spec = FluidSheetSpec(detents.toList(), selectedDetent, dragIndicator, transition, source, undimmedUpTo,
+    edgeToEdge = LocalFluidSheetEdgeToEdge.current)
   FluidGlassModalPortal(
     visible = visible,
     onDismissRequest = onDismissRequest,
@@ -229,6 +230,8 @@ private fun ColumnScope.FluidSheetBody(content: @Composable ColumnScope.() -> Un
 
 // --- Dichiarazione: dal contenuto al foglio che lo disegna ---------------------------------------------------------
 
+internal val LocalFluidSheetEdgeToEdge = staticCompositionLocalOf { false }
+
 /** Ciò che un [FluidGlassSheet] chiede al foglio dell'host. Uguaglianza per valore: ricrearlo non invalida niente. */
 @Immutable
 internal data class FluidSheetSpec(
@@ -239,6 +242,7 @@ internal data class FluidSheetSpec(
   /** La sorgente dello zoom (F5B.3), o null. Va ricordata da chi la crea: è parte dell'uguaglianza della dichiarazione. */
   val source: FluidTransitionSource? = null,
   val undimmedUpTo: FluidSheetDetent? = null,
+  val edgeToEdge: Boolean = false,
 )
 
 /**

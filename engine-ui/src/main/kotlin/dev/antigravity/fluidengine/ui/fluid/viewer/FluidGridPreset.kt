@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.antigravity.fluidengine.ui.fluid.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
@@ -115,12 +116,13 @@ private fun GridSheet(
   val theme = MaterialTheme.colorScheme
   val measurer = rememberTextMeasurer(cacheSize = GridTextCache)
   val typography = MaterialTheme.typography
-  val baseStyle = if (sheet.headers) typography.bodyMedium else typography.bodySmall
-  val headerStyle = typography.labelMedium
-  // Coordinate sheets use the 15 sp reading body at 100%. Scale the saved dimensions by the
-  // same ratio, including the device's text scale, independently of the user's pinch.
+  val hasBoardTitle = LocalViewerInfo.current != null && LocalViewerPage.current != null
+  val baseStyle = if (sheet.headers && hasBoardTitle) typography.bodyMedium.viewerSize(12.2f)
+    else if (sheet.headers) typography.bodyMedium else typography.bodySmall
+  val headerStyle = if (hasBoardTitle) typography.labelMedium.viewerSize(11.2f, FontWeight.SemiBold) else typography.labelMedium
+  // Font scale and pinch apply to the saved sheet dimensions independently.
   val sheetDensity = if (sheet.headers) with(density) {
-    baseStyle.fontSize.toPx() / typography.bodySmall.fontSize.value
+    baseStyle.fontSize.toPx() / (if (hasBoardTitle) 12.2f else typography.bodySmall.fontSize.value)
   } else density.density
   val store = remember(source, index) { GridCellStore(source, index) }
   val entrance = LocalViewerEntrance.current
@@ -185,8 +187,35 @@ private fun GridSheet(
   }
 
   val gap = FluidScreenDefaults.HorizontalPadding / 2
-  val top = FluidScreenDefaults.topBarHeight() + gap
+  val top = if (hasBoardTitle) viewerBoardTop(100.dp) else FluidScreenDefaults.topBarHeight() + gap
   val tabs = sheets.size > 1
+  val tabStyle = typography.labelLarge.viewerSize(14.5f, FontWeight.SemiBold)
+  val tabWidths = remember(sheets, density, tabStyle, measurer) {
+    sheets.map { other ->
+      with(density) { measurer.measure(other.name, tabStyle, maxLines = 1).size.width.toDp() + 26.dp }
+    }
+  }
+  val tabsInDock = hasBoardTitle && tabs && density.fontScale < 1.5f && with(density) {
+    tabWidths.sumOf { it.value.toDouble() } + 136.0 <= viewport.width.toDp().value
+  }
+  if (tabsInDock) ViewerPresetToolbar {
+    group("viewer.grid.tabs", placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar) {
+      sheets.forEachIndexed { i, other ->
+        entries += dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarButtonEntry(
+          id = "viewer.grid.tab.$i", role = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole.Action,
+          placement = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement.BottomBar,
+          label = strings.sheet(other.name, i + 1, sheets.size), onClick = { if (index != i) select(i) },
+          selected = index == i, width = tabWidths[i], custom = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+              val color = other.color ?: theme.primary
+              Spacer(Modifier.size(8.dp).drawBehind { drawCircle(color) })
+              Text(other.name, style = tabStyle, color = if (index == i) theme.primary else theme.onSurface, maxLines = 1)
+            }
+          },
+        )
+      }
+    }
+  }
   // F6C.15b, come Numbers: le schede stanno sopra la capsula in basso, dove la capsula è davvero (con una tab bar
   // nell'app sale con il suo inset), e le righe scorrono fino a stare tutte sopra le schede. Il margine in fondo è
   // l'altezza misurata delle schede (due righe di testo a scala 2,0) più il loro spazio sopra e sotto.
@@ -195,7 +224,7 @@ private fun GridSheet(
   val tabGap = FluidFloatingTabBarDefaults.Spacing
   val capsuleTop = viewerBottomCapsuleTop()
   val bottomBar = maxOf(FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize), capsuleTop + tabGap)
-  val bottom = if (tabs) capsuleTop + tabGap + tabHeight + tabGap else bottomBar
+  val bottom = if (tabs && !tabsInDock) capsuleTop + tabGap + tabHeight + tabGap else bottomBar
   val painter = GridPainter(
     measurer = measurer, sheet = sheet, columns = columns, merges = merges, store = store,
     style = baseStyle.copy(color = theme.onSurface), headerStyle = headerStyle.copy(color = theme.onSurfaceVariant),
@@ -205,7 +234,9 @@ private fun GridSheet(
 
   // The row list, horizontal scroll and outer pager all watch single-finger drags. Read changes
   // in the two-finger span before those handlers consume movement; leave single touches alone.
-  Box(modifier.fillMaxSize().onSizeChanged { viewport = it }.clipToBounds().pointerInput(Unit) {
+  Box(modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+    .widthIn(max = if (hasBoardTitle) ViewerMixProfile.ColumnWidth else Dp.Infinity)
+    .fillMaxSize().onSizeChanged { viewport = it }.clipToBounds().pointerInput(Unit) {
     awaitEachGesture {
       awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
       do {
@@ -266,7 +297,7 @@ private fun GridSheet(
           .fluidPressable(onClick = { store.retry() }, role = Role.Button).wrapContentHeight(), color = theme.primary)
       }
     }
-    if (tabs && chromeVisible) {
+    if (tabs && !tabsInDock && chromeVisible) {
       Row(
         Modifier.align(Alignment.BottomCenter).padding(bottom = capsuleTop + tabGap)
           .onSizeChanged { tabRowHeight = with(density) { it.height.toDp() } }

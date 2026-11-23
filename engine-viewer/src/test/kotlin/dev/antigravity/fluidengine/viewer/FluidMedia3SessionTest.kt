@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.viewer
 import androidx.media3.common.C
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import org.junit.Assert.assertEquals
@@ -27,6 +28,7 @@ class FluidMedia3SessionTest {
     var seekable = true
     var playerErrorValue: PlaybackException? = null
     var size: VideoSize = VideoSize.UNKNOWN
+    private var parameters: PlaybackParameters = PlaybackParameters.DEFAULT
     val commands = mutableSetOf(
       Player.COMMAND_PLAY_PAUSE, Player.COMMAND_PREPARE, Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
       Player.COMMAND_SEEK_TO_DEFAULT_POSITION, Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
@@ -44,6 +46,17 @@ class FluidMedia3SessionTest {
     override fun isCommandAvailable(command: Int) = command in commands
     override fun getPlayerError() = playerErrorValue
     override fun getVideoSize() = size
+    override fun getPlaybackParameters(): PlaybackParameters {
+      check(isCommandAvailable(Player.COMMAND_SET_SPEED_AND_PITCH))
+      return parameters
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+      check(isCommandAvailable(Player.COMMAND_SET_SPEED_AND_PITCH))
+      calls += "speed($speed)"
+      parameters = PlaybackParameters(speed)
+      listeners.toList().forEach { it.onPlaybackParametersChanged(parameters) }
+    }
     override fun addListener(listener: Player.Listener) { listeners += listener }
     override fun removeListener(listener: Player.Listener) { listeners -= listener }
 
@@ -105,6 +118,22 @@ class FluidMedia3SessionTest {
     session.close()
     assertTrue(player.listeners.isEmpty())
     session.close()
+  }
+
+  @Test
+  fun `playback speed is an optional player command`() {
+    val player = FakePlayer()
+    val session = session(player)
+    assertFalse(session.canChangePlaybackSpeed)
+    assertEquals(1f, session.playbackSpeed, 0f)
+    session.changePlaybackSpeed(1.25f)
+    assertTrue(player.calls.isEmpty())
+    player.commands += Player.COMMAND_SET_SPEED_AND_PITCH
+    session.refresh()
+    assertTrue(session.canChangePlaybackSpeed)
+    session.changePlaybackSpeed(1.5f)
+    assertEquals(1.5f, session.playbackSpeed, 0f)
+    assertEquals(listOf("speed(1.5)"), player.calls)
   }
 
   @Test

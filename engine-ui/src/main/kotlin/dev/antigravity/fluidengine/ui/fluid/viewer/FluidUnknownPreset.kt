@@ -2,8 +2,8 @@ package dev.antigravity.fluidengine.ui.fluid.viewer
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
@@ -29,9 +29,6 @@ import androidx.compose.ui.unit.Constraints
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Warning
-import dev.antigravity.fluidengine.ui.theme.FluidTone
-import dev.antigravity.fluidengine.ui.theme.FluidToneTile
-import dev.antigravity.fluidengine.ui.theme.FluidToneTileSize
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -167,69 +164,78 @@ fun FluidUnknownPreset(
   Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent,
       if (info.kind == FluidFileKind.Executable) ViewerMixProfile.Amber else colors.secondary, colors.primary))
-    ViewerMixColumn(Modifier.fillMaxSize().padding(top = FluidScreenDefaults.topBarHeight(),
-      bottom = FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize))) { width ->
-      val iconSize = minOf(width * ViewerMixProfile.IconFraction, ViewerMixProfile.IconLimit)
-      val breath = ViewerMixProfile.verticalBreath(width)
-      val headroom = maxOf(16.dp + breath, ViewerMixProfile.haloSpread(iconSize) - ViewerMixProfile.HaloDrop)
+    val top = FluidScreenDefaults.topBarHeight()
+    val iconTop = viewerBoardTop(134.dp)
+    ViewerMixColumn(Modifier.fillMaxSize().padding(top = top,
+      bottom = FluidScreenDefaults.bottomContentPadding())) {
+      val iconSize = ViewerMixProfile.FileIcon
+      val iconShape = ContinuousCornerShape(ViewerMixProfile.FileIconRadius)
       Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-          .padding(start = 16.dp, end = 16.dp, top = headroom, bottom = 16.dp + breath),
+          .padding(start = 16.dp, end = 16.dp, top = iconTop - top, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(gap + breath / 2),
       ) {
-        Box(Modifier.padding(bottom = 10.dp).size(iconSize).viewerHalo(accent, FluidRadius.Sheet),
+        Box(Modifier.size(iconSize).viewerHalo(accent, ViewerMixProfile.FileIconRadius),
           contentAlignment = Alignment.Center) {
           val icon = details?.thumbnail
-          if (icon != null) Image(icon, null, Modifier.fillMaxSize().clip(MaterialTheme.shapes.large),
+          if (icon != null) Image(icon, null, Modifier.fillMaxSize().clip(iconShape),
             contentScale = ContentScale.Fit)
-          else Box(Modifier.scale(iconSize / FluidToneTileSize)) {
-            FileIcon(info.kind, size = FluidToneTileSize.value.toInt())
+          else Box(Modifier.fillMaxSize().background(colors.primary, iconShape), contentAlignment = Alignment.Center) {
+            Icon(fluidFileGlyph(info.kind), null, Modifier.size(58.dp), tint = colors.onPrimary)
           }
         }
-        val nameStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        val nameStyle = MaterialTheme.typography.headlineSmall.viewerSize(24f, FontWeight.Bold).copy(textAlign = TextAlign.Center)
         val measurer = rememberTextMeasurer()
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 26.dp)) {
           val width = constraints.maxWidth
           val shown = remember(info.name, width, nameStyle, measurer) { fluidFitFileName(info.name, measurer, nameStyle, width, 2) }
           Text(shown, Modifier.fillMaxWidth().semantics { heading() }, style = nameStyle, maxLines = 2)
         }
-        Text(fluidUnknownDetails(info, labels.fileKind(info.kind), strings), style = MaterialTheme.typography.bodyLarge,
+        Text(details?.subtitle ?: fluidUnknownDetails(info, labels.fileKind(info.kind), strings), Modifier.padding(top = 5.dp),
+          style = MaterialTheme.typography.bodyLarge.viewerSize(15f),
           color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         val facts = details?.facts?.takeIf { it.isNotEmpty() } ?: listOfNotNull(
           info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.uppercase(), info.mimeType)
-        ViewerFacts(facts, backdrop)
+        ViewerFacts(facts, backdrop, Modifier.padding(top = 12.dp), height = ViewerMixProfile.FileFactsHeight)
         if (info.kind == FluidFileKind.Executable) {
-          Spacer(Modifier.height(gap))
-          Row(Modifier.fillMaxWidth().viewerGlass(backdrop, MaterialTheme.shapes.large,
+          Spacer(Modifier.height(44.dp))
+          Row(Modifier.fillMaxWidth().heightIn(min = 90.dp)
+            .viewerGlass(backdrop, ContinuousCornerShape(ViewerMixProfile.WarningRadius),
             ViewerMixProfile.Amber.copy(alpha = ViewerMixProfile.WarningTint))
-            .padding(FluidScreenDefaults.HorizontalPadding), horizontalArrangement = Arrangement.spacedBy(gap / 2), verticalAlignment = Alignment.CenterVertically) {
-            FluidToneTile(FluidTone.Warning) { Icon(FluidIcons.Warning, contentDescription = null) }
+            .padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(36.dp).background(ViewerMixProfile.Amber, ContinuousCornerShape(11.dp)),
+              contentAlignment = Alignment.Center) {
+              Icon(FluidIcons.Warning, contentDescription = null, modifier = Modifier.size(21.dp), tint = colors.onPrimary)
+            }
             Text(strings.executableWarning, Modifier.weight(1f), color = colors.onSurface,
-              style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+              style = MaterialTheme.typography.bodyLarge.viewerSize(14.5f, FontWeight.Medium, 20f))
           }
         }
+        Spacer(Modifier.height(if (info.kind == FluidFileKind.Executable) 20.dp else 26.dp))
         val openWith = file.openWith
         val share = file.share
         if (openWith == null && share == null) {
           Text(strings.noPreview, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center)
         }
-        if (openWith != null) FluidButton(strings.openWith, {
+        val button = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+        if (openWith != null) ViewerBoardButton(strings.openWith, {
           failure = null
           fluidRunFileAction(openWith) { failure = strings.openFailed }
-        }, size = FluidButtonSize.Large, fillWidth = true, grip = FluidPressGrip.YieldsToScroll)
-        if (share != null) FluidButton(strings.share, {
+        }, button)
+        if (openWith != null && share != null) Spacer(Modifier.height(gap))
+        if (share != null) ViewerBoardButton(strings.share, {
           failure = null
           fluidRunFileAction(share) { failure = strings.shareFailed }
-        }, style = FluidButtonStyle.Tinted, size = FluidButtonSize.Large, fillWidth = true, grip = FluidPressGrip.YieldsToScroll)
+        }, button, style = FluidButtonStyle.Tinted)
         failure?.let {
           Text(it, Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
         if (firstBytes != null) {
-          FluidButton(if (showBytes) strings.hideBytes else strings.showBytes, { showBytes = !showBytes },
-            style = FluidButtonStyle.Plain, grip = FluidPressGrip.YieldsToScroll)
+          Spacer(Modifier.height(gap))
+          ViewerBoardButton(if (showBytes) strings.hideBytes else strings.showBytes, { showBytes = !showBytes },
+            button, style = FluidButtonStyle.Plain, height = 36.dp, textSize = 14.5f)
           if (showBytes) HexDump(firstBytes, strings)
         }
       }

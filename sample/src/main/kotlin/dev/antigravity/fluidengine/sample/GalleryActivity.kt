@@ -97,6 +97,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
+import dev.antigravity.fluidengine.sample.viewer.VisoriArchiveExport
 import kotlinx.coroutines.delay
 import androidx.compose.material3.Text
 import androidx.compose.ui.semantics.selected
@@ -150,6 +151,7 @@ class GalleryActivity : ComponentActivity() {
       if (savedInstanceState == null) GalleryGlassSwitches.applyAtLaunch(this, glassLaunch)
     }
     setContent {
+      VisoriArchiveExport()
       // Le impostazioni stanno sopra il tema, non dentro una scheda: "Aspetto" le cambia davvero, e
       // il tema chiaro serve per giudicare il bordo del vetro che si trasforma.
       var settings by remember { mutableStateOf(launch.settings()) }

@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
@@ -38,9 +41,14 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
+import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -62,6 +70,8 @@ data class FluidPagesPresetStrings(
   val zoom: (percent: Int) -> String = { "Zoom $it%" },
   val find: String = "Trova",
   val searchError: String = "Impossibile cercare nel documento",
+  val present: String = "Presenta",
+  val endPresentation: String = "Chiudi presentazione",
 )
 
 /**
@@ -90,8 +100,13 @@ fun FluidPagesPreset(
   key(source) {
     val pages = rememberLazyListState()
     val horizontal = rememberScrollState()
-    val searchPages = LocalViewerInfo.current?.searchPages
+    val info = LocalViewerInfo.current
+    val type = info?.file?.name?.substringAfterLast('.', "")?.lowercase()
+    val slides = type in setOf("pptx", "odp")
+    val word = type in setOf("docx", "odt", "rtf")
+    val searchPages = info?.searchPages
     var finding by rememberSaveable { mutableStateOf(false) }
+    var presenting by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var hits by remember { mutableStateOf(emptyList<FluidViewerPageMatch>()) }
     var cursor by rememberSaveable { mutableIntStateOf(0) }
@@ -109,11 +124,13 @@ fun FluidPagesPreset(
       }
     }
     val match = hits.getOrNull(cursor)
-    if (searchPages != null) ViewerPresetToolbar {
+    if (searchPages != null || slides) ViewerPresetToolbar {
       if (finding) search(FluidSearchSpec.findInPage(query, { query = it }, FluidSearchNavigation(cursor, hits.size,
         { if (hits.isNotEmpty()) cursor = (cursor + hits.size - 1) % hits.size },
         { if (hits.isNotEmpty()) cursor = (cursor + 1) % hits.size }), true, { finding = it }))
-      button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true }, placement = FluidToolbarPlacement.BottomBar)
+      if (slides) button("viewer.document.present", FluidIcons.PlayArrow, strings.present, { presenting = true },
+        placement = FluidToolbarPlacement.BottomBar)
+      else button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true }, placement = FluidToolbarPlacement.BottomBar)
     }
     if (finding && active) FluidSelectionBackEffect(enabled = true) { finding = false }
     var scale by rememberSaveable { mutableFloatStateOf(FluidZoom.MinScale) }
@@ -142,10 +159,18 @@ fun FluidPagesPreset(
           ?: visibleViewerPage(pages.layoutInfo, pages.canScrollBackward, pages.canScrollForward, count)
       }
     }
-    val gap = FluidScreenDefaults.HorizontalPadding
+    val gap = when {
+      slides -> 11.dp
+      word -> 15.dp
+      info != null -> 17.dp
+      else -> FluidScreenDefaults.HorizontalPadding
+    }
+    val margin = if (slides) 20.dp else if (word) 25.dp else if (info == null) gap else 30.dp
     CompositionLocalProvider(LocalFluidGlassModalHostState provides modal) {
       BoxWithConstraints(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier).clipToBounds()) {
-        val pageWidth = (maxWidth - gap * 2).coerceAtLeast(1.dp) * scale
+        val column = if (info == null) maxWidth else minOf(maxWidth, ViewerMixProfile.ColumnWidth)
+        val pageWidth = (column - margin * 2).coerceAtLeast(1.dp) * scale
+        val edge = maxOf(margin, (maxWidth - column) / 2 + margin)
         val pixelWidth = with(LocalDensity.current) { pageWidth.roundToPx() }
         LaunchedEffect(match, pixelWidth) {
           if (match != null) {
@@ -155,21 +180,21 @@ fun FluidPagesPreset(
             pages.scrollToItem(match.page, (offset - pages.layoutInfo.viewportSize.height / 4).coerceAtLeast(0))
           }
         }
-        val top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() +
-          FluidGlassSize.Regular.touchTarget + gap
+        val top = viewerBoardTop(100.dp)
         // F6C.15b: sopra la capsula in basso anche quando l'app ha una tab bar (la capsula sale con il suo inset).
         val bottom = viewerBottomCapsuleTop() + gap
-        PageCounterLayout(top, gap, counter = {
+        PageCounterLayout(top, 16.dp, (maxWidth - column) / 2 + 16.dp, counter = {
           if (chromeVisible) {
             Row(Modifier.viewerGlass(backdrop).fluidPressable(onClick = { thumbnails = true }, role = Role.Button)
               .semantics(mergeDescendants = true) {
                 contentDescription = strings.thumbnails
                 stateDescription = strings.page(current + 1, count)
-              }.heightIn(min = FluidGlassSize.Regular.touchTarget).padding(horizontal = gap),
-              verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              FluidIcon(FluidIcons.GridView, null, modifier = Modifier.size(18.dp))
+              }.heightIn(min = if (info == null) FluidGlassSize.Regular.touchTarget else 34.dp)
+              .padding(horizontal = 12.dp, vertical = if (info == null) 4.dp else 0.dp),
+              verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+              FluidIcon(FluidIcons.GridView, null, modifier = Modifier.size(17.dp))
               Text(strings.counter(current + 1, count), Modifier.clearAndSetSemantics {},
-                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
+                style = MaterialTheme.typography.labelLarge.viewerSize(13.5f, FontWeight.SemiBold).copy(fontFeatureSettings = "tnum"))
             }
           }
         }) { firstPageTop ->
@@ -188,9 +213,9 @@ fun FluidPagesPreset(
               }
               .transformable(transform, canPan = { false })
               .horizontalScroll(horizontal, enabled = FluidZoom.isZoomed(scale))
-              .wrapContentWidth(Alignment.Start, unbounded = true).width(pageWidth + gap * 2),
+              .wrapContentWidth(Alignment.Start, unbounded = true).width(pageWidth + edge * 2),
             state = pages,
-            contentPadding = PaddingValues(start = gap, top = firstPageTop, end = gap, bottom = bottom),
+            contentPadding = PaddingValues(start = edge, top = firstPageTop, end = edge, bottom = bottom),
             verticalArrangement = Arrangement.spacedBy(gap),
           ) {
             items(count) { index ->
@@ -199,6 +224,7 @@ fun FluidPagesPreset(
             }
           }
         }
+        if (presenting) ViewerSlideShow(cache, count, current, strings) { presenting = false }
         if (searchFailed) Text(strings.searchError, Modifier.align(Alignment.Center).semantics { liveRegion = LiveRegionMode.Polite })
         FluidGlassSheet(visible = thumbnails, onDismissRequest = { thumbnails = false }, paneTitle = strings.thumbnails,
           detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {
@@ -230,20 +256,45 @@ fun FluidPagesPreset(
   }
 }
 
+@Composable
+private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: Int,
+  strings: FluidPagesPresetStrings, close: () -> Unit) {
+  val state = rememberPagerState(initial.coerceIn(0, count - 1)) { count }
+  Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+      val density = LocalDensity.current
+      HorizontalPager(state, Modifier.fillMaxSize()) { page ->
+        val natural by produceState<IntSize?>(null, page) { value = cache.measure(page) }
+        natural?.let { size ->
+          val width = minOf(maxWidth, maxHeight * (size.width.toFloat() / size.height))
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(width)) {
+              ViewerPage(cache, page, with(density) { width.roundToPx() }, false, false, strings, strings.page(page + 1, count))
+            }
+          }
+        }
+      }
+      FluidGlassIconButton(close, Modifier.align(Alignment.TopEnd).padding(16.dp)) {
+        FluidIcon(FluidIcons.Close, strings.endPresentation)
+      }
+    }
+  }
+}
+
 /**
  * Measure the pinned counter first, including wrapped labels and the current font scale.
  * Its clearance belongs to the start of the scrollable list; only the counter stays pinned.
  */
 @Composable
-private fun PageCounterLayout(top: Dp, gap: Dp, counter: @Composable () -> Unit, pages: @Composable (Dp) -> Unit) {
+private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable () -> Unit, pages: @Composable (Dp) -> Unit) {
   SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
-    val edge = gap.roundToPx()
+    val edge = margin.roundToPx()
     val inset = top.roundToPx()
     val chip = subcompose("counter", counter).singleOrNull()?.measure(constraints.copy(
       minWidth = 0, maxWidth = (constraints.maxWidth - 2 * edge).coerceAtLeast(0),
       minHeight = 0, maxHeight = (constraints.maxHeight - inset).coerceAtLeast(0),
     ))
-    val firstPageTop = inset + (chip?.let { it.height + edge } ?: 0)
+    val firstPageTop = inset + (chip?.let { it.height + gap.roundToPx() } ?: 0)
     val list = subcompose("pages") { pages(firstPageTop.toDp()) }.single().measure(constraints)
     layout(list.width, list.height) {
       list.placeRelative(0, 0)

@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsuleDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
@@ -29,7 +30,7 @@ import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 // F6C.8 · Il preset minimo della forma `Custom`: la pagina la disegna il modulo, il telaio le dà la barra, «Trova» e
 // il posto fra le barre. Il preset vero di ogni famiglia è la pagina stessa; la grammatica comune la rifà F6C.9.
 
-private object CustomPresetButton {
+internal object CustomPresetButton {
   const val Find = "fluid.viewer.custom.find"
 }
 
@@ -71,7 +72,7 @@ fun FluidCustomPreset(
   if (finding && active && front && !LocalFluidPagePreparing.current) FluidSelectionBackEffect(enabled = true) { finding = false }
 
   val gap: Dp = FluidScreenDefaults.HorizontalPadding / 2
-  val top = FluidScreenDefaults.topBarHeight() + gap
+  val top = viewerBoardTop(100.dp)
   val bottom = if (finding) {
     maxOf(FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize),
       WindowInsets.ime.asPaddingValues().calculateBottomPadding() + FluidScreenDefaults.ControlRowHeight + gap)

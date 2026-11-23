@@ -632,6 +632,9 @@ internal class FluidToolbarDeclaration(
   val search: FluidSearchSpec?,
   val overflowLabel: String?,
   val keyboard: FluidKeyboardDeclaration? = null,
+  val viewerLayout: Boolean = false,
+  val subtitleAccent: Color? = null,
+  val subtitleOrdinal: String? = null,
 ) {
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
@@ -1150,7 +1153,13 @@ internal fun FluidToolbarBar(
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val model = fluidToolbarModelOf(declaration, title, keyboardContext)
-  val metrics = if (bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  val metrics = when {
+    declaration.viewerLayout && bar != FluidToolbarBar.Keyboard ->
+      fluidToolbarMetrics().copy(buttonWidthDp = 44f, itemPitchDp = 44f, edgeMarginDp = 14f)
+    bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard -> fluidBottomBarMetrics()
+    else -> fluidToolbarMetrics()
+  }
+  val placement = if (bar == FluidToolbarBar.TopOnly && declaration.viewerLayout) FluidToolbarBar.Top else bar
   BoxWithConstraints(modifier.fillMaxWidth().height(metrics.buttonWidthDp.dp).fluidToolbarMinimizeLayer(towardsBottom = bar == FluidToolbarBar.Bottom)) {
     val width = if (constraints.hasBoundedWidth) maxWidth.value else FluidToolbarUnboundedWidthDp
     val search = LocalToolbarSearch.current.takeUnless { bar == FluidToolbarBar.Keyboard }
@@ -1165,7 +1174,7 @@ internal fun FluidToolbarBar(
     // Un campo che a riposo non c'è («trova», F6B.6) non tocca questa barra: i suoi fissati restano dove sono.
     val active = bar != FluidToolbarBar.Keyboard && (fluidToolbarSearchTouchesBar(search?.spec)
       ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true))
-    val resolved = remember(model, width, bar, active) { resolveFluidToolbar(model, width, active, metrics, bar) }
+    val resolved = remember(model, width, placement, active, metrics) { resolveFluidToolbar(model, width, active, metrics, placement) }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {
       val extent = fluidToolbarExtent(resolved, density.density)

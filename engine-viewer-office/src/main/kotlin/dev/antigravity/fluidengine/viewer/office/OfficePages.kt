@@ -87,6 +87,31 @@ internal class LaidOutText(
   private val start: Float,
   private val height: Float,
 ) : Mark {
+  fun matches(query: String, paper: Paper): List<androidx.compose.ui.geometry.Rect> = buildList {
+    val text = layout.text
+    for (line in 0 until layout.lineCount) {
+      val top = layout.getLineTop(line) / Units - start
+      if (top < 0f || top >= height) continue
+      val from = layout.getLineStart(line)
+      val until = layout.getLineVisibleEnd(line)
+      val segment = text.subSequence(from, until)
+      var found = segment.indexOf(query, ignoreCase = true)
+      while (found >= 0) {
+        val match = from + found
+        val left = layout.getPrimaryHorizontal(match) / Units
+        val right = layout.getPrimaryHorizontal(match + query.length - 1) / Units
+        val lastWidth = layout.paint.measureText(text, match + query.length - 1, match + query.length) / Units
+        val bottom = (layout.getLineBottom(line) / Units - start).coerceAtMost(height)
+        add(androidx.compose.ui.geometry.Rect(
+          ((x + minOf(left, right)) / paper.width).coerceIn(0f, 1f),
+          ((y + top) / paper.height).coerceIn(0f, 1f),
+          ((x + maxOf(left, right) + lastWidth) / paper.width).coerceIn(0f, 1f),
+          ((y + bottom) / paper.height).coerceIn(0f, 1f),
+        ))
+        found = segment.indexOf(query, found + query.length, ignoreCase = true)
+      }
+    }
+  }
   fun lines(): List<String> =
     (0 until layout.lineCount)
       .filter {
@@ -235,6 +260,23 @@ internal class OfficePages(private val worker: CoroutineScope) :
 
   override suspend fun render(index: Int, target: IntSize): ImageBitmap =
     withContext(Dispatchers.Default) { drawOfficePage(at(index), target).asImageBitmap() }
+
+  suspend fun search(query: String): List<dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerPageMatch> {
+    if (query.isBlank()) return emptyList()
+    return withContext(Dispatchers.Default) {
+      val snapshot = synchronized(pages) { pages.toList() }
+      buildList {
+        snapshot.forEachIndexed { index, page ->
+          currentCoroutineContext().ensureActive()
+          for (mark in page.marks.filterIsInstance<LaidOutText>()) {
+            for (box in mark.matches(query, page.paper)) {
+              add(dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerPageMatch(index, listOf(box)))
+            }
+          }
+        }
+      }
+    }
+  }
 
   override fun close() {
     worker.cancel()

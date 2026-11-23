@@ -501,7 +501,7 @@ private fun FluidSheetPane(
   var screen by remember { mutableStateOf(FluidSheetScreen.Unknown) }
   val topRadiusPx = with(density) { FluidRadius.Sheet.toPx() }
   val restInsetPx = fluidSheetInsetPx(0f, density.density)
-  val bottomRadiusPx = if (!motion.detentedLook) {
+  val bottomRadiusPx = if (!motion.detentedLook || sink.spec?.edgeToEdge == true) {
     0f
   } else if (screen.size == Size.Zero) {
     topRadiusPx
@@ -945,7 +945,7 @@ private fun FluidSheetPane(
       sheetBackground.dim = fluidSheetDim(position, backgroundLimit, dimCeiling)
       val visible = fluidSheetVisibleHeight(position, stops, windowHeight)
       val largeness = fluidSheetLargeness(visible, stops, large)
-      val inset = fluidSheetInsetPx(largeness, scale)
+      val inset = if (spec.edgeToEdge) 0f else fluidSheetInsetPx(largeness, scale)
       val width = min(windowWidth - 2f * inset, maxWidth).coerceAtLeast(0f).roundToInt()
       val height = visible.roundToInt().coerceAtLeast(0)
       val left = ((windowWidth - width) / 2f).roundToInt()

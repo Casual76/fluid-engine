@@ -83,6 +83,8 @@ internal class ArchiveTree(items: List<ArchiveItem>) {
   private val children: Map<String, List<ArchiveItem>>
   val folderCount: Int get() = folders.size
   val extractable: List<ArchiveItem>
+  private val folderBytes = mutableMapOf<String, Long>()
+  private val foldersWithUnknownSize = mutableSetOf<String>()
 
   init {
     for (item in items) {
@@ -95,6 +97,19 @@ internal class ArchiveTree(items: List<ArchiveItem>) {
     }
     val leaves = items.filter { it.kind != ArchiveKind.Folder }
     children = (folders.values + leaves).groupBy { it.parent }
+    for (file in leaves) {
+      if (file.kind != ArchiveKind.File) continue
+      val bytes = file.bytes
+      var parent = file.parent
+      while (parent.isNotEmpty()) {
+        if (bytes == null) foldersWithUnknownSize += parent
+        else {
+          val total = folderBytes[parent] ?: 0L
+          folderBytes[parent] = total + bytes.coerceIn(0L, Long.MAX_VALUE - total)
+        }
+        parent = parent.substringBeforeLast('/', "")
+      }
+    }
     val ambiguousPaths = leaves.groupingBy { it.path.lowercase(Locale.ROOT) }.eachCount()
     val folderPaths = folders.keys.mapTo(HashSet()) { it.lowercase(Locale.ROOT) }
     extractable = leaves.filter {
@@ -104,6 +119,7 @@ internal class ArchiveTree(items: List<ArchiveItem>) {
   }
 
   fun children(path: String): List<ArchiveItem> = children[path].orEmpty()
+  fun bytesIn(path: String): Long? = folderBytes[path]?.takeUnless { path in foldersWithUnknownSize }
 }
 
 /** Paths stay relative and portable, even when a caller uses a Windows-backed document provider. */

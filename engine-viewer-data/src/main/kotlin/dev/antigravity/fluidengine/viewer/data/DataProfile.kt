@@ -54,7 +54,7 @@ internal object DataProfile {
   const val MaxPictureSide: Int = 1024
 
   /** L'altezza minima di una riga dell'albero (dp): la tavola D ne ha 33, con il dito ne servono almeno 36. */
-  val TreeRowHeight = 36.dp
+  val TreeRowHeight = 33.dp
 
   /** Il rientro di ogni livello dell'albero (dp), come nella tavola. */
   val TreeIndent = 18.dp

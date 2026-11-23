@@ -37,6 +37,13 @@ interface FluidMediaSession {
   fun seekTo(positionMillis: Long)
 }
 
+/** Optional audio transport capability. Publish changes as Compose state. */
+interface FluidAudioSpeed {
+  val playbackSpeed: Float
+  val canChangePlaybackSpeed: Boolean
+  fun changePlaybackSpeed(speed: Float)
+}
+
 /** Optional dimensions for fitting a video surface and bounding its zoom and pan. */
 interface FluidVideoGeometry {
   val videoAspectRatio: Float?

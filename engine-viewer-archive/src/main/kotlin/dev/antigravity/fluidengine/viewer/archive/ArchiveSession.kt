@@ -41,6 +41,7 @@ internal class ArchiveSession(
 ) {
   var index by mutableStateOf(initialIndex)
     private set
+  var pageMenu by mutableStateOf<ArchiveMenu?>(null)
   var encoding by mutableStateOf(ArchiveEncoding.Cp437)
     private set
   var preview by mutableStateOf<FluidViewerDocument?>(null)

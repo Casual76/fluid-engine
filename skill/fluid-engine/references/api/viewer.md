@@ -141,7 +141,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-viewer/viewer/FluidMedia3.kt`
 
-- `class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidMediaDurationLoader, FluidVideoGeometry, AutoCloseable` — Il `Player` di Media3 dell'app come `FluidMediaSession` del visore. Il player resta **dell'app**: lo crea, lo prepara, sceglie il file e lo rilascia lei; la sessione lo legge e gli passa play, pausa e salto.
+- `class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidMediaDurationLoader, FluidVideoGeometry, FluidAudioSpeed, AutoCloseable` — Il `Player` di Media3 dell'app come `FluidMediaSession` del visore. Il player resta **dell'app**: lo crea, lo prepara, sceglie il file e lo rilascia lei; la sessione lo legge e gli passa play, pausa e salto.
   - `var buffering: Boolean by mutableStateOf(false)` — Vero mentre il player carica (`STATE_BUFFERING`).
   - `var ended: Boolean by mutableStateOf(false)` — Vero quando il file è finito (`STATE_ENDED`): [play] riparte da capo.
   - `fun attach()` — Comincia ad ascoltare il player. Si chiama una volta; [close] smette.

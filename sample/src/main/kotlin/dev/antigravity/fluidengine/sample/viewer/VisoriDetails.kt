@@ -69,7 +69,10 @@ internal fun visoriDetails(sample: VisoreFile, file: FluidViewerFile, document: 
       thumbnail = family.thumbnail ?: metadata.thumbnail,
     )
   }
-  return metadata.copy(reading = reading, actions = actions,
+  val output: (() -> Unit)? = if (sample.tipo == VisoreTipo.Audio && Build.VERSION.SDK_INT >= 34) ({
+    android.media.MediaRouter2.getInstance(context).showSystemOutputSwitcher()
+  }) else null
+  return metadata.copy(reading = reading, actions = actions, audioOutput = output,
     audioWaveform = if (sample.tipo == VisoreTipo.Audio && audio != null) ({ Waveform(audio.session) }) else null)
 }
 
@@ -179,6 +182,7 @@ private fun audioDetails(disk: File, info: FluidViewerInfo): FluidViewerInfo {
     return info.copy(title = tag(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: info.title,
       subtitle = listOfNotNull(artist, album).joinToString(" · ").ifBlank { null },
       facts = facts.ifEmpty { info.facts },
+      audioFormat = listOfNotNull(codec, bitrate).joinToString(" · ").ifBlank { null },
       sections = listOf(section("Brano", "Artista" to artist, "Album" to album,
         "Traccia" to tag(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
         "Anno" to tag(MediaMetadataRetriever.METADATA_KEY_YEAR), "Genere" to tag(MediaMetadataRetriever.METADATA_KEY_GENRE),

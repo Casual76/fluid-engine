@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.icons.ChevronRight
@@ -147,8 +149,8 @@ private fun DataTreeView(model: DataTreeModel, padding: PaddingValues, strings: 
   val rows = remember(model, expanded.toMap(), shown.toMap()) { dataTreeRows(tree.root, expanded.keys, shown) }
   val colors = dataTypeColors()
   val scheme = MaterialTheme.colorScheme
-  val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-  val small = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
+  val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 18.sp)
+  val small = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp)
   val clipboard = LocalClipboardManager.current
   val ndjson = model.format == DataTreeFormat.Ndjson
   LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())) {
@@ -173,7 +175,11 @@ private fun DataTreeView(model: DataTreeModel, padding: PaddingValues, strings: 
           val line = remember(node, colors, ndjson && row.depth == 0) { treeLine(node, colors, scheme.onSurfaceVariant, ndjson && row.depth == 0) }
           val description = remember(node) { describe(node) }
           Row(
-            Modifier.fillMaxWidth().heightIn(min = DataProfile.TreeRowHeight)
+            Modifier.fillMaxWidth().heightIn(min = DataProfile.TreeRowHeight).drawBehind {
+              val stroke = .7.dp.toPx()
+              drawLine(scheme.outlineVariant.copy(alpha = 0.6f), Offset(0f, size.height - stroke / 2),
+                Offset(size.width, size.height - stroke / 2), strokeWidth = stroke)
+            }
               .combinedClickable(
                 enabled = true,
                 role = if (container) Role.Button else null,
@@ -186,20 +192,19 @@ private fun DataTreeView(model: DataTreeModel, padding: PaddingValues, strings: 
                 contentDescription = description
                 if (container) stateDescription = if (open) "aperto" else "chiuso"
               }
-              .padding(start = 12.dp + DataProfile.TreeIndent * row.depth, end = FluidScreenDefaults.HorizontalPadding),
+              .padding(start = 14.dp + DataProfile.TreeIndent * row.depth, end = FluidScreenDefaults.HorizontalPadding),
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            Box(Modifier.size(16.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(13.dp), contentAlignment = Alignment.Center) {
               if (container) FluidIcon(FluidIcons.ChevronRight, contentDescription = null, tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp).rotate(if (open) 90f else 0f))
+                modifier = Modifier.size(13.dp).rotate(if (open) 90f else 0f))
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             DataDot(dotColor(node, colors))
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             // La riga la legge TalkBack dalla sua descrizione («nome, stringa, Fluid Glass»): il testo non si ripete.
             Text(line, style = mono, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).clearAndSetSemantics {})
           }
-          HorizontalDivider(Modifier.padding(start = 12.dp + DataProfile.TreeIndent * row.depth), thickness = 0.5.dp, color = scheme.outlineVariant.copy(alpha = 0.6f))
         }
         is DataTreeRow.More -> {
           val total = row.parent.childCount
@@ -250,8 +255,8 @@ private fun treeLine(node: DataNode, c: DataTypeColors, muted: androidx.compose.
   }
   when (node.kind) {
     DataKind.Object, DataKind.Array -> {
-      withStyle(SpanStyle(color = muted)) {
-        append(if (node.kind == DataKind.Object) "{ }" else "[ ]")
+      withStyle(SpanStyle(color = muted)) { append(if (node.kind == DataKind.Object) "{ }" else "[ ]") }
+      withStyle(SpanStyle(color = muted, fontSize = 12.sp)) {
         append("  ")
         append(if (ndjsonRoot) "${DataText.count(node.childCount)} righe" else node.summary())
         node.preview()?.let { append("  ·  $it") }

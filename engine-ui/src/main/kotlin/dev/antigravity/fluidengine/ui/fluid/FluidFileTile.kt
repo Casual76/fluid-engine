@@ -195,7 +195,12 @@ private fun FileAction(label: String, icon: ImageVector, action: () -> Unit) {
 
 @Composable
 internal fun FileIcon(kind: FluidFileKind, size: Int) {
-  val icon = when (kind) {
+  FluidToneTile(if (kind == FluidFileKind.Executable) FluidTone.Warning else FluidTone.Primary, size = size.dp) {
+    Icon(fluidFileGlyph(kind), contentDescription = null)
+  }
+}
+
+internal fun fluidFileGlyph(kind: FluidFileKind): ImageVector = when (kind) {
     FluidFileKind.Image -> FluidIcons.Image
     FluidFileKind.Pdf -> FluidIcons.PictureAsPdf
     FluidFileKind.Document -> FluidIcons.Description
@@ -207,8 +212,4 @@ internal fun FileIcon(kind: FluidFileKind, size: Int) {
     FluidFileKind.Text -> FluidIcons.Code
     FluidFileKind.Executable -> FluidIcons.Warning
     FluidFileKind.Other -> FluidIcons.Draft
-  }
-  FluidToneTile(if (kind == FluidFileKind.Executable) FluidTone.Warning else FluidTone.Primary, size = size.dp) {
-    Icon(icon, contentDescription = null)
-  }
 }

@@ -402,6 +402,24 @@ fun FluidMorphMenuButton(
   enabled: Boolean = true,
   opensOnTap: Boolean = false,
 ) {
+  SizedMorphMenuButton(state, actions, onClick, modifier, text, icon, backdrop, enabled, opensOnTap,
+    FluidMetrics.GlassButtonLens, 20.dp)
+}
+
+@Composable
+internal fun SizedMorphMenuButton(
+  state: FluidMorphMenuState,
+  actions: () -> List<FluidContextAction>,
+  onClick: () -> Unit,
+  modifier: Modifier,
+  text: String?,
+  icon: ImageVector?,
+  backdrop: GlassBackdropState,
+  enabled: Boolean,
+  opensOnTap: Boolean,
+  lens: androidx.compose.ui.unit.Dp,
+  horizontalPadding: androidx.compose.ui.unit.Dp,
+) {
   val contentColor = MaterialTheme.colorScheme.onSurface
   // Una pressione sola per il click e per il vetro, come FluidGlassButton: la capsula cresce e si
   // illumina sullo stesso orologio con cui l'azione viene confermata.
@@ -480,8 +498,8 @@ fun FluidMorphMenuButton(
         longClickHaptic = null,
       )
       // La capsula d'origine ha l'altezza dei tasti della barra.
-      .height(FluidMetrics.GlassButtonLens)
-      .padding(horizontal = 20.dp),
+      .height(lens)
+      .padding(horizontal = horizontalPadding),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
   ) {

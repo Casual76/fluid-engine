@@ -3,7 +3,11 @@ package dev.antigravity.fluidengine.viewer.archive
 import androidx.compose.runtime.Composable
 import androidx.core.content.FileProvider
 import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.fluidFormatFileSize
+import dev.antigravity.fluidengine.ui.fluid.icons.Download
+import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerInfo
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerInfoAction
@@ -85,10 +89,7 @@ class FluidArchiveFamily @JvmOverloads constructor(
     val reader = NativeArchive(request.source, format)
     val index = reader.index(ArchiveEncoding.Cp437)
     val session = ArchiveSession(request, format, reader, index, onExtractAll)
-    val content = FluidViewerContent.Custom(actions = {
-      if (session.canExport) text("fluid.archive.extract", "Estrai tutto", session::requestExport,
-        placement = FluidToolbarPlacement.BottomBar, enabled = !session.busy)
-    }) { ArchivePage(session, this) }
+    val content = archivePageContent(session)
     ArchivePages[content] = session
     FluidViewerOpened(content, session.details) {
       ArchivePages.remove(content)
@@ -106,6 +107,24 @@ class FluidArchiveFamily @JvmOverloads constructor(
     kind = FluidFileKind.Archive)
 
   private fun bytes(vararg numbers: Int) = FluidViewerSignature.bytes(*numbers)
+}
+
+internal fun archivePageContent(session: ArchiveSession): FluidViewerContent.Custom {
+  val find = ArchiveFind(session)
+  return FluidViewerContent.Custom(find = find, actions = {
+    action("fluid.archive.options", FluidIcons.MoreHoriz, "Altro", placement = FluidToolbarPlacement.BottomBar) {
+      buildList {
+        add(FluidContextAction(ArchiveMenu.Sort.title) { session.pageMenu = ArchiveMenu.Sort })
+        add(FluidContextAction(ArchiveMenu.Filter.title) { session.pageMenu = ArchiveMenu.Filter })
+        if (session.format == ArchiveFormat.Zip) add(FluidContextAction(ArchiveMenu.Encoding.title, enabled = !session.busy) {
+          session.pageMenu = ArchiveMenu.Encoding
+        })
+        session.request.share?.let { add(FluidContextAction("Condividi", onClick = it)) }
+      }
+    }
+    if (session.canExport) button("fluid.archive.extract", FluidIcons.Download, "Estrai tutto", session::requestExport,
+      placement = FluidToolbarPlacement.BottomBar, enabled = !session.busy)
+  }) { ArchivePage(session, this, find) }
 }
 
 private val ArchivePages = Collections.synchronizedMap(WeakHashMap<FluidViewerContent, ArchiveSession>())

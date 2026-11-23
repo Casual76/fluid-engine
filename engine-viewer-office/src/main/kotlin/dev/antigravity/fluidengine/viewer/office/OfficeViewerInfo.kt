@@ -16,6 +16,8 @@ import java.util.Locale
  * pagination.
  */
 fun FluidViewerDocument.officeInfo(): FluidViewerInfo {
+  val presentation = file.name.substringAfterLast('.').lowercase(Locale.ROOT) in setOf("pptx", "odp")
+  val officePages = (content as? FluidViewerContent.Pages)?.source as? OfficePages
   val facts = buildList {
     add(file.name.substringAfterLast('.').uppercase(java.util.Locale.ROOT))
     when (val form = content) {
@@ -40,6 +42,11 @@ fun FluidViewerDocument.officeInfo(): FluidViewerInfo {
       }
   return FluidViewerInfo(
     file.info,
+    subtitle = when (content) {
+      is FluidViewerContent.Grid -> type.label
+      is FluidViewerContent.Pages -> if (presentation) "${type.label} · ${officePages?.count ?: 0} slide" else type.label
+      else -> null
+    },
     facts = facts,
     sections = rows,
     reading =
@@ -49,6 +56,7 @@ fun FluidViewerDocument.officeInfo(): FluidViewerInfo {
           listOf(FluidViewerInfoRow("Motivo", it.message.orEmpty())),
         )
       },
+    searchPages = officePages?.takeUnless { presentation }?.let { it::search },
   )
 }
 

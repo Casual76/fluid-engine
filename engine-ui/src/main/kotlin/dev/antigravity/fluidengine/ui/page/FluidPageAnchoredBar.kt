@@ -1251,6 +1251,8 @@ internal fun FluidPageChromeContent(
 
   val minimumTopInset = if (toolbar?.viewerLayout == true) ViewerBoardTopInset else 0.dp
   val statusBar = maxOf(fluidTopChromeInset(), minimumTopInset)
+  // F6C.19: il titolo che diventa selettore anche fuori dall'host (il nome del file con «⌄» di un visore da solo).
+  val titleSelector = rememberFluidTitleSelector(toolbar?.titleSelector, title, compactStyle)
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = if (backdrop != null) {
     key(backdrop) { rememberCombinedGlassBackdrop(backdrop, barGlass) }
@@ -1293,6 +1295,7 @@ internal fun FluidPageChromeContent(
                 fontScale = density.fontScale,
                 reducedMotion = reducedMotion,
                 controls = controls,
+                selector = titleSelector,
               )
             }
             if (subtitle != null) Box(Modifier.align(Alignment.BottomCenter)

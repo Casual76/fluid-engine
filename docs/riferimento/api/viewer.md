@@ -296,6 +296,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `class FluidViewerOpened(val content: FluidViewerContent, val details: List<FluidViewerDetail> = emptyList(), private val onClose: () -> Unit = {}) : Closeable` — Un file aperto da una famiglia: il [content] per il visore (`Pages`, `Grid`, `Text`, `Image`, `Custom`…), i [details] per il pannello info («Pagine 9», «Calibri → Carlito») e la chiusura ([onClose]), che il documento chiama una volta sola quando la pagina esce.
 - `data class FluidViewerDetail(val label: String, val value: String, val section: String? = null)` — Una riga del pannello info: «Pagine» → «9». [section] le raggruppa («Documento», «Caratteri»), `null` in testa.
 
+## `engine-viewer/viewer/FluidViewerFileCommands.kt`
+
+- `data class FluidViewerFileCommands(val rename: ((FluidViewerFile) -> Unit)? = null, val move: ((FluidViewerFile) -> Unit)? = null, val duplicate: ((FluidViewerFile) -> Unit)? = null, val delete: ((FluidViewerFile) -> Unit)? = null, val more: ((FluidViewerFile) -> List<FluidViewerInfoAction>)? = null, val shareableUri: ((FluidViewerFile) -> Uri?)? = null)` — F6C.19 · Le azioni sul file che solo l'app sa fare, per il menu del nome in cima al visore ([FluidViewerFileActions]). Ognuna compare solo se l'app la dà; l'engine le chiama col file della pagina.
+- `@Composable fun FluidViewerFiles.fileActions(index: Int, commands: FluidViewerFileCommands = FluidViewerFileCommands()): FluidViewerFileActions?` — F6C.19 · Le voci del menu del file per la pagina [index]: - **Condividi** e **Apri con…**: le callback di [rememberFluidViewerFiles] se l'app le dà, altrimenti l'engine col selettore di sistema (`ACTION_SEND` e `ACTION_VIEW`) sull'indirizzo che si può dare alle altre app; - **Copia**: il file negli appunti (`ClipData.newUri`), con lo stesso indirizzo; - **Stampa** la fa il visore per un documento a pagine;
+
 ## `engine-viewer/viewer/FluidViewerFiles.kt`
 
 - `data class FluidViewerFile(val uri: Uri, val name: String, val mimeType: String? = null, val sizeBytes: Long? = null, val modifiedAtMillis: Long? = null)` — Un file da mostrare: dove sta e cosa ne sa l'app. [sizeBytes] `null` è ignoto, zero è vuoto.

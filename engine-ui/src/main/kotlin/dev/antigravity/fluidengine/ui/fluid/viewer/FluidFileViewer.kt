@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -91,6 +92,10 @@ fun NavGraphBuilder.fluidFileViewerRoute(
  * [toolbar] uses the engine toolbar DSL. A tool owns the body and its own bottom actions until Done or Back.
  * [renderContent] is the integration point for a preset or an app renderer (tiles, PDF, player, code).
  * A renderer's controls consume their own gestures before the frame. [content] is never called with an invalid index.
+ *
+ * F6C.19: with a file name from [FluidViewerInfoProvider] the title is that name without its extension, with «⌄», and
+ * it opens the file menu ([FluidViewerFileActions]): [fileActions] gives the page's actions (with `engine-viewer`,
+ * `files.fileActions(index)`), the viewer adds «Stampa» for a paged document and «Informazioni».
  */
 @Composable
 fun FluidFileViewer(
@@ -104,6 +109,7 @@ fun FluidFileViewer(
   modifier: Modifier = Modifier,
   onPageChange: (Int) -> Unit = {},
   strings: FluidViewerStrings = FluidViewerStrings(),
+  fileActions: @Composable (index: Int) -> FluidViewerFileActions? = { null },
   renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, visible -> ViewerBody(file, visible) },
 ) {
   require(count >= 0)
@@ -181,6 +187,17 @@ fun FluidFileViewer(
   val pageDetails = mutableMapOf<Int, FluidViewerInfo?>()
   for (page in files.keys) pageDetails[page] = key(page) { infoSource(page) }
   val suppliedInfo = pageDetails[index]
+  // F6C.19: le azioni del file di ogni pagina composta, per il menu del nome e per i «•••» delle pagine.
+  val pageActions = mutableMapOf<Int, FluidViewerFileActions?>()
+  for (page in files.keys) pageActions[page] = key(page) { fileActions(page) }
+  val printContext = LocalContext.current
+  val printScope = rememberCoroutineScope()
+  val printFor: (Int) -> (() -> Unit)? = { page ->
+    val source = (files[page] as? FluidViewerContent.Pages)?.source
+    val name = pageDetails[page]?.file?.name
+    if (source == null || name == null || source.count <= 0) null
+    else ({ viewerPrintPages(printContext, fluidViewerTitleName(name), source, printScope) })
+  }
   val photo = file?.blackBackground == true
   val pageColor = if (photo) Color.Black else MaterialTheme.colorScheme.surface
   val movingImage = file?.frameZoomed == true
@@ -291,9 +308,11 @@ fun FluidFileViewer(
                 val pageInfo = pageDetails[page]
                 val fitted = if (item is FluidViewerContent.Image) Modifier.viewerFit(ratio).then(shared).fluidZoomLayer(zoom)
                   else if (video != null) Modifier.fillMaxSize() else Modifier.fillMaxSize().then(shared)
+                val menuLabels = if (pageInfo == null) emptySet() else viewerFileMenuEntries(pageActions[page],
+                  pageInfo.actions, printFor(page), openInfo.takeIf { hasInfo }, emptySet(), strings).mapTo(HashSet()) { it.label }
                 CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface,
                   LocalViewerInfo provides pageInfo, LocalViewerPage provides pageScope, LocalViewerEntrance provides claim,
-                  LocalVideoShared provides shared.takeIf { video != null }) {
+                  LocalVideoShared provides shared.takeIf { video != null }, LocalViewerFileMenuLabels provides menuLabels) {
                   if (item is FluidViewerContent.Image) {
                     Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(photoSpace),
                       contentAlignment = Alignment.Center) {
@@ -313,7 +332,8 @@ fun FluidFileViewer(
         ViewerChrome(index, count, ink, chromeVisible, backdrop, toolbar, available, tool,
         select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,
           preset = presetBar.of(index), width = maxWidth, fileName = suppliedInfo?.file?.name,
-          documentRoute = documentRoute, file = file, info = suppliedInfo)
+          documentRoute = documentRoute, file = file, info = suppliedInfo, fileActions = pageActions[index],
+          print = printFor(index))
       }
       if (file != null) ViewerInfo(infoOpen, wideInspector, backdrop, strings, { infoOpen = false }) {
         ViewerInfoBody(suppliedInfo ?: defaultViewerInfo(file, strings), backdrop, strings, { infoOpen = false }) {
@@ -370,11 +390,13 @@ fun FluidFileViewer(
   modifier: Modifier = Modifier,
   onPageChange: (Int) -> Unit = {},
   strings: FluidViewerStrings = FluidViewerStrings(),
+  fileActions: @Composable (index: Int) -> FluidViewerFileActions? = { null },
   renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = { file, visible -> ViewerBody(file, visible) },
   onDismissRequest: (() -> Unit)?,
 ) {
   val body: @Composable (Modifier) -> Unit = { slot ->
-    FluidFileViewer(count, initial, content, toolbar, tools, info, onBack, slot, onPageChange, strings, renderContent)
+    FluidFileViewer(count, initial, content, toolbar, tools, info, onBack, slot, onPageChange, strings, fileActions,
+      renderContent)
   }
   if (onDismissRequest == null || LocalSharedPage.current != null) {
     body(modifier)

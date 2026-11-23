@@ -167,6 +167,9 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
   val playerBackdrop = rememberGlassBackdrop()
   val step = strings.skipSeconds.coerceAtLeast(1) * 1000L
   val chapters = info?.chapters.orEmpty()
+  // F6C.19: le azioni del file stanno nel menu del nome; il «•••» del brano tiene solo le altre, e senza sparisce.
+  val fileMenu = LocalViewerFileMenuLabels.current
+  val trackActions = info?.actions.orEmpty().filterNot { it.label in fileMenu }
   val parentMenu = LocalFluidMorphMenuState.current
   val menu = parentMenu ?: rememberFluidMorphMenuState()
   val more = LocalFluidLabels.current.more
@@ -230,9 +233,9 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
               if (subtitle.isNotBlank()) Text(subtitle, Modifier.padding(top = 3.dp), color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyLarge.viewerSize(16f))
             }
-            if (metadata.actions.isNotEmpty()) {
+            if (trackActions.isNotEmpty()) {
               SizedMorphMenuButton(state = menu, actions = {
-                metadata.actions.map { action -> FluidContextAction(label = action.label) {
+                trackActions.map { action -> FluidContextAction(label = action.label) {
                   actionFailed = false
                   fluidRunFileAction(action.onClick) { actionFailed = true }
                 } }
@@ -303,7 +306,7 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
         }
       }
     }
-    if (parentMenu == null && !info?.actions.isNullOrEmpty()) FluidMorphMenuHost(menu, backdrop)
+    if (parentMenu == null && trackActions.isNotEmpty()) FluidMorphMenuHost(menu, backdrop)
   }
 }
 

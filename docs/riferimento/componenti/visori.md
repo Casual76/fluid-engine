@@ -25,6 +25,7 @@ Il visore a tutto schermo di un file, **che si adatta a ciò che mostra**: foto 
 | la durata dell'audio prima di Play | una sessione che implementa `FluidMediaDurationLoader` (lo fa `FluidMedia3Session`) |
 | un mio strumento (ritaglio, testo nella foto) | `tools = { tool(id, icona, etichetta, actions = { … }) { i -> Editor(i) } }`: la barra in basso diventa la sua |
 | comandi miei nella barra del visore | `toolbar = { i -> button(...) }` (la DSL della toolbar, [`toolbar.md`](toolbar.md)) |
+| Rinomina, Sposta, Duplica, Elimina nel menu del nome in cima | `fileActions = { i -> files.fileActions(i, FluidViewerFileCommands(rename = …, delete = …)) }` (sotto, «Il titolo e il menu del file») |
 | il visore fuori da una rotta (un overlay), con la chiusura col dito | l'overload con `onDismissRequest` |
 | il visore di immagini di prima, con la sua firma | `FluidImageViewer` ([`contenuto-testo-e-media.md`](contenuto-testo-e-media.md)): oggi usa le stesse pagine del preset immagine |
 
@@ -67,8 +68,21 @@ fun NavGraphBuilder.fluidFileViewerRoute(
   modifier: Modifier = Modifier,
   onPageChange: (Int) -> Unit = {},                                    // la pagina ferma
   strings: FluidViewerStrings = FluidViewerStrings(),                  // «2 di 5», Informazioni, Fine…
+  fileActions: @Composable (index: Int) -> FluidViewerFileActions? = { null },  // F6C.19: il menu del file
   renderContent: @Composable (FluidViewerContent, chromeVisible: Boolean) -> Unit = /* i preset */,
 )
+
+data class FluidViewerFileActions(                                     // F6C.19, engine-ui: una voce c'è solo se non è null
+  val share: (() -> Unit)? = null, val openWith: (() -> Unit)? = null, val copy: (() -> Unit)? = null,
+  val print: (() -> Unit)? = null, val rename: (() -> Unit)? = null, val move: (() -> Unit)? = null,
+  val duplicate: (() -> Unit)? = null, val delete: (() -> Unit)? = null,
+  val more: List<FluidViewerInfoAction> = emptyList(),                 // le voci dell'app senza un posto fisso
+)
+
+// engine-viewer: le voci che l'engine sa fare dall'indirizzo del file, più quelle dell'app legate al file della pagina
+data class FluidViewerFileCommands(rename, move, duplicate, delete: ((FluidViewerFile) -> Unit)? = null,
+  more: ((FluidViewerFile) -> List<FluidViewerInfoAction>)? = null, shareableUri: ((FluidViewerFile) -> Uri?)? = null)
+@Composable fun FluidViewerFiles.fileActions(index: Int, commands: FluidViewerFileCommands = FluidViewerFileCommands()): FluidViewerFileActions?
 
 @Composable fun FluidViewerInfoProvider(info: @Composable (Int) -> FluidViewerInfo?, content: @Composable () -> Unit)
 ```
@@ -90,7 +104,7 @@ I contratti (in `FluidViewerContent.kt`, senza librerie):
 ## Il telaio
 
 - **La rotta.** `fluidFileViewerRoute` registra la destinazione con lo zoom dalla miniatura (la molla critica a 0,355 s di F5B.3) e la chiusura in giù. La voce ricorda la pagina ferma: dopo uno sfoglio la chiusura torna nella miniatura del file raggiunto, e dopo la ricreazione si riparte da lì. Un collegamento (`navDeepLink`) apre senza miniatura; `initial` lo risolve in un indice (anche da un ID di file). Se la miniatura è sparita (una griglia filtrata), l'uscita è quella senza sorgente. Una lista ancora vuota (i file arrivano dopo il collegamento) mostra «Nessun file» e tiene l'indice.
-- **La chrome.** In alto indietro, il nome con «⌄», «2 di 5» e il tasto «i»; in basso la capsula con «•••», l'azione del tipo e condividi, più gli strumenti e i comandi del preset («Trova», «A capo»). **Un tocco sul file** la ritira e un altro la riporta, con la grammatica della barra che si ritira di R5 V5: titolo e tasti si sfocano e svaniscono in 200 ms, tornano nitidi in 350 ms (`ViewerChromeMotion`, fiducia media, analogia). Con loro si nascondono e tornano le barre di sistema; all'uscita tornano come erano. Il contenuto non si sposta. TalkBack ha l'azione «Mostra controlli».
+- **La chrome.** In alto indietro, il nome del file **senza estensione** con «⌄» (apre il menu del file, F6C.19), «2 di 5» sotto e il tasto «i»; in basso la capsula con l'azione del tipo e condividi, «•••» solo se il tipo ha altre azioni (l'archivio), più gli strumenti e i comandi del preset («Trova», «A capo»). **Un tocco sul file** la ritira e un altro la riporta, con la grammatica della barra che si ritira di R5 V5: titolo e tasti si sfocano e svaniscono in 200 ms, tornano nitidi in 350 ms (`ViewerChromeMotion`, fiducia media, analogia). Con loro si nascondono e tornano le barre di sistema; all'uscita tornano come erano. Il contenuto non si sposta. TalkBack ha l'azione «Mostra controlli».
 - **I gesti.** A scala 1 il dito di lato è del pager e quello in giù della chiusura; lo zoom (foto e video) arriva a 4×, il doppio tocco a 2,5×, e da ingrandito il dito sposta il file fino al bordo, poi passa al pager. La chiusura col dito è quella di F6B.5a: oltre 110 dp o con una spinta, verso la miniatura; un'inversione annulla. Il pizzico che stringe a scala minima chiude come in Gallery-2 (rilascio a scala ≤ 0,85, lancio ≥ 1,6 al secondo). Un preset che scorre (testo, pagine, griglia) o un comando (lo scrubber) tiene il suo dito. Una pagina `Custom` nera (un modello 3D) non è zoomata dal telaio e tiene i suoi gesti.
 - **Gli strumenti.** Scelto uno strumento, il corpo passa al compositore dell'app e la barra in basso diventa la sua: i suoi `actions` e «Fine», nella stessa capsula (il meccanismo della sostituzione di F6B.1 e F6B.2). Indietro chiude prima lo strumento; l'`id` stabile lo riapre dopo la ricreazione. Uno strumento si può dichiarare solo per certe pagine: `tools` si legge in composizione, e può guardare la pagina ferma (`onPageChange`).
 - **Lo sfondo** viene dal tipo: nero per `Image` e per i video, il `surface` del tema per il resto; una `Custom` lo dichiara. La chrome sul nero usa la variante scura della palette.
@@ -99,10 +113,11 @@ I contratti (in `FluidViewerContent.kt`, senza librerie):
 
 Con le informazioni di `FluidViewerInfoProvider`, le pagine di lettura usano le misure della tavola D (F6C.18).
 I controlli di vetro sono da 44 dp con margine da 14 dp e la colonna di lettura arriva a 552 dp. In basso
-«Altro», i comandi del tipo e «Condividi» hanno posti distinti. Registra «Condividi» nel blocco `toolbar`
-come azione `BottomBar` con l'icona `FluidIcons.IosShare` o `FluidIcons.Share`.
+i comandi del tipo e «Condividi» hanno posti distinti, e «Altro» c'è solo per le azioni del tipo che non stanno nella
+capsula (F6C.19). Registra «Condividi» nel blocco `toolbar` come azione `BottomBar` con l'icona `FluidIcons.IosShare`
+o `FluidIcons.Share`.
 Nel testo le due capsule di lettura e il tondo di condivisione sono al centro. Nell'archivio la lente occupa
-il posto a destra e la condivisione offerta dall'app è nel menu «Altro».
+il posto a destra, «Altro» tiene Ordina, Filtra e Codifica dei nomi, e la condivisione è nel menu del nome.
 
 **La base è A**: il contenuto pulito come Quick Look, sul fondo del tema per documenti, testo, dati, griglia e slide (la carta dei documenti Office resta bianca anche in scuro). **Da C vengono i tocchi, solo dove non c'è niente da leggere:**
 
@@ -148,6 +163,53 @@ fun FollowPage(player: Player, resume: Boolean, memory: Memory) {
 }
 // FluidViewerContent.Media(session, sampleVideo = true, videoSurface = { FollowPage(...); FluidMedia3Video(session) })
 ```
+
+## Il titolo e il menu del file (F6C.19)
+
+Come in File e in Quick Look di iOS 26 (il fermo `ql-pdf-menu.png` e la tavola «D · Mix»), il titolo del visore è **il
+nome del file senza estensione con «⌄»** (`opm71 ⌄` per `opm71.pdf`; resta intero un nome come `.gitignore`), e apre
+**il menu del file**. È il titolo selettore di F6B.11 ([`toolbar.md`](toolbar.md), `title(…, menu = { … })`): il piccolo
+disco con la freccia accanto al nome, il menu che nasce dal disco e ci rientra, il bersaglio di almeno 48 dp che
+comprende il disco, e per TalkBack un «elenco a discesa» col nome del file e l'azione «Mostra le azioni del file».
+«2 di 5» (o la lingua del codice, il formato di un documento) resta sotto il nome. Vale in ogni preset e in ogni
+pagina di famiglia, dentro una rotta e fuori; il nome viene da `FluidViewerInfoProvider` (senza, il titolo è «2 di 5»
+e non apre niente).
+
+Le voci, nei gruppi del menu del titolo di un documento in iOS (una banda fra un gruppo e l'altro):
+
+| gruppo | voci | chi le fa |
+|---|---|---|
+| l'app | Duplica, Sposta, Rinomina, le sue in più (`more`, per esempio «Salva in Download») | l'app, **solo se le dà** |
+| mandare altrove | Condividi, Apri con…, Copia (il file negli appunti), Stampa | l'engine: con `engine-viewer` le prime tre da `files.fileActions(i)`; Stampa il visore, per un documento a pagine (PDF, Word, slide), rendendo ogni pagina a 200 dpi nel dialogo di sistema |
+| | Informazioni | il visore: apre il pannello info |
+| | Elimina, in rosso | l'app, solo se la dà; **la conferma la chiede l'app** |
+
+**«•••» tiene solo le azioni del tipo** (come Cerca e Annotazioni in Quick Look): in un archivio Ordina, Filtra e
+Codifica dei nomi. Le azioni del file stanno solo nel titolo: il visore toglie da «•••» le voci che il titolo ha già, e
+un «•••» che resta vuoto non c'è (documenti, audio, fogli, slide, JSON hanno l'azione del tipo nella capsula e
+condividi a destra). Lo stesso per il «•••» accanto al titolo del brano nel lettore audio. Il pannello info tiene le
+sue azioni in fondo, come prima, e la scheda dello sconosciuto i suoi «Apri con…» e «Condividi»: mai un vicolo cieco.
+
+Un'app di prima, che dava le azioni solo a `FluidViewerInfo.actions`, le ritrova nel titolo: «Apri con…» e «Condividi»
+valgono come quelle dell'engine, le altre entrano nel gruppo «mandare altrove», tranne quelle che la barra in basso ha
+già («Estrai tutto»).
+
+```kotlin
+val files = rememberFluidViewerFiles(lista, openWith = ::apriCon, share = ::condividi)
+val commands = FluidViewerFileCommands(
+  rename = { file -> rinomina = file },                                 // un FluidAlert col campo del nome
+  delete = { file -> elimina = file },                                  // un FluidConfirmationDialog
+  // «Copia» (e Condividi e Apri con… se l'app non le dà) vuole un indirizzo che altre app leggono, non un file://
+  shareableUri = { file -> FileProvider.getUriForFile(context, "$packageName.file", File(file.uri.path!!)) },
+)
+FluidViewerInfoProvider(info = { i -> files.document(i)?.let { Dettagli(it) } }) {
+  FluidFileViewer(count = files.count, content = files::content, fileActions = { i -> files.fileActions(i, commands) })
+}
+```
+
+Senza `engine-viewer` si dà `FluidViewerFileActions(share = …, rename = …)` direttamente. Le parole sono in
+`FluidViewerStrings` (`copyFile`, `print`, `rename`, `move`, `duplicate`, `delete`, `fileMenu`). Un'azione che lancia
+un'eccezione non chiude l'app: sotto la barra compare «Impossibile completare l'azione».
 
 ## Il pannello info
 
@@ -240,6 +302,7 @@ val t: FluidFileThumbnail = FluidFileThumbnails.load(context, file, sizePx = 480
 | il pannello info e il posto per lo strumento | `engine-viewer`: PDF, testo, GIF e WebP animate, l'adattatore di Media3 | il contenuto del pannello (o le funzioni delle famiglie), lo strumento e il suo compositore |
 | i preset «D · Mix» e i loro comandi, la tinta, l'alone | le famiglie: Office, archivi, dati, grafica e font, 3D, AR, ognuna con le sue pagine `Custom`, `Grid` o `Pages` e il suo pannello | il player, quando suona, quando riprende |
 | `currentFluidViewerPageActive()`, `currentFluidViewerZoom()` | le licenze delle loro librerie (`FluidOfficeLicenses`, `FluidArchiveLicenses`, `FluidGraphicsViewerLicenses`, `FluidSceneViewerLicenses`, `FluidArViewerLicenses`) | «Apri con…», «Condividi», «Estrai tutto», il dump esadecimale se lo vuole, la sezione delle licenze |
+| il titolo col nome e «⌄», il menu del file, «Informazioni» e «Stampa» dei documenti a pagine | `engine-viewer`: «Condividi», «Apri con…» e «Copia» dall'indirizzo del file (`fileActions`) | Rinomina, Sposta, Duplica, Elimina e la sua conferma, le sue voci in più, l'indirizzo per le altre app |
 | — | — | Media3 alla sua versione, la fotocamera per l'AR |
 
 ## Esempi
@@ -331,6 +394,8 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 - **La superficie con i suoi comandi.** Un `PlayerView` con il controller acceso dà due interfacce sullo stesso video (il difetto di Gallery v1): la superficie va con i comandi spenti, i comandi sono del preset.
 - **`SurfaceView` sotto il vetro.** Sta in una finestra sua: i comandi di vetro non la vedono e mostrano il nero. Per il vetro che rifrange il video, `TextureView` (il default di `FluidMedia3Video`) e `sampleVideo = true`.
 - **Un `.apk` col nome innocuo.** `FluidFileKind.from` non declassa mai un eseguibile, da qualunque fonte: la scheda ha l'avviso, e nessuna famiglia lo riceve. Non aggirarlo passando un `kind` a mano.
+- **«Copia» che non c'è.** Un `file://` non esce dall'app: senza `shareableUri` in `FluidViewerFileCommands` (o un `Uri` `content://` già nel `FluidViewerFile`) il menu del file non ha «Copia», e «Condividi» e «Apri con…» ci sono solo se l'app le dà a `rememberFluidViewerFiles`.
+- **Il menu del file senza nome.** Il titolo apre il menu solo se è il nome di un file: senza `FluidViewerInfoProvider` il titolo è «2 di 5» e le azioni tornano nel vecchio «Altro».
 - **«Apri con…» con un `file://`.** Un'altra app non può leggerlo (`FileUriExposedException`): serve un `FileProvider` o un `Uri` che l'altra app sa aprire (la galleria ha un suo provider in sola lettura, `VisoriPackageProvider`). Se l'azione lancia un'eccezione, la scheda dice «Nessuna app può aprire questo file».
 - **Il pannello vuoto per un file di famiglia.** Il telaio non sa leggere `FluidViewerDocument.details`: senza `officeInfo()`, `fluidArchiveViewerInfo()` o `fluidDataViewerInfo(…)` nel `FluidViewerInfoProvider` il pannello mostra solo nome e dimensione.
 - **La tinta su un documento.** La tinta di C è solo per audio, eseguibile, sconosciuto e archivio: una pagina `Custom` di lettura non la mette.
@@ -348,6 +413,7 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 - `VisoriGalleryTest` (sample): ogni tipo di serie si apre col suo preset; **ogni file di ogni famiglia si apre dalla sua miniatura col suo modulo**; il video si ferma quando lo si sfoglia via e riprende come sceglie l'app; lo strumento prende la barra; lo sconosciuto non è mai un vicolo cieco; **«Senza moduli» non è mai un vicolo cieco** e rimette le famiglie uscendo; **la pagina «Pesi» legge `families.json`**; la rotta col collegamento e il ripristino; **i tipi di Universal Converter col loro preset**.
 - `FluidFileThumbnailsTest` (engine-viewer, Robolectric): testo e codice disegnati, l'icona del documento per lo sconosciuto e l'APK illeggibile, la cache (stessa istanza, richiesta doppia, altri colori, senza moduli), il tetto di memoria, il tempo massimo con un decodificatore che si blocca, il file sparito e la famiglia che cade.
 - `VisoriMiniatureTest` (sample, Robolectric): **ogni file del corpo di prova ha una miniatura non vuota e non uniforme**, in chiaro e in scuro, e i tipi con un contenuto lo mostrano; «Senza moduli» testo e codice hanno la loro e gli altri l'icona; **l'apertura dalla miniatura di un JSON e di un archivio parte dall'immagine vera e ci torna** (i fotogrammi in `sample/build/visori-apertura`). `VisoriTavolaTest`: le schermate della galleria nel formato del telefono, per la tavola prima e dopo.
+- `FluidViewerFileMenuTest` (engine-ui, JVM) e `FluidViewerFileMenuUiTest` (sample, Robolectric, 412 e 360 dp): il nome senza estensione; il titolo come elenco a discesa col suo nome; le voci giuste per un PDF, un audio di un'app di prima, un archivio e uno sconosciuto; quelle dell'app solo se date; Informazioni che apre il pannello; nessuna voce doppia fra il titolo e «•••»; «2 di 5» sotto il nome e nessun bersaglio della barra sopra un altro, anche con un nome lungo.
 - `F6cViewerTraceTest` e le tracce `tools/glassbench/traces/f6c/` (`visore-apre`, `visore-barre-tocco`, `visore-info-su`, `visore-chiude-giu`, `visore-chiude-pizzico`, `video-comandi` contro B3, `pdf-pagine`, `testo-trova`, e le aperture dalla miniatura di F6C.10), a 120 Hz: il movimento si giudica dai fotogrammi.
 
 ## Dove guardare
@@ -356,6 +422,7 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 |---|---|
 | la rotta, il pager, i gesti, l'apertura dalla miniatura | `engine-ui/.../ui/fluid/viewer/FluidFileViewer.kt` |
 | la chrome, gli strumenti, le barre di sistema | `FluidViewerChrome.kt` |
+| il titolo e il menu del file, la stampa | `FluidViewerFileMenu.kt`, `FluidViewerPrint.kt`; in `engine-viewer` `FluidViewerFileCommands.kt` |
 | i contratti | `FluidViewerContent.kt` |
 | il pannello info e il profilo di «D · Mix» | `FluidViewerInfo.kt` |
 | il pizzico che chiude | `FluidViewerPinch.kt` |
@@ -365,4 +432,4 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 | le famiglie | `engine-viewer-office/`, `-archive/`, `-data/`, `-graphics/`, `-3d/`, `-ar/`, `-all/` ([`../moduli/viewer-famiglie.md`](../moduli/viewer-famiglie.md)) |
 | la galleria | `sample/.../ViewerGallery.kt`, `sample/.../viewer/` (`VisoriViewer.kt`, `VisoriFiles.kt`, `VisoriFamilies.kt`, `VisoriDetails.kt`, `VisoriPesi.kt`, `VisoriSenzaModuli.kt`) |
 
-**Versione.** 4.0 (F6C): telaio F6C.1, preset F6C.2 e F6C.3, modulo F6C.4, prima galleria F6C.5; registro e forme `Grid` e `Custom` F6C.8, preset «D · Mix» e pannello info F6C.9, apertura dalla miniatura F6C.10, famiglie F6C.11–F6C.14 e F6C.16, galleria rifatta e schede F6C.15; le miniature vere F6C.17; lo scurimento F6D.1.
+**Versione.** 4.0 (F6C): telaio F6C.1, preset F6C.2 e F6C.3, modulo F6C.4, prima galleria F6C.5; registro e forme `Grid` e `Custom` F6C.8, preset «D · Mix» e pannello info F6C.9, apertura dalla miniatura F6C.10, famiglie F6C.11–F6C.14 e F6C.16, galleria rifatta e schede F6C.15; le miniature vere F6C.17; lo scurimento F6D.1; il nome con «⌄» e il menu del file F6C.19.

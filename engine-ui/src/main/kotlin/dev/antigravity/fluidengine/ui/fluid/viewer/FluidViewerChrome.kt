@@ -85,6 +85,14 @@ data class FluidViewerStrings(
   val chapters: String = "Capitoli",
   val more: String = "Altro",
   val sheets: (Int) -> String = { "$it fogli" },
+  /** F6C.19 · Le voci del menu del file ([FluidViewerFileActions]) e ciò che TalkBack dice del titolo che lo apre. */
+  val copyFile: String = "Copia",
+  val print: String = "Stampa",
+  val rename: String = "Rinomina",
+  val move: String = "Sposta",
+  val duplicate: String = "Duplica",
+  val delete: String = "Elimina",
+  val fileMenu: String = "Mostra le azioni del file",
 )
 
 internal class ViewerTool(
@@ -130,6 +138,8 @@ internal fun BoxScope.ViewerChrome(
   preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity, fileName: String? = null,
   documentRoute: Boolean = false,
   file: FluidViewerContent? = null, info: FluidViewerInfo? = null,
+  /** F6C.19 · Le azioni del file della pagina e la stampa del visore: il menu che nasce dal nome. */
+  fileActions: FluidViewerFileActions? = null, print: (() -> Unit)? = null,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -181,7 +191,19 @@ internal fun BoxScope.ViewerChrome(
   val faceWidth: (String) -> Dp = { label ->
     with(density) { measure.measure(label, faceStyle, maxLines = 1).size.width.toDp() + 45.dp }
   }
+  // F6C.19: il nome senza estensione con «⌄» apre il menu del file (il titolo selettore di F6B.11), con le voci di
+  // File e Quick Look di iOS 26. Un'azione che fallisce lo dice sotto la barra, come quelle di «•••».
+  val runFileAction: (() -> Unit) -> Unit = { action ->
+    actionFailed = false
+    fluidRunFileAction(action) { actionFailed = true }
+  }
+  val wantsFileMenu = fileName != null && count > 0 && tool == null
+  val fileMenu: (Set<String>) -> List<ViewerFileEntry>? = { dock ->
+    if (!wantsFileMenu) null
+    else viewerFileMenuEntries(fileActions, info?.actions.orEmpty(), print, onInfo, dock, strings).ifEmpty { null }
+  }
   val declarationBase = buildFluidToolbar(onBack) {
+    var menu: List<ViewerFileEntry>? = null
     if (count > 0 && tool == null) {
       if (splitDock) {
         val app = FluidToolbarScope().apply { toolbar(index) }
@@ -189,6 +211,8 @@ internal fun BoxScope.ViewerChrome(
         search = page.search ?: app.search
         keyboard = page.keyboard ?: app.keyboard
         overflowLabel = page.overflowLabel ?: app.overflowLabel
+        // Un titolo selettore dichiarato dall'app vince sul menu del file.
+        titleSelector = app.titleSelector
         val share = app.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
           it.placement == FluidToolbarPlacement.BottomBar && (it.icon == FluidIcons.IosShare || it.icon == FluidIcons.Share)
         }
@@ -198,13 +222,17 @@ internal fun BoxScope.ViewerChrome(
         val archiveMenu = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
           isArchive && it.icon == FluidIcons.MoreHoriz && it.menu != null
         }
+        menu = fileMenu(viewerEntryLabels(page.entries.filter { it.declaresBottomAction(false) && it !== archiveMenu }) +
+          listOfNotNull(share?.label))
+        // «•••» tiene solo le azioni del tipo: quelle del file stanno nel titolo, senza doppioni.
+        val typeMenu = archiveMenu?.withoutMenuLabels(menu?.mapTo(HashSet()) { it.label }.orEmpty())
         entries += app.entries.filterNot { it === share }
         entries += page.entries.filter { !it.declaresBottomAction(false) }
         group(ViewerButton.BoardDock, placement = FluidToolbarPlacement.BottomBar) {
           if (isText) flexibleSpacer()
           else if (onInfo != null) {
-            if (archiveMenu != null) entries += archiveMenu
-            else action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
+            if (typeMenu != null) entries += typeMenu
+            else if (menu == null) action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
               info?.actions.orEmpty().filterNot { it.label == strings.share && share != null }
                 .map { item ->
                   FluidContextAction(item.label) {
@@ -229,7 +257,12 @@ internal fun BoxScope.ViewerChrome(
       } else {
         toolbar(index)
         preset?.invoke(this)
+        menu = fileMenu(viewerEntryLabels(entries.filter { it.declaresBottomAction(false) }))
       }
+    }
+    val fileEntries = menu
+    if (fileEntries != null && titleSelector == null) {
+      title(titleMode, menu = { fileEntries.toContextActions(runFileAction) }, selectorHint = strings.fileMenu)
     }
     if (fileName != null && count > 0 && !singleLineTitle) {
       subtitle(when (file) {
@@ -260,10 +293,12 @@ internal fun BoxScope.ViewerChrome(
     subtitleAccent = accent,
     subtitleOrdinal = counter.takeIf { count > 1 && declarationBase.subtitle != null && declarationBase.subtitle != counter },
   )
+  // F6C.19: il nome senza estensione, come in Quick Look.
+  val shownName = fileName?.let(::fluidViewerTitleName)
   val title = when {
-    fileName == null -> counter
-    singleLineTitle -> "$counter · $fileName"
-    else -> fileName
+    shownName == null -> counter
+    singleLineTitle -> "$counter · $shownName"
+    else -> shownName
   }
   val front by LocalFluidRouteFront.current
   val chrome = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
@@ -295,6 +330,36 @@ internal fun BoxScope.ViewerChrome(
         .semantics { liveRegion = LiveRegionMode.Polite }, color = MaterialTheme.colorScheme.error,
       style = MaterialTheme.typography.bodyMedium)
   }
+}
+
+/** Le etichette dei tasti di [entries], anche dentro i gruppi: la barra in basso le ha già, il menu del file no. */
+private fun viewerEntryLabels(entries: List<FluidToolbarEntry>): Set<String> = buildSet {
+  fun visit(list: List<FluidToolbarEntry>) {
+    for (entry in list) when (entry) {
+      is FluidToolbarButtonEntry -> {
+        entry.label?.let(::add)
+        entry.text?.let(::add)
+      }
+      is FluidToolbarGroupEntry -> visit(entry.children)
+      else -> Unit
+    }
+  }
+  visit(entries)
+}
+
+/**
+ * F6C.19 · Il «•••» di una pagina senza le voci che il menu del file ha già ([labels]); null se non gli resta niente,
+ * così non si apre un menu vuoto.
+ */
+private fun FluidToolbarButtonEntry.withoutMenuLabels(labels: Set<String>): FluidToolbarButtonEntry? {
+  val original = menu ?: return this
+  if (labels.isEmpty()) return this
+  if (original().none { it.label !in labels }) return null
+  return FluidToolbarButtonEntry(id, role, placement, priority, icon = icon, text = text, label = label, onClick = onClick,
+    tint = tint, selected = selected, enabled = enabled, badgeCount = badgeCount, badgeDot = badgeDot,
+    sharedBackground = sharedBackground, destructive = destructive, width = width, custom = custom,
+    defaultLabel = defaultLabel, overflow = overflow, menu = { original().filterNot { it.label in labels } }, type = type,
+    undo = undo, transientUndo = transientUndo)
 }
 
 private fun FluidToolbarEntry.withViewerLabels(width: (String) -> Dp, style: androidx.compose.ui.text.TextStyle): FluidToolbarEntry {

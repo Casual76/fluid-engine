@@ -34,7 +34,11 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import dev.antigravity.fluidengine.ui.fluid.FluidAlert
+import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
+import dev.antigravity.fluidengine.ui.fluid.FluidConfirmationDialog
 import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
+import dev.antigravity.fluidengine.ui.fluid.FluidTextField
 import dev.antigravity.fluidengine.ui.fluid.icons.Edit
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
@@ -207,6 +211,27 @@ internal fun VisoriViewer(
     },
   )
   fun reader(i: Int) = documentReader?.takeIf { catalog[i].tipo.preparesDocument } ?: opened
+  // F6C.19 · Il menu del file: le voci dell'app. La galleria rinomina per finta (il nome cambia solo qui) ed elimina con
+  // una conferma (il file resta: chiude il visore, come File dopo aver eliminato il file aperto). Universal Converter dà
+  // le sue: «Salva in Download» (FileGateway.saveToDownloads), anche questa per finta.
+  var renaming by remember { mutableStateOf<VisoreFile?>(null) }
+  var draft by remember { mutableStateOf("") }
+  var deleting by remember { mutableStateOf<VisoreFile?>(null) }
+  var saving by remember { mutableStateOf<VisoreFile?>(null) }
+  val renamed = remember { mutableStateMapOf<String, String>() }
+  val commands = FluidViewerFileCommands(
+    rename = if (converter) null else ({ file ->
+      val chosen = sample(file)
+      val name = renamed[chosen.id] ?: file.name
+      draft = name.substringBeforeLast('.', name)
+      renaming = chosen
+    }),
+    delete = if (converter) null else ({ file -> deleting = sample(file) }),
+    more = if (!converter) null else ({ file ->
+      listOf(FluidViewerInfoAction(VisoriConverterSave) { saving = sample(file) })
+    }),
+    shareableUri = { file -> sample(file).takeIf { it.shippable }?.let { VisoriFiles.shareableUri(context, it, scene(it)) } },
+  )
   var current by rememberSaveable { mutableIntStateOf(-1) }
   val crop = remember { CropState() }
   val count = if (files == null) 0 else catalog.size
@@ -215,8 +240,9 @@ internal fun VisoriViewer(
     val document = reader(i).document(i)
     if (document != null) SideEffect { deps.opened(sample, document) }
     val player = media.getOrNull(i)
-    visoriDetails(sample, list[i], document, player.takeIf { sample.tipo == VisoreTipo.Video },
+    val details = visoriDetails(sample, list[i], document, player.takeIf { sample.tipo == VisoreTipo.Video },
       player.takeIf { sample.tipo == VisoreTipo.Audio }, resumeVideo, scene(sample), withoutFamilies)
+    renamed[sample.id]?.let { name -> details.copy(file = details.file.copy(name = name)) } ?: details
   }) {
     FluidFileViewer(
       count = count,
@@ -230,6 +256,10 @@ internal fun VisoriViewer(
       },
       onBack = onBack,
       onPageChange = { current = it },
+      // Un file che la galleria non porta nell'APK (vuoto, sparito) non si può dare a un'altra app.
+      fileActions = { i ->
+        opened.fileActions(i, commands)?.let { if (catalog[i].shippable) it else it.copy(share = null, openWith = null) }
+      },
       toolbar = { index ->
         val sample = catalog[index]
         if (sample.shippable && sample.tipo !in setOf(VisoreTipo.Sconosciuto, VisoreTipo.Eseguibile)) {
@@ -256,7 +286,27 @@ internal fun VisoriViewer(
     )
   }
   LaunchedEffect(current) { crop.reset() }
+  FluidAlert(renaming, onDismissRequest = { renaming = null }, title = { "Rinomina" },
+    message = { "Nella galleria è una prova: il nome cambia solo qui, il file resta com'è." },
+    actions = { chosen ->
+      listOf(FluidAlertAction("Annulla", { renaming = null }), FluidAlertAction("Rinomina", {
+        val old = renamed[chosen.id] ?: chosen.name
+        val extension = old.substringAfterLast('.', "")
+        val base = draft.trim().ifBlank { old.substringBeforeLast('.', old) }
+        renamed[chosen.id] = if (extension.isEmpty()) base else "$base.$extension"
+        renaming = null
+      }, FluidAlertAction.Emphasis.Preferred))
+    }) { _ -> FluidTextField(draft, { draft = it }, Modifier.fillMaxWidth().testTag("visori-rinomina"), label = "Nome") }
+  FluidConfirmationDialog(deleting, onDismissRequest = { deleting = null },
+    title = { chosen -> "Eliminare «${(renamed[chosen.id] ?: chosen.name)}»? È una prova: il file della galleria resta." },
+    actions = { _ -> listOf(FluidAlertAction("Elimina", onBack, FluidAlertAction.Emphasis.Destructive)) })
+  FluidAlert(saving, onDismissRequest = { saving = null }, title = { VisoriConverterSave },
+    message = { chosen -> "Universal Converter salva una copia di «${chosen.name}» in Download/Convert. Qui è una prova: non si scrive niente." },
+    actions = { _ -> listOf(FluidAlertAction("OK", { saving = null }, FluidAlertAction.Emphasis.Preferred)) })
 }
+
+/** L'azione sul file che Universal Converter ha davvero, oltre a «Condividi» e «Apri con…» (F6C.19). */
+internal const val VisoriConverterSave = "Salva in Download"
 
 /** I preset di serie, con due ritocchi dell'app sullo sconosciuto: il file sparito lo dice, e il dump a richiesta. */
 @Composable

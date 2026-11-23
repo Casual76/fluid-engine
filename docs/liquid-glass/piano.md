@@ -10,6 +10,10 @@ Copertura voce per voce:
 [copertura-inventario.md](copertura-inventario.md). Stato dell'incarico e configurazione del workflow:
 `artifacts/liquid-glass/stato.md`.
 
+**Dopo F6.** Gli elementi nuovi scelti il 23 novembre 2026 (F8), PampAI al centro (F9), l'Account Pampa (F10), la
+galleria-vetrina (F11) e il passaggio delle app al nuovo engine (F12) sono in [../ecosistema/piano.md](../ecosistema/piano.md).
+F7 resta qui e corre insieme a F8.
+
 **Come si legge.** Percorsi abbreviati come nell'audit: `ui/` = `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/`;
 `bd/` = `ui/glass/backdrop/`; `fp/` = `ui/fluidphysics/`; `gf/` = `ui/glass/field/` (**nuovo**); `test/` =
 `engine-ui/src/test/kotlin/dev/antigravity/fluidengine/ui/`; `sample/` = `sample/src/main/kotlin/dev/antigravity/fluidengine/sample/`;

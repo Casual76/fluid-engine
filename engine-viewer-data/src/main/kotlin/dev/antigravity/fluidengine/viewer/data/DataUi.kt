@@ -37,6 +37,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -48,6 +49,7 @@ import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidFindDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
@@ -102,6 +104,27 @@ internal fun DataInner(
   }
 }
 
+/**
+ * F6C.20 · Il passo di «Dimensione del testo» che una pagina web (HTML, libro) dà davvero al suo contenitore, in
+ * percento. Una proprietà della pagina che TalkBack non legge: le prove la guardano dove la WebView non c'è.
+ */
+internal val DataTextZoomKey = SemanticsPropertyKey<Int>("DataTextZoom")
+
+/** F6C.20 · Il corpo (px) che il foglio del lettore di un libro scrive nel capitolo. Come [DataTextZoomKey]. */
+internal val DataReaderFontKey = SemanticsPropertyKey<Int>("DataReaderFont")
+
+/**
+ * F6C.20 · «Dimensione del testo» in «•••»: un sottomenu con i passi di [DataProfile.TextZoomSteps], la spunta su
+ * [current], e il passo di ora sotto la voce, come «Velocità» dell'audio.
+ */
+internal fun dataTextSizeAction(strings: FluidDataStrings, current: Int, select: (Int) -> Unit): FluidContextAction =
+  FluidContextAction(
+    strings.textSize, subtitle = strings.textSizeStep(current),
+    children = DataProfile.TextZoomSteps.map { step ->
+      FluidContextAction(strings.textSizeStep(step), selected = step == current) { select(step) }
+    },
+  ) {}
+
 /** Il tema è scuro: il fondo ha poca luce. */
 @Composable
 internal fun dataDark(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -123,14 +146,26 @@ internal fun Modifier.dataTint(color: Color): Modifier {
   return background(surface).background(color.copy(alpha = DataProfile.CardTint))
 }
 
-/** Il gruppo «Albero | Testo», «Reso | Sorgente» della barra in basso: due tasti nello stesso vetro, uno scelto. */
+/**
+ * Il gruppo «Albero | Testo», «Reso | Sorgente» della barra in basso: due tasti nello stesso vetro, uno scelto.
+ *
+ * F6C.20 · Con [findInSecond] la seconda vista ha «Trova», che il telaio mette nella barra come un vetro suo: con le due
+ * metà accanto i vetri erano quattro e il visore ne mandava nel trabocco (R5 B11: «•••», il centro, condividi). Lì
+ * resta solo il tasto che torna alla prima vista, nello stesso vetro di «Trova» («Trova | Reso»): la metà scelta non è
+ * un'azione.
+ */
 internal fun FluidToolbarScope.dataModes(
   id: String,
   first: Pair<String, androidx.compose.ui.graphics.vector.ImageVector>,
   second: Pair<String, androidx.compose.ui.graphics.vector.ImageVector>,
   secondSelected: Boolean,
+  findInSecond: Boolean = false,
   select: (Boolean) -> Unit,
 ) {
+  if (findInSecond && secondSelected) {
+    button("$id.first", first.second, first.first, { select(false) }, placement = FluidToolbarPlacement.BottomBar)
+    return
+  }
   group(id, placement = FluidToolbarPlacement.BottomBar) {
     button("$id.first", first.second, first.first, { select(false) }, selected = !secondSelected)
     button("$id.second", second.second, second.first, { select(true) }, selected = secondSelected)

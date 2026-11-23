@@ -16,6 +16,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
 import dev.antigravity.fluidengine.ui.fluid.FluidLicense
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileInfo
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
 import dev.antigravity.fluidengine.viewer.FluidDecodedImage
 import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerException
@@ -164,9 +165,11 @@ class FluidGraphicsFamily : FluidViewerFamily {
           add(FluidViewerDetail("Carattere ${index + 1}", "${face.family} · ${face.style}", "Collezione"))
         }
       }
-      return FluidViewerOpened(FluidViewerContent.Custom {
-        FontSpecimen(file, faces, initial, format, contentPadding)
-      }, details, onClose = { file.delete() })
+      // F6C.20: lo stato del provino sta col documento, così «•••» (il testo di prova, la misura) lo cambia dalla barra.
+      val specimen = FontSpecimenState()
+      return FluidViewerOpened(FluidViewerContent.Custom(actions = { viewerTypeActions { specimen.actions() } }, draw = {
+        FontSpecimen(file, faces, initial, format, contentPadding, specimen)
+      }), details, onClose = { file.delete() })
     } catch (t: Throwable) {
       file.delete()
       throw t

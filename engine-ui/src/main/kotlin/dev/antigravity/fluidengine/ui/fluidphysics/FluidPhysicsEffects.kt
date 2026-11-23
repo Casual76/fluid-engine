@@ -952,6 +952,7 @@ internal fun physicsLiquidRecipe(
       out = out,
       scratch = scratch.side,
       accessibility = accessibility,
+      filmCeiling = of.darkCeiling,
     )
   }
   val recipe = fill(tint, scratch.to)

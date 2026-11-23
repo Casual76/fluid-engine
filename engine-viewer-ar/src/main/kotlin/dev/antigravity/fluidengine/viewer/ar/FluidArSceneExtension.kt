@@ -54,6 +54,9 @@ internal class ArSceneControls(
 
   override val overlayVisible: Boolean get() = entry.step == ArStep.Room
 
+  /** F6C.20 · Il tasto «AR» c'è solo dove ARCore c'è o si può installare: altrove il centro della barra resta al modello. */
+  override val showsAction: Boolean get() = entry.showsAction
+
   override fun actions(toolbar: FluidToolbarScope) {
     if (entry.showsAction) toolbar.text("3d.ar", "AR", { onOpen?.invoke() }, FluidToolbarPlacement.BottomBar)
   }

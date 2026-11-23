@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidAvatar
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
@@ -55,6 +56,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Replay
 import dev.antigravity.fluidengine.ui.fluid.icons.Schedule
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerCustomScope
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -114,6 +116,36 @@ internal object DataWhen {
     val label = name.substringAfterLast('/').replace('_', ' ')
     return "${there.format(Time)} ora di $label"
   }
+
+  /**
+   * F6C.20 · «Copia gli eventi»: ogni evento in testo semplice, come lo dice la sua scheda (il titolo; il giorno e l'ora
+   * nel fuso del dispositivo, e l'ora del file se è un altro fuso; la ripetizione; il luogo), con una riga vuota fra
+   * l'uno e l'altro. Pura.
+   */
+  fun plainText(events: List<DataCalendarEvent>, device: ZoneId, allDay: String): String = events.joinToString("\n\n") { e ->
+    listOfNotNull(
+      e.summary ?: "(senza titolo)",
+      listOfNotNull(day(e, device), time(e, device, allDay)).joinToString(" · ").ifEmpty { null },
+      zone(e, device),
+      e.repeat,
+      e.location,
+    ).joinToString("\n")
+  }
+}
+
+/**
+ * F6C.20 · «Copia i contatti»: ogni contatto in testo semplice, come la sua scheda (il nome; il ruolo e l'azienda; i
+ * telefoni, le e-mail, gli indirizzi e i siti con le etichette di Contatti; compleanno e note), con una riga vuota fra
+ * l'uno e l'altro. Pura.
+ */
+internal fun dataContactsPlainText(contacts: List<DataContact>): String = contacts.joinToString("\n\n") { c ->
+  buildList {
+    add(c.name)
+    listOfNotNull(c.title, c.organization).joinToString(" · ").takeIf { it.isNotEmpty() }?.let(::add)
+    (c.phones + c.emails + c.addresses + c.urls).forEach { add("${it.label}: ${it.value}") }
+    c.birthday?.let { add("compleanno: $it") }
+    c.note?.let { add("note: $it") }
+  }.joinToString("\n")
 }
 
 /** La tessera della data, come Calendario: il mese in rosso piccolo sopra, il giorno grande sotto. */
@@ -158,13 +190,20 @@ private fun EventLine(icon: androidx.compose.ui.graphics.vector.ImageVector, tex
 internal fun DataCalendarPage(scope: FluidViewerCustomScope, model: DataCalendarModel, settings: FluidDataSettings) {
   val strings = settings.strings
   val calendar = model.calendar
+  val device = remember { ZoneId.systemDefault() }
+  val clipboard = LocalClipboardManager.current
   DataInner(
     scope,
     actions = {
       model.openWith?.let { text("data.ics.add", strings.addToCalendar, it, placement = FluidToolbarPlacement.BottomBar) }
+      // L'azione del tipo (F6C.20): gli eventi in testo negli appunti. «Aggiungi al calendario» resta in barra.
+      if (calendar.events.isNotEmpty()) viewerTypeActions(strings.more) {
+        listOf(FluidContextAction(strings.copyEvents) {
+          clipboard.setText(AnnotatedString(DataWhen.plainText(calendar.events, device, strings.allDay)))
+        })
+      }
     },
   ) {
-    val device = remember { ZoneId.systemDefault() }
     val scheme = MaterialTheme.colorScheme
     LazyColumn(
       Modifier.fillMaxSize().dataTint(scheme.primary),
@@ -219,14 +258,18 @@ internal fun DataCalendarPage(scope: FluidViewerCustomScope, model: DataCalendar
 @Composable
 internal fun DataContactsPage(scope: FluidViewerCustomScope, model: DataContactsModel, settings: FluidDataSettings) {
   val strings = settings.strings
+  val clipboard = LocalClipboardManager.current
   DataInner(
     scope,
     actions = {
       model.openWith?.let { text("data.vcf.add", strings.addToContacts, it, placement = FluidToolbarPlacement.BottomBar) }
+      // L'azione del tipo (F6C.20): i contatti in testo negli appunti. «Aggiungi ai contatti» resta in barra.
+      viewerTypeActions(strings.more) {
+        listOf(FluidContextAction(strings.copyContacts) { clipboard.setText(AnnotatedString(dataContactsPlainText(model.contacts))) })
+      }
     },
   ) {
     val scheme = MaterialTheme.colorScheme
-    val clipboard = LocalClipboardManager.current
     val tint = fluidIdentityColor(model.contacts.first().name)
     LazyColumn(
       Modifier.fillMaxSize().dataTint(tint),

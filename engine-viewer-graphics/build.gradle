@@ -16,6 +16,8 @@ android {
   }
   buildFeatures { compose = true }
   sourceSets.test.resources.srcDir "src/androidTest/assets"
+  // F6C.20: la prova di «•••» compone il provino nel visore vero, con le risorse di engine-ui.
+  testOptions.unitTests.includeAndroidResources = true
   compileOptions {
     sourceCompatibility engine.javaVersion
     targetCompatibility engine.javaVersion
@@ -33,4 +35,5 @@ dependencies {
   implementation 'com.caverock:androidsvg-aar:1.4'
   implementation 'androidx.exifinterface:exifinterface:1.4.2'
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
 }

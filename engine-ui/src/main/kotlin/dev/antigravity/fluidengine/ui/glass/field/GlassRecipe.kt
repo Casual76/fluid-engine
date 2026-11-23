@@ -325,6 +325,19 @@ internal fun glassVeilCeilingAlpha(veil: Color, lightLevel: Float, ceiling: Floa
 }
 
 /**
+ * F6C.20 · Il soffitto del lato scuro per una **pellicola fissa** [film] (quella di un menu, che porta dentro la sua quota
+ * di scrim e si legge `Fixed`): l'alfa di [glassVeilCeilingAlpha], e uno (la pellicola piena, il corpo più profondo che
+ * può dare) se la pellicola stessa sta sopra il soffitto. Zero se lo sfondo è già sotto il soffitto, o senza misura.
+ */
+internal fun glassFilmCeilingAlpha(film: Color, lightLevel: Float, ceiling: Float): Float {
+  if (!lightLevel.isFinite() || !(ceiling < 1f)) return 0f
+  val v = 0.2126f * film.red + 0.7152f * film.green + 0.0722f * film.blue
+  val b = clampGlassUnit(lightLevel)
+  if (!(b > ceiling)) return 0f
+  return if (v < ceiling) clampGlassUnit((b - ceiling) / (b - v)) else 1f
+}
+
+/**
  * Quanto il velo scuro dei piccoli è passato a quello dei grandi, 0..1, con la parte chiara dello sfondo a luma
  * [lightLevel] (un passo morbido fra [GlassLiquidAdaptive.darkDeepenFrom] e [GlassLiquidAdaptive.darkDeepenTo]).
  */
@@ -516,6 +529,7 @@ internal fun glassRecipe(
   out: GlassRecipe = GlassRecipe(),
   scratch: GlassRecipe? = null,
   accessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default,
+  filmCeiling: Float = Float.NaN,
 ): GlassRecipe {
   val darkness = adaptive?.darkness ?: Float.NaN
   val side = if (darkness.isFinite()) clampGlassUnit(darkness) else if (darkSide) 1f else 0f
@@ -523,16 +537,16 @@ internal fun glassRecipe(
   if (side <= 0f || side >= 1f) {
     return glassRecipeSide(
       role, widthDp, heightDp, side >= 1f, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-      nested, profile, largeVeil, live, preference, out, accessibility,
+      nested, profile, largeVeil, live, preference, out, accessibility, filmCeiling,
     )
   }
   glassRecipeSide(
     role, widthDp, heightDp, false, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-    nested, profile, largeVeil, live, preference, out, accessibility,
+    nested, profile, largeVeil, live, preference, out, accessibility, filmCeiling,
   )
   val dark = glassRecipeSide(
     role, widthDp, heightDp, true, variant, optics, intensity, opticalDepth, quality, pressed, film, tint,
-    nested, profile, largeVeil, live, preference, scratch ?: GlassRecipe(), accessibility,
+    nested, profile, largeVeil, live, preference, scratch ?: GlassRecipe(), accessibility, filmCeiling,
   )
   return lerpGlassRecipe(out, dark, side, out)
 }
@@ -561,6 +575,7 @@ private fun glassRecipeSide(
   preference: Float,
   out: GlassRecipe,
   accessibility: GlassMaterialAccessibility,
+  filmCeiling: Float = Float.NaN,
 ): GlassRecipe {
   val amount = clampGlassUnit(intensity)
   val q = clampGlassUnit(quality)
@@ -645,11 +660,24 @@ private fun glassRecipeSide(
   }
   out.materialize = amount
   val fixedFilm = film.isSpecified
+  // F6C.20: il soffitto vale anche per una pellicola fissa, che prende il posto del velo: quella di un menu porta dentro
+  // la sua quota di scrim e si legge `Fixed`, e sul tema scuro sopra la carta bianca di un PDF il suo corpo stava a 132
+  // («Elimina» a 1,33:1, riprese del 23 novembre 2026), mentre il velo, che il menu non usa, sarebbe salito al soffitto.
+  // La pellicola si fa più densa (e piena, se non ci arriva), col suo colore. [filmCeiling] è un soffitto più basso
+  // chiesto dalla tinta (il menu, l'avviso); senza soffitto nel profilo (`Off`) non c'è nemmeno quello.
+  var filmColor = film
+  if (fixedFilm && !clear && sensed != null && darkSide && adapt.darkCeiling < 1f &&
+    (adapt.darkensContinuously(role) || sensed.holdsSide)
+  ) {
+    val ceiling = if (filmCeiling.isFinite()) min(filmCeiling, adapt.darkCeiling) else adapt.darkCeiling
+    val need = glassFilmCeilingAlpha(film, sensed.lightLevel, ceiling)
+    if (need > film.alpha) filmColor = film.copy(alpha = need)
+  }
   out.veilColor = if (fixedFilm || clear) veilColor.copy(alpha = 0f) else veilColor
   out.veilAdapt = if (fixedFilm || clear) 0f else mixFloat(veil.adapt, bigVeil.adapt, large)
   when {
     fixedFilm -> {
-      out.tintColor = film
+      out.tintColor = filmColor
       out.tintMode = 0f
     }
     tint.isSpecified -> {

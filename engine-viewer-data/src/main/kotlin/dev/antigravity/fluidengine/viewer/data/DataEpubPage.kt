@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
@@ -44,6 +45,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.FormatListBulleted
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidWebContentState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerCustomScope
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -78,16 +80,28 @@ internal fun DataEpubPage(scope: FluidViewerCustomScope, model: DataEpubModel, s
   val book = model.book
   var chapter by rememberSaveable { mutableIntStateOf(0) }
   var contents by rememberSaveable { mutableStateOf(false) }
+  // F6C.20: il passo di «Dimensione del testo», che diventa il corpo del foglio del lettore (il capitolo si rifà).
+  var zoom by rememberSaveable { mutableIntStateOf(DataProfile.TextZoomDefault) }
   val count = book.chapters.size
   val index = chapter.coerceIn(0, count - 1)
   val open = rememberDataLinkOpener(settings)
   DataInner(
     scope,
     actions = {
+      // F6C.20: la barra del visore tiene tre vetri (R5 B11): «•••», «Indice» e condividi. Con i capitoli vicini accanto a
+      // «Indice» erano quattro, e il visore ne mandava uno nel trabocco: i capitoli vicini stanno in «•••».
       button("data.epub.toc", FluidIcons.FormatListBulleted, strings.contents, { contents = true }, placement = FluidToolbarPlacement.BottomBar)
-      group("data.epub.nav", placement = FluidToolbarPlacement.BottomBar) {
-        button("data.epub.prev", FluidIcons.ChevronLeft, strings.previousChapter, { if (index > 0) chapter = index - 1 }, enabled = index > 0)
-        button("data.epub.next", FluidIcons.ChevronRight, strings.nextChapter, { if (index < count - 1) chapter = index + 1 }, enabled = index < count - 1)
+      // Le azioni del tipo, come il menu di lettura di Libri: i capitoli vicini, il ritorno al primo, il corpo del testo.
+      viewerTypeActions(strings.more) {
+        val at = chapter.coerceIn(0, count - 1)
+        listOf(
+          FluidContextAction(strings.previousChapter, icon = FluidIcons.ChevronLeft, enabled = at > 0) { chapter = (at - 1).coerceAtLeast(0) },
+          FluidContextAction(strings.nextChapter, icon = FluidIcons.ChevronRight, enabled = at < count - 1) {
+            chapter = (at + 1).coerceAtMost(count - 1)
+          },
+          FluidContextAction(strings.backToStart, enabled = at > 0) { chapter = 0 },
+          dataTextSizeAction(strings, zoom) { zoom = it }.copy(startsSection = true),
+        )
       }
     },
   ) {
@@ -95,8 +109,9 @@ internal fun DataEpubPage(scope: FluidViewerCustomScope, model: DataEpubModel, s
     val dark = dataDark()
     val density = LocalDensity.current
     val margin = with(density) { FluidScreenDefaults.HorizontalPadding.toPx() / density.density }.toInt()
-    val css = remember(scheme, dark, margin) {
-      DataWeb.readerCss(scheme.surface, scheme.onSurface, scheme.outlineVariant, scheme.primary, dark, margin)
+    val fontSize = DataProfile.bookFontSize(zoom)
+    val css = remember(scheme, dark, margin, fontSize) {
+      DataWeb.readerCss(scheme.surface, scheme.onSurface, scheme.outlineVariant, scheme.primary, dark, margin, fontSize)
     }
     val html by produceState<String?>(null, index, css) {
       value = null
@@ -123,7 +138,13 @@ internal fun DataEpubPage(scope: FluidViewerCustomScope, model: DataEpubModel, s
           style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         val document = html
-        Box(Modifier.fillMaxWidth().height(height), contentAlignment = Alignment.TopCenter) {
+        Box(
+          Modifier.fillMaxWidth().height(height).semantics {
+            this[DataTextZoomKey] = zoom
+            this[DataReaderFontKey] = fontSize
+          },
+          contentAlignment = Alignment.TopCenter,
+        ) {
           if (document == null) {
             FluidSkeletonText(Modifier.padding(FluidScreenDefaults.HorizontalPadding), lines = 10)
           } else key(index) {

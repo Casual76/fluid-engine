@@ -511,6 +511,11 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   o sul tema scuro sopra un fondo chiaro, quella pellicola cede alla ricetta adattiva, col soffitto, come il foglio. Sul
   tablet, a nero pieno, il foglio e il pop-up stanno a 27 su 255 e il pannello laterale a 55 (Apple 48); sul tema scuro
   sopra la pagina chiara pop-up e pannello stanno a 102.
+  **Il menu e l'avviso** (F6C.20) portano anche loro la pellicola con lo scrim, e una **pellicola fissa** prende il
+  soffitto come il velo (prima no: sul tema scuro sopra la carta bianca di un PDF il menu stava a 132, «Elimina» a 1,33:1).
+  Le due finestre portano la voce distruttiva in rosso, e chiedono un soffitto più basso, quello del rosso del tema
+  (#FF6961) a 4,5:1 (`GlassLiquidMenuDarkCeiling`, luma 0,20): la loro pellicola non ci arriva e si fa piena, a 53 su 255,
+  con «Elimina» a 4,3:1 e il testo chiaro a 11:1. Sulla pagina scura del tema non cambia niente.
 - **Girano insieme**, con una sonda sola, i vetri di un `FluidGlassContainer` e il loro contenuto: è il patto dell'inchiostro delle app (4.0, anche con un pezzo solo), in [piano-flottante.md](piano-flottante.md).
   Così girano, **da soli sulla pagina**, i pezzi piccoli di `engine-ai-ui` (F3.2b): `FluidGlassRoundButton`,
   `FluidStopPill`, `FluidChipPill` e la capsula di `FluidListeningHint` si fanno un contenitore con un pezzo solo, e

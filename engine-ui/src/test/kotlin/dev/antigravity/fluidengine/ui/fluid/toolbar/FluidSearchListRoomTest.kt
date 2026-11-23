@@ -13,12 +13,12 @@ import org.junit.Test
  */
 internal class FluidSearchListRoomTest {
   private val navigation = 24
-  private val rest = fluidBottomBarOffset(0.dp).value.toInt()            // 16 dp senza tab bar
+  private val rest = fluidBottomBarLift(0.dp, navigation.dp).value.toInt() // 4 dp sopra i gesti: il vetro a 28 dal bordo
   private val row = FluidFloatingCapsuleDefaults.ActionSize.value          // 48 dp, la riga della barra in basso
   private val gap = ToolbarSearchImeGap.value.toInt()                      // 4 dp
 
   /** Lo spazio che la lista lascia già alla riga del campo: la barra di sistema, il margine e la riga (bottomExtra). */
-  private val assumed = navigation + fluidBottomBarExtraInset(0.dp).value
+  private val assumed = navigation + fluidBottomBarExtraInset(0.dp, navigation.dp).value
 
   private fun fieldTop(keyboard: Int = 0, growth: Float = 0f, dock: Int? = null) =
     toolbarSearchRowBottomPx(navigation, rest, keyboard, gap, dock) + row + growth
@@ -40,7 +40,9 @@ internal class FluidSearchListRoomTest {
     // Con cinque righe le due cose si sommano.
     assertEquals(lift + 92f, toolbarSearchListExtraPx(fieldTop(keyboard = 300, growth = 92f), assumed), 0f)
     // Una tastiera più bassa della posa a riposo (la sola barra dei suggerimenti di una tastiera fisica) non toglie niente.
-    assertEquals(0f, toolbarSearchListExtraPx(fieldTop(keyboard = 30), assumed), 0f)
+    // F6C.20: la riga a riposo sta a navigazione + 4 dp (il vetro a 28 dal bordo): una tastiera che col suo distacco
+    // arriva fin lì, non oltre.
+    assertEquals(0f, toolbarSearchListExtraPx(fieldTop(keyboard = navigation + rest - gap), assumed), 0f)
   }
 
   @Test fun aboveTheKeyboardBarTheFieldClearsTheBarToo() {

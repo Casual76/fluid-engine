@@ -1352,6 +1352,16 @@ internal const val GlassAdaptiveUniformDarkTo: Float = 0.10f
 internal const val GlassLiquidDarkCeiling: Float = 0.40f
 
 /**
+ * F6C.20 · Il soffitto del corpo scuro delle finestre che portano una **voce distruttiva in rosso**, il menu e l'avviso
+ * (`GlassTint.darkCeiling`): il testo chiaro a 4,5:1 di [GlassLiquidDarkCeiling] non basta al rosso. Il rosso del tema
+ * scuro (`FluidTheme`, #FF6961, il systemRed scuro ad alto contrasto di iOS) a 4,5:1, come nei menu di iOS e come lo
+ * stesso menu sopra la pagina scura del tema (5,1:1), vuole il corpo a luminanza relativa 0,0327 (sRGB 50,6, luma 0,198);
+ * il testo chiaro (#F2F2F5) vi sta a 11:1. La pellicola del menu (pannello al 50% più lo scrim nero al 20%, sRGB ≈ 53)
+ * non ci arriva e diventa piena: «Elimina» a 4,3:1 sopra il bianco, da 1,33 (riprese del 23 novembre 2026, PDF in scuro).
+ */
+internal const val GlassLiquidMenuDarkCeiling: Float = 0.20f
+
+/**
  * Quanto ci mettono i bersagli continui del materiale (velo, ombra, colore dell'ombra) a raggiungere una lettura nuova
  * della sonda: il tempo del corpo nel giro (R4 B6, alta: 300 ms, quasi tutto nei primi 200).
  */

@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.viewer.data
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /**
  * F6C.13 · I numeri della famiglia «data»: tetti di lettura, misure delle righe, colori dei tipi. Nessuno è un numero di
@@ -83,6 +84,28 @@ internal object DataProfile {
 
   /** L'interlinea di un libro: comoda, come Libri. A occhio, 22 novembre 2026. */
   const val BookLineHeight: Float = 1.6f
+
+  /**
+   * F6C.20 · I passi di «Dimensione del testo» di una pagina HTML e di un libro, in percento del corpo di serie: quelli
+   * intorno al 100% del menu «aA» di Safari su iOS (… 75, 85, 100, 115, 125, 150, 175 …); quanti tenerne, a occhio, 23
+   * novembre 2026.
+   */
+  val TextZoomSteps: List<Int> = listOf(85, 100, 115, 125, 150)
+
+  /** Il passo di serie di «Dimensione del testo»: il testo com'è. */
+  const val TextZoomDefault: Int = 100
+
+  /** Il corpo di un libro (px del foglio del lettore) al passo [percent] di «Dimensione del testo». */
+  fun bookFontSize(percent: Int): Int = (BookFontSize * percent / 100f).roundToInt()
+
+  /** Il rientro di ogni livello sotto il primo nell'«Indice» di un Markdown (dp), come l'indice di un libro. A occhio, 23 novembre 2026. */
+  val HeadingIndent = 16.dp
+
+  /** Lo spazio sopra e sotto il titolo di un foglio («Indice», «Allegati»): quello dell'indice del libro di F6C.13. */
+  val SheetTitlePadding = 8.dp
+
+  /** Lo spazio fra due righe di «Mostra tutte le intestazioni» di una mail (dp). A occhio, 23 novembre 2026. */
+  val MailHeaderGap = 2.dp
 
   /** L'ambra dell'avviso: la stessa dell'avviso dell'eseguibile di F6C.9 (`ViewerMixProfile.Amber`, il giallo-arancio di sistema di Apple). */
   val Amber = Color(0xFFFF9500)

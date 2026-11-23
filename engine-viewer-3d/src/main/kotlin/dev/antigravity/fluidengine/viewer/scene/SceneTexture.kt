@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.viewer.scene
 
 import android.content.Context
+import android.util.Log
 import android.view.Choreographer
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -8,6 +9,7 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.ViewConfiguration
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
 import com.google.android.filament.Box
 import com.google.android.filament.Camera
 import com.google.android.filament.Engine
@@ -36,6 +38,33 @@ internal const val GroundAsset = "fluid-viewer-3d/ground.filamat"
 internal const val StudioAsset = "fluid-viewer-3d/studio.ktx"
 
 /** Distanze e sensibilità a occhio per un modello inquadrato in un cubo di lato 2, 22 novembre 2026. */
+/**
+ * F6C.20 · La diagnosi della superficie sul dispositivo: spenta di serie, si accende con
+ * `adb shell setprop log.tag.FluidScene3d DEBUG`. Poche righe per sessione, mai una per fotogramma.
+ */
+internal object SceneTrace {
+  private const val Tag = "FluidScene3d"
+  fun log(message: () -> String) {
+    if (Log.isLoggable(Tag, Log.DEBUG)) Log.d(Tag, message())
+  }
+}
+
+/**
+ * F6C.20 · Le misure del viewport. [UiHelper] di Filament, attaccato a una [TextureView] che ha già la sua superficie,
+ * annuncia la superficie con le misure «desiderate», che non diamo: 0×0. Succede nella galleria, dove l'entrata dalla
+ * miniatura registra la pagina (e fa nascere la superficie) prima che la pagina diventi attiva e la sessione parta: il
+ * viewport restava vuoto, Filament disegnava un fotogramma trasparente e lo contava come primo, e la pagina restava
+ * bianca anche sotto il dito. Le misure che mancano si prendono dalla vista.
+ */
+internal object SceneViewport {
+  /** Le misure annunciate, o quelle della vista se le annunciate sono nulle; null se non ce ne sono ancora. */
+  fun of(reportedWidth: Int, reportedHeight: Int, viewWidth: Int, viewHeight: Int): IntSize? = when {
+    reportedWidth > 0 && reportedHeight > 0 -> IntSize(reportedWidth, reportedHeight)
+    viewWidth > 0 && viewHeight > 0 -> IntSize(viewWidth, viewHeight)
+    else -> null
+  }
+}
+
 private object OrbitProfile {
   const val EyeX = 3.2f
   const val EyeY = 1.95f
@@ -49,17 +78,38 @@ private object OrbitProfile {
   const val GroundSize = 6f
 }
 
+/**
+ * F6C.20 · Ciò che la pagina del modello chiede alla sua superficie a ogni ricomposizione: se disegnare, la clip e se
+ * suona, la richiesta di inquadratura e la rotazione automatica. La superficie vera è [SceneTexture] (Filament); le
+ * prove JVM, dove Filament non c'è, ne danno una che ricorda gli ordini.
+ */
+internal interface SceneSurface {
+  fun update(active: Boolean, play: Boolean, animation: Int, frameRequest: Int, autoRotate: Boolean)
+  fun dispose()
+}
+
+/** F6C.20 · Crea la vista della superficie ([SceneSurface]) per la pagina del modello. */
+internal fun interface SceneSurfaceFactory {
+  fun create(context: Context, model: FluidSceneModel, onFirstFrame: () -> Unit, onError: (Throwable) -> Unit): android.view.View
+}
+
+/** La superficie di serie: Filament su una [TextureView]. */
+internal val FilamentSceneSurface = SceneSurfaceFactory { context, model, onFirstFrame, onError ->
+  SceneTexture(context, model, onFirstFrame, onError)
+}
+
 internal class SceneTexture(
   context: Context,
   private val model: FluidSceneModel,
   private val onFirstFrame: () -> Unit,
   private val onError: (Throwable) -> Unit,
-) : TextureView(context) {
+) : TextureView(context), SceneSurface {
   private var session: OrbitSession? = null
   private var enabledForPage = false
   private var playing = false
   private var clip = 0
   private var reset = 0
+  private var rotate = false
   private var released = false
   private var failed = false
   private var touchMode = 0
@@ -77,21 +127,31 @@ internal class SceneTexture(
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
+    SceneTrace.log { "vista attaccata ${System.identityHashCode(this)}, pagina attiva $enabledForPage" }
     updateSession()
   }
 
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    session?.viewResized(w, h)
+  }
+
   override fun onDetachedFromWindow() {
+    SceneTrace.log { "vista staccata ${System.identityHashCode(this)}, sessione ${session != null}" }
     destroySession()
     super.onDetachedFromWindow()
   }
 
-  fun update(active: Boolean, play: Boolean, animation: Int, frameRequest: Int) {
+  override fun update(active: Boolean, play: Boolean, animation: Int, frameRequest: Int, autoRotate: Boolean) {
+    if (enabledForPage != active) SceneTrace.log { "pagina attiva $active (${System.identityHashCode(this)})" }
     enabledForPage = active
     playing = play
     clip = animation
+    rotate = autoRotate
     updateSession()
     val renderer = session ?: return
     renderer.play(play, animation)
+    renderer.autoRotate(autoRotate)
     if (reset != frameRequest) {
       pinch = 0f
       renderer.frameModel()
@@ -106,7 +166,11 @@ internal class SceneTexture(
     }
     if (session == null) {
       try {
-        session = OrbitSession.create(this, model, onFirstFrame).also { it.play(playing, clip) }
+        SceneTrace.log { "sessione creata (${System.identityHashCode(this)}) ${width}x$height, disponibile $isAvailable" }
+        session = OrbitSession.create(this, model, onFirstFrame).also {
+          it.play(playing, clip)
+          it.autoRotate(rotate)
+        }
       } catch (e: Exception) {
         fail(e)
       } catch (e: LinkageError) {
@@ -121,12 +185,13 @@ internal class SceneTexture(
     post { if (!released) onError(error) }
   }
 
-  fun dispose() {
+  override fun dispose() {
     released = true
     destroySession()
   }
 
   private fun destroySession() {
+    if (session != null) SceneTrace.log { "sessione chiusa (${System.identityHashCode(this)})" }
     session?.close()
     session = null
     touchMode = 0
@@ -208,6 +273,8 @@ private class OrbitSession private constructor(
   private val target = DoubleArray(3)
   private val upward = DoubleArray(3)
   private var swap: SwapChain? = null
+  // F6C.20: le misure date al viewport. Sopra `init`: attachTo può annunciare la superficie già nel costruttore.
+  private var applied: IntSize? = null
   private var posted = false
   private var closed = false
   private var resourceProgress = 0f
@@ -217,11 +284,18 @@ private class OrbitSession private constructor(
   private var poseDirty = false
   private var time = 0f
   private var lastFrame = 0L
+  // F6C.20: la rotazione automatica ([SceneSpin]): l'angolo sopra l'inquadratura del manipolatore, ferma sotto il dito.
+  private var spinning = false
+  private var spin = 0.0
+  private var spinFrame = 0L
+  private var grabbing = false
+  private var spinResumeAt = 0L
   var active = true
     set(value) {
       if (field == value) return
       field = value
       lastFrame = 0L
+      spinFrame = 0L
       if (value) requestFrame()
       else if (posted) {
         frames.removeFrameCallback(this)
@@ -276,19 +350,38 @@ private class OrbitSession private constructor(
     if (poseDirty || playing) requestFrame()
   }
 
+  /** F6C.20 · Accende o spegne la rotazione automatica; accesa, gira da subito. */
+  fun autoRotate(on: Boolean) {
+    if (spinning == on) return
+    spinning = on
+    spinFrame = 0L
+    spinResumeAt = 0L
+    if (on) requestFrame()
+  }
+
   fun frameModel() {
     orbit.jumpToBookmark(orbit.homeBookmark)
+    // «Inquadra» torna alla vista di partenza anche se la camera stava girando da sola.
+    spin = 0.0
+    spinFrame = 0L
     requestFrame()
   }
 
-  fun beginGrab(position: Offset, pan: Boolean) = orbit.grabBegin(position.x.toInt(), position.y.toInt(), pan)
+  fun beginGrab(position: Offset, pan: Boolean) {
+    grabbing = true
+    orbit.grabBegin(position.x.toInt(), position.y.toInt(), pan)
+  }
 
   fun grab(position: Offset) {
     orbit.grabUpdate(position.x.toInt(), position.y.toInt())
     requestFrame()
   }
 
-  fun endGrab() = orbit.grabEnd()
+  fun endGrab() {
+    orbit.grabEnd()
+    if (grabbing) spinResumeAt = System.nanoTime() + SceneSpin.ResumeDelayNanos
+    grabbing = false
+  }
 
   fun panAndZoom(position: Offset, logarithmicDelta: Float) {
     val x = position.x.toInt()
@@ -325,7 +418,12 @@ private class OrbitSession private constructor(
     }
     poseDirty = false
     lastFrame = if (playing) frameTimeNanos else 0L
+    // Choreographer dà il tempo del fotogramma nella stessa base di System.nanoTime(), come la ripresa dopo il dito.
+    val turning = spinning && !grabbing && frameTimeNanos >= spinResumeAt
+    if (turning && spinFrame != 0L) spin = SceneSpin.advance(spin, frameTimeNanos - spinFrame)
+    spinFrame = if (turning) frameTimeNanos else 0L
     orbit.getLookAt(eye, target, upward)
+    SceneSpin.turn(spin, eye, target, upward)
     camera.lookAt(eye[0], eye[1], eye[2], target[0], target[1], target[2], upward[0], upward[1], upward[2])
     val drawn = renderer.beginFrame(chain, frameTimeNanos)
     if (drawn) {
@@ -333,20 +431,25 @@ private class OrbitSession private constructor(
       renderer.endFrame()
       if (!firstFrameSent && resourceProgress >= 1f) {
         firstFrameSent = true
+        SceneTrace.log { "primo fotogramma, ${texture.width}x${texture.height}, visibile ${texture.isShown}" }
         onFirstFrame()
       }
     }
-    if (!drawn || playing || resourceProgress < 1f) requestFrame()
+    if (!drawn || playing || spinning || resourceProgress < 1f) requestFrame()
   }
 
   override fun onNativeWindowChanged(surface: Surface) {
+    SceneTrace.log { "superficie collegata, ${texture.width}x${texture.height}" }
     swap?.let(engine::destroySwapChain)
     swap = engine.createSwapChain(surface, ui.swapChainFlags)
+    // F6C.20: senza un viewport Filament disegna un fotogramma vuoto e lo conta come primo (la pagina resta bianca).
+    if (applied == null) SceneViewport.of(0, 0, texture.width, texture.height)?.let(::resize)
     texture.display?.let { display.attach(renderer, it) }
     requestFrame()
   }
 
   override fun onDetachedFromSurface() {
+    SceneTrace.log { "superficie staccata" }
     display.detach()
     val previous = swap ?: return
     swap = null
@@ -355,7 +458,20 @@ private class OrbitSession private constructor(
   }
 
   override fun onResized(width: Int, height: Int) {
-    if (width <= 0 || height <= 0) return
+    SceneTrace.log { "misure ${width}x$height, vista ${texture.width}x${texture.height}" }
+    resize(SceneViewport.of(width, height, texture.width, texture.height) ?: return)
+  }
+
+  /** F6C.20 · La vista ha cambiato misura: il viewport la segue anche se [UiHelper] non l'ha detto. */
+  fun viewResized(width: Int, height: Int) {
+    if (applied == null || SceneViewport.of(0, 0, width, height) == applied) return
+    resize(SceneViewport.of(0, 0, width, height) ?: return)
+  }
+
+  private fun resize(size: IntSize) {
+    applied = size
+    val width = size.width
+    val height = size.height
     engine.flushAndWait()
     view.viewport = Viewport(0, 0, width, height)
     orbit.setViewport(width, height)

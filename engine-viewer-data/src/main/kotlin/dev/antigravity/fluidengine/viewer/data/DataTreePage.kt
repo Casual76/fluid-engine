@@ -149,7 +149,9 @@ internal fun DataTreePage(scope: FluidViewerCustomScope, model: DataTreeModel, s
     scope,
     find = if (text) find else null,
     actions = {
-      dataModes("data.tree.mode", strings.tree to FluidIcons.FormatListBulleted, strings.text to FluidIcons.Code, text) {
+      // F6C.20: nel testo c'è «Trova», e «Albero | Testo» più «Trova» facevano quattro vetri (R5 B11): «Trova | Albero».
+      dataModes("data.tree.mode", strings.tree to FluidIcons.FormatListBulleted, strings.text to FluidIcons.Code, text,
+        findInSecond = true) {
         text = it
         if (!it) jump = null
       }

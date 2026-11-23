@@ -361,8 +361,11 @@ private fun FluidMenuLayerContent(
   // La pellicola del pannello con dentro la quota di scrim: la finestra campiona la pagina CRUDA (gli
   // exports dello scrim lo registrano a forza piena, la terza trappola), quindi lo scurimento se lo
   // dipinge da se'. Lo stesso nero dello scrim, composto sotto la pellicola.
+  // F6C.20: la finestra porta la voce distruttiva in rosso, e sul tema scuro sopra uno sfondo chiaro si fa profonda
+  // quanto serve al rosso (`GlassLiquidMenuDarkCeiling`), non solo al testo chiaro.
   val windowTint = remember(panelTint, dark, scrimLook) {
-    panelTint.copy(overlay = panelTint.overlay.compositeOver(scrimLook.color(dark)))
+    panelTint.copy(overlay = panelTint.overlay.compositeOver(scrimLook.color(dark)),
+      darkCeiling = dev.antigravity.fluidengine.ui.glass.field.GlassLiquidMenuDarkCeiling)
   }
   val progress: () -> Float = { journey.progress.value }
   val liquidMenu = withLens
@@ -1205,7 +1208,9 @@ private fun FluidAlertLayerContent(
   val panelTint = GlassDefaults.panelTint()
   val windowTint = remember(panelTint, dark, inline) {
     if (inline) panelTint else
-      panelTint.copy(overlay = panelTint.overlay.compositeOver(Color.Black.copy(alpha = if (dark) 0.20f else 0.12f)))
+      panelTint.copy(overlay = panelTint.overlay.compositeOver(Color.Black.copy(alpha = if (dark) 0.20f else 0.12f)),
+        // F6C.20: come il menu, l'avviso porta la voce distruttiva in rosso.
+        darkCeiling = dev.antigravity.fluidengine.ui.glass.field.GlassLiquidMenuDarkCeiling)
   }
   val current by androidx.compose.runtime.rememberUpdatedState(spec)
   val progress = { sourceJourney?.clock?.value ?: geometry() }

@@ -133,7 +133,8 @@ class FluidFloatingCapsuleTest {
     assertEquals(listOf("cuore"), bottom.elements.map { it.item.id })
     assertEquals(listOf("alto"), top.elements.map { it.item.id })
     assertEquals(48f, bottom.groups.single().widthDp, 0f)
-    assertEquals(FluidFloatingTabBarDefaults.BottomMargin + 48.dp, fluidBottomBarExtraInset(0.dp))
-    assertEquals(FluidFloatingTabBarDefaults.Spacing + 48.dp, fluidBottomBarExtraInset(100.dp))
+    // F6B.15 e F6C.20: senza tab bar il vetro a 28 dp dal bordo; con la tab bar 8 dp sopra di lei.
+    assertEquals(FluidBottomBarPlacement.ScreenEdgeDistance + 48.dp, fluidBottomBarExtraInset(0.dp, 0.dp))
+    assertEquals(FluidFloatingTabBarDefaults.Spacing + 48.dp, fluidBottomBarExtraInset(100.dp, 24.dp))
   }
 }

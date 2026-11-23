@@ -16,6 +16,8 @@ android {
   }
   buildFeatures { compose = true }
   sourceSets.test.resources.srcDir "src/androidTest/assets"
+  // F6C.20: la prova di «•••» compone la pagina del modello nel visore vero, con le risorse di engine-ui.
+  testOptions.unitTests.includeAndroidResources = true
   compileOptions {
     sourceCompatibility engine.javaVersion
     targetCompatibility engine.javaVersion
@@ -28,6 +30,7 @@ dependencies {
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
   androidTestImplementation 'androidx.test:runner:1.7.0'
   androidTestImplementation 'androidx.test.ext:junit:1.3.0'
   androidTestImplementation "androidx.activity:activity-compose:${engine.activityCompose}"

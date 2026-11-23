@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import dev.antigravity.fluidengine.ui.fluid.*
+import dev.antigravity.fluidengine.ui.fluid.icons.ContentCopy
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.icons.TextFormat
@@ -47,6 +49,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -82,12 +85,32 @@ data class FluidTextPresetStrings(
   val retry: String = "Riprova",
   val empty: String = "Il file è vuoto",
   val textSize: String = "Dimensione del testo",
+  /**
+   * F6C.20 · Le azioni del tipo in «•••» (scelta di Alessio del 23 novembre 2026): vai a una riga (il «Go to Line» di
+   * Xcode e degli editor), i numeri di riga accesi o spenti, tutto il testo negli appunti. «Copia il testo» e non
+   * «Copia»: «Copia» del menu del nome copia il file.
+   */
+  val more: String = "Altro",
+  val goToLine: String = "Vai alla riga…",
+  val lineNumber: String = "Numero di riga",
+  val lineRange: (count: Int?) -> String = { count -> if (count == null) "Il numero della riga" else "Da 1 a $count" },
+  val go: String = "Vai",
+  val cancel: String = "Annulla",
+  val lineNumbers: String = "Numeri di riga",
+  val copyText: String = "Copia il testo",
 )
 
 /** I numeri del preset testo. Sono quantità di lettura, non di movimento. */
 object FluidTextPresetDefaults {
   /** Righe per lettura: circa 20–40 KB di codice, una lettura ogni qualche schermata di scorrimento. A occhio, 22/11/2026. */
   const val ChunkLines: Int = 400
+
+  /**
+   * F6C.20 · Fin dove «Copia il testo» mette tutto il file negli appunti: gli appunti di Android passano dal binder, che
+   * tiene 1 MB per transazione (`TransactionTooLargeException`), e un carattere ne pesa due. Oltre, la voce non c'è. A
+   * occhio, 23 novembre 2026.
+   */
+  const val CopyTextMaxChars: Int = 200_000
 
   /** La lettura successiva parte quando alla fine delle righe lette mancano queste righe. A occhio, 22/11/2026. */
   const val PrefetchLines: Int = 80
@@ -415,6 +438,11 @@ fun FluidTextPreset(
   if (entrance != null && (doc.rows.isNotEmpty() || doc.ended || doc.failure != null)) SideEffect { entrance.placed() }
   var wrap by rememberSaveable { mutableStateOf(initialWrap) }
   var fontStep by rememberSaveable { mutableIntStateOf(0) }
+  // F6C.20: le azioni del tipo in «•••».
+  var lineNumbers by rememberSaveable { mutableStateOf(true) }
+  var goingToLine by rememberSaveable { mutableStateOf(false) }
+  val clipboard = LocalClipboardManager.current
+  val scope = rememberCoroutineScope()
   var finding by rememberSaveable { mutableStateOf(false) }
   val queryState = rememberSaveable { mutableStateOf("") }
   val currentState = rememberSaveable { mutableStateOf(0) }
@@ -463,7 +491,8 @@ fun FluidTextPreset(
   }
 
   val density = LocalDensity.current
-  val hasBoardTitle = LocalViewerInfo.current != null && LocalViewerPage.current != null
+  val info = LocalViewerInfo.current
+  val hasBoardTitle = info != null && LocalViewerPage.current != null
   val readerScale = listOf(1f, 1.15f, 1.33f)[fontStep]
   val style = MaterialTheme.typography.bodySmall.viewerSize(11.6f * readerScale, line = 19.25f * readerScale)
     .copy(fontFamily = FontFamily.Monospace)
@@ -471,7 +500,8 @@ fun FluidTextPreset(
   val charWidth = remember(style, density) { measurer.measure("0", style).size.width.coerceAtLeast(1) }
   val digits = max(3, (source.lineCount ?: doc.lines.size).coerceAtLeast(1).toString().length)
   val gap = FluidScreenDefaults.HorizontalPadding / 2
-  val gutter = maxOf(if (hasBoardTitle) 44.dp else 0.dp, with(density) { (charWidth * digits).toDp() } + gap)
+  val gutter = if (!lineNumbers) gap
+    else maxOf(if (hasBoardTitle) 44.dp else 0.dp, with(density) { (charWidth * digits).toDp() } + gap)
   val textPadding = if (hasBoardTitle) 6.dp else FluidScreenDefaults.HorizontalPadding
   var viewportWidth by remember { mutableIntStateOf(0) }
   var offsetX by remember { mutableFloatStateOf(0f) }
@@ -538,7 +568,33 @@ fun FluidTextPreset(
       placement = FluidToolbarPlacement.BottomBar)
     if (!hasBoardTitle) button(TextPresetButton.Wrap, FluidIcons.TextFormat, strings.wrap, { wrap = !wrap },
       placement = FluidToolbarPlacement.BottomBar, selected = wrap)
+    // F6C.20: «•••» del testo e del codice, come per gli altri tipi: vai a una riga, i numeri di riga, tutto il testo.
+    if (hasBoardTitle) viewerTypeActions(strings.more) {
+      buildList {
+        add(FluidContextAction(strings.goToLine) { goingToLine = true })
+        add(FluidContextAction(strings.lineNumbers, selected = lineNumbers) { lineNumbers = !lineNumbers })
+        val size = info?.file?.sizeBytes
+        if (size == null || size <= FluidTextPresetDefaults.CopyTextMaxChars) add(FluidContextAction(strings.copyText,
+          icon = FluidIcons.ContentCopy, startsSection = true) {
+          scope.launch {
+            doc.loadAll()
+            val text = doc.lines.joinToString("\n") { it.text }
+            if (text.length <= FluidTextPresetDefaults.CopyTextMaxChars) clipboard.setText(AnnotatedString(text))
+          }
+        })
+      }
+    }
   }
+  val lineCount = source.lineCount ?: doc.lines.size.takeIf { doc.ended }
+  ViewerGoToAlert(goingToLine, strings.goToLine, strings.lineNumber, strings.lineRange(lineCount), numeric = true,
+    parse = { text -> text.trim().toIntOrNull()?.takeIf { it >= 1 && (lineCount == null || it <= lineCount) } },
+    onGo = { number ->
+      scope.launch {
+        doc.loadThrough(number - 1)
+        val row = doc.rows.indexOfFirst { it.line >= number - 1 }
+        if (row >= 0) list.scrollToItem(row)
+      }
+    }, onDismiss = { goingToLine = false }, go = strings.go, cancel = strings.cancel)
   val front by LocalFluidRouteFront.current
   if (finding && active && front && !LocalFluidPagePreparing.current) FluidSelectionBackEffect(enabled = true) { finding = false }
 

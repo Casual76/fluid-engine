@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -26,11 +25,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
 import dev.antigravity.fluidengine.ui.fluid.FluidLicense
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
 import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerFamily
 import dev.antigravity.fluidengine.viewer.FluidViewerFamilyType
@@ -81,22 +82,63 @@ class FluidSceneFamily : FluidViewerFamily {
 
 }
 
-private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> Unit)?) {
+/**
+ * La pagina di un modello 3D: la superficie di Filament ([surface]) e la barra del visore. F6C.20: la barra tiene tre
+ * vetri (R5 B11: «•••», il centro, condividi), quindi al centro c'è un comando solo: «AR» dell'estensione quando lo
+ * mostra ([FluidSceneViewerControls.showsAction]), se no «Riproduci/Pausa» per un modello animato o «Inquadra» per uno
+ * fermo. Il resto sta in «•••»: «Inquadra», le animazioni per nome (con almeno due: prendono il posto di «Animazione
+ * successiva») e la rotazione automatica della camera ([SceneSpin]).
+ */
+internal class ScenePage(
+  private val model: FluidSceneModel,
+  name: String,
+  openWith: (() -> Unit)?,
+  surface: SceneSurfaceFactory = FilamentSceneSurface,
+  private val extension: FluidSceneViewerControls? = sceneViewerExtension?.create(model),
+) {
   private var playing by mutableStateOf(false)
   private var animation by mutableIntStateOf(0)
   private var reset by mutableIntStateOf(0)
   private var failure by mutableStateOf(false)
-  private val extension = sceneViewerExtension?.create(model)
+  private var autoRotate by mutableStateOf(false)
   private var frameReady by mutableStateOf(false)
+
+  private val animated get() = model.stats.animations > 0
+  private val playLabel get() = if (playing) "Pausa" else "Riproduci"
+
+  /** Il nome di un'animazione per il menu: quello del file, o «Animazione N». */
+  private fun animationName(index: Int): String = model.animationNames.getOrNull(index) ?: "Animazione ${index + 1}"
+
+  /**
+   * Le azioni del tipo in «•••», lette quando il menu si apre: la clip e la rotazione di quel momento, e i comandi che
+   * non hanno il centro della barra ([extensionBar]: il centro è dell'estensione).
+   */
+  private fun typeActions(extensionBar: Boolean): List<FluidContextAction> = listOfNotNull(
+    if (extensionBar && animated) FluidContextAction(playLabel) { playing = !playing } else null,
+    if (extensionBar || animated) FluidContextAction("Inquadra") { reset++ } else null,
+    if (model.stats.animations < 2) null else FluidContextAction(
+      "Animazioni", subtitle = animationName(animation),
+      children = List(model.stats.animations) { index ->
+        // Scegliere un'animazione la fa vedere: da ferma la posa non cambierebbe.
+        FluidContextAction(animationName(index), selected = index == animation) {
+          animation = index
+          playing = true
+        }
+      },
+    ) {},
+    FluidContextAction("Rotazione automatica", selected = autoRotate) { autoRotate = !autoRotate },
+  )
 
   val content = FluidViewerContent.Custom(
     actions = {
       if (!failure) {
-        button("3d.frame", Icons.Default.CenterFocusStrong, "Inquadra", { reset++ }, FluidToolbarPlacement.BottomBar)
-        if (model.stats.animations > 0) button("3d.play", if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-          if (playing) "Pausa" else "Riproduci", { playing = !playing }, FluidToolbarPlacement.BottomBar)
-        if (model.stats.animations > 1) button("3d.animation", Icons.Default.SkipNext,
-          "Animazione successiva", { animation = (animation + 1) % model.stats.animations }, FluidToolbarPlacement.BottomBar)
+        val extensionBar = extension?.showsAction == true
+        if (!extensionBar) {
+          if (animated) button("3d.play", if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, playLabel,
+            { playing = !playing }, FluidToolbarPlacement.BottomBar)
+          else button("3d.frame", Icons.Default.CenterFocusStrong, "Inquadra", { reset++ }, FluidToolbarPlacement.BottomBar)
+        }
+        viewerTypeActions { typeActions(extensionBar) }
         extension?.actions(this)
       }
     },
@@ -115,16 +157,16 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
       AndroidView(
         factory = { context ->
           frameReady = false
-          SceneTexture(context, model, onFirstFrame = { frameReady = true }) { error ->
+          surface.create(context, model, { frameReady = true }) { error ->
             Log.w("FluidSceneViewer", "Filament non può aprire la scena", error)
             failure = true
           }
         },
         modifier = Modifier.fillMaxSize().semantics { contentDescription = "Modello 3D, $name" },
         onReset = null,
-        onRelease = SceneTexture::dispose,
-        update = { it.update(active && extension?.overlayVisible != true &&
-          lifecycle.isAtLeast(Lifecycle.State.RESUMED), playing, animation, reset) },
+        onRelease = { (it as SceneSurface).dispose() },
+        update = { (it as SceneSurface).update(active && extension?.overlayVisible != true &&
+          lifecycle.isAtLeast(Lifecycle.State.RESUMED), playing, animation, reset, autoRotate) },
       )
       extension?.Overlay(active)
     }

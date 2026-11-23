@@ -64,6 +64,8 @@ dependencies {
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  // F6C.20: le prove di «•••» aprono il menu e scelgono le voci nel visore vero (la versione dal BOM di engine-ui).
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
 
   // Solo per :engine-viewer-data:connectedDebugAndroidTest, mai in un'app.
   androidTestImplementation 'androidx.test:runner:1.7.0'

@@ -76,4 +76,18 @@ data class FluidDataStrings(
   val more: String = "Altro",
   val expandAll: String = "Espandi tutto",
   val collapseAll: String = "Comprimi tutto",
+  /**
+   * F6C.20 · Le azioni del tipo delle altre pagine in «•••»: Markdown, HTML, EPUB, mail, calendario e contatti. Mai le
+   * parole del menu del file («Copia», «Condividi»…), che il visore toglierebbe da «•••»: per questo «Copia il testo».
+   * «Indice» del Markdown è [contents], «Allegati» della mail è [attachments].
+   */
+  val copyText: String = "Copia il testo",
+  val textSize: String = "Dimensione del testo",
+  val textSizeStep: (percent: Int) -> String = { "$it%" },
+  val reload: String = "Ricarica",
+  val backToStart: String = "Torna all'inizio",
+  val allHeaders: String = "Mostra tutte le intestazioni",
+  val fewerHeaders: String = "Mostra meno intestazioni",
+  val copyEvents: String = "Copia gli eventi",
+  val copyContacts: String = "Copia i contatti",
 )

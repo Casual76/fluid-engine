@@ -126,7 +126,7 @@ internal object ViewerChromeMotion {
     ((if (hidden) HideMillis else ShowMillis) * distance.coerceIn(0f, 1f) * scale).roundToInt()
 }
 
-private enum class ViewerButton { Info, Tools, Done, More, BoardDock, TextShare }
+private enum class ViewerButton { Info, Tools, Done, More, BoardDock, TextShare, TextReading }
 private data class ToolButton(val id: String)
 internal val ViewerBoardTopInset = 44.dp
 
@@ -232,8 +232,11 @@ internal fun BoxScope.ViewerChrome(
         val typeMenu = typeEntry?.withoutMenuLabels(menu?.mapTo(HashSet()) { it.label }.orEmpty())
         entries += app.entries.filterNot { it === share }
         entries += page.entries.filter { !it.declaresBottomAction(false) }
+        // F6C.20: il testo e il codice hanno «•••» come gli altri tipi (scelta di Alessio del 23 novembre 2026), a
+        // sinistra, con le capsule di lettura al centro e condividi a destra. Senza azioni del tipo resta la fila di prima.
+        val textDock = isText && typeEntry == null
         group(ViewerButton.BoardDock, placement = FluidToolbarPlacement.BottomBar) {
-          if (isText) flexibleSpacer()
+          if (textDock) flexibleSpacer()
           else if (onInfo != null) {
             if (typeMenu != null) entries += typeMenu
             // Scelta di Alessio del 23 novembre: «•••» c'è sempre. Una pagina senza azioni del tipo ha la sola che vale
@@ -254,9 +257,14 @@ internal fun BoxScope.ViewerChrome(
             }
             flexibleSpacer()
           }
-          entries += page.entries.filter { it.declaresBottomAction(false) && it !== archiveSearch && it !== typeEntry }
+          val center = page.entries.filter { it.declaresBottomAction(false) && it !== archiveSearch && it !== typeEntry }
             .map { it.withViewerLabels(faceWidth, faceStyle) }
-          if (isText) {
+          // F6C.20: col «•••» del testo i gruppi sarebbero quattro («•••», «Aa» e a capo, «Trova», condividi) e la barra ne
+          // tiene tre (R5 B11): le capsule di lettura e «Trova» stanno in un vetro solo, e nessun tasto esce.
+          if (isText && !textDock) group(ViewerButton.TextReading, placement = FluidToolbarPlacement.BottomBar) {
+            entries += center.flatMap { (it as? FluidToolbarGroupEntry)?.children ?: listOf(it) }
+          } else entries += center
+          if (textDock) {
             if (share != null) group(ViewerButton.TextShare) { entries += share }
             flexibleSpacer()
           } else {
@@ -297,8 +305,6 @@ internal fun BoxScope.ViewerChrome(
     }
   }
   val accent = language?.let { MaterialTheme.colorScheme.tertiary }
-  // F6B.15, provvisorio fino all'unione con F6C.20 (`ViewerBottomRow.Edge`): la barra in basso del visore resta dov'era.
-  declarationBase.keepsLegacyBottomLift = true
   val declaration = if (!board) declarationBase else FluidToolbarDeclaration(
     declarationBase.entries, declarationBase.titleMode, declarationBase.subtitle, declarationBase.search,
     declarationBase.overflowLabel, declarationBase.keyboard, declarationBase.titleSelector, viewerLayout = true,
@@ -407,17 +413,23 @@ internal fun ViewerToolbarSubtitle(declaration: FluidToolbarDeclaration?, fallba
 }
 
 /**
- * How far from the bottom of the screen the viewer's bottom capsule ends (F6C.15b): the navigation bar, the room of a
- * tab bar when the app has one ([LocalFluidBottomInset]), the capsule's own margin ([fluidBottomBarOffset]) and its
- * height. A row that floats above the capsule (the sheet tabs of the grid) stands on this line plus a gap, and the
- * content of a page that scrolls ends above both, so at the end of the scroll nothing stays under a capsule. The
- * navigation bar counts even while it is hidden with the chrome, so the content does not jump.
+ * How far from the bottom of the screen the viewer's bottom capsule ends (F6C.15b): the navigation bar, the bar's own
+ * lift ([fluidBottomBarLift]: above the app's tab bar when there is one ([LocalFluidBottomInset]), otherwise
+ * [FluidBottomBarPlacement.ScreenEdgeDistance] from the screen edge) and its height. A row that floats above the capsule
+ * (the sheet tabs of the grid) stands on this line plus a gap, and the content of a page that scrolls ends above both,
+ * so at the end of the scroll nothing stays under a capsule. The navigation bar counts even while it is hidden with the
+ * chrome, so the content does not jump.
+ *
+ * F6C.20: the same line where `FluidBottomBar` draws the viewer's row («•••», the centre capsule, share), on every
+ * viewer page. Quick Look in iOS 26 puts that glass 28 pt from the bottom of the screen
+ * (`artifacts/liquid-glass/ricerca/visori-2/apple/ql-pdf-pagina.png`), the same measure F6B.15 gave the pages' bottom bar.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun viewerBottomCapsuleTop(): Dp =
-  WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding() +
-    fluidBottomBarOffset(LocalFluidBottomInset.current) + FluidFloatingCapsuleDefaults.ActionSize
+internal fun viewerBottomCapsuleTop(): Dp {
+  val navigation = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
+  return navigation + fluidBottomBarLift(LocalFluidBottomInset.current, navigation) + FluidFloatingCapsuleDefaults.ActionSize
+}
 
 @Composable
 internal fun viewerPhotoSpace(compactInspector: Boolean): Float {

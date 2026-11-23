@@ -43,7 +43,7 @@ internal fun fluidBottomBarMetrics(): FluidToolbarMetrics = fluidToolbarMetrics(
  * Dove sta la barra degli strumenti in basso delle pagine (F6B.15): **una misura sola**, condivisa dalla barra in basso
  * dichiarata ([FluidBottomBar]: Posta, la selezione che non prende la tab bar, «Invia»…), dal campo che occupa la riga in
  * basso (`FluidToolbarSearchOverlay`), dallo spazio che la lista le lascia ([fluidBottomBarExtraInset]) e, da F6C.20,
- * dalla barra in basso dei visori. La tab bar non la usa: resta com'è ([FluidFloatingTabBarDefaults.BottomMargin]).
+ * dalla barra in basso dei visori (F6C.20: la fila «•••», capsula, condividi). La tab bar non la usa: resta com'è ([FluidFloatingTabBarDefaults.BottomMargin]).
  */
 internal object FluidBottomBarPlacement {
   /**
@@ -77,30 +77,14 @@ internal fun fluidBottomBarLift(appInset: Dp, systemInset: Dp): Dp =
     maxOf(FluidBottomBarPlacement.ScreenEdgeDistance - systemInset, FluidBottomBarPlacement.NavigationClearance)
   }
 
-/**
- * [fluidBottomBarLift] con gli inset di adesso: quelli che posano la barra (`navigationBarsPadding`). I visori
- * ([legacy]: `FluidToolbarDeclaration.legacyBottomLift`) tengono il margine di prima, [fluidBottomBarOffset], fino
- * all'unione con F6C.20.
- */
+/** [fluidBottomBarLift] con gli inset di adesso: quelli che posano la barra (`navigationBarsPadding`). */
 @Composable
-internal fun fluidBottomBarLift(legacy: Boolean = false): Dp =
-  if (legacy) fluidBottomBarOffset(LocalFluidBottomInset.current)
-  else fluidBottomBarLift(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+internal fun fluidBottomBarLift(): Dp =
+  fluidBottomBarLift(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
 
 /** Quanto la lista aggiunge in fondo per la barra in basso, oltre alla barra di sistema e allo spazio dell'app. Pura. */
 internal fun fluidBottomBarExtraInset(appInset: Dp, systemInset: Dp): Dp =
   fluidBottomBarLift(appInset, systemInset) + FluidFloatingCapsuleDefaults.ActionSize - appInset
-
-/**
- * Il margine di prima (fino a F6B.14): 16 dp sopra la barra di sistema, o la tab bar più 8. Lo leggono ancora i visori
- * (`viewer/`, che F6C.20 porta a [FluidBottomBarPlacement]); la barra in basso delle pagine usa [fluidBottomBarLift].
- */
-internal fun fluidBottomBarOffset(navigation: Dp): Dp =
-  if (navigation > 0.dp) navigation + FluidFloatingTabBarDefaults.Spacing else FluidFloatingTabBarDefaults.BottomMargin
-
-/** Lo spazio di prima per la lista, col margine di [fluidBottomBarOffset]: lo leggono ancora i visori. */
-internal fun fluidBottomBarExtraInset(navigation: Dp): Dp =
-  fluidBottomBarOffset(navigation) + FluidFloatingCapsuleDefaults.ActionSize - navigation
 
 /**
  * Una sede per schermata o per host. Il modello, i viaggi e i bersagli sono quelli della barra dichiarata.
@@ -132,9 +116,8 @@ internal fun FluidBottomBar(
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val appInset = LocalFluidBottomInset.current
   val systemInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-  val bottom = if (declaration?.viewerLayout == true && appInset == 0.dp) maxOf(30.dp - systemInset, 4.dp)
-    else if (declaration?.legacyBottomLift == true) fluidBottomBarOffset(appInset) // i visori, fino a F6C.20
-    else fluidBottomBarLift(appInset, systemInset)
+  // F6C.20: anche la barra dei visori, alla stessa distanza dal bordo (prima `ViewerBottomRow.Edge`, 30 dp).
+  val bottom = fluidBottomBarLift(appInset, systemInset)
   AnimatedVisibility(
     visibleState = visibility,
     modifier = modifier.navigationBarsPadding().padding(bottom = bottom),

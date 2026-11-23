@@ -43,6 +43,11 @@ class FluidSceneModel internal constructor(
   private val bytes: ByteArray,
   private val sidecars: Map<String, ByteArray>,
   val stats: FluidSceneStats,
+  /**
+   * F6C.20 · I nomi delle animazioni nell'ordine del glTF, che è quello dell'animatore di gltfio; `null` dove il file
+   * non dà un nome. Per «Animazioni» in «•••» del visore.
+   */
+  internal val animationNames: List<String?> = emptyList(),
 ) {
   /** Da chiamare sul thread dell'engine. L'istanza va chiusa sullo stesso thread, prima dell'engine. */
   fun load(engine: Engine): FluidLoadedScene {
@@ -166,7 +171,7 @@ internal suspend fun readModel(source: FluidViewerSource, suggestedFormat: Strin
     if (data.size < requiredBytes) sceneCorrupt("Il file $path è incompleto")
     resources[uri] = data
   }
-  FluidSceneModel(document.renderBytes(bytes, format != "gltf"), resources, stats)
+  FluidSceneModel(document.renderBytes(bytes, format != "gltf"), resources, stats, document.animationNames())
 }
 
 private fun readGltf(bytes: ByteArray, binary: Boolean): JSONObject {
@@ -227,6 +232,11 @@ private class GltfInfo(private val json: JSONObject) {
       val name = required.getString(i)
       if (name !in supportedExtensions) sceneUnsupported("Estensione glTF richiesta non supportata: $name")
     }
+  }
+
+  /** F6C.20 · Il nome di ogni animazione (`animations[i].name`), `null` se manca o è vuoto. */
+  fun animationNames(): List<String?> = List(animations.length()) { i ->
+    animations.optJSONObject(i)?.optString("name")?.trim()?.takeIf { it.isNotEmpty() }
   }
 
   fun externalResources(): Map<String, Int> = buildMap {

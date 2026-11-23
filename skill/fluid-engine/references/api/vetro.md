@@ -121,7 +121,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val LocalFluidSurfaceSide` — Which side the app is painting on, when the palette cannot be asked.
 - `@Composable fun currentCanvasBackdrop(): GlassBackdropState?` — The ambient recording in scope, or null when the screen has no canvas.
 - `enum class GlassTintMode` — Cosa vuol dire [GlassTint.overlay] per il materiale nuovo ([FluidGlassModel.Liquid]). Il vetro di prima ([FluidGlassModel.Classic]) non lo legge: li' `overlay` e' sempre la pellicola dipinta sopra la lente.
-- `data class GlassTint(val overlay: Color, val fallback: Color, val hairline: Color, val mode: GlassTintMode = GlassTintMode.Fixed, internal val modeOverlay: Color = overlay)` — Colour treatment of a glass surface.
+- `data class GlassTint(val overlay: Color, val fallback: Color, val hairline: Color, val mode: GlassTintMode = GlassTintMode.Fixed, internal val modeOverlay: Color = overlay, internal val darkCeiling: Float = Float.NaN)` — Colour treatment of a glass surface.
 - `enum class GlassRole` — The optical job a pane performs; colour remains the separate concern of [GlassTint].
 - `data class GlassOptics(val blurScale: Float, val refractionHeight: Dp, val refractionAmount: Dp, val depthEffect: Boolean, val dispersion: Boolean, val vibrancy: Float, val highlightWidth: Dp, val highlightAlpha: Float, val highlightAngle: Float, val innerShadowRadius: Dp, val innerShadowAlpha: Float, val shadowRadius: Dp, val shadowAlpha: Float, val pressedDepthBoost: Float, val edgeFloor: Float = 0f, val backdropResolution: Float = 1f, val sizeResponse: Float = 1f)` — How thick the glass is, physically.
 - `object GlassDefaults`

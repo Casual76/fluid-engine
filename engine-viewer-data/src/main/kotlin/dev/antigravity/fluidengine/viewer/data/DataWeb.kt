@@ -224,15 +224,17 @@ internal object DataWeb {
    * schermo un px CSS è un dp, e lo zoom del testo di WebView ci aggiunge la scala del testo di sistema); una **colonna
    * di lettura** larga al più [DataProfile.BookColumn], centrata sul tablet, con i margini della pagina sul telefono; i
    * titoli dei capitoli grandi; le immagini dentro la colonna. I caratteri del libro restano i suoi (il suo foglio viene
-   * dopo e vince); i colori no, come in Libri.
+   * dopo e vince); i colori no, come in Libri. [fontSize] è il corpo scelto con «Dimensione del testo» (F6C.20,
+   * [DataProfile.bookFontSize]); di serie [DataProfile.BookFontSize].
    */
-  fun readerCss(surface: Color, ink: Color, muted: Color, accent: Color, dark: Boolean, marginPx: Int): String = """
+  fun readerCss(surface: Color, ink: Color, muted: Color, accent: Color, dark: Boolean, marginPx: Int,
+    fontSize: Int = DataProfile.BookFontSize): String = """
     :root { color-scheme: ${if (dark) "dark" else "light"}; }
-    html { background: ${css(surface)} !important; font-size: ${DataProfile.BookFontSize}px !important; }
+    html { background: ${css(surface)} !important; font-size: ${fontSize}px !important; }
     body { background: ${css(surface)} !important; color: ${css(ink)} !important;
       max-width: ${DataProfile.BookColumn}px !important; margin: 0 auto !important; box-sizing: content-box !important;
       padding: 12px ${marginPx}px 72px ${marginPx}px !important;
-      font-size: ${DataProfile.BookFontSize}px !important; line-height: ${DataProfile.BookLineHeight} !important;
+      font-size: ${fontSize}px !important; line-height: ${DataProfile.BookLineHeight} !important;
       font-family: "Noto Serif", Georgia, serif; overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto;
       -webkit-text-size-adjust: 100%; }
     p, li, dd, blockquote { line-height: ${DataProfile.BookLineHeight} !important; }

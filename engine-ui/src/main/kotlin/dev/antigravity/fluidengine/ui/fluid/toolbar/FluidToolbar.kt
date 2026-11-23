@@ -754,17 +754,6 @@ internal class FluidToolbarDeclaration(
   val subtitleAccent: Color? = null,
   val subtitleOrdinal: String? = null,
 ) {
-  /**
-   * **Provvisorio, fino all'unione con F6C.20** (`ViewerBottomRow.Edge`): la barra in basso tiene il margine di prima
-   * (`fluidBottomBarOffset`, 16 dp sopra la barra di sistema) invece della distanza dal bordo di F6B.15
-   * (`FluidBottomBarPlacement.ScreenEdgeDistance`). Lo accende solo il visore nel formato telefono (`FluidViewerChrome`),
-   * che non ha [viewerLayout] (quello cambia anche le metriche): così i visori restano quelli di `be7dd5c`.
-   */
-  internal var keepsLegacyBottomLift: Boolean = false
-
-  /** La barra in basso col margine di prima: i visori ([viewerLayout], [keepsLegacyBottomLift]). */
-  internal val legacyBottomLift: Boolean get() = viewerLayout || keepsLegacyBottomLift
-
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
 

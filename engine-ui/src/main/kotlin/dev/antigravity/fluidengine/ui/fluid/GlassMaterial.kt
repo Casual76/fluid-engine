@@ -550,6 +550,13 @@ data class GlassTint(
    * (vedi [GlassTintMode.Neutral]). Interna: e' la memoria della regola, non una cosa da impostare.
    */
   internal val modeOverlay: Color = overlay,
+  /**
+   * F6C.20 · Il soffitto della luma del corpo (0..1, sRGB) per questa pellicola sul lato scuro sopra la parte chiara
+   * dello sfondo, se è più basso di quello di serie dei grandi (`GlassLiquidDarkCeiling`): lo chiedono le finestre che
+   * portano una voce distruttiva in rosso, il menu e l'avviso (`GlassLiquidMenuDarkCeiling`). Non finito (di serie) =
+   * quello di serie. In coda e interno: la regola è del materiale, non una cosa da impostare.
+   */
+  internal val darkCeiling: Float = Float.NaN,
 )
 
 /**

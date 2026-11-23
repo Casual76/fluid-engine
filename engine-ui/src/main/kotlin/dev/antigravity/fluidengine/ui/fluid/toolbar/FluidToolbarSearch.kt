@@ -528,7 +528,7 @@ internal fun FluidToolbarSearchOverlay(
   val metrics = toolbarSearchMetrics(search)
   val rowHeight = metrics.buttonWidthDp.dp
   // F6B.15: il campo in basso sta nella riga della barra in basso, alla stessa distanza dal bordo dello schermo.
-  val bottomPadding = fluidBottomBarLift(legacy = declaration?.legacyBottomLift == true)
+  val bottomPadding = fluidBottomBarLift()
   val reserved = PaddingValues(bottom = bottomPadding)
   // Il campo che cresce (F6B.7): quanto il suo vetro supera la riga (della schermata, F6B.13), e dove sta il vetro per
   // l'alone.
@@ -1027,7 +1027,7 @@ internal fun Modifier.fluidConsumedInsets(onChange: (WindowInsets) -> Unit): Mod
  */
 @Composable
 internal fun rememberToolbarSearchListRoom(
-  search: ToolbarSearch, dock: FluidKeyboardDock?, legacyBottomLift: Boolean = false,
+  search: ToolbarSearch, dock: FluidKeyboardDock?,
 ): ToolbarSearchListRoom {
   val keyboard = rememberFluidKeyboardQuota()
   val navigation = WindowInsets.navigationBars
@@ -1056,7 +1056,7 @@ internal fun rememberToolbarSearchListRoom(
       room.panPx = 0
     }
   }
-  val rest = fluidBottomBarLift(legacyBottomLift)
+  val rest = fluidBottomBarLift()
   val dockInsets = dock?.takeIf { it.visible && search.occupiesBottom }?.insets
   val bottom = search.occupiesBottom
   val atBottom = search.atBottom

@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,12 +26,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidAvatar
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSkeletonText
 import dev.antigravity.fluidengine.ui.fluid.FluidWebContent
 import dev.antigravity.fluidengine.ui.fluid.FluidWebResponse
@@ -46,6 +55,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.VideoFile
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidWebContentState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerCustomScope
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
@@ -130,6 +140,9 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
   var nested by remember { mutableStateOf<FluidViewerDocument?>(null) }
   var generation by remember { mutableIntStateOf(0) }
   var remoteAllowed by rememberSaveable { mutableStateOf(false) }
+  // F6C.20: le intestazioni tutte, come «Mostra tutte le intestazioni» di Mail, e il foglio degli allegati.
+  var allHeaders by rememberSaveable { mutableStateOf(false) }
+  var attachmentsOpen by rememberSaveable { mutableStateOf(false) }
   val coroutines = rememberCoroutineScope()
   val state = rememberFluidWebContentState()
   val open = rememberDataLinkOpener(settings)
@@ -143,6 +156,12 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
     }
     return
   }
+  // Un allegato si apre col risolutore, col suo preset, dentro questa pagina: dalla riga del messaggio o dal foglio.
+  val openAttachment: (MimePart, Int) -> Unit = { part, i ->
+    coroutines.launch {
+      nested = model.open(part, i)
+    }
+  }
   DataInner(
     scope,
     generation = generation,
@@ -153,6 +172,13 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
           remoteAllowed = true
           state.retry()
         }, placement = FluidToolbarPlacement.BottomBar)
+      }
+      // Le azioni del tipo (F6C.20): tutte le intestazioni del file, e gli allegati in un foglio se ce ne sono.
+      viewerTypeActions(strings.more) {
+        listOfNotNull(
+          FluidContextAction(if (allHeaders) strings.fewerHeaders else strings.allHeaders) { allHeaders = !allHeaders },
+          if (mail.attachments.isEmpty()) null else FluidContextAction(strings.attachments) { attachmentsOpen = true },
+        )
       }
     },
   ) {
@@ -190,6 +216,7 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
           mail.date?.withZoneSameInstant(zone)?.let {
             MailLine(strings.date, it.format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ITALIAN)))
           }
+          if (allHeaders) MailHeaders(mail.headers)
           if (model.remote > 0 && !remoteAllowed) {
             Text(strings.remoteBlocked(model.remote), style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
           }
@@ -222,23 +249,68 @@ internal fun DataMailPage(scope: FluidViewerCustomScope, model: DataMailModel, s
       if (mail.attachments.isNotEmpty()) item(key = "attachments") {
         Column(Modifier.fillMaxWidth().padding(horizontal = FluidScreenDefaults.HorizontalPadding, vertical = 12.dp)) {
           DataSectionTitle(strings.attachments)
-          FluidListGroup {
-            mail.attachments.forEachIndexed { i, part ->
-              val name = DataMailModel.attachmentName(part, i)
-              FluidListRow(
-                title = name,
-                subtitle = "${DataText.size(part.body.size.toLong())} · ${part.type}",
-                leading = { FluidIcon(iconFor(name, part.type), contentDescription = null) },
-                onClick = {
-                  coroutines.launch {
-                    nested = model.open(part, i)
-                  }
-                },
-              )
-              if (i < mail.attachments.lastIndex) FluidListDivider()
-            }
-          }
+          MailAttachments(mail, openAttachment)
         }
+      }
+    }
+    // «Allegati» di «•••» (F6C.20): le stesse righe in un foglio, che si chiude quando l'allegato si apre.
+    FluidGlassSheet(
+      visible = attachmentsOpen,
+      onDismissRequest = { attachmentsOpen = false },
+      detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
+      paneTitle = strings.attachments,
+    ) {
+      Text(
+        strings.attachments,
+        Modifier.padding(horizontal = FluidScreenDefaults.HorizontalPadding, vertical = DataProfile.SheetTitlePadding).semantics { heading() },
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+      )
+      Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FluidScreenDefaults.HorizontalPadding)) {
+        MailAttachments(mail) { part, i ->
+          attachmentsOpen = false
+          openAttachment(part, i)
+        }
+      }
+    }
+  }
+}
+
+/** Gli allegati come righe di un gruppo: il nome, la misura e il tipo, l'icona del tipo; un tocco apre l'allegato. */
+@Composable
+private fun MailAttachments(mail: DataMail, onOpen: (MimePart, Int) -> Unit) {
+  FluidListGroup {
+    mail.attachments.forEachIndexed { i, part ->
+      val name = DataMailModel.attachmentName(part, i)
+      FluidListRow(
+        title = name,
+        subtitle = "${DataText.size(part.body.size.toLong())} · ${part.type}",
+        leading = { FluidIcon(iconFor(name, part.type), contentDescription = null) },
+        onClick = { onOpen(part, i) },
+      )
+      if (i < mail.attachments.lastIndex) FluidListDivider()
+    }
+  }
+}
+
+/**
+ * F6C.20 · Tutte le intestazioni del messaggio, nell'ordine e coi nomi del file (le parole codificate RFC 2047 lette),
+ * in monospazio e da selezionare, come «Mostra tutte le intestazioni» di Mail.
+ */
+@Composable
+private fun MailHeaders(headers: MimeHeaders) {
+  val scheme = MaterialTheme.colorScheme
+  val style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+  SelectionContainer {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(DataProfile.MailHeaderGap)) {
+      headers.list.forEach { (name, value) ->
+        Text(
+          buildAnnotatedString {
+            withStyle(SpanStyle(color = scheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)) { append(name) }
+            append(": ")
+            append(DataMime.decodeWords(value))
+          },
+          style = style,
+        )
       }
     }
   }

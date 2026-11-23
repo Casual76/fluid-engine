@@ -109,6 +109,7 @@ I contratti (in `FluidViewerContent.kt`, senza librerie):
 - **I gesti.** A scala 1 il dito di lato è del pager e quello in giù della chiusura; lo zoom (foto e video) arriva a 4×, il doppio tocco a 2,5×, e da ingrandito il dito sposta il file fino al bordo, poi passa al pager. La chiusura col dito è quella di F6B.5a: oltre 110 dp o con una spinta, verso la miniatura; un'inversione annulla. Il pizzico che stringe a scala minima chiude come in Gallery-2 (rilascio a scala ≤ 0,85, lancio ≥ 1,6 al secondo). Un preset che scorre (testo, pagine, griglia) o un comando (lo scrubber) tiene il suo dito. Una pagina `Custom` nera (un modello 3D) non è zoomata dal telaio e tiene i suoi gesti.
 - **Gli strumenti.** Scelto uno strumento, il corpo passa al compositore dell'app e la barra in basso diventa la sua: i suoi `actions` e «Fine», nella stessa capsula (il meccanismo della sostituzione di F6B.1 e F6B.2). Indietro chiude prima lo strumento; l'`id` stabile lo riapre dopo la ricreazione. Uno strumento si può dichiarare solo per certe pagine: `tools` si legge in composizione, e può guardare la pagina ferma (`onPageChange`).
 - **Lo sfondo** viene dal tipo: nero per `Image` e per i video, il `surface` del tema per il resto; una `Custom` lo dichiara. La chrome sul nero usa la variante scura della palette.
+- **La fila in basso sta in fondo** (F6C.20). «•••», la capsula al centro e condividi hanno il fondo del vetro a **28 dp** dal fondo dello schermo, o 4 dp sopra la barra di navigazione se è più alta: la stessa misura della barra in basso delle pagine (`FluidBottomBarPlacement.ScreenEdgeDistance`, F6B.15; Quick Look di iOS 26: 28 pt). Lo spazio di una tab bar che l'app dichiara (`LocalFluidBottomInset`, `ProvideFluidChrome`) alza la fila sopra di lei, come per un'app che ha davvero una tab bar sotto il visore; ogni preset (pagine, foglio, audio, video, `Custom` con `contentPadding`) finisce sopra la stessa riga. **Un'app che nasconde la tab bar sopra il visore dichiara zero** in quel sottoalbero (`CompositionLocalProvider(LocalFluidBottomInset provides 0.dp)`, o `ProvideFluidChrome` con zero; la galleria: `galleryShowsTabBar`), altrimenti la fila resta ~86 dp sopra il fondo, sopra una tab bar che non c'è.
 
 ## I preset «D · Mix»
 
@@ -210,7 +211,7 @@ Senza `engine-viewer` si dà `FluidViewerFileActions(share = …, rename = …)`
 `FluidViewerStrings` (`copyFile`, `print`, `rename`, `move`, `duplicate`, `delete`, `fileMenu`). Un'azione che lancia
 un'eccezione non chiude l'app: sotto la barra compare «Impossibile completare l'azione».
 
-## Le azioni del tipo in «•••» (F6C.19)
+## Le azioni del tipo in «•••» (F6C.19, F6C.20)
 
 Scelta di Alessio del 23 novembre: **«•••» c'è sempre** sulle pagine della tavola «D · Mix», in basso a sinistra, e tiene
 **le azioni proprie del tipo** (come Cerca, Compilazione moduli e Annotazioni in Quick Look), mai quelle del menu del nome.
@@ -224,11 +225,22 @@ Solo azioni che il visore sa fare davvero:
 | foglio (XLSX, ODS, CSV) | Vai alla cella… («B12»); Dimensioni reali se ingrandito | Numbers | `FluidGridPreset` |
 | albero (JSON, XML, plist) | Espandi tutto, Comprimi tutto | gli ispettori di dati | la famiglia dati |
 | archivio | Ordina, Filtra, Codifica dei nomi | File | la famiglia archivi |
+| testo e codice | Vai alla riga…, Numeri di riga (spunta), Copia il testo | Xcode e gli editor | `FluidTextPreset` |
+| Markdown | Indice (i titoli, rientrati; un tocco porta lì, anche dalla sorgente), Copia il testo | Quick Look, le app di note | la famiglia dati |
+| HTML | Dimensione del testo (85–150 %, spunta), Ricarica, Carica immagini (se l'app le permette) | Safari («Aa») | la famiglia dati (zoom del testo della WebView) |
+| EPUB | Capitolo precedente, Capitolo successivo, Torna all'inizio, Dimensione del testo | Libri | la famiglia dati; in barra resta «Indice» |
+| posta (EML) | Mostra tutte le intestazioni / Mostra meno intestazioni, Allegati (un foglio; un tocco apre l'allegato) | Mail | la famiglia dati |
+| calendario (ICS) | Copia gli eventi | Calendario | la famiglia dati; «Aggiungi al calendario» in barra |
+| contatti (VCF) | Copia i contatti | Contatti | la famiglia dati; «Aggiungi ai contatti» in barra |
+| caratteri | Testo di prova…, Testo di serie, Dimensione (tre misure o 12–96 sp, spunta) | Libro Font | la famiglia grafica (`FontSpecimenState`) |
+| 3D | Inquadra, Animazioni (con ≥ 2), Rotazione automatica | AR Quick Look, `<model-viewer>` | la famiglia 3D (`SceneSpin`) |
 | una pagina senza azioni del tipo | Nascondi controlli (il tocco sul file) | — | il visore |
 
-Il testo e il codice hanno nella tavola, al posto di «•••», le due capsule di lettura («Aa», a capo): restano come sono.
-Le pagine delle famiglie che oggi non danno voci (Markdown, HTML, EPUB, posta, calendario, contatti, caratteri, 3D) hanno
-«Nascondi controlli».
+Il **testo e il codice** (F6C.20) hanno «•••» a sinistra come gli altri tipi, con le capsule di lettura («Aa», a capo) e
+«Trova» al centro e condividi a destra: **Vai alla riga…** (il riquadro col numero), **Numeri di riga** (con la spunta),
+**Copia il testo** (tutto il file negli appunti, fino a `FluidTextPresetDefaults.CopyTextMaxChars` caratteri; oltre la voce
+non c'è). «Copia il testo» e non «Copia»: «Copia» del menu del nome copia il file, e il visore toglie da «•••» le voci che
+il nome ha già.
 
 **Una famiglia o un'app** dà le sue voci con lo stesso meccanismo dei preset, nelle `actions` della pagina `Custom`:
 
@@ -240,6 +252,11 @@ FluidViewerContent.Custom(find = trova, actions = {
   }
 }) { Pagina(this) }
 ```
+
+**La barra tiene tre vetri** (R5 B11): «•••», il centro, condividi. Un tipo con più comandi al centro ne tiene uno (o un
+gruppo solo) e porta gli altri in «•••»: il testo ha «Aa», «A capo» e «Trova» in un vetro; l'EPUB tiene «Indice» e porta i
+capitoli in «•••»; il 3D tiene «Riproduci» (o «Inquadra», o «AR» dove c'è); Markdown, HTML e l'albero JSON nella seconda
+vista hanno «Trova» accanto al tasto che torna alla prima. Il quarto vetro la barra lo manda nel trabocco, e il tasto sparisce.
 
 Il menu si legge quando si apre (una voce con `selected`, un `subtitle` con lo stato, un sottomenu con `children`). Una
 sorgente di pagine che conosce le note del relatore implementa `FluidPageNotes` (`notes(index)`, `hasNotes`). Il timer
@@ -431,6 +448,13 @@ In Fluid Glass, «Da provare › Visori» o la scheda Chrome. Il codice: `sample
 - **«Copia» che non c'è.** Un `file://` non esce dall'app: senza `shareableUri` in `FluidViewerFileCommands` (o un `Uri` `content://` già nel `FluidViewerFile`) il menu del file non ha «Copia», e «Condividi» e «Apri con…» ci sono solo se l'app le dà a `rememberFluidViewerFiles`.
 - **Il menu del file senza nome.** Il titolo apre il menu solo se è il nome di un file: senza `FluidViewerInfoProvider` il titolo è «2 di 5» e le azioni tornano nel vecchio «Altro».
 - **«Apri con…» con un `file://`.** Un'altra app non può leggerlo (`FileUriExposedException`): serve un `FileProvider` o un `Uri` che l'altra app sa aprire (la galleria ha un suo provider in sola lettura, `VisoriPackageProvider`). Se l'azione lancia un'eccezione, la scheda dice «Nessuna app può aprire questo file».
+- **La tab bar nascosta che dichiara ancora il suo spazio.** Un'app che non disegna la tab bar sopra il visore e lascia
+  `LocalFluidBottomInset` a quello della tab bar tiene la fila in basso alta di ~86 dp (F6C.20, riprese del 23
+  novembre): in quel sottoalbero lo spazio va a zero.
+- **Una sorgente avvolta perde le capacità.** Il preset riconosce le capacità facoltative di una sorgente con un cast
+  (`FluidPageNotes`): un involucro `object : FluidPageSource by source` (una cache, la prima pagina già resa) le perde, e
+  «Note del relatore» sparisce. L'involucro deve implementare anche quelle della sorgente (la galleria: `VisoriWarmPage`,
+  F6C.20).
 - **Il pannello vuoto per un file di famiglia.** Il telaio non sa leggere `FluidViewerDocument.details`: senza `officeInfo()`, `fluidArchiveViewerInfo()` o `fluidDataViewerInfo(…)` nel `FluidViewerInfoProvider` il pannello mostra solo nome e dimensione.
 - **La tinta su un documento.** La tinta di C è solo per audio, eseguibile, sconosciuto e archivio: una pagina `Custom` di lettura non la mette.
 - **Robolectric non ha i decodificatori.** `PdfRenderer` (pdfium) e `ImageDecoder` non decodificano sulla JVM, e le librerie native (libarchive, Filament) non si caricano: le prove della galleria passano il contenuto di quei file o una famiglia finta con i tipi veri; quelli veri si provano sul dispositivo (`connectedDebugAndroidTest` dei moduli).

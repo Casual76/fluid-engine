@@ -1149,9 +1149,7 @@ private fun FluidScreenLayout(
   val topBarHeight = FluidScreenDefaults.topBarHeight()
   val bottomExtra = if (reservesBottom || floatingSearch?.atBottom == true) {
     // F6B.15: la barra in basso sta a `FluidBottomBarPlacement.ScreenEdgeDistance` dal bordo; la lista le resta sopra.
-    // I visori tengono lo spazio di prima (il loro ramo `viewerLayout` della barra non cambia: F6C.20 all'unione).
-    if (toolbar?.legacyBottomLift == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current)
-    else fluidBottomBarExtraInset(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+    fluidBottomBarExtraInset(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
   } else 0.dp
   val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding) + bottomExtra
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
@@ -1236,7 +1234,7 @@ private fun FluidScreenLayout(
   // F6B.13: la lista sotto il campo che occupa il fondo. Il campo cresce di riga in riga (F6B.7) e sale con la tastiera
   // (F6B.9): a fine scorrimento l'ultima riga si legge sopra il suo vetro, con e senza tastiera. Lo spazio si legge
   // mentre la lista si misura, quindi la crescita e la tastiera non ricompongono la pagina.
-  val searchRoom = floatingSearch?.takeIf { it.occupiesBottom }?.let { rememberToolbarSearchListRoom(it, keyboardDock, toolbar?.legacyBottomLift == true) }
+  val searchRoom = floatingSearch?.takeIf { it.occupiesBottom }?.let { rememberToolbarSearchListRoom(it, keyboardDock) }
   // Lo spazio che la lista lascia già alla riga del campo, sopra la barra di sistema: la riga a riposo (bottomExtra),
   // la tab bar dell'app e la barra sopra la tastiera.
   val searchAssumed = LocalFluidBottomInset.current + bottomExtra + keyboardRoom

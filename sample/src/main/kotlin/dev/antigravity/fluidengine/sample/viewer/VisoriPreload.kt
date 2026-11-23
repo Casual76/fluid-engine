@@ -5,6 +5,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageNotes
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageSource
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidStyledTextSource
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidTextPresetDefaults
@@ -39,12 +40,27 @@ internal fun rememberVisoriDocuments(catalog: List<VisoreFile>, files: List<Flui
 }
 
 internal class VisoriWarmPage(val source: FluidPageSource, size: IntSize, bitmap: ImageBitmap) {
-  val content = FluidViewerContent.Pages(object : FluidPageSource by source {
-    override suspend fun render(index: Int, target: IntSize): ImageBitmap =
-      if (index == 0 && target.width <= size.width && target.height <= size.height) bitmap
-      else source.render(index, target)
-  })
+  /**
+   * La prima pagina già resa, poi le altre dalla sorgente. F6C.20: l'involucro porta anche le capacità facoltative della
+   * sorgente che il preset riconosce (`FluidPageNotes`, le note del relatore). Prima delegava solo [FluidPageSource]: sul
+   * dispositivo la galleria apre le slide con la pagina pronta, e «Note del relatore» spariva da «•••»; le prove non
+   * passano di qui (aprono senza preparare), e le note c'erano.
+   */
+  val content = FluidViewerContent.Pages(
+    (source as? FluidPageNotes)?.let { notes -> WarmNotedPages(source, notes, size, bitmap) }
+      ?: WarmPages(source, size, bitmap),
+  )
 }
+
+private open class WarmPages(private val source: FluidPageSource, private val size: IntSize,
+  private val bitmap: ImageBitmap) : FluidPageSource by source {
+  override suspend fun render(index: Int, target: IntSize): ImageBitmap =
+    if (index == 0 && target.width <= size.width && target.height <= size.height) bitmap
+    else source.render(index, target)
+}
+
+private class WarmNotedPages(source: FluidPageSource, notes: FluidPageNotes, size: IntSize, bitmap: ImageBitmap) :
+  WarmPages(source, size, bitmap), FluidPageNotes by notes
 
 /** Resolve through the same registry as the route. Raster and text work can outlive the click's short wait. */
 internal suspend fun prepareVisoriFirstContent(files: FluidViewerFiles, index: Int, width: Int): VisoriWarmPage? {

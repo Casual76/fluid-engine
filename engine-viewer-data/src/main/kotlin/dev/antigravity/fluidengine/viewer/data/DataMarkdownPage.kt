@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,15 +20,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdown
 import dev.antigravity.fluidengine.ui.fluid.FluidMarkdownDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidSheetDetent
 import dev.antigravity.fluidengine.ui.fluid.FluidSkeletonText
 import dev.antigravity.fluidengine.ui.fluid.FluidWebContent
 import dev.antigravity.fluidengine.ui.fluid.FluidWebLink
@@ -36,13 +48,23 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Description
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Image
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidWebContentState
-import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerCustomScope
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
+import dev.antigravity.fluidengine.ui.theme.FluidListDivider
+import dev.antigravity.fluidengine.ui.theme.FluidListGroup
+import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.viewer.FluidTextDocument
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** Un Markdown letto: il testo, i suoi pezzi per la lista pigra, e la sorgente con i colori. */
-internal class DataMarkdownModel(val name: String, val text: String, val chunks: List<String>, val source: FluidTextDocument?)
+internal class DataMarkdownModel(val name: String, val text: String, val chunks: List<String>, val source: FluidTextDocument?) {
+  /** F6C.20 · I titoli per «Indice», letti una volta con il modello (sul thread di I/O dell'apertura). */
+  val headings: List<DataMarkdownHeading> = DataMarkdown.headings(chunks)
+}
+
+/** F6C.20 · Un titolo di un Markdown per «Indice»: il livello (1–6), il testo senza i segni, il pezzo che lo tiene. */
+internal class DataMarkdownHeading(val level: Int, val title: String, val chunk: Int)
 
 /** I conti di un Markdown per il pannello info. */
 internal class DataMarkdownStats(
@@ -84,6 +106,40 @@ internal object DataMarkdown {
     if (start < lines.size) out += lines.subList(start, lines.size).joinToString("\n")
     return out.filter { it.isNotBlank() }
   }
+
+  private val HeadingLine = Regex("""^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$""")
+
+  /**
+   * F6C.20 · I titoli ATX (`#` … `######`) dei [chunks], fuori dai blocchi di codice, con il pezzo che li tiene: per
+   * «Indice», che porta la lista pigra a quel pezzo. [chunks] taglia davanti a un titolo che segue una riga vuota, quindi
+   * quasi ogni titolo apre il suo pezzo; uno attaccato al paragrafo di sopra porta al pezzo di quel paragrafo.
+   */
+  fun headings(chunks: List<String>): List<DataMarkdownHeading> {
+    val out = ArrayList<DataMarkdownHeading>()
+    chunks.forEachIndexed { index, chunk ->
+      var fence: String? = null
+      for (line in chunk.lineSequence()) {
+        val trimmed = line.trimStart()
+        if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+          val mark = trimmed.take(3)
+          fence = if (fence == null) mark else if (mark == fence) null else fence
+          continue
+        }
+        // Quattro spazi davanti fanno un blocco di codice, non un titolo.
+        if (fence != null || line.length - trimmed.length > 3) continue
+        val match = HeadingLine.matchEntire(trimmed) ?: continue
+        val title = plainInline(match.groupValues[2])
+        if (title.isNotEmpty()) out += DataMarkdownHeading(match.groupValues[1].length, title, index)
+      }
+    }
+    return out
+  }
+
+  /** Il testo di un titolo senza i segni in linea: i collegamenti col loro testo, niente `**`, `__`, `~~`, `*` e accenti gravi. */
+  private fun plainInline(text: String): String = text
+    .replace(Regex("""!?\[([^\]]*)]\([^)]*\)"""), "$1")
+    .replace("**", "").replace("__", "").replace("~~", "").replace("`", "").replace("*", "")
+    .trim()
 
   fun stats(text: String): DataMarkdownStats {
     var headings = 0
@@ -145,12 +201,27 @@ internal fun rememberDataLinkOpener(settings: FluidDataSettings): (String) -> Un
 internal fun DataMarkdownPage(scope: FluidViewerCustomScope, model: DataMarkdownModel, settings: FluidDataSettings) {
   val strings = settings.strings
   var source by rememberSaveable { mutableStateOf(false) }
+  var contents by rememberSaveable { mutableStateOf(false) }
   val find = remember { DataTextFind() }
   val open = rememberDataLinkOpener(settings)
+  // F6C.20: la lista del reso sta qui, così «Indice» di «•••» la porta al titolo scelto anche dalla sorgente.
+  val list = rememberLazyListState()
+  val coroutines = rememberCoroutineScope()
+  val clipboard = LocalClipboardManager.current
   DataInner(
     scope,
     find = if (source) find else null,
-    actions = { dataModes("data.md.mode", strings.rendered to FluidIcons.Description, strings.source to FluidIcons.Code, source) { source = it } },
+    actions = {
+      dataModes("data.md.mode", strings.rendered to FluidIcons.Description, strings.source to FluidIcons.Code, source,
+        findInSecond = true) { source = it }
+      // Le azioni del tipo (F6C.19, F6C.20): l'indice dei titoli, se ce n'è uno, e il testo Markdown negli appunti.
+      viewerTypeActions(strings.more) {
+        listOfNotNull(
+          if (model.headings.isEmpty()) null else FluidContextAction(strings.contents) { contents = true },
+          FluidContextAction(strings.copyText) { clipboard.setText(AnnotatedString(model.text)) },
+        )
+      }
+    },
   ) {
     val document = model.source
     if (source && document != null) {
@@ -161,6 +232,7 @@ internal fun DataMarkdownPage(scope: FluidViewerCustomScope, model: DataMarkdown
       val style = FluidMarkdownDefaults.style(blockSpacing = 10.dp, headings = FluidMarkdownDefaults.documentHeadings())
       LazyColumn(
         Modifier.fillMaxSize(),
+        state = list,
         contentPadding = PaddingValues(
           start = FluidScreenDefaults.HorizontalPadding, end = FluidScreenDefaults.HorizontalPadding,
           top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding(),
@@ -168,6 +240,52 @@ internal fun DataMarkdownPage(scope: FluidViewerCustomScope, model: DataMarkdown
       ) {
         itemsIndexed(model.chunks, key = { i, _ -> i }) { _, chunk ->
           FluidMarkdown(chunk, Modifier.fillMaxWidth().padding(bottom = 10.dp), style = style, onLinkClick = open, selectable = true)
+        }
+      }
+    }
+    DataMarkdownContents(model, contents, strings, onDismiss = { contents = false }) { heading ->
+      contents = false
+      source = false
+      coroutines.launch { list.scrollToItem(heading.chunk) }
+    }
+  }
+}
+
+/**
+ * F6C.20 · «Indice» di un Markdown: un foglio con i titoli, rientrati per livello come l'indice di un libro; un tocco
+ * porta il reso a quel titolo.
+ */
+@Composable
+private fun DataMarkdownContents(
+  model: DataMarkdownModel,
+  visible: Boolean,
+  strings: FluidDataStrings,
+  onDismiss: () -> Unit,
+  onPick: (DataMarkdownHeading) -> Unit,
+) {
+  FluidGlassSheet(
+    visible = visible,
+    onDismissRequest = onDismiss,
+    detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
+    paneTitle = strings.contents,
+  ) {
+    Text(
+      strings.contents,
+      Modifier.padding(horizontal = FluidScreenDefaults.HorizontalPadding, vertical = DataProfile.SheetTitlePadding).semantics { heading() },
+      style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+    )
+    val top = model.headings.minOfOrNull { it.level } ?: 1
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FluidScreenDefaults.HorizontalPadding)) {
+      FluidListGroup {
+        model.headings.forEachIndexed { i, heading ->
+          FluidListRow(
+            title = heading.title,
+            subtitle = "",
+            modifier = Modifier.padding(start = DataProfile.HeadingIndent * (heading.level - top)),
+            disclosure = false,
+            onClick = { onPick(heading) },
+          )
+          if (i < model.headings.lastIndex) FluidListDivider()
         }
       }
     }
@@ -195,6 +313,8 @@ internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, s
   val strings = settings.strings
   var source by rememberSaveable { mutableStateOf(false) }
   var remoteAllowed by rememberSaveable { mutableStateOf(false) }
+  // F6C.20: il passo di «Dimensione del testo», che arriva alla WebView come zoom del testo (sopra la scala di sistema).
+  var zoom by rememberSaveable { mutableIntStateOf(DataProfile.TextZoomDefault) }
   val find = remember { DataTextFind() }
   val state = rememberFluidWebContentState()
   val open = rememberDataLinkOpener(settings)
@@ -203,13 +323,25 @@ internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, s
     scope,
     find = if (source) find else null,
     actions = {
-      dataModes("data.html.mode", strings.rendered to FluidIcons.Description, strings.source to FluidIcons.Code, source) { source = it }
-      if (!source && model.remote > 0 && model.remoteLoader != null && !remoteAllowed) {
-        button("data.html.images", FluidIcons.Image, strings.loadImages, {
-          model.policy.remote = model.remoteLoader
-          remoteAllowed = true
-          state.retry()
-        }, placement = FluidToolbarPlacement.BottomBar)
+      dataModes("data.html.mode", strings.rendered to FluidIcons.Description, strings.source to FluidIcons.Code, source,
+        findInSecond = true) { source = it }
+      // Le azioni del tipo (F6C.20): sul reso «Carica immagini» se l'app lo permette (era un tasto accanto a «Reso |
+      // Sorgente», il quarto vetro della barra, che il visore mandava nel trabocco: R5 B11), la dimensione del testo
+      // della pagina resa (dalla sorgente ci torna) e la pagina caricata da capo (la vista rifatta, le risorse di nuovo).
+      viewerTypeActions(strings.more) {
+        listOfNotNull(
+          if (source || model.remote == 0 || model.remoteLoader == null || remoteAllowed) null
+          else FluidContextAction(strings.loadImages, icon = FluidIcons.Image) {
+            model.policy.remote = model.remoteLoader
+            remoteAllowed = true
+            state.retry()
+          },
+          dataTextSizeAction(strings, zoom) {
+            zoom = it
+            source = false
+          },
+          if (source) null else FluidContextAction(strings.reload) { state.retry() },
+        )
       }
     },
   ) {
@@ -238,11 +370,12 @@ internal fun DataHtmlPage(scope: FluidViewerCustomScope, model: DataHtmlModel, s
         FluidWebContent(
           html = html,
           onLinkClick = { link: FluidWebLink -> open(link.url) },
-          modifier = Modifier.fillMaxWidth().height(height),
+          modifier = Modifier.fillMaxWidth().height(height).semantics { this[DataTextZoomKey] = zoom },
           state = state,
           onRequest = model.policy::handle,
           sizing = FluidWebSizing.Viewport(height),
           darkening = darkening,
+          textScale = zoom / 100f,
           placeholder = { FluidSkeletonText(lines = 8, modifier = Modifier.padding(FluidScreenDefaults.HorizontalPadding)) },
           failure = {
             DataNotice(strings.webFailed, it.toString(), Modifier.padding(FluidScreenDefaults.HorizontalPadding),

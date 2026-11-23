@@ -52,7 +52,6 @@ import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import androidx.compose.ui.text.font.FontWeight
 import dev.antigravity.fluidengine.ui.fluid.icons.Pause
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
-import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
 import kotlin.math.roundToLong
 
 /** Labels for the viewer's single set of playback controls. The time arguments are already formatted. */
@@ -126,7 +125,9 @@ fun FluidMediaPreset(
     val error = session.error
     val canSeek = session.canSeek && duration != null && error == null
     val backdrop = rememberGlassBackdrop()
-    val bottom = fluidBottomBarExtraInset(LocalFluidBottomInset.current)
+    // F6C.20: la riga della capsula in basso, la stessa della barra del visore (con la barra di navigazione): il video e
+    // l'audio ci stanno sopra anche quando l'app ha una tab bar (prima l'audio ne riservava solo la parte «in più»).
+    val capsuleTop = viewerBottomCapsuleTop()
     val policy = LocalFluidMotionPolicy.current
     val active = currentFluidViewerPageActive()
     val page = LocalViewerPage.current
@@ -161,7 +162,7 @@ fun FluidMediaPreset(
           AnimatedVisibility(
             visible = chromeVisible,
             modifier = Modifier.align(Alignment.BottomCenter)
-              .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility).padding(bottom = bottom),
+              .padding(bottom = capsuleTop),
             enter = fadeIn(tween(ViewerChromeMotion.duration(false, 1f, policy.durationScale))),
             exit = fadeOut(tween(ViewerChromeMotion.duration(true, 1f, policy.durationScale))),
           ) {
@@ -174,7 +175,7 @@ fun FluidMediaPreset(
         LaunchedEffect(session, active) {
           if (active && session.durationMillis == null) (session as? FluidMediaDurationLoader)?.requestDuration()
         }
-        AudioPanel(content, duration, canSeek, chromeVisible, backdrop, bottom, strings)
+        AudioPanel(content, duration, canSeek, chromeVisible, backdrop, capsuleTop, strings)
       }
       if (error != null) {
         val colors = MaterialTheme.colorScheme
@@ -280,8 +281,7 @@ private fun AudioPanel(content: FluidViewerContent.Media, duration: Long?, canSe
   Box(Modifier.fillMaxSize()) {
     Box(Modifier.matchParentSize().glassBackdropSource(backdrop).viewerWash(accent, colors.secondary, colors.primary))
     val top = FluidScreenDefaults.topBarHeight()
-    ViewerMixColumn(Modifier.fillMaxSize().padding(top = top,
-      bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + bottom)) {
+    ViewerMixColumn(Modifier.fillMaxSize().padding(top = top, bottom = bottom)) {
       val coverTop = viewerBoardTop(110.dp)
       Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
         .padding(start = 16.dp, end = 16.dp, top = coverTop - top, bottom = 12.dp),

@@ -39,6 +39,8 @@ internal enum class DynamicElement(val title: String) {
   Notice("L'avviso dal tasto"),
   ElementToPage("Un elemento che diventa pagina"),
   Activity("La pillola di attività"),
+  Split("Il tasto diviso"),
+  TitleSelector("Il titolo che diventa selettore"),
 }
 
 /**
@@ -87,6 +89,18 @@ internal enum class DynamicScene(
   ActivityPill(
     "attivita", DynamicElement.Activity, "La posta che sincronizza",
     "Mail · la pillola al posto del titolo, la card, l'esito, l'anellino a barra ritirata (F6B.10)",
+  ),
+  SplitButton(
+    "tasto-diviso", DynamicElement.Split, "«Invia ▾» e «Programma invio»",
+    "Mail «Scrivi» · un vetro solo con il filo fra azione e freccia; la freccia apre il menu dallo stesso vetro (F6B.11)",
+  ),
+  TitleMenu(
+    "titolo-menu", DynamicElement.TitleSelector, "«Posta in arrivo ▾» con gli account",
+    "Mail · il titolo grande e quello agganciato aprono gli account; con un'attività la pillola sta accanto (F6B.11)",
+  ),
+  TitlePanel(
+    "titolo-pannello", DynamicElement.TitleSelector, "La località col pannello",
+    "Weather · il titolo apre il pannello delle località; sul telefono un foglio dal titolo (F6B.11)",
   ),
   ;
 
@@ -145,6 +159,9 @@ internal fun DynamicElementsPage(onBack: () -> Unit, initial: DynamicScene? = nu
         // Le scene di F6B.5c, con il loro indice e le loro rotte.
         DynamicScene.ElementToPage -> ElementToPagePage(onClose = close)
         DynamicScene.ActivityPill -> ActivityPillScene(onBack = close)
+        DynamicScene.SplitButton -> SplitButtonScene(onBack = close)
+        DynamicScene.TitleMenu -> TitleMenuScene(onBack = close)
+        DynamicScene.TitlePanel -> TitlePanelScene(onBack = close)
       }
     }
   }

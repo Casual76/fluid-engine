@@ -86,6 +86,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,6 +108,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityRetractedRing
 import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
 import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarRetraction
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidTitleSelectorState
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidTitleSpot
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleSelectorDisc
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleSelectorReserve
+import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleSelectorTarget
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleSelector
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidBottomBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidBottomBarExtraInset
@@ -1122,6 +1130,8 @@ private fun FluidScreenLayout(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val expandedTitleStyle = MaterialTheme.typography.displayLarge
   val compactTitleStyle = rememberCompactTitleStyle(expandedTitleStyle)
+  // F6B.11: il titolo che diventa selettore, uno per schermata (il titolo grande nella lista e quello agganciato).
+  val titleSelector = rememberFluidTitleSelector(toolbar?.titleSelector, title, compactTitleStyle)
 
   // La selezione dichiarata (F6B.1): il back che ne esce, il conteggio annunciato, la barra in basso pubblicata alla shell.
   val selection = toolbar?.selection
@@ -1468,6 +1478,7 @@ private fun FluidScreenLayout(
               morphState = titleMorphState,
               fontScale = density.fontScale,
               reducedMotion = reducedMotion,
+              selector = titleSelector,
             )
           }
         }
@@ -1536,6 +1547,7 @@ private fun FluidScreenLayout(
         toolbar = toolbar,
         search = floatingSearch,
         subtitle = if (toolbar != null) toolbar.subtitle ?: subtitle else null,
+        titleSelector = titleSelector,
       )
     }
 
@@ -1593,6 +1605,7 @@ private fun FluidScreenLayout(
               morphState = titleMorphState,
               fontScale = density.fontScale,
               reducedMotion = reducedMotion,
+              selector = titleSelector,
             )
           }
         }
@@ -1967,7 +1980,12 @@ internal fun FluidLargeTitle(
   morphState: FluidTitleMorphState,
   fontScale: Float,
   reducedMotion: Boolean,
+  /** Il titolo che diventa selettore (F6B.11): il disco con la freccia dopo l'ultima riga e il tocco che apre. */
+  selector: FluidTitleSelectorState? = null,
 ) {
+  val largeLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+  val largeFontPx = with(LocalDensity.current) { if (style.fontSize.isSpecified) style.fontSize.toPx() else 0f }
+  val selectorReserve = if (selector != null) fluidTitleSelectorReserve(style) else 0.dp
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -1982,8 +2000,13 @@ internal fun FluidLargeTitle(
       text = title,
       modifier = Modifier
         .fillMaxWidth()
+        // F6B.11: col selettore il titolo è largo quanto la sua scritta (è la sorgente) e lascia lo spazio del disco.
+        .then(if (selector != null) Modifier.wrapContentWidth(Alignment.Start) else Modifier)
         // Il titolo grande e' l'intestazione della pagina: TalkBack lo trova scorrendo per titoli.
         .semantics { heading() }
+        // F6B.11: il bersaglio comprende lo spazio del disco, dopo la scritta.
+        .fluidTitleSelectorTarget(selector, FluidTitleSpot.Large, { largeLayout[0] }, largeFontPx)
+        .then(if (selector != null) Modifier.padding(end = selectorReserve) else Modifier)
         .graphicsLayer {
           morphState.followPageMotion()
           val morphing = shouldMorphTitle(
@@ -1998,13 +2021,17 @@ internal fun FluidLargeTitle(
             morphing = morphing,
             reducedMotion = reducedMotion,
           )
-        },
+        }
+        .fluidTitleSelectorDisc(selector, FluidTitleSpot.Large, { largeLayout[0] }, largeFontPx),
       // 34sp Bold: the iOS navigation large title, exactly. Its negative tracking is what stops
       // a heading this size from looking like a banner.
       style = style,
       maxLines = 2,
       overflow = TextOverflow.Ellipsis,
-      onTextLayout = morphState::onExpandedTextLayout,
+      onTextLayout = { result ->
+        morphState.onExpandedTextLayout(result)
+        largeLayout[0] = result
+      },
     )
     subtitle?.takeIf { it.isNotBlank() }?.let {
       Text(
@@ -2051,6 +2078,8 @@ internal fun FluidTopBar(
   /** Il sottotitolo sotto il titolo agganciato (solo con [toolbar]): compare mentre il titolo si aggancia. */
   subtitle: String? = null,
   search: ToolbarSearch? = null,
+  /** Il titolo che diventa selettore (F6B.11), della schermata: lo stesso del titolo grande. */
+  titleSelector: FluidTitleSelectorState? = null,
 ) {
   val minimize = LocalFluidToolbarMinimize.current
   // Dentro un host di pagine (3.0) la barra non si disegna qui: si descrive, e la disegna l'host,
@@ -2155,6 +2184,7 @@ internal fun FluidTopBar(
             reducedMotion = reducedMotion,
             controls = controls,
             fade = shade.fade,
+            selector = titleSelector,
           )
           return@FluidTopBarRow
         }
@@ -2612,8 +2642,13 @@ private fun BoxScope.FluidToolbarTopRow(
   reducedMotion: Boolean,
   controls: FluidTopBarControls,
   fade: () -> Float,
+  selector: FluidTitleSelectorState? = null,
 ) {
   val namesTitle = toolbar.titleMode != FluidToolbarTitleMode.None
+  // F6B.11: la copia agganciata del titolo-selettore risponde quando è agganciata (col titolo grande in vista apre lui).
+  val docked by remember(collapseProgress, toolbar.titleMode) {
+    derivedStateOf { toolbar.titleMode != FluidToolbarTitleMode.Large || collapseProgress.value >= 0.5f }
+  }
   val showsTitle = namesTitle && !toolbar.hasPrincipal
   // F6B.1: quando il centro si occupa (il conteggio di una selezione) il titolo agganciato esce sfocandosi invece di
   // sparire in un fotogramma, e torna allo stesso modo; resta composto finché non è uscito del tutto.
@@ -2639,6 +2674,8 @@ private fun BoxScope.FluidToolbarTopRow(
           fontScale = fontScale,
           reducedMotion = reducedMotion,
           controls = controls,
+          selector = selector,
+          selectorEnabled = docked,
         )
       }
       if (subtitle != null) {
@@ -2714,7 +2751,14 @@ internal fun FluidTopBarTitle(
   motion: FluidBarTitleMotion? = null,
   /** Quanto occupano i controlli della barra ai due lati: il titolo agganciato si ferma prima (3.0.1). */
   controls: FluidTopBarControls? = null,
+  /** Il titolo che diventa selettore (F6B.11): il disco con la freccia, il tocco che apre, lo spazio del disco. */
+  selector: FluidTitleSelectorState? = null,
+  /** Se la copia agganciata risponde al tocco (col titolo grande in vista apre lui). */
+  selectorEnabled: Boolean = true,
 ) {
+  val selectorReserve = if (selector != null) fluidTitleSelectorReserve(compactStyle) else 0.dp
+  val compactLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
+  val compactFontPx = with(LocalDensity.current) { if (compactStyle.fontSize.isSpecified) compactStyle.fontSize.toPx() else 0f }
   Box(
     modifier = Modifier
       .fillMaxSize()
@@ -2741,7 +2785,14 @@ internal fun FluidTopBarTitle(
     } else null
     Text(
       text = title,
-      modifier = Modifier.graphicsLayer {
+      modifier = Modifier
+        .fluidTitleSelectorTarget(selector, FluidTitleSpot.Docked, { compactLayout[0] }, compactFontPx, selectorEnabled)
+        // F6B.11: il bersaglio comprende il disco, che sta dopo la scritta; lo spazio è sui due lati, così la scritta resta
+        // centrata e la trasformazione del titolo grande in quello agganciato non si sposta. La misura minima va prima
+        // dello spazio: un `padding` fra lei e il bersaglio rileggerebbe l'altezza già stretta dalla riga della barra (46 dp)
+        // e il bersaglio non arriverebbe a 48.
+        .then(if (selector != null) Modifier.minimumInteractiveComponentSize().padding(horizontal = selectorReserve) else Modifier)
+        .graphicsLayer {
         val progress = collapseProgress.value.coerceIn(0f, 1f)
         val morphing = morphState != null && shouldMorphTitle(
           fontScale = fontScale,
@@ -2810,11 +2861,14 @@ internal fun FluidTopBarTitle(
         scaleY = scale
         translationX = tx
         translationY = ty
-      },
+      }.fluidTitleSelectorDisc(selector, FluidTitleSpot.Docked, { compactLayout[0] }, compactFontPx),
       style = compactStyle,
       maxLines = 1,
       overflow = TextOverflow.Ellipsis,
-      onTextLayout = { result -> morphState?.onCompactTextLayout(result) },
+      onTextLayout = { result ->
+        morphState?.onCompactTextLayout(result)
+        compactLayout[0] = result
+      },
     )
     Box(
       modifier = if (motion == null) {

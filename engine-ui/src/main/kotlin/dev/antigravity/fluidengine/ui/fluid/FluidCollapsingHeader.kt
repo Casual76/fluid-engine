@@ -1,7 +1,9 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidTitleSelectorState
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleSelector
 import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidToolbar
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -9,6 +11,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -60,6 +66,13 @@ class FluidTitleCollapse internal constructor(
    * composition: it changes on every frame of the scroll.
    */
   val collapseProgress: Float get() = progress.value
+
+  /**
+   * Il titolo che diventa selettore (F6B.11), dichiarato da `title(…, menu)` nella barra di [FluidCollapsingTopBar]: la
+   * barra lo crea e lo scrive qui, e [FluidCollapsingTitle] lo legge, così il titolo grande e quello agganciato aprono lo
+   * stesso menu. Null senza selettore.
+   */
+  internal var titleSelector: FluidTitleSelectorState? by mutableStateOf(null)
 }
 
 /**
@@ -232,6 +245,8 @@ fun FluidCollapsingTitle(
     morphState = collapse.morph,
     fontScale = density.fontScale,
     reducedMotion = LocalFluidMotionPolicy.current.reducedMotion,
+    // F6B.11: il selettore della barra, se la barra ne dichiara uno.
+    selector = collapse.titleSelector,
   )
 }
 
@@ -294,6 +309,10 @@ fun FluidCollapsingTopBar(
   val activeFacet = rememberTitleFacet(titleFacets, collapse.progress)
   // F6B.10: con un'attività in corso la pillola entra nella barra dichiarata, al posto del titolo.
   val declaration = fluidToolbarWithActivity(toolbar?.let { buildFluidToolbar(onBack, it) })
+  val compactStyle = rememberCompactTitleStyle(androidx.compose.material3.MaterialTheme.typography.displayLarge)
+  // F6B.11: il titolo che diventa selettore, condiviso col titolo grande di [FluidCollapsingTitle] attraverso [collapse].
+  val selector = rememberFluidTitleSelector(declaration?.titleSelector, title, compactStyle)
+  SideEffect { collapse.titleSelector = selector }
   Box(modifier) {
     FluidTopBar(
       title = title,
@@ -302,9 +321,7 @@ fun FluidCollapsingTopBar(
       collapseProgress = collapse.progress,
       activeFacet = activeFacet,
       morphState = collapse.morph,
-      compactStyle = rememberCompactTitleStyle(
-        androidx.compose.material3.MaterialTheme.typography.displayLarge,
-      ),
+      compactStyle = compactStyle,
       contentTranslation = contentTranslation,
       fontScale = density.fontScale,
       reducedMotion = LocalFluidMotionPolicy.current.reducedMotion,
@@ -320,6 +337,7 @@ fun FluidCollapsingTopBar(
       },
       toolbar = declaration,
       subtitle = declaration?.subtitle,
+      titleSelector = selector,
     )
   }
 }

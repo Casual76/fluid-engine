@@ -521,6 +521,8 @@ internal fun buildFluidScreenToolbar(onBack: (() -> Unit)?, block: FluidToolbarS
     search = declared.search
     overflowLabel = declared.overflowLabel
     keyboard = declared.keyboard
+    // F6B.11: il titolo che diventa selettore.
+    titleSelector = declared.titleSelector
   }
 }
 

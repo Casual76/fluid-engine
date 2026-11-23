@@ -127,6 +127,7 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPriority
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarScope
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarMinimizeProgress
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidToolbarRetracting
 import dev.antigravity.fluidengine.ui.fluid.toolbar.LocalFluidToolbarMinimize
@@ -1108,9 +1109,13 @@ internal fun fluidToolbarWithActivityOf(
   minimalOnly: Boolean,
   onTap: () -> Unit,
 ): FluidToolbarDeclaration {
-  val placement = declaration.activityRequest?.placement ?: FluidActivityPlacement.Title
+  // F6B.11: un titolo che è un selettore è un comando, e non cede il posto: la pillola gli sta accanto, minima, fra i tasti.
+  val selectorTitle = declaration.titleSelector != null && declaration.titleMode != FluidToolbarTitleMode.None &&
+    declaration.activityRequest == null
+  val placement = declaration.activityRequest?.placement
+    ?: if (selectorTitle) FluidActivityPlacement.Trailing else FluidActivityPlacement.Title
   val inTitle = placement == FluidActivityPlacement.Title
-  val forcedMinimal = minimalOnly || inTitle && declaration.hasPrincipal
+  val forcedMinimal = minimalOnly || inTitle && declaration.hasPrincipal || selectorTitle
   val type = FluidToolbarActivityType(
     display = display, labels = labels, compactDp = compactDp, inTitle = inTitle, minimal = forcedMinimal,
     forcedMinimal = forcedMinimal, onTap = onTap, readout = readout,
@@ -1126,7 +1131,7 @@ internal fun fluidToolbarWithActivityOf(
   )
   return FluidToolbarDeclaration(
     declaration.entries + pill, declaration.titleMode, declaration.subtitle, declaration.search,
-    declaration.overflowLabel, declaration.keyboard,
+    declaration.overflowLabel, declaration.keyboard, declaration.titleSelector,
   )
 }
 

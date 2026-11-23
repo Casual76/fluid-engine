@@ -35,7 +35,11 @@ import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TileMode
+import dev.antigravity.fluidengine.ui.fluid.FluidToolbarSplitKind
+import dev.antigravity.fluidengine.ui.fluid.FluidToolbarSplitType
 import dev.antigravity.fluidengine.ui.fluid.FluidUndoCountdown
+import dev.antigravity.fluidengine.ui.fluid.fluidSplitTargets
+import dev.antigravity.fluidengine.ui.fluid.fluidTargetAt
 import dev.antigravity.fluidengine.ui.fluid.TrackFluidUndoDeadline
 import dev.antigravity.fluidengine.ui.fluid.fluidUndoDescription
 import dev.antigravity.fluidengine.ui.fluid.fluidUndoFill
@@ -236,6 +240,8 @@ class FluidToolbarScope internal constructor() {
   internal var subtitle: String? = null
   internal var search: FluidSearchSpec? = null
   internal var overflowLabel: String? = null
+  /** Il titolo che diventa selettore (F6B.11), dichiarato da [title]. */
+  internal var titleSelector: FluidTitleSelector? = null
   private var inOverflow = false
   private var groupId: Any? = null
   private var spacers = 0
@@ -244,9 +250,28 @@ class FluidToolbarScope internal constructor() {
    * Come si mostra il titolo ([FluidToolbarTitleMode]) e, se c'è, il sottotitolo: sotto il titolo grande finché non si
    * aggancia, e poi sotto il titolo agganciato, più piccolo.
    */
-  fun title(mode: FluidToolbarTitleMode = FluidToolbarTitleMode.Large, subtitle: String? = null) {
+  fun title(
+    mode: FluidToolbarTitleMode = FluidToolbarTitleMode.Large,
+    subtitle: String? = null,
+    /**
+     * **Il titolo che diventa selettore** (F6B.11; `toolbarTitleMenu { }` di SwiftUI): il titolo, in linea e grande, porta
+     * accanto il piccolo disco con la freccia di iOS 26 ed è la sorgente di questo menu (gli account, le cartelle), che
+     * nasce dal titolo e ci rientra (F5A.2). Al posto di [panel].
+     */
+    menu: (() -> List<FluidContextAction>)? = null,
+    /**
+     * Il titolo come sorgente di un **pannello** con un contenuto dell'app (le località, con la ricerca e la lista): un
+     * popover dal titolo (F5B.1), che sotto i 600 dp si adatta a foglio dal titolo. [FluidTitlePanelScope.dismiss] lo
+     * chiude. Al posto di [menu].
+     */
+    panel: (@Composable FluidTitlePanelScope.() -> Unit)? = null,
+    /** Che cosa fa il titolo, per TalkBack («Cambia account»), quando è un selettore; null: il nome del titolo e basta. */
+    selectorHint: String? = null,
+  ) {
     titleMode = mode
     if (subtitle != null) this.subtitle = subtitle
+    require(menu == null || panel == null) { "il titolo apre un menu o un pannello, non tutti e due" }
+    titleSelector = if (menu == null && panel == null) null else FluidTitleSelector(menu, panel, selectorHint)
   }
 
   /** Il sottotitolo: sotto il titolo grande e, agganciato, sotto quello della barra. Null: nessuno. */
@@ -415,6 +440,75 @@ class FluidToolbarScope internal constructor() {
     entries += FluidToolbarButtonEntry(
       id = id, role = FluidToolbarRole.Action, placement = placement, priority = priority,
       icon = icon, label = label, onClick = null, overflow = inOverflow, menu = menu,
+    )
+  }
+
+  /**
+   * Un'azione con **un'azione sua e un menu nascosto** (R1 N5, F6B.11; `Menu(content:label:primaryAction:)` di SwiftUI):
+   * il tocco fa [onClick], la pressione lunga apre il menu dallo stesso vetro (in un gruppo con lo sfondo condiviso, dal
+   * vetro del gruppo), col dito che può scegliere una voce senza staccarsi. TalkBack trova il menu fra le azioni del tasto.
+   * Nel menu «Altro» l'azione viene prima, poi le voci del menu. Per una freccia visibile accanto all'azione: [split].
+   */
+  fun action(
+    id: Any,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic,
+    priority: FluidToolbarPriority = FluidToolbarPriority.High,
+    enabled: Boolean = true,
+    menu: () -> List<FluidContextAction>,
+  ) {
+    entries += FluidToolbarButtonEntry(
+      id = id, role = FluidToolbarRole.Action, placement = placement, priority = priority,
+      icon = icon, label = label, onClick = onClick, enabled = enabled, overflow = inOverflow, menu = menu,
+    )
+  }
+
+  /**
+   * **Il tasto diviso** (F6B.11, idea 9 di R8; scelta di Alessio del 21 novembre 2026: «un vetro solo, con un filo sottile fra
+   * azione e freccia»): un vetro solo con due zone, la scritta [text] che fa [onClick] e la freccia che apre [menu] **dallo
+   * stesso vetro** (F5A.2). Anche la pressione lunga sulla scritta apre il menu (R1 N5). È un comando solo, quindi un gruppo a
+   * sé: non si unisce alle icone vicine. «Invia ▾» con «Programma invio».
+   *
+   * I bersagli sono due e disgiunti, ognuno di almeno 48 × 48 dp anche dove la zona disegnata è più stretta (la freccia):
+   * TalkBack li legge come due pulsanti, [label] (di serie la scritta) e [menuLabel] (di serie «Altro» con il nome
+   * dell'azione). Nel menu «Altro» l'azione viene prima, poi le voci del menu.
+   */
+  fun split(
+    id: Any,
+    text: String,
+    onClick: () -> Unit,
+    label: String = text,
+    menuLabel: String? = null,
+    placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic,
+    priority: FluidToolbarPriority = FluidToolbarPriority.High,
+    enabled: Boolean = true,
+    menu: () -> List<FluidContextAction>,
+  ) {
+    entries += FluidToolbarButtonEntry(
+      id = id, role = FluidToolbarRole.Text, placement = placement, priority = priority, text = text, label = label,
+      onClick = onClick, enabled = enabled, overflow = inOverflow, menu = menu,
+      type = FluidToolbarSplitType(FluidToolbarSplitKind(text, iconWidthDp = null), menuLabel),
+    )
+  }
+
+  /** Il tasto diviso con un'icona al posto della scritta ([label] è il suo nome per TalkBack): vedi l'altra [split]. */
+  fun split(
+    id: Any,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    menuLabel: String? = null,
+    placement: FluidToolbarPlacement = FluidToolbarPlacement.Automatic,
+    priority: FluidToolbarPriority = FluidToolbarPriority.High,
+    enabled: Boolean = true,
+    menu: () -> List<FluidContextAction>,
+  ) {
+    entries += FluidToolbarButtonEntry(
+      id = id, role = FluidToolbarRole.Text, placement = placement, priority = priority, icon = icon, label = label,
+      onClick = onClick, enabled = enabled, overflow = inOverflow, menu = menu,
+      type = FluidToolbarSplitType(FluidToolbarSplitKind(icon, iconWidthDp = FluidMetrics.GlassButtonLens.value), menuLabel),
     )
   }
 
@@ -606,6 +700,15 @@ internal abstract class FluidToolbarElementType {
    */
   @Composable
   abstract fun rememberSlot(live: Boolean): FluidToolbarTypeSlot
+
+  /**
+   * La zona di fine del posto che apre il menu, se il tipo ne ha una (F6B.11, la freccia del tasto diviso): il posto ha
+   * allora **due bersagli**, l'azione e la freccia, disgiunti e ognuno di almeno 48 dp. Null: un bersaglio solo.
+   */
+  open val menuZone: Dp? get() = null
+
+  /** Il nome per TalkBack del bersaglio di [menuZone], o null per quello di serie («Altro» con il nome del tasto). */
+  open val menuZoneLabel: String? get() = null
 }
 
 /** La resa di un [FluidToolbarElementType] in un posto: la faccia e le parole. */
@@ -643,6 +746,8 @@ internal class FluidToolbarDeclaration(
   val search: FluidSearchSpec?,
   val overflowLabel: String?,
   val keyboard: FluidKeyboardDeclaration? = null,
+  /** Il titolo che diventa selettore (F6B.11), o null: il titolo di sempre. */
+  val titleSelector: FluidTitleSelector? = null,
 ) {
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
@@ -688,14 +793,16 @@ internal class FluidToolbarDeclaration(
  */
 internal fun buildFluidToolbar(onBack: (() -> Unit)?, block: FluidToolbarScope.() -> Unit): FluidToolbarDeclaration {
   val scope = FluidToolbarScope().apply(block)
-  val declared = FluidToolbarDeclaration(scope.entries.toList(), scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel, scope.keyboard)
+  val declared = FluidToolbarDeclaration(scope.entries.toList(), scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel,
+    scope.keyboard, scope.titleSelector)
   val exits = declared.buttons.values.any { it.role == FluidToolbarRole.Back || it.role == FluidToolbarRole.Close }
   if (onBack == null || exits) return declared
   val back = FluidToolbarButtonEntry(
     id = FluidToolbarIds.Back, role = FluidToolbarRole.Back, placement = FluidToolbarPlacement.Navigation,
     icon = FluidIcons.ArrowBackIosNew, onClick = onBack, defaultLabel = FluidToolbarDefaultLabel.Back,
   )
-  return FluidToolbarDeclaration(listOf(back) + declared.entries, scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel, scope.keyboard)
+  return FluidToolbarDeclaration(listOf(back) + declared.entries, scope.titleMode, scope.subtitle, scope.search, scope.overflowLabel,
+    scope.keyboard, scope.titleSelector)
 }
 
 /** La tinta di un tasto come numero ARGB per il modello, o null. */
@@ -749,7 +856,8 @@ internal fun fluidToolbarModel(
       enabled = entry.enabled,
       widthDp = entry.type?.kind?.widthDp ?: when {
         entry.custom != null -> entry.width?.value
-        entry.text != null -> textWidthDp(entry.text)
+        // F6B.11: il tasto diviso aggiunge alla scritta il filo e la zona della freccia ([FluidToolbarKind.trailingDp]).
+        entry.text != null -> textWidthDp(entry.text) + (entry.type?.kind?.trailingDp ?: 0f)
         else -> null
       },
       // Un elemento libero cambia contenuto da sé: la sua identità è anche la chiave del contenuto.
@@ -803,7 +911,8 @@ internal data class FluidToolbarGlassId(val group: FluidToolbarGroupId, val seri
  * accoppiati restando** (`Matched`): così un gruppo che cresce o cala è lo stesso vetro, una divisione lascia il vetro
  * alla parte più grande (le altre nascono dal vicino), una fusione lo prende dalla parte più grande (le altre
  * confluiscono), e un tasto che il modello fa ripartire per lente (troppo lontano, incrociato) non trascina il suo vetro.
- * Chi non eredita ha un vetro nuovo, mai uguale a uno di prima. Pura.
+ * Un gruppo che arriva **nello stesso posto** di uno che se ne va (F6B.11, [FluidToolbarGroupDiff.inPlace]) ne eredita il
+ * vetro: un tasto che cambia resta un vetro solo. Chi non eredita ha un vetro nuovo, mai uguale a uno di prima. Pura.
  */
 internal fun fluidToolbarGlassIds(
   resolved: FluidToolbarResolved,
@@ -827,6 +936,17 @@ internal fun fluidToolbarGlassIds(
     for ((edge, _) in weights.entries.sortedWith(compareByDescending<Map.Entry<Pair<FluidToolbarGroupId, FluidToolbarGroupId>, Int>> { it.value }
       .thenBy { order.indexOf(it.key.second) })) {
       val (from, to) = edge
+      if (from in taken || to in result) continue
+      val inherited = previous[from] ?: continue
+      result[to] = inherited
+      taken += from
+    }
+    // F6B.11: un vetro che cambia nello stesso posto è lo stesso vetro (l'indietro che diventa «Seleziona tutto»): il piano
+    // lo vede con lo stesso id, quindi lo tiene e ne cambia la misura con la molla, e il contenuto si scambia sfocato.
+    for (group in diff.groups) {
+      if (!group.inPlace) continue
+      val from = group.from.single().id
+      val to = group.to.single().id
       if (from in taken || to in result) continue
       val inherited = previous[from] ?: continue
       result[to] = inherited
@@ -1836,7 +1956,16 @@ private fun FluidToolbarSlot(
   val hidden = if (overflow) resolved.overflow.mapNotNull { declaration.buttons[it.id] } else emptyList()
   val menu = if (overflow && interactive) {
     rememberFluidContextMenu(actions = {
-      hidden.flatMap { it.menu?.invoke() ?: listOf(it.contextAction(labels.back, labels.close, labels.confirm)) }
+      hidden.flatMap { button ->
+        val own = button.contextAction(labels.back, labels.close, labels.confirm)
+        // F6B.11: un'azione col suo menu (il tasto diviso, `action(…, onClick)`) porta prima l'azione, poi le voci.
+        val menu = button.menu?.invoke()
+        when {
+          menu == null -> listOf(own)
+          button.onClick != null -> listOf(own) + menu
+          else -> menu
+        }
+      }
     })
   } else {
     null
@@ -1980,8 +2109,28 @@ private fun FluidToolbarSlot(
           .offset(x = -FluidToolbarDefaults.BadgeOffset, y = FluidToolbarDefaults.BadgeOffset),
       )
     }
+    // F6B.11: un'azione con un menu nascosto (R1 N5) fa la sua azione al tocco e apre il menu tenendo premuto; il tasto
+    // diviso ha in più la freccia, un bersaglio suo ([FluidToolbarElementType.menuZone]).
+    val primaryAction: (() -> Unit)? = entry?.onClick?.takeIf { declaredMenu != null }?.let { action ->
+      {
+        if (accepts) {
+          haptics.play(FluidHapticEvent.Tap)
+          action()
+        }
+      }
+    }
+    val menuName = entry?.type?.menuZoneLabel ?: label?.let { "${labels.more} ($it)" } ?: labels.more
+    val zone = entry?.type?.menuZone?.takeIf { primaryAction != null }
+    val targetsShown = interactive && (active == null || declaredMenu?.anchor === active) && item.id !in memory.transfers
+    if (targetsShown && zone != null) {
+      FluidToolbarSplitTargets(
+        width = width, zone = zone, enabled = enabled, hideSemantics = active != null, label = label, menuName = menuName,
+        onAction = primaryAction!!, onMenu = openDeclaredMenu,
+        describe = { typeSlot?.describe(this, label) },
+      )
+    }
     // Il bersaglio: almeno 48 dp per lato, centrato sul posto, senza cambiare la misura del vetro.
-    if (interactive && (active == null || declaredMenu?.anchor === active) && item.id !in memory.transfers) Box(
+    if (targetsShown && zone == null) Box(
       Modifier
         .requiredSize(max(width, FluidMetrics.TouchTarget), FluidMetrics.TouchTarget)
         .then(if (active != null) Modifier.clearAndSetSemantics { } else Modifier)
@@ -1993,7 +2142,8 @@ private fun FluidToolbarSlot(
               enabled = enabled,
               role = Role.Button,
               onLongClick = openDeclaredMenu,
-              onClick = openDeclaredMenu,
+              onLongClickLabel = if (primaryAction != null) menuName else null,
+              onClick = primaryAction ?: openDeclaredMenu,
             )
             menu != null -> Modifier.clickable(
               interactionSource = remember { MutableInteractionSource() },
@@ -2034,6 +2184,58 @@ private fun FluidToolbarSlot(
         },
     )
   }
+}
+
+/**
+ * I due bersagli del tasto diviso (F6B.11) nel suo posto largo [width]: l'azione, dall'inizio del vetro al filo, e la
+ * freccia, dal filo alla fine ([zone] è la zona disegnata della freccia). Disgiunti e ognuno di almeno
+ * [FluidMetrics.TouchTarget] ([fluidSplitTargets]): dove la zona disegnata è più stretta il bersaglio esce dal vetro verso
+ * il bordo che non tocca l'altro. La pressione lunga sull'azione apre lo stesso menu (R1 N5). Per TalkBack due pulsanti.
+ */
+@Composable
+private fun FluidToolbarSplitTargets(
+  width: Dp,
+  zone: Dp,
+  enabled: Boolean,
+  hideSemantics: Boolean,
+  label: String?,
+  menuName: String,
+  onAction: () -> Unit,
+  onMenu: () -> Unit,
+  describe: SemanticsPropertyReceiver.() -> Unit,
+) {
+  val targets = fluidSplitTargets(width.value, zone.value, FluidMetrics.TouchTarget.value)
+  Box(
+    Modifier
+      .fluidTargetAt(targets.actionLeft.dp, targets.actionWidth.dp)
+      .then(if (hideSemantics) Modifier.clearAndSetSemantics { } else Modifier)
+      .combinedClickable(
+        interactionSource = null,
+        indication = null,
+        enabled = enabled,
+        role = Role.Button,
+        onLongClick = onMenu,
+        onLongClickLabel = menuName,
+        onClick = onAction,
+      )
+      .semantics {
+        if (label != null) contentDescription = label
+        describe()
+      },
+  )
+  Box(
+    Modifier
+      .fluidTargetAt(targets.menuLeft.dp, targets.menuWidth.dp)
+      .then(if (hideSemantics) Modifier.clearAndSetSemantics { } else Modifier)
+      .clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null,
+        enabled = enabled,
+        role = Role.Button,
+        onClick = onMenu,
+      )
+      .semantics { contentDescription = menuName },
+  )
 }
 
 // Gli stessi raggi del materiale si riusano fra icone e fotogrammi.

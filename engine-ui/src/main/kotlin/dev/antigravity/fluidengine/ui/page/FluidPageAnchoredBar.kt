@@ -67,6 +67,7 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.buildFluidScreenToolbar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.fluidTitleHandoffLayer
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleAboveBar
 import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleHandoff
+import dev.antigravity.fluidengine.ui.fluid.toolbar.rememberFluidTitleSelector
 import dev.antigravity.fluidengine.ui.fluid.activity.FluidActivityRetractedRing
 import dev.antigravity.fluidengine.ui.fluid.activity.fluidActivityShown
 import dev.antigravity.fluidengine.ui.fluid.activity.fluidToolbarWithActivity
@@ -744,6 +745,12 @@ private fun BoxScope.BarTitle(
   CompositionLocalProvider(spec.context) {
     // Il titolo segue il lato della striscia della barra anche col contesto della pagina (dal seguito di F2.5).
     CompositionLocalProvider(LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade)) {
+    // F6B.11: il titolo che diventa selettore, nella barra dell'host. Risponde la pagina in cima, agganciata (col titolo
+    // grande in vista apre quello, nella pagina).
+    val selector = rememberFluidTitleSelector(toolbar?.titleSelector, spec.title, spec.compactStyle)
+    val docked by remember(spec.collapseProgress, toolbar?.titleMode) {
+      derivedStateOf { toolbar?.titleMode != FluidToolbarTitleMode.Large || spec.collapseProgress.value >= 0.5f }
+    }
     Box(
       modifier = Modifier
         .matchParentSize()
@@ -830,6 +837,8 @@ private fun BoxScope.BarTitle(
         reducedMotion = spec.reducedMotion,
         motion = motion,
         controls = controls,
+        selector = selector,
+        selectorEnabled = docked && state.interactionPage == page,
       ) }
       val subtitle = spec.subtitle
       if (subtitle == null) {

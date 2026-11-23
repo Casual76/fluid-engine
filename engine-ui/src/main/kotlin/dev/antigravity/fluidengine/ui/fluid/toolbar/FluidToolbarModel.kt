@@ -91,6 +91,12 @@ internal interface FluidToolbarKind {
    * Con lo stesso `id` resta lo stesso vetro fermo. La pillola di attività.
    */
   val materializes: Boolean get() = false
+
+  /**
+   * La larghezza che l'elemento aggiunge **dopo** la sua scritta misurata, in dp (F6B.11: il filo e la zona della freccia
+   * del tasto diviso). Vale solo con una scritta e senza [widthDp]; di serie zero.
+   */
+  val trailingDp: Float get() = 0f
 }
 
 /** I tipi registrati ([FluidToolbarKind.type]). Uno per riga, in ordine d'arrivo. */
@@ -101,6 +107,8 @@ internal object FluidToolbarKinds {
   const val KeyboardFindCounter: String = "keyboard-find-counter"
   /** La pillola di attività (F6B.10): al posto del titolo, compatta o minima. */
   const val Activity: String = "activity"
+  /** Il tasto diviso (F6B.11): l'azione e la freccia del menu in un vetro solo, divise da un filo. */
+  const val Split: String = "split"
 }
 
 private data class FluidToolbarKindContent(val type: String, val value: Any?, val identity: Any?, val state: Any?)
@@ -562,7 +570,71 @@ internal data class FluidToolbarGroupDiff(
   val change: FluidToolbarGroupChange,
   val neighbourId: FluidToolbarGroupId? = null,
   val animateShape: Boolean = true,
+  /**
+   * Vero per **un vetro che cambia nello stesso posto** (F6B.11, scelta di Alessio del 22 novembre 2026: «un tasto della
+   * barra che cambia resta un vetro solo»): un gruppo che se ne va e uno che arriva al suo posto, senza un tasto in
+   * comune, sono lo stesso vetro ([FluidToolbarGroupChange.Matched]). Vedi [fluidToolbarInPlace].
+   */
+  val inPlace: Boolean = false,
 )
+
+/**
+ * **Un tasto che cambia nello stesso posto resta un vetro solo** (F6B.11; Alessio, 22 novembre 2026, sulle riprese della
+ * selezione: «i tasti della barra quando cambiano non cambiano solo icona, ma è come se ci fossero due tasti durante lo
+ * scambio»). Fra i gruppi di [from] e di [to] che nessuna corrispondenza ha legato (nessun tasto in comune: [oldGroups] e
+ * [newGroups]), le coppie che stanno **nello stesso posto**: lo stesso lato e sovrapposti per almeno metà del più stretto
+ * ([FluidToolbarInPlaceOverlap]), la coppia più sovrapposta per prima.
+ *
+ * Solo dove il piano non le fa già essere un vetro: quando uno dei due vetri compare e se ne va **per lente**, cioè
+ * un'uscita (indietro, Chiudi) o un elemento che chiede la lente ([FluidToolbarKind.materializes], la pillola di attività).
+ * Lì oggi il vetro vecchio esce per lente mentre il nuovo nasce sul posto, e per qualche fotogramma si vedono due contorni
+ * uno dentro l'altro (l'indietro che diventa «Seleziona tutto»). Fra due vetri ordinari nello stesso posto il piano fa già
+ * la staffetta (F3.11: chi confluisce nel vetro che nasce da lui è lo stesso vetro che cambia identità), e resta così.
+ *
+ * Restano fuori, e tengono la lente: chi nasce o se ne va **davvero** (nessuno al suo posto), un tasto che c'è nei due stati
+ * (anche se il modello lo fa ripartire per lente: troppo lontano, incrociato), un contatore temporaneo che chiede la lente
+ * ([FluidToolbarTransition.Materialize]) e un tasto senza vetro. Pura.
+ */
+internal fun fluidToolbarInPlace(
+  from: FluidToolbarResolved,
+  to: FluidToolbarResolved,
+  oldGroups: List<FluidToolbarGroup>,
+  newGroups: List<FluidToolbarGroup>,
+): List<Pair<FluidToolbarGroup, FluidToolbarGroup>> {
+  val before = from.elements.mapTo(HashSet()) { it.item.id }
+  val after = to.elements.mapTo(HashSet()) { it.item.id }
+  fun FluidToolbarGroup.lens(): Boolean = items.any { it.isExit || it.kind?.materializes == true }
+  fun FluidToolbarGroup.eligible(): Boolean = sharedBackground && items.none { !it.sharedBackground ||
+    it.transition == FluidToolbarTransition.Materialize || it.transition == FluidToolbarTransition.Identity }
+  fun overlap(a: FluidToolbarGroup, b: FluidToolbarGroup): Float {
+    val shared = minOf(a.leftDp + a.widthDp, b.leftDp + b.widthDp) - maxOf(a.leftDp, b.leftDp)
+    val narrow = minOf(a.widthDp, b.widthDp)
+    return if (narrow <= 0f) 0f else shared / narrow
+  }
+  val candidates = ArrayList<Triple<FluidToolbarGroup, FluidToolbarGroup, Float>>()
+  for (old in oldGroups) {
+    if (!old.eligible() || old.items.any { it.id in after }) continue
+    for (new in newGroups) {
+      if (new.side != old.side || !new.eligible() || new.items.any { it.id in before }) continue
+      if (!old.lens() && !new.lens()) continue
+      val share = overlap(old, new)
+      if (share >= FluidToolbarInPlaceOverlap) candidates += Triple(old, new, share)
+    }
+  }
+  val result = ArrayList<Pair<FluidToolbarGroup, FluidToolbarGroup>>()
+  for ((old, new, _) in candidates.sortedByDescending { it.third }) {
+    if (result.any { it.first === old || it.second === new }) continue
+    result += old to new
+  }
+  return result
+}
+
+/**
+ * Quanto due vetri devono sovrapporsi, in parte del più stretto, per stare «nello stesso posto» ([fluidToolbarInPlace]):
+ * metà. L'indietro e «Seleziona tutto» si coprono per intero; due tasti vicini (12 dp fra l'uno e l'altro) per niente.
+ * A occhio, 23 novembre 2026.
+ */
+internal const val FluidToolbarInPlaceOverlap: Float = 0.5f
 
 internal enum class FluidToolbarTitleKind { Inline, Large, Subtitle }
 internal enum class FluidToolbarTitleChange { BlurReplace, BlurAppear, BlurDisappear, PageContent }
@@ -655,6 +727,12 @@ private fun toolbarGroupDiffs(from: FluidToolbarResolved, to: FluidToolbarResolv
     remainingOld.removeAll(old.toSet())
     remainingNew.removeAll(new.toSet())
   }
+  // F6B.11: un vetro che cambia nello stesso posto resta lo stesso vetro (vedi [fluidToolbarInPlace]).
+  for ((old, new) in fluidToolbarInPlace(from, to, remainingOld, remainingNew)) {
+    result += FluidToolbarGroupDiff(listOf(old), listOf(new), FluidToolbarGroupChange.Matched, inPlace = true)
+    remainingOld.remove(old)
+    remainingNew.remove(new)
+  }
   for (group in remainingNew) {
     val forced = group.items.any { it.transition != FluidToolbarTransition.Automatic || it.isExit }
     val explicit = group.items.firstNotNullOfOrNull { item -> item.bornFrom?.let { from.element(it)?.groupId } }
@@ -726,10 +804,18 @@ internal fun diffFluidToolbar(
     val nearby = neighbours.filter { it.groupId in sameGlass.orEmpty().map { group -> group.id } }
       .ifEmpty { neighbours }.minByOrNull { abs(it.centerDp - element.centerDp) }
     val shapeAllowed = groupDiff?.animateShape == true
-    val forced = forceLens || element.item.transition != FluidToolbarTransition.Automatic || element.item.isExit ||
-      !element.item.sharedBackground || (!inside && !shapeAllowed) ||
+    // F6B.11: nel vetro che cambia nello stesso posto il contenuto esce ed entra dentro lo stesso vetro (R7), senza lente:
+    // il vicino è chi prende (o lascia) il suo posto.
+    val inPlace = groupDiff?.inPlace == true && !forceLens
+    val forced = !inPlace && (forceLens || element.item.transition != FluidToolbarTransition.Automatic || element.item.isExit ||
+      !element.item.sharedBackground || (!inside && !shapeAllowed)) ||
       state.elements.any { it.item.matchId != null && it.item.matchId == element.item.matchId && it.side != element.side }
-    val neighbour = if (forced) null else explicit ?: nearby
+    val neighbour = when {
+      forced -> null
+      inPlace -> neighbours.filter { it.groupId in sameGlass.orEmpty().map { group -> group.id } }
+        .minByOrNull { abs(it.centerDp - element.centerDp) }
+      else -> explicit ?: nearby
+    }
     val change = when {
       element.inOverflow -> FluidToolbarElementChange.InOverflow
       motion == FluidToolbarMotion.Identity || element.item.transition == FluidToolbarTransition.Identity -> FluidToolbarElementChange.Identity

@@ -45,6 +45,8 @@ UI_FLUID_FILES = {
         "FluidSearch",
         # «trova nella pagina» (F6B.6)
         "FluidFindInText",
+        # il tasto diviso nella barra (F6B.11): azione e freccia in un vetro solo
+        "FluidSplitButton",
     ],
     # righe, card, liste, testo ricco
     "contenuto": [

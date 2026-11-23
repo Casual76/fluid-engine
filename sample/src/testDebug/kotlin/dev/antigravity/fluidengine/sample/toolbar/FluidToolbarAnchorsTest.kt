@@ -55,7 +55,11 @@ class FluidToolbarAnchorsTest {
     }
   }
 
-  @Test fun `radice con un tasto a sinistra indietro per lente poi identico fra due figlie e scomparsa per lente`() {
+  // F6B.11 (Alessio, 22 novembre 2026: «un tasto della barra che cambia resta un vetro solo»): l'indietro della figlia
+  // nasce **nello stesso posto** di «Modifica» della radice, quindi è lo stesso vetro che cambia misura e contenuto, non
+  // più un vetro che nasce per lente dentro quello che esce (i due contorni uno dentro l'altro). Fra due figlie resta
+  // identico; al ritorno alla radice torna «Modifica» nello stesso vetro.
+  @Test fun `radice con un tasto a sinistra indietro nello stesso vetro poi identico fra due figlie e ritorno nello stesso vetro`() {
     var stack by mutableStateOf(listOf("a"))
     compose.mainClock.autoAdvance = false
     compose.setContent {
@@ -80,16 +84,19 @@ class FluidToolbarAnchorsTest {
     compose.runOnIdle { stack = listOf("a", "b") }
     Snapshot.sendApplyNotifications()
     advance(80)
-    val back = FluidGlassContainerDiagnostics.lastJourney.single { it.toId.toString().contains(FluidToolbarIds.Back.toString()) }
-    assertEquals("Materialize", back.change)
+    val left = FluidGlassContainerDiagnostics.lastJourney.single { it.toId.toString().contains("left") }
+    assertEquals("Matched", left.change)
+    assertEquals("l'indietro nel vetro di «Modifica»", left.fromId, left.toId)
+    assertTrue("nessun vetro nuovo per l'indietro", FluidGlassContainerDiagnostics.lastJourney
+      .none { it.toId.toString().contains(FluidToolbarIds.Back.toString()) })
     advance(1_400)
     compose.onNodeWithText("Sottotitolo b").fetchSemanticsNode()
-    val piece = FluidGlassContainerDiagnostics.lastRest.single { it.id.toString().contains(FluidToolbarIds.Back.toString()) }
+    val piece = FluidGlassContainerDiagnostics.lastRest.single { it.id == left.toId }
     val journeys = FluidGlassContainerDiagnostics.totalJourneys
     compose.runOnIdle { stack = listOf("a", "b", "c") }
     Snapshot.sendApplyNotifications()
     advance(1_400)
-    val after = FluidGlassContainerDiagnostics.lastRest.single { it.id.toString().contains(FluidToolbarIds.Back.toString()) }
+    val after = FluidGlassContainerDiagnostics.lastRest.single { it.id == piece.id }
     assertEquals(piece.id, after.id)
     assertEquals(piece.bounds, after.bounds)
     assertEquals("stessi vetri: nessuna lente fra le figlie", journeys, FluidGlassContainerDiagnostics.totalJourneys)
@@ -97,7 +104,9 @@ class FluidToolbarAnchorsTest {
     compose.runOnIdle { stack = listOf("a") }
     Snapshot.sendApplyNotifications()
     advance(80)
-    assertEquals("Dematerialize", FluidGlassContainerDiagnostics.lastJourney.single { it.fromId == piece.id }.change)
+    val home = FluidGlassContainerDiagnostics.lastJourney.single { it.fromId == piece.id }
+    assertEquals("Matched", home.change)
+    assertEquals("«Modifica» torna nello stesso vetro", piece.id, home.toId)
     advance(1_400)
     compose.onNodeWithText("Sottotitolo a").fetchSemanticsNode()
   }

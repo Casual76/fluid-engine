@@ -100,8 +100,15 @@ FluidScreen(title = if (detail) "Foto" else "Raccolta", onBack = back, toolbar =
 }) { /* righe */ }
 ```
 
-Ogni posto misura 48 dp con l'icona da 28 dp (il posto in Apple misura 47,8 pt). La sede sta sopra la navigazione di sistema e, se l'app
-ha dato l'inset della tab bar, sopra la tab bar; la lista riserva lo spazio per l'ultima riga. Col ritiro della barra
+Ogni posto misura 48 dp con l'icona da 28 dp (il posto in Apple misura 47,8 pt). **Il fondo del vetro sta a 28 dp dal bordo
+basso dello schermo** (F6B.15, `FluidBottomBarPlacement.ScreenEdgeDistance`: in iOS 26 il tasto in basso ha il fondo a 28 pt e
+il centro a ~52, la stessa quota del centro della tab bar; scelta di Alessio del 23 novembre 2026, «i tasti nella parte
+inferiore dello schermo stanno davvero tanto in alto»). Con la barra dei gesti da 24 dp restano 4 dp sopra di lei; con i tre
+tasti il vetro non scende mai sotto la barra di sistema più 4 (`NavigationClearance`). Prima stava 16 dp sopra la barra di
+sistema (40 dal bordo coi gesti). È **una misura sola**: la usano la barra in basso dichiarata, il campo nella riga in basso e
+lo spazio che la lista le lascia (`fluidBottomBarLift`, `fluidBottomBarExtraInset`); la tab bar resta com'è (16 dp sopra la
+barra di sistema). Se l'app ha dato l'inset della tab bar, la barra sta sopra la tab bar; la lista riserva lo spazio per
+l'ultima riga. Col ritiro della barra
 (`barMinimize`) i comandi in basso scendono fuori dallo schermo con la stessa corsa di quelli in alto.
 
 ## La capsula di azioni
@@ -146,7 +153,7 @@ tab bar: non va sommato a `ContentInset`.
 
 La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la
 toolbar ha la precedenza. `query` e `onQueryChange` restano dell'app. Il campo è un vetro del piano con un'identità
-stabile: la lente da 46 dp si allunga nella capsula del campo, alta 48 dp (F6B.8b; prima 40), mentre i vicini
+stabile: la lente da 46 dp si allunga nella capsula del campo, alta 52 dp (F6B.15; 48 in F6B.8b, 40 prima), mentre i vicini
 le fanno posto: in basso, e in alto con `expansion = AboveKeyboard`, raccogliendosi in «Altro»; **in alto, col campo che
 resta in cima (`StayAtTop`), rientrando nel campo** (F6B.6): le loro icone si sfocano subito, i vetri confluiscono in quello
 del campo, e alla chiusura rinascono da lui. Il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
@@ -228,6 +235,19 @@ FluidSearchSpec.message(text, { text = it }, onSend = invia, composer = FluidCom
   un'Activity che non dichiara `windowSoftInputMode`: sul Tab S9 la galleria saliva di ~560 px), che il campo conosce già
   perché si posa con le coordinate dello schermo. Un campo a riposo che si ritira con la barra porta via anche questo spazio. La lista non scorre da sola: a fine
   scorrimento l'ultima riga è libera, ma una lista ferma a metà resta dov'era (come in UIKit).
+- **La finestra non si sposta mai sopra la barra** (F6B.15, scelta di Alessio del 23 novembre 2026, pomeriggio: «la pillola
+  dell'assistente non esce mai dallo schermo»). Finché la schermata ha un campo nella barra, l'engine porta la finestra da
+  `adjustPan` (o da nessun modo dichiarato, che Android risolve in `adjustPan`) ad `adjustNothing` (da Android 11;
+  `adjustResize` prima), e la rimette com'era quando il campo se ne va. Con `adjustNothing` la tastiera arriva solo come
+  inset, che il campo e la lista leggono già, e la barra in alto con la pillola di attività resta in vista. Il modo va
+  anche al window manager: l'engine aggiorna la finestra che ospita la vista (`updateViewLayout`) dopo il fotogramma in
+  corso, perché sul Tab S9 un `Window.setSoftInputMode` chiamato mentre Compose compone il primo fotogramma restava nella
+  `Window` (`dumpsys window` dava ancora `adjust=pan`). Un'app che dichiara `adjustResize` o `adjustNothing` non cambia;
+  due schermate col campo non si rubano il modo, e un modo cambiato da altri nel frattempo (il visore di testo durante
+  «trova») non si tocca all'uscita.
+- **La fila dei gettoni suggeriti ha il suo posto** (F6B.15): sul tablet, col campo in alto, la lista lascia libera la fila
+  sotto il campo (prima copriva l'intestazione «Tutta la posta»); in basso le lascia il posto sopra il campo. La fila entra
+  ed esce col campo, sfocata (R7), sulla curva del campo che si apre: non compare più in un fotogramma.
 
 **Limiti.** Il tocco sulla parte del vetro che sborda dalla riga arriva perché nessun antenato ritaglia (c'è un gestore
 apposta): una barra dentro un contenitore che ritaglia lo perde.
@@ -236,9 +256,10 @@ apposta): una barra dentro un contenitore che ritaglia lo perde.
 
 **Scelta di Alessio del 23 novembre 2026, «tasti più grandi»**: i comandi dentro il campo (le frecce e la X di «trova», la X
 che chiude, il «+», la dettatura, «Invia», lo stop) sono da **44 dp** a vista (`FluidSearchFieldDefaults.ActionSize`; le
-icone da 26, il disco di «Invia» da 40 con la freccia da 22, a 4 dp dal bordo del vetro), «Cancella» da **36** col cerchio da 22, le pillole e i chip
-del vassoio dell'assistente alti **40**; il campo aperto è alto **48 dp** (prima 40) e il vassoio ha 4 dp prima della riga
-del testo. Ogni comando ha il **bersaglio da 48 × 48 dp**, tutto dentro il vetro: i bersagli in fila si spostano il meno
+icone da 26), «Cancella» da **36** col cerchio da 22, le pillole e i chip del vassoio dell'assistente alti **40**. **Il disco di
+«Invia» è da 44 come gli altri comandi**, con la freccia da 24, e il **campo aperto è alto 52 dp** perché il disco abbia 4 dp di
+vetro tutto intorno (F6B.15, scelta di Alessio del 23 novembre 2026, pomeriggio; in F6B.8b il disco era da 40 nel campo da 48,
+prima 40); il vassoio ha 4 dp prima della riga del testo. Ogni comando ha il **bersaglio da 48 × 48 dp**, tutto dentro il vetro: i bersagli in fila si spostano il meno
 possibile dal loro disegno e non si toccano (`fluidDisjointTargets`, la regola del tasto diviso di F6B.11: dove due si
 toccherebbero lo spazio si divide), il primo prende fino a 24 dp dal testo o dal contatore, l'ultimo esce dal vetro fino a
 metà dello spazio col vicino o al bordo. Il ritaglio del vetro del campo sta sul disegno e non su un livello, così il tocco
@@ -250,7 +271,10 @@ vetro, il bersaglio da 48), il titolo grande selettore (≈41 dp, il bersaglio a
 
 `tokens`, `onTokensChange` e `filters` in coda a `FluidSearchSpec` (e a `FluidSearchSpec.search`) mettono i gettoni nel
 campo della barra e la fila dei gettoni suggeriti accanto al campo aperto: la pillola scelta vola nel campo e diventa
-gettone. La scheda è in [elementi-dinamici.md](elementi-dinamici.md), «I gettoni nel campo della ricerca».
+gettone. **Dalla F6B.15 anche negli altri campi**: il campo sotto il titolo (`placement = FluidSearchPlacement.Principal`, gli
+stessi tre campi dello spec) e `FluidSearchField` nella pagina (gli stessi tre parametri, in coda): lo stesso modello e lo
+stesso viaggio, con la fila sotto il campo. La scheda è in [elementi-dinamici.md](elementi-dinamici.md), «I gettoni nel campo
+della ricerca».
 
 ```kotlin
 FluidScreen(title = "Posta", search = FluidSearchSpec.search(query, { query = it }, prompt = "Cerca nella posta",

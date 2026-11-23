@@ -1147,7 +1147,12 @@ private fun FluidScreenLayout(
   val reservesBottom = toolbar?.bottomReservesSpace == true && !shellDrawsBottom
 
   val topBarHeight = FluidScreenDefaults.topBarHeight()
-  val bottomExtra = if (reservesBottom || floatingSearch?.atBottom == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current) else 0.dp
+  val bottomExtra = if (reservesBottom || floatingSearch?.atBottom == true) {
+    // F6B.15: la barra in basso sta a `FluidBottomBarPlacement.ScreenEdgeDistance` dal bordo; la lista le resta sopra.
+    // I visori tengono lo spazio di prima (il loro ramo `viewerLayout` della barra non cambia: F6C.20 all'unione).
+    if (toolbar?.legacyBottomLift == true) fluidBottomBarExtraInset(LocalFluidBottomInset.current)
+    else fluidBottomBarExtraInset(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+  } else 0.dp
   val bottomPadding = FluidScreenDefaults.bottomContentPadding(extraBottomPadding) + bottomExtra
   val titleLeftPx = with(density) { horizontalPadding.toPx() }
   val titleTopPx = with(density) { (topBarHeight + FluidScreenDefaults.TitleTopSpacing).toPx() }
@@ -1231,7 +1236,7 @@ private fun FluidScreenLayout(
   // F6B.13: la lista sotto il campo che occupa il fondo. Il campo cresce di riga in riga (F6B.7) e sale con la tastiera
   // (F6B.9): a fine scorrimento l'ultima riga si legge sopra il suo vetro, con e senza tastiera. Lo spazio si legge
   // mentre la lista si misura, quindi la crescita e la tastiera non ricompongono la pagina.
-  val searchRoom = floatingSearch?.takeIf { it.occupiesBottom }?.let { rememberToolbarSearchListRoom(it, keyboardDock) }
+  val searchRoom = floatingSearch?.takeIf { it.occupiesBottom }?.let { rememberToolbarSearchListRoom(it, keyboardDock, toolbar?.legacyBottomLift == true) }
   // Lo spazio che la lista lascia già alla riga del campo, sopra la barra di sistema: la riga a riposo (bottomExtra),
   // la tab bar dell'app e la barra sopra la tastiera.
   val searchAssumed = LocalFluidBottomInset.current + bottomExtra + keyboardRoom
@@ -1249,12 +1254,15 @@ private fun FluidScreenLayout(
   val travelPx = controlRowPx + headingHeightPx + titleGapPx
   SideEffect { minimize?.measure(travelPx.toFloat()) }
   val expandedProgress = remember { mutableFloatStateOf(0f) }
+  // F6B.15: la fila delle pillole sotto il campo aperto in alto (il tablet): la lista le lascia il posto, letto in misura.
+  val topPills = floatingSearch?.takeIf { !it.occupiesBottom && it.spec.filters != null }?.growth
   val listPadding = remember(
     minimize, density, horizontalPadding, topBarHeight, bottomPadding, bottomExtra, barMinimizeAdjustsInsets, titleGapPx,
-    headerGapPx, largeTitle, pinnedSearch != null, keyboardRoom, searchRoom, searchAssumed,
+    headerGapPx, largeTitle, pinnedSearch != null, keyboardRoom, searchRoom, searchAssumed, topPills,
   ) {
     val rest = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = topBarHeight, bottom = bottomPadding + keyboardRoom)
-    if (minimize == null && searchRoom == null) rest else object : PaddingValues by rest {
+    val pillsTop: () -> Dp = { if (topPills == null) 0.dp else with(density) { topPills.pillsPx.toDp() } }
+    if (minimize == null && searchRoom == null && topPills == null) rest else object : PaddingValues by rest {
       override fun calculateBottomPadding(): Dp {
         val base = if (minimize != null && barMinimizeAdjustsInsets && bottomExtra > 0.dp)
           bottomPadding + keyboardRoom - bottomExtra * minimize.progress else bottomPadding + keyboardRoom
@@ -1264,7 +1272,7 @@ private fun FluidScreenLayout(
         return base + with(density) { searchRoom.extraPx(this, searchAssumed.toPx(), hidden).toDp() }
       }
 
-      override fun calculateTopPadding(): Dp = if (minimize == null) topBarHeight else with(density) {
+      override fun calculateTopPadding(): Dp = pillsTop() + if (minimize == null) topBarHeight else with(density) {
         val extra = headingHeightPx + titleGapPx + searchHeightPx + if (pinnedSearch != null) headerGapPx else 0
         val reduction = if (barMinimizeAdjustsInsets) minimize.offsetPx else 0f
         topBarHeight + (extra - reduction).toDp()

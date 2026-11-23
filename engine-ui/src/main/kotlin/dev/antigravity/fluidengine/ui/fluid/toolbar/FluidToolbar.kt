@@ -754,6 +754,17 @@ internal class FluidToolbarDeclaration(
   val subtitleAccent: Color? = null,
   val subtitleOrdinal: String? = null,
 ) {
+  /**
+   * **Provvisorio, fino all'unione con F6C.20** (`ViewerBottomRow.Edge`): la barra in basso tiene il margine di prima
+   * (`fluidBottomBarOffset`, 16 dp sopra la barra di sistema) invece della distanza dal bordo di F6B.15
+   * (`FluidBottomBarPlacement.ScreenEdgeDistance`). Lo accende solo il visore nel formato telefono (`FluidViewerChrome`),
+   * che non ha [viewerLayout] (quello cambia anche le metriche): così i visori restano quelli di `be7dd5c`.
+   */
+  internal var keepsLegacyBottomLift: Boolean = false
+
+  /** La barra in basso col margine di prima: i visori ([viewerLayout], [keepsLegacyBottomLift]). */
+  internal val legacyBottomLift: Boolean get() = viewerLayout || keepsLegacyBottomLift
+
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
 
@@ -981,6 +992,20 @@ internal fun fluidToolbarGlassIds(
 }
 
 /**
+ * L'ordine di composizione dei vetri della barra (F6B.15, [FluidToolbarMemory.composeOrder]): quelli di prima che restano,
+ * nell'ordine di prima, poi quelli nuovi nell'ordine dei gruppi ([shown]). Pura.
+ */
+internal fun fluidToolbarComposeOrder(
+  previous: List<FluidToolbarGlassId>,
+  shown: List<FluidToolbarGlassId>,
+): List<FluidToolbarGlassId> {
+  val present = shown.toHashSet()
+  val kept = previous.filter { it in present }
+  val keptSet = kept.toHashSet()
+  return kept + shown.filter { it !in keptSet }
+}
+
+/**
  * La memoria della barra fra due composizioni: l'ultimo stato risolto, le identità dei suoi vetri e i tasti che stanno
  * uscendo dalla barra. Conserva il posto da cui sfumano e passa il glifo allo slot quando il vetro si posa.
  * Si aggiorna in composizione, una volta per stato risolto diverso (le ricomposizioni con lo stesso stato non la toccano).
@@ -990,6 +1015,16 @@ internal class FluidToolbarMemory {
   var resolved: FluidToolbarResolved? = null
     private set
   var glassIds: Map<FluidToolbarGroupId, FluidToolbarGlassId> = emptyMap()
+    private set
+
+  /**
+   * L'ordine in cui la barra compone i vetri (F6B.15): quello in cui sono nati, e un vetro nuovo va in fondo. La posizione
+   * sullo schermo la dà l'`offset` del gruppo, non l'ordine. Composti nell'ordine dei gruppi, un vetro che nasceva prima
+   * degli altri (la pillola di attività al posto del titolo) faceva **rifare** i gruppi dopo di lui: «Filtri» e «Altro»
+   * uscivano dal piano e rientravano nello stesso fotogramma, e il loro contenuto restava nascosto fino al passo dopo (i
+   * puntini di «Altro» spariti per un fotogramma all'avvio e alla fine della sincronizzazione, sul Tab S9 in scuro).
+   */
+  var composeOrder: List<FluidToolbarGlassId> = emptyList()
     private set
 
   /** Gli id dei tasti che c'erano nello stato di prima: un tasto nuovo in un vetro che resta entra sfocato. */
@@ -1097,6 +1132,7 @@ internal class FluidToolbarMemory {
       glassIds = ids
       settled = true
     }
+    composeOrder = fluidToolbarComposeOrder(composeOrder, next.groups.mapNotNull { glassIds[it.id] })
     resolved = next
   }
 
@@ -1498,8 +1534,10 @@ internal fun FluidToolbarGroups(
     FluidGlassContainer(Modifier.fillMaxSize().then(modalMask).then(mask), animation = animation) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       Box(Modifier.fillMaxSize()) {
-        for (group in resolved.groups) {
-          val glass = memory.glassIds[group.id] ?: continue
+        // Nell'ordine in cui i vetri sono nati, non in quello dei gruppi (F6B.15, [FluidToolbarMemory.composeOrder]).
+        val byGlass = resolved.groups.mapNotNull { group -> memory.glassIds[group.id]?.let { it to group } }.toMap()
+        for (glass in memory.composeOrder) {
+          val group = byGlass[glass] ?: continue
           key(glass) {
             FluidToolbarGroupPiece(
               group = group,

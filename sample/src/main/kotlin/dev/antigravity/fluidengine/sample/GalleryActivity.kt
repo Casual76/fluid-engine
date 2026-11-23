@@ -284,9 +284,12 @@ internal fun Gallery(
        // La matrice avvolge il contenuto e (sotto) gli host, mai la barra delle schede: quella e' chrome
        // dell'app, non il contenuto che si sta giudicando.
        MatrixScope(matrixSnapshot, matrixActive) {
+        // Lo spazio della tab bar solo dove la tab bar c'è (F6B.15): sulle pagine a finestra intera (i visori, gli elementi
+        // dinamici, la navigazione da tablet) la barra in basso delle pagine stava sopra una tab bar che non c'era, a ~101 dp
+        // dal bordo dello schermo, e la schermata disegnava il bordo dello scorrimento di una tab bar assente.
         ProvideFluidChrome(
           controller = chromeController,
-          bottomInset = FluidFloatingTabBarDefaults.ContentInset,
+          bottomInset = if (galleryShowsTabBar(nav.page)) FluidFloatingTabBarDefaults.ContentInset else 0.dp,
           scrollToTop = scrollToTop,
         ) {
           Box(
@@ -386,8 +389,7 @@ internal fun Gallery(
         }
        }
 
-        if (nav.page != GalleryPage.TabletNavigation && nav.page != GalleryPage.Visori &&
-          nav.page != GalleryPage.DynamicElements) Box(
+        if (galleryShowsTabBar(nav.page)) Box(
           modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
@@ -614,3 +616,7 @@ private fun GalleryFloatingControls(
     }
   }
 }
+
+/** Le pagine a finestra intera non hanno la tab bar della galleria (e quindi nemmeno il suo spazio): F6B.15. */
+internal fun galleryShowsTabBar(page: GalleryPage?): Boolean =
+  page != GalleryPage.TabletNavigation && page != GalleryPage.Visori && page != GalleryPage.DynamicElements

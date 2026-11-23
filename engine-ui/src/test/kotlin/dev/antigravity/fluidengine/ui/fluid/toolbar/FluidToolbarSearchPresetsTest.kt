@@ -844,7 +844,7 @@ internal object SearchPresetTraces {
       if (!word.isNullOrEmpty()) items += text(word, 46f, cy + 5.5f, color)
       val parts = toolbarSearchFieldParts(spec, w)
       val navigation = spec.navigation
-      // F6B.8b: i comandi da 44 dp con le icone da 26, «Cancella» da 36 col cerchio da 22, «Invia» un disco da 44.
+      // F6B.8b: i comandi da 44 dp con le icone da 26, «Cancella» da 36 col cerchio da 22; F6B.15: «Invia» un disco da 44.
       val a = FluidSearchFieldDefaults.ActionSize.value
       val glyph = FluidSearchFieldDefaults.CommandIconSize.value
       val inset = ToolbarSearchTrailingInset.value
@@ -867,9 +867,10 @@ internal object SearchPresetTraces {
         "w" to circle, "h" to circle, "radius" to "capsule", "color" to color + "47")
       when (trailingFace) {
         ToolbarSearchTrailingFace.Send -> {
-          items += linkedMapOf<String, Any?>("kind" to "rect", "x" to w - inset - a / 2f - 20f, "y" to cy - 20f, "w" to 40f,
-            "h" to 40f, "radius" to "capsule", "color" to accent(scene.dark))
-          items += icon("arrow_upward", w - inset - a / 2f, cy, "#FFFFFF", 22f)
+          // F6B.15: il disco da 44, largo quanto il posto, con la freccia da 24.
+          items += linkedMapOf<String, Any?>("kind" to "rect", "x" to w - inset - a, "y" to cy - a / 2f, "w" to a,
+            "h" to a, "radius" to "capsule", "color" to accent(scene.dark))
+          items += icon("arrow_upward", w - inset - a / 2f, cy, "#FFFFFF", 24f)
         }
         ToolbarSearchTrailingFace.Close -> items += icon("close", w - inset - a / 2f, cy, color, glyph)
         null -> Unit

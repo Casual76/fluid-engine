@@ -539,7 +539,7 @@ fatte io il 23 novembre seguendo Apple e il piano, e sono nel rapporto di F6B.8b
   campo nel tempo in cui il campo si apre;
 - il vetro svanisce fra il 35% e l'80% del viaggio mentre entra la tinta (al ritorno fra il 20% e il 65%): prima è tutto
   vetro, dopo tutto gettone;
-- il gettone è la capsula d'accento alta 28 dp nel campo da 48 (il `tokenBackgroundColor` di iOS è la tinta del campo),
+- il gettone è la capsula d'accento alta 28 dp nel campo (da 52 dalla F6B.15; il `tokenBackgroundColor` di iOS è la tinta del campo),
   scelto si inverte; mai più stretto di 48 dp;
 - il «cancella» a testo vuoto sceglie e poi toglie (`UISearchTextField`), il tocco toglie subito;
 - a campo chiuso o col movimento ridotto il cambio è di colpo; i gettoni a riposo si vedono nel campo ma non si toccano.
@@ -550,11 +550,29 @@ tastiera, che a testo vuoto non manda niente: il campo tiene un carattere di gua
 nascita e l'uscita sfocate, i gettoni che escono col campo che si chiude.
 
 **Cosa resta all'app.** I gettoni (`tokens`, `onTokensChange`), che cosa vogliono dire per la ricerca, e i gettoni
-suggeriti. Il campo della pagina (`FluidSearchField`) e il campo sotto il titolo (`Principal`) non li hanno: stanno nel campo
-della barra, in alto e in basso.
+suggeriti.
+
+**Negli altri campi (F6B.15).** Scelta di Alessio del 23 novembre 2026, pomeriggio: «i gettoni anche negli altri campi».
+Il **campo sotto il titolo** (`FluidSearchSpec(placement = FluidSearchPlacement.Principal, …)`, gli stessi `tokens`,
+`onTokensChange` e `filters`) e **`FluidSearchField` nella pagina** (tre parametri in coda: `tokens`, `onTokensChange`,
+`filters`) hanno lo stesso modello e lo stesso viaggio: la fila delle pillole sta **sotto** il campo ed entra col campo che si
+apre; la pillola scelta vola nel campo e diventa gettone, il gettone tolto torna pillola al suo posto, il «cancella» a testo
+vuoto sceglie e poi toglie. Senza gettoni né `filters`, `FluidSearchField` è quello di prima, nodo per nodo.
+
+```kotlin
+FluidSearchField(query, { query = it }, placeholder = "Cerca nelle note",
+  tokens = etichette, onTokensChange = { etichette = it },
+  filters = FluidFilterPresets.tokens(listOf(FluidFilterValue("casa", "Casa"), FluidFilterValue("idee", "Idee"))))
+```
+
+**Le misure dopo le riprese del 23 novembre (F6B.15).** Il campo aperto è alto **52 dp** e il gettone (28 dp) ci sta con 12 dp
+d'aria sopra e sotto; la fila delle pillole sta a 8 dp dal vetro del campo (che nella riga in alto da 46 esce di 3 dp sopra e
+sotto). Col campo in alto (il tablet) la lista lascia libera la fila, che prima copriva l'intestazione della lista.
 
 **In galleria**: `--es dynamic.scene gettoni` (Mail, «da: persona»: la ricerca in basso sul telefono, le persone sopra il
-campo). Il banco: la traccia `pillola-gettone` (e `-scuro`). La scena è in `sample/…/dynamic/FilterScenes.kt`.
+campo), `gettoni-titolo` (la stessa posta col campo sotto il titolo grande) e `gettoni-pagina` (Notes, le etichette con
+`FluidSearchField` nella pagina). Il banco: la traccia `pillola-gettone` (e `-scuro`). Le scene sono in
+`sample/…/dynamic/FilterScenes.kt` e `TokenFieldScenes.kt`.
 
 
 ## La barra sopra la tastiera

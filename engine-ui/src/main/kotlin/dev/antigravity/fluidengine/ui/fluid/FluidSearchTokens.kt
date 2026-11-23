@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.BlurEffect
@@ -587,8 +589,30 @@ internal fun ToolbarSearchTokenPills(stage: ToolbarSearchTokenStage, spec: Fluid
   val set = spec.filters ?: return
   val onChange = spec.onTokensChange
   val tokens = spec.tokens
+  val scroll = rememberScrollState()
   Row(
-    modifier.horizontalScroll(rememberScrollState()),
+    // Senza lo stiramento della piattaforma (F6B.15), come la lista di `FluidScreen`: sul Tab S9 la prima pillola di vetro
+    // della fila in alto restava un vetro vuoto, col bordo sinistro velato, mentre le altre si leggevano.
+    modifier
+      // Per le sessioni sul dispositivo (F6B.15): il dito arriva alla fila? (solo osservato, mai consumato)
+      .pointerInput(Unit) {
+        awaitPointerEventScope {
+          while (true) {
+            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("tokens.touch", scroll) {
+              "type=${event.type} at=${event.changes.firstOrNull()?.position} flights=${stage.flights.size}"
+            }
+          }
+        }
+      }
+      .horizontalScroll(scroll, overscrollEffect = null)
+      .drawWithContent {
+        // Per le sessioni sul dispositivo: dove sta la fila e quanto è scorsa.
+        dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("tokens.row", scroll) {
+          "scroll=${scroll.value}/${scroll.maxValue} width=${size.width} pills=${set.filters.size}"
+        }
+        drawContent()
+      },
     verticalAlignment = Alignment.CenterVertically,
   ) {
     for (filter in set.filters) key(filter.id) {

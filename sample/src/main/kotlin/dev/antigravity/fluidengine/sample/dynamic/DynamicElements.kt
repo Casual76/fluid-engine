@@ -134,6 +134,14 @@ internal enum class DynamicScene(
     "gettoni", DynamicElement.Filters, "«da: persona»",
     "Mail · la pillola scelta vola nel campo della ricerca e diventa gettone (F6B.8b)",
   ),
+  TokensUnderTitle(
+    "gettoni-titolo", DynamicElement.Filters, "«da: persona» sotto il titolo",
+    "Mail · i gettoni nel campo sotto il titolo grande, con lo stesso viaggio dalla pillola (F6B.15)",
+  ),
+  TokensInPage(
+    "gettoni-pagina", DynamicElement.Filters, "Le etichette delle note",
+    "Notes · i gettoni nel campo di ricerca dentro la pagina, con lo stesso viaggio dalla pillola (F6B.15)",
+  ),
   KeyboardBar(
     "tastiera", DynamicElement.KeyboardBar, "«Scrivi» con una barra per campo",
     "Mail · suggerimenti, azioni rapide, formattazione e «Fatto»; «Invia ▾» (F6B.9)",
@@ -208,6 +216,8 @@ internal fun DynamicElementsPage(onBack: () -> Unit, initial: DynamicScene? = nu
         DynamicScene.AssistantComposer -> AssistantComposerScene(onBack = close)
         DynamicScene.Filters -> FiltersScene(onBack = close)
         DynamicScene.Tokens -> TokensScene(onBack = close)
+        DynamicScene.TokensUnderTitle -> TokensUnderTitleScene(onBack = close)
+        DynamicScene.TokensInPage -> TokensInPageScene(onBack = close)
         DynamicScene.KeyboardBar -> KeyboardBarScene(onBack = close)
         DynamicScene.RichTextKeyboard -> RichTextKeyboardScene(onBack = close)
       }

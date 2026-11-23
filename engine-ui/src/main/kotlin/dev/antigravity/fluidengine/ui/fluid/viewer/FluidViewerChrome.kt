@@ -297,6 +297,8 @@ internal fun BoxScope.ViewerChrome(
     }
   }
   val accent = language?.let { MaterialTheme.colorScheme.tertiary }
+  // F6B.15, provvisorio fino all'unione con F6C.20 (`ViewerBottomRow.Edge`): la barra in basso del visore resta dov'era.
+  declarationBase.keepsLegacyBottomLift = true
   val declaration = if (!board) declarationBase else FluidToolbarDeclaration(
     declarationBase.entries, declarationBase.titleMode, declarationBase.subtitle, declarationBase.search,
     declarationBase.overflowLabel, declarationBase.keyboard, declarationBase.titleSelector, viewerLayout = true,

@@ -2114,6 +2114,18 @@ internal class FluidGlassPieceContent {
   /** Vero se c'è una registrazione da disegnare dopo che il pezzo se n'è andato. */
   val recorded: Boolean get() = layer != null
 
+  /**
+   * Il contenuto di un pezzo che rientra col suo id nello stesso fotogramma (F6B.15, `FluidGlassContainerState.attach`):
+   * il posto e l'aspetto di [twin], così si vede dove e come si vedeva. La registrazione no: si rifà al primo disegno.
+   */
+  fun inherit(twin: FluidGlassPieceContent) {
+    place = twin.place
+    placeRadii = twin.placeRadii
+    role = twin.role
+    look = twin.look
+    show(twin.flight.value)
+  }
+
   /** Riposo: nitido, al suo posto. */
   fun rest() {
     role = GlassPieceContent.Rest
@@ -2490,6 +2502,8 @@ internal class FluidGlassContainerState {
   }
 
   fun attach(piece: FluidGlassPiece) {
+    // Per le prove e le sessioni sul dispositivo (F6B.15): chi entra nel piano e chi ne esce.
+    GlassFrameDiagnostics.event("piece.attach", this) { "piece=$piece" }
     pieces += piece
     piece.content.attached = true
     // In un contenitore già a riposo il pezzo nuovo nasce da un vicino o compare per lente: il suo contenuto aspetta il
@@ -2498,11 +2512,30 @@ internal class FluidGlassContainerState {
     // aperta 5 di F3.8a) aspetta lo stesso: il vetro di riposo si pubblica al primo passo dell'orologio, e la composizione
     // che lo monta è quella del fotogramma dopo; il contenuto torna a vista nello stesso passo (`onFrame`, `rest()`), e
     // vetro e contenuto compaiono nello stesso fotogramma invece del contenuto un fotogramma prima.
-    if (renders) piece.content.hide()
+    //
+    // F6B.15: un pezzo che rientra **nello stesso fotogramma** col suo id (il nodo è stato rifatto, il vetro no: per il
+    // piano è lo stesso vetro, che non viaggia) non è un pezzo nuovo. Prende il posto e l'aspetto del gemello uscito, e il
+    // gemello non resta a vista: la sua registrazione rimanda ai layer dei figli appena rilasciati, e disegnava il vetro
+    // vuoto (i puntini di «Altro» per un fotogramma all'avvio della sincronizzazione, sul Tab S9 in scuro).
+    val twin = departedTwinOf(piece)
+    if (twin != null) {
+      departed = departed - twin
+      piece.content.inherit(twin.content)
+      twin.content.release()
+    } else if (renders) {
+      piece.content.hide()
+    }
     invalidate()
   }
 
+  /** Il pezzo uscito in questo fotogramma con lo stesso id di [piece], se c'è: vedi [attach]. */
+  private fun departedTwinOf(piece: FluidGlassPiece): FluidGlassPiece? {
+    val id = piece.attributes.id ?: return null
+    return departed.lastOrNull { it.attributes.id == id && !it.content.attached }
+  }
+
   fun detach(piece: FluidGlassPiece) {
+    GlassFrameDiagnostics.event("piece.detach", this) { "piece=$piece" }
     pieces -= piece
     registry.remove(piece)
     piece.coordinates = null

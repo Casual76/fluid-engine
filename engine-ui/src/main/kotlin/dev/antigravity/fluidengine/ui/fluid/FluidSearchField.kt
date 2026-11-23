@@ -27,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +43,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -93,11 +96,12 @@ object FluidSearchFieldDefaults {
   val ActionSize: Dp = 44.dp
 
   /**
-   * Il campo della barra aperto (F6B.8b): 48 dp, i comandi da 44 con 2 dp d'aria sopra e sotto e il bersaglio da 48 tutto
-   * dentro il vetro. Prima era 40 dp ([FluidTextFieldDefaults.MinHeight]); scelta di Alessio del 23 novembre 2026 («il campo
-   * cresce in altezza di quanto serve»). La lente a riposo resta da 46.
+   * Il campo della barra aperto: 52 dp, come [Height]. I comandi da 44 (il disco di «Invia» compreso) hanno 4 dp di vetro
+   * sopra e sotto, e il bersaglio da 48 sta tutto dentro il vetro. **Scelta di Alessio del 23 novembre 2026, pomeriggio**
+   * (F6B.15): «Invia» da 44 come gli altri comandi, col suo vetro attorno, e quindi il campo a 52. Prima 48 (F6B.8b) e 40
+   * ([FluidTextFieldDefaults.MinHeight]). La lente a riposo resta da 46.
    */
-  internal val BarFieldHeight: Dp = 48.dp
+  internal val BarFieldHeight: Dp = 52.dp
 
   /** L'icona di un comando dentro il campo (F6B.8b): 26 dp nel posto da 44, cresciuta con lui (era 24 in 40). */
   internal val CommandIconSize: Dp = 26.dp
@@ -255,6 +259,9 @@ fun FluidSearchField(
   autoFocus: Boolean = true,
   onPhoto: Boolean = false,
   keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+  tokens: List<FluidToken> = emptyList(),
+  onTokensChange: ((List<FluidToken>) -> Unit)? = null,
+  filters: FluidFilterSet? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val collapsible = onExpandedChange != null
@@ -288,6 +295,50 @@ fun FluidSearchField(
   // F2.3b: il campo possiede la sua lente e il suo testo e gira come i tasti di vetro.
   val searchInk = rememberGlassInk()
 
+  // I gettoni (F6B.15): lo stesso modello e lo stesso viaggio del campo della barra; la fila delle pillole sta sotto il
+  // campo. Solo quando l'app li dà: senza, il campo è quello di prima, nodo per nodo.
+  val withTokens = filters != null || tokens.isNotEmpty()
+  if (!withTokens) {
+    FluidSearchFieldBody(query, onQueryChange, modifier, backdrop, placeholder, labels, onSearch, onExpandedChange, navigation,
+      onPhoto, keyboardOptions, collapsible, open, progress, focus, searchInk, null, null)
+    return
+  }
+  val spec = FluidSearchSpec(query = query, onQueryChange = onQueryChange, active = open, tokens = tokens,
+    onTokensChange = onTokensChange, filters = filters)
+  val fieldTokens = rememberFluidSearchFieldTokens(spec, open)
+  FluidSearchFieldTokensFrame(fieldTokens, spec, modifier) {
+    FluidSearchFieldBody(query, onQueryChange, Modifier, backdrop, placeholder, labels, onSearch, onExpandedChange, navigation,
+      onPhoto, keyboardOptions, collapsible, open, progress, focus, searchInk, spec, fieldTokens)
+  }
+}
+
+/** Il corpo di [FluidSearchField]: il campo, con i gettoni prima del testo quando [spec] li porta (F6B.15). */
+@Composable
+private fun FluidSearchFieldBody(
+  query: String,
+  onQueryChange: (String) -> Unit,
+  modifier: Modifier,
+  backdrop: GlassBackdropState,
+  placeholder: String?,
+  labels: FluidSearchLabels,
+  onSearch: (() -> Unit)?,
+  onExpandedChange: ((Boolean) -> Unit)?,
+  navigation: FluidSearchNavigation?,
+  onPhoto: Boolean,
+  keyboardOptions: KeyboardOptions,
+  collapsible: Boolean,
+  open: Boolean,
+  progress: androidx.compose.runtime.State<Float>,
+  focus: FocusRequester,
+  searchInk: GlassInk,
+  spec: FluidSearchSpec?,
+  fieldTokens: FluidSearchFieldTokens?,
+) {
+  val scheme = MaterialTheme.colorScheme
+  val focusManager = LocalFocusManager.current
+  val keyboard = LocalSoftwareKeyboardController.current
+  val density = LocalDensity.current
+  var fieldWidthDp by remember { mutableFloatStateOf(0f) }
   SearchFieldSurface(collapsible, open, modifier, backdrop, onPhoto, searchInk, { progress.value }) { surface, planeInk ->
     Row(
       modifier = surface
@@ -308,7 +359,8 @@ fun FluidSearchField(
             Modifier
           },
         )
-        .clip(FluidCapsuleShape),
+        .clip(FluidCapsuleShape)
+        .then(if (fieldTokens == null) Modifier else Modifier.onSizeChanged { fieldWidthDp = with(density) { it.width.toDp().value } }),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       GlassInkContent(searchInk, planeInk) {
@@ -329,27 +381,51 @@ fun FluidSearchField(
             .padding(start = 10.dp, end = 6.dp),
           verticalAlignment = Alignment.CenterVertically,
         ) {
+          // I gettoni prima del testo (F6B.15): quelli che non ci stanno col testo si raccolgono in «+N».
+          val tokenSpec = spec
+          if (open && fieldTokens != null && tokenSpec != null &&
+            (tokenSpec.tokens.isNotEmpty() || fieldTokens.stage.leaving.isNotEmpty())) {
+            val commands = FluidSearchFieldDefaults.ActionSize.value * ((if (query.isNotEmpty()) 1 else 0) +
+              (if (navigation != null) 2 else 0) + (if (collapsible) 1 else 0)) + 6f
+            ToolbarSearchTokenStrip(fieldTokens.stage, tokenSpec, fluidSearchFieldTokenRoomDp(fieldWidthDp,
+              (FluidSearchFieldDefaults.IconInset + FluidSearchFieldDefaults.IconSize).value + 10f, commands),
+              interactive = open, labels = labels)
+          }
           Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (collapsible) FluidGlassContentTransition(
-              if (open && query.isEmpty()) placeholder ?: labels.search else null,
+              if (open && query.isEmpty() && spec?.tokens.isNullOrEmpty()) placeholder ?: labels.search else null,
               contentAlignment = Alignment.CenterStart,
             ) { hint ->
               if (hint != null) Text(hint, style = MaterialTheme.typography.bodyLarge,
                 color = LocalContentColor.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (open) SearchTextField(
+            val submit = {
+              if (onSearch != null) {
+                onSearch()
+              } else {
+                keyboard?.hide()
+                focusManager.clearFocus()
+              }
+            }
+            if (open && spec != null && fieldTokens != null) {
+              // L'editor coi gettoni (F6B.15): il «cancella» a testo vuoto sceglie e poi toglie l'ultimo gettone.
+              val hint = if (collapsible || spec.tokens.isNotEmpty()) "" else placeholder ?: labels.search
+              FluidSearchTokenEditor(spec, fieldTokens.stage, MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+                scheme.primary, Modifier.fillMaxWidth().focusRequester(focus), keyboardOptions,
+                KeyboardActions(onSearch = { submit() }),
+                decorationBox = { inner ->
+                  Box(contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty() && hint.isNotEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge,
+                      color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    inner()
+                  }
+                })
+            } else if (open) SearchTextField(
               query = query,
               onQueryChange = onQueryChange,
               placeholder = if (collapsible) "" else placeholder ?: labels.search,
               keyboardOptions = keyboardOptions,
-              onSearch = {
-                if (onSearch != null) {
-                  onSearch()
-                } else {
-                  keyboard?.hide()
-                  focusManager.clearFocus()
-                }
-              },
+              onSearch = submit,
               focus = focus,
               modifier = Modifier.fillMaxWidth(),
             )

@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -855,6 +856,12 @@ internal fun FluidChipCore(
     val press = rememberFluidPressState(FluidPressFeedback.Expand)
     // F2.3b: il chip possiede la sua etichetta e gira come i tasti (il chip scelto no: e' una pellicola d'accento).
     val chipInk = rememberGlassInk()
+    // Per le sessioni sul dispositivo (F6B.15): dove sta il vetro del chip (un piano, la barra ancorata, da solo).
+    val chipHome = when {
+      currentFluidGlassContainer(FluidCapsuleShape) != null -> "plane"
+      dev.antigravity.fluidengine.ui.page.LocalFluidBarPieceSink.current != null -> "bar"
+      else -> "own"
+    }
     if (menu != null) {
       SideEffect {
         menu.faceLayer = faceLayer
@@ -902,7 +909,16 @@ internal fun FluidChipCore(
           grip = FluidPressGrip.YieldsToScroll,
         )
         .padding(horizontal = FluidChipHorizontalPadding, vertical = FluidChipVerticalPadding)
-        .then(faceRecord),
+        .then(faceRecord)
+        // Per le sessioni sul dispositivo (F6B.15, la prima pillola vuota sul Tab S9): il lato e l'inchiostro del chip.
+        .drawWithContent {
+          dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("chip.ink", chipInk) {
+            val state = chipInk.state
+            "label=$label darkSide=${chipInk.darkSide} onDark=${state?.inkOnDark} alpha=${state?.inkAlpha()} side=${state?.sideNow} " +
+              "home=$chipHome press=${press.progress} size=${size.width.toInt()}x${size.height.toInt()}"
+          }
+          drawContent()
+        },
       contentAlignment = Alignment.Center,
     ) { GlassInkContent(chipInk, LocalContentColor.current) { face() } }
     return

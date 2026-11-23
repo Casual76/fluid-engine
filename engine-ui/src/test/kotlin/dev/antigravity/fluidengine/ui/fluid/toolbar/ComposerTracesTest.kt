@@ -19,7 +19,7 @@ internal class ComposerTracesTest {
   private fun GlassTrace.layers(ms: Double, element: String = "contenuto"): List<Map<String, Any?>> =
     frames.minBy { abs(it.tMs - ms) }.elements.first { it["name"] == element }["content"] as List<Map<String, Any?>>
 
-  // F6B.8b: il campo aperto è alto 48 dp (scelta di Alessio del 23 novembre 2026, «tasti più grandi»); prima 40.
+  // Il campo aperto è alto 52 dp (F6B.15, «Invia» da 44; 48 in F6B.8b, 40 prima).
   private val row = FluidSearchFieldDefaults.BarFieldHeight.value
 
   @Test fun theLinesTraceGrowsUpwardWithTheBottomStillAndScrollsPastTheLimit() {
@@ -27,7 +27,7 @@ internal class ComposerTracesTest {
     val bottoms = trace.frames.map { frame -> (frame.elements.first { it["name"] == "misure" }["campoBasso"] as Number).toFloat() }
     // La tastiera è su: il bordo basso del vetro non si muove mai.
     assertTrue(bottoms.all { abs(it - bottoms.first()) < 0.01f })
-    // Una riga: 48 dp; con più righe i due margini da 8 e 23 dp per riga (bodyLarge), con la molla, fino a cinque.
+    // Una riga: 52 dp; con più righe i due margini da 8 e 23 dp per riga (bodyLarge), con la molla, fino a cinque.
     fun lines(n: Int) = 2 * 8f + 23f * n
     assertEquals(row, trace.measure(300.0, "campoAltezza"), 0.05f)
     assertEquals(lines(2), trace.measure(780.0, "campoAltezza"), 0.3f)
@@ -102,9 +102,13 @@ internal class ComposerTracesTest {
   /** Scrive le tracce del banco con `GLASS_F6B7_DIR` (piano 4.3): `<cartella>/f6b-7/<nome>/trace.json`. */
   @Test fun exportTheBenchTraces() {
     val dir = GlassTraceOutput.requestedDir(System.getenv("GLASS_F6B7_DIR")) ?: return
+    // F6B.15: `GLASS_F6B7_ONLY` (nomi separati da virgole) ne scrive solo alcune, una per volta: l'alone scuro finiva la
+    // memoria della JVM dei test (F6B.13), e con le altre tracce in memoria anche le chiare.
+    val only = System.getenv("GLASS_F6B7_ONLY")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
     for (scene in ComposerTraces.scenes()) {
-      val trace = ComposerTraces.build(scene)
-      trace.write(GlassTraceOutput.fileFor(dir, trace))
+      if (only != null && scene.name !in only) continue
+      ComposerTraces.build(scene).let { trace -> trace.write(GlassTraceOutput.fileFor(dir, trace)) }
+      System.gc()
     }
   }
 }

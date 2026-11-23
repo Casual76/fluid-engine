@@ -1205,7 +1205,8 @@ private class DrawBackdropNode(
                     }
                     recordedLogicalSize = size
                     GlassFrameDiagnostics.event("capture", this@DrawBackdropNode) {
-                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region"
+                        // F6B.15: anche dove sta il vetro (nella radice), per riconoscerlo sul dispositivo.
+                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region at=$selfOffset"
                     }
                     recordedScale = contentScale
                     recordedSize = recordSize

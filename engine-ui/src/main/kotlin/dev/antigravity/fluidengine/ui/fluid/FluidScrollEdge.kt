@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.isSpecified
@@ -536,6 +537,10 @@ internal fun BackdropEffectScope.glassScrollEdge(
   lean: Boolean = false,
 ) {
   if (!isRuntimeShaderSupported()) return
+  // Per le sessioni sul dispositivo (F6B.15): il colore in cui il bordo scioglie il contenuto, lo scurimento e l'intensità.
+  dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("scrollEdge", state) {
+    "top=$top veil=#${Integer.toHexString(veil.toArgb())} dark=$darkContent amount=$amount size=${size.width}x${size.height}"
+  }
   padding = 0f
   // F7.4: senza niente da mostrare (intensità zero, da una parte e dall'altra del taglio) la striscia esce trasparente
   // comunque; qui lo fa un filtro di colore invece di due passate da 41 letture. Conta per il materiale esportato, che i

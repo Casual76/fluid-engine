@@ -39,10 +39,66 @@ internal fun fluidBottomBarMetrics(): FluidToolbarMetrics = fluidToolbarMetrics(
   itemPitchDp = FluidFloatingCapsuleDefaults.ActionSize.value,
 )
 
-/** La quota già occupata dalla navigazione resta sotto i comandi, anche con un inset fornito dall’app. */
+/**
+ * Dove sta la barra degli strumenti in basso delle pagine (F6B.15): **una misura sola**, condivisa dalla barra in basso
+ * dichiarata ([FluidBottomBar]: Posta, la selezione che non prende la tab bar, «Invia»…), dal campo che occupa la riga in
+ * basso (`FluidToolbarSearchOverlay`), dallo spazio che la lista le lascia ([fluidBottomBarExtraInset]) e, da F6C.20,
+ * dalla barra in basso dei visori. La tab bar non la usa: resta com'è ([FluidFloatingTabBarDefaults.BottomMargin]).
+ */
+internal object FluidBottomBarPlacement {
+  /**
+   * Dal bordo basso dello schermo al fondo del vetro dei tasti: **28 dp**. È iOS 26: il tasto tondo in basso alto 47,8 pt
+   * ha il fondo a 28 pt dal bordo dello schermo (±1,5 pt; WWDC25 219, `f9170`, misurato in
+   * `docs/liquid-glass/ricerca/icone-e-misure.md`), cioè il centro a ~52 pt, la stessa quota del centro della tab bar
+   * (20,9 + 62,6 / 2). Fiducia media. Prima la barra stava 16 dp sopra la barra di sistema: con i gesti (24 dp) il fondo a
+   * 40 dp e il centro a 64, 12 dp più su di iOS. Scelta di Alessio del 23 novembre 2026, pomeriggio: «i tasti nella parte
+   * inferiore dello schermo stanno davvero tanto in alto, troppo».
+   */
+  val ScreenEdgeDistance: Dp = 28.dp
+
+  /**
+   * Il minimo fra la barra di sistema e il vetro, quando la barra di sistema è più alta della distanza (la navigazione a
+   * tre tasti, 48 dp): 4 dp, quanto resta sopra il gesto da 24 dp. A occhio, 23 novembre 2026.
+   */
+  val NavigationClearance: Dp = 4.dp
+}
+
+/**
+ * Lo spazio fra la barra di sistema ([systemInset], già tolto da `navigationBarsPadding`) e il fondo del vetro della
+ * barra in basso, dato lo spazio che l'app riserva alla sua navigazione ([appInset], [LocalFluidBottomInset]: la tab bar).
+ * Con la tab bar la barra le sta sopra di [FluidFloatingTabBarDefaults.Spacing], come prima; senza, il fondo del vetro sta
+ * a [FluidBottomBarPlacement.ScreenEdgeDistance] dal bordo dello schermo, e mai a meno di
+ * [FluidBottomBarPlacement.NavigationClearance] dalla barra di sistema. Pura.
+ */
+internal fun fluidBottomBarLift(appInset: Dp, systemInset: Dp): Dp =
+  if (appInset > 0.dp) {
+    appInset + FluidFloatingTabBarDefaults.Spacing
+  } else {
+    maxOf(FluidBottomBarPlacement.ScreenEdgeDistance - systemInset, FluidBottomBarPlacement.NavigationClearance)
+  }
+
+/**
+ * [fluidBottomBarLift] con gli inset di adesso: quelli che posano la barra (`navigationBarsPadding`). I visori
+ * ([legacy]: `FluidToolbarDeclaration.legacyBottomLift`) tengono il margine di prima, [fluidBottomBarOffset], fino
+ * all'unione con F6C.20.
+ */
+@Composable
+internal fun fluidBottomBarLift(legacy: Boolean = false): Dp =
+  if (legacy) fluidBottomBarOffset(LocalFluidBottomInset.current)
+  else fluidBottomBarLift(LocalFluidBottomInset.current, WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+
+/** Quanto la lista aggiunge in fondo per la barra in basso, oltre alla barra di sistema e allo spazio dell'app. Pura. */
+internal fun fluidBottomBarExtraInset(appInset: Dp, systemInset: Dp): Dp =
+  fluidBottomBarLift(appInset, systemInset) + FluidFloatingCapsuleDefaults.ActionSize - appInset
+
+/**
+ * Il margine di prima (fino a F6B.14): 16 dp sopra la barra di sistema, o la tab bar più 8. Lo leggono ancora i visori
+ * (`viewer/`, che F6C.20 porta a [FluidBottomBarPlacement]); la barra in basso delle pagine usa [fluidBottomBarLift].
+ */
 internal fun fluidBottomBarOffset(navigation: Dp): Dp =
   if (navigation > 0.dp) navigation + FluidFloatingTabBarDefaults.Spacing else FluidFloatingTabBarDefaults.BottomMargin
 
+/** Lo spazio di prima per la lista, col margine di [fluidBottomBarOffset]: lo leggono ancora i visori. */
 internal fun fluidBottomBarExtraInset(navigation: Dp): Dp =
   fluidBottomBarOffset(navigation) + FluidFloatingCapsuleDefaults.ActionSize - navigation
 
@@ -77,7 +133,8 @@ internal fun FluidBottomBar(
   val appInset = LocalFluidBottomInset.current
   val systemInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
   val bottom = if (declaration?.viewerLayout == true && appInset == 0.dp) maxOf(30.dp - systemInset, 4.dp)
-    else fluidBottomBarOffset(appInset)
+    else if (declaration?.legacyBottomLift == true) fluidBottomBarOffset(appInset) // i visori, fino a F6C.20
+    else fluidBottomBarLift(appInset, systemInset)
   AnimatedVisibility(
     visibleState = visibility,
     modifier = modifier.navigationBarsPadding().padding(bottom = bottom),

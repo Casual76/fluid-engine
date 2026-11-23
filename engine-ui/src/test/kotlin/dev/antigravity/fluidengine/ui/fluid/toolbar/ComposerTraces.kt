@@ -267,19 +267,21 @@ internal object ComposerTraces {
   /** Il tasto a destra con la faccia [face], centrato in ([cx], [cy]). */
   private fun faceItems(face: Face, cx: Float, cy: Float, dark: Boolean): List<Map<String, Any?>> {
     val color = ink(dark)
-    // F6B.8b: il disco di «Invia» da 40 dp nel posto da 44, la freccia è da 22; le icone da 26.
+    // F6B.15: il disco di «Invia» da 44 dp, largo quanto il posto (scelta di Alessio del 23 novembre 2026, pomeriggio),
+    // con la freccia da 24; le icone da 26. Prima 40 e 22 (F6B.8b).
     val glyph = FluidSearchFieldDefaults.CommandIconSize.value
-    fun disc() = linkedMapOf<String, Any?>("kind" to "rect", "x" to cx - 20f, "y" to cy - 20f, "w" to 40f, "h" to 40f,
+    val d = FluidSearchFieldDefaults.ActionSize.value
+    fun disc() = linkedMapOf<String, Any?>("kind" to "rect", "x" to cx - d / 2f, "y" to cy - d / 2f, "w" to d, "h" to d,
       "radius" to "capsule", "color" to accent(dark))
     return when (face) {
       Face.Voice -> listOf(icon("mic", cx, cy, color, glyph))
       Face.Stop -> listOf(icon("stop.fill|stop", cx, cy, color, glyph))
-      Face.Send -> listOf(disc(), icon("arrow_upward", cx, cy, "#FFFFFF", 22f))
+      Face.Send -> listOf(disc(), icon("arrow_upward", cx, cy, "#FFFFFF", 24f))
       Face.Sending -> listOf(disc(),
-        linkedMapOf("kind" to "shape", "x" to cx - 11f, "y" to cy - 11f, "w" to 22f, "h" to 22f, "radius" to 11f,
+        linkedMapOf("kind" to "shape", "x" to cx - 12f, "y" to cy - 12f, "w" to 24f, "h" to 24f, "radius" to 12f,
           "stroke" to 1.6f, "color" to "#FFFFFFE6"),
-        icon("arrow_upward", cx, cy, "#FFFFFF", 12f))
-      Face.Sent -> listOf(disc(), icon("check", cx, cy, "#FFFFFF", 22f))
+        icon("arrow_upward", cx, cy, "#FFFFFF", 13f))
+      Face.Sent -> listOf(disc(), icon("check", cx, cy, "#FFFFFF", 24f))
     }
   }
 

@@ -29,6 +29,11 @@ android {
       // `Path` di Compose: sul JVM i metodi android.graphics non esistono, e qui devono solo
       // non esplodere — nessun test asserisce sui contenuti di un Path.
       returnDefaultValues = true
+      // F6B.15: una memoria più grande, solo se chiesta (`-PengineTestHeap=2g`), per esportare le tracce più pesanti del
+      // banco (l'alone del composer finisce i 512 MB di serie). Senza la proprietà i test girano come prima.
+      all { test ->
+        if (project.hasProperty('engineTestHeap')) test.maxHeapSize = project.property('engineTestHeap')
+      }
     }
   }
 

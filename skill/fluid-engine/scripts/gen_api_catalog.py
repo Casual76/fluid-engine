@@ -49,6 +49,8 @@ UI_FLUID_FILES = {
         "FluidSplitButton",
         # i gettoni nel campo della ricerca e il viaggio dalla pillola (F6B.8b)
         "FluidSearchTokens",
+        # F6B.15: i gettoni nei campi fuori dalla barra (il campo sotto il titolo e FluidSearchField nella pagina).
+        "FluidSearchFieldTokens",
         # i bersagli da 48 dp attorno al disegno (F6B.8b): interni, senza dichiarazioni pubbliche
         "FluidTargets",
     ],

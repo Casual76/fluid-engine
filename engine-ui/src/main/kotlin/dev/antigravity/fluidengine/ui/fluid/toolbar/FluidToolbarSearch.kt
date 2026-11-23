@@ -7,6 +7,7 @@ import android.os.Build
 import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
@@ -55,6 +56,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
@@ -175,6 +177,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainWidth
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
@@ -210,6 +213,10 @@ import dev.antigravity.fluidengine.ui.fluid.ToolbarSearchTokenFlights
 import dev.antigravity.fluidengine.ui.fluid.ToolbarSearchTokenPills
 import dev.antigravity.fluidengine.ui.fluid.ToolbarSearchTokenStage
 import dev.antigravity.fluidengine.ui.fluid.ToolbarSearchTokenStrip
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidSearchFieldTokens
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchFieldTokensFrame
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchTokenEditor
+import dev.antigravity.fluidengine.ui.fluid.fluidSearchFieldTokenRoomDp
 import dev.antigravity.fluidengine.ui.fluid.TokenSentinel
 import dev.antigravity.fluidengine.ui.fluid.fluidControlGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluid.fluidDisjointTargets
@@ -511,6 +518,8 @@ internal fun FluidToolbarSearchOverlay(
   minimize: FluidToolbarMinimizeProgress?,
 ) {
   val active = search.spec.active
+  // F6B.15: con un campo nella barra la finestra non si sposta mai sopra la barra in alto (niente `adjustPan`).
+  FluidFieldKeepsWindow()
   val bottom = search.occupiesBottom
   val keyboardDock = LocalFluidKeyboardDock.current?.takeIf { it.visible && bottom }
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
@@ -518,8 +527,8 @@ internal fun FluidToolbarSearchOverlay(
     if (reduced) snap() else FluidMotion.standard(), label = "search keyboard position")
   val metrics = toolbarSearchMetrics(search)
   val rowHeight = metrics.buttonWidthDp.dp
-  val appInset = LocalFluidBottomInset.current
-  val bottomPadding = fluidBottomBarOffset(appInset)
+  // F6B.15: il campo in basso sta nella riga della barra in basso, alla stessa distanza dal bordo dello schermo.
+  val bottomPadding = fluidBottomBarLift(legacy = declaration?.legacyBottomLift == true)
   val reserved = PaddingValues(bottom = bottomPadding)
   // Il campo che cresce (F6B.7): quanto il suo vetro supera la riga (della schermata, F6B.13), e dove sta il vetro per
   // l'alone.
@@ -584,21 +593,35 @@ internal fun FluidToolbarSearchOverlay(
       // I gettoni suggeriti (F6B.8b): la fila delle pillole accanto al campo aperto, la più vicina al campo.
       val pills = active && !fluidSearchGrows(search.spec) &&
         (FluidSearchTokenRules.pills(search.spec.filters, search.spec.tokens).isNotEmpty() || tokens.flights.isNotEmpty())
-      if (active && (search.spec.suggestions != null || pills)) {
+      // F6B.15: la fila entra col campo che si apre, sfocata (R7, chi nasce senza predecessore), e non in un fotogramma;
+      // la lista le lascia il posto per quanto è entrata.
+      val pillsIn = remember { Animatable(if (pills) 1f else 0f) }
+      LaunchedEffect(pills, reduced) {
+        val to = if (pills) 1f else 0f
+        if (reduced) pillsIn.snapTo(to) else pillsIn.animateTo(to, ToolbarSearchTiming)
+      }
+      val pillsShown = pills || pillsIn.value > 0f
+      if (!pillsShown) SideEffect { growth.pillsPx = 0f }
+      // Il campo aperto (52 dp) esce dalla riga (46 in alto, 48 in basso): la fila sta a `PillsToField` dal suo vetro.
+      val fieldOverhang = ((FluidSearchFieldDefaults.BarFieldHeight - rowHeight) / 2).coerceAtLeast(0.dp)
+      // La fila esce anche quando il campo si chiude: resta composta finché non è uscita.
+      if (active && search.spec.suggestions != null || pillsShown) {
         Box(Modifier.align(if (bottom) Alignment.BottomCenter else Alignment.TopCenter)
           .padding(horizontal = FluidMetrics.ScreenEdgeMargin)
-          .padding(top = if (bottom) 0.dp else rowHeight, bottom = if (bottom) rowHeight else 0.dp)
+          .padding(top = if (bottom) 0.dp else rowHeight + fieldOverhang, bottom = if (bottom) rowHeight + fieldOverhang else 0.dp)
           // Sopra (o sotto) il campo cresciuto, non sotto il suo vetro (F6B.7).
           .offset { IntOffset(0, growth.extra.value.roundToInt().let { if (bottom) -it else it }) }) {
           Column {
             val row: @Composable () -> Unit = {
               // Larga quanto la riga e allineata all'inizio: la fila che si richiude non si ricentra.
-              if (pills) ToolbarSearchTokenPills(tokens, search.spec, Modifier.fillMaxWidth().padding(
-                top = if (bottom) 0.dp else FluidSearchTokenDefaults.PillsToField,
-                bottom = if (bottom) FluidSearchTokenDefaults.PillsToField else 0.dp))
+              if (pillsShown) ToolbarSearchTokenPills(tokens, search.spec, Modifier.fillMaxWidth()
+                .toolbarSearchPillsRoom(growth, { pillsIn.value })
+                .padding(top = if (bottom) 0.dp else FluidSearchTokenDefaults.PillsToField,
+                  bottom = if (bottom) FluidSearchTokenDefaults.PillsToField else 0.dp)
+                .toolbarSearchPillsEntry { pillsIn.value })
             }
             if (!bottom) row()
-            search.spec.suggestions?.invoke()
+            if (active) search.spec.suggestions?.invoke()
             if (bottom) row()
           }
         }
@@ -608,6 +631,39 @@ internal fun FluidToolbarSearchOverlay(
     }
   }
 }
+
+/**
+ * La fila delle pillole che entra ed esce col campo (F6B.15): l'aspetto di chi nasce senza predecessore (R7 A6:
+ * opacità, scala da 0,75 e sfocatura, `GlassContentRole.Born`) sulla fase [u] (0..1, la curva del campo che si apre).
+ * Prima la fila compariva intera nel fotogramma del tocco (il Tab S9, la scena `gettoni`).
+ */
+internal fun Modifier.toolbarSearchPillsEntry(u: () -> Float): Modifier = graphicsLayer {
+  val phase = u().coerceIn(0f, 1f) * GlassContentDefaults.EnterEnd
+  val blurAvailable = Build.VERSION.SDK_INT >= 31
+  alpha = GlassContentCurves.alpha(GlassContentRole.Born, phase, blurAvailable)
+  scaleX = GlassContentCurves.scale(GlassContentRole.Born, phase)
+  scaleY = scaleX
+  val radius = glassContentBlurRadiusPx(glassContentSigmaPx(GlassContentCurves.blur(GlassContentRole.Born, phase) *
+    GlassContentDefaults.PeakBlur, FluidSearchFieldDefaults.IconSize.toPx()))
+  renderEffect = if (blurAvailable && radius > 0.05f) BlurEffect(radius, radius, TileMode.Decal) else null
+}
+
+/**
+ * Lo spazio della fila delle pillole per la lista (F6B.15, [ToolbarSearchGrowth.pillsPx]): l'altezza della fila con la
+ * sua aria verso il campo, più `FluidSearchTokenDefaults.PillsToField` verso la lista, per quanto è entrata ([u]).
+ * Scritto in misura.
+ */
+internal fun Modifier.toolbarSearchPillsRoom(growth: ToolbarSearchGrowth, u: () -> Float): Modifier =
+  layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val gap = FluidSearchTokenDefaults.PillsToField.toPx()
+    growth.pillsPx = toolbarSearchPillsRoomPx(placeable.height.toFloat(), gap, u())
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+  }
+
+/** Lo spazio della fila per la lista, in px: la fila ([rowPx], con l'aria verso il campo) più [gapPx], per [u]. Pura. */
+internal fun toolbarSearchPillsRoomPx(rowPx: Float, gapPx: Float, u: Float): Float =
+  (rowPx + gapPx).coerceAtLeast(0f) * u.coerceIn(0f, 1f)
 
 // ================================================================================================================
 // Il campo che cresce (F6B.7)
@@ -671,6 +727,14 @@ internal class ToolbarSearchGrowth {
 
   /** Il vetro oltre la riga adesso, in px. */
   val extra = Animatable(0f)
+
+  /**
+   * Lo spazio che la fila delle pillole (i gettoni suggeriti, F6B.8b) prende accanto al campo aperto, in px: la sua
+   * altezza con l'aria verso il campo e verso la lista, per quanto la fila è entrata (0..1). La lista lo lascia libero dal
+   * lato del campo (F6B.15): sul tablet, col campo in alto, la fila copriva l'intestazione «Tutta la posta». Scritto
+   * dalla sovrapposizione in misura, letto dalla lista in misura: non ricompone la pagina.
+   */
+  var pillsPx by mutableFloatStateOf(0f)
 
   private var followers by mutableIntStateOf(0)
 
@@ -759,6 +823,116 @@ internal fun toolbarSearchRowBottomPx(
 }
 
 /**
+ * Il modo della tastiera di una finestra con un campo nella barra (F6B.15): `adjustPan`, o nessun modo dichiarato (che
+ * Android risolve in `adjustPan` per una finestra Compose), diventa un modo che non sposta la finestra; gli altri restano.
+ * Pura: [mode] è `WindowManager.LayoutParams.softInputMode` (restano anche i bit dello stato e `isForwardNavigation`), [sdk]
+ * il livello di API.
+ *
+ * Perché: con la tastiera su, in `adjustPan`, Android sposta in su l'intera finestra per mostrare il cursore, e la barra in
+ * alto (con la pillola di attività) esce dallo schermo (F6B.13, il Tab S9 con l'assistente). **Scelta di Alessio del 23
+ * novembre 2026, pomeriggio**: «la pillola dell'assistente non esce mai dallo schermo»; l'engine lo fa da solo, senza
+ * chiederlo all'app.
+ *
+ * Quale modo: **`adjustNothing` da Android 11 (API 30)**, `adjustResize` prima. Con `adjustNothing` la finestra resta ferma e
+ * la tastiera arriva come inset, che il campo e la lista leggono già (F4B.2, F6B.9, F6B.13): è la stessa scelta del visore di
+ * testo durante «trova» (`FluidTextPreset`), e non dipende da come il sistema tratta `adjustResize` in una finestra edge-to-edge.
+ * Il modo deve anche arrivare al window manager: vedi `FluidFieldWindowLease.push` (sul Tab S9 restava nella `Window`).
+ */
+internal fun fluidFieldSoftInputMode(mode: Int, sdk: Int = Build.VERSION.SDK_INT): Int {
+  val adjust = mode and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST
+  if (adjust != WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN &&
+    adjust != WindowManager.LayoutParams.SOFT_INPUT_ADJUST_UNSPECIFIED) return mode
+  val still = if (sdk >= 30) WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+  return (mode and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or still
+}
+
+/**
+ * Chi tiene la finestra ferma (F6B.15), una finestra alla volta: il primo campo che entra cambia il modo
+ * ([fluidFieldSoftInputMode]) e ricorda quello di prima, l'ultimo che esce lo rimette. Due schermate col campo (lista e
+ * dettaglio, una pagina che entra sopra un'altra) non si rubano il modo a vicenda; e se nel frattempo qualcun altro ha
+ * cambiato il modo (il visore di testo durante «trova» lo porta a `adjustNothing`), all'uscita non lo si tocca.
+ */
+internal object FluidFieldWindowLease {
+  private class Lease(val previous: Int, val applied: Int) { var holders = 0 }
+  private val leases = java.util.WeakHashMap<android.view.Window, Lease>()
+
+  fun acquire(window: android.view.Window, view: android.view.View? = null) {
+    val lease = leases.getOrPut(window) {
+      val previous = window.attributes.softInputMode
+      val applied = fluidFieldSoftInputMode(previous)
+      if (applied != previous) {
+        window.setSoftInputMode(applied)
+        view?.post { push(window, view) }
+      }
+      Lease(previous, applied)
+    }
+    lease.holders++
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("window.field", window) {
+      "acquire holders=${lease.holders} previous=0x${Integer.toHexString(lease.previous)} applied=0x${Integer.toHexString(lease.applied)} now=0x${Integer.toHexString(window.attributes.softInputMode)}"
+    }
+  }
+
+  fun release(window: android.view.Window, view: android.view.View? = null) {
+    val lease = leases[window] ?: return
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("window.field", window) {
+      "release holders=${lease.holders - 1} now=0x${Integer.toHexString(window.attributes.softInputMode)}"
+    }
+    if (--lease.holders > 0) return
+    leases.remove(window)
+    if (lease.applied != lease.previous && window.attributes.softInputMode == lease.applied) {
+      window.setSoftInputMode(lease.previous)
+      if (view != null) push(window, view)
+    }
+  }
+
+  /**
+   * Porta il modo della [window] alla finestra che ospita davvero la vista ([view], la radice) e al window manager, con
+   * `updateViewLayout` dopo il fotogramma in corso. Perché: sul Tab S9 (Android 16) `Window.setSoftInputMode` chiamato
+   * mentre Compose compone il primo fotogramma restava nella `Window` (`window.field … now=0x130`) e non arrivava mai al
+   * window manager: `dumpsys window` dava ancora gli attributi dell'avvio, `sim={adjust=pan forwardNavigation}` (il bit
+   * `forwardNavigation` c'è solo prima del primo fuoco), e la finestra si spostava con la tastiera. La riga `window.push`
+   * dice se la radice è la decor della finestra e se i parametri sono gli stessi.
+   */
+  private fun push(window: android.view.Window, view: android.view.View) {
+    val root = view.rootView
+    val params = root.layoutParams as? WindowManager.LayoutParams
+    val wanted = window.attributes.softInputMode and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("window.push", window) {
+      "decor=${root === window.peekDecorView()} sameParams=${params === window.attributes} attached=${root.isAttachedToWindow} " +
+        "root=0x${params?.softInputMode?.let(Integer::toHexString)} wanted=0x${Integer.toHexString(wanted)}"
+    }
+    if (params == null || !root.isAttachedToWindow) return
+    params.softInputMode = (params.softInputMode and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or wanted
+    runCatching { view.context.getSystemService(WindowManager::class.java)?.updateViewLayout(root, params) }
+  }
+}
+
+/**
+ * La finestra che non si sposta mentre la schermata ha un campo nella barra (F6B.15): vedi [fluidFieldSoftInputMode] e
+ * [FluidFieldWindowLease]. Un'app che dichiara già `adjustResize` (o `adjustNothing`) non cambia; una che mette
+ * `imePadding()` attorno alla schermata resta sopra la tastiera come prima, e la tastiera non si conta due volte (F6B.13).
+ */
+@Composable
+internal fun FluidFieldKeepsWindow() {
+  // La finestra dalla vista di Compose, non da `LocalActivity`: chi sostituisce `LocalContext` (la galleria, per la densità
+  // e il testo della matrice) la nasconderebbe, e il modo non cambierebbe (sul Tab S9 restava `adjust=pan`).
+  val view = LocalView.current
+  val window = remember(view) { view.context.fluidFindActivity()?.window ?: (view.rootView.context as? android.app.Activity)?.window }
+    ?: LocalActivity.current?.window ?: return
+  DisposableEffect(window, view) {
+    FluidFieldWindowLease.acquire(window, view)
+    onDispose { FluidFieldWindowLease.release(window, view) }
+  }
+}
+
+/** L'Activity dietro un contesto, attraverso i `ContextWrapper` (F6B.15). */
+private tailrec fun android.content.Context.fluidFindActivity(): android.app.Activity? = when (this) {
+  is android.app.Activity -> this
+  is android.content.ContextWrapper -> baseContext?.fluidFindActivity()
+  else -> null
+}
+
+/**
  * Quanto Android ha spostato in su la finestra (`adjustPan`), in px (F6B.13). Pura. [windowTopPx] è il bordo alto della
  * finestra sullo schermo, [rootTopPx] quello della vista radice: spostata, la radice sta più in alto della finestra.
  */
@@ -800,7 +974,7 @@ internal class ToolbarSearchListRoom(
   /** La quota della barra sopra la tastiera, quando la barra è in vista e il campo le sta sopra (F6B.9). */
   internal var dock by mutableStateOf<WindowInsets?>(null)
 
-  /** Il margine della barra in basso sopra la barra di sistema (`fluidBottomBarOffset`). */
+  /** Il margine della barra in basso sopra la barra di sistema (`fluidBottomBarLift`, F6B.15). */
   internal var rest by mutableStateOf(0.dp)
 
   /**
@@ -833,7 +1007,8 @@ internal class ToolbarSearchListRoom(
     )
     val metrics = if (atBottom) fluidBottomBarMetrics() else fluidToolbarMetrics()
     val rowHeight = with(density) { metrics.buttonWidthDp.dp.toPx() }
-    val top = row + rowHeight + (growth?.extra?.value ?: 0f).coerceAtLeast(0f)
+    // F6B.15: sopra il campo in basso anche la fila delle pillole, quando c'è.
+    val top = row + rowHeight + (growth?.extra?.value ?: 0f).coerceAtLeast(0f) + (growth?.pillsPx ?: 0f)
     return toolbarSearchListExtraPx(top, assumedPx, hidden)
   }
 }
@@ -851,7 +1026,9 @@ internal fun Modifier.fluidConsumedInsets(onChange: (WindowInsets) -> Unit): Mod
  * schermata, se c'è: quando è in vista il campo le sta sopra, come lo posa [FluidToolbarSearchOverlay].
  */
 @Composable
-internal fun rememberToolbarSearchListRoom(search: ToolbarSearch, dock: FluidKeyboardDock?): ToolbarSearchListRoom {
+internal fun rememberToolbarSearchListRoom(
+  search: ToolbarSearch, dock: FluidKeyboardDock?, legacyBottomLift: Boolean = false,
+): ToolbarSearchListRoom {
   val keyboard = rememberFluidKeyboardQuota()
   val navigation = WindowInsets.navigationBars
   val room = remember(keyboard, navigation) { ToolbarSearchListRoom(keyboard, navigation) }
@@ -879,7 +1056,7 @@ internal fun rememberToolbarSearchListRoom(search: ToolbarSearch, dock: FluidKey
       room.panPx = 0
     }
   }
-  val rest = fluidBottomBarOffset(LocalFluidBottomInset.current)
+  val rest = fluidBottomBarLift(legacyBottomLift)
   val dockInsets = dock?.takeIf { it.visible && search.occupiesBottom }?.insets
   val bottom = search.occupiesBottom
   val atBottom = search.atBottom
@@ -1048,18 +1225,22 @@ internal fun toolbarSearchFieldParts(spec: FluidSearchSpec, widthDp: Float): Too
 }
 
 /**
- * Il disco di «Invia»: il tasto pieno d'accento nel posto di un comando. 40 dp con la freccia da 22 nel posto da 44 (F6B.8b,
- * scelta di Alessio del 23 novembre 2026, «tasti più grandi»); prima 30 e 18 (a occhio, F6B.6). Un disco da 44 toccava il
- * bordo del vetro da 48 (la tavola prima/dopo di F6B.8b): con 40 e [ToolbarSearchTrailingInset] ha 4 dp d'aria tutto intorno.
+ * Il disco di «Invia»: il tasto pieno d'accento nel posto di un comando, **largo quanto il posto**, 44 dp
+ * ([FluidSearchFieldDefaults.ActionSize]), con la freccia da 24. **Scelta di Alessio del 23 novembre 2026, pomeriggio**
+ * (F6B.15): «Invia» da 44 come gli altri comandi, col suo vetro attorno; il campo aperto cresce a 52
+ * ([FluidSearchFieldDefaults.BarFieldHeight]) e con [ToolbarSearchTrailingInset] il disco ha 4 dp di vetro tutto intorno.
+ * Prima 40 e 22 (F6B.8b) e 30 e 18 (F6B.6). La freccia sta nel disco nella proporzione di prima (22 su 40): **a occhio**,
+ * 23 novembre 2026.
  */
-private val SearchSendDisc = 40.dp
-private val SearchSendGlyph = 22.dp
+private val SearchSendDisc = FluidSearchFieldDefaults.ActionSize
+private val SearchSendGlyph = 24.dp
 
 /**
- * L'aria fra l'ultimo comando e il bordo del vetro (F6B.8b): 2 dp, perché il disco di «Invia» abbia lo stesso margine a destra,
- * sopra e sotto. A occhio, 23 novembre 2026.
+ * L'aria fra l'ultimo comando e il bordo del vetro: 4 dp, perché il disco di «Invia» da 44 abbia lo stesso margine a
+ * destra, sopra e sotto nel campo da 52 ((52 − 44) / 2). F6B.15, 23 novembre 2026; prima 2 dp (F6B.8b, il disco da 40 nel
+ * campo da 48).
  */
-internal val ToolbarSearchTrailingInset = 2.dp
+internal val ToolbarSearchTrailingInset = 4.dp
 
 /** Il cerchio di «Cancella» (`SearchClearButton`). */
 private val ToolbarSearchClearGlyphDp = FluidSearchFieldDefaults.ClearGlyph.value
@@ -1213,7 +1394,7 @@ private fun ToolbarSearchField(
     wasActive = active
   }
   val lens = FluidMetrics.GlassButtonLens
-  // F6B.8b: aperto il campo è alto 48 dp (prima 40), per i comandi da 44.
+  // Aperto il campo è alto 52 dp (F6B.15; 48 in F6B.8b, 40 prima), per i comandi da 44 e il disco di «Invia» da 44.
   val targetHeight = if (pose.compact) lens else FluidSearchFieldDefaults.BarFieldHeight
   val nativePlane = LocalFluidGlassContainer.current?.renders == true
   val motion = LocalFluidMotionPolicy.current
@@ -1300,9 +1481,10 @@ private fun ToolbarSearchField(
   val boxX = x - (boxWidth - width) / 2f
   // I bersagli dei comandi a destra (F6B.8b): fino a 48 dp attorno al disegno, disgiunti; dopo il vetro fino al vicino.
   val commandTargets = toolbarSearchCommandTargets(spec, pose, face, toolbarSearchFreeEndDp(pose))
-  // Alta 48 anche nella riga in alto da 46 (F6B.8b): il campo aperto da 48 e il bersaglio della lente escono di 1 dp sopra
-  // e sotto, come i bersagli dei tasti della barra.
-  Box(modifier.offset(x = boxX.dp).width(boxWidth.dp).requiredHeight(FluidMetrics.TouchTarget)
+  // Alta quanto il campo aperto (52 dp, F6B.15) anche nella riga in alto da 46: il campo esce di 3 dp sopra e sotto, e il
+  // bersaglio della lente da 48 di 1 dp, come i bersagli dei tasti della barra (F6B.8b).
+  Box(modifier.offset(x = boxX.dp).width(boxWidth.dp)
+    .requiredHeight(maxOf(FluidMetrics.TouchTarget, FluidSearchFieldDefaults.BarFieldHeight))
     .then(target), contentAlignment = Alignment.Center) {
     if (!fluidSearchGrows(spec)) {
       // Il campo di una riga: quello di F6B.6, al pixel. Il ritaglio sta sul disegno e non su un livello (F6B.8b): i
@@ -1589,7 +1771,7 @@ private fun SearchSendButton(
   val scheme = MaterialTheme.colorScheme
   val preset = if (stateful) rememberSearchSendPreset() else null
   val labels = LocalFluidActionLabels.current
-  // F6B.8b: il bersaglio da 48 dp attorno al posto da 40 (il disco da 30 resta da 30).
+  // Il bersaglio da 48 dp attorno al posto da 44, che il disco riempie (F6B.15).
   val outset = if (onClick == null) null else LocalFluidTargetOutset.current?.takeUnless { it.isZero }
   val press = if (onClick == null) Modifier.clearAndSetSemantics { } else Modifier
     .fluidPressable(onClick = { if (sending.acceptsTap) onClick() }, role = Role.Button, focusShape = FluidCapsuleShape,
@@ -1682,7 +1864,8 @@ private fun ToolbarSearchGhost(ghost: ToolbarSearchGhostState, namespace: FluidG
   val prompt = spec.prompt ?: if (purposeSearch) SearchLabels.search else LocalFluidLabels.current.message
   val lens = FluidMetrics.GlassButtonLens
   val actionSize = FluidSearchFieldDefaults.ActionSize
-  Box(Modifier.offset(x = pose.left.dp).width(pose.width.dp).requiredHeight(FluidMetrics.TouchTarget).clearAndSetSemantics { }
+  Box(Modifier.offset(x = pose.left.dp).width(pose.width.dp)
+    .requiredHeight(maxOf(FluidMetrics.TouchTarget, FluidSearchFieldDefaults.BarFieldHeight)).clearAndSetSemantics { }
     .drawWithContent {
       // Il contenuto resta dentro il vetro che svanisce (la sagoma in volo del campo), come le facce della barra.
       val bounds = if (rtl) null else plane?.flightOf(qualified)?.bounds
@@ -1826,7 +2009,11 @@ private fun FluidToolbarPrincipalSearch(
 
   val ink = rememberGlassInk()
   val glassVisible by remember(pinned) { derivedStateOf { (pinned?.progress ?: 0f) > FluidSearchPinGlassPhase } }
-  Column(modifier.then(width)) {
+  // I gettoni anche qui (F6B.15): lo stesso modello e lo stesso viaggio del campo della barra; la fila sta sotto il campo.
+  val fieldTokens = rememberFluidSearchFieldTokens(spec, open = active)
+  var fieldWidthDp by remember { mutableFloatStateOf(0f) }
+  val density = LocalDensity.current
+  FluidSearchFieldTokensFrame(fieldTokens, spec, modifier.then(width), below = { if (active) spec.suggestions?.invoke() }) {
     Box(
       Modifier.fillMaxWidth()
         .heightIn(min = if (open) FluidSearchFieldDefaults.BarFieldHeight else FluidMetrics.GlassButtonLens)
@@ -1852,7 +2039,8 @@ private fun FluidToolbarPrincipalSearch(
       GlassInkContent(ink, LocalContentColor.current) {
         val colors = MaterialTheme.colorScheme
         Row(
-          Modifier.fillMaxWidth().heightIn(min = if (open) FluidSearchFieldDefaults.BarFieldHeight else FluidMetrics.GlassButtonLens).clip(FluidCapsuleShape),
+          Modifier.fillMaxWidth().heightIn(min = if (open) FluidSearchFieldDefaults.BarFieldHeight else FluidMetrics.GlassButtonLens).clip(FluidCapsuleShape)
+            .onSizeChanged { fieldWidthDp = with(density) { it.width.toDp().value } },
           verticalAlignment = Alignment.CenterVertically,
         ) {
           FluidIcon(
@@ -1861,22 +2049,34 @@ private fun FluidToolbarPrincipalSearch(
             modifier = Modifier.padding(start = FluidSearchFieldDefaults.IconInset).size(FluidSearchFieldDefaults.IconSize),
             tint = colors.onSurfaceVariant,
           )
+          // I gettoni prima del testo (F6B.15, come nella barra): quelli che non ci stanno col testo si raccolgono in «+N».
+          if (open && (spec.tokens.isNotEmpty() || fieldTokens.stage.leaving.isNotEmpty())) {
+            Spacer(Modifier.width(10.dp))
+            val commands = FluidSearchFieldDefaults.ActionSize.value * (1 + (if (spec.query.isNotEmpty()) 1 else 0) +
+              (if (spec.navigation != null) 2 else 0)) + (if (spec.navigation != null) ToolbarSearchCounterRoomDp else 0f)
+            ToolbarSearchTokenStrip(fieldTokens.stage, spec, fluidSearchFieldTokenRoomDp(fieldWidthDp,
+              (FluidSearchFieldDefaults.IconInset + FluidSearchFieldDefaults.IconSize).value + 10f, commands),
+              interactive = active, labels = SearchLabels)
+          }
           if (open || expansion.value > 0.001f) {
-            BasicTextField(
-              value = spec.query,
-              onValueChange = spec.onQueryChange,
-              modifier = Modifier.weight(1f).focusRequester(request).onFocusChanged { if (it.isFocused && !active) toggle(true) }.padding(horizontal = 10.dp)
+            FluidSearchTokenEditor(
+              spec = spec,
+              stage = fieldTokens.stage,
+              modifier = Modifier.weight(1f).focusRequester(request).onFocusChanged { if (it.isFocused && !active) toggle(true) }
+                .padding(horizontal = if (spec.tokens.isNotEmpty()) 0.dp else 10.dp)
+                .padding(end = if (spec.tokens.isNotEmpty()) 10.dp else 0.dp)
                 .graphicsLayer { alpha = fluidSearchContentAlpha(expansion.value) },
               textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
               singleLine = spec.maxLines <= 1,
               maxLines = spec.maxLines,
-              cursorBrush = SolidColor(colors.primary),
+              cursor = colors.primary,
               keyboardOptions = KeyboardOptions(imeAction = fluidSearchImeAction(spec)),
               keyboardActions = KeyboardActions(onSearch = { fluidSearchSubmit(spec) { close() } },
                 onDone = { fluidSearchSubmit(spec) { close() } }, onSend = { fluidSearchSubmit(spec) { close() } }),
               decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {
-                  if (spec.query.isEmpty()) Text(
+                  // Con dei gettoni il segnaposto non c'è, come in iOS: il campo dice già che cosa cerca.
+                  if (spec.query.isEmpty() && spec.tokens.isEmpty()) Text(
                     prompt,
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.onSurfaceVariant,
@@ -1910,7 +2110,6 @@ private fun FluidToolbarPrincipalSearch(
         }
       }
     }
-    if (active) spec.suggestions?.invoke()
   }
 }
 

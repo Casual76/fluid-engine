@@ -3942,8 +3942,9 @@ decodificatori.
     3D), e l'apertura parte da lì. Oggi molti tipi hanno una tessera grigia con la sigla (F6C.17).
   - **Le pagine al dp sulla tavola D**, pagina per pagina accanto alla tavola, in formato telefono; sul tablet le
     stesse forme in una colonna più larga (F6C.18).
-- **Il peso di Fluid Glass con tutti i visori** (~46 MB la bench): per lo store **APK divisi per architettura**. Si fa
-  alla prima pubblicazione con i visori, dopo aver controllato che lo store li serva.
+- **Il peso di Fluid Glass con tutti i visori** (~46 MB la bench): per lo store **solo arm64**. Alessio aveva scelto
+  gli APK divisi per architettura; il Pampa Store conosce un solo APK per versione (`apkAsset`), e alle 11 ha scelto
+  arm64 (~20 MB stimati). Si fa alla prima pubblicazione con i visori.
 
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 

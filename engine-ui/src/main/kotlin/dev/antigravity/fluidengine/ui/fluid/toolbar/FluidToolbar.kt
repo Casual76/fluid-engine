@@ -1447,22 +1447,22 @@ internal fun FluidToolbarGroups(
         menuSource.instant = false
       }
     }
-    // Il passaggio al menu salta l'animazione del piano per due fotogrammi (F5A.2); fuori da quello, la ricerca usa la
-    // sua (F4B.2) e il resto quella di serie.
+    // Il passaggio a un modale che toglie il pezzo salta l'animazione del piano per due fotogrammi.
     val animation = when {
       menuSource.instant -> FluidGlassAnimation.None
       searchField == null -> FluidGlassAnimation.Default
       else -> ToolbarSearchAnimation
     }
-    val groupLease = menuSource.groupLease
-    val heldGroup = groupLease?.let { lease -> resolved.groups.firstOrNull { memory.glassIds[it.id] == lease.first } }
-    val faces = if (heldGroup != null) rememberGraphicsLayer() else null
+    val menuLease = menuSource.menuLease
+    val heldGroup = menuLease?.let { lease -> resolved.groups.firstOrNull { memory.glassIds[it.id] == lease.first } }
+    val faces = if (heldGroup != null && menuLease?.second?.groupBounds != null) rememberGraphicsLayer() else null
     // Le facce passano anche all'host del menu, che al ritorno le disegna sopra il suo vetro (S4b, NO 4).
-    if (groupLease != null && faces != null) SideEffect { groupLease.second.groupFaces = faces }
-    // Il piano conserva il pezzo misurato e la sua registrazione. Nel disegno si cede solo la sua
-    // corsia: al ritorno capsula e facce sono già pronte, senza attendere una misura del piano.
-    val mask = if (groupLease == null || heldGroup == null || faces == null) Modifier else Modifier.drawWithContent {
-      if (!groupLease.second.hidden) {
+    if (menuLease != null && faces != null) SideEffect { menuLease.second.groupFaces = faces }
+    // Anche il tasto singolo resta misurato mentre il menu ne porta il vetro. La corsia si riapre quando
+    // l'host restituisce l'ancora, con lo stesso pezzo e la sua registrazione già pronti.
+    val mask = if (menuLease == null || heldGroup == null) Modifier else Modifier.drawWithContent {
+      val anchor = menuLease.second
+      if (!anchor.hidden) {
         drawContent()
         return@drawWithContent
       }
@@ -1475,7 +1475,7 @@ internal fun FluidToolbarGroups(
       }
       // Le facce della barra si sfocano all'andata, qui sotto il vetro del menu che nasce; al ritorno le disegna l'host
       // sopra il vetro che torna capsula (`groupFacesAbove`), e alla consegna sono quelle del pezzo vero.
-      if (!groupLease.second.groupFacesAbove() && groupLease.second.groupProgress() < FluidMotion.MenuGroupFaceProgressSpan) {
+      if (faces != null && !anchor.groupFacesAbove() && anchor.groupProgress() < FluidMotion.MenuGroupFaceProgressSpan) {
         translate(left, (size.height - faces.size.height) / 2f) { drawLayer(faces) }
       }
     }
@@ -1732,7 +1732,7 @@ private fun FluidToolbarGroupPiece(
   val primaryEntry = single?.let { declaration.buttons[it.id] }
   val leased = menuSource.anchor(glass)
   val surface = when {
-    leased != null && menuFaces == null -> FluidGlass.Identity
+    menuFaces == null && menuSource.modalOwns(glass) -> FluidGlass.Identity
     !group.sharedBackground -> FluidGlass.Identity
     // La principale è un vetro tinto (la tinta è contenuto del vetro: R7 A4); la sua icona è chiara.
     primary -> FluidGlass.Regular.tint(primaryEntry?.let { fluidToolbarTint(it, scheme.primary, scheme.error) } ?: scheme.primary).interactive()
@@ -1811,16 +1811,18 @@ internal fun FluidToolbarSelectionSlots(
   }
 }
 
-private class FluidToolbarMenuSource {
-  private var leased by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
-  val groupLease get() = leased?.takeIf { it.second.groupBounds != null }
+internal class FluidToolbarMenuSource {
+  var menuLease by mutableStateOf<Pair<FluidToolbarGlassId, FluidMenuAnchor>?>(null)
+    private set
   private var modalLeases by mutableStateOf(emptyMap<FluidToolbarGlassId, FluidMenuAnchor>())
   var instant by mutableStateOf(false)
   var handoff by mutableStateOf(0)
     private set
 
   fun anchor(glass: FluidToolbarGlassId): FluidMenuAnchor? =
-    leased?.takeIf { it.first == glass }?.second ?: modalLeases[glass]
+    menuLease?.takeIf { it.first == glass }?.second ?: modalLeases[glass]
+
+  fun modalOwns(glass: FluidToolbarGlassId): Boolean = glass in modalLeases
 
   fun transferModal(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
     if (consumed) modalLeases = modalLeases + (glass to anchor)
@@ -1831,12 +1833,8 @@ private class FluidToolbarMenuSource {
   }
 
   fun transfer(glass: FluidToolbarGlassId, anchor: FluidMenuAnchor, consumed: Boolean) {
-    if (consumed) leased = glass to anchor
-    else if (leased?.second === anchor) leased = null
-    else return
-    if (anchor.groupBounds != null) return // il pezzo resta nel piano, anche mentre lo porta il menu
-    instant = true
-    handoff++
+    if (consumed) menuLease = glass to anchor
+    else if (menuLease?.second === anchor) menuLease = null
   }
 }
 
@@ -2083,9 +2081,9 @@ private fun FluidToolbarSlot(
             declaredMenu?.anchor?.hidden == true -> 0f
             else -> dim
           }
-          if (live != null) {
-            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", live) {
-              "phase=$phase alpha=$alpha group=$liveGroup"
+          (live ?: declaredMenu?.anchor)?.let { anchor ->
+            dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("toolbar.face", anchor) {
+              "phase=$phase alpha=$alpha group=$liveGroup leased=${live != null}"
             }
           }
           val s = if (liveGroup) GlassContentCurves.scale(role, u) else 1f

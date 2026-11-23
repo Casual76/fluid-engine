@@ -198,6 +198,41 @@ class FluidSplitTitleUiTest {
     node("Altro (Condividi)").isTarget("Altro (Condividi)")
   }
 
+  @Test fun `i vetri di Allega e Invia restano sul piano mentre il loro menu e aperto e quando torna`() {
+    FluidGlassContainerDiagnostics.resetForTesting()
+    FluidGlassDiagnostics.enabled = true
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
+    show { SplitButtonScene(onBack = {}) }
+
+    val sources = listOf("allega", "invia").associateWith { name ->
+      rest.singleOrNull { it.id.toString().contains("FluidToolbarGlassId($name#") }
+        ?: error("Vetro di $name prima del menu: $rest")
+    }
+    fun assertSourceStillOnPlane(name: String) {
+      val source = sources.getValue(name)
+      val registered = rest.singleOrNull { it.id == source.id }
+        ?: error("Vetro di $name uscito dal piano: $rest")
+      assertEquals(source.bounds, registered.bounds)
+    }
+
+    val longPress = node("Allega").config[SemanticsActions.OnLongClick].action
+    compose.runOnUiThread { check(longPress?.invoke() == true) }
+    Snapshot.sendApplyNotifications()
+    advance(900)
+    assertTrue(shows("Documento"))
+    assertSourceStillOnPlane("allega")
+    tap(textNode("Documento"))
+    assertTrue(shows("Allegato un documento"))
+    assertSourceStillOnPlane("allega")
+
+    tap(node("Opzioni di invio"))
+    assertTrue(shows("Programma invio"))
+    assertSourceStillOnPlane("invia")
+    tap(textNode("Programma invio"))
+    assertTrue(shows("Programmata per domani alle 8"))
+    assertSourceStillOnPlane("invia")
+  }
+
   // --- Il titolo che diventa selettore -------------------------------------------------------------------------------
 
   @Test fun `il titolo grande col disco e' un selettore che apre gli account, e la scelta cambia il titolo`() {

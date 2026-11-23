@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
@@ -23,9 +24,12 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -51,6 +55,8 @@ import androidx.compose.ui.unit.sp
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
+import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
+import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.LocalFluidThemeSides
@@ -326,16 +332,18 @@ internal fun Modifier.viewerHalo(accent: Color, corner: Dp): Modifier {
 
 @Composable
 internal fun ViewerFacts(facts: List<String>, backdrop: GlassBackdropState, modifier: Modifier = Modifier,
-  contrast: ViewerInfoText? = null, height: Dp = ViewerMixProfile.FactsHeight) {
+  contrast: ViewerInfoText? = null, height: Dp = ViewerMixProfile.FactsHeight,
+  firstFact: ViewerInfoText? = null) {
   if (facts.isEmpty()) return
   Row(modifier.horizontalScroll(rememberScrollState()).semantics { isTraversalGroup = true },
     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-    facts.forEach { fact ->
-      Box(Modifier.viewerGlass(backdrop).then(if (contrast == null) Modifier else
-        Modifier.background(contrast.support, FluidCapsuleShape)).heightIn(min = height)
+    facts.forEachIndexed { index, fact ->
+      val style = if (index == 0) firstFact ?: contrast else contrast
+      Box(Modifier.viewerGlass(backdrop).then(if (style == null) Modifier else
+        Modifier.background(style.support, FluidCapsuleShape)).heightIn(min = height)
         .padding(horizontal = ViewerMixProfile.FactPadding), contentAlignment = Alignment.Center) {
         Text(fact, style = MaterialTheme.typography.labelLarge.viewerSize(12.5f, FontWeight.SemiBold),
-          color = contrast?.ink ?: MaterialTheme.colorScheme.onSurfaceVariant)
+          color = style?.ink ?: MaterialTheme.colorScheme.onSurfaceVariant)
       }
     }
   }
@@ -345,15 +353,20 @@ internal val LocalViewerInfoPageColors = staticCompositionLocalOf<ColorScheme?> 
 
 internal data class ViewerInfoText(val ink: Color, val support: Color)
 
+private fun viewerInfoInk(surface: Color, preferred: Color): Color {
+  val darkInk = fluidContrastRatio(Color.Black, surface) >= fluidContrastRatio(Color.White, surface)
+  return if (preferred.alpha == 1f && (preferred.luminance() < surface.luminance()) == darkInk &&
+    fluidContrastRatio(preferred, surface) >= 4.55f) preferred else if (darkInk) Color.Black else Color.White
+}
+
 /**
  * Keep the theme ink where it meets WCAG AA. At the light/dark crossover use black or white:
  * fading the two inks through grey would make the letters disappear. The tint behind a label
  * is just strong enough to keep every pixel legible even over a black or white detail in the glass.
  */
 internal fun viewerInfoText(surface: Color, preferred: Color): ViewerInfoText {
-  val darkInk = fluidContrastRatio(Color.Black, surface) >= fluidContrastRatio(Color.White, surface)
-  val ink = if (preferred.alpha == 1f && (preferred.luminance() < surface.luminance()) == darkInk &&
-    fluidContrastRatio(preferred, surface) >= 4.55f) preferred else if (darkInk) Color.Black else Color.White
+  val ink = viewerInfoInk(surface, preferred)
+  val darkInk = ink.luminance() < surface.luminance()
   val worst = if (darkInk) Color.Black else Color.White
   var low = 0
   var high = 255
@@ -371,13 +384,16 @@ internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState,
   close: () -> Unit, extra: @Composable () -> Unit) {
   val page = LocalViewerInfoPageColors.current
   val overlay = LocalFluidSheetPageVeil.current
+  val glassInk = LocalContentColor.current
   if (page == null || overlay == null) {
-    ViewerInfoContents(info, backdrop, strings, close, null, null, extra)
+    ViewerInfoContents(info, backdrop, strings, close, ColorProducer { glassInk }, null, null, extra)
     return
   }
+  val appearance = LocalFluidGlassAppearance.current
   val media = info.file.kind == FluidFileKind.Image || info.file.kind == FluidFileKind.Video
-  val glass = if (media) LocalFluidThemeSides.current?.scheme(true) ?: androidx.compose.material3.darkColorScheme()
-    else MaterialTheme.colorScheme
+  val glass = if (media && appearance?.isMeasured != true)
+    LocalFluidThemeSides.current?.scheme(true) ?: androidx.compose.material3.darkColorScheme()
+  else MaterialTheme.colorScheme
   val opacity = overlay.alpha().coerceIn(0f, 1f)
   fun layer(glassColor: Color, pageColor: Color) = pageColor.copy(alpha = opacity).compositeOver(glassColor)
   val surface = layer(glass.surface, overlay.color)
@@ -385,24 +401,72 @@ internal fun ViewerInfoBody(info: FluidViewerInfo, backdrop: GlassBackdropState,
   val row = layer(glass.surfaceContainerLow, page.surfaceContainerLow)
   val preferred = if (fluidContrastRatio(glass.onSurface, surface) > fluidContrastRatio(page.onSurface, surface))
     glass else page
-  val title = remember(surface, preferred) { viewerInfoText(surface, preferred.onSurface) }
+  // The visible material is the glass plus the page veil; only the latter is absent at Medium.
+  val glassSurface = if (appearance?.isMeasured == true) {
+    val profile = LocalGlassAdaptiveHost.current?.profile ?: GlassLiquidProfile.Default
+    val level = glassLargeBodyLuma(appearance.backdropLuminance, appearance.darkness, profile)
+    Color(level, level, level)
+  } else null
+  val fallback = viewerInfoUnmeasuredSurface(info.file.kind, page.surface, glass.surface)
+  val titleInk = remember(glassInk, glassSurface, fallback, overlay) {
+    ColorProducer {
+      // Read the opacity at draw time, just like the sheet. A recomposition can land one frame later.
+      val veil = overlay.alpha().coerceIn(0f, 1f)
+      val material = glassSurface ?: lerp(fallback.first, fallback.second, overlay.enlargement())
+      if (veil == 0f && glassSurface != null) glassInk
+      else viewerInfoInk(overlay.color.copy(alpha = veil).compositeOver(material), glassInk)
+    }
+  }
+  val blur = with(LocalDensity.current) { 5.dp.toPx() }
+  val textShadow by remember(glassSurface, fallback, overlay, titleInk, blur) {
+    derivedStateOf {
+      // On legacy glass the words can cross a bright and a dark part of the backdrop in the same frame.
+      // A shadow follows the glyphs through that crossover and disappears at the resting detents.
+      if (glassSurface != null || fallback.first == fallback.second ||
+        overlay.enlargement() <= 0f || overlay.alpha() >= .95f) null
+      else {
+        val opposite = if (titleInk().luminance() > .5f) Color.Black else Color.White
+        Shadow(opposite.copy(alpha = .68f), Offset.Zero, blur)
+      }
+    }
+  }
   val fact = remember(capsule, preferred) { viewerInfoText(capsule, preferred.onSurface) }
   val rowInk = remember(row, preferred) { viewerInfoText(row, preferred.onSurface).ink }
   val colors = preferred.copy(surface = surface, surfaceContainerLow = row, surfaceContainerHigh = capsule,
     onSurface = rowInk, onSurfaceVariant = viewerInfoText(row, preferred.onSurfaceVariant).ink)
   MaterialTheme(colorScheme = colors, typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
     CompositionLocalProvider(LocalContentColor provides rowInk, LocalFluidGlassAppearance provides null,
-      LocalFluidSurfaceSide provides (title.ink.luminance() > surface.luminance())) {
-      ViewerInfoContents(info, currentCanvasBackdrop() ?: backdrop, strings, close, title, fact, extra)
+      LocalFluidSurfaceSide provides (rowInk.luminance() > row.luminance())) {
+      ViewerInfoContents(info, currentCanvasBackdrop() ?: backdrop, strings, close, titleInk, textShadow, fact, extra)
     }
+  }
+}
+
+@Composable
+private fun viewerInfoUnmeasuredSurface(kind: FluidFileKind, page: Color, theme: Color): Pair<Color, Color> {
+  if (!isRenderEffectSupported() || viewerSolidMaterial()) return theme to theme
+  val lightPage = page.luminance() > .5f
+  // Legacy glass has no probe. Its title moves into the raised photo or away from the white paper
+  // before the Large veil begins to paint. These ramps bracket the luminance crossover measured
+  // on the photo and PDF in F6C.18 v3. A sampled sheet uses its actual adaptive ink instead.
+  return when {
+    lightPage && (kind == FluidFileKind.Image || kind == FluidFileKind.Video) ->
+      Color(0xFF707070) to Color(0xFF7F7F7F)
+    !lightPage && (kind == FluidFileKind.Pdf || kind == FluidFileKind.Document ||
+      kind == FluidFileKind.Presentation) -> Color(0xFF808080) to Color(0xFF6B6B6B)
+    else -> theme to theme
   }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropState, strings: FluidViewerStrings,
-  close: () -> Unit, title: ViewerInfoText?, fact: ViewerInfoText?, extra: @Composable () -> Unit) {
+  close: () -> Unit, titleInk: ColorProducer, textShadow: Shadow?, fact: ViewerInfoText?, extra: @Composable () -> Unit) {
   val colors = MaterialTheme.colorScheme
+  val accent = remember(colors.primary, colors.surfaceContainerHigh) {
+    val surface = colors.primary.copy(alpha = .16f).compositeOver(colors.surfaceContainerHigh)
+    viewerInfoText(surface, legibleFill(colors.primary, listOf(surface), minContrast = 4.55f))
+  }
   val fileStrings = FluidUnknownPresetStrings()
   val kind = when {
     viewerIsApk(info.file) -> fileStrings.androidPackage
@@ -439,13 +503,11 @@ private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropSta
           Modifier.size(38.dp, 54.dp).clip(ContinuousCornerShape(2.dp)), contentScale = ContentScale.Fit)
         else Image(thumb, null, Modifier.size(48.dp).clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
         Column(Modifier.weight(1f).wrapContentWidth(Alignment.Start)
-          .then(if (title == null) Modifier else Modifier.background(title.support, MaterialTheme.shapes.small)
-            .padding(horizontal = 6.dp, vertical = 3.dp))
           .semantics(mergeDescendants = true) { heading() }) {
-          Text(info.title, style = MaterialTheme.typography.titleLarge.viewerSize(18f, FontWeight.Bold),
-            color = title?.ink ?: colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-          if (summary != info.title) Text(summary, style = MaterialTheme.typography.bodySmall.viewerSize(13.5f),
-            color = title?.ink ?: colors.onSurfaceVariant)
+          BasicText(info.title, style = MaterialTheme.typography.titleLarge.viewerSize(18f, FontWeight.Bold).copy(shadow = textShadow),
+            color = titleInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          if (summary != info.title) BasicText(summary, style = MaterialTheme.typography.bodySmall.viewerSize(13.5f).copy(shadow = textShadow),
+            color = titleInk)
         }
         FluidGlassIconButton(close, backdrop = backdrop, size = 32.dp) {
           Box(Modifier.fillMaxSize().then(if (fact == null) Modifier else Modifier.background(fact.support, FluidCapsuleShape)),
@@ -454,7 +516,7 @@ private fun ViewerInfoContents(info: FluidViewerInfo, backdrop: GlassBackdropSta
           }
         }
       }
-      ViewerFacts(info.facts, backdrop, Modifier.padding(top = 12.dp), contrast = fact)
+      ViewerFacts(info.facts, backdrop, Modifier.padding(top = 12.dp), contrast = fact, firstFact = accent)
       extra()
       sections.forEach { section ->
         if (section.rows.isNotEmpty() || section.content != null) {

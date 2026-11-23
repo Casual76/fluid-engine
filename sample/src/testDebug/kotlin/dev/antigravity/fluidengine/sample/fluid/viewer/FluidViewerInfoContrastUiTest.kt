@@ -42,6 +42,8 @@ import org.robolectric.annotation.GraphicsMode
 class FluidViewerInfoContrastUiTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
   private val title = "Titolo WWW"
+  private val subtitle = "Formato WWW"
+  private val accent = "Primo PPP"
   private val fact = "Fatto MMM"
 
   @Test fun lightPhoto() = inspect(photo = true, dark = false)
@@ -51,7 +53,7 @@ class FluidViewerInfoContrastUiTest {
 
   private fun inspect(photo: Boolean, dark: Boolean) {
     val file = FluidFileInfo(if (photo) "lancio.jpg" else "quaderno.pdf")
-    val info = FluidViewerInfo(file, title = title, facts = listOf(fact))
+    val info = FluidViewerInfo(file, title = title, subtitle = subtitle, facts = listOf(accent, fact))
     compose.setContent {
       FluidTheme(EngineSettings(themeMode = if (dark) ThemeMode.DARK else ThemeMode.LIGHT)) {
         val content = remember {
@@ -71,28 +73,37 @@ class FluidViewerInfoContrastUiTest {
     }
     compose.onNodeWithContentDescription("Informazioni").performClick()
     compose.waitForIdle()
-    val sheet = compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "Informazioni"), useUnmergedTree = true)
+    val pane = SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "Informazioni")
+    val sheet = compose.onNode(pane, useUnmergedTree = true)
     val medium = sheet.fetchSemanticsNode().boundsInRoot
-    val trace = mutableListOf("frame,paneTop,titleRatio,factRatio,titleInkLuma,factInkLuma")
+    val trace = mutableListOf("frame,paneTop,titleRatio,subtitleRatio,accentRatio,factRatio,titleInkLuma,factInkLuma")
     val report = System.getenv("FLUID_VIEWER_CONTRAST")?.let { folder ->
       File(folder, "${if (photo) "foto" else "pdf"}-${if (dark) "scuro" else "chiaro"}.csv")
     }
     fun sample(frame: String): Pair<Sample, Sample> {
-      val t = compose.onNodeWithText(title, useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
-      val f = compose.onNodeWithText(fact, useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+      fun inSheet(label: String) = compose.onNode(hasText(label) and hasAnyAncestor(pane), useUnmergedTree = true)
+        .fetchSemanticsNode().boundsInWindow
+      val t = inSheet(title)
+      val subtitleBounds = inSheet(subtitle)
+      val accentBounds = inSheet(accent)
+      val f = inSheet(fact)
       val shot = pixels()
       try {
         val a = contrast(shot, t)
         val b = contrast(shot, f)
+        val sub = contrast(shot, subtitleBounds)
+        val tinted = contrast(shot, accentBounds)
+        val minimum = minOf(a.ratio, b.ratio, sub.ratio, tinted.ratio)
         val top = sheet.fetchSemanticsNode().boundsInRoot.top
-        trace += "$frame,$top,${a.ratio},${b.ratio},${a.ink},${b.ink}"
-        if (minOf(a.ratio, b.ratio) < 4.5f && report != null) {
+        trace += "$frame,$top,${a.ratio},${sub.ratio},${tinted.ratio},${b.ratio},${a.ink},${b.ink}"
+        if (minimum < 4.5f && report != null) {
           report.parentFile?.mkdirs()
           File(report.parentFile, "${report.nameWithoutExtension}-$frame.png").outputStream().use {
             shot.compress(Bitmap.CompressFormat.PNG, 100, it)
           }
         }
-        assertTrue("photo=$photo dark=$dark frame=$frame title=$a ($t) fact=$b ($f)", minOf(a.ratio, b.ratio) >= 4.5f)
+        assertTrue("photo=$photo dark=$dark frame=$frame title=$a ($t) subtitle=$sub accent=$tinted fact=$b ($f)",
+          minimum >= 4.5f)
         return a to b
       } finally { shot.recycle() }
     }
@@ -101,7 +112,7 @@ class FluidViewerInfoContrastUiTest {
     fun travel(direction: String) {
       repeat(48) { frame ->
         compose.mainClock.advanceTimeByFrame()
-        if (report != null || frame in setOf(3, 7, 11, 15, 20, 27, 35, 47)) sample("$direction-$frame")
+        if (report != null || frame in setOf(3, 5, 6, 7, 11, 13, 15, 20, 27, 35, 47)) sample("$direction-$frame")
       }
     }
     fun cycle() {

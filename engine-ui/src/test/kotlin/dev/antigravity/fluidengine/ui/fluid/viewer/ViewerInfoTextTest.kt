@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ViewerInfoTextTest {
-  @Test fun titleAndFactsMeetAAEvenWhenTheGlassAndPageHaveOppositePolarity() {
+  @Test fun factCapsulesMeetAAEvenWhenTheGlassAndPageHaveOppositePolarity() {
     val surfaces = listOf(Color(0xff18191c), Color.White, Color(0xff385671), Color(0xffd9c1a0))
     val backdrops = listOf(Color.Black, Color.White, Color.Red, Color.Green, Color.Blue)
     for (start in surfaces) for (end in surfaces) for (step in 0..255) {

@@ -363,7 +363,7 @@ private data class FluidSheetScreen(val size: Size, val cornerPx: Float) {
 }
 
 /** Page colour currently drawn over the sheet's glass, including the live fade while dragging. */
-internal class FluidSheetPageVeil(val color: Color, val alpha: () -> Float)
+internal class FluidSheetPageVeil(val color: Color, val alpha: () -> Float, val enlargement: () -> Float)
 internal val LocalFluidSheetPageVeil = androidx.compose.runtime.staticCompositionLocalOf<FluidSheetPageVeil?> { null }
 
 /**
@@ -745,7 +745,13 @@ private fun FluidSheetPane(
         }
       }
       val pageVeil = remember(motion, sharedMaterial, pageInk, slide) {
-        FluidSheetPageVeil(pageInk) { paintedVeil(motion.zoomFinal.height) }
+        FluidSheetPageVeil(pageInk, alpha = { paintedVeil(motion.zoomFinal.height) }, enlargement = {
+          val stops = motion.stops
+          if (stops == null || stops.highest <= stops.lowest) 0f else {
+            val position = motion.position(stops, sink.spec?.selected)
+            ((position - stops.lowest) / (stops.highest - stops.lowest)).coerceIn(0f, 1f)
+          }
+        })
       }
       Box(
         propagateMinConstraints = true,

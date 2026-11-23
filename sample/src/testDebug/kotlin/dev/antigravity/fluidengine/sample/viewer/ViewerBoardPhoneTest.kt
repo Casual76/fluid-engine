@@ -64,7 +64,10 @@ open class ViewerBoardPhoneTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
   protected open val screen = 412
 
-  @Test fun audio() {
+  @Test fun audio() = showAudio(inspector = false)
+  @Test fun audioInfo() = showAudio(inspector = true)
+
+  private fun showAudio(inspector: Boolean) {
     val cover = image(R.drawable.viewer_campanelle_cover)
     val session = object : FluidMediaSession, FluidAudioSpeed {
       override val playing = false
@@ -85,7 +88,7 @@ open class ViewerBoardPhoneTest {
         FluidAudioChapter("Capitolo ${index + 1}", time)
       }, facts = listOf("AAC", "256 kbps"), actions = listOf(FluidViewerInfoAction("Apri con…") {}),
       audioFormat = "AAC · 256 kbps", audioOutput = {})
-    scenes("audio", info, renderer = { media, visible ->
+    scenes(if (inspector) "info-audio" else "audio", info, inspector = inspector, renderer = { media, visible ->
       FluidMediaPreset(media as FluidViewerContent.Media, visible, strings = FluidMediaPresetStrings(
         skipSeconds = 15, skipBack = "Indietro di 15 secondi", skipForward = "Avanti di 15 secondi"))
     }) { FluidViewerContent.Media(session) }
@@ -93,6 +96,17 @@ open class ViewerBoardPhoneTest {
 
   @Test fun pdf() = document(inspector = false)
   @Test fun info() = document(inspector = true)
+
+  @Test fun photoInfo() {
+    val thumbnail = image(R.drawable.viewer_rocket)
+    val info = FluidViewerInfo(FluidFileInfo("Lancio.jpg", "image/jpeg"), title = "Lancio",
+      subtitle = "Immagine JPEG · 1,2 MB", thumbnail = thumbnail, facts = listOf("JPEG", "sRGB"))
+    scenes("info-foto", info, inspector = true) {
+      FluidViewerContent.Image(1.5f) {
+        androidx.compose.foundation.Image(thumbnail, contentDescription = null, modifier = Modifier.fillMaxSize())
+      }
+    }
+  }
 
   private fun document(inspector: Boolean) {
     val cover = image(R.drawable.viewer_notes_cover)
@@ -118,7 +132,10 @@ open class ViewerBoardPhoneTest {
     scenes("testo", FluidViewerInfo(FluidFileInfo("VisoriFiles.kt"))) { FluidViewerContent.Text(source) }
   }
 
-  @Test fun executable() {
+  @Test fun executable() = showExecutable(inspector = false)
+  @Test fun executableInfo() = showExecutable(inspector = true)
+
+  private fun showExecutable(inspector: Boolean) {
     val context = compose.activity
     val apk = File.createTempFile("aggiornamento-", ".apk", context.cacheDir)
     try {
@@ -150,7 +167,7 @@ open class ViewerBoardPhoneTest {
       }
       val image = requireNotNull(actual.icon)
       assertEquals(image.width, image.height)
-      unknown("apk", actual)
+      unknown(if (inspector) "info-apk" else "apk", actual, inspector)
     } finally {
       apk.delete()
     }
@@ -159,10 +176,10 @@ open class ViewerBoardPhoneTest {
   @Test fun unknownFile() = unknown("sconosciuto",
     FluidViewerContent.Unknown(FluidFileInfo("Scena.blend", sizeBytes = 12_400_000), openWith = {}, share = {}))
 
-  private fun unknown(scene: String, file: FluidViewerContent.Unknown) {
-    val info = FluidViewerInfo(file.info, facts = if (scene == "apk")
+  private fun unknown(scene: String, file: FluidViewerContent.Unknown, inspector: Boolean = false) {
+    val info = FluidViewerInfo(file.info, thumbnail = file.icon, facts = if (scene.endsWith("apk"))
       listOf("Fluid Glass 4.0.1", "Non installata") else listOf("BLEND"))
-    scenes(scene, info, share = false, renderer = { content, _ ->
+    scenes(scene, info, inspector = inspector, share = false, renderer = { content, _ ->
       FluidUnknownPreset(content as FluidViewerContent.Unknown, firstBytes = { byteArrayOf(1, 2, 3) })
     }) { file }
   }
@@ -246,6 +263,17 @@ open class ViewerBoardPhoneTest {
         val facts = text("6 pagine")
         assertTrue("$scene $screen: $close $facts", close.bottom < facts.top)
         assertTrue(text("DOCUMENTO").top >= facts.bottom)
+      }
+      "info-audio", "info-apk", "info-foto" -> {
+        val pane = SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "Informazioni")
+        val (title, fact) = when (scene) {
+          "info-audio" -> "Lago all’alba" to "AAC"
+          "info-apk" -> "Aggiornamento.apk" to "Fluid Glass 4.0.1"
+          else -> "Lancio" to "JPEG"
+        }
+        fun inSheet(label: String) = compose.onAllNodes(hasText(label) and hasAnyAncestor(pane), useUnmergedTree = true)
+          .fetchSemanticsNodes().map { it.boundsInRoot }.filter { it.height > 0f }.minBy { it.top }
+        assertTrue(inSheet(title).bottom < inSheet(fact).top)
       }
       "testo" -> beside("Dimensione del testo", "A capo", "Trova", "Condividi")
       "apk", "sconosciuto" -> {

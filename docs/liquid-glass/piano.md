@@ -4061,6 +4061,20 @@ sfumatura di quella sopra.
 
 ### F7 · Ottimizzazione
 
+**Le indicazioni di Alessio, 23 novembre 2026** (prima di cominciare F7):
+- **Un lavoro serio, anche a costo di tanti agenti.** Parte insieme agli elementi nuovi del giro di idee, dopo la fine
+  di F6; finché F6 non è chiuso, sul tablet ha la precedenza F6.
+- **La qualità d'immagine si sacrifica il meno possibile** quando il dispositivo lo permette, ma con i consumi tenuti
+  sotto controllo: batteria e calore vanno insieme.
+- **Mai sacrificare i fotogrammi.** Un 120 FPS pulito e costante su uno schermo da 120 Hz. Contano soprattutto i picchi
+  (gli spike), più del consumo medio, che conta per la batteria.
+- **La scala automatica per le fasce più basse**, senza niente da impostare e senza che l'utente veda niente. Il caso
+  noto: un Galaxy A52s (Android 14) supporta tutto ciò che di pesante c'è nell'engine ma non ha la potenza per
+  reggerlo, e ClasseViva Expressive si chiude poco dopo l'avvio, secondo Alessio probabilmente per la RAM.
+- **Nessun dispositivo di fascia bassa per le prove**: ci sono solo il Tab S9 e il telefono, tutti e due di fascia alta,
+  con margine sul preset massimo. Per le fasce basse si va a fiducia sul codice scritto, sulle review e sulle misure che
+  si possono simulare (memoria, carico della GPU, scale ridotte).
+
 **Scopo.** Far stare tutto nel fotogramma su tablet e telefono senza cambiare ciò che si vede. **Entra**: misure su Tab S9 e
 S25; le leve; i bilanci per fotogramma; le guardie contro le regressioni di costo. **Resta fuori**: qualunque cambio di resa
 non imposto da un bilancio (e in quel caso passa da Alessio come confronto). Misura anche gli elementi di F6B (gli

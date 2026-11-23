@@ -28,12 +28,14 @@ internal val VisoreTipo.preparesDocument: Boolean
 internal const val VisoriPreparationMillis = 120L
 
 @Composable
-internal fun rememberVisoriDocuments(catalog: List<VisoreFile>, files: List<FluidViewerFile>?): FluidViewerFiles {
+internal fun rememberVisoriDocuments(catalog: List<VisoreFile>, files: List<FluidViewerFile>?,
+  scene: String = "galleria"): FluidViewerFiles {
   val context = LocalContext.current
   val list = files.orEmpty()
   fun sample(file: FluidViewerFile) = catalog[list.indexOf(file)]
   return rememberFluidViewerFiles(list,
-    openWith = { VisoriFiles.openWith(context, sample(it)) }, share = { VisoriFiles.share(context, sample(it)) })
+    openWith = { VisoriFiles.openWith(context, sample(it), scene) },
+    share = { VisoriFiles.share(context, sample(it), scene) })
 }
 
 internal class VisoriWarmPage(val source: FluidPageSource, size: IntSize, bitmap: ImageBitmap) {

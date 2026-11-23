@@ -1,0 +1,5 @@
+{"t": "2026-11-22T10:00:00Z", "evento": "apertura", "ok": true}
+{"t": "2026-11-22T10:00:05Z", "evento": "pagina", "n": 3}
+
+{"t": "2026-11-22T10:00:09Z", "evento": "errore", "dettagli": {"codice": 42}
+{"t": "2026-11-22T10:00:12Z", "evento": "chiusura", "ok": false}

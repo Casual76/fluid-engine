@@ -23,9 +23,16 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-ai-ui` | `aiui` | 28 / 6 846 | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in) | **ui**, **ai** |
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
 | `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
-| `engine-viewer` | `viewer` | 11 / 2 940 | i decodificatori dei visori di file: PDF (`PdfRenderer`), testo con charset e colori di sintassi, GIF e WebP animate, l'adattatore del `Player` di Media3 (`compileOnly`: la versione è dell'app), il risolutore dal MIME al preset — **opt-in**, dalla 4.0 (le schede: `moduli/viewer.md`, e il telaio in `componenti/visori.md`) | foundation, **ui** |
+| `engine-viewer` | `viewer` | 15 / 4 120 | i decodificatori dei visori di file: PDF (`PdfRenderer`), testo con charset e colori di sintassi, GIF e WebP animate, l'adattatore del `Player` di Media3 (`compileOnly`: la versione è dell'app), il risolutore dal MIME al preset e il **registro** dei moduli di famiglia — **opt-in**, dalla 4.0 (le schede: `moduli/viewer.md`, e il telaio in `componenti/visori.md`) | foundation, **ui** |
+| `engine-viewer-office` | `viewer.office` | 11 / 3 211 | visori, famiglia Office: DOCX, ODT, RTF a pagine, XLSX e ODS in griglia, PPTX e ODP a slide, i caratteri con le misure di Word — **opt-in** (`moduli/viewer-famiglie.md`) | **viewer** |
+| `engine-viewer-archive` | `viewer.archive` | 6 / 1 322 | visori, archivi con libarchive: ZIP, 7z, RAR, TAR e i compressi, ogni voce col suo preset — **opt-in** | **viewer** |
+| `engine-viewer-data` | `viewer.data` | 25 / 6 174 | visori, testi ricchi e dati: Markdown, HTML, CSV, JSON, XML, plist, EPUB, EML, ICS, VCF, senza librerie — **opt-in** | **viewer** |
+| `engine-viewer-graphics` | `viewer.graphics` | 10 / 1 615 | visori, immagini speciali (HEIC, AVIF, RAW, TIFF, PSD, SVG) e il provino dei caratteri — **opt-in** | **viewer** |
+| `engine-viewer-3d` | `viewer.scene` | 6 / 1 406 | visori, modelli GLB, glTF, OBJ, STL con Filament — **opt-in** | **viewer** |
+| `engine-viewer-ar` | `viewer.ar` | 7 / 1 002 | visori, il modello posato nella stanza con ARCore (chiede la fotocamera) — **opt-in** | **viewer-3d** |
+| `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
 
-(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0, `engine-viewer` sulla 4.0 di F6C.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
+(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0, `engine-viewer` e i moduli di famiglia sulla 4.0 di F6C, seconda ondata.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
 dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere `engine-update` senza Compose.
 
 ```
@@ -33,6 +40,9 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         ^                  ^      <-  engine-wear
         |                  +------<-  engine-richtext           (opt-in)
         |                  +------<-  engine-viewer             (opt-in; Media3 compileOnly)
+        |                                  ^  <- engine-viewer-office, -archive, -data, -graphics, -3d  (opt-in, ognuno)
+        |                                  |       ^  <- engine-viewer-ar (prende -3d)
+        |                                  +----- engine-viewer-all (api verso tutti)
         |                  +------<-  engine-ai-ui  ->  engine-ai
         +-- engine-storage --+                              ^
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
@@ -42,7 +52,7 @@ engine-foundation  <-  engine-ui  <-  engine-widget
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
-`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`; `engine-richtext` e `engine-viewer` prendono `engine-foundation` e `engine-ui`. `engine-ui` non dipende mai da `engine-viewer` né da una libreria di decodifica: lo controlla la build, F6C-d.)
+`engine-ai-ui` prende `engine-ui` e `engine-ai`; `engine-ai-bridge` prende `engine-ai`; `engine-richtext` e `engine-viewer` prendono `engine-foundation` e `engine-ui`. `engine-ui` non dipende mai da `engine-viewer` né da una libreria di decodifica: lo controlla la build, F6C-d. Ogni modulo di famiglia prende `engine-viewer` con `api` e porta solo le librerie della sua lista ammessa, `engine-viewer/families.json`; `engine-viewer` non arriva mai a una famiglia: lo controlla `checkViewerFamilies`, F6C-h.)
 
 Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundation, runtime, animation), Material 3,
 `material-icons-extended`, core-ktx, lifecycle (runtime/viewmodel compose), activity-compose, navigation-compose e
@@ -60,6 +70,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
 | scrive testo formattato (corpo di una mail, note con elenchi, firme) | + `engine-richtext` (**opt-in**: solo se chiesto per nome, `-Modules …,engine-richtext`; porta `engine-ui` e `engine-foundation`) |
 | apre file dal disco nel visore (PDF, testo e codice, GIF animate, video e audio) | + `engine-viewer` (**opt-in**: `-Modules …,engine-viewer`; porta `engine-ui` e `engine-foundation`; per video e audio l'app aggiunge il suo `media3-exoplayer`). Il telaio dei visori è già in `engine-ui`: un'app che ha i suoi decodificatori non lo installa |
+| apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** |
 | è di sole View e XML | solo `engine-update` / `engine-net` / `engine-config` (`-Modules`), mai `engine-ui` |
 | è Compose **Multiplatform** | niente `engine-ui` (artefatti diversi): i moduli senza UI in `androidMain`, il look si **porta** (`integrazione.md`, «Il porto») |

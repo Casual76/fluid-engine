@@ -25,6 +25,20 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun updateResources(): Float` — Da chiamare a ogni fotogramma fino a 1, mentre Filament decodifica le texture.
 - `suspend fun openFluidSceneModel(source: FluidViewerSource): FluidSceneModel` — Prepara GLB, glTF, OBJ o STL. Chi chiama mantiene la proprietà della sorgente e la chiude quando gli serve.
 
+## `engine-viewer-3d/viewer/scene/FluidSceneViewerExtension.kt`
+
+- `interface FluidSceneViewerExtension` — Optional companion mode for a 3D file, discovered once through [ServiceLoader].
+  - `fun create(model: FluidSceneModel): FluidSceneViewerControls` — A separate set of controls for each opened model, with no UI side effects until composed.
+- `interface FluidSceneViewerControls` — Connects a companion mode to the existing viewer toolbar and the page lifecycle.
+  - `val overlayVisible: Boolean`
+  - `fun actions(toolbar: FluidToolbarScope)`
+  - `@Composable fun Overlay(active: Boolean)` — [active] is false for a page that is off screen or being dismissed.
+
+## `engine-viewer-ar/viewer/ar/FluidArSceneExtension.kt`
+
+- `val FluidArViewerLicenses: List<FluidLicense>` — Licenze e condizioni per la sezione licenze dell'app che include questo modulo.
+- `class FluidArSceneExtension : FluidSceneViewerExtension` — Provider scoperto dal visore 3D quando l'app include questo modulo.
+
 ## `engine-viewer-archive/viewer/archive/FluidArchiveFamily.kt`
 
 - `data class FluidArchiveEntry(val path: String, val sizeBytes: Long?)` — A regular file that the archive can safely offer to the app's extraction destination. [path] is relative.

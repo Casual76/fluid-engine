@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.core.graphics.drawable.toBitmap
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
 import dev.antigravity.fluidengine.viewer.*
+import dev.antigravity.fluidengine.viewer.archive.fluidArchiveViewerInfo
+import dev.antigravity.fluidengine.viewer.data.fluidDataViewerInfo
+import dev.antigravity.fluidengine.viewer.office.officeInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +33,8 @@ private fun section(title: String, vararg fields: Pair<String, String?>) = Fluid
 
 @Composable
 internal fun visoriDetails(sample: VisoreFile, file: FluidViewerFile, document: FluidViewerDocument?, video: VisoriMedia?,
-  audio: VisoriMedia?, resumeVideo: Boolean): FluidViewerInfo {
+  audio: VisoriMedia?, resumeVideo: Boolean, scene: String = sample.family.scene,
+  withoutFamilies: Boolean = false): FluidViewerInfo {
   val context = LocalContext.current
   val base = remember(file, sample) {
     FluidViewerInfo(file.info, title = if (sample.tipo == VisoreTipo.Audio) sample.title else file.name,
@@ -45,16 +49,37 @@ internal fun visoriDetails(sample: VisoreFile, file: FluidViewerFile, document: 
       }
     }
   }
+  // F6C.15: un file aperto da una famiglia ha il pannello della sua famiglia (§5.2 di visori-2.md).
+  val family = document?.takeIf { it.type.family != null }?.let { familyInfo(it) }
   val reading = section("Lettura", "Preset" to sample.tipo.etichetta, "Aperto da" to decodedBy(document),
     "Non si apre" to document?.failure?.message, "Fonte" to sample.credit, "Oggi in Universal Converter" to sample.today,
+    "Con il modulo" to if (withoutFamilies) "${sample.family.module}: qui non c'è, e il tipo resta di serie" else null,
     "Sfogliato via" to if (sample.tipo == VisoreTipo.Video) "Si ferma. Al ritorno " +
       (if (resumeVideo) "riprende, se suonava." else "resta in pausa.") else null,
     "Fermate" to video?.takeIf { sample.tipo == VisoreTipo.Video }?.stops?.toString())
-  val actions = if (sample.resource == null) emptyList() else listOf(
-    FluidViewerInfoAction("Apri con…") { VisoriFiles.openWith(context, sample) },
-    FluidViewerInfoAction("Condividi") { VisoriFiles.share(context, sample) })
+  val actions = if (!sample.shippable) emptyList() else listOf(
+    FluidViewerInfoAction("Apri con…") { VisoriFiles.openWith(context, sample, scene) },
+    FluidViewerInfoAction("Condividi") { VisoriFiles.share(context, sample, scene) })
+  if (family != null) {
+    // The family owns facts and sections; the gallery adds how the file was opened and its own actions.
+    return family.copy(
+      sections = family.sections + listOfNotNull(family.reading),
+      reading = reading,
+      actions = family.actions.ifEmpty { actions },
+      thumbnail = family.thumbnail ?: metadata.thumbnail,
+    )
+  }
   return metadata.copy(reading = reading, actions = actions,
     audioWaveform = if (sample.tipo == VisoreTipo.Audio && audio != null) ({ Waveform(audio.session) }) else null)
+}
+
+/** Il pannello della famiglia che ha aperto il file: Office, archivi e i dettagli delle altre (dati, grafica, 3D). */
+@Composable
+private fun familyInfo(document: FluidViewerDocument): FluidViewerInfo? = when (document.type.family) {
+  "office" -> document.officeInfo()
+  "archive" -> document.fluidArchiveViewerInfo()
+  // fluidDataViewerInfo non sa niente dei tipi «data»: mette i dettagli senza sezione in capsule e gli altri in sezioni.
+  else -> fluidDataViewerInfo(document)
 }
 
 private suspend fun readDetails(context: Context, sample: VisoreFile, file: FluidViewerFile,

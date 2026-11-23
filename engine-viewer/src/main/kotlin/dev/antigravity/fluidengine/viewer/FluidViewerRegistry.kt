@@ -106,6 +106,9 @@ object FluidViewerRegistry {
         throw e
       } catch (_: Exception) {
         null
+      } catch (_: LinkageError) {
+        // La libreria nativa della famiglia non si carica su questo dispositivo: niente miniatura, l'app mette la sua.
+        null
       }
       if (image != null) return image
     }
@@ -313,6 +316,11 @@ internal suspend fun fluidOpenCandidates(
       null
     } catch (e: StackOverflowError) {
       failures.record(FluidViewerException(FluidViewerFailure.Corrupt, "Il file non si apre: $name", e))
+      null
+    } catch (e: LinkageError) {
+      // La libreria nativa della famiglia (libarchive, Filament) non si carica su questo dispositivo: non è il file,
+      // è il dispositivo. Si passa al candidato dopo e, in fondo, allo sconosciuto con «Apri con…».
+      failures.record(FluidViewerException(FluidViewerFailure.Unsupported, "Questo dispositivo non apre il file: $name", e))
       null
     }
     if (opened != null) {

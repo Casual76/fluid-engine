@@ -141,6 +141,16 @@ android {
   }
 }
 
+// F6C.15 · La pagina «Pesi» della galleria legge la lista ammessa dei moduli dei visori, la stessa che leggono
+// checkViewerFamilies e tools/engine-install.ps1: la si copia negli asset a ogni build, mai una copia scritta a mano.
+def visoriFamiliesAssets = layout.buildDirectory.dir('generated/visori-families/assets')
+def copyVisoriFamilies = tasks.register('copyVisoriFamilies', Copy) {
+  from(rootProject.file('engine-viewer/families.json'))
+  into(visoriFamiliesAssets.map { it.dir('visori') })
+}
+android.sourceSets.main.assets.srcDir(visoriFamiliesAssets.get().asFile)
+tasks.named('preBuild').configure { dependsOn copyVisoriFamilies }
+
 dependencies {
   implementation project(':engine-ui')
   // L'aggiornamento in-app: lo stesso manifest.json che il Pampa Store legge, una sola fonte.
@@ -155,9 +165,13 @@ dependencies {
   implementation project(':engine-ai-ui')
   implementation "androidx.media3:media3-exoplayer:${viewerMedia3}"
   implementation project(':engine-viewer') // F6C.4, opt-in: i decodificatori dei visori (PDF, testo, GIF e WebP animate) per la galleria
-  implementation project(':engine-viewer-office')
-  implementation project(':engine-viewer-archive')
-  implementation project(':engine-viewer-data')
+  // F6C.15 · Il visore universale, come lo includerebbe Universal Converter: engine-viewer e tutte le famiglie, che si
+  // registrano da sole. Senza engine-viewer-ar: chiede la fotocamera, e Fluid Glass e' un'app pubblicata che non la
+  // chiede (checkArViewerManifests controlla che CAMERA non arrivi nel suo APK). Il tasto «AR» si prova nell'APK di prova
+  // del modulo (F6C.16).
+  implementation(project(':engine-viewer-all')) {
+    exclude module: 'engine-viewer-ar'
+  }
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.

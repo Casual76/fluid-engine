@@ -35,6 +35,18 @@ import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageSource
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.ui.fluid.viewer.fluidAnimatedImage
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
+import dev.antigravity.fluidengine.viewer.FluidViewerDetail
+import dev.antigravity.fluidengine.viewer.FluidViewerDocument
+import dev.antigravity.fluidengine.viewer.FluidViewerFamily
+import dev.antigravity.fluidengine.viewer.FluidViewerFamilyType
+import dev.antigravity.fluidengine.viewer.FluidViewerOpened
+import dev.antigravity.fluidengine.viewer.FluidViewerPreset
+import dev.antigravity.fluidengine.viewer.FluidViewerRegistry
+import dev.antigravity.fluidengine.viewer.FluidViewerRequest
+import dev.antigravity.fluidengine.viewer.FluidViewerType
+import androidx.compose.material3.Text
+import org.junit.After
+import org.junit.Before
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -54,6 +66,9 @@ import org.robolectric.annotation.GraphicsMode
  * `:engine-viewer:connectedDebugAndroidTest` e il tablet. I player sono finti ([FakePlayer]): la galleria li comanda
  * come ExoPlayer, e si giudica dall'intenzione di suonare (`playWhenReady`).
  */
+/** I file delle famiglie che sulla JVM non hanno il decodificatore della piattaforma (`ImageDecoder`). */
+private val NativeOnly = setOf("grafica-heic", "grafica-avif", "grafica-dng")
+
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w400dp-h800dp-mdpi")
@@ -63,21 +78,44 @@ class VisoriGalleryTest {
   private val players = mutableMapOf<String, FakePlayer>()
   private val animation = FakeAnimation()
   private val pages = FluidViewerContent.Pages(FakePages(6))
-  private val animated = fluidAnimatedImage(animation, "Bolla.webp", aspectRatio = 1.5f)
   private val photos = mutableMapOf<String, FluidViewerContent>()
+  /** Ogni file aperto, con il documento che l'ha deciso: il tipo e la famiglia. */
+  private val seen = mutableMapOf<String, FluidViewerDocument>()
   private val deps = VisoriDeps(
     player = { _, uri -> FakePlayer().also { players[uri.toString()] = it } },
     content = { file ->
       when (file.tipo) {
         VisoreTipo.Pagine -> pages
-        VisoreTipo.Animata -> animated
+        VisoreTipo.Animata -> photos.getOrPut(file.id) { fluidAnimatedImage(animation, file.name, aspectRatio = 1.5f) }
         VisoreTipo.Foto -> photos.getOrPut(file.id) {
           FluidViewerContent.Image(1.5f) { Box(Modifier.fillMaxSize().semantics { contentDescription = file.name }) }
         }
         else -> null
       }
     },
+    opened = { file, document -> seen[file.id] = document },
   )
+
+  /**
+   * libarchive è una libreria nativa e sulla JVM non si carica: al suo posto, con gli stessi tipi e le stesse firme
+   * del modulo vero (il risolutore resta quello di produzione), una famiglia che apre una pagina finta. Il modulo vero
+   * lo provano i suoi test sul dispositivo (F6C.12).
+   */
+  private val archive = FluidViewerRegistry.families.first { it.id == "archive" }
+
+  @Before fun archivioFinto() {
+    FluidViewerRegistry.install(FakeArchiveFamily(archive))
+  }
+
+  @After fun archivioVero() {
+    while (VisoriSenzaModuli.active) VisoriSenzaModuli.leave()
+    FluidViewerRegistry.install(archive)
+  }
+
+  private fun scrollTo(tag: String) {
+    compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag(tag))
+    compose.waitForIdle()
+  }
 
   private fun show() {
     compose.setContent {
@@ -106,7 +144,7 @@ class VisoriGalleryTest {
   }
 
   private fun open(id: String) {
-    compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag("visori-$id"))
+    scrollTo("visori-$id")
     compose.onNodeWithTag("visori-$id").performClick()
     compose.waitForIdle()
   }
@@ -303,38 +341,167 @@ class VisoriGalleryTest {
     assertFalse(shown("7 di 10"))
   }
 
-  @Test fun iTipiDiUniversalConverterSiApronoColTelaio() {
+  @Test fun iTipiDiUniversalConverterSiApronoColLoroPreset() {
     show()
-    compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag("visori-converter"))
+    scrollTo("visori-converter")
     compose.onNodeWithTag("visori-converter").performClick()
     compose.waitForIdle()
     waitFor("lista di Universal Converter") { shown("colors_50x50.png") }
-    val markers: List<Pair<String, () -> Boolean>> = listOf(
+    // engine-viewer-all: ogni tipo delle prove di Universal Converter va al suo preset, non più al dump esadecimale.
+    val families = mapOf("uc-disegno" to "graphics", "uc-markdown" to "data", "uc-pagina" to "data",
+      "uc-catalogo" to "data", "uc-config" to "data", "uc-relazione" to "office", "uc-progetto" to "archive",
+      "uc-modello" to "3d")
+    val markers: Map<String, () -> Boolean> = mapOf(
       "uc-colori" to { described("colors_50x50.png") },
-      "uc-markdown" to { shown("# Header", substring = true) },
-      "uc-filmato" to { videoPage() },
-      "uc-audio" to { wave() },
-      "uc-documento" to { pagesOf(6) },
+      "uc-foto" to { described("foto.jpg") },
+      "uc-animazione" to { described("animazione.gif") && animation.running },
       "uc-lettera" to { shown("Cara Alessia,", substring = true) },
-      "uc-relazione" to { shown("relazione.docx") && shown("Apri con…") && shown("Mostra i primi byte") },
+      "uc-documento" to { pagesOf(6) },
+      "uc-audio" to { wave() },
+      "uc-suono" to { wave() },
+      "uc-filmato" to { videoPage() },
       "uc-mondo" to { shown("mondo.wld") && shown("Mostra i primi byte") },
       "uc-vuoto" to { shown("Il file è vuoto") },
       "uc-sparito" to { shown("sparito.pdf") && shown("è stato spostato o cancellato", substring = true) },
     )
-    for ((id, visible) in markers) {
-      compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag("converter-$id"))
+    for (file in VisoriFiles.converter) {
+      val id = file.id
+      scrollTo("converter-$id")
       compose.onNodeWithTag("converter-$id").performClick()
       compose.waitForIdle()
-      waitFor(id, visible)
+      val family = families[id]
+      if (family != null) {
+        waitFor("$id aperto da $family") { seen[id]?.type?.family == family }
+        assertNull("$id: nessun ripiego (${seen[id]?.failure?.message})", seen[id]?.failure)
+      } else {
+        waitFor(id, requireNotNull(markers[id]) { "Manca il segno di $id" })
+      }
       assertTrue("Via d'uscita in $id", described("Indietro"))
-      if (id == "uc-relazione") {
+      if (id == "uc-mondo") {
         // Il dump esadecimale di Universal Converter c'è ancora, ma solo a richiesta.
         compose.onNodeWithText("Mostra i primi byte").performClick()
-        waitFor("dump") { shown("00000000  50 4B 03 04", substring = true) }
+        waitFor("dump") { shown("00000000", substring = true) }
       }
       back()
       waitFor("lista dopo $id") { compose.onAllNodesWithTag("converter-$id").fetchSemanticsNodes().isNotEmpty() }
     }
+    assertEquals("Il DOCX è un documento Office", "office", seen["uc-relazione"]?.type?.family)
+    assertEquals("Il Markdown è reso dalla famiglia dei dati", "data", seen["uc-markdown"]?.type?.family)
+    assertEquals("La lettera UTF-16 resta testo di serie", FluidViewerPreset.Text, seen["uc-lettera"]?.type?.preset)
+  }
+
+  /**
+   * F6C.15: ogni file di ogni famiglia si apre dalla sua miniatura, col suo modulo e il contatore della famiglia, e
+   * torna alla griglia. I tipi che sulla JVM non hanno il decodificatore della piattaforma (HEIC, AVIF, il DNG:
+   * `ImageDecoder`) devono comunque arrivare a una pagina che non è un vicolo cieco.
+   */
+  @Test fun ogniFileDelleFamiglieSiApreDallaSuaMiniatura() {
+    show()
+    for (family in VisoriFamiglia.entries.drop(1)) {
+      val files = family.files
+      for ((index, file) in files.withIndex()) {
+        val id = file.id
+        if (id !in NativeOnly) {
+          assertEquals("Il risolutore manda $id a ${family.id}", family.id, FluidViewerType.of(file.mime, file.name).family)
+        }
+        open(id)
+        waitFor("$id aperto") { seen[id] != null }
+        val document = requireNotNull(seen[id])
+        if (id in NativeOnly) {
+          waitFor("$id, mai un vicolo cieco") {
+            seen[id]?.type?.family == family.id || shown("Apri con…") || described(file.name)
+          }
+        } else {
+          assertEquals("$id: la famiglia", family.id, document.type.family)
+          assertNull("$id: nessun ripiego (${document.failure?.message})", document.failure)
+        }
+        assertTrue("Contatore di $id", shown("${index + 1} di ${files.size}"))
+        assertTrue("Via d'uscita in $id", described("Indietro"))
+        back()
+        waitFor("griglia dopo $id") { compose.onAllNodesWithTag("visori-$id").fetchSemanticsNodes().isNotEmpty() }
+      }
+    }
+  }
+
+  @Test fun senzaModuliNonEMaiUnVicoloCieco() {
+    val before = FluidViewerRegistry.families.map { it.id }.toSet()
+    assertTrue("La galleria ha le famiglie", before.containsAll(setOf("office", "archive", "data", "graphics", "3d")))
+    show()
+    scrollTo("visori-senza")
+    compose.onNodeWithTag("visori-senza").performClick()
+    compose.waitForIdle()
+    waitFor("la scena") { shown("Solo engine-viewer") }
+    assertTrue("Nella scena il registro è senza famiglie", FluidViewerRegistry.families.isEmpty())
+    val files = VisoriSenzaModuliFiles
+    for ((index, file) in files.withIndex()) {
+      val id = file.id
+      scrollTo("senza-$id")
+      compose.onNodeWithTag("senza-$id").performClick()
+      compose.waitForIdle()
+      waitFor("$id aperto senza moduli") { seen[id] != null }
+      val document = requireNotNull(seen[id])
+      assertNull("$id: nessuna famiglia", document.type.family)
+      if (document.content is FluidViewerContent.Unknown) {
+        waitFor("$id sconosciuto con «Apri con…»") { shown(file.name) && shown("Apri con…") && shown("Condividi") }
+      }
+      assertTrue("Contatore di $id", shown("${index + 1} di ${files.size}"))
+      assertTrue("Via d'uscita in $id", described("Indietro"))
+      back()
+      waitFor("lista dopo $id") { compose.onAllNodesWithTag("senza-$id").fetchSemanticsNodes().isNotEmpty() }
+    }
+    assertTrue("Il DOCX senza Office è sconosciuto", seen["office-docx"]?.content is FluidViewerContent.Unknown)
+    assertTrue("Lo ZIP senza archivi è sconosciuto", seen["archivio-zip"]?.content is FluidViewerContent.Unknown)
+    assertTrue("Il modello senza 3D è sconosciuto", seen["modello-glb"]?.content is FluidViewerContent.Unknown)
+    // Il Markdown lo legge anche engine-viewer: testo e codice, non è un vicolo cieco.
+    assertEquals(FluidViewerPreset.Text, seen["dati-md"]?.type?.preset)
+    // «Apri con…» passa al sistema la copia della galleria, in sola lettura.
+    scrollTo("senza-office-docx")
+    compose.onNodeWithTag("senza-office-docx").performClick()
+    compose.waitForIdle()
+    waitFor("DOCX sconosciuto") { shown("Apri con…") }
+    compose.onNodeWithText("Apri con…").performClick()
+    compose.waitForIdle()
+    val chooser = shadowOf(compose.activity).nextStartedActivity
+    @Suppress("DEPRECATION") val view = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+    assertEquals(Intent.ACTION_VIEW, view.action)
+    assertEquals("content", view.data?.scheme)
+    assertEquals("Canale di accesso.docx", view.data?.lastPathSegment)
+    back()
+    back()
+    waitFor("la galleria") { compose.onAllNodesWithTag("visori-senza").fetchSemanticsNodes().isNotEmpty() }
+    compose.waitForIdle()
+    assertEquals("Uscendo, le famiglie tornano", before, FluidViewerRegistry.families.map { it.id }.toSet())
+  }
+
+  @Test fun laPaginaPesiLeggeFamiliesJson() {
+    // La copia negli asset è quella del build (copyVisoriFamilies), uguale alla lista ammessa dell'engine.
+    val disk = listOf(java.io.File("../engine-viewer/families.json"), java.io.File("engine-viewer/families.json"))
+      .first { it.isFile }
+    val expected = VisoriWeights.parse(disk.readText(Charsets.UTF_8))
+    val context = compose.activity.applicationContext
+    val packaged = kotlinx.coroutines.runBlocking { VisoriWeights.read(context) }
+    assertEquals("Gli asset portano families.json com'è", expected, packaged)
+    assertEquals(setOf("office", "archive", "data", "graphics", "3d", "ar"), expected.map { it.family }.toSet())
+    show()
+    scrollTo("visori-pesi")
+    compose.onNodeWithTag("visori-pesi").performClick()
+    compose.waitForIdle()
+    waitFor("la pagina") { shown("Quanto costa ogni modulo") }
+    for (module in expected) {
+      scrollTo("pesi-${module.module}")
+      for (row in weightRows(module).take(VisoriAbis.size)) {
+        assertTrue("${module.module}: ${row.title}", shown(row.title))
+        row.meta?.let { meta -> assertTrue("${module.module}: $meta", shown(meta)) }
+      }
+      if (module.abiBytes.isNotEmpty()) {
+        assertEquals("${module.module}: le quattro architetture", VisoriAbis, module.abiBytes.keys.toList())
+      }
+      for (library in module.libraries) {
+        assertTrue("${module.module}: la licenza di ${library.name}", library.license.isNotBlank())
+      }
+    }
+    // Le licenze dei moduli in fondo alla pagina, le stesse della pagina Impostazioni.
+    assertTrue(VisoriLicenses.isNotEmpty())
   }
 
   // --- Finti ---------------------------------------------------------------------------------------------------------
@@ -392,6 +559,16 @@ class VisoriGalleryTest {
     override fun getOpacity() = PixelFormat.OPAQUE
     override fun getIntrinsicWidth() = 480
     override fun getIntrinsicHeight() = 320
+  }
+
+  /** L'archivio finto: i tipi del modulo vero, una pagina con il nome del file. */
+  private class FakeArchiveFamily(real: FluidViewerFamily) : FluidViewerFamily {
+    override val id: String = real.id
+    override val types: List<FluidViewerFamilyType> = real.types
+    override suspend fun open(request: FluidViewerRequest): FluidViewerOpened =
+      FluidViewerOpened(FluidViewerContent.Custom {
+        Text("Archivio finto: ${request.source.name}", Modifier.semantics { contentDescription = "Archivio finto" })
+      }, listOf(FluidViewerDetail("Formato", request.type.label)))
   }
 
   /** Un documento di [count] pagine verticali: il preset vero lo sfoglia, la resa è una bitmap bianca. */

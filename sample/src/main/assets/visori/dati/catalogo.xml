@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Il catalogo dei moduli -->
+<catalogo xmlns:dc="http://purl.org/dc/elements/1.1/" versione="2">
+  <dc:title>Visori della seconda ondata</dc:title>
+  <modulo id="data" peso="212">
+    <nome>engine-viewer-data</nome>
+    <tipi>
+      <tipo>md</tipo>
+      <tipo>csv</tipo>
+      <tipo>json</tipo>
+    </tipi>
+    <nota><![CDATA[Il <testo> dentro CDATA resta com'è]]></nota>
+  </modulo>
+  <modulo id="office" peso="380"/>
+  <!-- un commento dentro -->
+  <?istruzione valore="1"?>
+  <testo>Caff&#232; &amp; latte</testo>
+</catalogo>

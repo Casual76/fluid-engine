@@ -65,6 +65,8 @@ import kotlinx.coroutines.withContext
 internal class VisoriDeps(
   val player: (Context, Uri) -> Player = ::exoPlayer,
   val content: (VisoreFile) -> FluidViewerContent? = { null },
+  /** F6C.15: ogni file aperto, con il documento che l'ha deciso (il tipo, la famiglia). Lo ascoltano le prove. */
+  val opened: (VisoreFile, FluidViewerDocument) -> Unit = { _, _ -> },
 ) {
   companion object {
     val Default = VisoriDeps()
@@ -162,7 +164,8 @@ internal fun Waveform(session: FluidMediaSession) {
 /**
  * Un visore sui file [catalog], aperti con engine-viewer da [files] (null finché la galleria li copia). [resumeVideo]
  * è la scelta dell'app per il video sfogliato via. [converter] è la prova con Universal Converter: lì lo sconosciuto
- * offre anche il dump esadecimale dei primi byte, a richiesta.
+ * offre anche il dump esadecimale dei primi byte, a richiesta. [withoutFamilies] è la scena «Senza moduli»: i file
+ * delle famiglie stanno nelle loro cartelle, e il pannello lo dice.
  */
 @Composable
 internal fun VisoriViewer(
@@ -174,25 +177,31 @@ internal fun VisoriViewer(
   converter: Boolean = false,
   documentReader: FluidViewerFiles? = null,
   warmPage: VisoriWarmPage? = null,
+  withoutFamilies: Boolean = false,
 ) {
   val context = LocalContext.current
   val list = files.orEmpty()
-  fun indexOf(type: VisoreTipo) = catalog.indexOfFirst { it.tipo == type }
-  val video = rememberVisoriMedia(list.getOrNull(indexOf(VisoreTipo.Video))?.uri, deps, autoplay = true)
-  val audio = rememberVisoriMedia(list.getOrNull(indexOf(VisoreTipo.Audio))?.uri, deps, autoplay = false)
-  SideEffect {
-    video?.resume = resumeVideo
-    audio?.resume = resumeVideo
+  fun scene(sample: VisoreFile) = if (converter) "converter" else sample.family.scene
+  // Un player per ogni file da suonare (il video e gli audio): li crea e li rilascia la galleria.
+  val media = catalog.mapIndexed { i, sample ->
+    key(sample.id) {
+      if (sample.tipo == VisoreTipo.Video || sample.tipo == VisoreTipo.Audio)
+        rememberVisoriMedia(list.getOrNull(i)?.uri, deps, autoplay = sample.tipo == VisoreTipo.Video)
+      else null
+    }
   }
+  SideEffect { media.forEach { it?.resume = resumeVideo } }
   fun sample(file: FluidViewerFile): VisoreFile = catalog[list.indexOf(file)]
   val opened = rememberFluidViewerFiles(
     list,
-    openWith = { file -> VisoriFiles.openWith(context, sample(file)) },
-    share = { file -> VisoriFiles.share(context, sample(file)) },
+    openWith = { file -> sample(file).let { VisoriFiles.openWith(context, it, scene(it)) } },
+    share = { file -> sample(file).let { VisoriFiles.share(context, it, scene(it)) } },
     media = { file, type ->
+      val player = media.getOrNull(list.indexOf(file))?.takeIf { it.uri == file.uri }
       when {
-        type.preset == FluidViewerPreset.Video && file.uri == video?.uri -> video.videoContent()
-        type.preset == FluidViewerPreset.Audio && file.uri == audio?.uri -> audio.audioContent()
+        player == null -> null
+        type.preset == FluidViewerPreset.Video -> player.videoContent()
+        type.preset == FluidViewerPreset.Audio -> player.audioContent()
         else -> null
       }
     },
@@ -201,43 +210,30 @@ internal fun VisoriViewer(
   var current by rememberSaveable { mutableIntStateOf(-1) }
   val crop = remember { CropState() }
   val count = if (files == null) 0 else catalog.size
-  // The original converter demo shows its plain Markdown source and offers a hex dump of DOCX.
-  // Its examples keep that behavior while the gallery exercises the installed families.
-  val markdown = list.getOrNull(catalog.indexOfFirst { converter && it.id == "uc-markdown" })
-  val converterSource by produceState<FluidViewerContent.Text?>(null, markdown) {
-    value = markdown?.let { file ->
-      withContext(Dispatchers.IO) {
-        File(requireNotNull(file.uri.path)).inputStream().use {
-          FluidTextDecoder.read(it, file.name, file.mimeType, file.sizeBytes)?.let { source -> FluidViewerContent.Text(source) }
-        }
-      }
-    }
-  }
   FluidViewerInfoProvider(info = { i ->
     val sample = catalog[i]
-    visoriDetails(sample, list[i], reader(i).document(i), video, audio, resumeVideo)
+    val document = reader(i).document(i)
+    if (document != null) SideEffect { deps.opened(sample, document) }
+    val player = media.getOrNull(i)
+    visoriDetails(sample, list[i], document, player.takeIf { sample.tipo == VisoreTipo.Video },
+      player.takeIf { sample.tipo == VisoreTipo.Audio }, resumeVideo, scene(sample), withoutFamilies)
   }) {
     FluidFileViewer(
       count = count,
       content = { i ->
         val sample = catalog[i]
-        deps.content(sample) ?: when {
-          converter && sample.id == "uc-relazione" -> FluidViewerContent.Unknown(list[i].info,
-            openWith = { VisoriFiles.openWith(context, sample) }, share = { VisoriFiles.share(context, sample) })
-          converter && sample.id == "uc-markdown" && converterSource != null -> requireNotNull(converterSource)
-          else -> {
-            val content = reader(i).content(i)
-            if (warmPage != null && content is FluidViewerContent.Pages && content.source === warmPage.source)
-              warmPage.content else content
-          }
+        deps.content(sample) ?: run {
+          val content = reader(i).content(i)
+          if (warmPage != null && content is FluidViewerContent.Pages && content.source === warmPage.source)
+            warmPage.content else content
         }
       },
       onBack = onBack,
       onPageChange = { current = it },
       toolbar = { index ->
         val sample = catalog[index]
-        if (sample.resource != null && sample.tipo !in setOf(VisoreTipo.Sconosciuto, VisoreTipo.Eseguibile)) {
-          button("share", FluidIcons.IosShare, "Condividi", { VisoriFiles.share(context, sample) },
+        if (sample.shippable && sample.tipo !in setOf(VisoreTipo.Sconosciuto, VisoreTipo.Eseguibile)) {
+          button("share", FluidIcons.IosShare, "Condividi", { VisoriFiles.share(context, sample, scene(sample)) },
             placement = FluidToolbarPlacement.BottomBar)
         }
       },
@@ -252,7 +248,9 @@ internal fun VisoriViewer(
         }
       },
       renderContent = { file, visible ->
-        if (file is FluidViewerContent.Media && file.videoSurface == null && audio != null) FollowPage(audio)
+        if (file is FluidViewerContent.Media && file.videoSurface == null) {
+          media.firstOrNull { it?.session === file.session }?.let { FollowPage(it) }
+        }
         VisoriBody(file, visible, catalog, list, converter)
       },
     )
@@ -398,11 +396,16 @@ internal fun presetName(preset: FluidViewerPreset): String = when (preset) {
   FluidViewerPreset.Audio -> "Audio"
   FluidViewerPreset.Pages -> "Documento a pagine"
   FluidViewerPreset.Text -> "Testo e codice"
+  FluidViewerPreset.Grid -> "Griglia"
+  FluidViewerPreset.Custom -> "Pagina del modulo"
   else -> "Sconosciuto"
 }
 
 internal fun decodedBy(document: FluidViewerDocument?): String? {
   val content = document?.content ?: return null
+  document.type.family?.let { family ->
+    return "${dev.antigravity.fluidengine.sample.moduleOf(family)} · " + (document.type.label ?: presetName(document.type.preset))
+  }
   return when (content) {
     is FluidViewerContent.Text -> (content.source as? FluidTextDocument)?.let { text ->
       buildString {

@@ -316,11 +316,13 @@ class FluidViewerRegistryTest {
   }
 
   @Test
-  fun `a family that breaks counts as a corrupt file, one out of memory as too large`() = runBlocking {
+  fun `a family that breaks counts as a corrupt file, one out of memory as too large, one without its native library as unsupported`() = runBlocking {
     for ((thrown, expected) in listOf<Pair<Throwable, FluidViewerFailure>>(
       IllegalStateException("rotto") to FluidViewerFailure.Corrupt,
       java.io.IOException("letto male") to FluidViewerFailure.Corrupt,
       OutOfMemoryError("troppo") to FluidViewerFailure.TooLarge,
+      UnsatisfiedLinkError("libarchive-jni.so non trovata") to FluidViewerFailure.Unsupported,
+      NoClassDefFoundError("com/google/android/filament/Engine") to FluidViewerFailure.Unsupported,
     )) {
       val family = TestFamily("a", listOf(type("x", setOf("x")))) { throw thrown }
       val failures = FluidViewerFailures()

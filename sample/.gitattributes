@@ -1,2 +1,4 @@
 # I file di esempio dei visori (F6C.5) si confrontano byte per byte: niente conversione degli a capo al checkout.
 src/main/res/raw/viewer_* binary
+# F6C.15 · I file di prova delle famiglie, copiati byte per byte dai corpi di prova dei moduli.
+src/main/assets/visori/** binary

@@ -1,6 +1,9 @@
 package dev.antigravity.fluidengine.ui.fluid.viewer
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -18,8 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -36,6 +41,7 @@ import dev.antigravity.fluidengine.ui.navigation.composable
 import dev.antigravity.fluidengine.ui.page.*
 import dev.antigravity.fluidengine.ui.theme.BlackMediaAppearance
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
+import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 
 /** Put [fluidViewerThumbnail] before the thumbnail's drawing and clipping modifiers. */
@@ -121,7 +127,7 @@ fun FluidFileViewer(
   var selected by rememberSaveable { mutableStateOf<String?>(null) }
   val available = FluidViewerToolsScope().apply(tools).items
   val tool = available.firstOrNull { it.id == selected }?.takeIf { count > 0 }
-  val hasInfo = info != null && count > 0
+  val hasInfo = count > 0
   LaunchedEffect(hasInfo, tool?.id) {
     if (!hasInfo) infoOpen = false
     if (count > 0 && tool == null) selected = null
@@ -138,9 +144,12 @@ fun FluidFileViewer(
   val front by LocalFluidRouteFront.current
   val pageSpace = LocalSharedPage.current
   val density = LocalDensity.current.density
+  val dismissState = rememberUpdatedState(infoOpen || tool != null)
+  val mediaDismiss = remember { mutableStateOf(false) }
   DisposableEffect(pageSpace, density) {
     pageSpace?.host?.verticalDismissRelease?.set(pageSpace.page) { travel, speed ->
-      viewerDismissRelease(travel, speed, density)
+      !dismissState.value && if (mediaDismiss.value || route == null) viewerDismissRelease(travel, speed, density)
+      else viewerDocumentDismissRelease(travel, speed, density)
     }
     onDispose {
       if (pageSpace != null) {
@@ -157,16 +166,77 @@ fun FluidFileViewer(
   val presetBar = remember { ViewerPresetBar() }
   val outerModal = LocalFluidGlassModalHostState.current
   val modal = outerModal ?: rememberFluidGlassModalHostState()
-  val file = if (count > 0) content(index) else null
+  // Opening a file can start asynchronous work in the owner's registry. A speculative pager
+  // subcomposition may be discarded: it must not be the first caller that opens the file.
+  // Resolve the visible neighbours in the frame, then the current page (the registry's centre).
+  val visible by remember(pager, count) {
+    derivedStateOf { pager?.layoutInfo?.visiblePagesInfo.orEmpty().map { it.index }.filter { it in 0 until count } }
+  }
+  val files = buildMap {
+    for (page in visible) if (page != index && kotlin.math.abs(page - index) <= 1) put(page, content(page))
+    if (count > 0) put(index, content(index))
+  }
+  val file = files[index]
+  val infoSource = LocalViewerInfoSource.current
+  val pageDetails = mutableMapOf<Int, FluidViewerInfo?>()
+  for (page in files.keys) pageDetails[page] = key(page) { infoSource(page) }
+  val suppliedInfo = pageDetails[index]
   val photo = file?.blackBackground == true
   val pageColor = if (photo) Color.Black else MaterialTheme.colorScheme.surface
-  SideEffect { if (pageSpace != null) pageSpace.host.ownPageBackground[pageSpace.page] = pageColor }
-  CompositionLocalProvider(LocalFluidGlassModalHostState provides modal) {
-    BoxWithConstraints(modifier.fillMaxSize()) {
+  val movingImage = file?.frameZoomed == true
+  val documentRoute = route != null && !movingImage
+  val sourcedEntrance = remember(route, pageSpace) { pageSpace?.host?.zoom != null }
+  val entrance = remember(route) { ViewerEntrance() }
+  val reveal = remember(entrance) { Animatable(0f) }
+  val motion = LocalFluidMotionPolicy.current
+  LaunchedEffect(index, route) {
+    if (route != null && index != route.initial && file != null) entrance.ready = true
+  }
+  LaunchedEffect(entrance.ready, motion) {
+    if (!entrance.ready) return@LaunchedEffect
+    if (motion.reducedMotion) reveal.snapTo(1f)
+    else reveal.animateTo(1f, tween((ViewerEntranceMotion.RevealMillis * motion.durationScale).toInt(), easing = LinearEasing))
+    entrance.revealed = true
+  }
+  DisposableEffect(pageSpace, documentRoute, sourcedEntrance, entrance, reveal) {
+    if (documentRoute && sourcedEntrance && pageSpace != null) {
+      pageSpace.host.zoomFaceOverrides[pageSpace.page] = { arrival ->
+        ViewerEntranceMotion.faces(reveal.value, arrival)
+      }
+    }
+    onDispose {
+      if (documentRoute && sourcedEntrance && pageSpace != null) pageSpace.host.zoomFaceOverrides.remove(pageSpace.page)
+    }
+  }
+  val sourceFree = remember(pageSpace) {
+    derivedStateOf { pageSpace?.let { it.host.upper == it.page && it.host.isMoving && it.host.zoom == null } == true }
+  }
+  val fadeWithoutSource = documentRoute && sourceFree.value
+  SideEffect {
+    mediaDismiss.value = movingImage
+    if (pageSpace != null) {
+      val backgrounds = pageSpace.host.ownPageBackground
+      when {
+        !documentRoute -> backgrounds[pageSpace.page] = pageColor
+        // A fade with no thumbnail still needs the viewer to paint its own surface.
+        fadeWithoutSource -> backgrounds[pageSpace.page] = Color.Transparent
+        // Expand owns the thumbnail snapshot, the R7 face exchange and the lower page's F6D veil.
+        else -> backgrounds.remove(pageSpace.page)
+      }
+    }
+  }
+  CompositionLocalProvider(LocalFluidGlassModalHostState provides modal, LocalViewerDocumentRoute provides documentRoute) {
+    val fade = if (documentRoute && pageSpace != null) Modifier.graphicsLayer {
+      val host = pageSpace.host
+      if (sourceFree.value && !host.crossfading) alpha = viewerUnanchoredOpacity(host.upperExitFraction())
+    } else Modifier
+    BoxWithConstraints(modifier.fillMaxSize().then(fade)) {
+      val wideInspector = maxWidth >= ViewerInfoBreakpoint
+      val photoSpace = viewerPhotoSpace(infoOpen && !wideInspector && file is FluidViewerContent.Image)
       val theme = MaterialTheme.colorScheme
       val ink = if (photo) Color.White else theme.onSurface
       val body = Modifier.fillMaxSize().glassBackdropSource(backdrop)
-        .then(if (pager == null || tool != null) Modifier.viewerBackdrop(if (photo) Color.Black else theme.surface) else Modifier)
+        .then(if (pager == null || tool != null) Modifier.viewerBackdrop(pageColor, documentRoute = documentRoute) else Modifier)
         .semantics {
           customActions = buildList {
             add(CustomAccessibilityAction(if (chromeVisible) strings.hideControls else strings.showControls) { toggle(); true })
@@ -183,28 +253,56 @@ fun FluidFileViewer(
               Text(strings.empty)
             }
             else -> HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
-              val item = if (page == index) requireNotNull(file) else content(page)
+              val item = files[page]
+              if (item == null) {
+                Spacer(Modifier.fillMaxSize())
+                return@HorizontalPager
+              }
               // F6C.2: la pagina del preset immagine, condivisa con FluidImageViewer, e il canale dei preset.
               val video = (item as? FluidViewerContent.Media)?.takeIf { it.videoSurface != null }
               val ratio = (item as? FluidViewerContent.Image)?.aspectRatio
                 ?: (video?.session as? FluidVideoGeometry)?.videoAspectRatio
-              val pageScope = rememberViewerPage(pager, page, item.blackBackground, presetBar)
+              val pageScope = rememberViewerPage(pager, page, item.frameZoomed, presetBar)
               val zoom = pageScope.zoom
-              val gestures = Modifier.fillMaxSize().viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
-              val input = if (item.blackBackground) {
+              val gestures = Modifier.fillMaxSize().viewerPullForInfo(hasInfo && !infoOpen && !zoom.isZoomed, openInfo)
+                .viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
+              val input = if (item.frameZoomed) {
                 gestures.viewerPinchDismiss(pageSpace, zoom, enabled = !infoOpen)
                   .fluidZoomInput(zoom, ratio, onTap = toggle, immediateTap = video != null)
               } else {
                 gestures.viewerTap(toggle)
               }
-              val source = route?.thumbnail?.invoke(page)
+              // Only a photo or a video is the same visual element at both ends of the trip.
+              // Documents use the host's snapshot of the actual app thumbnail, even with a custom renderer.
+              val source = if (item.frameZoomed) route?.thumbnail?.invoke(page) else null
               val shared = if (source != null) Modifier.fluidSharedElement(source.id, source.namespace) else Modifier
-              Box(input.viewerBackdrop(if (item.blackBackground) Color.Black else theme.surface), contentAlignment = Alignment.Center) {
+              val claim = remember(entrance, route, documentRoute, sourcedEntrance, item, page) {
+                if (documentRoute && sourcedEntrance && page == route?.initial) ViewerEntranceClaim(entrance) else null
+              }
+              if (claim != null) LaunchedEffect(claim) {
+                while (!entrance.ready) {
+                  snapshotFlow { claim.canReveal }.first { it }
+                  withFrameNanos { }
+                  if (claim.canReveal) entrance.ready = true
+                }
+              }
+              Box(input.viewerBackdrop(if (item.blackBackground) Color.Black else theme.surface,
+                documentRoute = documentRoute), contentAlignment = Alignment.Center) {
+                val pageInfo = pageDetails[page]
                 val fitted = if (item is FluidViewerContent.Image) Modifier.viewerFit(ratio).then(shared).fluidZoomLayer(zoom)
                   else if (video != null) Modifier.fillMaxSize() else Modifier.fillMaxSize().then(shared)
                 CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface,
-                  LocalViewerPage provides pageScope, LocalVideoShared provides shared.takeIf { video != null }) {
-                  Box(fitted, contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
+                  LocalViewerInfo provides pageInfo, LocalViewerPage provides pageScope, LocalViewerEntrance provides claim,
+                  LocalVideoShared provides shared.takeIf { video != null }) {
+                  if (item is FluidViewerContent.Image) {
+                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(photoSpace),
+                      contentAlignment = Alignment.Center) {
+                      Box(fitted, contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
+                    }
+                  } else {
+                    val placed = if (claim == null) Modifier else Modifier.onPlaced { claim.rendererPlaced() }
+                    Box(fitted.then(placed), contentAlignment = Alignment.Center) { renderContent(item, chromeVisible) }
+                  }
                 }
               }
             }
@@ -214,10 +312,13 @@ fun FluidFileViewer(
       BlackMediaAppearance(photo) {
         ViewerChrome(index, count, ink, chromeVisible, backdrop, toolbar, available, tool,
         select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,
-          preset = presetBar.of(index), width = maxWidth)
+          preset = presetBar.of(index), width = maxWidth, fileName = suppliedInfo?.file?.name,
+          documentRoute = documentRoute, file = file, info = suppliedInfo)
       }
-      if (hasInfo) ViewerInfo(infoOpen, maxWidth >= ViewerInfoBreakpoint, backdrop, strings, { infoOpen = false }) {
-        info?.invoke(index)
+      if (file != null) ViewerInfo(infoOpen, wideInspector, backdrop, strings, { infoOpen = false }) {
+        ViewerInfoBody(suppliedInfo ?: defaultViewerInfo(file, strings), backdrop, strings, { infoOpen = false }) {
+          info?.invoke(index)
+        }
       }
       if (outerModal == null) FluidGlassModalHost(modal, backdrop)
     }
@@ -226,19 +327,30 @@ fun FluidFileViewer(
 }
 
 internal val LocalVideoShared = staticCompositionLocalOf<Modifier?> { null }
+internal val LocalViewerDocumentRoute = staticCompositionLocalOf { false }
 
 internal fun Modifier.viewerFit(ratio: Float?): Modifier =
   if (ratio != null && ratio.isFinite() && ratio > 0f) aspectRatio(ratio) else fillMaxSize()
 
 @Composable
-internal fun Modifier.viewerBackdrop(color: Color, fullyArrivedOnly: Boolean = false): Modifier {
+internal fun Modifier.viewerBackdrop(color: Color, fullyArrivedOnly: Boolean = false, documentRoute: Boolean = false): Modifier {
   val space = LocalSharedPage.current
   return drawBehind {
-    if (space != null && space.host.hasClosingBackdrop(space.page)) return@drawBehind
-    val alpha = if (space != null && space.page in space.host.ownPageBackground) space.host.backdropArrival(space.page) else 1f
+    val alpha = if (space == null) 1f else {
+      val host = space.host
+      when {
+        documentRoute && host.zoom == null -> 1f // The whole face takes part in the source-free fade.
+        host.hasClosingBackdrop(space.page) -> 0f
+        documentRoute || space.page in host.ownPageBackground -> host.backdropArrival(space.page)
+        else -> 1f
+      }
+    }
     if (alpha > 0f && (!fullyArrivedOnly || alpha == 1f)) drawRect(color, alpha = alpha)
   }
 }
+
+/** F6C.10, 22 November: keep the source-free face on the same clock as the host's exit. */
+internal fun viewerUnanchoredOpacity(exit: Float): Float = 1f - exit.coerceIn(0f, 1f)
 
 /**
  * Standalone variant. With [onDismissRequest], a downward drag or an inward pinch at 1× shrinks the
@@ -301,6 +413,10 @@ internal fun viewerDismissRelease(travel: Float, speed: Float, density: Float): 
   return travel > FluidSheetDismissTravel.value * density
 }
 
+/** A document closes past 110 dp. A deliberate pull back up cancels the release. */
+internal fun viewerDocumentDismissRelease(travel: Float, speed: Float, density: Float): Boolean =
+  travel > FluidSheetDismissTravel.value * density && speed > -FluidSheetDismissVelocity.value * density
+
 /** At minimum zoom, lateral motion is the pager's and downward motion the page host's.
  * Observe after children. A scrubber, scrolling document or pinch keeps its whole contact. */
 @Composable
@@ -346,5 +462,8 @@ private fun ViewerBody(file: FluidViewerContent, chromeVisible: Boolean) {
     is FluidViewerContent.Pages -> FluidPagesPreset(file, chromeVisible)
     is FluidViewerContent.Text -> FluidTextPreset(file)
     is FluidViewerContent.Unknown -> FluidUnknownPreset(file)
+    // F6C.8: le due forme nuove, con il preset minimo (quelli veri: F6C.9 e le famiglie).
+    is FluidViewerContent.Grid -> FluidGridPreset(file, chromeVisible)
+    is FluidViewerContent.Custom -> FluidCustomPreset(file, chromeVisible)
   }
 }

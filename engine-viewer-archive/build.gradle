@@ -1,0 +1,95 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+// Allows measuring the same R8 build with just the native reader. The normal build includes the 7z AES fallback.
+def withSevenZipAes = providers.gradleProperty('fluidArchiveSevenZipAes').map { it.toBoolean() }.getOrElse(true)
+if (withSevenZipAes) apply from: 'sevenzip.gradle'
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.archive'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    consumerProguardFiles 'consumer-rules.pro', 'libarchive-consumer-rules.pro'
+  }
+
+  sourceSets {
+    main.java.srcDir(withSevenZipAes ? 'src/sevenZipAes/kotlin' : 'src/sevenZipNative/kotlin')
+  }
+
+  buildFeatures { compose = true }
+  testOptions { unitTests.includeAndroidResources = true }
+
+  packaging.resources {
+    merges += ['META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt']
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+  kotlinOptions { jvmTarget = engine.jvmTarget }
+}
+
+apply from: 'libarchive.gradle'
+def archiveAar = project.libarchiveAar
+tasks.register('checkArchiveElfAlignment') {
+  group = 'verification'
+  description = 'Check the 64-bit libarchive ELF LOAD segments for 16 KiB pages.'
+  inputs.files(archiveAar)
+  dependsOn 'prepareLibarchive'
+  doLast {
+    new java.util.zip.ZipFile(archiveAar.singleFile).withCloseable { aar ->
+      ['arm64-v8a', 'x86_64'].each { abi ->
+        def entry = aar.getEntry("jni/${abi}/libarchive-jni.so")
+        if (entry == null) throw new GradleException("libarchive_jni missing ${abi}")
+        def elf = aar.getInputStream(entry).withCloseable {
+          java.nio.ByteBuffer.wrap(it.bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        }
+        if (elf.getInt(0) != 0x464c457f || elf.get(4) != 2 || elf.get(5) != 1) {
+          throw new GradleException("Invalid ELF64: ${abi}")
+        }
+        int table = Math.toIntExact(elf.getLong(32))
+        int stride = elf.getShort(54)
+        int count = elf.getShort(56)
+        int loads = 0
+        for (int i = 0; i < count; i++) {
+          int header = table + i * stride
+          if (elf.getInt(header) != 1) continue
+          loads++
+          long alignment = elf.getLong(header + 48)
+          if (alignment < 16384 || (elf.getLong(header + 8) - elf.getLong(header + 16)) % 16384 != 0) {
+            throw new GradleException("LOAD ${i}, ${abi}: alignment ${alignment}, expected 16 KiB")
+          }
+        }
+        if (loads == 0) throw new GradleException("No LOAD segments for ${abi}")
+        logger.lifecycle("libarchive-jni.so ${abi}: ${entry.size} bytes, ${loads} LOAD segments aligned to 16 KiB")
+      }
+    }
+  }
+}
+tasks.named('check') { dependsOn 'checkArchiveElfAlignment', 'checkLibarchiveAndroidApi36' }
+tasks.withType(Test).configureEach { dependsOn 'checkArchiveElfAlignment', 'checkLibarchiveAndroidApi36' }
+
+dependencies {
+  api project(':engine-viewer')
+  if (withSevenZipAes) {
+    implementation 'org.apache.commons:commons-compress:1.28.0'
+    implementation 'org.tukaani:xz:1.10'
+  }
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+  androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

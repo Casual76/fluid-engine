@@ -5,12 +5,14 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
@@ -26,10 +28,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -37,12 +48,16 @@ import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.Info
+import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
+import dev.antigravity.fluidengine.ui.fluid.icons.IosShare
+import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.fluid.toolbar.*
 import dev.antigravity.fluidengine.ui.page.FluidPageChromeContent
 import dev.antigravity.fluidengine.ui.page.LocalSharedPage
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
 import dev.antigravity.fluidengine.ui.page.LocalFluidPagePreparing
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -53,6 +68,23 @@ data class FluidViewerStrings(
   val empty: String = "Nessun file",
   val showControls: String = "Mostra controlli",
   val hideControls: String = "Nascondi controlli",
+  val close: String = "Chiudi",
+  val copy: String = "Copia valore",
+  val file: String = "File",
+  val name: String = "Nome",
+  val type: String = "Tipo",
+  val size: String = "Dimensione",
+  val openWith: String = "Apri con…",
+  val share: String = "Condividi",
+  val actionFailed: String = "Impossibile completare l’azione",
+  val pages: (Int) -> String = { "$it pagine" },
+  val lines: (Int) -> String = { "$it righe" },
+  val location: String = "Luogo",
+  val coordinates: String = "Coordinate",
+  val openMap: String = "Apri in Mappe",
+  val chapters: String = "Capitoli",
+  val more: String = "Altro",
+  val sheets: (Int) -> String = { "$it fogli" },
 )
 
 internal class ViewerTool(
@@ -86,15 +118,18 @@ internal object ViewerChromeMotion {
     ((if (hidden) HideMillis else ShowMillis) * distance.coerceIn(0f, 1f) * scale).roundToInt()
 }
 
-private enum class ViewerButton { Info, Tools, Done }
+private enum class ViewerButton { Info, Tools, Done, More, BoardDock, TextShare }
 private data class ToolButton(val id: String)
+internal val ViewerBoardTopInset = 44.dp
 
 @Composable
 internal fun BoxScope.ViewerChrome(
   index: Int, count: Int, ink: Color, visible: Boolean, backdrop: GlassBackdropState,
   toolbar: FluidToolbarScope.(Int) -> Unit, tools: List<ViewerTool>, tool: ViewerTool?,
   select: (String?) -> Unit, onBack: () -> Unit, onInfo: (() -> Unit)?, strings: FluidViewerStrings,
-  preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity,
+  preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity, fileName: String? = null,
+  documentRoute: Boolean = false,
+  file: FluidViewerContent? = null, info: FluidViewerInfo? = null,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -105,19 +140,112 @@ internal fun BoxScope.ViewerChrome(
     ))
   }
   val space = LocalSharedPage.current
-  val minimize = remember(progress, policy, space) {
+  val arrival = remember { Animatable(0f) }
+  LaunchedEffect(documentRoute, space, policy) {
+    val host = space?.host ?: return@LaunchedEffect
+    if (!documentRoute || policy.reducedMotion) {
+      arrival.snapTo(0f)
+      return@LaunchedEffect
+    }
+    snapshotFlow { host.upper == space.page && host.isMoving && host.opening }.collectLatest { entering ->
+      if (entering) {
+        arrival.snapTo(1f)
+        arrival.animateTo(0f, tween(ViewerChromeMotion.duration(false, 1f, policy.durationScale), easing = LinearEasing))
+      } else if (arrival.value > 0f) {
+        // The spring can finish before V5 has brought the bars into focus.
+        arrival.animateTo(0f, tween(ViewerChromeMotion.duration(false, arrival.value, policy.durationScale),
+          easing = LinearEasing))
+      }
+    }
+  }
+  val minimize = remember(progress, arrival, policy, space) {
     object : FluidToolbarMinimizeProgress {
-      override val progress get() = maxOf(progress.value, 1f - (space?.let { it.host.backdropArrival(it.page) } ?: 1f))
+      override val progress get() =
+        maxOf(progress.value, arrival.value, 1f - (space?.let { it.host.backdropArrival(it.page) } ?: 1f))
       override val reducedMotion = policy.reducedMotion
     }
   }
-  val declaration = buildFluidToolbar(onBack) {
-    if (count > 0 && tool == null) toolbar(index)
-    // F6C.2: i comandi del preset della pagina corrente («Trova», «A capo») e il suo campo.
-    if (count > 0 && tool == null) preset?.invoke(this)
+  // Both lines have to fit the shared glass row. At large font scales give the title its whole height.
+  val singleLineTitle = LocalDensity.current.fontScale >= 1.5f
+  val counter = if (count > 0) strings.counter(index + 1, count) else ""
+  val board = fileName != null && file !is FluidViewerContent.Image &&
+    (file !is FluidViewerContent.Media || file.videoSurface == null)
+  val isText = file is FluidViewerContent.Text
+  val language = (file as? FluidViewerContent.Text)?.source?.language?.takeIf(String::isNotBlank)
+  val splitDock = board && tool == null && file !is FluidViewerContent.Unknown
+  val isArchive = info?.file?.kind == FluidFileKind.Archive
+  var actionFailed by remember(index, fileName) { mutableStateOf(false) }
+  val measure = rememberTextMeasurer()
+  val density = LocalDensity.current
+  val faceStyle = MaterialTheme.typography.labelLarge.viewerSize(14.5f, FontWeight.SemiBold)
+  val faceWidth: (String) -> Dp = { label ->
+    with(density) { measure.measure(label, faceStyle, maxLines = 1).size.width.toDp() + 45.dp }
+  }
+  val declarationBase = buildFluidToolbar(onBack) {
+    if (count > 0 && tool == null) {
+      if (splitDock) {
+        val app = FluidToolbarScope().apply { toolbar(index) }
+        val page = FluidToolbarScope().apply { preset?.invoke(this) }
+        search = page.search ?: app.search
+        keyboard = page.keyboard ?: app.keyboard
+        overflowLabel = page.overflowLabel ?: app.overflowLabel
+        val share = app.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
+          it.placement == FluidToolbarPlacement.BottomBar && (it.icon == FluidIcons.IosShare || it.icon == FluidIcons.Share)
+        }
+        val archiveSearch = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
+          isArchive && it.id == CustomPresetButton.Find
+        }
+        val archiveMenu = page.entries.filterIsInstance<FluidToolbarButtonEntry>().firstOrNull {
+          isArchive && it.icon == FluidIcons.MoreHoriz && it.menu != null
+        }
+        entries += app.entries.filterNot { it === share }
+        entries += page.entries.filter { !it.declaresBottomAction(false) }
+        group(ViewerButton.BoardDock, placement = FluidToolbarPlacement.BottomBar) {
+          if (isText) flexibleSpacer()
+          else if (onInfo != null) {
+            if (archiveMenu != null) entries += archiveMenu
+            else action(ViewerButton.More, FluidIcons.MoreHoriz, strings.more) {
+              info?.actions.orEmpty().filterNot { it.label == strings.share && share != null }
+                .map { item ->
+                  FluidContextAction(item.label) {
+                    actionFailed = false
+                    fluidRunFileAction(item.onClick) { actionFailed = true }
+                  }
+                }
+                .ifEmpty { listOf(FluidContextAction(strings.info, onClick = onInfo)) }
+            }
+            flexibleSpacer()
+          }
+          entries += page.entries.filter { it.declaresBottomAction(false) && it !== archiveSearch && it !== archiveMenu }
+            .map { it.withViewerLabels(faceWidth, faceStyle) }
+          if (isText) {
+            if (share != null) group(ViewerButton.TextShare) { entries += share }
+            flexibleSpacer()
+          } else {
+            flexibleSpacer()
+            (archiveSearch ?: share)?.let { entries += it }
+          }
+        }
+      } else {
+        toolbar(index)
+        preset?.invoke(this)
+      }
+    }
+    if (fileName != null && count > 0 && !singleLineTitle) {
+      subtitle(when (file) {
+        is FluidViewerContent.Text -> listOfNotNull(language?.replaceFirstChar { it.titlecase() }, file.source.lineCount?.let(strings.lines))
+          .joinToString(" · ").ifBlank { counter }
+        is FluidViewerContent.Grid -> listOfNotNull(info?.subtitle, strings.sheets(file.source.sheets.size))
+          .joinToString(" · ")
+        is FluidViewerContent.Pages -> info?.subtitle?.takeIf { info.file.mimeType != "application/pdf" } ?: counter
+        is FluidViewerContent.Custom -> info?.subtitle?.takeUnless { isArchive } ?: counter
+        else -> counter
+      })
+    }
+    if (tool == null && onInfo != null) button(ViewerButton.Info, FluidIcons.Info, strings.info,
+      placement = FluidToolbarPlacement.Trailing, onClick = onInfo)
     group(ViewerButton.Tools, placement = FluidToolbarPlacement.BottomBar) {
       if (tool == null) {
-        if (onInfo != null) button(ViewerButton.Info, FluidIcons.Info, strings.info, onClick = onInfo)
         if (count > 0) for (item in tools) button(ToolButton(item.id), item.icon, item.label, { select(item.id) })
       } else {
         tool.actions(this, index)
@@ -125,7 +253,18 @@ internal fun BoxScope.ViewerChrome(
       }
     }
   }
-  val title = if (count == 0) "" else strings.counter(index + 1, count)
+  val accent = language?.let { MaterialTheme.colorScheme.tertiary }
+  val declaration = if (!board) declarationBase else FluidToolbarDeclaration(
+    declarationBase.entries, declarationBase.titleMode, declarationBase.subtitle, declarationBase.search,
+    declarationBase.overflowLabel, declarationBase.keyboard, declarationBase.titleSelector, viewerLayout = true,
+    subtitleAccent = accent,
+    subtitleOrdinal = counter.takeIf { count > 1 && declarationBase.subtitle != null && declarationBase.subtitle != counter },
+  )
+  val title = when {
+    fileName == null -> counter
+    singleLineTitle -> "$counter · $fileName"
+    else -> fileName
+  }
   val front by LocalFluidRouteFront.current
   val chrome = if (LocalFluidPagePreparing.current) null else LocalFluidChromeController.current
   val replacement = remember { FluidBottomReplacement() }
@@ -150,7 +289,64 @@ internal fun BoxScope.ViewerChrome(
       if (search?.occupiesBottom != true) FluidBottomBar(declaration, backdrop, minimize, Modifier.align(Alignment.BottomCenter))
       if (search != null) FluidToolbarSearchOverlay(search, declaration, backdrop, minimize)
     }
+    if (actionFailed && visible) Text(strings.actionFailed,
+      Modifier.align(Alignment.BottomCenter).padding(bottom = viewerBottomCapsuleTop() + 16.dp)
+        .background(MaterialTheme.colorScheme.surface, FluidCapsuleShape).padding(horizontal = 14.dp, vertical = 6.dp)
+        .semantics { liveRegion = LiveRegionMode.Polite }, color = MaterialTheme.colorScheme.error,
+      style = MaterialTheme.typography.bodyMedium)
   }
+}
+
+private fun FluidToolbarEntry.withViewerLabels(width: (String) -> Dp, style: androidx.compose.ui.text.TextStyle): FluidToolbarEntry {
+  if (this is FluidToolbarGroupEntry) return FluidToolbarGroupEntry(id, placement, priority, overflow, sharedBackground,
+    children.map { it.withViewerLabels(width, style) })
+  if (this !is FluidToolbarButtonEntry || onClick == null || menu != null || custom != null || type != null || undo != null ||
+    icon == null || label == null || id == TextPresetButton.Wrap) return this
+  return FluidToolbarButtonEntry(id, role, placement, priority, icon = icon, label = label, onClick = onClick,
+    tint = tint, selected = selected, enabled = enabled, badgeCount = badgeCount, badgeDot = badgeDot,
+    sharedBackground = sharedBackground, destructive = destructive, width = width(label), overflow = overflow,
+    custom = {
+      val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        FluidIcon(icon, null, tint = color, size = 18.dp)
+        Text(label, color = color, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      }
+    })
+}
+
+@Composable
+internal fun ViewerToolbarSubtitle(declaration: FluidToolbarDeclaration?, fallback: String) {
+  val ink = LocalContentColor.current.copy(alpha = FluidToolbarDefaults.SubtitleInk)
+  // Keep the position in the file collection available to accessibility while the visible
+  // subtitle describes the document being read.
+  val ordinal = declaration?.subtitleOrdinal
+  val position = if (ordinal == null) Modifier else Modifier.semantics { text = AnnotatedString(ordinal) }
+  Row(position, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+    declaration?.subtitleAccent?.let { Box(Modifier.size(7.dp).background(it, FluidCapsuleShape)) }
+    Text(fallback, style = if (declaration?.viewerLayout == true)
+      MaterialTheme.typography.bodySmall.viewerSize(12f, FontWeight.Medium) else MaterialTheme.typography.bodySmall,
+      color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+  }
+}
+
+/**
+ * How far from the bottom of the screen the viewer's bottom capsule ends (F6C.15b): the navigation bar, the room of a
+ * tab bar when the app has one ([LocalFluidBottomInset]), the capsule's own margin ([fluidBottomBarOffset]) and its
+ * height. A row that floats above the capsule (the sheet tabs of the grid) stands on this line plus a gap, and the
+ * content of a page that scrolls ends above both, so at the end of the scroll nothing stays under a capsule. The
+ * navigation bar counts even while it is hidden with the chrome, so the content does not jump.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun viewerBottomCapsuleTop(): Dp =
+  WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding() +
+    fluidBottomBarOffset(LocalFluidBottomInset.current) + FluidFloatingCapsuleDefaults.ActionSize
+
+@Composable
+internal fun viewerPhotoSpace(compactInspector: Boolean): Float {
+  val target = if (compactInspector) 1f - FluidSheetMediumFraction else 1f
+  if (LocalFluidMotionPolicy.current.reducedMotion) return target
+  return animateFloatAsState(target, FluidMotion.gentle(), label = "ViewerPhotoSpace").value
 }
 
 @Composable
@@ -160,11 +356,16 @@ internal fun BoxScope.ViewerInfo(
 ) {
   var large by rememberSaveable(open) { mutableStateOf(false) }
   if (!wide) {
-    FluidGlassSheet(visible = open, onDismissRequest = close, paneTitle = strings.info,
-      detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
-      selectedDetent = if (large) FluidSheetDetent.Large else FluidSheetDetent.Medium,
-      onSelectedDetentChange = { large = it == FluidSheetDetent.Large },
-      undimmedUpTo = FluidSheetDetent.Medium) { body() }
+    val pageColors = MaterialTheme.colorScheme
+    CompositionLocalProvider(LocalFluidSheetEdgeToEdge provides true) {
+      FluidGlassSheet(visible = open, onDismissRequest = close, paneTitle = strings.info,
+        detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large),
+        selectedDetent = if (large) FluidSheetDetent.Large else FluidSheetDetent.Medium,
+        onSelectedDetentChange = { large = it == FluidSheetDetent.Large },
+        undimmedUpTo = FluidSheetDetent.Medium) {
+        CompositionLocalProvider(LocalViewerInfoPageColors provides pageColors) { body() }
+      }
+    }
     return
   }
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
@@ -176,10 +377,8 @@ internal fun BoxScope.ViewerInfo(
       .width(FluidDrawerDefaults.Width).fillMaxHeight()
       .glassSurface(backdrop, GlassDefaults.panelTint(), ContinuousCornerShape(FluidRadius.Sheet))
       .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } }
-      .semantics { paneTitle = strings.info }.padding(FluidScreenDefaults.HorizontalPadding)) {
-      FluidToolbarBar(buildFluidToolbar(null) { close(onClick = close) })
-      Text(strings.info, style = MaterialTheme.typography.titleLarge)
-      Column(Modifier.verticalScroll(rememberScrollState())) { body() }
+      .semantics { paneTitle = strings.info }) {
+      body()
     }
   }
 }

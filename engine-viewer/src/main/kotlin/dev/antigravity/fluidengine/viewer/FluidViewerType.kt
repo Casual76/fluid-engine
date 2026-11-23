@@ -5,11 +5,11 @@ import dev.antigravity.fluidengine.ui.fluid.FluidFileKind
 import java.util.Locale
 
 /**
- * Quale preset del visore mostra un file: [Image], [Video], [Audio], [Pages], [Text] o [Unknown].
+ * Quale preset del visore mostra un file: [Image], [Video], [Audio], [Pages], [Text], [Grid], [Custom] o [Unknown].
  *
  * Non è un `enum` di proposito, come `FluidGroupedMaterial`: un preset nuovo (un giorno gli archivi) in un `enum`
  * pubblico romperebbe ogni `when` esaustivo di un'app. Qui un preset nuovo è una costante in più, e chi confronta
- * scrive un `else`.
+ * scrive un `else`. [Grid] e [Custom] sono arrivati così con F6C.8.
  */
 @Immutable
 @JvmInline
@@ -21,6 +21,8 @@ value class FluidViewerPreset private constructor(private val id: Int) {
     AudioId -> "Audio"
     PagesId -> "Pages"
     TextId -> "Text"
+    GridId -> "Grid"
+    CustomId -> "Custom"
     else -> "Unknown"
   }
 
@@ -31,6 +33,8 @@ value class FluidViewerPreset private constructor(private val id: Int) {
     private const val AudioId = 3
     private const val PagesId = 4
     private const val TextId = 5
+    private const val GridId = 6
+    private const val CustomId = 7
 
     /** Una foto, anche animata (GIF, WebP): `FluidViewerContent.Image`. */
     val Image: FluidViewerPreset = FluidViewerPreset(ImageId)
@@ -44,6 +48,10 @@ value class FluidViewerPreset private constructor(private val id: Int) {
     val Text: FluidViewerPreset = FluidViewerPreset(TextId)
     /** Tutto il resto, e ogni eseguibile: `FluidViewerContent.Unknown`, con «Apri con…». Mai un vicolo cieco. */
     val Unknown: FluidViewerPreset = FluidViewerPreset(UnknownId)
+    /** F6C.8 · Un foglio di calcolo o una tabella (XLSX, ODS, CSV): `FluidViewerContent.Grid`. Lo danno le famiglie. */
+    val Grid: FluidViewerPreset = FluidViewerPreset(GridId)
+    /** F6C.8 · Una pagina disegnata dal modulo (archivio, albero JSON, EPUB, font, 3D): `FluidViewerContent.Custom`. */
+    val Custom: FluidViewerPreset = FluidViewerPreset(CustomId)
   }
 }
 
@@ -59,6 +67,11 @@ value class FluidViewerPreset private constructor(private val id: Int) {
  * [mimeType] è il MIME normalizzato (minuscolo, senza parametri) o `null` se mancava o era generico
  * (`application/octet-stream`, il jolly di tutti i tipi, `multipart/…`). [language] è la lingua per i colori di sintassi di un [FluidViewerPreset.Text]
  * ([FluidSyntax]), `null` se il testo è semplice o la lingua non è fra quelle note.
+ *
+ * F6C.8: un tipo che apre un modulo di famiglia ([FluidViewerRegistry]) porta la sua [family] («office»), il
+ * [familyType] («docx») e la [label] per le persone («Documento Word»); per i preset di serie sono `null`. Per un tipo
+ * di famiglia [kind] resta quello di `FluidFileKind.from`, salvo quando questo non sa niente (`Other`): allora vale
+ * quello dichiarato dalla famiglia, che non è mai `Executable`.
  */
 @Immutable
 data class FluidViewerType(
@@ -66,6 +79,9 @@ data class FluidViewerType(
   val kind: FluidFileKind,
   val mimeType: String?,
   val language: String?,
+  val family: String? = null,
+  val label: String? = null,
+  val familyType: String? = null,
 ) {
   /** Vero se il file è un eseguibile: il preset è sempre [FluidViewerPreset.Unknown] e mostra l'avviso. */
   val executable: Boolean get() = kind == FluidFileKind.Executable
@@ -79,13 +95,27 @@ data class FluidViewerType(
      *
      * Le immagini che la piattaforma non decodifica (SVG, TIFF, PSD) vanno allo sconosciuto: niente decodificatori
      * pesanti, e «Apri con…» c'è sempre.
+     *
+     * F6C.8: se un modulo di famiglia conosce il tipo ([FluidViewerRegistry.families]), vince il primo candidato del
+     * registro (firma dei primi byte, estensione, MIME, priorità): un `.docx` con `engine-viewer-office` è un
+     * documento a pagine di «office». Le firme sulle voci di uno ZIP qui non si leggono: le guarda `open`. Senza
+     * famiglie il risultato è quello di sempre.
      */
     fun of(mimeType: String?, fileName: String, header: ByteArray? = null): FluidViewerType {
+      val builtin = builtin(mimeType, fileName, header)
+      if (builtin.type.executable) return builtin.type
+      val families = FluidViewerRegistry.families
+      if (families.isEmpty()) return builtin.type
+      return FluidViewerResolver.candidates(families, mimeType, fileName, header, null).firstOrNull()?.type ?: builtin.type
+    }
+
+    /** Il preset di serie (F6C.4), senza le famiglie, e la forza con cui l'ha deciso (per l'ordine del registro). */
+    internal fun builtin(mimeType: String?, fileName: String, header: ByteArray? = null): FluidViewerBuiltin {
       val kind = FluidFileKind.from(mimeType, fileName)
       val mime = normalizeMime(mimeType)
       val leaf = fileName.substringAfterLast('/').substringAfterLast('\\')
       val extension = extensionOf(leaf)
-      if (kind == FluidFileKind.Executable) return FluidViewerType(FluidViewerPreset.Unknown, kind, mime, null)
+      if (kind == FluidFileKind.Executable) return FluidViewerBuiltin(FluidViewerType(FluidViewerPreset.Unknown, kind, mime, null), 0)
       val byName = presetForExtension(extension) ?: presetForName(leaf)
       val byMime = mime?.let(::presetForMime)
       val bySignature = if (byName == null && byMime == null && header != null) sniff(header) else null
@@ -93,12 +123,18 @@ data class FluidViewerType(
       val media = byName == FluidViewerPreset.Video || byName == FluidViewerPreset.Audio
       val mediaMime = byMime == FluidViewerPreset.Video || byMime == FluidViewerPreset.Audio
       val preset = (if (media && mediaMime) byMime else byName) ?: byMime ?: bySignature ?: FluidViewerPreset.Unknown
+      val strength = when {
+        byName != null -> FluidViewerStrength.Extension
+        byMime != null -> FluidViewerStrength.Mime
+        bySignature != null -> FluidViewerStrength.Bytes
+        else -> 0
+      }
       val language = if (preset == FluidViewerPreset.Text) {
         FluidSyntax.languageFor(leaf, mime)
       } else {
         null
       }
-      return FluidViewerType(preset, kind, mime, language)
+      return FluidViewerBuiltin(FluidViewerType(preset, kind, mime, language), strength)
     }
 
     /**
@@ -228,3 +264,6 @@ data class FluidViewerType(
     }
   }
 }
+
+/** Il preset di serie deciso da `FluidViewerType.builtin` e la forza del riconoscimento (`FluidViewerStrength`). */
+internal class FluidViewerBuiltin(val type: FluidViewerType, val strength: Int)

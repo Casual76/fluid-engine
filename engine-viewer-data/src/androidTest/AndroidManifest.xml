@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Solo nell'APK delle prove: MockWebServer deve aprire una porta locale. Con il permesso il processo POTREBBE
+       andare in rete, ed e' proprio questo che la prova «nessuna rete» mette alla prova: il server non riceve niente. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+
+  <application android:label="Visori dati F6C.13">
+    <!-- L'app di prova delle pagine: si apre anche da adb per le riprese
+         (am start -n dev.antigravity.fluidengine.viewer.data.test/dev.antigravity.fluidengine.viewer.data.DataProvaActivity
+          -\-es file nota.md -\-ez dark true). -->
+    <activity
+      android:name="dev.antigravity.fluidengine.viewer.data.DataProvaActivity"
+      android:exported="true"
+      android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale"
+      android:theme="@android:style/Theme.Material.Light.NoActionBar">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <!-- Il contenitore chiuso da solo, per la prova «nessuna rete». -->
+    <activity android:name="androidx.activity.ComponentActivity" android:exported="false" />
+  </application>
+</manifest>

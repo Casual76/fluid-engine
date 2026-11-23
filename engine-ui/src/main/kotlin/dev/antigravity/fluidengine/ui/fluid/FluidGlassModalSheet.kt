@@ -362,6 +362,10 @@ private data class FluidSheetScreen(val size: Size, val cornerPx: Float) {
   }
 }
 
+/** Page colour currently drawn over the sheet's glass, including the live fade while dragging. */
+internal class FluidSheetPageVeil(val color: Color, val alpha: () -> Float)
+internal val LocalFluidSheetPageVeil = androidx.compose.runtime.staticCompositionLocalOf<FluidSheetPageVeil?> { null }
+
 /**
  * Lo stato del moto di un foglio: il detent in cui sta e quanto il dito (o la molla) lo ha spostato da lì.
  *
@@ -497,7 +501,7 @@ private fun FluidSheetPane(
   var screen by remember { mutableStateOf(FluidSheetScreen.Unknown) }
   val topRadiusPx = with(density) { FluidRadius.Sheet.toPx() }
   val restInsetPx = fluidSheetInsetPx(0f, density.density)
-  val bottomRadiusPx = if (!motion.detentedLook) {
+  val bottomRadiusPx = if (!motion.detentedLook || sink.spec?.edgeToEdge == true) {
     0f
   } else if (screen.size == Size.Zero) {
     topRadiusPx
@@ -729,6 +733,20 @@ private fun FluidSheetPane(
       },
     content = {
       val sharedMaterial = motion.detentedLook
+      // Read the same value in the glass painter and in content that needs to adapt its ink.
+      fun paintedVeil(height: Float): Float {
+        val stops = motion.stops
+        return when {
+          !sharedMaterial || stops == null -> 0f
+          motion.zoomActive -> fluidSheetZoomVeil(motion.zoomTravel(slide()),
+            fluidSheetLargeness(motion.zoomFinal.height, stops, motion.largePx, FluidSheetOpaqueBand))
+          motion.veil < 0f -> fluidSheetLargeness(height, stops, motion.largePx, FluidSheetOpaqueBand)
+          else -> motion.veil
+        }
+      }
+      val pageVeil = remember(motion, sharedMaterial, pageInk, slide) {
+        FluidSheetPageVeil(pageInk) { paintedVeil(motion.zoomFinal.height) }
+      }
       Box(
         propagateMinConstraints = true,
         modifier = Modifier
@@ -806,17 +824,7 @@ private fun FluidSheetPane(
               .drawWithCache {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 onDrawBehind {
-                  val stops = motion.stops
-                  val veil = when {
-                    stops == null -> 0f
-                    // Nello zoom il vetro diventa pagina mentre cresce, se al suo detent è opaco (284 f25411–f25413).
-                    motion.zoomActive -> fluidSheetZoomVeil(
-                      motion.zoomTravel(slide()),
-                      fluidSheetLargeness(motion.zoomFinal.height, stops, motion.largePx, FluidSheetOpaqueBand),
-                    )
-                    motion.veil < 0f -> fluidSheetLargeness(size.height, stops, motion.largePx, FluidSheetOpaqueBand)
-                    else -> motion.veil
-                  }
+                  val veil = paintedVeil(size.height)
                   if (veil > 0f) drawOutline(outline, pageInk.copy(alpha = veil))
                 }
               },
@@ -870,8 +878,13 @@ private fun FluidSheetPane(
               }
             },
         ) {
-          // Davanti alla tab bar in alto della navigazione adattiva: la sua fascia qui non conta (F6B.12).
-          CompositionLocalProvider(LocalFluidSheetSink provides sink, LocalFluidTopChromeBand provides 0.dp) {
+          // Davanti alla tab bar in alto della navigazione adattiva: la sua fascia qui non conta (F6B.12). Il velo della
+          // pagina passa ai contenuti per l'inchiostro del pannello info (F6C.9).
+          CompositionLocalProvider(
+            LocalFluidSheetSink provides sink,
+            LocalFluidSheetPageVeil provides pageVeil,
+            LocalFluidTopChromeBand provides 0.dp,
+          ) {
             // La maniglia: c'e' sempre (lo spazio in cima e' lo stesso di prima); un foglio che non la vuole la nasconde
             // in disegno. Toccata, passa al detent successivo.
             FluidGrabber(
@@ -932,7 +945,7 @@ private fun FluidSheetPane(
       sheetBackground.dim = fluidSheetDim(position, backgroundLimit, dimCeiling)
       val visible = fluidSheetVisibleHeight(position, stops, windowHeight)
       val largeness = fluidSheetLargeness(visible, stops, large)
-      val inset = fluidSheetInsetPx(largeness, scale)
+      val inset = if (spec.edgeToEdge) 0f else fluidSheetInsetPx(largeness, scale)
       val width = min(windowWidth - 2f * inset, maxWidth).coerceAtLeast(0f).roundToInt()
       val height = visible.roundToInt().coerceAtLeast(0)
       val left = ((windowWidth - width) / 2f).roundToInt()

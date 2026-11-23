@@ -1,0 +1,102 @@
+{
+  "about": "F6C.8 · I moduli di famiglia dei visori ammessi nel build, con le librerie che ciascuno puo' portare, la licenza e il peso. Lo leggono checkViewerFamilies (engine-viewer/viewer-families.gradle) e tools/engine-install.ps1. Una libreria fuori da questa lista ferma la build. I pesi: la frase \"weight\" e' quella del pacchetto di ogni famiglia; la voce \"apk\" e' il peso misurato per architettura (F6C.15), che legge la pagina «Pesi» della galleria.",
+  "families": [
+    {
+      "module": "engine-viewer-office",
+      "family": "office",
+      "package": "dev.antigravity.fluidengine.viewer.office",
+      "label": "Office: DOCX, ODT e RTF a pagine, XLSX e ODS in griglia, PPTX e ODP a slide",
+      "weight": "APK debug, byte con/senza font: arm64-v8a 930251/137912, armeabi-v7a 930251/137912, x86 930251/137912, x86_64 930251/137912, universale 930251/137912",
+      "apk": { "source": "F6C.15, 23 novembre 2026: bench della galleria con R8 (come la release); DEX delle classi del modulo e delle sue librerie con apkanalyzer e la mappa di R8 (il codice che R8 fonde in classi di altri pacchetti non si conta), asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 857872, "armeabi-v7a": 857872, "x86": 857872, "x86_64": 857872, "dex": 105763, "assets": 752109, "native": { "arm64-v8a": 0, "armeabi-v7a": 0, "x86": 0, "x86_64": 0 } },
+      "assets": [
+        { "name": "Carlito, Caladea, Liberation Sans, Serif e Mono (sottoinsiemi latini, quattro stili)", "license": "OFL-1.1", "weight": "1293496 B TTF latini, 789549 B nelle voci APK" }
+      ],
+      "libraries": []
+    },
+    {
+      "module": "engine-viewer-archive",
+      "family": "archive",
+      "packaging": "L'AAR Maven 1.1.7 richiede minCompileSdk 37.2. Il modulo verifica l'impronta, include i binari JNI intatti e controlla i riferimenti contro SDK 36. Togliere il task quando l'engine compila con SDK 37.2.",
+      "package": "dev.antigravity.fluidengine.viewer.archive",
+      "label": "Archivi: ZIP, 7z, RAR, TAR (anche .tgz, .tar.xz, .tar.zst), .gz, .bz2, .xz",
+      "weight": "JNI nell'APK: 2.406.200 byte arm64-v8a, 1.842.532 armeabi-v7a, 2.686.464 x86_64, 2.741.020 x86. Ripiego 7z dopo R8: +40.011 byte di DEX compressi, +182.174 byte nell'APK di prova",
+      "apk": { "source": "F6C.15, 23 novembre 2026: bench della galleria con R8 (come la release); DEX delle classi del modulo e delle sue librerie con apkanalyzer e la mappa di R8 (il codice che R8 fonde in classi di altri pacchetti non si conta), asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 2548294, "armeabi-v7a": 1984626, "x86": 2883114, "x86_64": 2828558, "dex": 121542, "assets": 20552, "native": { "arm64-v8a": 2406200, "armeabi-v7a": 1842532, "x86": 2741020, "x86_64": 2686464 } },
+      "assets": [],
+      "libraries": [
+        { "coordinates": "me.zhanghai.android.libarchive:library", "license": "Apache-2.0 (collegamento); libarchive BSD-2-Clause; zlib, bzip2, xz, lz4, zstd, Mbed TLS: zlib, BSD, 0BSD, Apache-2.0", "weight": "2.406.200 byte arm64-v8a, 1.842.532 armeabi-v7a, 2.686.464 x86_64, 2.741.020 x86 misurati nell'APK" },
+        { "coordinates": "org.apache.commons:commons-compress", "license": "Apache-2.0", "weight": "Ripiego condiviso con XZ e dipendenze: +40.011 byte di DEX compressi dopo R8 nell'APK di prova" },
+        { "coordinates": "org.tukaani:xz", "license": "0BSD", "weight": "Ripiego per 7z cifrati" },
+        { "coordinates": "commons-io:commons-io", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" },
+        { "coordinates": "commons-codec:commons-codec", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" },
+        { "coordinates": "org.apache.commons:commons-lang3", "license": "Apache-2.0", "weight": "Dipendenza di Commons Compress" }
+      ]
+    },
+    {
+      "module": "engine-viewer-data",
+      "family": "data",
+      "package": "dev.antigravity.fluidengine.viewer.data",
+      "label": "Testi ricchi e dati: Markdown, HTML, CSV, TSV, JSON, NDJSON, XML, plist, EPUB, EML, ICS, VCF",
+      "weight": "0,13 MB nell'APK con R8, 0,14 MB scaricati, uguale per ogni architettura (nessuna libreria nativa); 108 KB di dex nel suo pacchetto. Misurato da F6C.13 sulla bench della galleria, con e senza il modulo",
+      "apk": { "source": "F6C.15, 23 novembre 2026: bench della galleria con R8 (come la release); DEX delle classi del modulo e delle sue librerie con apkanalyzer e la mappa di R8 (il codice che R8 fonde in classi di altri pacchetti non si conta), asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 103465, "armeabi-v7a": 103465, "x86": 103465, "x86_64": 103465, "dex": 103465, "assets": 0, "native": { "arm64-v8a": 0, "armeabi-v7a": 0, "x86": 0, "x86_64": 0 } },
+      "assets": [],
+      "libraries": []
+    },
+    {
+      "module": "engine-viewer-graphics",
+      "family": "graphics",
+      "package": "dev.antigravity.fluidengine.viewer.graphics",
+      "label": "Immagini speciali e font: HEIC, AVIF, RAW, TIFF, PSD, SVG; TTF, OTF, TTC, WOFF",
+      "weight": "277.517 B di DEX attribuiti nell'APK debug di prova, uguali per arm64-v8a, armeabi-v7a, x86 e x86_64",
+      "apk": { "source": "F6C.15, 23 novembre 2026: bench della galleria con R8 (come la release); DEX delle classi del modulo e delle sue librerie con apkanalyzer e la mappa di R8 (il codice che R8 fonde in classi di altri pacchetti non si conta), asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 191004, "armeabi-v7a": 191004, "x86": 191004, "x86_64": 191004, "dex": 191004, "assets": 0, "native": { "arm64-v8a": 0, "armeabi-v7a": 0, "x86": 0, "x86_64": 0 } },
+      "assets": [],
+      "libraries": [
+        { "coordinates": "com.caverock:androidsvg-aar", "license": "Apache-2.0", "weight": "134.347 B di DEX nell'APK debug di prova" },
+        { "coordinates": "androidx.exifinterface:exifinterface", "license": "Apache-2.0", "weight": "52.506 B di DEX nell'APK debug di prova" }
+      ]
+    },
+    {
+      "module": "engine-viewer-3d",
+      "family": "3d",
+      "package": "dev.antigravity.fluidengine.viewer.scene",
+      "label": "Modelli 3D: GLB, glTF, OBJ, STL (Filament, con i materiali e la luce come AR Quick Look)",
+      "weight": "7.234.617 B arm64-v8a / 5.672.477 B armeabi-v7a / 7.883.581 B x86 / 7.759.497 B x86_64 (DEX, asset e librerie nell'APK debug di prova)",
+      "apk": { "source": "F6C.15, 23 novembre 2026: bench della galleria con R8 (come la release); DEX delle classi del modulo e delle sue librerie con apkanalyzer e la mappa di R8 (il codice che R8 fonde in classi di altri pacchetti non si conta), asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 6746783, "armeabi-v7a": 5184643, "x86": 7395747, "x86_64": 7271663, "dex": 47745, "assets": 53646, "native": { "arm64-v8a": 6645392, "armeabi-v7a": 5083252, "x86": 7294356, "x86_64": 7170272 } },
+      "assets": [
+        { "name": "Piano d'ombra e ambiente IBL originali", "license": "originali del Fluid Engine, stessa licenza dell'engine", "weight": "171.343 B non compressi, 58.654 B nelle voci ZIP dell'APK debug di prova" }
+      ],
+      "libraries": [
+        { "coordinates": "com.google.android.filament:filament-android", "license": "Apache-2.0", "weight": "3.012.616 B per arm64-v8a nell'APK debug di prova" },
+        { "coordinates": "com.google.android.filament:gltfio-android", "license": "Apache-2.0", "weight": "3.079.144 B per arm64-v8a nell'APK debug di prova" },
+        { "coordinates": "com.google.android.filament:filament-utils-android", "license": "Apache-2.0", "weight": "553.632 B per arm64-v8a nell'APK debug di prova" }
+      ]
+    },
+    {
+      "module": "engine-viewer-ar",
+      "family": "ar",
+      "package": "dev.antigravity.fluidengine.viewer.ar",
+      "requires": ["engine-viewer-3d"],
+      "label": "Realtà aumentata: posa dei modelli 3D nella stanza con ARCore",
+      "weight": "APK debug di prova, DEX, asset e JNI attribuiti: 324.620 B arm64-v8a, 269.768 B armeabi-v7a, 335.064 B x86 e 324.572 B x86_64. Filament condiviso con engine-viewer-3d",
+      "apk": { "source": "F6C.16, 22 novembre 2026: APK debug di prova, senza R8; DEX del modulo 50.597 B e di ARCore 96.111 B, il materiale della fotocamera 9.144 B, JNI di ARCore per architettura; Filament si conta in engine-viewer-3d. Non e' nella bench della galleria, che non include l'AR", "arm64-v8a": 324620, "armeabi-v7a": 269768, "x86": 335064, "x86_64": 324572, "dex": 146708, "assets": 9144, "native": { "arm64-v8a": 168768, "armeabi-v7a": 113916, "x86": 179212, "x86_64": 168720 } },
+      "assets": [
+        { "name": "Materiale originale per il fondo della fotocamera", "license": "Stessa licenza del Fluid Engine", "weight": "9.144 B non compressi, 3.749 B nella voce ZIP dell'APK debug di prova" }
+      ],
+      "libraries": [
+        { "coordinates": "com.google.ar:core", "license": "ARCore Additional Terms of Service", "weight": "APK di prova: 96.111 B DEX comuni più JNI, 168.768 B arm64-v8a, 113.916 B armeabi-v7a, 179.212 B x86 e 168.720 B x86_64" },
+        { "coordinates": "com.google.android.filament:filament-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" },
+        { "coordinates": "com.google.android.filament:gltfio-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" },
+        { "coordinates": "com.google.android.filament:filament-utils-android", "license": "Apache-2.0", "weight": "Condivisa con engine-viewer-3d" }
+      ]
+    },
+    {
+      "module": "engine-viewer-prova",
+      "family": "prova",
+      "package": "dev.antigravity.fluidengine.viewer.prova",
+      "label": "Il modulo di prova di F6C.8: il tipo .prova, per provare il registro in un APK release",
+      "weight": "pochi KB",
+      "test": true,
+      "assets": [],
+      "libraries": []
+    }
+  ]
+}

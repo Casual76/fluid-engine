@@ -1,0 +1,73 @@
+// F6C.13 · La famiglia «data» dei visori: testi ricchi e dati. Markdown reso, HTML in una WebView chiusa, CSV e TSV in
+// griglia, JSON, JSONC, NDJSON, XML e plist ad albero, EPUB a capitoli, EML, ICS e VCF come schede.
+//
+// Una **lettura propria** sopra engine-ui (docs/liquid-glass/ricerca/visori-2.md, par. 1.3): nessuna libreria. Usa
+// FluidMarkdown e FluidWebContent di engine-ui, FluidTextDecoder e i colori di sintassi di engine-viewer, e della
+// piattaforma solo XmlPullParser, java.util.zip.Inflater, java.time e BitmapFactory. Il modulo non va mai in rete: non
+// ha il permesso INTERNET, non apre socket, e ogni risorsa di una pagina web passa da `onRequest`, che serve solo i byte
+// del file (o della cartella che l'app concede) e blocca il resto.
+//
+// Si registra da solo presso il risolutore di engine-viewer (META-INF/services): basta la dipendenza.
+//
+//   implementation project(':engine-viewer-data')
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.data'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    // Le prove sul dispositivo (src/androidTest): la WebView chiusa vera, il contenitore che non va in rete, le pagine
+    // in chiaro e in scuro per le riprese.
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  sourceSets {
+    // I file di prova sono uno solo: i test JVM li leggono come risorse, l'app di prova sul dispositivo come asset.
+    androidTest.assets.srcDir 'src/test/resources'
+  }
+
+  testOptions {
+    // L'APK delle prove si comporta come un'app d'oggi (WebView, avvisi di sistema): targetSdk quello di compilazione.
+    targetSdk = engine.compileSdk
+    unitTests {
+      // I lettori sono Kotlin puro; XmlPullParser, Base64 e BitmapFactory vengono da Robolectric nelle prove che li usano.
+      includeAndroidResources = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano FluidViewerFamily, FluidViewerDocument (engine-viewer) e FluidViewerInfo (engine-ui).
+  api project(':engine-viewer')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+
+  // Solo per :engine-viewer-data:connectedDebugAndroidTest, mai in un'app.
+  androidTestImplementation 'androidx.test:runner:1.7.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+  androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+  androidTestImplementation "androidx.webkit:webkit:${engine.webkit}"
+}

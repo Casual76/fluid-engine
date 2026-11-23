@@ -34,6 +34,20 @@ include ':engine-ai-bridge'
 include ':engine-ai-ui'
 include ':engine-richtext'
 include ':engine-viewer'
+include ':engine-viewer-archive'
+include ':engine-viewer-office'
+// F6C.8 · Il visore universale: engine-viewer piu' tutte le famiglie dei visori. Le famiglie (engine-viewer-office,
+// -archive, -data, -graphics, -3d) entrano qui con una riga ciascuna, quando esistono.
+include ':engine-viewer-all'
+include ':engine-viewer-graphics', ':engine-viewer-3d'
+include ':engine-viewer-ar'
+include ':engine-viewer-data' // F6C.13 · testi ricchi e dati
+
+// F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
+include ':engine-viewer-prova'
+project(':engine-viewer-prova').projectDir = file('engine-viewer/prova/famiglia')
+include ':engine-viewer-prova-app'
+project(':engine-viewer-prova-app').projectDir = file('engine-viewer/prova/app')
 
 // The gallery. Only exists in this build: a host app includes the engine-* modules by path and
 // never reads this file, so nothing an app compiles is affected by it.

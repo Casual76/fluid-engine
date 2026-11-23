@@ -30,7 +30,9 @@ import dev.antigravity.fluidengine.ui.fluid.FluidChoiceRow
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidSliderRow
+import dev.antigravity.fluidengine.ui.fluid.FluidEngineLicenses
 import dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection
+import dev.antigravity.fluidengine.sample.viewer.VisoriLicenses
 import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Color
@@ -83,8 +85,9 @@ internal fun SettingsTab(
       UpdatesAndAboutGroup()
     }
     // I crediti stanno qui apposta: sono la stessa sezione che ogni app deve mettere nella propria
-    // pagina "informazioni", e vale la pena guardarla girare sopra il canvas.
-    fluidLicensesSection(glass = true)
+    // pagina "informazioni", e vale la pena guardarla girare sopra il canvas. F6C.15: con le librerie e i caratteri
+    // che i moduli dei visori portano nella galleria (libarchive, AndroidSVG, Filament, i caratteri OFL di Office).
+    fluidLicensesSection(glass = true, licences = FluidEngineLicenses + VisoriLicenses)
   }
 }
 

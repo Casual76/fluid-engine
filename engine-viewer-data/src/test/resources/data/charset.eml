@@ -1,0 +1,19 @@
+From: Ivan <ivan@example.ru>
+To: alessio@example.com
+Subject: =?KOI8-R?B?8NLJ18XUIMnaIO3P08vX2Q==?=
+Date: 20 Nov 2026 09:15:00 +0300
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary=b1
+
+--b1
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 8bit
+
+ﾉﾗﾅﾔ! �ﾔﾏ ﾐﾉﾓﾘﾍﾏ ﾗ ﾋﾏﾄﾉﾒﾏﾗﾋﾅ KOI8-R.
+--b1
+Content-Type: text/plain; charset=Shift_JIS; name="giapponese.txt"
+Content-Disposition: attachment; filename="giapponese.txt"
+Content-Transfer-Encoding: 8bit
+
+こんにちは、シフトJISのテキストです。
+--b1--

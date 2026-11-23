@@ -1,6 +1,14 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.icu.text.RelativeDateTimeFormatter
 import java.text.NumberFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.FormatStyle
+import java.time.chrono.IsoChronology
 import java.util.Locale
 import kotlin.math.ln
 import kotlin.math.pow
@@ -55,6 +63,37 @@ fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): Stri
   if (unit < units.lastIndex && bytes / 1000.0.pow(unit) >= 999.95) unit++
   val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = if (unit == 0) 0 else 1; isGroupingUsed = false }
   return "${number.format(bytes / 1000.0.pow(unit))} ${units[unit]}"
+}
+
+/** The original and expanded sizes share a unit when both values use the same one. */
+fun fluidFormatFileSizeRange(before: Long?, after: Long?, locale: Locale = Locale.getDefault()): String? {
+  val a = before?.takeIf { it >= 0 }?.let { fluidFormatFileSize(it, locale) }
+  val b = after?.takeIf { it >= 0 }?.let { fluidFormatFileSize(it, locale) }
+  if (a == null || b == null) return a ?: b
+  val first = if (a.substringAfterLast(' ') == b.substringAfterLast(' ')) a.substringBeforeLast(' ') else a
+  return "$first → $b"
+}
+
+/** A file timestamp in the user's time zone. The current day and its predecessor use the locale's relative names. */
+fun fluidFormatFileDate(
+  instant: Instant,
+  locale: Locale = Locale.getDefault(),
+  zone: ZoneId = ZoneId.systemDefault(),
+  today: LocalDate = LocalDate.now(zone),
+  includeTime: Boolean = false,
+): String {
+  val time = instant.atZone(zone)
+  val direction = when (time.toLocalDate()) {
+    today -> RelativeDateTimeFormatter.Direction.THIS
+    today.minusDays(1) -> RelativeDateTimeFormatter.Direction.LAST
+    else -> null
+  }
+  val date = direction?.let {
+    RelativeDateTimeFormatter.getInstance(locale).format(it, RelativeDateTimeFormatter.AbsoluteUnit.DAY)
+  } ?: time.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+  if (!includeTime) return date
+  val pattern = DateTimeFormatterBuilder.getLocalizedDateTimePattern(null, FormatStyle.SHORT, IsoChronology.INSTANCE, locale)
+  return "$date ${time.format(DateTimeFormatter.ofPattern(pattern.replace("HH", "H"), locale))}"
 }
 
 internal fun fluidFileExtension(name: String): String {

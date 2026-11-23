@@ -1,8 +1,8 @@
 # engine-viewer
 
-**I decodificatori dei visori di file**: il PDF col `PdfRenderer` della piattaforma, il testo col riconoscimento del charset, un tetto di lettura e i colori di sintassi, le GIF e le WebP animate con `ImageDecoder`, gli adattatori per il `Player` di Media3 e il risolutore da MIME o estensione al preset. Pacchetto `dev.antigravity.fluidengine.viewer`, dalla 4.0 (F6C.4).
+**I decodificatori dei visori di file e il registro delle famiglie**: il PDF col `PdfRenderer` della piattaforma, il testo col riconoscimento del charset, un tetto di lettura e i colori di sintassi, le GIF e le WebP animate con `ImageDecoder`, gli adattatori per il `Player` di Media3, il risolutore da MIME o estensione al preset e, dalla seconda ondata, il **registro** dei moduli di famiglia (Office, archivi, dati, grafica e font, 3D, AR: [`viewer-famiglie.md`](viewer-famiglie.md)). Pacchetto `dev.antigravity.fluidengine.viewer`, dalla 4.0 (F6C.4, registro F6C.8).
 
-È un **modulo opt-in**, come `engine-richtext` e `engine-ai-ui`. Il telaio dei visori ([`FluidFileViewer`](../componenti/contenuto-testo-e-media.md)) e i suoi preset stanno in `engine-ui` e **non decodificano niente**: ricevono un `FluidViewerContent` già pronto (un composable, una sessione, un sorgente di pagine o di righe). Questo modulo è il modo di serie di prepararlo da un file o da un `Uri`. Un'app che ha già i suoi decodificatori (Coil, un visore a tasselli, il suo player) passa i suoi contenuti e non lo include.
+È un **modulo opt-in**, come `engine-richtext` e `engine-ai-ui`: si installa con `engine-install.ps1 -Modules …,engine-viewer`. Il telaio dei visori ([`FluidFileViewer`](../componenti/visori.md), la scheda dei sei preset) e i suoi preset stanno in `engine-ui` e **non decodificano niente**: ricevono un `FluidViewerContent` già pronto (un composable, una sessione, un sorgente di pagine o di righe). Questo modulo è il modo di serie di prepararlo da un file o da un `Uri`. Un'app che ha già i suoi decodificatori (Coil, un visore a tasselli, il suo player) passa i suoi contenuti e non lo include.
 
 Modello mentale: **il telaio mostra, il modulo apre, l'app possiede.** Il file, il player e i permessi restano dell'app; il modulo li legge e restituisce oggetti da chiudere.
 
@@ -19,6 +19,10 @@ Modello mentale: **il telaio mostra, il modulo apre, l'app possiede.** Il file, 
 | una GIF o una WebP animata | `FluidDecodedImage.decode(context, uri)` → `image.content(nome)` |
 | un video o un audio col mio `Player` di Media3 | `rememberFluidMedia3Session(player)` → `fluidMedia3Content(session, video = true)` |
 | capire perché un file è finito allo sconosciuto | `FluidViewerDocument.failure` (`FluidViewerException` con un `FluidViewerFailure`) |
+| aprire anche DOCX, ZIP, Markdown, SVG, font, modelli 3D | la dipendenza del modulo di famiglia, o `engine-viewer-all` ([`viewer-famiglie.md`](viewer-famiglie.md)): si registra da sola |
+| sapere quali famiglie ci sono, toglierne o metterne una configurata | `FluidViewerRegistry.families`, `uninstall(id)`, `install(famiglia)` |
+| aprire un file che non ha un `Uri` (la voce di un archivio, un allegato, un flusso) | `FluidViewerRegistry.open(context, FluidViewerSource.of(…))` |
+| scrivere una famiglia mia | `FluidViewerFamily` in `META-INF/services` (sotto, e [`viewer-famiglie.md`](viewer-famiglie.md#scrivere-un-modulo-di-famiglia)) |
 | tasselli da 200 MP, motion photo, un lettore con coda | **non questo modulo**: il composable dell'app come `FluidViewerContent.Image` o `Media` |
 
 ## Il risolutore
@@ -30,7 +34,46 @@ Modello mentale: **il telaio mostra, il modulo apre, l'app possiede.** Il file, 
 3. **Il MIME**, pulito: minuscolo e senza parametri (`Text/Plain; charset=UTF-8` vale `text/plain`). Un MIME **generico** (`application/octet-stream`, il jolly di tutti i tipi, `multipart/…`) o **malformato** (`png`, `image/`) vale come nessun MIME. Fra **video e audio decide il MIME**: un `.mp4` può essere solo audio.
 4. **La firma dei primi byte** (`header`, se c'è e se nome e MIME tacciono): PDF, PNG, JPEG, GIF, WebP, BMP (con la misura dell'intestazione: «BM» da solo comincia troppi testi), HEIF e AVIF, MP4 e MOV, Matroska e WebM, WAV, AVI, MP3, FLAC, Ogg. Il testo non si riconosce dalla firma: lo decide la lettura vera.
 
-Le immagini **senza un decodificatore della piattaforma** (SVG, TIFF, PSD, RAW) vanno allo sconosciuto, anche se `kind` è `Image`: niente librerie pesanti, e «Apri con…» c'è sempre. Così i documenti Office, gli archivi, gli ebook, i font e il 3D. `FluidViewerPreset` **non è un `enum`** (regola 3.11): un preset nuovo sarà una costante in più, e chi confronta scrive un `else`.
+Le immagini **senza un decodificatore della piattaforma** (SVG, TIFF, PSD, RAW) vanno allo sconosciuto, anche se `kind` è `Image`: niente librerie pesanti, e «Apri con…» c'è sempre. Così i documenti Office, gli archivi, gli ebook, i font e il 3D, **finché l'app non aggiunge il modulo della loro famiglia**: un tipo di famiglia batte questa tabella dei «noti ma senza decodificatore» (sotto). `FluidViewerPreset` **non è un `enum`** (regola 3.11): un preset nuovo sarà una costante in più, e chi confronta scrive un `else`.
+
+## Il registro e i moduli di famiglia
+
+`FluidViewerRegistry` (F6C.8) aggiunge i tipi dei moduli di famiglia al risolutore **senza toccarlo**: un modulo dichiara la sua `FluidViewerFamily` in `META-INF/services/dev.antigravity.fluidengine.viewer.FluidViewerFamily`, e il registro la trova con `ServiceLoader` la prima volta che risolve. Niente App Startup, niente codice nell'`Application`: chi aggiunge la dipendenza ha il tipo, chi non la aggiunge non ha niente. **Senza famiglie il visore fa esattamente quello che faceva in F6C.4**: stessi tentativi, stesse letture.
+
+**Come si decide** (`FluidViewerType.of`, `FluidViewerFile.open`, `FluidViewerRegistry.open`):
+1. **Un eseguibile resta sconosciuto**, sempre, prima di chiedere alle famiglie: non se ne legge un byte, nemmeno con un MIME da documento. Una famiglia non può nemmeno *dichiarare* un'estensione, un MIME o un `kind` da eseguibile: il tipo rifiuta di nascere.
+2. **I candidati**: i tipi delle famiglie e il preset di serie, con la forza del riconoscimento. Una voce del pacchetto ZIP vale più dei primi byte (4 KiB), che valgono più dell'estensione, che vale più del MIME. Così un `.zip` che contiene `word/document.xml` è un Word, e un `.docx` rotto si scopre ZIP. Un preset di serie confermato dai primi byte vale quanto una firma.
+3. **L'ordine**: per forza, poi per `priority`; a parità vince il preset di serie, poi l'ordine di `id`. Un tipo di famiglia batte la tabella «noti ma senza decodificatore». Un preset di serie che apre già il tipo resta davanti: l'HEIC di `graphics` ha priorità −10 e parte solo se `ImageDecoder` fallisce; per sostituire il preset di serie una famiglia dichiara una priorità positiva (i dati, 10: il CSV come tabella).
+4. **Si prova in ordine**: un `open` che dà `null` o un'eccezione passa al candidato dopo, e la prima eccezione resta come motivo (un'eccezione qualunque vale «file rotto», un `OutOfMemoryError` «troppo grande»).
+5. **Il ripiego** è lo sconosciuto col motivo e «Apri con…».
+
+**La sorgente**, `FluidViewerSource`: un `Uri` (`of(context, uri, name, …)`), un file dell'app (`of(file, …)`) o un flusso (`of(name, cacheDir, …) { … }`). `open()` dà un flusso nuovo dall'inizio; `seekable()` un descrittore, e una sorgente che non si può spostare (una pipe) si copia **una volta** in cache (al più 512 MB, `FluidViewerOptions.sourceMaxCopyBytes`). La copia sparisce alla chiusura, anche dopo un annullamento o un errore a metà; il documento aperto possiede la sua sorgente e la chiude con sé.
+
+**I file dentro i file.** Un archivio, una mail o un EPUB aprono le loro voci con `FluidViewerRegistry.open(request.context, FluidViewerSource.of(…), request.options, …)`: un PDF dentro uno ZIP usa il preset PDF, un DOCX allegato usa Office se c'è.
+
+**Le API.**
+
+```kotlin
+object FluidViewerRegistry {
+  val families: List<FluidViewerFamily>                     // ServiceLoader + installate − tolte
+  fun install(vararg family: FluidViewerFamily)             // stessa id: sostituisce quella trovata
+  fun uninstall(vararg id: String)                          // il tipo torna allo sconosciuto
+  suspend fun open(context, source: FluidViewerSource, options = FluidViewerOptions(),
+    openWith = null, share = null, media = null): FluidViewerDocument
+  suspend fun thumbnail(context, source, sizePx, options = FluidViewerOptions()): ImageBitmap?   // solo le famiglie
+}
+interface FluidViewerFamily {
+  val id: String; val types: List<FluidViewerFamilyType>
+  suspend fun open(request: FluidViewerRequest): FluidViewerOpened?       // null o eccezione: «non questo»
+  suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap? = null
+}
+class FluidViewerOpened(content: FluidViewerContent, details: List<FluidViewerDetail> = emptyList(), onClose: () -> Unit = {})
+data class FluidViewerDetail(val label: String, val value: String, val section: String? = null)
+```
+
+Campi nuovi, in coda e con un valore di serie (regola 3.11): `FluidViewerType(…, family, label, familyType)`, `FluidViewerOptions(…, sourceMaxCopyBytes)`, `FluidViewerDocument.details`; `FluidViewerPreset.Grid` e `Custom` sono costanti in più.
+
+**La lista ammessa**, `engine-viewer/families.json`: per ogni famiglia il modulo, il pacchetto, le librerie che può portare con la licenza e il peso, e (F6C.15) la voce `apk` con il peso misurato per architettura. La leggono `checkViewerFamilies` (una libreria fuori lista ferma la build), `tools/engine-install.ps1` e la pagina «Pesi» della galleria. **R8** tiene le famiglie senza regole a mano (lo prova `:engine-viewer-prova-app`). I dettagli dei moduli, i pesi e le licenze: [`viewer-famiglie.md`](viewer-famiglie.md).
 
 ## Aprire i file: `rememberFluidViewerFiles` e `open`
 
@@ -84,7 +127,7 @@ Scelta di Alessio del 21 novembre 2026: le decodifica questo modulo, **da un fil
 
 - `FluidDecodedImage.decode(context, uri)` (o `decode(file)`) usa `ImageDecoder`: una GIF o una WebP animata (e una HEIF animata dove la piattaforma la anima) diventa un `AnimatedImageDrawable`, una ferma una bitmap. Tetto di 12 MP: le foto da 50 o 200 MP si riducono (per quelle i tasselli sono dell'app). Un file troncato mostra ciò che c'è.
 - `image.content(nome)` è un `FluidViewerContent.Image` qualunque, col rapporto d'aspetto: il preset immagine non ha un tipo nuovo da conoscere, e il telaio dà zoom, sfoglio e chiusura come a una foto.
-- L'animazione **parte quando l'immagine entra in composizione e si ferma quando esce** (lo sfoglio toglie la pagina), e col **movimento ridotto** (`LocalFluidMotionPolicy`) resta ferma sul primo fotogramma.
+- Un'animata va a `fluidAnimatedImage` del preset immagine: **parte solo sulla pagina ferma** (`currentFluidViewerPageActive()`) e si ferma quando la si lascia, come Gallery-2; col **movimento ridotto** (`LocalFluidMotionPolicy`) resta ferma e TalkBack ha l'azione «Riproduci animazione». Disegnata fuori dal visore con `FluidDecodedImage.Body`, parte quando entra in composizione.
 - **Sotto Android 9** (API 28) non c'è `AnimatedImageDrawable`: `BitmapFactory` dà il primo fotogramma.
 - `FluidImageHeader.read(bytes)` legge dai primi byte di una GIF o di una WebP misura, animazione, fotogrammi e giri senza decodificare i pixel: per un rapporto d'aspetto prima della decodifica, o per decidere di non animare una GIF enorme.
 
@@ -96,6 +139,35 @@ Scelta di Alessio del 21 novembre 2026: le decodifica questo modulo, **da un fil
 - `playing` segue **l'intenzione**, come il tasto di Media3: vero se il player deve suonare, anche mentre carica (`buffering`). `positionMillis` si aggiorna **a ogni fotogramma** mentre suona (lo scrubber scorre senza scatti), a riposo non costa niente. `durationMillis` è `null` finché la durata non è nota, e allora `canSeek` è falso; `seekTo` si limita alla durata. `play()` prepara un player fermo e riparte da capo se il file era finito (`ended`). I comandi che il player non offre non si chiamano.
 - `FluidMedia3Video(session)` è la superficie, centrata col rapporto d'aspetto del video (anche con i pixel non quadrati). Di serie un `TextureView`, che il vetro dei comandi sopra il video **cattura**; `surfaceView = true` usa un `SurfaceView` (HDR, meno batteria, come Gallery-2) che sta in una finestra sua: il vetro sopra non lo vede.
 - Tutto si chiama sul thread del player (di solito il principale, quello di Compose).
+
+## Nella galleria «Visori» (F6C.5, rifatta in F6C.15)
+
+La galleria di Fluid Glass usa il modulo come un'app vera, e si può leggere come esempio (`sample/.../ViewerGallery.kt`, `sample/.../viewer/`):
+
+- i file stanno nella cartella dell'app (copiati una volta dalle risorse e dagli asset) e si aprono da un `file://` con `rememberFluidViewerFiles`; la galleria include `engine-viewer-all` (senza l'AR), quindi passano dal registro;
+- **un `ExoPlayer` per file da suonare**, creato e rilasciato dalla galleria; `media` dà `fluidMedia3Content` solo al file di quel player. La superficie del video segue `currentFluidViewerPageActive()`: il video si ferma quando lo si sfoglia via, e al ritorno riparte solo se suonava e se l'interruttore «Riprendi al ritorno» è acceso (la scelta è dell'app, [`../componenti/visori.md`](../componenti/visori.md));
+- «Apri con…» e «Condividi» passano al sistema l'`Uri` `android.resource://` della risorsa da cui viene il file, o un `content://` del suo provider in sola lettura per i file degli asset (un `file://` non si può dare a un'altra app senza un `FileProvider`);
+- il pannello info legge `FluidViewerDocument`: il tipo deciso, il charset e le righe del testo, le pagine del PDF, il motivo di un ripiego; per un file di famiglia la funzione della famiglia;
+- **«Senza moduli»** toglie le famiglie dal registro (`uninstall`) finché la scena è aperta: gli stessi file come li vede un'app con il solo `engine-viewer`.
+
+**La prova con Universal Converter** apre dal telaio i tipi delle prove di quell'app, che il suo `PreviewLoader` legge come immagine, come testo o come dump esadecimale. Così si legge che cosa cambierebbe migrandola a `engine-viewer-all` (la migrazione è di Alessio):
+
+| file | oggi in Universal Converter | con `engine-viewer-all` |
+|---|---|---|
+| `colors_50x50.png`, `foto.jpg` | immagine | immagine (`ImageDecoder`) |
+| `animazione.gif` | il primo fotogramma, fermo | immagine animata, sulla pagina ferma |
+| `tracce.svg` | il sorgente XML come testo | immagine speciale (`engine-viewer-graphics`, AndroidSVG), netta allo zoom |
+| `markdown.md` | testo, senza colori né «Trova» | Markdown reso, con «Reso \| Sorgente» (`engine-viewer-data`) |
+| `pagina.html`, `catalogo.xml`, `config.json` | il sorgente come testo | HTML chiuso e senza rete, XML e JSON ad albero (`engine-viewer-data`) |
+| un testo UTF-16 col BOM | dump (vede i byte zero) | testo (il BOM decide il charset) |
+| `relazione.docx` | dump esadecimale | documento a pagine (`engine-viewer-office`) |
+| un `.pdf` | dump esadecimale | documento a pagine (`FluidPdfPageSource`) |
+| un `.mp3`, un `.wav`, un `.mp4` | dump esadecimale | audio e video col `Player` dell'app |
+| `progetto.zip` | dump esadecimale | l'elenco con le cartelle, e ogni voce col suo preset (`engine-viewer-archive`) |
+| `piramide.obj` | il sorgente come testo | modello 3D con Filament (`engine-viewer-3d`) |
+| un binario `.wld` | dump esadecimale | sconosciuto con «Apri con…»; il dump c'è ancora, a richiesta (`firstBytes` di `FluidUnknownPreset`) |
+| un file vuoto | «Il file è vuoto.» | il preset testo dice «Il file è vuoto» |
+| un file sparito | «Non riesco a leggere il file.» | sconosciuto: `failure` è `Unreadable`, la scheda lo dice |
 
 ## Cosa è dell'app, cosa del modulo
 
@@ -134,6 +206,10 @@ Test JVM del modulo (`engine-viewer/src/test/`), senza Robolectric: un'app ospit
 - `FluidImageHeaderTest`: GIF e WebP costruite byte per byte, animate e ferme, troncate, con e senza giri.
 - `EngineUiDecoderFreeTest`: F6C-d, sopra.
 
+Il registro (F6C.8): `FluidViewerRegistryTest` (il modulo di prova trovato con `META-INF/services`, firma > estensione > MIME > priorità, lo ZIP che è un Word, l'HEIC a −10, il ripiego al candidato dopo, l'eseguibile che non arriva mai a una famiglia, i campi in coda), `FluidViewerSourceTest` (la copia una volta, annullata, oltre il tetto, l'indice ZIP), `FluidViewerFormsTest`, `FluidViewerFamiliesBuildTest` (i sette grafi finti di `checkViewerFamilies`); `checkViewerFamilyApks` sugli APK R8 dell'app di prova.
+
+Nella galleria, `VisoriGalleryTest` (sample, Robolectric) apre col modulo i file veri del testo, del codice, dello sconosciuto e dell'eseguibile, **ogni file di ogni famiglia** col suo modulo, la scena «Senza moduli», la pagina «Pesi» e i tipi di Universal Converter; il PDF e le immagini li passa già pronti, perché sulla JVM `PdfRenderer` e `ImageDecoder` non decodificano, e al posto di libarchive (nativa) mette una famiglia finta con i tipi veri.
+
 Sul dispositivo, `FluidViewerDeviceTest` (`src/androidTest`, `:engine-viewer:connectedDebugAndroidTest`): il `PdfRenderer` vero su un PDF di 300 pagine, rotto, troncato, protetto da password e da un `Uri` che dà una pipe (`PipeProvider`); `ImageDecoder` e `AnimatedImageDrawable` su GIF e WebP scritte da Pillow; il testo UTF-16 da una pipe; i ripieghi di `open` (una GIF chiamata `.txt`, un JSON chiamato `.png`, un PDF senza nome, un `.apk`, un binario, un file sparito); un `ExoPlayer` vero dietro `FluidMedia3Session` e un file video rotto. Compilano anche contro Media3 1.5.1; la superficie video si giudica nella galleria «Visori».
 
 ## Dove guardare
@@ -141,6 +217,8 @@ Sul dispositivo, `FluidViewerDeviceTest` (`src/androidTest`, `:engine-viewer:con
 | cosa | file |
 |---|---|
 | il risolutore | `engine-viewer/src/main/kotlin/dev/antigravity/fluidengine/viewer/FluidViewerType.kt` |
+| il registro, le famiglie, la sorgente | `FluidViewerRegistry.kt`, `FluidViewerFamily.kt`, `FluidViewerSource.kt`, `FluidZipDirectory.kt` |
+| la lista ammessa e il suo controllo | `engine-viewer/families.json`, `engine-viewer/viewer-families.gradle` |
 | aprire i file, la finestra, i ripieghi | `FluidViewerFiles.kt` |
 | il PDF: il sorgente e la coda a un thread | `FluidPdfPageSource.kt`, `FluidPageRenderQueue.kt` |
 | il testo e il charset | `FluidTextDecoder.kt` |
@@ -148,10 +226,13 @@ Sul dispositivo, `FluidViewerDeviceTest` (`src/androidTest`, `:engine-viewer:con
 | GIF e WebP | `FluidDecodedImage.kt`, `FluidImageHeader.kt` |
 | Media3 | `FluidMedia3.kt` |
 | gli errori | `FluidViewerException.kt` |
-| i contratti che il modulo riempie | `engine-ui/…/ui/fluid/viewer/FluidViewerContent.kt` |
+| i contratti che il modulo riempie | `engine-ui/…/ui/fluid/viewer/FluidViewerContent.kt` ([`../componenti/visori.md`](../componenti/visori.md)) |
+| il modulo usato da un'app | `sample/.../ViewerGallery.kt`, `sample/.../viewer/VisoriViewer.kt`, `VisoriFiles.kt` |
 | il controllo di build | `engine-viewer/build.gradle` (`checkEngineUiHasNoDecoders`), `EngineUiDecoderFreeTest.kt` |
 
 ## Dipendenze e configurazione minima
+
+Con lo script: `engine-install.ps1 -AppRoot . -Modules engine-ui,engine-viewer` (le dipendenze si chiudono da sole; lo script ricorda anche la riga di Media3, che il modulo non porta). A mano:
 
 ```groovy
 // settings.gradle dell'app: accanto agli altri moduli dell'engine

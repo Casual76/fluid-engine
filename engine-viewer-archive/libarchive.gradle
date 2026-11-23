@@ -1,0 +1,159 @@
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
+
+import java.security.MessageDigest
+import java.util.zip.ZipFile
+
+buildscript {
+  repositories { mavenCentral() }
+  dependencies { classpath 'org.ow2.asm:asm:9.8' }
+}
+
+// Upstream 1.1.7 declares minCompileSdk 37.2. Keep its exact, audited reader binaries with the engine on 36.
+// Remove this script and use the Maven AAR dependency directly when the engine compiles with SDK 37.2.
+def archiveAar = configurations.detachedConfiguration(dependencies.create('me.zhanghai.android.libarchive:library:1.1.7@aar'))
+ext.libarchiveAar = archiveAar
+
+abstract class PrepareLibarchive extends DefaultTask {
+  @InputFile abstract RegularFileProperty getArchive()
+  @InputFile abstract RegularFileProperty getConsumerRules()
+  @OutputFile abstract RegularFileProperty getClassesJar()
+  @OutputDirectory abstract DirectoryProperty getJniDirectory()
+
+  @TaskAction void prepare() {
+    def aar = archive.get().asFile
+    def expected = '060587bbec1b6b79f8b1fd02eebfbe638174d7889a6c3cfd6ce3f34b5da4d46b'
+    def actual = MessageDigest.getInstance('SHA-256').digest(aar.bytes).encodeHex().toString()
+    if (actual != expected) throw new GradleException("Unexpected libarchive-android 1.1.7 SHA-256 ${actual}")
+    new ZipFile(aar).withCloseable { zip ->
+      def read = { String name ->
+        def entry = zip.getEntry(name)
+        if (entry == null) throw new GradleException("Missing libarchive member ${name}")
+        zip.getInputStream(entry).withCloseable { it.bytes }
+      }
+      def write = { File file, String name ->
+        file.parentFile.mkdirs()
+        file.bytes = read(name)
+      }
+      // Con core.autocrlf il checkout su Windows porta le regole in CRLF: si confrontano a fine riga normalizzato.
+      def normalized = { byte[] bytes -> new String(bytes, 'UTF-8').replace('\r\n', '\n') }
+      if (normalized(consumerRules.get().asFile.bytes) != normalized(read('proguard.txt'))) {
+        throw new GradleException('libarchive consumer rules differ from the upstream AAR')
+      }
+      write(classesJar.get().asFile, 'classes.jar')
+      ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'].each { abi ->
+        write(jniDirectory.file("${abi}/libarchive-jni.so").get().asFile, "jni/${abi}/libarchive-jni.so")
+      }
+    }
+  }
+}
+
+def stage = tasks.register('prepareLibarchive', PrepareLibarchive) {
+  archive.set(layout.file(providers.provider { archiveAar.singleFile }))
+  consumerRules.set(layout.projectDirectory.file('libarchive-consumer-rules.pro'))
+  classesJar.set(layout.buildDirectory.file('intermediates/libarchive/classes.jar'))
+  jniDirectory.set(layout.buildDirectory.dir('intermediates/libarchive/jni'))
+}
+dependencies.add('implementation', files(stage.flatMap { it.classesJar }).builtBy(stage))
+androidComponents.onVariants(androidComponents.selector().all(), { variant ->
+  variant.sources.jniLibs.addGeneratedSourceDirectory(stage, { it.jniDirectory } as kotlin.jvm.functions.Function1)
+} as Action)
+
+def api36 = androidComponents.sdkComponents.sdkDirectory.map { it.file('platforms/android-36/android.jar') }
+tasks.register('checkLibarchiveAndroidApi36') {
+  group = 'verification'
+  description = 'Verify Android class, method and field references in the exact upstream libarchive classes.jar.'
+  dependsOn stage
+  inputs.file(api36)
+  inputs.file(stage.flatMap { it.classesJar })
+  doLast {
+    def missing = [] as Set
+    def references = [] as Set
+    new ZipFile(api36.get().asFile).withCloseable { sdk ->
+      def typeCheck
+      typeCheck = { Type type ->
+        if (type.sort == Type.ARRAY) typeCheck(type.elementType)
+        if (type.sort == Type.OBJECT && type.internalName.startsWith('android/')) {
+          references << type.internalName
+          if (sdk.getEntry(type.internalName + '.class') == null) missing << type.internalName
+        }
+      }
+      def members = new HashMap<String, Set<String>>()
+      def sdkMembers
+      sdkMembers = { String owner ->
+        if (members.containsKey(owner)) return members[owner]
+        def result = [] as Set
+        members[owner] = result
+        def entry = sdk.getEntry(owner + '.class')
+        if (entry == null) return result
+        def reader = new ClassReader(sdk.getInputStream(entry).withCloseable { it.bytes })
+        reader.accept(new ClassVisitor(Opcodes.ASM9) {
+          @Override MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
+            result << (name + desc)
+            null
+          }
+
+          @Override org.objectweb.asm.FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
+            result << (name + ':' + desc)
+            null
+          }
+        }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES)
+        if (reader.superName != null) result.addAll(sdkMembers(reader.superName).findAll { !it.startsWith('<init>') })
+        reader.interfaces.each { result.addAll(sdkMembers(it)) }
+        return result
+      }
+      def memberCheck = { String owner, String member ->
+        if (owner.startsWith('android/')) {
+          String reference = owner + '.' + member
+          references << reference
+          if (member !in sdkMembers(owner)) missing << reference
+        }
+      }
+      def checkMethod = { String desc ->
+        Type.getArgumentTypes(desc).each(typeCheck)
+        typeCheck(Type.getReturnType(desc))
+      }
+      new ZipFile(stage.get().classesJar.get().asFile).withCloseable { jar ->
+        jar.entries().findAll { it.name.endsWith('.class') }.each { entry ->
+          def reader = new ClassReader(jar.getInputStream(entry).withCloseable { it.bytes })
+          ([reader.superName] + reader.interfaces.toList()).findAll().each { typeCheck(Type.getObjectType(it)) }
+          reader.accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override org.objectweb.asm.FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
+              typeCheck(Type.getType(desc))
+              null
+            }
+
+            @Override MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
+              checkMethod(desc)
+              exceptions?.each { typeCheck(Type.getObjectType(it)) }
+              new MethodVisitor(Opcodes.ASM9) {
+                @Override void visitMethodInsn(int opcode, String owner, String method, String d, boolean iface) {
+                  memberCheck(owner, method + d)
+                  checkMethod(d)
+                }
+
+                @Override void visitFieldInsn(int opcode, String owner, String field, String d) {
+                  memberCheck(owner, field + ':' + d)
+                  typeCheck(Type.getType(d))
+                }
+
+                @Override void visitTypeInsn(int opcode, String type) { typeCheck(Type.getObjectType(type)) }
+                @Override void visitLdcInsn(Object value) { if (value instanceof Type) typeCheck(value) }
+                @Override void visitTryCatchBlock(org.objectweb.asm.Label start, org.objectweb.asm.Label end,
+                  org.objectweb.asm.Label handler, String type) {
+                  if (type != null) typeCheck(Type.getObjectType(type))
+                }
+              }
+            }
+          }, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES)
+        }
+      }
+    }
+    if (references.isEmpty()) throw new GradleException('No Android references found in the audited library')
+    if (!missing.isEmpty()) throw new GradleException("Android references missing from API 36: ${missing.sort()}")
+    logger.lifecycle("libarchive Android API 36: ${references.sort().join(', ')}")
+  }
+}

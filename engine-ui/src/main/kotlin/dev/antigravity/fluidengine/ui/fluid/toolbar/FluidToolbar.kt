@@ -750,6 +750,9 @@ internal class FluidToolbarDeclaration(
   val keyboard: FluidKeyboardDeclaration? = null,
   /** Il titolo che diventa selettore (F6B.11), o null: il titolo di sempre. */
   val titleSelector: FluidTitleSelector? = null,
+  val viewerLayout: Boolean = false,
+  val subtitleAccent: Color? = null,
+  val subtitleOrdinal: String? = null,
 ) {
   /** I tasti, anche quelli dentro i gruppi, per id. */
   val buttons: Map<Any, FluidToolbarButtonEntry> = buildMap<Any, FluidToolbarButtonEntry> { collect(this@FluidToolbarDeclaration.entries) }
@@ -1364,7 +1367,13 @@ internal fun FluidToolbarBar(
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val model = fluidToolbarModelOf(declaration, title, keyboardContext)
-  val metrics = if (bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard) fluidBottomBarMetrics() else fluidToolbarMetrics()
+  val metrics = when {
+    declaration.viewerLayout && bar != FluidToolbarBar.Keyboard ->
+      fluidToolbarMetrics().copy(buttonWidthDp = 44f, itemPitchDp = 44f, edgeMarginDp = 14f)
+    bar == FluidToolbarBar.Bottom || bar == FluidToolbarBar.Keyboard -> fluidBottomBarMetrics()
+    else -> fluidToolbarMetrics()
+  }
+  val placement = if (bar == FluidToolbarBar.TopOnly && declaration.viewerLayout) FluidToolbarBar.Top else bar
   // F6B.10: un elemento che sa stringersi (la pillola di attività) prende la sua forma stretta mentre la barra si ritira
   // (F4A.4). Il ritiro entra qui come «sì o no», portato da un effetto: vedi [rememberFluidToolbarRetracting].
   val retracting = rememberFluidToolbarRetracting(
@@ -1386,8 +1395,8 @@ internal fun FluidToolbarBar(
       ?: (LocalPrincipalSearchActive.current || fluidToolbarSearchTouchesBar(declaration.search) == true))
     // F6B.10: un elemento che sa stringersi (la pillola di attività) prende la sua forma stretta quando non ci sta, e
     // mentre la barra si ritira ([retracting]).
-    val resolved = remember(model, width, bar, active, retracting) {
-      resolveFluidToolbarFitting(model, width, active, metrics, bar, narrow = retracting)
+    val resolved = remember(model, width, placement, active, metrics, retracting) {
+      resolveFluidToolbarFitting(model, width, active, metrics, placement, narrow = retracting)
     }
     if (bar != FluidToolbarBar.Bottom) SideEffect { declaration.measured(resolved) }
     if (onExtent != null) {

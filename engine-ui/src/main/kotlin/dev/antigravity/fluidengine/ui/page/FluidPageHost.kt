@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
@@ -655,11 +656,45 @@ private fun GrowingPageSurface(state: FluidPageHostState, backdrop: GlassBackdro
  * e rimane nitida anche quando tutta la chrome si sfoca. */
 @Composable
 private fun Modifier.zoomCrossfade(state: FluidPageHostState, page: Any, pageColor: Color): Modifier {
-  if (state.zoom == null || state.upper != page || !state.zoomCrossfade) return this
+  if ((state.zoom == null && page !in state.zoomFaceOverrides) || state.upper != page || !state.zoomCrossfade) return this
   val face = rememberGraphicsLayer()
   val sourceFace = rememberGraphicsLayer()
   return drawWithContent {
     val zoom = state.zoomShape()
+    val faceOverride = state.zoomFaceOverrides[page]
+    if (faceOverride != null && state.upper == page && !state.reducedMotion && state.sharedPair == null &&
+      state.growing == null && (zoom != null || !state.isMoving)) {
+      val source = state.zoomSnapshot()?.takeUnless { it.size.isEmpty() }
+      val look = faceOverride(1f - state.upperExitFraction())
+      if (source != null && (zoom != null || look.sourceAlpha > 0f || look.pageBlur > 0f || look.pageAlpha < 1f)) {
+        val target = Rect(Offset.Zero, size)
+        val clip = zoom?.let { FluidZoom.contentClip(it, target, FluidZoom.content(it, target)).bounds } ?: target
+        // Child layers (including Android views) still need a display list while the source is visible.
+        face.record {
+          if (pageColor.isSpecified) drawRect(pageColor)
+          this@drawWithContent.drawContent()
+        }
+        if (look.pageAlpha > 0f) {
+          face.alpha = look.pageAlpha
+          face.renderEffect = look.pageBlurEffect(density)
+          drawLayer(face)
+        }
+        if (look.sourceAlpha > 0f && !clip.isEmpty) {
+          // Keep the source's proportions throughout the zoom, including the full-page waiting pose.
+          val scale = maxOf(clip.width / source.size.width, clip.height / source.size.height)
+          val faceSize = source.size * scale
+          val bounds = Rect(clip.center - Offset(faceSize.width / 2f, faceSize.height / 2f), faceSize)
+          sourceFace.record(size = source.layer.size) { drawLayer(source.layer) }
+          sourceFace.alpha = look.sourceAlpha
+          sourceFace.renderEffect = zoomFaceEffect(look.sourceBlur, density)
+          clipRect(clip.left, clip.top, clip.right, clip.bottom) { drawPageInk(sourceFace, bounds) }
+        }
+        if (!clip.isEmpty) state.zoomFrontDrawn(page)
+        return@drawWithContent
+      }
+      // The source remains live until the front has a copy to show.
+      if (zoom != null && source == null && state.awaitingZoomDraw(page) && look.sourceAlpha > 0f) return@drawWithContent
+    }
     if (zoom == null || state.roleOf(page) != PageRole.Upper) {
       drawContent()
       return@drawWithContent

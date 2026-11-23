@@ -1,0 +1,96 @@
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Label
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.commons.ClassRemapper
+import org.objectweb.asm.commons.Remapper
+
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+
+buildscript {
+  repositories { mavenCentral() }
+  dependencies { classpath 'org.ow2.asm:asm-commons:9.8' }
+}
+
+// Keep the guard private to the viewer. The app can still use the ordinary Commons Compress artifact elsewhere.
+// Commons Compress 1.28.0 has no reader-side bound on the 7z AES work factor. Backport the upstream cap of 2^24
+// to our private copy of the sevenz package. Drop this script when a released artifact includes that fix.
+def sourceJar = configurations.detachedConfiguration(dependencies.create('org.apache.commons:commons-compress:1.28.0') {
+  transitive = false
+})
+def isolatedJar = layout.buildDirectory.file('intermediates/archive/guarded-sevenz.jar')
+def isolatedPackage = 'dev/antigravity/fluidengine/viewer/archive/sevenz/'
+def sourcePackage = 'org/apache/commons/compress/archivers/sevenz/'
+def patch = tasks.register('prepareGuardedSevenZip') {
+  inputs.files(sourceJar)
+  inputs.file(file('sevenzip.gradle'))
+  outputs.file(isolatedJar)
+  doLast {
+    def relocate = new Remapper() {
+      @Override String map(String name) {
+        name.startsWith(sourcePackage) ? isolatedPackage + name.substring(sourcePackage.length()) : name
+      }
+    }
+    def patched = false
+    def destination = isolatedJar.get().asFile
+    destination.parentFile.mkdirs()
+    new ZipFile(sourceJar.singleFile).withCloseable { input ->
+      new ZipOutputStream(destination.newOutputStream()).withCloseable { output ->
+        input.entries().findAll { !it.directory && (it.name.startsWith(sourcePackage) && it.name.endsWith('.class') ||
+          it.name in ['META-INF/LICENSE.txt', 'META-INF/NOTICE.txt']) }.each { entry ->
+          byte[] bytes = input.getInputStream(entry).withCloseable { it.bytes }
+          String name = entry.name
+          if (name.endsWith('.class')) {
+            def reader = new ClassReader(bytes)
+            def writer = new ClassWriter(0)
+            ClassVisitor sink = writer
+            if (reader.className == sourcePackage + 'AES256SHA256Decoder') {
+              sink = new ClassVisitor(Opcodes.ASM9, writer) {
+                @Override MethodVisitor visitMethod(int access, String methodName, String descriptor,
+                  String signature, String[] exceptions) {
+                  def target = super.visitMethod(access, methodName, descriptor, signature, exceptions)
+                  if (methodName != 'sha256Password' || descriptor != '([BI[B)[B') return target
+                  patched = true
+                  return new MethodVisitor(Opcodes.ASM9, target) {
+                    @Override void visitCode() {
+                      super.visitCode()
+                      def allowed = new Label()
+                      visitVarInsn(Opcodes.ILOAD, 1)
+                      visitIntInsn(Opcodes.BIPUSH, 24)
+                      visitJumpInsn(Opcodes.IF_ICMPLE, allowed)
+                      visitTypeInsn(Opcodes.NEW, 'java/io/IOException')
+                      visitInsn(Opcodes.DUP)
+                      visitLdcInsn('7z AES work factor exceeds supported limit')
+                      visitMethodInsn(Opcodes.INVOKESPECIAL, 'java/io/IOException', '<init>', '(Ljava/lang/String;)V', false)
+                      visitInsn(Opcodes.ATHROW)
+                      visitLabel(allowed)
+                      visitFrame(Opcodes.F_SAME, 0, null, 0, null)
+                    }
+
+                    @Override void visitMaxs(int stack, int locals) { super.visitMaxs(Math.max(stack, 3), locals) }
+                  }
+                }
+              }
+            }
+            reader.accept(new ClassRemapper(sink, relocate), 0)
+            bytes = writer.toByteArray()
+            name = relocate.map(reader.className) + '.class'
+          } else {
+            name = 'META-INF/fluid-archive-sevenz-' + name.substring('META-INF/'.length())
+          }
+          def emitted = new ZipEntry(name)
+          emitted.time = 0
+          output.putNextEntry(emitted)
+          output.write(bytes)
+          output.closeEntry()
+        }
+      }
+    }
+    if (!patched) throw new GradleException('Missing Commons Compress 1.28.0 AES work-factor guard target')
+  }
+}
+dependencies.add('implementation', files(isolatedJar).builtBy(patch))

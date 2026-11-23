@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Fluid Glass</string>
+	<key>CFBundleVersion</key>
+	<string>412</string>
+	<key>Creato</key>
+	<date>2026-11-22T10:30:00Z</date>
+	<key>Icona</key>
+	<data>
+	iVBORw0KGgoAAA==
+	</data>
+	<key>Impostazioni</key>
+	<dict>
+		<key>Lingua</key>
+		<string>it</string>
+		<key>Scuro</key>
+		<false/>
+	</dict>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>Prezzo</key>
+	<real>4.99</real>
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,1 @@
+-keep,allowoptimization class dev.antigravity.fluidengine.viewer.scene.FluidSceneFamily { public <init>(); }

@@ -1,0 +1,23 @@
+material {
+  name : FluidArCamera,
+  shadingModel : unlit,
+  vertexDomain : device,
+  depthWrite : false,
+  depthCulling : false,
+  culling : none,
+  // ARCore has already transformed these coordinates into the camera texture space.
+  flipUV : false,
+  requires : [ uv0 ],
+  parameters : [{ name : cameraFeed, type : samplerExternal }],
+  variantFilter : [ skinning ]
+}
+
+fragment {
+  void material(inout MaterialInputs material) {
+    prepareMaterial(material);
+    vec3 color = texture(materialParams_cameraFeed, getUV0()).rgb;
+    // Camera YUV is sampled as nonlinear RGB. Filament writes sRGB after linear blending.
+    vec3 linear = mix(color / 12.92, pow((color + 0.055) / 1.055, vec3(2.4)), greaterThan(color, vec3(0.04045)));
+    material.baseColor = vec4(linear, 1.0);
+  }
+}

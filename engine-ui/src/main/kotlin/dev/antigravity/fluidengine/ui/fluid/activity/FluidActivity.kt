@@ -1132,6 +1132,8 @@ internal fun fluidToolbarWithActivityOf(
   return FluidToolbarDeclaration(
     declaration.entries + pill, declaration.titleMode, declaration.subtitle, declaration.search,
     declaration.overflowLabel, declaration.keyboard, declaration.titleSelector,
+    viewerLayout = declaration.viewerLayout, subtitleAccent = declaration.subtitleAccent,
+    subtitleOrdinal = declaration.subtitleOrdinal,
   )
 }
 

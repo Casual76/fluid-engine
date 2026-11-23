@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerEntranceLoading
+
 import android.net.Uri
 import android.print.PrintDocumentAdapter
 import android.view.ViewGroup
@@ -206,6 +208,7 @@ fun FluidWebContent(
   failure: @Composable (FluidWebFailure) -> Unit = {},
 ) {
   require(textScale.isFinite() && textScale > 0f)
+  viewerEntranceLoading { html.isNotBlank() && state.phase != FluidWebPhase.Ready && state.phase != FluidWebPhase.Error }
   val density = LocalDensity.current
   val desiredHeight = when (sizing) {
     is FluidWebSizing.WrapContent -> sizing.maxHeight

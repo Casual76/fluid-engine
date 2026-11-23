@@ -23,9 +23,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.VideoSize
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidMediaDurationLoader
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidAudioSpeed
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidMediaSession
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidVideoGeometry
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
@@ -50,7 +53,7 @@ import kotlinx.coroutines.flow.first
  * Si crea con [rememberFluidMedia3Session]; fuori da Compose, [attach] e [close] a mano.
  */
 @Stable
-class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeometry, AutoCloseable {
+class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidMediaDurationLoader, FluidVideoGeometry, FluidAudioSpeed, AutoCloseable {
 
   override var playing: Boolean by mutableStateOf(false)
     private set
@@ -61,6 +64,10 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
   override var canSeek: Boolean by mutableStateOf(false)
     private set
   override var error: String? by mutableStateOf(null)
+    private set
+  override var playbackSpeed: Float by mutableStateOf(1f)
+    private set
+  override var canChangePlaybackSpeed: Boolean by mutableStateOf(false)
     private set
 
   /** Vero mentre il player carica (`STATE_BUFFERING`). */
@@ -86,6 +93,7 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
     override fun onTimelineChanged(timeline: Timeline, reason: Int) = refresh()
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = refresh()
     override fun onAvailableCommandsChanged(availableCommands: Player.Commands) = refresh()
+    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) = refresh()
     override fun onVideoSizeChanged(videoSize: VideoSize) = refresh()
     override fun onPositionDiscontinuity(
       oldPosition: Player.PositionInfo,
@@ -106,6 +114,12 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
     if (!attached) return
     attached = false
     player.removeListener(listener)
+  }
+
+  /** F6C.9: la pagina audio chiede la durata prima del primo Play; si prepara il player, senza farlo partire. */
+  override fun requestDuration() {
+    if (!player.playWhenReady && player.playbackState == Player.STATE_IDLE &&
+      player.isCommandAvailable(Player.COMMAND_PREPARE)) player.prepare()
   }
 
   override fun play() {
@@ -131,6 +145,12 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
     refresh()
   }
 
+  override fun changePlaybackSpeed(speed: Float) {
+    if (!speed.isFinite() || speed <= 0f || !player.isCommandAvailable(Player.COMMAND_SET_SPEED_AND_PITCH)) return
+    player.setPlaybackSpeed(speed)
+    refresh()
+  }
+
   /** Rilegge tutto dal player. La chiamano gli eventi; serve a mano solo a chi non usa [attach]. */
   fun refresh() {
     val state = player.playbackState
@@ -148,6 +168,8 @@ class FluidMedia3Session(val player: Player) : FluidMediaSession, FluidVideoGeom
     }
     canSeek = durationMillis != null && readable &&
       player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) && player.isCurrentMediaItemSeekable
+    canChangePlaybackSpeed = player.isCommandAvailable(Player.COMMAND_SET_SPEED_AND_PITCH)
+    if (canChangePlaybackSpeed) playbackSpeed = player.playbackParameters.speed
     error = player.playerError?.let { it.message ?: it.errorCodeName }
     val size = player.videoSize
     videoAspectRatio = if (size.width > 0 && size.height > 0) size.width * size.pixelWidthHeightRatio / size.height else null

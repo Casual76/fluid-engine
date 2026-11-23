@@ -2,6 +2,9 @@ package dev.antigravity.fluidengine.ui.fluid.toolbar
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -71,9 +74,13 @@ internal fun FluidBottomBar(
   visibility.targetState = present
   if (!present && visibility.isIdle) return
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
+  val appInset = LocalFluidBottomInset.current
+  val systemInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+  val bottom = if (declaration?.viewerLayout == true && appInset == 0.dp) maxOf(30.dp - systemInset, 4.dp)
+    else fluidBottomBarOffset(appInset)
   AnimatedVisibility(
     visibleState = visibility,
-    modifier = modifier.navigationBarsPadding().padding(bottom = fluidBottomBarOffset(LocalFluidBottomInset.current)),
+    modifier = modifier.navigationBarsPadding().padding(bottom = bottom),
     enter = FluidFloatingCapsuleDefaults.enter(reduced),
     exit = FluidFloatingCapsuleDefaults.exit(reduced),
   ) {

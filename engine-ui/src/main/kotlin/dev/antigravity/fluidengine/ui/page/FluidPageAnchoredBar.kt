@@ -132,6 +132,9 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidScrollEdgeShade
 import dev.antigravity.fluidengine.ui.fluid.fluidScrollEdgeInk
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidScrollEdgeShade
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarRow
+import dev.antigravity.fluidengine.ui.fluid.viewer.ViewerToolbarSubtitle
+import dev.antigravity.fluidengine.ui.fluid.viewer.ViewerBoardTopInset
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerSize
 import dev.antigravity.fluidengine.ui.fluid.fluidChromeScrollEdge
 import dev.antigravity.fluidengine.ui.fluid.fluidTopBarChromeHeight
 import dev.antigravity.fluidengine.ui.fluid.FluidTopBarTitle
@@ -266,7 +269,8 @@ internal fun BoxScope.FluidAnchoredBar(
     }
   }
   val density = LocalDensity.current
-  val statusBar = fluidTopChromeInset()
+  val minimumTopInset = if (registeredDeclaration?.viewerLayout == true) ViewerBoardTopInset else 0.dp
+  val statusBar = maxOf(fluidTopChromeInset(), minimumTopInset)
   val hasBar = upperSpec != null || lowerSpec != null
   val barBottomPx = with(density) { (statusBar + FluidScreenDefaults.ControlRowHeight).toPx() }
   SideEffect { state.barBottomPx = if (hasBar) barBottomPx else 0f }
@@ -454,6 +458,7 @@ internal fun BoxScope.FluidAnchoredBar(
       // F2.3c: il titolo e i tasti prendono il lato dalla stessa decisione della striscia, col tema del lato.
       GlassInkContent(shade.ink, LocalContentColor.current) {
       FluidTopBarRow(
+        minimumTopInset = minimumTopInset,
         // Con la barra ritirata la riga non prende più tocchi: sotto c'è il campo fissato, che sale fin lì (B1).
         onTapTitle = if (barHidden) null else ({ state.interactionPage?.let { registry[it]?.spec?.onTapTitle }?.invoke() }),
       ) {
@@ -860,7 +865,8 @@ private fun BoxScope.BarTitle(
             },
           contentAlignment = Alignment.Center,
         ) {
-          Text(subtitle, style = MaterialTheme.typography.bodySmall,
+          if (spec.toolbar?.viewerLayout == true) ViewerToolbarSubtitle(spec.toolbar, subtitle)
+          else Text(subtitle, style = MaterialTheme.typography.bodySmall,
             color = LocalContentColor.current.copy(alpha = FluidToolbarDefaults.SubtitleInk),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -1210,7 +1216,9 @@ internal fun FluidPageChromeContent(
   val glass = remember { mutableFloatStateOf(0f) }
   glass.floatValue = if (backdrop != null) 1f else 0f
   val facet: State<String?> = remember { mutableStateOf<String?>(null) }
-  val compactStyle = rememberCompactTitleStyle(MaterialTheme.typography.displayLarge)
+  val standardCompactStyle = rememberCompactTitleStyle(MaterialTheme.typography.displayLarge)
+  val compactStyle = if (toolbar?.viewerLayout == true) standardCompactStyle.viewerSize(16f,
+    androidx.compose.ui.text.font.FontWeight.SemiBold) else standardCompactStyle
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val slot = LocalFluidPageBar.current
@@ -1241,7 +1249,8 @@ internal fun FluidPageChromeContent(
     return
   }
 
-  val statusBar = fluidTopChromeInset()
+  val minimumTopInset = if (toolbar?.viewerLayout == true) ViewerBoardTopInset else 0.dp
+  val statusBar = maxOf(fluidTopChromeInset(), minimumTopInset)
   val barGlass = rememberGlassBackdrop()
   val controlBackdrop = if (backdrop != null) {
     key(backdrop) { rememberCombinedGlassBackdrop(backdrop, barGlass) }
@@ -1268,20 +1277,29 @@ internal fun FluidPageChromeContent(
     }
     CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
       val controls = remember { FluidTopBarControls() }
-      FluidTopBarRow(onTapTitle = null) {
+      FluidTopBarRow(onTapTitle = null, minimumTopInset = minimumTopInset) {
         val showsTitle = toolbar == null || (toolbar.titleMode != FluidToolbarTitleMode.None && !toolbar.hasPrincipal)
         if (showsTitle) {
-          FluidTopBarTitle(
-            title = title,
-            collapseProgress = docked,
-            activeFacet = facet,
-            morphState = null,
-            compactStyle = compactStyle,
-            contentTranslation = NoTranslation,
-            fontScale = density.fontScale,
-            reducedMotion = reducedMotion,
-            controls = controls,
-          )
+          val subtitle = toolbar?.subtitle?.takeIf { toolbar.viewerLayout }
+          Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().padding(bottom = if (subtitle == null) 0.dp else FluidToolbarDefaults.SubtitleLift)) {
+              FluidTopBarTitle(
+                title = title,
+                collapseProgress = docked,
+                activeFacet = facet,
+                morphState = null,
+                compactStyle = compactStyle,
+                contentTranslation = NoTranslation,
+                fontScale = density.fontScale,
+                reducedMotion = reducedMotion,
+                controls = controls,
+              )
+            }
+            if (subtitle != null) Box(Modifier.align(Alignment.BottomCenter)
+              .padding(horizontal = FluidScreenDefaults.CompactTitleInset)) {
+              ViewerToolbarSubtitle(toolbar, subtitle)
+            }
+          }
         }
         if (toolbar != null) {
           // La barra dichiarata (F4A.3): i gruppi sul piano flottante, gli inset del titolo dalla misura d'arrivo.

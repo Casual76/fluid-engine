@@ -1,6 +1,14 @@
 package dev.antigravity.fluidengine.ui.fluid.viewer
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onPlaced
+import dev.antigravity.fluidengine.ui.page.LocalSharedPage
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import dev.antigravity.fluidengine.ui.fluid.icons.Search
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidSelectionBackEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -12,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
@@ -20,16 +30,25 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.antigravity.fluidengine.ui.fluid.*
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
+import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -39,7 +58,7 @@ import kotlin.math.roundToInt
 
 /** Labels for a document's pages and the available reading actions. Numbers passed to labels are one based. */
 data class FluidPagesPresetStrings(
-  val counter: (current: Int, count: Int) -> String = { current, count -> "$current/$count" },
+  val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" },
   val page: (current: Int, count: Int) -> String = { current, count -> "Pagina $current di $count" },
   val thumbnails: String = "Miniature delle pagine",
   val empty: String = "Nessuna pagina",
@@ -49,6 +68,10 @@ data class FluidPagesPresetStrings(
   val zoomIn: String = "Ingrandisci",
   val zoomOut: String = "Riduci",
   val zoom: (percent: Int) -> String = { "Zoom $it%" },
+  val find: String = "Trova",
+  val searchError: String = "Impossibile cercare nel documento",
+  val present: String = "Presenta",
+  val endPresentation: String = "Chiudi presentazione",
 )
 
 /**
@@ -65,15 +88,51 @@ fun FluidPagesPreset(
   strings: FluidPagesPresetStrings = FluidPagesPresetStrings(),
 ) {
   val source = content.source
+  val entrance = awaitViewerEntrance()
   val count = source.count.coerceAtLeast(0)
   val surface = MaterialTheme.colorScheme.surface
   if (count == 0) {
-    Box(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier), contentAlignment = Alignment.Center) { Text(strings.empty) }
+    val placed = if (entrance != null && source.countFinal) Modifier.onPlaced { entrance.placed() } else Modifier
+    Box(modifier.fillMaxSize().then(placed).then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier),
+      contentAlignment = Alignment.Center) { Text(strings.empty) }
     return
   }
   key(source) {
     val pages = rememberLazyListState()
     val horizontal = rememberScrollState()
+    val info = LocalViewerInfo.current
+    val type = info?.file?.name?.substringAfterLast('.', "")?.lowercase()
+    val slides = type in setOf("pptx", "odp")
+    val word = type in setOf("docx", "odt", "rtf")
+    val searchPages = info?.searchPages
+    var finding by rememberSaveable { mutableStateOf(false) }
+    var presenting by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var hits by remember { mutableStateOf(emptyList<FluidViewerPageMatch>()) }
+    var cursor by rememberSaveable { mutableIntStateOf(0) }
+    var searchFailed by remember { mutableStateOf(false) }
+    val active = currentFluidViewerPageActive()
+    LaunchedEffect(active) { if (!active) finding = false }
+    LaunchedEffect(query, finding, searchPages) {
+      hits = emptyList()
+      cursor = 0
+      searchFailed = false
+      if (finding && searchPages != null && query.isNotBlank()) {
+        try { hits = searchPages(query).filter { it.page in 0 until count } }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { searchFailed = true }
+      }
+    }
+    val match = hits.getOrNull(cursor)
+    if (searchPages != null || slides) ViewerPresetToolbar {
+      if (finding) search(FluidSearchSpec.findInPage(query, { query = it }, FluidSearchNavigation(cursor, hits.size,
+        { if (hits.isNotEmpty()) cursor = (cursor + hits.size - 1) % hits.size },
+        { if (hits.isNotEmpty()) cursor = (cursor + 1) % hits.size }), true, { finding = it }))
+      if (slides) button("viewer.document.present", FluidIcons.PlayArrow, strings.present, { presenting = true },
+        placement = FluidToolbarPlacement.BottomBar)
+      else button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true }, placement = FluidToolbarPlacement.BottomBar)
+    }
+    if (finding && active) FluidSelectionBackEffect(enabled = true) { finding = false }
     var scale by rememberSaveable { mutableFloatStateOf(FluidZoom.MinScale) }
     var thumbnails by rememberSaveable { mutableStateOf(false) }
     var selectedPage by remember { mutableStateOf<Int?>(null) }
@@ -100,55 +159,73 @@ fun FluidPagesPreset(
           ?: visibleViewerPage(pages.layoutInfo, pages.canScrollBackward, pages.canScrollForward, count)
       }
     }
-    val gap = FluidScreenDefaults.HorizontalPadding
+    val gap = when {
+      slides -> 11.dp
+      word -> 15.dp
+      info != null -> 17.dp
+      else -> FluidScreenDefaults.HorizontalPadding
+    }
+    val margin = if (slides) 20.dp else if (word) 25.dp else if (info == null) gap else 30.dp
     CompositionLocalProvider(LocalFluidGlassModalHostState provides modal) {
       BoxWithConstraints(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier).clipToBounds()) {
-        val pageWidth = (maxWidth - gap * 2).coerceAtLeast(1.dp) * scale
+        val column = if (info == null) maxWidth else minOf(maxWidth, ViewerMixProfile.ColumnWidth)
+        val pageWidth = (column - margin * 2).coerceAtLeast(1.dp) * scale
+        val edge = maxOf(margin, (maxWidth - column) / 2 + margin)
         val pixelWidth = with(LocalDensity.current) { pageWidth.roundToPx() }
-        val top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() +
-          FluidGlassSize.Regular.touchTarget + gap
-        val bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding() +
-          FluidFloatingCapsuleDefaults.ActionSize + gap
-        LazyColumn(
-          modifier = Modifier.matchParentSize().glassBackdropSource(backdrop)
-            .semantics {
-              stateDescription = strings.zoom((scale * 100f).roundToInt())
-              customActions = buildList {
-                if (FluidZoom.isZoomed(scale)) add(CustomAccessibilityAction(strings.zoomOut) {
-                  zoomTo(FluidZoom.step(scale, zoomIn = false)); true
-                })
-                if (scale < FluidZoom.DefaultMaxScale) add(CustomAccessibilityAction(strings.zoomIn) {
-                  zoomTo(FluidZoom.step(scale, zoomIn = true)); true
-                })
+        LaunchedEffect(match, pixelWidth) {
+          if (match != null) {
+            val bounds = match.bounds.firstOrNull()
+            val size = cache.measure(match.page)
+            val offset = if (bounds == null) 0 else (bounds.top * pixelWidth * size.height / size.width).roundToInt()
+            pages.scrollToItem(match.page, (offset - pages.layoutInfo.viewportSize.height / 4).coerceAtLeast(0))
+          }
+        }
+        val top = viewerBoardTop(100.dp)
+        // F6C.15b: sopra la capsula in basso anche quando l'app ha una tab bar (la capsula sale con il suo inset).
+        val bottom = viewerBottomCapsuleTop() + gap
+        PageCounterLayout(top, 16.dp, (maxWidth - column) / 2 + 16.dp, counter = {
+          if (chromeVisible) {
+            Row(Modifier.viewerGlass(backdrop).fluidPressable(onClick = { thumbnails = true }, role = Role.Button)
+              .semantics(mergeDescendants = true) {
+                contentDescription = strings.thumbnails
+                stateDescription = strings.page(current + 1, count)
+              }.heightIn(min = if (info == null) FluidGlassSize.Regular.touchTarget else 34.dp)
+              .padding(horizontal = 12.dp, vertical = if (info == null) 4.dp else 0.dp),
+              verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+              FluidIcon(FluidIcons.GridView, null, modifier = Modifier.size(17.dp))
+              Text(strings.counter(current + 1, count), Modifier.clearAndSetSemantics {},
+                style = MaterialTheme.typography.labelLarge.viewerSize(13.5f, FontWeight.SemiBold).copy(fontFeatureSettings = "tnum"))
+            }
+          }
+        }) { firstPageTop ->
+          LazyColumn(
+            modifier = Modifier.fillMaxSize().then(if (finding) Modifier.imePadding() else Modifier).glassBackdropSource(backdrop)
+              .semantics {
+                stateDescription = strings.zoom((scale * 100f).roundToInt())
+                customActions = buildList {
+                  if (FluidZoom.isZoomed(scale)) add(CustomAccessibilityAction(strings.zoomOut) {
+                    zoomTo(FluidZoom.step(scale, zoomIn = false)); true
+                  })
+                  if (scale < FluidZoom.DefaultMaxScale) add(CustomAccessibilityAction(strings.zoomIn) {
+                    zoomTo(FluidZoom.step(scale, zoomIn = true)); true
+                  })
+                }
               }
-            }
-            .transformable(transform, canPan = { false })
-            .horizontalScroll(horizontal, enabled = FluidZoom.isZoomed(scale))
-            .wrapContentWidth(Alignment.Start, unbounded = true).width(pageWidth + gap * 2),
-          state = pages,
-          contentPadding = PaddingValues(start = gap, top = top, end = gap, bottom = bottom),
-          verticalArrangement = Arrangement.spacedBy(gap),
-        ) {
-          items(count) { index ->
-            ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count))
-          }
-        }
-        if (chromeVisible) {
-          Row(
-            Modifier.align(Alignment.TopEnd).padding(top = top, end = gap),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(gap / 2),
+              .transformable(transform, canPan = { false })
+              .horizontalScroll(horizontal, enabled = FluidZoom.isZoomed(scale))
+              .wrapContentWidth(Alignment.Start, unbounded = true).width(pageWidth + edge * 2),
+            state = pages,
+            contentPadding = PaddingValues(start = edge, top = firstPageTop, end = edge, bottom = bottom),
+            verticalArrangement = Arrangement.spacedBy(gap),
           ) {
-            Text(strings.counter(current + 1, count), Modifier.fluidGlass(backdrop = backdrop)
-              .padding(horizontal = gap, vertical = gap / 2)
-              .clearAndSetSemantics { hideFromAccessibility() },
-              style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
-            FluidGlassIconButton(onClick = { thumbnails = true }, backdrop = backdrop,
-              modifier = Modifier.semantics { stateDescription = strings.page(current + 1, count) }) {
-              FluidIcon(FluidIcons.GridView, strings.thumbnails)
+            items(count) { index ->
+              ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count),
+                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex })
             }
           }
         }
+        if (presenting) ViewerSlideShow(cache, count, current, strings) { presenting = false }
+        if (searchFailed) Text(strings.searchError, Modifier.align(Alignment.Center).semantics { liveRegion = LiveRegionMode.Polite })
         FluidGlassSheet(visible = thumbnails, onDismissRequest = { thumbnails = false }, paneTitle = strings.thumbnails,
           detents = setOf(FluidSheetDetent.Medium, FluidSheetDetent.Large)) {
           val grid = rememberLazyGridState(initialFirstVisibleItemIndex = current)
@@ -180,9 +257,57 @@ fun FluidPagesPreset(
 }
 
 @Composable
+private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: Int,
+  strings: FluidPagesPresetStrings, close: () -> Unit) {
+  val state = rememberPagerState(initial.coerceIn(0, count - 1)) { count }
+  Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+      val density = LocalDensity.current
+      HorizontalPager(state, Modifier.fillMaxSize()) { page ->
+        val natural by produceState<IntSize?>(null, page) { value = cache.measure(page) }
+        natural?.let { size ->
+          val width = minOf(maxWidth, maxHeight * (size.width.toFloat() / size.height))
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(width)) {
+              ViewerPage(cache, page, with(density) { width.roundToPx() }, false, false, strings, strings.page(page + 1, count))
+            }
+          }
+        }
+      }
+      FluidGlassIconButton(close, Modifier.align(Alignment.TopEnd).padding(16.dp)) {
+        FluidIcon(FluidIcons.Close, strings.endPresentation)
+      }
+    }
+  }
+}
+
+/**
+ * Measure the pinned counter first, including wrapped labels and the current font scale.
+ * Its clearance belongs to the start of the scrollable list; only the counter stays pinned.
+ */
+@Composable
+private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable () -> Unit, pages: @Composable (Dp) -> Unit) {
+  SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
+    val edge = margin.roundToPx()
+    val inset = top.roundToPx()
+    val chip = subcompose("counter", counter).singleOrNull()?.measure(constraints.copy(
+      minWidth = 0, maxWidth = (constraints.maxWidth - 2 * edge).coerceAtLeast(0),
+      minHeight = 0, maxHeight = (constraints.maxHeight - inset).coerceAtLeast(0),
+    ))
+    val firstPageTop = inset + (chip?.let { it.height + gap.roundToPx() } ?: 0)
+    val list = subcompose("pages") { pages(firstPageTop.toDp()) }.single().measure(constraints)
+    layout(list.width, list.height) {
+      list.placeRelative(0, 0)
+      chip?.placeRelative(edge, inset, zIndex = 1f)
+    }
+  }
+}
+
+@Composable
 private fun ViewerPage(
   cache: ViewerPageRenderCache, index: Int, width: Int, preview: Boolean, thumbnail: Boolean,
-  strings: FluidPagesPresetStrings, description: String?,
+  strings: FluidPagesPresetStrings, description: String?, match: FluidViewerPageMatch? = null,
+  entrance: ViewerEntranceClaim? = null,
 ) {
   var size by remember(cache, index) { mutableStateOf<IntSize?>(null) }
   var bitmap by remember(cache, index) { mutableStateOf<ImageBitmap?>(null) }
@@ -206,11 +331,22 @@ private fun ViewerPage(
   val ratio = size?.let { (it.width.toFloat() / it.height).coerceIn(1f / MaxPageAspect, MaxPageAspect) }
     ?: DefaultPageAspect
   val paper = MaterialTheme.colorScheme.surfaceContainerHigh
-  Box(Modifier.fillMaxWidth().aspectRatio(ratio).background(paper), contentAlignment = Alignment.Center) {
-    val shown = bitmap
+  val shown = bitmap
+  val claim = LocalViewerEntrance.current
+  val traveling = LocalSharedPage.current?.host?.isMoving == true
+  val waiting = claim != null && (!claim.revealed || traveling) && !thumbnail && shown == null && !failed
+  val placed = if (entrance != null && (shown != null || failed)) Modifier.onPlaced { entrance.placed() } else Modifier
+  val backing = if (waiting) Modifier else Modifier.shadow(if (thumbnail) 0.dp else 2.dp).background(paper)
+  Box(Modifier.fillMaxWidth().aspectRatio(ratio).then(placed).then(backing), contentAlignment = Alignment.Center) {
     if (shown != null) {
-      Image(shown, description, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-    } else if (!thumbnail) {
+      Image(shown, description, Modifier.fillMaxSize().drawWithContent {
+        drawContent()
+        match?.bounds?.forEach { rect ->
+          drawRect(FluidFindDefaults.CurrentHighlight.copy(alpha = .48f),
+            Offset(rect.left * this.size.width, rect.top * this.size.height), Size(rect.width * this.size.width, rect.height * this.size.height))
+        }
+      }, contentScale = ContentScale.Fit)
+    } else if (!thumbnail && !waiting) {
       Column(Modifier.padding(FluidScreenDefaults.HorizontalPadding), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (failed) strings.error else strings.loading, style = MaterialTheme.typography.bodyMedium)
         if (failed) Text(strings.retry, Modifier.heightIn(min = FluidGlassSize.Regular.touchTarget)

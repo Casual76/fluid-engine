@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Nessun permesso, di proposito: il modulo non va in rete (niente INTERNET) e legge solo i file che l'app gli
+       passa. Le risorse remote di una pagina HTML, di un EPUB o di una mail restano bloccate da onRequest. -->
+</manifest>

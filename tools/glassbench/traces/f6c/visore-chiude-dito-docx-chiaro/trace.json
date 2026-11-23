@@ -1,0 +1,4288 @@
+{
+  "schema": 1,
+  "name": "visore-chiude-dito-docx-chiaro",
+  "phase": "f6c",
+  "fps": 120,
+  "durationMs": 866.666667,
+  "density": 1,
+  "theme": "light",
+  "size": [360, 760],
+  "_confronto": "F6D.0 §4 (profilo zoom), §5 (Quick Look JPEG). Tavole F6C.7 §3.",
+  "_ripetizioni": 3,
+  "_sorgente": "Sagoma e velo da FluidPageHostState, facce da ViewerEntranceMotion. Prontezza simulata, tavole illustrative.",
+  "background": {
+    "kind": "color",
+    "color": "#EDEEF3"
+  },
+  "base": {
+    "files": {
+      "name": "files",
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "kind": "shape",
+      "radius": 0,
+      "color": "#EDEEF3",
+      "content": [
+        {
+          "name": "labels",
+          "items": [
+            {
+              "kind": "text",
+              "text": "Visori",
+              "x": 22,
+              "y": 90,
+              "sizeDp": 34,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "File di esempio",
+              "x": 22,
+              "y": 154,
+              "sizeDp": 21,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Documento a pagine",
+              "x": 164,
+              "y": 266,
+              "sizeDp": 17,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Diario di bordo",
+              "x": 22,
+              "y": 386,
+              "sizeDp": 20,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Archivio",
+              "x": 22,
+              "y": 470,
+              "sizeDp": 20,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Altri file",
+              "x": 22,
+              "y": 554,
+              "sizeDp": 20,
+              "color": "#1C2437"
+            }
+          ]
+        }
+      ]
+    },
+    "tile": {
+      "name": "tile",
+      "x": 22,
+      "y": 220,
+      "w": 124,
+      "h": 94,
+      "kind": "shape",
+      "radius": 0,
+      "color": "#FFFFFF",
+      "content": [
+        {
+          "name": "tile-label",
+          "items": [
+            {
+              "kind": "text",
+              "text": "DOCX",
+              "x": 28,
+              "y": 35,
+              "sizeDp": 23,
+              "color": "#1C2437"
+            }
+          ]
+        }
+      ]
+    },
+    "veil": {
+      "name": "veil",
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "kind": "shape",
+      "radius": 0,
+      "color": "#00000000",
+      "content": []
+    },
+    "card": {
+      "name": "card",
+      "x": 0,
+      "y": 0,
+      "w": 360,
+      "h": 760,
+      "kind": "shape",
+      "radius": 0,
+      "color": "#FFFFFF",
+      "content": [
+        {
+          "name": "page-face",
+          "items": [
+            {
+              "kind": "text",
+              "text": "Relazione",
+              "x": 32,
+              "y": 164,
+              "sizeDp": 28,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Riepilogo della visita",
+              "x": 32,
+              "y": 208,
+              "sizeDp": 18,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "1. Osservazioni",
+              "x": 32,
+              "y": 252,
+              "sizeDp": 18,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "2. Misure",
+              "x": 32,
+              "y": 296,
+              "sizeDp": 18,
+              "color": "#1C2437"
+            }
+          ]
+        },
+        {
+          "name": "tile-face",
+          "items": [
+            {
+              "kind": "text",
+              "text": "DOCX",
+              "x": 28,
+              "y": 35,
+              "sizeDp": 23,
+              "color": "#1C2437"
+            }
+          ]
+        },
+        {
+          "name": "chrome",
+          "items": [
+            {
+              "kind": "text",
+              "text": "‹      docx",
+              "x": 24,
+              "y": 41,
+              "sizeDp": 22,
+              "color": "#1C2437"
+            },
+            {
+              "kind": "text",
+              "text": "Condividi",
+              "x": 232,
+              "y": 718,
+              "sizeDp": 19,
+              "color": "#1C2437"
+            }
+          ]
+        }
+      ],
+      "contentClip": "shape"
+    }
+  },
+  "frames": [
+    {
+      "t": 0,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 8.333333,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 16.666667,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 25,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 33.333333,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 41.666667,
+      "elements": [
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 1,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 50,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002E",
+          "_alpha": 0.18
+        },
+        {
+          "name": "card",
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 760,
+          "radius": 0,
+          "_backdrop": 0,
+          "_exit": 0,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 118,
+              "y": 333,
+              "w": 124,
+              "h": 94,
+              "scale": 8.085107
+            },
+            {
+              "name": "chrome",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 58.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002E",
+          "_alpha": 0.179086
+        },
+        {
+          "name": "card",
+          "x": 0.202632,
+          "y": 2.026316,
+          "w": 357.826324,
+          "h": 753.865784,
+          "radius": 1.143998,
+          "_backdrop": 0,
+          "_exit": 0.009211,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 116.913162,
+              "y": 329.932892,
+              "w": 124,
+              "h": 94,
+              "scale": 8.019849
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.998994,
+              "blurSigmaDp": 0.007039
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 66.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002D",
+          "_alpha": 0.178169
+        },
+        {
+          "name": "card",
+          "x": 0.405263,
+          "y": 4.052631,
+          "w": 355.652618,
+          "h": 747.731628,
+          "radius": 4.195566,
+          "_backdrop": 0,
+          "_exit": 0.018421,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 115.826309,
+              "y": 326.865814,
+              "w": 124,
+              "h": 94,
+              "scale": 7.954592
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.996028,
+              "blurSigmaDp": 0.027804
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 75,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002D",
+          "_alpha": 0.177247
+        },
+        {
+          "name": "card",
+          "x": 0.607895,
+          "y": 6.078948,
+          "w": 353.478973,
+          "h": 741.597412,
+          "radius": 8.584058,
+          "_backdrop": 0,
+          "_exit": 0.027632,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 114.739487,
+              "y": 323.798706,
+              "w": 124,
+              "h": 94,
+              "scale": 7.889334
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.991175,
+              "blurSigmaDp": 0.061772
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 83.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002D",
+          "_alpha": 0.176322
+        },
+        {
+          "name": "card",
+          "x": 0.810526,
+          "y": 8.105263,
+          "w": 351.305267,
+          "h": 735.463135,
+          "radius": 13.73884,
+          "_backdrop": 0,
+          "_exit": 0.036842,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 113.652634,
+              "y": 320.731567,
+              "w": 124,
+              "h": 94,
+              "scale": 7.824076
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.984512,
+              "blurSigmaDp": 0.108416
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 91.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002D",
+          "_alpha": 0.175392
+        },
+        {
+          "name": "card",
+          "x": 1.013158,
+          "y": 10.131578,
+          "w": 349.131592,
+          "h": 729.328918,
+          "radius": 19.08927,
+          "_backdrop": 0,
+          "_exit": 0.046053,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 112.565796,
+              "y": 317.664459,
+              "w": 124,
+              "h": 94,
+              "scale": 7.758818
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.976113,
+              "blurSigmaDp": 0.167212
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 100,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002C",
+          "_alpha": 0.174459
+        },
+        {
+          "name": "card",
+          "x": 1.215789,
+          "y": 12.157895,
+          "w": 346.957886,
+          "h": 723.194763,
+          "radius": 24.064705,
+          "_backdrop": 0,
+          "_exit": 0.055263,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 111.478943,
+              "y": 314.597382,
+              "w": 124,
+              "h": 94,
+              "scale": 7.693561
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.966052,
+              "blurSigmaDp": 0.237635
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 108.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002C",
+          "_alpha": 0.173522
+        },
+        {
+          "name": "card",
+          "x": 1.418421,
+          "y": 14.18421,
+          "w": 344.78421,
+          "h": 717.060547,
+          "radius": 28.094507,
+          "_backdrop": 0,
+          "_exit": 0.064474,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 110.392105,
+              "y": 311.530273,
+              "w": 124,
+              "h": 94,
+              "scale": 7.628304
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.954406,
+              "blurSigmaDp": 0.319159
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 116.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002C",
+          "_alpha": 0.17258
+        },
+        {
+          "name": "card",
+          "x": 1.621053,
+          "y": 16.210526,
+          "w": 342.610504,
+          "h": 710.926331,
+          "radius": 30.608036,
+          "_backdrop": 0,
+          "_exit": 0.073684,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 109.305252,
+              "y": 308.463165,
+              "w": 124,
+              "h": 94,
+              "scale": 7.563046
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.941249,
+              "blurSigmaDp": 0.41126
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 125,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002C",
+          "_alpha": 0.171634
+        },
+        {
+          "name": "card",
+          "x": 1.823684,
+          "y": 18.236841,
+          "w": 340.436859,
+          "h": 704.792114,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.082895,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 108.21843,
+              "y": 305.396057,
+              "w": 124,
+              "h": 94,
+              "scale": 7.497788
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.926655,
+              "blurSigmaDp": 0.513412
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 133.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002C",
+          "_alpha": 0.170684
+        },
+        {
+          "name": "card",
+          "x": 2.026316,
+          "y": 20.263157,
+          "w": 338.263184,
+          "h": 698.657898,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.092105,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 107.131592,
+              "y": 302.328949,
+              "w": 124,
+              "h": 94,
+              "scale": 7.432531
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.910701,
+              "blurSigmaDp": 0.625091
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 141.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002B",
+          "_alpha": 0.169729
+        },
+        {
+          "name": "card",
+          "x": 2.228947,
+          "y": 22.289474,
+          "w": 336.089478,
+          "h": 692.523682,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.101316,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 106.044739,
+              "y": 299.261841,
+              "w": 124,
+              "h": 94,
+              "scale": 7.367273
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.893461,
+              "blurSigmaDp": 0.745771
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 150,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002B",
+          "_alpha": 0.16877
+        },
+        {
+          "name": "card",
+          "x": 2.431579,
+          "y": 24.31579,
+          "w": 333.915802,
+          "h": 686.389465,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.110526,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.000031
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 104.957901,
+              "y": 296.194733,
+              "w": 124,
+              "h": 94,
+              "scale": 7.302016
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.87501,
+              "blurSigmaDp": 0.874927
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 158.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002B",
+          "_alpha": 0.167807
+        },
+        {
+          "name": "card",
+          "x": 2.634211,
+          "y": 26.342106,
+          "w": 331.742096,
+          "h": 680.255249,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.119737,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.000378
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 103.871048,
+              "y": 293.127625,
+              "w": 124,
+              "h": 94,
+              "scale": 7.236758
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.855424,
+              "blurSigmaDp": 1.012035
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 166.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002B",
+          "_alpha": 0.166839
+        },
+        {
+          "name": "card",
+          "x": 2.836842,
+          "y": 28.36842,
+          "w": 329.56842,
+          "h": 674.121094,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.128947,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.001714
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 102.78421,
+              "y": 290.060547,
+              "w": 124,
+              "h": 94,
+              "scale": 7.171501
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.834776,
+              "blurSigmaDp": 1.156569
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 175,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002A",
+          "_alpha": 0.165866
+        },
+        {
+          "name": "card",
+          "x": 3.039474,
+          "y": 30.394735,
+          "w": 327.394745,
+          "h": 667.986877,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.138158,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.00506
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 101.697372,
+              "y": 286.993439,
+              "w": 124,
+              "h": 94,
+              "scale": 7.106244
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.813142,
+              "blurSigmaDp": 1.308003
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 183.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002A",
+          "_alpha": 0.164889
+        },
+        {
+          "name": "card",
+          "x": 3.242105,
+          "y": 32.421051,
+          "w": 325.221069,
+          "h": 661.852661,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.147368,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.011729
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 100.610535,
+              "y": 283.926331,
+              "w": 124,
+              "h": 94,
+              "scale": 7.040986
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.790598,
+              "blurSigmaDp": 1.465814
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 191.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002A",
+          "_alpha": 0.163907
+        },
+        {
+          "name": "card",
+          "x": 3.444737,
+          "y": 34.447369,
+          "w": 323.047363,
+          "h": 655.718384,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.156579,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.023257
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 99.523682,
+              "y": 280.859192,
+              "w": 124,
+              "h": 94,
+              "scale": 6.975728
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.767218,
+              "blurSigmaDp": 1.629475
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 200,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000002A",
+          "_alpha": 0.16292
+        },
+        {
+          "name": "card",
+          "x": 3.647368,
+          "y": 36.473682,
+          "w": 320.873688,
+          "h": 649.584229,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.165789,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.041335
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 98.436844,
+              "y": 277.792114,
+              "w": 124,
+              "h": 94,
+              "scale": 6.91047
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.743077,
+              "blurSigmaDp": 1.798462
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 208.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000029",
+          "_alpha": 0.161928
+        },
+        {
+          "name": "card",
+          "x": 3.85,
+          "y": 38.5,
+          "w": 318.699982,
+          "h": 643.450012,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.175,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.067735
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 97.349991,
+              "y": 274.725006,
+              "w": 124,
+              "h": 94,
+              "scale": 6.845213
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.71825,
+              "blurSigmaDp": 1.97225
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 216.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000029",
+          "_alpha": 0.160931
+        },
+        {
+          "name": "card",
+          "x": 4.052631,
+          "y": 40.526314,
+          "w": 316.526306,
+          "h": 637.315796,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.184211,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.104238
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 96.263153,
+              "y": 271.657898,
+              "w": 124,
+              "h": 94,
+              "scale": 6.779955
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.692812,
+              "blurSigmaDp": 2.150313
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 225,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000029",
+          "_alpha": 0.159929
+        },
+        {
+          "name": "card",
+          "x": 4.255263,
+          "y": 42.552631,
+          "w": 314.352661,
+          "h": 631.18158,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.193421,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.152551
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 95.176331,
+              "y": 268.59079,
+              "w": 124,
+              "h": 94,
+              "scale": 6.714698
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.666839,
+              "blurSigmaDp": 2.332127
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 233.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000029",
+          "_alpha": 0.158922
+        },
+        {
+          "name": "card",
+          "x": 4.457895,
+          "y": 44.578949,
+          "w": 312.178955,
+          "h": 625.047363,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.202632,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.214242
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 94.089478,
+              "y": 265.523682,
+              "w": 124,
+              "h": 94,
+              "scale": 6.64944
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.640405,
+              "blurSigmaDp": 2.517167
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 241.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000028",
+          "_alpha": 0.15791
+        },
+        {
+          "name": "card",
+          "x": 4.660526,
+          "y": 46.605263,
+          "w": 310.00528,
+          "h": 618.913147,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.211842,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.290656
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 93.00264,
+              "y": 262.456573,
+              "w": 124,
+              "h": 94,
+              "scale": 6.584182
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.613585,
+              "blurSigmaDp": 2.704907
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 250,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000028",
+          "_alpha": 0.156892
+        },
+        {
+          "name": "card",
+          "x": 4.863158,
+          "y": 48.63158,
+          "w": 307.831573,
+          "h": 612.778931,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.221053,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.382852
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 91.915787,
+              "y": 259.389465,
+              "w": 124,
+              "h": 94,
+              "scale": 6.518925
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.586454,
+              "blurSigmaDp": 2.894822
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 258.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000028",
+          "_alpha": 0.156103
+        },
+        {
+          "name": "card",
+          "x": 5.019556,
+          "y": 50.195564,
+          "w": 306.153839,
+          "h": 608.044373,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.228162,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.465261
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 91.07692,
+              "y": 257.022186,
+              "w": 124,
+              "h": 94,
+              "scale": 6.468557
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.565348,
+              "blurSigmaDp": 3.042561
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 266.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000027",
+          "_alpha": 0.153999
+        },
+        {
+          "name": "card",
+          "x": 5.433365,
+          "y": 54.333649,
+          "w": 301.714844,
+          "h": 595.517212,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.246971,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.731345
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 88.857422,
+              "y": 250.758606,
+              "w": 124,
+              "h": 94,
+              "scale": 6.335289
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.509086,
+              "blurSigmaDp": 3.436397
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 275,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000026",
+          "_alpha": 0.15046
+        },
+        {
+          "name": "card",
+          "x": 6.119131,
+          "y": 61.191315,
+          "w": 294.358398,
+          "h": 574.757202,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.278142,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 1.312244
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 85.179199,
+              "y": 240.378601,
+              "w": 124,
+              "h": 94,
+              "scale": 6.114439
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.41593,
+              "blurSigmaDp": 4.088493
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 283.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000025",
+          "_alpha": 0.146543
+        },
+        {
+          "name": "card",
+          "x": 6.862761,
+          "y": 68.627609,
+          "w": 286.381287,
+          "h": 552.245483,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.311944,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.052642
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 81.190643,
+              "y": 229.122742,
+              "w": 124,
+              "h": 94,
+              "scale": 5.874952
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.317972,
+              "blurSigmaDp": 4.774197
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 291.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000024",
+          "_alpha": 0.1421
+        },
+        {
+          "name": "card",
+          "x": 7.68685,
+          "y": 76.868492,
+          "w": 277.541046,
+          "h": 527.298157,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.349402,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.749438
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925,
+              "x": 76.770523,
+              "y": 216.649078,
+              "w": 124,
+              "h": 94,
+              "scale": 5.609555
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.217508,
+              "blurSigmaDp": 5.477444
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 300,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000023",
+          "_alpha": 0.136658
+        },
+        {
+          "name": "card",
+          "x": 8.667839,
+          "y": 86.678383,
+          "w": 267.017731,
+          "h": 497.600922,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.393993,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0.030504,
+              "blurSigmaDp": 2.925,
+              "x": 71.508865,
+              "y": 201.800461,
+              "w": 124,
+              "h": 94,
+              "scale": 5.293627
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.11579,
+              "blurSigmaDp": 6.189467
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 308.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000022",
+          "_alpha": 0.131557
+        },
+        {
+          "name": "card",
+          "x": 9.558766,
+          "y": 95.587669,
+          "w": 257.46051,
+          "h": 470.630035,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.434489,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0.245888,
+              "blurSigmaDp": 2.925,
+              "x": 66.730255,
+              "y": 188.315018,
+              "w": 124,
+              "h": 94,
+              "scale": 5.006702
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.047001,
+              "blurSigmaDp": 6.670991
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 316.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000020",
+          "_alpha": 0.126306
+        },
+        {
+          "name": "card",
+          "x": 10.446834,
+          "y": 104.468338,
+          "w": 247.93396,
+          "h": 443.74585,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.474856,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0.574145,
+              "blurSigmaDp": 2.925,
+              "x": 61.96698,
+              "y": 174.872925,
+              "w": 124,
+              "h": 94,
+              "scale": 4.720701
+            },
+            {
+              "name": "chrome",
+              "alpha": 0.007332,
+              "blurSigmaDp": 6.948674
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 325,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000001F",
+          "_alpha": 0.120313
+        },
+        {
+          "name": "card",
+          "x": 11.424253,
+          "y": 114.242538,
+          "w": 237.448914,
+          "h": 414.156677,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.519284,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 0.898924,
+              "blurSigmaDp": 2.925,
+              "x": 56.724457,
+              "y": 160.078339,
+              "w": 124,
+              "h": 94,
+              "scale": 4.405922
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 333.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000001D",
+          "_alpha": 0.114973
+        },
+        {
+          "name": "card",
+          "x": 12.262074,
+          "y": 122.620735,
+          "w": 228.461411,
+          "h": 388.79361,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.557367,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0.992117,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.925,
+              "x": 52.230705,
+              "y": 147.396805,
+              "w": 124,
+              "h": 94,
+              "scale": 4.136102
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 341.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000001C",
+          "_alpha": 0.109672
+        },
+        {
+          "name": "card",
+          "x": 13.06301,
+          "y": 130.630096,
+          "w": 219.869537,
+          "h": 364.547058,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.593773,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0.3627,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.809383,
+              "x": 47.934769,
+              "y": 135.273529,
+              "w": 124,
+              "h": 94,
+              "scale": 3.87816
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 350,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000001A",
+          "_alpha": 0.103799
+        },
+        {
+          "name": "card",
+          "x": 13.913996,
+          "y": 139.139954,
+          "w": 210.740768,
+          "h": 338.7854,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.632454,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 2.002023,
+              "x": 43.370384,
+              "y": 122.3927,
+              "w": 124,
+              "h": 94,
+              "scale": 3.6041
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 358.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000019",
+          "_alpha": 0.098692
+        },
+        {
+          "name": "card",
+          "x": 14.622785,
+          "y": 146.227844,
+          "w": 203.137405,
+          "h": 317.32843,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.664672,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 1.135669,
+              "x": 39.568703,
+              "y": 111.664215,
+              "w": 124,
+              "h": 94,
+              "scale": 3.375834
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 366.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000018",
+          "_alpha": 0.093714
+        },
+        {
+          "name": "card",
+          "x": 15.28536,
+          "y": 152.853607,
+          "w": 196.02977,
+          "h": 297.270447,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.694789,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.455256,
+              "x": 36.014885,
+              "y": 101.635223,
+              "w": 124,
+              "h": 94,
+              "scale": 3.162452
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 375,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000017",
+          "_alpha": 0.088288
+        },
+        {
+          "name": "card",
+          "x": 15.975368,
+          "y": 159.753677,
+          "w": 188.627869,
+          "h": 276.38208,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.726153,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0.055327,
+              "x": 32.313934,
+              "y": 91.19104,
+              "w": 124,
+              "h": 94,
+              "scale": 2.940235
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 383.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000015",
+          "_alpha": 0.083634
+        },
+        {
+          "name": "card",
+          "x": 16.540283,
+          "y": 165.402832,
+          "w": 182.567871,
+          "h": 259.280518,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.751831,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 29.283936,
+              "y": 82.640259,
+              "w": 124,
+              "h": 94,
+              "scale": 2.758303
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 391.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000014",
+          "_alpha": 0.079148
+        },
+        {
+          "name": "card",
+          "x": 17.061047,
+          "y": 170.610458,
+          "w": 176.981506,
+          "h": 243.51561,
+          "radius": 31.16,
+          "_backdrop": 0,
+          "_exit": 0.775502,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 26.490753,
+              "y": 74.757805,
+              "w": 124,
+              "h": 94,
+              "scale": 2.590592
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 400,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000013",
+          "_alpha": 0.074308
+        },
+        {
+          "name": "card",
+          "x": 17.596395,
+          "y": 175.963959,
+          "w": 171.238678,
+          "h": 227.309113,
+          "radius": 30.93154,
+          "_backdrop": 0,
+          "_exit": 0.799836,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 23.619339,
+              "y": 66.654556,
+              "w": 124,
+              "h": 94,
+              "scale": 2.418182
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 408.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000012",
+          "_alpha": 0.070193
+        },
+        {
+          "name": "card",
+          "x": 18.029707,
+          "y": 180.297073,
+          "w": 166.590408,
+          "h": 214.191574,
+          "radius": 29.413725,
+          "_backdrop": 0,
+          "_exit": 0.819532,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 21.295204,
+              "y": 60.095787,
+              "w": 124,
+              "h": 94,
+              "scale": 2.278634
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 416.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000011",
+          "_alpha": 0.066255
+        },
+        {
+          "name": "card",
+          "x": 18.42536,
+          "y": 184.253601,
+          "w": 162.346146,
+          "h": 202.214111,
+          "radius": 27.004005,
+          "_backdrop": 0,
+          "_exit": 0.837516,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 19.173073,
+              "y": 54.107056,
+              "w": 124,
+              "h": 94,
+              "scale": 2.151214
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 425,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000010",
+          "_alpha": 0.062036
+        },
+        {
+          "name": "card",
+          "x": 18.828436,
+          "y": 188.284363,
+          "w": 158.022232,
+          "h": 190.011902,
+          "radius": 23.792051,
+          "_backdrop": 0,
+          "_exit": 0.855838,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 17.011116,
+              "y": 48.005951,
+              "w": 124,
+              "h": 94,
+              "scale": 2.021403
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 433.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000F",
+          "_alpha": 0.05847
+        },
+        {
+          "name": "card",
+          "x": 19.152033,
+          "y": 191.520325,
+          "w": 154.550919,
+          "h": 180.215729,
+          "radius": 20.825483,
+          "_backdrop": 0,
+          "_exit": 0.870547,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 15.275459,
+              "y": 43.107864,
+              "w": 124,
+              "h": 94,
+              "scale": 1.917189
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 441.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000E",
+          "_alpha": 0.055076
+        },
+        {
+          "name": "card",
+          "x": 19.445465,
+          "y": 194.454651,
+          "w": 151.403183,
+          "h": 171.332733,
+          "radius": 17.952217,
+          "_backdrop": 0,
+          "_exit": 0.883885,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 13.701591,
+              "y": 38.666367,
+              "w": 124,
+              "h": 94,
+              "scale": 1.822689
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 450,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000D",
+          "_alpha": 0.051457
+        },
+        {
+          "name": "card",
+          "x": 19.742414,
+          "y": 197.424149,
+          "w": 148.217728,
+          "h": 162.343246,
+          "radius": 14.967247,
+          "_backdrop": 0,
+          "_exit": 0.897382,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 12.108864,
+              "y": 34.171623,
+              "w": 124,
+              "h": 94,
+              "scale": 1.727056
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 458.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000C",
+          "_alpha": 0.048413
+        },
+        {
+          "name": "card",
+          "x": 19.979359,
+          "y": 199.793579,
+          "w": 145.67598,
+          "h": 155.170349,
+          "radius": 12.59516,
+          "_backdrop": 0,
+          "_exit": 0.908153,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 10.83799,
+              "y": 30.585175,
+              "w": 124,
+              "h": 94,
+              "scale": 1.650748
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 466.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000C",
+          "_alpha": 0.045526
+        },
+        {
+          "name": "card",
+          "x": 20.193087,
+          "y": 201.930862,
+          "w": 143.383255,
+          "h": 148.700211,
+          "radius": 10.507863,
+          "_backdrop": 0,
+          "_exit": 0.917868,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 9.691628,
+              "y": 27.350105,
+              "w": 124,
+              "h": 94,
+              "scale": 1.581917
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 475,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000B",
+          "_alpha": 0.042459
+        },
+        {
+          "name": "card",
+          "x": 20.40827,
+          "y": 204.082687,
+          "w": 141.074936,
+          "h": 142.18605,
+          "radius": 8.494978,
+          "_backdrop": 0,
+          "_exit": 0.927649,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 8.537468,
+              "y": 24.093025,
+              "w": 124,
+              "h": 94,
+              "scale": 1.512618
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 483.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000A",
+          "_alpha": 0.039888
+        },
+        {
+          "name": "card",
+          "x": 20.579155,
+          "y": 205.79155,
+          "w": 139.241791,
+          "h": 137.012863,
+          "radius": 6.984539,
+          "_backdrop": 0,
+          "_exit": 0.935416,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 7.620895,
+              "y": 21.506432,
+              "w": 124,
+              "h": 94,
+              "scale": 1.457584
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 491.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#0000000A",
+          "_alpha": 0.037457
+        },
+        {
+          "name": "card",
+          "x": 20.732662,
+          "y": 207.326614,
+          "w": 137.595078,
+          "h": 132.365799,
+          "radius": 5.710992,
+          "_backdrop": 0,
+          "_exit": 0.942394,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 6.797539,
+              "y": 19.182899,
+              "w": 124,
+              "h": 94,
+              "scale": 1.408147
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 500,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000009",
+          "_alpha": 0.034882
+        },
+        {
+          "name": "card",
+          "x": 20.886587,
+          "y": 208.865875,
+          "w": 135.943878,
+          "h": 127.706024,
+          "radius": 4.527254,
+          "_backdrop": 0,
+          "_exit": 0.94939,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 5.971939,
+              "y": 16.853012,
+              "w": 124,
+              "h": 94,
+              "scale": 1.358575
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 508.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000008",
+          "_alpha": 0.032729
+        },
+        {
+          "name": "card",
+          "x": 21.008362,
+          "y": 210.083618,
+          "w": 134.637573,
+          "h": 124.019592,
+          "radius": 3.665975,
+          "_backdrop": 0,
+          "_exit": 0.954926,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 5.318787,
+              "y": 15.009796,
+              "w": 124,
+              "h": 94,
+              "scale": 1.319357
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 516.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000008",
+          "_alpha": 0.030698
+        },
+        {
+          "name": "card",
+          "x": 21.11739,
+          "y": 211.173904,
+          "w": 133.468002,
+          "h": 120.719009,
+          "radius": 2.957257,
+          "_backdrop": 0,
+          "_exit": 0.959881,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 4.734001,
+              "y": 13.359505,
+              "w": 124,
+              "h": 94,
+              "scale": 1.284245
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 525,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000007",
+          "_alpha": 0.028552
+        },
+        {
+          "name": "card",
+          "x": 21.226353,
+          "y": 212.263519,
+          "w": 132.299133,
+          "h": 117.42041,
+          "radius": 2.312919,
+          "_backdrop": 0,
+          "_exit": 0.964834,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 4.149567,
+              "y": 11.710205,
+              "w": 124,
+              "h": 94,
+              "scale": 1.249153
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 533.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000007",
+          "_alpha": 0.026762
+        },
+        {
+          "name": "card",
+          "x": 21.312288,
+          "y": 213.122879,
+          "w": 131.377274,
+          "h": 114.818924,
+          "radius": 1.853039,
+          "_backdrop": 0,
+          "_exit": 0.96874,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 3.688637,
+              "y": 10.409462,
+              "w": 124,
+              "h": 94,
+              "scale": 1.221478
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 541.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000006",
+          "_alpha": 0.025076
+        },
+        {
+          "name": "card",
+          "x": 21.389017,
+          "y": 213.890167,
+          "w": 130.554169,
+          "h": 112.496124,
+          "radius": 1.480518,
+          "_backdrop": 0,
+          "_exit": 0.972228,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 3.277084,
+              "y": 9.248062,
+              "w": 124,
+              "h": 94,
+              "scale": 1.196767
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 550,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000006",
+          "_alpha": 0.023298
+        },
+        {
+          "name": "card",
+          "x": 21.465494,
+          "y": 214.654938,
+          "w": 129.733795,
+          "h": 110.180969,
+          "radius": 1.146742,
+          "_backdrop": 0,
+          "_exit": 0.975704,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 2.866898,
+              "y": 8.090485,
+              "w": 124,
+              "h": 94,
+              "scale": 1.172138
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 558.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000006",
+          "_alpha": 0.021817
+        },
+        {
+          "name": "card",
+          "x": 21.52565,
+          "y": 215.2565,
+          "w": 129.088486,
+          "h": 108.359863,
+          "radius": 0.911605,
+          "_backdrop": 0,
+          "_exit": 0.978439,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 2.544243,
+              "y": 7.179932,
+              "w": 124,
+              "h": 94,
+              "scale": 1.152765
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 566.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000005",
+          "_alpha": 0.020425
+        },
+        {
+          "name": "card",
+          "x": 21.579239,
+          "y": 215.792404,
+          "w": 128.513611,
+          "h": 106.737564,
+          "radius": 0.723197,
+          "_backdrop": 0,
+          "_exit": 0.980875,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 2.256805,
+              "y": 6.368782,
+              "w": 124,
+              "h": 94,
+              "scale": 1.135506
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 575,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000005",
+          "_alpha": 0.018959
+        },
+        {
+          "name": "card",
+          "x": 21.632528,
+          "y": 216.325287,
+          "w": 127.941963,
+          "h": 105.124359,
+          "radius": 0.556109,
+          "_backdrop": 0,
+          "_exit": 0.983297,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.970982,
+              "y": 5.56218,
+              "w": 124,
+              "h": 94,
+              "scale": 1.118344
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 583.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000005",
+          "_alpha": 0.01774
+        },
+        {
+          "name": "card",
+          "x": 21.674356,
+          "y": 216.743561,
+          "w": 127.493263,
+          "h": 103.858124,
+          "radius": 0.439488,
+          "_backdrop": 0,
+          "_exit": 0.985198,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.746632,
+              "y": 4.929062,
+              "w": 124,
+              "h": 94,
+              "scale": 1.104874
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 591.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000004",
+          "_alpha": 0.016595
+        },
+        {
+          "name": "card",
+          "x": 21.711544,
+          "y": 217.115433,
+          "w": 127.094345,
+          "h": 102.732376,
+          "radius": 0.346779,
+          "_backdrop": 0,
+          "_exit": 0.986888,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.547173,
+              "y": 4.366188,
+              "w": 124,
+              "h": 94,
+              "scale": 1.092898
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 600,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000004",
+          "_alpha": 0.015392
+        },
+        {
+          "name": "card",
+          "x": 21.748451,
+          "y": 217.484497,
+          "w": 126.698448,
+          "h": 101.615112,
+          "radius": 0.265179,
+          "_backdrop": 0,
+          "_exit": 0.988566,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.349224,
+              "y": 3.807556,
+              "w": 124,
+              "h": 94,
+              "scale": 1.081012
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 608.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000004",
+          "_alpha": 0.014392
+        },
+        {
+          "name": "card",
+          "x": 21.777365,
+          "y": 217.773651,
+          "w": 126.388268,
+          "h": 100.739777,
+          "radius": 0.208616,
+          "_backdrop": 0,
+          "_exit": 0.98988,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.194134,
+              "y": 3.369888,
+              "w": 124,
+              "h": 94,
+              "scale": 1.0717
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 616.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000003",
+          "_alpha": 0.013454
+        },
+        {
+          "name": "card",
+          "x": 21.80303,
+          "y": 218.030289,
+          "w": 126.112953,
+          "h": 99.962845,
+          "radius": 0.163913,
+          "_backdrop": 0,
+          "_exit": 0.991047,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 1.056477,
+              "y": 2.981422,
+              "w": 124,
+              "h": 94,
+              "scale": 1.063434
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 625,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000003",
+          "_alpha": 0.012469
+        },
+        {
+          "name": "card",
+          "x": 21.828455,
+          "y": 218.284561,
+          "w": 125.840202,
+          "h": 99.1931,
+          "radius": 0.124793,
+          "_backdrop": 0,
+          "_exit": 0.992203,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.920101,
+              "y": 2.59655,
+              "w": 124,
+              "h": 94,
+              "scale": 1.055246
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 633.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000003",
+          "_alpha": 0.011652
+        },
+        {
+          "name": "card",
+          "x": 21.848343,
+          "y": 218.483429,
+          "w": 125.626877,
+          "h": 98.591064,
+          "radius": 0.097822,
+          "_backdrop": 0,
+          "_exit": 0.993106,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.813438,
+              "y": 2.295532,
+              "w": 124,
+              "h": 94,
+              "scale": 1.048841
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 641.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000003",
+          "_alpha": 0.010887
+        },
+        {
+          "name": "card",
+          "x": 21.865971,
+          "y": 218.659698,
+          "w": 125.437775,
+          "h": 98.057434,
+          "radius": 0.076601,
+          "_backdrop": 0,
+          "_exit": 0.993908,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.718887,
+              "y": 2.028717,
+              "w": 124,
+              "h": 94,
+              "scale": 1.043164
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 650,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000003",
+          "_alpha": 0.010083
+        },
+        {
+          "name": "card",
+          "x": 21.883408,
+          "y": 218.834076,
+          "w": 125.250732,
+          "h": 97.529572,
+          "radius": 0.058115,
+          "_backdrop": 0,
+          "_exit": 0.9947,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.625366,
+              "y": 1.764786,
+              "w": 124,
+              "h": 94,
+              "scale": 1.037549
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 658.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.009418
+        },
+        {
+          "name": "card",
+          "x": 21.897028,
+          "y": 218.970276,
+          "w": 125.104622,
+          "h": 97.117249,
+          "radius": 0.04542,
+          "_backdrop": 0,
+          "_exit": 0.995319,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.552311,
+              "y": 1.558624,
+              "w": 124,
+              "h": 94,
+              "scale": 1.033162
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 666.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.008794
+        },
+        {
+          "name": "card",
+          "x": 21.909082,
+          "y": 219.09082,
+          "w": 124.975304,
+          "h": 96.752319,
+          "radius": 0.03547,
+          "_backdrop": 0,
+          "_exit": 0.995867,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.487652,
+              "y": 1.37616,
+              "w": 124,
+              "h": 94,
+              "scale": 1.02928
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 675,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.008141
+        },
+        {
+          "name": "card",
+          "x": 21.920994,
+          "y": 219.209946,
+          "w": 124.847519,
+          "h": 96.391708,
+          "radius": 0.026831,
+          "_backdrop": 0,
+          "_exit": 0.996409,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.423759,
+              "y": 1.195854,
+              "w": 124,
+              "h": 94,
+              "scale": 1.025444
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 683.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.007599
+        },
+        {
+          "name": "card",
+          "x": 21.930286,
+          "y": 219.302856,
+          "w": 124.747849,
+          "h": 96.110443,
+          "radius": 0.02092,
+          "_backdrop": 0,
+          "_exit": 0.996831,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.373924,
+              "y": 1.055222,
+              "w": 124,
+              "h": 94,
+              "scale": 1.022452
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 691.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.007093
+        },
+        {
+          "name": "card",
+          "x": 21.938501,
+          "y": 219.38501,
+          "w": 124.659721,
+          "h": 95.861725,
+          "radius": 0.016299,
+          "_backdrop": 0,
+          "_exit": 0.997205,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.329861,
+              "y": 0.930862,
+              "w": 124,
+              "h": 94,
+              "scale": 1.019806
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 700,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "veil",
+          "color": "#00000002",
+          "_alpha": 0.006562
+        },
+        {
+          "name": "card",
+          "x": 21.946608,
+          "y": 219.46608,
+          "w": 124.572754,
+          "h": 95.616318,
+          "radius": 0.0123,
+          "_backdrop": 0,
+          "_exit": 0.997573,
+          "_ready": true,
+          "content": [
+            {
+              "name": "page-face",
+              "alpha": 0,
+              "blurSigmaDp": 2.925
+            },
+            {
+              "name": "tile-face",
+              "alpha": 1,
+              "blurSigmaDp": 0,
+              "x": 0.286377,
+              "y": 0.808159,
+              "w": 124,
+              "h": 94,
+              "scale": 1.017195
+            },
+            {
+              "name": "chrome",
+              "alpha": 0,
+              "blurSigmaDp": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "t": 708.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 716.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 725,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 733.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 741.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 750,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 758.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 766.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 775,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 783.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 791.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 800,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 808.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 816.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 825,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 833.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 841.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 850,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 858.333333,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    },
+    {
+      "t": 866.666667,
+      "elements": [
+        {
+          "name": "files"
+        },
+        {
+          "name": "tile"
+        }
+      ]
+    }
+  ]
+}

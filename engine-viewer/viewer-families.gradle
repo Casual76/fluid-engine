@@ -1,0 +1,162 @@
+// F6C.8 · F6C-h, controllato dalla build: ogni famiglia dei visori e' un modulo a parte, e chi non lo aggiunge non lo
+// paga. Lo applicano engine-viewer, engine-viewer-all e l'app di prova (engine-viewer/prova/app); ognuno controlla il
+// SUO grafo risolto, nel suo contesto (nessuna risoluzione di una configurazione di un altro progetto), con il compito
+// `checkViewerFamilies`. Le regole:
+//   1. engine-ui non arriva a nessun modulo di famiglia;
+//   2. engine-viewer non arriva a nessun modulo di famiglia;
+//   3. un modulo `engine-viewer-*` nel grafo e' nella lista ammessa (families.json), salvo engine-viewer-all;
+//   4. ogni famiglia porta solo le librerie della sua lista (con licenza e peso): una libreria nuova, fuori lista,
+//      ferma la build. Le librerie che arrivano gia' da engine-viewer non contano;
+//   5. engine-viewer-all dipende da engine-viewer e dalle famiglie ammesse, e da ogni famiglia ammessa che e' nel
+//      build: nessuna resta fuori di nascosto. Il modulo di prova non ci entra mai.
+// Prima di guardare il grafo vero il compito prova se stesso su grafi finti (una libreria fuori lista, engine-ui che
+// arriva a una famiglia...): se non trova i problemi che deve trovare, si ferma.
+//
+// Chi applica questo file puo' dire prima `ext.viewerFamiliesRole` ('base', 'all', 'app') e
+// `ext.viewerFamiliesConfigurations` (di serie ['debugRuntimeClasspath']).
+
+def familiesFile = new File(buildscript.sourceFile.parentFile, 'families.json')
+def manifest = new groovy.json.JsonSlurper().parse(familiesFile, 'UTF-8')
+def admitted = manifest.families.collect { f ->
+  [module: f.module as String, family: f.family as String, test: f.test == true,
+   libraries: (f.libraries ?: []).collect { it.coordinates as String }]
+}
+ext.viewerFamilies = admitted
+
+def role = project.hasProperty('viewerFamiliesRole') ? project.viewerFamiliesRole : 'base'
+def configurationNames = project.hasProperty('viewerFamiliesConfigurations') ? project.viewerFamiliesConfigurations : ['debugRuntimeClasspath']
+
+// I problemi di un grafo semplice: `nodes` mappa ogni nodo (':progetto' o 'gruppo:nome') ai nodi che raggiunge
+// direttamente. `present` dice quali moduli di famiglia sono nel build. Pura: la usano il compito e la sua prova.
+def viewerFamilyProblems = { Map<String, Collection<String>> nodes, String root, String checkRole, List families, Closure<Boolean> present ->
+  def problems = []
+  def byPath = families.collectEntries { [(':' + it.module): it] }
+  def reach = { String from ->
+    def seen = [] as LinkedHashSet
+    def queue = [from]
+    while (!queue.isEmpty()) {
+      def node = queue.remove(0)
+      if (!seen.add(node)) continue
+      (nodes[node] ?: []).each { queue << it }
+    }
+    seen
+  }
+  def isFamilyLike = { String node -> node.startsWith(':engine-viewer-') && node != ':engine-viewer-all' && node != ':engine-viewer-prova-app' }
+  def allowed = { Map family, String node ->
+    family.libraries.any { lib -> lib == node || (lib.endsWith(':*') && node.startsWith(lib[0..-2])) }
+  }
+  def everything = reach(root)
+  if (everything.contains(':engine-ui')) {
+    reach(':engine-ui').findAll { isFamilyLike(it) }.each { problems << "engine-ui arriva al modulo di famiglia ${it.substring(1)}" }
+  }
+  def base = everything.contains(':engine-viewer') ? reach(':engine-viewer') : ([] as Set)
+  base.findAll { isFamilyLike(it) }.each { problems << "engine-viewer arriva al modulo di famiglia ${it.substring(1)}" }
+  everything.findAll { isFamilyLike(it) }.each { node ->
+    def family = byPath[node]
+    if (family == null) {
+      problems << "${node.substring(1)} non e' nella lista dei moduli di famiglia ammessi (engine-viewer/families.json)"
+      return
+    }
+    reach(node).findAll { !it.startsWith(':') && !base.contains(it) && !allowed(family, it) }.each { lib ->
+      problems << "${family.module} porta ${lib}, che non e' nella sua lista ammessa (licenza e peso in families.json)"
+    }
+  }
+  if (checkRole == 'all') {
+    def direct = (nodes[root] ?: []) as Set
+    direct.findAll { !it.startsWith(':') }.each { problems << "engine-viewer-all ha una libreria diretta: ${it} (solo moduli di famiglia)" }
+    direct.findAll { it.startsWith(':') && it != ':engine-viewer' && !(byPath[it] != null && !byPath[it].test) }.each {
+      problems << "engine-viewer-all dipende da ${it.substring(1)}, che non e' una famiglia ammessa"
+    }
+    if (!direct.contains(':engine-viewer')) problems << 'engine-viewer-all deve dipendere da engine-viewer'
+    families.findAll { !it.test && present(it.module) && !direct.contains(':' + it.module) }.each {
+      problems << "${it.module} e' nel build ma engine-viewer-all non lo porta"
+    }
+  }
+  problems
+}
+
+// La prova del controllo: ogni grafo finto deve dare il problema atteso, e quello pulito nessuno.
+def selfTest = {
+  def fake = [
+    [module: 'engine-viewer-office', family: 'office', test: false, libraries: []],
+    [module: 'engine-viewer-archive', family: 'archive', test: false, libraries: ['org.libarchive:library', 'com.compress:*']],
+    [module: 'engine-viewer-prova', family: 'prova', test: true, libraries: []],
+  ]
+  def everywhere = { String module -> true }
+  def clean = [
+    ':engine-viewer-all'    : [':engine-viewer', ':engine-viewer-office', ':engine-viewer-archive'],
+    ':engine-viewer'        : [':engine-ui', 'androidx.core:core'],
+    ':engine-ui'            : ['androidx.compose.ui:ui'],
+    ':engine-viewer-office' : [':engine-viewer'],
+    ':engine-viewer-archive': [':engine-viewer', 'org.libarchive:library', 'com.compress:xz', 'androidx.core:core'],
+  ]
+  def cases = [
+    [name: 'pulito', graph: clean, root: ':engine-viewer-all', role: 'all', expect: null],
+    [name: 'libreria fuori lista', role: 'all', root: ':engine-viewer-all', expect: 'com.evil:decoder',
+     graph: clean + [':engine-viewer-office': [':engine-viewer', 'com.evil:decoder']]],
+    [name: 'engine-ui arriva a una famiglia', role: 'base', root: ':engine-viewer', expect: 'engine-ui arriva',
+     graph: clean + [':engine-ui': [':engine-viewer-office']]],
+    [name: 'engine-viewer arriva a una famiglia', role: 'base', root: ':engine-viewer', expect: 'engine-viewer arriva',
+     graph: clean + [':engine-viewer': [':engine-ui', ':engine-viewer-archive']]],
+    [name: 'modulo non ammesso', role: 'app', root: ':app', expect: 'engine-viewer-strano',
+     graph: clean + [':app': [':engine-viewer', ':engine-viewer-strano'], ':engine-viewer-strano': [':engine-viewer']]],
+    [name: 'famiglia dimenticata da engine-viewer-all', role: 'all', root: ':engine-viewer-all', expect: 'non lo porta',
+     graph: clean + [':engine-viewer-all': [':engine-viewer', ':engine-viewer-office']]],
+    [name: 'il modulo di prova in engine-viewer-all', role: 'all', root: ':engine-viewer-all', expect: 'engine-viewer-prova',
+     graph: clean + [':engine-viewer-all': [':engine-viewer', ':engine-viewer-office', ':engine-viewer-archive', ':engine-viewer-prova'],
+                     ':engine-viewer-prova': [':engine-viewer']]],
+  ]
+  def failures = []
+  cases.each { c ->
+    def found = viewerFamilyProblems(c.graph, c.root, c.role, fake, everywhere)
+    if (c.expect == null && !found.isEmpty()) failures << "${c.name}: problemi inattesi ${found}"
+    if (c.expect != null && !found.any { it.contains(c.expect) }) failures << "${c.name}: manca il problema «${c.expect}» (trovati ${found})"
+  }
+  if (!failures.isEmpty()) throw new GradleException('F6C-h: il controllo delle famiglie non si prova: ' + failures.join('; '))
+  cases.size()
+}
+
+tasks.register('checkViewerFamilies') {
+  group = 'verification'
+  description = 'F6C-h: le famiglie dei visori stanno nei loro moduli, con le sole librerie ammesse (families.json).'
+  inputs.file(familiesFile)
+  def selfPath = project.path
+  def rootProjectRef = project.rootProject
+  doLast {
+    def proved = selfTest()
+    def present = { String module -> rootProjectRef.findProject(':' + module) != null }
+    def problems = []
+    def components = 0
+    configurationNames.each { name ->
+      def configuration = project.configurations.findByName(name)
+      if (configuration == null) throw new GradleException("F6C-h: la configurazione ${name} non c'e' in ${selfPath}")
+      def nodes = [:]
+      def keyOf = { component ->
+        def id = component.id
+        if (id instanceof org.gradle.api.artifacts.component.ProjectComponentIdentifier) return id.projectPath
+        def mv = component.moduleVersion
+        return "${mv.group}:${mv.name}".toString()
+      }
+      def root = configuration.incoming.resolutionResult.root
+      def seen = [] as Set
+      def queue = [root]
+      while (!queue.isEmpty()) {
+        def component = queue.remove(0)
+        if (!seen.add(component.id)) continue
+        def key = keyOf(component)
+        def out = nodes.computeIfAbsent(key) { [] as LinkedHashSet }
+        component.dependencies.each { d ->
+          if (d instanceof org.gradle.api.artifacts.result.ResolvedDependencyResult) {
+            out << keyOf(d.selected)
+            queue << d.selected
+          }
+        }
+      }
+      components += seen.size()
+      viewerFamilyProblems(nodes, selfPath, role, admitted, present).each { problems << "${name}: ${it}" }
+    }
+    if (!problems.isEmpty()) throw new GradleException('F6C-h: ' + problems.unique().join('; '))
+    def inBuild = admitted.findAll { present(it.module) }.collect { it.module }
+    logger.lifecycle("F6C-h (${selfPath}, ${role}): ${components} componenti in ${configurationNames.join(', ')}; famiglie ammesse ${admitted.size()}, nel build ${inBuild.isEmpty() ? 'nessuna' : inBuild.join(', ')}; prova del controllo: ${proved} casi.")
+  }
+}

@@ -3,6 +3,9 @@
 // risolutore da MIME o estensione al preset. Opt-in, come engine-richtext: il telaio e i preset stanno in engine-ui
 // (`ui/fluid/viewer`), che non sa niente di decodifica; un'app che passa i suoi contenuti non include questo modulo.
 //
+// F6C.8: e' anche il **registro** dei moduli di famiglia (Office, archivi, dati, grafica, 3D): ognuno si aggiunge al
+// risolutore con `META-INF/services` (FluidViewerRegistry), e questo modulo non ne conosce nessuno.
+//
 // Dipende solo da engine-ui e dalla piattaforma. Media3 e' `compileOnly`: l'app passa il suo `Player` e sceglie la
 // versione (Fluidify e Gallery-2 ne usano gia' una), cosi' a runtime non ce n'e' mai una seconda. Il controllo qui
 // sotto (`checkEngineUiHasNoDecoders`) lo verifica a ogni corsa dei test, insieme a F6C-d: engine-ui non arriva a
@@ -63,6 +66,8 @@ dependencies {
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
   testImplementation "androidx.media3:media3-common:${media3Test}"
+  // F6C.17: le miniature si disegnano con android.graphics, che sulla JVM c'e' solo con Robolectric (grafica nativa).
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
 
   // Solo per :engine-viewer:connectedDebugAndroidTest, mai in un'app: il player vero alla versione dei test.
   androidTestImplementation 'androidx.test:runner:1.7.0'
@@ -136,3 +141,16 @@ tasks.register('checkEngineUiHasNoDecoders') {
 
 tasks.withType(Test).configureEach { dependsOn 'checkEngineUiHasNoDecoders' }
 tasks.matching { it.name == 'check' }.configureEach { dependsOn 'checkEngineUiHasNoDecoders' }
+
+// F6C.8 · F6C-h: il registro dei moduli dei visori. Le famiglie ammesse, con le loro librerie, la licenza e il peso,
+// stanno in families.json; il compito `checkViewerFamilies` (viewer-families.gradle) controlla che engine-ui ed
+// engine-viewer non arrivino a nessuna famiglia, e con engine-viewer-all che ogni famiglia porti solo le sue librerie.
+// Gira prima di ogni test del modulo, insieme a F6C-d.
+ext.viewerFamiliesRole = 'base'
+apply from: "${projectDir}/viewer-families.gradle"
+tasks.named('checkViewerFamilies') {
+  dependsOn 'checkEngineUiHasNoDecoders'
+  if (rootProject.findProject(':engine-viewer-all') != null) dependsOn ':engine-viewer-all:checkViewerFamilies'
+}
+tasks.withType(Test).configureEach { dependsOn 'checkViewerFamilies' }
+tasks.matching { it.name == 'check' }.configureEach { dependsOn 'checkViewerFamilies' }

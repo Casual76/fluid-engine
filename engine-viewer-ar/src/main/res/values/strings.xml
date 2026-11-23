@@ -1,0 +1,23 @@
+<resources>
+  <string name="ar_title">Augmented reality</string>
+  <string name="ar_model">Back to model</string>
+  <string name="ar_cancel">Cancel</string>
+  <string name="ar_continue">Continue</string>
+  <string name="ar_ok">OK</string>
+  <string name="ar_install">Continue to Google Play</string>
+  <string name="ar_install_title">Google Play Services for AR</string>
+  <string name="ar_install_message">Install or update Google Play Services for AR to place this model in your room.</string>
+  <string name="ar_install_declined">The AR service is still unavailable. You can keep viewing the 3D model.</string>
+  <string name="ar_permission_title">Use the camera in AR</string>
+  <string name="ar_permission_message">The camera lets you find a surface and place the model. This view uses Google Play Services for AR (ARCore), which is provided by Google and governed by the Google Privacy Policy.</string>
+  <string name="ar_privacy">Google Privacy Policy</string>
+  <string name="ar_permission_denied">Camera access was denied. You can keep viewing the 3D model.</string>
+  <string name="ar_unavailable">Augmented reality is unavailable on this device right now.</string>
+  <string name="ar_camera_unavailable">The AR view could not start or was interrupted. You can keep viewing the 3D model.</string>
+  <string name="ar_camera_starting">Starting camera…</string>
+  <string name="ar_scan">Point at the floor or a table and slowly move the device from side to side.</string>
+  <string name="ar_place">Tap the surface to place the model.</string>
+  <string name="ar_place_center">Place at the center</string>
+  <string name="ar_tracking_lost">Move the device slowly and point it back at the surface.</string>
+  <string name="ar_scale">Scale %1$s</string>
+</resources>

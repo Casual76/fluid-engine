@@ -3,7 +3,13 @@ package dev.antigravity.fluidengine.ui.fluid.viewer
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
+import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.LocalContentColor
@@ -75,6 +81,7 @@ data class FluidTextPresetStrings(
   val failed: String = "Impossibile leggere il file",
   val retry: String = "Riprova",
   val empty: String = "Il file è vuoto",
+  val textSize: String = "Dimensione del testo",
 )
 
 /** I numeri del preset testo. Sono quantità di lettura, non di movimento. */
@@ -379,7 +386,7 @@ internal fun fluidTextRowText(
 
 // --- Il preset -------------------------------------------------------------------------------------------------------
 
-private enum class TextPresetButton { Find, Wrap }
+internal enum class TextPresetButton { Find, Wrap, Font, Display }
 
 /**
  * Il preset testo e codice del visore: il file di [file] in monospazio, con i numeri di riga.
@@ -404,7 +411,10 @@ fun FluidTextPreset(
 ) {
   val source = file.source
   val doc = remember(source) { TextDocument(source) }
+  val entrance = awaitViewerEntrance()
+  if (entrance != null && (doc.rows.isNotEmpty() || doc.ended || doc.failure != null)) SideEffect { entrance.placed() }
   var wrap by rememberSaveable { mutableStateOf(initialWrap) }
+  var fontStep by rememberSaveable { mutableIntStateOf(0) }
   var finding by rememberSaveable { mutableStateOf(false) }
   val queryState = rememberSaveable { mutableStateOf("") }
   val currentState = rememberSaveable { mutableStateOf(0) }
@@ -453,15 +463,19 @@ fun FluidTextPreset(
   }
 
   val density = LocalDensity.current
-  val style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+  val hasBoardTitle = LocalViewerInfo.current != null && LocalViewerPage.current != null
+  val readerScale = listOf(1f, 1.15f, 1.33f)[fontStep]
+  val style = MaterialTheme.typography.bodySmall.viewerSize(11.6f * readerScale, line = 19.25f * readerScale)
+    .copy(fontFamily = FontFamily.Monospace)
   val measurer = rememberTextMeasurer()
   val charWidth = remember(style, density) { measurer.measure("0", style).size.width.coerceAtLeast(1) }
   val digits = max(3, (source.lineCount ?: doc.lines.size).coerceAtLeast(1).toString().length)
   val gap = FluidScreenDefaults.HorizontalPadding / 2
-  val gutter = with(density) { (charWidth * digits).toDp() } + gap
+  val gutter = maxOf(if (hasBoardTitle) 44.dp else 0.dp, with(density) { (charWidth * digits).toDp() } + gap)
+  val textPadding = if (hasBoardTitle) 6.dp else FluidScreenDefaults.HorizontalPadding
   var viewportWidth by remember { mutableIntStateOf(0) }
   var offsetX by remember { mutableFloatStateOf(0f) }
-  val edge = with(density) { FluidScreenDefaults.HorizontalPadding.roundToPx() }
+  val edge = with(density) { textPadding.roundToPx() }
   val codeWidth = (viewportWidth - with(density) { gutter.roundToPx() } - 2 * edge).coerceAtLeast(0)
   val maxOffset = if (wrap) 0f else (doc.longest * charWidth - codeWidth).coerceAtLeast(0).toFloat()
   LaunchedEffect(maxOffset) { if (offsetX > maxOffset) offsetX = maxOffset }
@@ -472,14 +486,33 @@ fun FluidTextPreset(
   }
 
   // La corrente in vista: un terzo sotto la cima (sopra la tastiera), e di lato senza a capo.
-  val request = find.request
-  LaunchedEffect(request) {
+  var readingHeight by remember { mutableIntStateOf(0) }
+  val window = LocalActivity.current?.window
+  DisposableEffect(window, finding, active) {
+    val previous = window?.attributes?.softInputMode
+    if (finding && active && previous != null) {
+      val adjust = if (android.os.Build.VERSION.SDK_INT >= 30) WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+      window.setSoftInputMode((previous and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or adjust)
+    }
+    onDispose { if (finding && active && previous != null) window.setSoftInputMode(previous) }
+  }
+  val request = find.request.takeIf { finding && find.query.isNotBlank() }
+  LaunchedEffect(request, readingHeight, wrap, codeWidth, style) {
     val match = request?.match ?: return@LaunchedEffect
     doc.loadThrough(match.line)
     val row = fluidTextRowOf(doc.rows, match.line, match.start)
     if (row < 0) return@LaunchedEffect
-    val lead = -(list.layoutInfo.viewportSize.height / 3)
-    if (reduced) list.scrollToItem(row, lead) else list.animateScrollToItem(row, lead)
+    if (readingHeight <= 0 || codeWidth <= 0) return@LaunchedEffect
+    val segment = doc.rows[row]
+    val y = if (wrap) {
+      val line = doc.lines[match.line].subSequence(segment.start, segment.end)
+      val layout = measurer.measure(line, style, constraints = Constraints(maxWidth = codeWidth))
+      val offset = (match.start - segment.start).coerceIn(0, line.length)
+      layout.getLineTop(layout.getLineForOffset(offset)).toInt()
+    } else 0
+    val offset = y - readingHeight / 3
+    if (reduced) list.scrollToItem(row, offset) else list.animateScrollToItem(row, offset)
     if (!wrap) {
       val r = doc.rows[row]
       val left = (match.start - r.start) * charWidth.toFloat()
@@ -492,9 +525,18 @@ fun FluidTextPreset(
   ViewerPresetToolbar {
     if (finding) search(FluidSearchSpec.findInPage(find.query, find::onQueryChange, find.navigation, active = true,
       onActiveChange = { if (!it) finding = false }))
+    if (hasBoardTitle) group(TextPresetButton.Display, placement = FluidToolbarPlacement.BottomBar) {
+      entries += dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarButtonEntry(
+        id = TextPresetButton.Font, role = dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarRole.Action,
+        placement = FluidToolbarPlacement.BottomBar, label = strings.textSize, onClick = { fontStep = (fontStep + 1) % 3 },
+        custom = { Text("Aa", style = MaterialTheme.typography.labelLarge.viewerSize(14.5f, FontWeight.SemiBold)) },
+      )
+      button(TextPresetButton.Wrap, FluidIcons.TextFormat, strings.wrap, { wrap = !wrap },
+        placement = FluidToolbarPlacement.BottomBar, selected = wrap)
+    }
     button(TextPresetButton.Find, FluidIcons.Search, strings.find, { finding = true },
       placement = FluidToolbarPlacement.BottomBar)
-    button(TextPresetButton.Wrap, FluidIcons.TextFormat, strings.wrap, { wrap = !wrap },
+    if (!hasBoardTitle) button(TextPresetButton.Wrap, FluidIcons.TextFormat, strings.wrap, { wrap = !wrap },
       placement = FluidToolbarPlacement.BottomBar, selected = wrap)
   }
   val front by LocalFluidRouteFront.current
@@ -505,48 +547,59 @@ fun FluidTextPreset(
   val ink = LocalContentColor.current
   val numbers = MaterialTheme.colorScheme.onSurfaceVariant
   // Sotto la barra in alto e sopra la capsula; con «trova» aperto anche sopra la tastiera e il campo che ci sta sopra.
-  val top = FluidScreenDefaults.topBarHeight() + gap
-  val bottom = maxOf(FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize),
-    WindowInsets.ime.asPaddingValues().calculateBottomPadding() + FluidScreenDefaults.ControlRowHeight + gap)
-  Box(modifier.fillMaxSize().onSizeChanged { viewportWidth = it.width }) {
-    when {
-      doc.ended && doc.lines.isEmpty() -> Text(strings.empty, Modifier.align(Alignment.Center),
-        style = MaterialTheme.typography.bodyLarge, color = numbers)
-      else -> LazyColumn(
-        state = list,
-        modifier = Modifier.fillMaxSize().then(if (wrap) Modifier else Modifier.scrollable(sideways, Orientation.Horizontal)),
-        contentPadding = PaddingValues(start = FluidScreenDefaults.HorizontalPadding, end = FluidScreenDefaults.HorizontalPadding,
-          top = top, bottom = bottom),
-      ) {
-        items(count = doc.rows.size, key = { doc.rows[it].let { row -> row.line.toLong() shl 32 or row.start.toLong() } }) { i ->
-          val row = doc.rows[i]
-          val text = fluidTextRowText(doc.lines[row.line], row, find.matches, find.current, highlights, syntax)
-          Row(Modifier.fillMaxWidth()) {
-            Box(Modifier.width(gutter).padding(end = gap)) {
-              if (row.first) Text("${row.line + 1}", Modifier.fillMaxWidth().clearAndSetSemantics {}, style = style,
-                color = numbers, textAlign = TextAlign.End, maxLines = 1, softWrap = false)
-            }
-            if (wrap) {
-              Text(text, Modifier.weight(1f), style = style, color = ink)
-            } else {
-              Box(Modifier.weight(1f).clipToBounds()) {
-                Text(text, Modifier.wrapContentWidth(Alignment.Start, unbounded = true).graphicsLayer { translationX = -offsetX },
-                  style = style, color = ink, maxLines = 1, softWrap = false)
+  val top = viewerBoardTop(100.dp)
+  val bottom = FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize)
+  val findInsets = if (finding) Modifier.windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
+    .padding(bottom = FluidScreenDefaults.ControlRowHeight + gap) else Modifier.padding(bottom = bottom)
+  Column(modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+    .widthIn(max = if (hasBoardTitle) ViewerMixProfile.ColumnWidth else Dp.Infinity).fillMaxSize()
+    .padding(top = top).then(findInsets).onSizeChanged { viewportWidth = it.width }) {
+    source.language?.takeIf { it.isNotBlank() && !hasBoardTitle }?.let { language ->
+      Row(Modifier.fillMaxWidth().padding(start = FluidScreenDefaults.HorizontalPadding, bottom = gap),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(7.dp).background(MaterialTheme.colorScheme.tertiary, FluidCapsuleShape))
+        Text(language, style = MaterialTheme.typography.labelMedium, color = numbers)
+      }
+    }
+    Box(Modifier.fillMaxSize().onSizeChanged { readingHeight = it.height }.clipToBounds()) {
+      when {
+        doc.ended && doc.lines.isEmpty() -> Text(strings.empty, Modifier.align(Alignment.Center),
+          style = MaterialTheme.typography.bodyLarge, color = numbers)
+        else -> LazyColumn(
+          state = list,
+          modifier = Modifier.fillMaxSize().then(if (wrap) Modifier else Modifier.scrollable(sideways, Orientation.Horizontal)),
+          contentPadding = PaddingValues(start = textPadding, end = textPadding),
+        ) {
+          items(count = doc.rows.size, key = { doc.rows[it].let { row -> row.line.toLong() shl 32 or row.start.toLong() } }) { i ->
+            val row = doc.rows[i]
+            val text = fluidTextRowText(doc.lines[row.line], row, find.matches, find.current, highlights, syntax)
+            Row(Modifier.fillMaxWidth()) {
+              Box(Modifier.width(gutter).padding(end = gap)) {
+                if (row.first) Text("${row.line + 1}", Modifier.fillMaxWidth().clearAndSetSemantics {}, style = style,
+                  color = numbers, textAlign = TextAlign.End, maxLines = 1, softWrap = false)
+              }
+              if (wrap) {
+                Text(text, Modifier.weight(1f), style = style, color = ink)
+              } else {
+                Box(Modifier.weight(1f).clipToBounds()) {
+                  Text(text, Modifier.wrapContentWidth(Alignment.Start, unbounded = true).graphicsLayer { translationX = -offsetX },
+                    style = style, color = ink, maxLines = 1, softWrap = false)
+                }
               }
             }
           }
-        }
-        val failure = doc.failure
-        when {
-          failure != null -> item(key = "failure") {
-            Column(Modifier.fillMaxWidth().padding(vertical = gap), horizontalAlignment = Alignment.CenterHorizontally) {
-              Text(strings.failed, style = MaterialTheme.typography.bodyMedium, color = numbers)
-              FluidButton(strings.retry, { doc.retry() }, style = FluidButtonStyle.Plain, grip = FluidPressGrip.YieldsToScroll)
+          val failure = doc.failure
+          when {
+            failure != null -> item(key = "failure") {
+              Column(Modifier.fillMaxWidth().padding(vertical = gap), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(strings.failed, style = MaterialTheme.typography.bodyMedium, color = numbers)
+                FluidButton(strings.retry, { doc.retry() }, style = FluidButtonStyle.Plain, grip = FluidPressGrip.YieldsToScroll)
+              }
             }
-          }
-          !doc.ended -> item(key = "loading") {
-            Box(Modifier.fillMaxWidth().padding(vertical = gap).semantics { contentDescription = strings.loading },
-              contentAlignment = Alignment.Center) { FluidSpinner() }
+            !doc.ended -> item(key = "loading") {
+              Box(Modifier.fillMaxWidth().padding(vertical = gap).semantics { contentDescription = strings.loading },
+                contentAlignment = Alignment.Center) { FluidSpinner() }
+            }
           }
         }
       }

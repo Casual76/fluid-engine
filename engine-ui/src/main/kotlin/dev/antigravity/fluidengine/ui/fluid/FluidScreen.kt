@@ -2571,9 +2571,10 @@ internal fun BoxScope.FluidTopBarGlass(
 internal fun FluidTopBarRow(
   onTapTitle: (() -> Unit)?,
   modifier: Modifier = Modifier,
+  minimumTopInset: Dp = 0.dp,
   content: @Composable BoxScope.() -> Unit,
 ) {
-  val statusBar = fluidTopChromeInset()
+  val statusBar = maxOf(fluidTopChromeInset(), minimumTopInset)
   val interactionSource = remember { MutableInteractionSource() }
   val scrollToTopLabel = LocalFluidLabels.current.scrollToTop
   Column(

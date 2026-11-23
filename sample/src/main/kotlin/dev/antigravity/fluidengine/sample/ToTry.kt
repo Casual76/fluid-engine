@@ -63,6 +63,10 @@ internal enum class TryArea(val title: String) {
   NavigationAlerts("Navigazione e avvisi"),
   FieldsEditors("Campi ed editor"),
   ContentData("Contenuti e dati"),
+
+  // --- I visori della seconda ondata (F6C.15), in fondo al giro: la prima schermata di «Da provare» non cambia ---
+  ViewerFamilies("Visori, famiglia per famiglia"),
+  ViewerModules("Visori, moduli e prove"),
 }
 
 /**
@@ -815,19 +819,64 @@ private val Phase1Items = listOf(
   ),
 )
 
+/** La voce dei visori di serie, in cima al giro com'era (F6C.5). */
+private val VisoriItem = TryItem(
+  "visori", TryArea.Pages, "Visori",
+  "Apri una foto, ingrandisci il video con due dita o sfoglia il PDF.",
+  TryTarget.Page(GalleryPage.Visori, "Galleria dei file"),
+)
+
+/**
+ * F6C.15 · Le voci della galleria «Visori» della seconda ondata, ordinate per famiglia come la galleria: un modulo per
+ * voce, poi la scena senza moduli con i pesi e la prova con Universal Converter. Una frase sola ciascuna. Stanno in fondo
+ * al giro, in due aree loro: in cima avrebbero spinto una voce sotto la barra delle schede (`FluidBetaGalleryTest`).
+ */
+private val VisoriItems = listOf(
+  TryItem(
+    "visori-office", TryArea.ViewerFamilies, "Visori Office",
+    "Apri il DOCX, il foglio e la presentazione dalla miniatura: giudica se le pagine somigliano al documento.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Office"),
+  ),
+  TryItem(
+    "visori-archivi", TryArea.ViewerFamilies, "Visori archivi",
+    "Apri lo ZIP e tocca un file dentro: si apre col suo preset, e Indietro torna nella cartella.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Archivi"),
+  ),
+  TryItem(
+    "visori-dati", TryArea.ViewerFamilies, "Visori dati",
+    "Apri il Markdown, il CSV, il JSON e il libro: giudica se sono resi, in tabella, ad albero e a capitoli.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Testi ricchi e dati"),
+  ),
+  TryItem(
+    "visori-grafica", TryArea.ViewerFamilies, "Visori immagini",
+    "Apri l'HEIC, l'SVG e un carattere: lo SVG resta netto allo zoom e il provino muove gli assi.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Immagini speciali e caratteri"),
+  ),
+  TryItem(
+    "visori-3d", TryArea.ViewerFamilies, "Visori 3D",
+    "Gira il modello con un dito e tocca «Inquadra»: giudica la luce e l'ombra a terra.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Modelli 3D"),
+  ),
+  TryItem(
+    "visori-moduli", TryArea.ViewerModules, "Moduli e pesi",
+    "Apri «Senza moduli» e poi «Pesi»: i tipi senza il loro modulo restano sconosciuti con «Apri con…», e ogni " +
+      "modulo dice quanto pesa.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Moduli e pesi"),
+  ),
+  TryItem(
+    "visori-converter", TryArea.ViewerModules, "Universal Converter",
+    "Apri «Universal Converter»: ogni tipo delle sue prove ha il suo preset al posto del dump esadecimale.",
+    TryTarget.Page(GalleryPage.Visori, "Galleria dei file › Prova in sola lettura"),
+  ),
+)
+
 /** La 2.0.0 stabile: gli ultimi ritocchi dopo la beta 5 (engine 3.0.4). */
 private val Stable = TryRound(
   id = "stabile",
   title = "Stabile",
   intro = "La versione stabile: i componenti nuovi della fase 1 (liste, identità, navigazione, campi, contenuti) " +
     "con la matrice degli stati, e gli ultimi ritocchi dopo la beta 5. Tocca una voce per aprire la sua demo.",
-  items = listOf(
-    TryItem(
-      "visori", TryArea.Pages, "Visori",
-      "Apri una foto, ingrandisci il video con due dita o sfoglia il PDF.",
-      TryTarget.Page(GalleryPage.Visori, "Galleria dei file"),
-    ),
-  ) + Phase1Items + listOf(
+  items = listOf(VisoriItem) + Phase1Items + listOf(
     TryItem(
       "interruttore-trascinabile", TryArea.Rows, "Interruttori da trascinare",
       "Trascina il pallino di «Nero assoluto» o di «Aptica» invece di toccare la riga: si prende e si posa dove lo " +
@@ -888,7 +937,7 @@ private val Stable = TryRound(
         "giudica se la barra si trasforma senza salti e segue la tastiera.",
       TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › La barra sopra la tastiera"),
     ),
-  ),
+  ) + VisoriItems,
 )
 
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */

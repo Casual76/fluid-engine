@@ -1,0 +1,14 @@
+{
+  "nome": "Fluid Glass",
+  "versione": "4.0.1",
+  "build": 412,
+  "beta": false,
+  "moduli": [
+    { "nome": "engine-viewer-office", "pesoKB": 380 },
+    { "nome": "engine-viewer-archive", "pesoKB": 2350 },
+    { "nome": "engine-viewer-data", "pesoKB": 212, "tipi": ["md", "html", "csv", "json", "xml", "epub", "eml", "ics", "vcf"] },
+    { "nome": "engine-viewer-graphics", "pesoKB": 280 }
+  ],
+  "tema": { "accento": "#1F9E6E", "scuro": true, "raggi": [10, 12, 18, 22, 38] },
+  "icona": null
+}

@@ -122,7 +122,7 @@ class FluidViewerDeviceTest {
   }
 
   @Test
-  fun aCorruptPdfIsReportedAsCorrupt() = runBlocking {
+  fun aCorruptPdfIsReportedAsCorrupt() = runBlocking<Unit> {
     val file = File(context.cacheDir, "rotto.pdf").apply { writeBytes("%PDF-1.7\n1 0 obj << /Type /Catalog >> garbage".toByteArray()) }
     val failure = runCatching { FluidPdfPageSource.open(file) }.exceptionOrNull()
     assertTrue("$failure", failure is FluidViewerException)
@@ -174,7 +174,7 @@ class FluidViewerDeviceTest {
   // --- Immagini --------------------------------------------------------------------------------------------------
 
   @Test
-  fun gifAndWebpDecodeAsAnimatedDrawables() = runBlocking {
+  fun gifAndWebpDecodeAsAnimatedDrawables() = runBlocking<Unit> {
     for (name in listOf("anim.gif", "anim.webp")) {
       val image = FluidDecodedImage.decode(asset(name))
       assertEquals(name, Build.VERSION.SDK_INT >= 28, image.animated)

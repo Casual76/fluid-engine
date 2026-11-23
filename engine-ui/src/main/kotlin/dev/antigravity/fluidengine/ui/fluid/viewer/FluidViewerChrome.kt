@@ -44,6 +44,7 @@ import dev.antigravity.fluidengine.ui.page.LocalSharedPage
 import dev.antigravity.fluidengine.ui.page.LocalFluidPageBar
 import dev.antigravity.fluidengine.ui.page.LocalFluidPagePreparing
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -111,6 +112,7 @@ internal fun BoxScope.ViewerChrome(
   toolbar: FluidToolbarScope.(Int) -> Unit, tools: List<ViewerTool>, tool: ViewerTool?,
   select: (String?) -> Unit, onBack: () -> Unit, onInfo: (() -> Unit)?, strings: FluidViewerStrings,
   preset: (FluidToolbarScope.() -> Unit)? = null, width: Dp = Dp.Infinity, fileName: String? = null,
+  documentRoute: Boolean = false,
 ) {
   val policy = LocalFluidMotionPolicy.current
   val progress = remember { Animatable(if (visible) 0f else 1f) }
@@ -121,9 +123,28 @@ internal fun BoxScope.ViewerChrome(
     ))
   }
   val space = LocalSharedPage.current
-  val minimize = remember(progress, policy, space) {
+  val arrival = remember { Animatable(0f) }
+  LaunchedEffect(documentRoute, space, policy) {
+    val host = space?.host ?: return@LaunchedEffect
+    if (!documentRoute || policy.reducedMotion) {
+      arrival.snapTo(0f)
+      return@LaunchedEffect
+    }
+    snapshotFlow { host.upper == space.page && host.isMoving && host.opening }.collectLatest { entering ->
+      if (entering) {
+        arrival.snapTo(1f)
+        arrival.animateTo(0f, tween(ViewerChromeMotion.duration(false, 1f, policy.durationScale), easing = LinearEasing))
+      } else if (arrival.value > 0f) {
+        // The spring can finish before V5 has brought the bars into focus.
+        arrival.animateTo(0f, tween(ViewerChromeMotion.duration(false, arrival.value, policy.durationScale),
+          easing = LinearEasing))
+      }
+    }
+  }
+  val minimize = remember(progress, arrival, policy, space) {
     object : FluidToolbarMinimizeProgress {
-      override val progress get() = maxOf(progress.value, 1f - (space?.let { it.host.backdropArrival(it.page) } ?: 1f))
+      override val progress get() =
+        maxOf(progress.value, arrival.value, 1f - (space?.let { it.host.backdropArrival(it.page) } ?: 1f))
       override val reducedMotion = policy.reducedMotion
     }
   }

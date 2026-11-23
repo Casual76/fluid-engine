@@ -155,6 +155,9 @@ dependencies {
   implementation project(':engine-ai-ui')
   implementation "androidx.media3:media3-exoplayer:${viewerMedia3}"
   implementation project(':engine-viewer') // F6C.4, opt-in: i decodificatori dei visori (PDF, testo, GIF e WebP animate) per la galleria
+  implementation project(':engine-viewer-office')
+  implementation project(':engine-viewer-archive')
+  implementation project(':engine-viewer-data')
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.

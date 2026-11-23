@@ -409,6 +409,8 @@ fun FluidTextPreset(
 ) {
   val source = file.source
   val doc = remember(source) { TextDocument(source) }
+  val entrance = awaitViewerEntrance()
+  if (entrance != null && (doc.rows.isNotEmpty() || doc.ended || doc.failure != null)) SideEffect { entrance.placed() }
   var wrap by rememberSaveable { mutableStateOf(initialWrap) }
   var finding by rememberSaveable { mutableStateOf(false) }
   val queryState = rememberSaveable { mutableStateOf("") }

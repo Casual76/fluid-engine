@@ -28,6 +28,9 @@ internal enum class VisoreTipo(val etichetta: String) {
   Testo("Testo"),
   Codice("Codice"),
   Sconosciuto("Sconosciuto"),
+  Office("Documento Office"),
+  Archivio("Archivio"),
+  Dati("Dati"),
   Eseguibile("Eseguibile"),
   Vuoto("File vuoto"),
   Sparito("File sparito"),
@@ -66,7 +69,7 @@ internal object VisoriFiles {
       "Dodici secondi di note pure. Copertina dal paesaggio della galleria e tre punti d'ascolto a intervalli di quattro secondi.",
       cover = R.drawable.viewer_campanelle_cover),
     VisoreFile("quaderno", "Quaderno di campo", "Quaderno di campo.pdf", "application/pdf", R.raw.viewer_notes,
-      VisoreTipo.Pagine, "PDF di sei pagine, quattro verticali e due orizzontali"),
+      VisoreTipo.Pagine, "PDF di sei pagine, quattro verticali e due orizzontali", cover = R.drawable.viewer_notes_cover),
     VisoreFile("diario", "Diario di bordo", "Diario di bordo.txt", "text/plain", R.raw.viewer_diario, VisoreTipo.Testo,
       "Testo semplice, UTF-8"),
     VisoreFile("codice", "Visore.kt", "Visore.kt", null, R.raw.viewer_codice, VisoreTipo.Codice,
@@ -75,6 +78,17 @@ internal object VisoriFiles {
       "Un file di Blender: il 3D è fuori dalla prima versione"),
     VisoreFile("aggiornamento", "Aggiornamento", "Aggiornamento.apk", "application/vnd.android.package-archive",
       R.raw.viewer_installer, VisoreTipo.Eseguibile, "Il pacchetto installato di Fluid Glass"),
+  )
+
+  /** Scena per le famiglie nuove. Il carosello della prima galleria conserva la sua sequenza. */
+  val documents: List<VisoreFile> = listOf(
+    VisoreFile("relazione", "Relazione", "Relazione.docx",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", R.raw.viewer_uc_relazione,
+      VisoreTipo.Office, "Documento Office della galleria"),
+    VisoreFile("allegati", "Allegati", "Allegati.zip", "application/zip", R.raw.viewer_allegati,
+      VisoreTipo.Archivio, "Archivio di prova della galleria"),
+    VisoreFile("registro", "Registro", "Registro.json", "application/json", R.raw.viewer_registro,
+      VisoreTipo.Dati, "Dati di prova della galleria"),
   )
 
   /**

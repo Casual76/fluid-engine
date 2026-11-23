@@ -68,6 +68,12 @@ I contratti (in `FluidViewerContent.kt`, senza librerie):
 
 `FluidViewerContent` è un'interfaccia aperta: un `renderContent` proprio può disegnare un'altra forma, e chiamare i preset di serie per le altre (sono pubblici).
 
+Con una sorgente registrata, il documento tiene la miniatura fino alla prima pagina o al primo blocco di testo o celle
+pronto da mostrare. Il passaggio R7 può continuare dopo che la sagoma si è posata. Per una superficie che dipinge
+in modo asincrono, `FluidViewerContent.Custom` accetta `firstFrameReady = { … }` in coda. La funzione legge stato
+osservabile e diventa vera alla prima pittura o a un errore che il contenuto può mostrare. Senza questa funzione
+vale il primo layout con contenuto. La galleria prepara il file scelto per al più 120 ms prima di navigare.
+
 ## Il telaio
 
 - **La rotta.** `fluidFileViewerRoute` registra la destinazione con lo zoom dalla miniatura (la molla critica a 0,355 s di F5B.3) e la chiusura in giù. La voce ricorda la pagina ferma: dopo uno sfoglio la chiusura torna nella miniatura del file raggiunto, e dopo la ricreazione si riparte da lì. Un collegamento (`navDeepLink`) apre senza miniatura; `initial` lo risolve in un indice (anche da un ID di file). Se la miniatura è sparita (una griglia filtrata), l'uscita è quella senza sorgente. Una lista ancora vuota (i file arrivano dopo il collegamento) mostra «Nessun file» e tiene l'indice.

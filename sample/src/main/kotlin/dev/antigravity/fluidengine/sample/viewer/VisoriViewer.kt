@@ -44,6 +44,9 @@ import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPlacement
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
 import dev.antigravity.fluidengine.viewer.*
 import java.util.Locale
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // F6C.5 · Il visore della galleria: il telaio di engine-ui, i file aperti da engine-viewer, il player dell'app.
 //
@@ -169,6 +172,8 @@ internal fun VisoriViewer(
   onBack: () -> Unit,
   deps: VisoriDeps = VisoriDeps.Default,
   converter: Boolean = false,
+  documentReader: FluidViewerFiles? = null,
+  warmPage: VisoriWarmPage? = null,
 ) {
   val context = LocalContext.current
   val list = files.orEmpty()
@@ -192,16 +197,41 @@ internal fun VisoriViewer(
       }
     },
   )
+  fun reader(i: Int) = documentReader?.takeIf { catalog[i].tipo.preparesDocument } ?: opened
   var current by rememberSaveable { mutableIntStateOf(-1) }
   val crop = remember { CropState() }
   val count = if (files == null) 0 else catalog.size
+  // The original converter demo shows its plain Markdown source and offers a hex dump of DOCX.
+  // Its examples keep that behavior while the gallery exercises the installed families.
+  val markdown = list.getOrNull(catalog.indexOfFirst { converter && it.id == "uc-markdown" })
+  val converterSource by produceState<FluidViewerContent.Text?>(null, markdown) {
+    value = markdown?.let { file ->
+      withContext(Dispatchers.IO) {
+        File(requireNotNull(file.uri.path)).inputStream().use {
+          FluidTextDecoder.read(it, file.name, file.mimeType, file.sizeBytes)?.let { source -> FluidViewerContent.Text(source) }
+        }
+      }
+    }
+  }
   FluidViewerInfoProvider(info = { i ->
     val sample = catalog[i]
-    visoriDetails(sample, list[i], opened.document(i), video, audio, resumeVideo)
+    visoriDetails(sample, list[i], reader(i).document(i), video, audio, resumeVideo)
   }) {
     FluidFileViewer(
       count = count,
-      content = { i -> deps.content(catalog[i]) ?: opened.content(i) },
+      content = { i ->
+        val sample = catalog[i]
+        deps.content(sample) ?: when {
+          converter && sample.id == "uc-relazione" -> FluidViewerContent.Unknown(list[i].info,
+            openWith = { VisoriFiles.openWith(context, sample) }, share = { VisoriFiles.share(context, sample) })
+          converter && sample.id == "uc-markdown" && converterSource != null -> requireNotNull(converterSource)
+          else -> {
+            val content = reader(i).content(i)
+            if (warmPage != null && content is FluidViewerContent.Pages && content.source === warmPage.source)
+              warmPage.content else content
+          }
+        }
+      },
       onBack = onBack,
       onPageChange = { current = it },
       toolbar = { index ->
@@ -241,6 +271,8 @@ private fun VisoriBody(file: FluidViewerContent, visible: Boolean, catalog: List
       else FluidMediaPreset(file, visible)
     is FluidViewerContent.Pages -> FluidPagesPreset(file, visible)
     is FluidViewerContent.Text -> FluidTextPreset(file)
+    is FluidViewerContent.Grid -> FluidGridPreset(file, visible)
+    is FluidViewerContent.Custom -> FluidCustomPreset(file, visible)
     is FluidViewerContent.Unknown -> {
       val index = list.indexOfFirst { it.name == file.info.name }
       val sample = catalog.getOrNull(index)

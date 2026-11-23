@@ -52,6 +52,7 @@ private object OrbitProfile {
 internal class SceneTexture(
   context: Context,
   private val model: FluidSceneModel,
+  private val onFirstFrame: () -> Unit,
   private val onError: (Throwable) -> Unit,
 ) : TextureView(context) {
   private var session: OrbitSession? = null
@@ -105,7 +106,7 @@ internal class SceneTexture(
     }
     if (session == null) {
       try {
-        session = OrbitSession.create(this, model).also { it.play(playing, clip) }
+        session = OrbitSession.create(this, model, onFirstFrame).also { it.play(playing, clip) }
       } catch (e: Exception) {
         fail(e)
       } catch (e: LinkageError) {
@@ -185,6 +186,7 @@ private class OrbitSession private constructor(
   private val texture: TextureView,
   private val engine: Engine,
   model: FluidSceneModel,
+  private val onFirstFrame: () -> Unit,
 ) : Closeable, Choreographer.FrameCallback, UiHelper.RendererCallback {
   private val manager = EntityManager.get()
   private val renderer = engine.createRenderer()
@@ -209,6 +211,7 @@ private class OrbitSession private constructor(
   private var posted = false
   private var closed = false
   private var resourceProgress = 0f
+  private var firstFrameSent = false
   private var playing = false
   private var animation = 0
   private var poseDirty = false
@@ -328,6 +331,10 @@ private class OrbitSession private constructor(
     if (drawn) {
       renderer.render(view)
       renderer.endFrame()
+      if (!firstFrameSent && resourceProgress >= 1f) {
+        firstFrameSent = true
+        onFirstFrame()
+      }
     }
     if (!drawn || playing || resourceProgress < 1f) requestFrame()
   }
@@ -382,11 +389,11 @@ private class OrbitSession private constructor(
   }
 
   companion object {
-    fun create(texture: TextureView, model: FluidSceneModel): OrbitSession {
+    fun create(texture: TextureView, model: FluidSceneModel, onFirstFrame: () -> Unit): OrbitSession {
       Utils.init()
       val engine = Engine.create()
       return try {
-        OrbitSession(texture, engine, model)
+        OrbitSession(texture, engine, model, onFirstFrame)
       } catch (t: Throwable) {
         engine.destroy()
         throw t

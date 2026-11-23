@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid.viewer
 
+import dev.antigravity.fluidengine.ui.page.LocalSharedPage
+
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.Image
@@ -217,6 +219,7 @@ internal fun viewerAccent(info: FluidViewerInfo?, fallback: Color): Color {
 @Composable
 internal fun Modifier.viewerWash(accent: Color, lower: Color, edge: Color): Modifier {
   if (viewerSolidMaterial()) return this
+  val space = LocalSharedPage.current.takeIf { LocalViewerDocumentRoute.current }
   return drawWithCache {
     fun field(color: Color, alpha: Float, x: Float, y: Float, radius: Float) = Brush.radialGradient(
       0f to color.copy(alpha = alpha), .45f to color.copy(alpha = alpha * .78f),
@@ -226,9 +229,13 @@ internal fun Modifier.viewerWash(accent: Color, lower: Color, edge: Color): Modi
     val foot = field(lower, ViewerMixProfile.LowerTint, .05f, .92f, .60f)
     val side = field(edge, ViewerMixProfile.LowerTint, .99f, .81f, .56f)
     onDrawBehind {
-      drawRect(top)
-      drawRect(foot)
-      drawRect(side)
+      val alpha = if (space == null || space.host.zoom == null) 1f
+      else if (space.host.hasClosingBackdrop(space.page)) 0f else space.host.backdropArrival(space.page)
+      if (alpha > 0f) {
+        drawRect(top, alpha = alpha)
+        drawRect(foot, alpha = alpha)
+        drawRect(side, alpha = alpha)
+      }
     }
   }
 }

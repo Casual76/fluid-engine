@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -82,6 +83,8 @@ import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerCustomScope
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerInfo
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerInfoAction
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerInfoProvider
+import dev.antigravity.fluidengine.ui.page.FluidPageMove
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageTransition
 import dev.antigravity.fluidengine.ui.theme.FluidGroupSegment
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
@@ -89,7 +92,20 @@ import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import java.text.Collator
 
 /** The D Mix archive wash, chosen by eye on 22 November 2026. */
-private object ArchiveMixProfile { const val Tint = .20f }
+private object ArchiveMixProfile {
+  const val Tint = .20f
+  /** The last 12% is the viewer backdrop window chosen in F6C.1. */
+  const val BackdropStart = .88f
+}
+
+internal fun archiveBackdropAlpha(move: FluidPageMove?, progress: Float): Float = when (move) {
+  null, FluidPageMove.None -> 1f
+  FluidPageMove.Push -> {
+    val fraction = ((progress - ArchiveMixProfile.BackdropStart) / (1f - ArchiveMixProfile.BackdropStart)).coerceIn(0f, 1f)
+    fraction * fraction * (3f - 2f * fraction)
+  }
+  else -> 0f
+}
 
 private enum class ArchiveSort(val label: String) { Name("nome"), Size("dimensione"), Date("data") }
 private enum class ArchiveFilter(val label: String) { All("tutto"), Folders("cartelle"), Files("file"), Protected("voci cifrate") }
@@ -131,6 +147,7 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
 
   val flat = archiveSolidMaterial()
   val scheme = MaterialTheme.colorScheme
+  val transition = LocalFluidPageTransition.current
   val backdrop = rememberGlassBackdrop()
   val wash = Brush.verticalGradient(listOf(scheme.primary.copy(alpha = ArchiveMixProfile.Tint),
     scheme.surface, scheme.tertiary.copy(alpha = ArchiveMixProfile.Tint)))
@@ -139,9 +156,12 @@ internal fun ArchivePage(session: ArchiveSession, viewer: FluidViewerCustomScope
   val fontScale = LocalDensity.current.fontScale
   val position = states.getOrPut(folder) { LazyListState() }
   BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).then(if (flat) {
-      Modifier.background(scheme.surface)
-    } else Modifier.background(wash)))
+    Box(Modifier.matchParentSize().glassBackdropSource(backdrop).drawBehind {
+      val alpha = archiveBackdropAlpha(transition?.kind, transition?.progress ?: 1f)
+      if (alpha > 0f) {
+        if (flat) drawRect(scheme.surface, alpha = alpha) else drawRect(wash, alpha = alpha)
+      }
+    })
     val columns = (maxWidth.value / (138f * fontScale.coerceAtLeast(1f))).toInt().coerceIn(1, 3)
     LazyColumn(
       modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxSize(),

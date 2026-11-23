@@ -2,6 +2,8 @@ package dev.antigravity.fluidengine.ui.fluid.viewer
 
 import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.onPlaced
+import dev.antigravity.fluidengine.ui.page.LocalSharedPage
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
@@ -76,10 +78,13 @@ fun FluidPagesPreset(
   strings: FluidPagesPresetStrings = FluidPagesPresetStrings(),
 ) {
   val source = content.source
+  val entrance = awaitViewerEntrance()
   val count = source.count.coerceAtLeast(0)
   val surface = MaterialTheme.colorScheme.surface
   if (count == 0) {
-    Box(modifier.fillMaxSize().then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier), contentAlignment = Alignment.Center) { Text(strings.empty) }
+    val placed = if (entrance != null && source.countFinal) Modifier.onPlaced { entrance.placed() } else Modifier
+    Box(modifier.fillMaxSize().then(placed).then(if (LocalViewerPage.current == null) Modifier.background(surface) else Modifier),
+      contentAlignment = Alignment.Center) { Text(strings.empty) }
     return
   }
   key(source) {
@@ -190,7 +195,7 @@ fun FluidPagesPreset(
           ) {
             items(count) { index ->
               ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count),
-                match?.takeIf { finding && it.page == index })
+                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex })
             }
           }
         }
@@ -251,6 +256,7 @@ private fun PageCounterLayout(top: Dp, gap: Dp, counter: @Composable () -> Unit,
 private fun ViewerPage(
   cache: ViewerPageRenderCache, index: Int, width: Int, preview: Boolean, thumbnail: Boolean,
   strings: FluidPagesPresetStrings, description: String?, match: FluidViewerPageMatch? = null,
+  entrance: ViewerEntranceClaim? = null,
 ) {
   var size by remember(cache, index) { mutableStateOf<IntSize?>(null) }
   var bitmap by remember(cache, index) { mutableStateOf<ImageBitmap?>(null) }
@@ -274,8 +280,13 @@ private fun ViewerPage(
   val ratio = size?.let { (it.width.toFloat() / it.height).coerceIn(1f / MaxPageAspect, MaxPageAspect) }
     ?: DefaultPageAspect
   val paper = MaterialTheme.colorScheme.surfaceContainerHigh
-  Box(Modifier.fillMaxWidth().aspectRatio(ratio).shadow(if (thumbnail) 0.dp else 2.dp).background(paper), contentAlignment = Alignment.Center) {
-    val shown = bitmap
+  val shown = bitmap
+  val claim = LocalViewerEntrance.current
+  val traveling = LocalSharedPage.current?.host?.isMoving == true
+  val waiting = claim != null && (!claim.revealed || traveling) && !thumbnail && shown == null && !failed
+  val placed = if (entrance != null && (shown != null || failed)) Modifier.onPlaced { entrance.placed() } else Modifier
+  val backing = if (waiting) Modifier else Modifier.shadow(if (thumbnail) 0.dp else 2.dp).background(paper)
+  Box(Modifier.fillMaxWidth().aspectRatio(ratio).then(placed).then(backing), contentAlignment = Alignment.Center) {
     if (shown != null) {
       Image(shown, description, Modifier.fillMaxSize().drawWithContent {
         drawContent()
@@ -284,7 +295,7 @@ private fun ViewerPage(
             Offset(rect.left * this.size.width, rect.top * this.size.height), Size(rect.width * this.size.width, rect.height * this.size.height))
         }
       }, contentScale = ContentScale.Fit)
-    } else if (!thumbnail) {
+    } else if (!thumbnail && !waiting) {
       Column(Modifier.padding(FluidScreenDefaults.HorizontalPadding), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (failed) strings.error else strings.loading, style = MaterialTheme.typography.bodyMedium)
         if (failed) Text(strings.retry, Modifier.heightIn(min = FluidGlassSize.Regular.touchTarget)

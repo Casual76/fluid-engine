@@ -397,7 +397,8 @@ class FluidViewerFiles internal constructor(
     return when (type.preset) {
       FluidViewerPreset.Text -> PendingText(type.language)
       FluidViewerPreset.Pages -> PendingPages()
-      else -> PendingImage
+      FluidViewerPreset.Image, FluidViewerPreset.Video -> PendingImage
+      else -> PendingFamily
     }
   }
 
@@ -441,6 +442,7 @@ class FluidViewerFiles internal constructor(
     private var source by mutableStateOf<FluidPdfPageSource?>(null)
     override val content: FluidViewerContent = FluidViewerContent.Pages(this)
     override val count: Int get() = source?.count ?: 0
+    override val countFinal: Boolean get() = source != null
 
     private suspend fun ready(): FluidPdfPageSource = source ?: snapshotFlow { source }.filterNotNull().first()
 

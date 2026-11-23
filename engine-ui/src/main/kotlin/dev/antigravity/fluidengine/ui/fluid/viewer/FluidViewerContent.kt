@@ -297,13 +297,23 @@ interface FluidViewerContent {
    * book, a mail, a font, a 3D model). It declares its [background], whether it has «Trova» ([find]) and the
    * [actions] it adds to the viewer's bar («Estrai tutto», «Albero | Testo», «Presenta»). The frame keeps the chrome,
    * the pager, the info panel and dismissal; a black page is not zoomed by the frame, so its own gestures stay its own.
+   * An asynchronously painted surface can provide [firstFrameReady] using observable Compose state. With the
+   * default, the first non-empty layout supplies the handoff signal.
    */
   class Custom(
     val background: FluidViewerBackground = FluidViewerBackground.Theme,
     val find: FluidViewerFind? = null,
     val actions: FluidToolbarScope.() -> Unit = {},
     val draw: @Composable FluidViewerCustomScope.() -> Unit,
-  ) : FluidViewerContent
+    internal val firstFrameReady: (() -> Boolean)? = null,
+  ) : FluidViewerContent {
+    constructor(
+      background: FluidViewerBackground = FluidViewerBackground.Theme,
+      find: FluidViewerFind? = null,
+      actions: FluidToolbarScope.() -> Unit = {},
+      draw: @Composable FluidViewerCustomScope.() -> Unit,
+    ) : this(background, find, actions, draw, firstFrameReady = null)
+  }
 }
 
 internal val FluidViewerContent.blackBackground: Boolean

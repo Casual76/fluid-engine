@@ -84,6 +84,7 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
   private var reset by mutableIntStateOf(0)
   private var failure by mutableStateOf(false)
   private val extension = sceneViewerExtension?.create(model)
+  private var frameReady by mutableStateOf(false)
 
   val content = FluidViewerContent.Custom(
     actions = {
@@ -96,7 +97,8 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
         extension?.actions(this)
       }
     },
-  ) {
+    firstFrameReady = { frameReady || failure },
+    draw = {
     if (failure) {
       Box(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally,
@@ -109,7 +111,8 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
       val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
       AndroidView(
         factory = { context ->
-          SceneTexture(context, model) { error ->
+          frameReady = false
+          SceneTexture(context, model, onFirstFrame = { frameReady = true }) { error ->
             Log.w("FluidSceneViewer", "Filament non può aprire la scena", error)
             failure = true
           }
@@ -122,5 +125,6 @@ private class ScenePage(model: FluidSceneModel, name: String, openWith: (() -> U
       )
       extension?.Overlay(active)
     }
-  }
+    },
+  )
 }

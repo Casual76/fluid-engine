@@ -312,6 +312,8 @@ class FluidPageHostState internal constructor() {
     vertical && phase == Phase.VerticalSettling && upper == interactionPage
   /** A composed destination which paints its own backdrop can reveal the page underneath. */
   internal val ownPageBackground = androidx.compose.runtime.mutableStateMapOf<Any, androidx.compose.ui.graphics.Color>()
+  /** Optional face policy for a destination that can prepare its ink while the source is in flight. */
+  internal val zoomFaceOverrides = androidx.compose.runtime.mutableStateMapOf<Any, (Float) -> ZoomFaces>()
   private var closingBackdropCeiling = 1f
 
   internal fun hasClosingBackdrop(page: Any): Boolean = upper == page && kind != FluidPageMove.None && !opening

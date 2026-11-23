@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import dev.antigravity.fluidengine.ui.fluid.viewer.viewerEntranceLoading
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -168,6 +170,7 @@ fun FluidSkeletonText(
   spacing: Dp = 9.dp,
   lastLineFraction: Float = 0.64f,
 ) {
+  viewerEntranceLoading { lines > 0 }
   SkeletonGroup {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing)) {
       fluidSkeletonLineFractions(lines, lastLineFraction).forEach { fraction ->

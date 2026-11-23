@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Dp
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingCapsuleDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
@@ -78,5 +79,15 @@ fun FluidCustomPreset(
     FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize)
   }
   val scope = CustomScope(chromeVisible, finding, active, PaddingValues(top = top, bottom = bottom))
-  Box(modifier.fillMaxSize()) { content.draw(scope) }
+  val entrance = awaitViewerEntrance()
+  viewerEntranceLoading { content.firstFrameReady?.invoke() == false }
+  if (entrance == null) Box(modifier.fillMaxSize()) { content.draw(scope) }
+  else Layout(content = { content.draw(scope) }, modifier = modifier.fillMaxSize()) { measurables, constraints ->
+    val children = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+    layout(constraints.maxWidth, constraints.maxHeight) {
+      children.forEach { it.placeRelative(0, 0) }
+      // The registry's unresolved family has no children. A laid-out page can replace the thumbnail.
+      if (children.any { it.width > 0 && it.height > 0 }) entrance.placed()
+    }
+  }
 }

@@ -1,0 +1,9 @@
+{
+  "progetto": "Taccuino di campo",
+  "giornate": [
+    {"luogo": "Lago", "appunti": 7, "rivisto": true},
+    {"luogo": "Stazione", "appunti": 3, "rivisto": false}
+  ],
+  "allegati": {"documento": "Relazione.docx", "archivio": "Allegati.zip"},
+  "prossima_visita": null
+}

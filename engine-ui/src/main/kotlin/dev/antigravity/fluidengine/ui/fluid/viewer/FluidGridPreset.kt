@@ -84,8 +84,10 @@ fun FluidGridPreset(
   strings: FluidGridPresetStrings = FluidGridPresetStrings(),
 ) {
   val source = content.source
+  val entrance = awaitViewerEntrance()
   val sheets = source.sheets
   if (sheets.isEmpty()) {
+    if (entrance != null) SideEffect { entrance.placed() }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(strings.noSheets) }
     return
   }
@@ -120,6 +122,9 @@ private fun GridSheet(
     baseStyle.fontSize.toPx() / typography.bodySmall.fontSize.value
   } else density.density
   val store = remember(source, index) { GridCellStore(source, index) }
+  val entrance = LocalViewerEntrance.current
+  if (entrance != null && (store.hasFirstBlock || store.failure != null || sheet.rowCount == 0 || sheet.columnCount == 0))
+    SideEffect { entrance.placed() }
   val fileColumns = remember(sheet) { GridAxis(sheet.columnCount, sheet.columnWidth, sheet.columnWidths) }
   val merges = remember(sheet) { GridMerges(sheet.merges) }
   var scale by rememberSaveable { mutableFloatStateOf(1f) }
@@ -382,6 +387,7 @@ internal class GridCellStore(private val source: FluidGridSource, private val sh
 
   /** How many blocks are held: at most [MaxBlocks]. */
   val blockCount: Int get() = blocks.size
+  val hasFirstBlock: Boolean get() = version > 0
 
   operator fun get(row: Int, column: Int): FluidGridCell? {
     version

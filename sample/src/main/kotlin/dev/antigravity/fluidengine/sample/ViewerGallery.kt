@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,7 +41,10 @@ import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 import dev.antigravity.fluidengine.ui.theme.FluidTone
 import dev.antigravity.fluidengine.viewer.FluidViewerFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Il collegamento del visore della galleria: `fluidglass://visori/file/{indice}` (F6C.5). */
 internal const val VisoriDeepLink = "fluidglass://visori/file/{index}"
@@ -57,25 +62,63 @@ internal fun ViewerGallery(deps: VisoriDeps = VisoriDeps.Default, onBack: () -> 
   val namespace = rememberFluidGlassNamespace()
   val context = LocalContext.current.applicationContext
   val catalog = VisoriFiles.gallery
+  val documents = VisoriFiles.documents
+  val tiles = catalog + documents
   val converter = VisoriFiles.converter
   val files by produceState<List<FluidViewerFile>?>(null, context) { value = VisoriFiles.prepare(context, catalog, false) }
+  val documentFiles by produceState<List<FluidViewerFile>?>(null, context) {
+    value = VisoriFiles.prepare(context, documents, false)
+  }
   val converterFiles by produceState<List<FluidViewerFile>?>(null, context) {
     value = VisoriFiles.prepare(context, converter, true)
   }
+  val galleryReader = rememberVisoriDocuments(catalog, files)
+  val documentReader = rememberVisoriDocuments(documents, documentFiles)
+  val scope = rememberCoroutineScope()
+  val readingWidth = (LocalWindowInfo.current.containerSize.width - with(LocalDensity.current) {
+    (FluidScreenDefaults.HorizontalPadding * 2).roundToPx()
+  }).coerceAtLeast(1)
+  val currentReadingWidth by rememberUpdatedState(readingWidth)
+  var preparing by remember { mutableStateOf(false) }
+  var warmPage by remember { mutableStateOf<VisoriWarmPage?>(null) }
+  fun openTile(index: Int, file: VisoreFile) {
+    if (preparing) return
+    val inGallery = index < catalog.size
+    val page = if (inGallery) index else index - catalog.size
+    val destination = if (inGallery) "viewer/$page" else "document/$page"
+    val reader = if (inGallery) galleryReader else documentReader
+    warmPage = null
+    if (deps !== VisoriDeps.Default || !file.tipo.preparesDocument || page !in 0 until reader.count) {
+      nav.navigate(destination)
+      return
+    }
+    preparing = true
+    scope.launch {
+      // The work is a sibling, so timing out the click does not join a decoder still finishing.
+      val preparation = scope.async { prepareVisoriFirstContent(reader, page, currentReadingWidth) }
+      try {
+        warmPage = withTimeoutOrNull(VisoriPreparationMillis) { preparation.await() }
+        if (nav.currentDestination?.route == "collection") nav.navigate(destination)
+      } finally {
+        preparation.cancel()
+        preparing = false
+      }
+    }
+  }
   var resumeVideo by rememberSaveable { mutableStateOf(true) }
-  fun thumbnail(index: Int) = catalog.getOrNull(index)?.let { FluidViewerThumbnail(it.id, namespace) }
+  fun thumbnail(file: VisoreFile) = FluidViewerThumbnail(file.id, namespace)
   FluidNavHost(nav, "collection") {
     composable("collection") {
-      FluidScreen(title = "Visori", subtitle = "Il telaio, i sei preset ed engine-viewer", onBack = onBack) {
-        item { FluidSectionHeader("I sei tipi", detail = "Tocca un file: si apre dalla miniatura e torna lì.") }
-        items((catalog.size + 1) / 2) { row ->
+      FluidScreen(title = "Visori", subtitle = "Anteprime dei file", onBack = onBack) {
+        item { FluidSectionHeader("File di esempio", detail = "Tocca un file: si apre dalla miniatura e torna lì.") }
+        items((tiles.size + 1) / 2) { row ->
           Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(2) { column ->
               val index = row * 2 + column
-              val file = catalog.getOrNull(index)
+              val file = tiles.getOrNull(index)
               if (file == null) Spacer(Modifier.weight(1f))
-              else Tile(file, requireNotNull(thumbnail(index)), Modifier.weight(1f).testTag("visori-${file.id}")) {
-                nav.navigate("viewer/$index")
+              else Tile(file, thumbnail(file), Modifier.weight(1f).testTag("visori-${file.id}")) {
+                openTile(index, file)
               }
             }
           }
@@ -111,8 +154,14 @@ internal fun ViewerGallery(deps: VisoriDeps = VisoriDeps.Default, onBack: () -> 
     }
     fluidFileViewerRoute("viewer/{index}", arguments = listOf(navArgument("index") { type = NavType.IntType }),
       deepLinks = listOf(navDeepLink { uriPattern = VisoriDeepLink }),
-      initial = { it.arguments!!.getInt("index") }, thumbnail = { _, index -> thumbnail(index) }) {
-      VisoriViewer(catalog, files, resumeVideo, onBack = { nav.popBackStack() }, deps = deps)
+      initial = { it.arguments!!.getInt("index") }, thumbnail = { _, index -> catalog.getOrNull(index)?.let(::thumbnail) }) {
+      VisoriViewer(catalog, files, resumeVideo, onBack = { nav.popBackStack() }, deps = deps,
+        documentReader = galleryReader, warmPage = warmPage)
+    }
+    fluidFileViewerRoute("document/{index}", arguments = listOf(navArgument("index") { type = NavType.IntType }),
+      initial = { it.arguments!!.getInt("index") }, thumbnail = { _, index -> documents.getOrNull(index)?.let(::thumbnail) }) {
+      VisoriViewer(documents, documentFiles, resumeVideo, onBack = { nav.popBackStack() }, deps = deps,
+        documentReader = documentReader, warmPage = warmPage)
     }
     composable("converter") {
       FluidScreen(title = "Universal Converter", subtitle = "Prova in sola lettura", onBack = { nav.popBackStack() }) {
@@ -156,12 +205,15 @@ private fun iconOf(file: VisoreFile): ImageVector = when (file.tipo) {
   VisoreTipo.Pagine -> FluidIcons.PictureAsPdf
   VisoreTipo.Testo, VisoreTipo.Vuoto -> FluidIcons.Description
   VisoreTipo.Codice -> FluidIcons.Code
+  VisoreTipo.Office -> FluidIcons.Description
+  VisoreTipo.Archivio -> FluidIcons.Draft
+  VisoreTipo.Dati -> FluidIcons.Code
   VisoreTipo.Eseguibile -> FluidIcons.Warning
   VisoreTipo.Sparito -> FluidIcons.CloudOff
   VisoreTipo.Sconosciuto -> FluidIcons.Draft
 }
 
-/** La miniatura: la foto, il primo fotogramma della WebP, o l'icona del tipo con l'estensione. */
+/** La miniatura: la foto, il primo fotogramma della WebP, la prima pagina di PDF o l'icona del tipo. */
 @Composable
 private fun Tile(file: VisoreFile, thumbnail: FluidViewerThumbnail, modifier: Modifier, onClick: () -> Unit) {
   val context = LocalContext.current
@@ -176,7 +228,8 @@ private fun Tile(file: VisoreFile, thumbnail: FluidViewerThumbnail, modifier: Mo
       .background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
       val picture = still
       when {
-        file.cover != null -> Image(painterResource(file.cover), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        file.cover != null -> Image(painterResource(file.cover), null, Modifier.fillMaxSize(),
+          contentScale = if (file.tipo == VisoreTipo.Pagine) ContentScale.Fit else ContentScale.Crop)
         picture != null -> Image(picture, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
           FluidIcon(iconOf(file), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

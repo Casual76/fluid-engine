@@ -4091,6 +4091,33 @@ manifesto SHA), lascia ciò che serve ai test (golden, file di prova) e scrive l
   con margine sul preset massimo. Per le fasce basse si va a fiducia sul codice scritto, sulle review e sulle misure che
   si possono simulare (memoria, carico della GPU, scale ridotte).
 
+**Seconda versione (notte fra il 23 e il 24 novembre 2026).** Inventario e proposta completi in
+`artifacts/liquid-glass/sessioni/f7-piano-2/` (`inventario.md`, `proposta.md`). In breve:
+- **Bersagli a 120 Hz sul Tab S9, prima nel formato telefono.** P99 del passo fra presentazioni ≤ 1 periodo + 0,5 ms,
+  p99,9 ≤ 2 periodi + 0,5 ms, slot saltati ≤ 0,5 %, nessuna serie di due slot saltati. Servono almeno 1.000 passi
+  per il p99 e 10.000 per il p99,9. Si parte dal menu di gruppo a caldo, che nelle serie archiviate fa 51–52 ms al
+  p90 con il 65–67 % di jank. S25 ed emulatore fuori dalle prove.
+- **Scala automatica a tre livelli** (Pieno, Ridotto, Protetto), interna e senza impostazioni:
+  - si decide prima della prima allocazione grande, con RAM, heap, `isLowRamDevice` e classe multimediale;
+  - durante l'uso contano stato termico, risparmio energetico e frame persi;
+  - si scende dopo due finestre da 120 frame col ≥3 % di scadenze mancate, oppure subito con pressione critica o
+    SEVERE;
+  - si risale di un livello alla posa, dopo 30 s e tre finestre buone.
+- **Memoria prenotata prima di allocare.** Tetti per processo di 128, 64 e 32 MiB, divisi fra vetro, altre cache,
+  miniature e visori, e mai oltre un quarto dell'heap. Per l'A52s si leggono `getHistoricalProcessExitReasons`.
+- **Pacchetti nuovi da F7.8 a F7.17** (F7.1–F7.7 conservano il loro significato):
+  - F7.8: le misure degli spike;
+  - F7.9: la prenotazione della memoria;
+  - F7.10: la politica della scala;
+  - F7.11: i segnali Android e il ciclo di vita;
+  - F7.12: i livelli applicati al vetro;
+  - F7.13: miniature e visori entro i byte;
+  - F7.14: le scene di F6B, F6C, F6D e F8 in «Misure»;
+  - F7.15: gli spike di gruppo, foglio e prima apertura;
+  - F7.16: le guardie per componente;
+  - F7.17: la sessione finale S6.
+- F7.8, F7.9 e F7.10 sono partiti la notte del 24 novembre, al PC.
+
 **Scopo.** Far stare tutto nel fotogramma su tablet e telefono senza cambiare ciò che si vede. **Entra**: misure su Tab S9 e
 S25; le leve; i bilanci per fotogramma; le guardie contro le regressioni di costo. **Resta fuori**: qualunque cambio di resa
 non imposto da un bilancio (e in quel caso passa da Alessio come confronto). Misura anche gli elementi di F6B (gli

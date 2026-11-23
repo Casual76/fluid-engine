@@ -157,8 +157,8 @@ fun FluidPagesPreset(
         }
         val top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() +
           FluidGlassSize.Regular.touchTarget + gap
-        val bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding() +
-          FluidFloatingCapsuleDefaults.ActionSize + gap
+        // F6C.15b: sopra la capsula in basso anche quando l'app ha una tab bar (la capsula sale con il suo inset).
+        val bottom = viewerBottomCapsuleTop() + gap
         PageCounterLayout(top, gap, counter = {
           if (chromeVisible) {
             Row(Modifier.viewerGlass(backdrop).fluidPressable(onClick = { thumbnails = true }, role = Role.Button)

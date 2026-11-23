@@ -160,6 +160,20 @@ internal fun imageMark(pic: Picture, x: Float, y: Float, w: Float, h: Float) = M
   }
 }
 
+/** [page] on white paper, stretched to [target] (at most 4 megapixels): the viewer's pages and the thumbnails. */
+internal fun drawOfficePage(page: OfficePage, target: IntSize): Bitmap {
+  val w = target.width.coerceAtLeast(1)
+  val h = target.height.coerceAtLeast(1)
+  val scale = minOf(1.0, sqrt(4_000_000.0 / (w.toDouble() * h)), 8192.0 / w, 8192.0 / h)
+  val bitmap =
+    Bitmap.createBitmap(max(1, (w * scale).toInt()), max(1, (h * scale).toInt()), Bitmap.Config.ARGB_8888)
+  val c = Canvas(bitmap)
+  c.drawColor(Color.WHITE)
+  c.scale(bitmap.width / page.paper.width, bitmap.height / page.paper.height)
+  synchronized(page) { page.marks.forEach { it.draw(c) } }
+  return bitmap
+}
+
 internal class OfficePages(private val worker: CoroutineScope) :
   FluidPageSource, java.io.Closeable {
   private val pages = ArrayList<OfficePage>()
@@ -208,7 +222,7 @@ internal class OfficePages(private val worker: CoroutineScope) :
     first.complete(Unit)
   }
 
-  private fun at(index: Int): OfficePage =
+  internal fun at(index: Int): OfficePage =
     synchronized(pages) { pages.getOrNull(index) ?: throw failure ?: IndexOutOfBoundsException() }
 
   override suspend fun sheet(index: Int) = at(index).paper.sheet()
@@ -220,23 +234,7 @@ internal class OfficePages(private val worker: CoroutineScope) :
     at(index).paper.let { IntSize(it.width.roundToInt(), it.height.roundToInt()) }
 
   override suspend fun render(index: Int, target: IntSize): ImageBitmap =
-    withContext(Dispatchers.Default) {
-      val page = at(index)
-      val w = target.width.coerceAtLeast(1)
-      val h = target.height.coerceAtLeast(1)
-      val scale = minOf(1.0, sqrt(4_000_000.0 / (w.toDouble() * h)), 8192.0 / w, 8192.0 / h)
-      val bitmap =
-        Bitmap.createBitmap(
-          max(1, (w * scale).toInt()),
-          max(1, (h * scale).toInt()),
-          Bitmap.Config.ARGB_8888,
-        )
-      val c = Canvas(bitmap)
-      c.drawColor(Color.WHITE)
-      c.scale(bitmap.width / page.paper.width, bitmap.height / page.paper.height)
-      synchronized(page) { page.marks.forEach { it.draw(c) } }
-      bitmap.asImageBitmap()
-    }
+    withContext(Dispatchers.Default) { drawOfficePage(at(index), target).asImageBitmap() }
 
   override fun close() {
     worker.cancel()

@@ -1,10 +1,7 @@
 package dev.antigravity.fluidengine.viewer.office
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.viewer.*
 import java.io.File
@@ -168,54 +165,12 @@ class FluidOfficeFamily : FluidViewerFamily {
       }
     }
 
+  /**
+   * The saved thumbnail when it says something, otherwise the first page, slide or sheet drawn by the module
+   * ([officeThumbnail]): never a white tile. `null` (the app's icon) only when neither is possible in time.
+   */
   override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap? =
-    withContext(Dispatchers.IO) {
-      if (request.type.id == "rtf" || sizePx <= 0) return@withContext null
-      val file = File.createTempFile("fluid-office-preview-", ".tmp", request.context.cacheDir)
-      try {
-        copyOfficeInput(request, file)
-        ZipFile(file).use { zip ->
-          val pkg = OfficePackage(zip)
-          if (
-            request.type.id.startsWith("od") &&
-              pkg.xml("META-INF/manifest.xml")?.first("encryption-data") != null
-          )
-            return@use null
-          val entry =
-            listOf("Thumbnails/thumbnail.png", "docProps/thumbnail.jpeg", "docProps/thumbnail.png")
-              .firstNotNullOfOrNull(zip::getEntry) ?: return@use null
-          if (entry.size !in 1..4_000_000L) return@use null
-          val bytes = pkg.bytes(entry.name) ?: return@use null
-          val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-          BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-          if (options.outWidth <= 0 || options.outHeight <= 0) return@use null
-          val target = sizePx.coerceAtMost(1024)
-          options.inJustDecodeBounds = false
-          options.inSampleSize = 1
-          while (
-            maxOf(options.outWidth, options.outHeight) / options.inSampleSize > 2 * target
-          ) options.inSampleSize *= 2
-          val bitmap =
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return@use null
-          val scale = minOf(1f, target.toFloat() / maxOf(bitmap.width, bitmap.height))
-          if (scale == 1f) bitmap.asImageBitmap()
-          else
-            try {
-              Bitmap.createScaledBitmap(
-                  bitmap,
-                  maxOf(1, (bitmap.width * scale).toInt()),
-                  maxOf(1, (bitmap.height * scale).toInt()),
-                  true,
-                )
-                .asImageBitmap()
-            } finally {
-              bitmap.recycle()
-            }
-        }
-      } finally {
-        file.delete()
-      }
-    }
+    officeThumbnail(request, sizePx)
 }
 
 private fun readMetadata(pkg: OfficePackage, info: OfficeInfo) {

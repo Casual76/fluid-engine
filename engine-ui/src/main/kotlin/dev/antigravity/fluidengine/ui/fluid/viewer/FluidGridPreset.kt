@@ -73,8 +73,9 @@ data class FluidGridPresetStrings(
  * A spreadsheet or a table ([FluidViewerContent.Grid]) inside the [FluidFileViewer] renderer slot: rows scroll
  * vertically, columns sideways (the pager takes over at the edges), a pinch changes the zoom from half to four times.
  * The frozen rows and columns of the sheet stay in place; merged cells draw once across their block. With more than
- * one sheet a row of tabs sits above the bottom capsule while the chrome is visible. Cells are read in blocks around
- * what is visible and forgotten when far away. The source is borrowed while this preset is composed.
+ * one sheet a row of tabs sits above the bottom capsule while the chrome is visible, and the rows scroll until the last
+ * one is whole above the tabs (F6C.15b). Cells are read in blocks around what is visible and forgotten when far away.
+ * The source is borrowed while this preset is composed.
  */
 @Composable
 fun FluidGridPreset(
@@ -186,9 +187,15 @@ private fun GridSheet(
   val gap = FluidScreenDefaults.HorizontalPadding / 2
   val top = FluidScreenDefaults.topBarHeight() + gap
   val tabs = sheets.size > 1
-  val tabHeight = FluidGlassSize.Regular.touchTarget
-  val bottomBar = FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize)
-  val bottom = bottomBar + if (tabs) tabHeight + gap else 0.dp
+  // F6C.15b, come Numbers: le schede stanno sopra la capsula in basso, dove la capsula è davvero (con una tab bar
+  // nell'app sale con il suo inset), e le righe scorrono fino a stare tutte sopra le schede. Il margine in fondo è
+  // l'altezza misurata delle schede (due righe di testo a scala 2,0) più il loro spazio sopra e sotto.
+  var tabRowHeight by remember { mutableStateOf(0.dp) }
+  val tabHeight = maxOf(FluidGlassSize.Regular.touchTarget, tabRowHeight)
+  val tabGap = FluidFloatingTabBarDefaults.Spacing
+  val capsuleTop = viewerBottomCapsuleTop()
+  val bottomBar = maxOf(FluidScreenDefaults.bottomContentPadding(FluidFloatingCapsuleDefaults.ActionSize), capsuleTop + tabGap)
+  val bottom = if (tabs) capsuleTop + tabGap + tabHeight + tabGap else bottomBar
   val painter = GridPainter(
     measurer = measurer, sheet = sheet, columns = columns, merges = merges, store = store,
     style = baseStyle.copy(color = theme.onSurface), headerStyle = headerStyle.copy(color = theme.onSurfaceVariant),
@@ -261,7 +268,8 @@ private fun GridSheet(
     }
     if (tabs && chromeVisible) {
       Row(
-        Modifier.align(Alignment.BottomCenter).padding(bottom = bottomBar - FluidScreenDefaults.ContentBottomSpacing + gap)
+        Modifier.align(Alignment.BottomCenter).padding(bottom = capsuleTop + tabGap)
+          .onSizeChanged { tabRowHeight = with(density) { it.height.toDp() } }
           .horizontalScroll(rememberScrollState()).padding(horizontal = FluidScreenDefaults.HorizontalPadding)
           .semantics { contentDescription = strings.sheets },
         horizontalArrangement = Arrangement.spacedBy(gap),

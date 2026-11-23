@@ -199,6 +199,19 @@ internal fun BoxScope.ViewerChrome(
   }
 }
 
+/**
+ * How far from the bottom of the screen the viewer's bottom capsule ends (F6C.15b): the navigation bar, the room of a
+ * tab bar when the app has one ([LocalFluidBottomInset]), the capsule's own margin ([fluidBottomBarOffset]) and its
+ * height. A row that floats above the capsule (the sheet tabs of the grid) stands on this line plus a gap, and the
+ * content of a page that scrolls ends above both, so at the end of the scroll nothing stays under a capsule. The
+ * navigation bar counts even while it is hidden with the chrome, so the content does not jump.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun viewerBottomCapsuleTop(): Dp =
+  WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding() +
+    fluidBottomBarOffset(LocalFluidBottomInset.current) + FluidFloatingCapsuleDefaults.ActionSize
+
 @Composable
 internal fun viewerPhotoSpace(compactInspector: Boolean): Float {
   val target = if (compactInspector) 1f - FluidSheetMediumFraction else 1f

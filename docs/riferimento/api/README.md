@@ -25,7 +25,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 12 | 144 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 6 | 42 |
+| [engine-foundation](foundation.md) | 9 | 55 |
 | [engine-storage](storage.md) | 1 | 14 |
 | [engine-net](net.md) | 1 | 4 |
 | [engine-config](config.md) | 1 | 9 |

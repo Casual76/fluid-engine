@@ -62,3 +62,28 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `enum class SyncState` — What the last attempt to refresh the app's data did.
 - `data class SyncStatus(val state: SyncState = SyncState.IDLE, val lastSuccessfulSyncEpochMillis: Long? = null, val message: String? = null, val failedSections: List<String> = emptyList(), val notice: String? = null)` — The result of the app's last refresh, in the shape the design system's status components read.
+
+## `engine-foundation/foundation/memory/FluidMemoryBudget.kt`
+
+- `class FluidMemoryUsage internal constructor(val limitBytes: Long, val usedBytes: Long, val inFlightBytes: Long, val peakBytes: Long, val refusals: Long)` — Lettura puntuale del registro. Il picco comprende insieme lavoro in volo e risorse residenti.
+  - `val residentBytes: Long get()`
+  - `val excessBytes: Long get()`
+- `class FluidMemoryBudget(initialLimits: FluidMemoryLimits)` — Un registro per processo, fornito dal chiamante a tutti i produttori. Il medesimo lock copre entrambi i limiti e ogni passaggio di proprietà. Il registro contabilizza byte dichiarati e lascia al chiamante allocazione, pubblicazione, espulsione e distruzione. Nessuna callback entra nella sezione critica.
+  - `fun tryReserve(category: FluidMemoryCategory, bytes: Long): Reservation?` — Prenota una stima conservativa positiva prima di avviare il produttore. Null permette espulsione o ripiego.
+  - `fun updateLimits(newLimits: FluidMemoryLimits): Long` — Sostituisce i limiti conservando ogni spesa viva. Ritorna il minimo numero di byte da recuperare.
+  - `fun usage(category: FluidMemoryCategory? = null): FluidMemoryUsage` — Diagnostica su richiesta, per il processo (senza argomento) o una categoria.
+
+## `engine-foundation/foundation/memory/FluidMemoryLimits.kt`
+
+- `enum class FluidMemoryCategory` — Il costo di una risorsa resta nella stessa categoria anche quando passa dalla cache allo schermo.
+- `data class FluidMemoryLimits(val processBytes: Long, val glassBytes: Long, val otherCacheBytes: Long, val thumbnailBytes: Long, val viewerBytes: Long)` — Tetti indipendenti in byte. Più categorie possono competere per un tetto di processo più basso.
+  - `operator fun get(category: FluidMemoryCategory): Long` — Quota effettiva della categoria per questa configurazione.
+  - `fun forHeap(referenceHeapBytes: Long): FluidMemoryLimits` — Scala la riga già scelta dalla politica su min(somma, tetto di processo, heap di riferimento / 4). Le differenze fra somme cumulative arrotondate assegnano anche l'ultimo byte. Il calcolo esatto avviene solo quando cambia la politica, anche con quote la cui somma supera Long.MAX_VALUE.
+  - `companion object`
+    - `val Full` — Massimi iniziali F7, profilo Pieno. Applicare [forHeap] prima del primo lavoro.
+    - `val Reduced` — Massimi iniziali F7, profilo Ridotto.
+    - `val Protected` — Massimi iniziali F7, profilo Protetto.
+
+## `engine-foundation/foundation/memory/FluidSurfaceBytes.kt`
+
+- `fun fluidSurfaceBytes(width: Long, height: Long, bytesPerPixel: Int, copies: Int = 1, rowStrideBytes: Long? = null): Long` — Byte per una o più superfici vive contemporaneamente. Passare le dimensioni fisiche, comprensive del padding del filtro, e il formato effettivo (per esempio 4 byte/pixel per RGBA8 o 8 per RGBA FP16). [rowStrideBytes] comprende l'eventuale allineamento di riga. La dimensione del file su disco è indipendente.

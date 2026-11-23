@@ -12,7 +12,6 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
-import android.text.style.ImageSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
@@ -35,7 +34,7 @@ import kotlin.math.min
  * | tipo | miniatura |
  * |---|---|
  * | Markdown | reso: titoli, grassetto, elenchi, codice, citazioni e tabelle sul foglio |
- * | HTML | reso senza rete e senza script (`Html.fromHtml` del sistema): titoli, paragrafi, elenchi, collegamenti; niente immagini |
+ * | HTML | reso con stili e immagini locali, senza rete n? script |
  * | CSV, TSV | un pezzo di tabella: intestazione, righe, griglia, numeri a destra |
  * | JSON | un pezzo dell'albero coi punti colorati dei tipi, come la pagina |
  * | NDJSON, XML, plist | il testo, coi colori; un plist binario come albero |
@@ -48,6 +47,7 @@ import kotlin.math.min
  * documento con l'estensione.
  */
 internal object DataThumbnail {
+  private val Hidden = Regex("(?is)<head\\b.*?</head>|<script\\b.*?</script>|<style\\b.*?</style>|<!--.*?-->|<noscript\\b.*?</noscript>")
   /** Quanti byte legge la miniatura di un testo: le prime righe stanno nei primi 64 KB. */
   private const val TextBytes = 64 * 1024
 
@@ -60,7 +60,12 @@ internal object DataThumbnail {
     suspend fun text(declared: (DataBytes) -> String? = { null }): String = bytes().let { DataText.decode(it, declared(it)).text }
     return when (request.type.id) {
       FluidDataFamily.Markdown -> markdown(text(), sizePx)
-      FluidDataFamily.Html -> html(text { DataText.htmlCharset(it.bytes, it.length) }, sizePx)
+      FluidDataFamily.Html -> {
+        val raw = bytes(HtmlThumbnail.MaxHtmlBytes)
+        HtmlThumbnail.render(DataText.decode(raw, DataText.htmlCharset(raw.bytes, raw.length)).text, sizePx) { path ->
+          settings.resources?.invoke(source, path)
+        }
+      }
       FluidDataFamily.Csv, FluidDataFamily.Tsv -> table(text(), source.name, sizePx)
       FluidDataFamily.Json -> tree(DataJsonParser.parse(StringReader(text()), TreeNodes), sizePx)
       FluidDataFamily.Ndjson -> code(text(), FluidSyntax.Json, sizePx)
@@ -233,39 +238,6 @@ internal object DataThumbnail {
     val out = SpannableStringBuilder()
     inline(out, text)
     return out.toString().trim()
-  }
-
-  // --- HTML -------------------------------------------------------------------------------------------------------
-
-  private val Hidden = Regex("(?is)<head\\b.*?</head>|<script\\b.*?</script>|<style\\b.*?</style>|<!--.*?-->|<noscript\\b.*?</noscript>")
-
-  /**
-   * La pagina resa dal lettore HTML del sistema (`Html.fromHtml`), che non ha rete né script: titoli, paragrafi,
-   * elenchi, grassetto, collegamenti. Le immagini restano fuori (nessuna rete, e le relative le dà solo l'app).
-   */
-  fun html(source: String, sizePx: Int): ImageBitmap {
-    val body = Hidden.replace(source.take(256 * 1024), "")
-    val spanned: Spanned = Html.fromHtml(body, Html.FROM_HTML_MODE_COMPACT, null, null)
-    val out = SpannableStringBuilder(spanned)
-    for (image in out.getSpans(0, out.length, ImageSpan::class.java)) {
-      val start = out.getSpanStart(image)
-      val end = out.getSpanEnd(image)
-      out.removeSpan(image)
-      if (start in 0 until end) out.delete(start, end)
-    }
-    var i = out.length - 1
-    while (i >= 0) {
-      if (out[i] == '￼') out.delete(i, i + 1)
-      i--
-    }
-    // Le righe vuote in fila si stringono: la pagina mostra il testo, non i vuoti fra i blocchi.
-    var j = 1
-    while (j < out.length) {
-      if (out[j] == '\n' && out[j - 1] == '\n' && j + 1 < out.length && out[j + 1] == '\n') out.delete(j, j + 1) else j++
-    }
-    while (out.isNotEmpty() && out[0].isWhitespace()) out.delete(0, 1)
-    if (out.isBlank()) return FluidThumbnailPainter.prosePage(Regex("<[^>]+>").replace(source, " ").trim(), sizePx)
-    return FluidThumbnailPainter.prosePage(out, sizePx)
   }
 
   // --- CSV e TSV --------------------------------------------------------------------------------------------------

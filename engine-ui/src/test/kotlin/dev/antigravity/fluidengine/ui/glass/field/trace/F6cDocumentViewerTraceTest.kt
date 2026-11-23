@@ -40,6 +40,15 @@ class F6cDocumentViewerTraceTest {
     }
   }
 
+  @Test fun thumbnailOpenAndReturnAt120Hz() {
+    val out = GlassTraceOutput.requestedDir(System.getenv("GLASS_F6C21_DIR"))
+    for (file in listOf("pdf", "docx", "zip", "json", "audio", "dng")) for (dark in listOf(false, true)) {
+      val scene = record(file, dark, includeReturn = true)
+      repeat(2) { assertEquals(scene.frames.map { it.elements }, record(file, dark, includeReturn = true).frames.map { it.elements }) }
+      if (out != null) scene.write(File(out, "${scene.name}/trace.json"))
+    }
+  }
+
   @Test fun releaseKeepsTheHeldRectangleAndAReversedGestureReturnsToFull() {
     for (fraction in listOf(.25f, .50f, .75f)) for (cancel in listOf(false, true)) {
       journey { state, clock, _ ->
@@ -109,7 +118,7 @@ class F6cDocumentViewerTraceTest {
     }
   }
 
-  private fun record(kind: String, dark: Boolean): GlassTrace = journey { state, clock, source ->
+  private fun record(kind: String, dark: Boolean, includeReturn: Boolean = false): GlassTrace = journey { state, clock, source ->
     val drag = kind == "drag-docx"
     val file = kind.removePrefix("drag-")
     val frames = mutableListOf<GlassTraceFrame>()
@@ -119,6 +128,9 @@ class F6cDocumentViewerTraceTest {
       "zip" -> 250f
       else -> 160f
     }
+    val start = 6
+    val closeAt = 132
+    val specialImage = file == "dng"
     var token: Int? = null
     if (drag) {
       state.onStack(listOf("files", "viewer"))
@@ -126,14 +138,21 @@ class F6cDocumentViewerTraceTest {
       for (i in 1..100) clock.sendFrame(glassTraceTimeNanos(i, fps))
     }
     var lastEdge: Float? = null
-    for (i in 0..(if (drag) 104 else 122)) {
-      if (!drag && i == 6) {
+    val last = if (includeReturn) closeAt + 78 else if (drag) 104 else 122
+    for (i in 0..last) {
+      if (!drag && i == start) {
+        if (specialImage) state.ownPageBackground["viewer"] = Color.Black
         state.onStack(listOf("files", "viewer"))
         state.pagePlaced("viewer")
       }
       if (drag && i == 6) token = requireNotNull(state.beginVertical(null))
       if (drag && i in 7..30) state.moveVertical(requireNotNull(token), 7f, 0f)
       if (drag && i == 31) state.releaseVertical(requireNotNull(token), 0f)
+      if (includeReturn && i == closeAt) {
+        assertFalse(state.isMoving)
+        assertEquals("viewer", state.upper)
+        state.onStack(listOf("files"))
+      }
       clock.sendFrame(glassTraceTimeNanos(i + 101, fps))
       val elements = mutableListOf<Map<String, Any?>>()
       val showing = state.upper == "viewer"
@@ -146,7 +165,7 @@ class F6cDocumentViewerTraceTest {
       if (showing) {
         val shape = state.zoomShape()
         val bounds = shape?.bounds ?: full
-        val reveal = if (drag) 1f else (((i - 6) * 1000f / fps - readyAt) /
+        val reveal = if (drag) 1f else (((i - start) * 1000f / fps - readyAt) /
           ViewerEntranceMotion.RevealMillis).coerceIn(0f, 1f)
         val faces = ViewerEntranceMotion.faces(reveal, 1f - state.upperExitFraction())
         val pageAlpha = faces.pageAlpha
@@ -161,7 +180,7 @@ class F6cDocumentViewerTraceTest {
         val sharp = GlassContentDefaults.PeakBlur * .7f
         assertFalse("Two readable faces in frame $i",
           pageAlpha > .25f && tileAlpha > .25f && faces.pageBlur < sharp && faces.sourceBlur < sharp)
-        if (!drag) {
+        if (!drag && i < closeAt) {
           lastEdge?.let { assertTrue("Opening retreats in frame $i", bounds.right >= it - .05f) }
           lastEdge = bounds.right
         }
@@ -170,57 +189,83 @@ class F6cDocumentViewerTraceTest {
         val close = state.hasClosingBackdrop("viewer")
         if (close) assertEquals(0f, backdrop, 0f)
         val tileScale = maxOf(bounds.width / thumbnail.width, bounds.height / thumbnail.height)
+        val contents = if (specialImage) {
+          // The same image is on the shared layer for the whole trip. This is the illustrative plate,
+          // with timing from the host and a fixed fitted image instead of a device layout.
+          val fitted = Rect(0f, 279f, width, 481f)
+          val image = if (shape == null) fitted else
+            state.sharedImageBounds(thumbnail, fitted, state.fractionToward { it == state.upper }, shape)
+          listOf(
+            mapOf("name" to "page-face", "x" to (image.left - bounds.left), "y" to (image.top - bounds.top),
+              "w" to image.width, "h" to image.height),
+            mapOf("name" to "tile-face", "alpha" to 0f),
+            mapOf("name" to "chrome", "alpha" to chrome),
+          )
+        } else listOf(
+          mapOf("name" to "page-face", "alpha" to pageAlpha,
+            "blurSigmaDp" to glassContentSigmaPx(faces.pageBlur, GlassContentDefaults.BlurReference.value)),
+          mapOf("name" to "tile-face", "alpha" to tileAlpha,
+            "blurSigmaDp" to glassContentSigmaPx(faces.sourceBlur, GlassContentDefaults.BlurReference.value),
+            "x" to ((bounds.width - thumbnail.width) / 2f), "y" to ((bounds.height - thumbnail.height) / 2f),
+            "w" to thumbnail.width, "h" to thumbnail.height, "scale" to tileScale),
+          mapOf("name" to "chrome", "alpha" to chrome, "blurSigmaDp" to (1f - chrome) * 7f),
+        )
         elements += rect("card", bounds) + mapOf(
           "radius" to (shape?.corners?.topLeft ?: 0f), "_backdrop" to backdrop, "_exit" to state.upperExitFraction(), "_ready" to (drag || reveal > 0f),
-          "content" to listOf(
-            mapOf("name" to "page-face", "alpha" to pageAlpha,
-              "blurSigmaDp" to glassContentSigmaPx(faces.pageBlur, GlassContentDefaults.BlurReference.value)),
-            mapOf("name" to "tile-face", "alpha" to tileAlpha,
-              "blurSigmaDp" to glassContentSigmaPx(faces.sourceBlur, GlassContentDefaults.BlurReference.value),
-              "x" to ((bounds.width - thumbnail.width) / 2f), "y" to ((bounds.height - thumbnail.height) / 2f),
-              "w" to thumbnail.width, "h" to thumbnail.height, "scale" to tileScale),
-            mapOf("name" to "chrome", "alpha" to chrome, "blurSigmaDp" to (1f - chrome) * 7f),
-          ),
+          "_moving" to state.isMoving, "content" to contents,
         )
       }
       frames += GlassTraceFrame(glassTraceTimeMs(i, fps), elements)
     }
     assertFalse(state.isMoving)
-    assertEquals(if (drag) "files" else "viewer", state.upper)
-    val name = if (drag) "visore-chiude-dito-docx" else "visore-apre-$file"
-    GlassTrace("$name-${if (dark) "scuro" else "chiaro"}", "f6c", 1f, if (dark) "dark" else "light",
-      width, height, frames, fps, head(file, dark))
+    assertEquals(if (drag || includeReturn) "files" else "viewer", state.upper)
+    if (includeReturn) assertFalse(source.isHidden)
+    val name = if (includeReturn) "visore-apre-e-torna-$file" else if (drag) "visore-chiude-dito-docx" else "visore-apre-$file"
+    val phase = if (includeReturn) "f6c-21" else "f6c"
+    val reference = if (includeReturn) mapOf("_openMs" to glassTraceTimeMs(start, fps),
+      "_returnMs" to glassTraceTimeMs(closeAt, fps)) else emptyMap()
+    GlassTrace("$name-${if (dark) "scuro" else "chiaro"}", phase, 1f, if (dark) "dark" else "light",
+      width, height, frames, fps, head(file, dark, includeReturn) + reference)
   }
 
   private fun rect(name: String, rect: Rect) =
     mapOf("name" to name, "x" to rect.left, "y" to rect.top, "w" to rect.width, "h" to rect.height)
 
-  private fun head(file: String, dark: Boolean): Map<String, Any?> {
+  private fun head(file: String, dark: Boolean, includeReturn: Boolean): Map<String, Any?> {
     val base = if (dark) "#242833" else "#EDEEF3"
-    val card = if (dark) "#353A47" else "#FFFFFF"
+    val card = if (file == "dng") "#000000" else if (dark) "#353A47" else "#FFFFFF"
     val ink = if (dark) "#E9EDF7" else "#1C2437"
-    fun text(label: String, x: Int, y: Int, size: Int) =
-      mapOf("kind" to "text", "text" to label, "x" to x, "y" to y, "sizeDp" to size, "color" to ink)
+    val chromeInk = if (file == "dng") "#E9EDF7" else ink
+    fun text(label: String, x: Int, y: Int, size: Int, color: String = ink) =
+      mapOf("kind" to "text", "text" to label, "x" to x, "y" to y, "sizeDp" to size, "color" to color)
     fun shape(name: String, bounds: Rect, color: String, content: List<Map<String, Any?>> = emptyList()) =
       rect(name, bounds) + mapOf("kind" to "shape", "radius" to 0, "color" to color, "content" to content)
     val rows = when (file) {
       "pdf" -> listOf("Quaderno di campo", "Prima pagina", "Strada verso il lago", "Note della mattina")
       "docx" -> listOf("Relazione", "Riepilogo della visita", "1. Osservazioni", "2. Misure")
       "zip" -> listOf("Allegati", "Appunti  /", "Dati  /", "Indice.txt")
+      "audio" -> listOf("Campanelle", "Diario di bordo", "0:00                           0:28", "⏵")
       else -> listOf("Registro", "progetto: Taccuino di campo", "giornate: [ 2 ]", "rivisto: true")
     }
-    val tile = if (file == "pdf") listOf(mapOf("kind" to "background",
-      "background" to mapOf("kind" to "image", "path" to "sample/src/main/res/drawable-nodpi/viewer_notes_cover.png"),
-      "x" to 29, "y" to 0, "w" to 66, "h" to 94))
-    else listOf(text(file.uppercase(), 28, 35, 23))
+    fun image(path: String, x: Int, y: Int, w: Int, h: Int) = mapOf("kind" to "background",
+      "background" to mapOf("kind" to "image", "path" to path), "x" to x, "y" to y, "w" to w, "h" to h)
+    val plates = "tools/glassbench/traces/f6c-21/plates"
+    val tile = when {
+      file == "pdf" -> listOf(image("sample/src/main/res/drawable-nodpi/viewer_notes_cover.png", 29, 0, 66, 94))
+      file == "audio" -> listOf(image("sample/src/main/res/drawable-nodpi/viewer_campanelle_cover.webp", 15, 0, 94, 94))
+      file == "dng" -> listOf(image("$plates/dng.jpg", 0, 0, 124, 94))
+      includeReturn -> listOf(image("$plates/$file-${if (dark) "scuro" else "chiaro"}.png", 20, 2, 84, 90))
+      else -> listOf(text(file.uppercase(), 28, 35, 23))
+    }
     val list = listOf(text("Visori", 22, 90, 34), text("File di esempio", 22, 154, 21),
       text("Documento a pagine", 164, 266, 17), text("Diario di bordo", 22, 386, 20),
       text("Archivio", 22, 470, 20), text("Altri file", 22, 554, 20))
-    val page = rows.mapIndexed { i, label -> text(label, 32, 164 + i * 44, if (i == 0) 28 else 18) }
+    val page = if (file == "dng") listOf(image("$plates/dng.jpg", 0, 0, 360, 202))
+    else rows.mapIndexed { i, label -> text(label, 32, 164 + i * 44, if (i == 0) 28 else 18) }
     return mapOf(
       "_confronto" to "F6D.0 §4 (profilo zoom), §5 (Quick Look JPEG). Tavole F6C.7 §3.",
       "_ripetizioni" to 3,
-      "_sorgente" to "Sagoma e velo da FluidPageHostState, facce da ViewerEntranceMotion. Prontezza simulata, tavole illustrative.",
+      "_sorgente" to "Sagoma e velo da FluidPageHostState, facce da ViewerEntranceMotion. Prontezza simulata, pagine illustrative.",
       "background" to mapOf("kind" to "color", "color" to base),
       "base" to mapOf(
         "files" to shape("files", full, base, listOf(mapOf("name" to "labels", "items" to list))),
@@ -229,7 +274,8 @@ class F6cDocumentViewerTraceTest {
         "card" to (shape("card", full, card, listOf(
           mapOf("name" to "page-face", "items" to page),
           mapOf("name" to "tile-face", "items" to tile),
-          mapOf("name" to "chrome", "items" to listOf(text("‹      $file", 24, 41, 22), text("Condividi", 232, 718, 19))),
+          mapOf("name" to "chrome", "items" to listOf(
+            text("‹      $file", 24, 41, 22, chromeInk), text("Condividi", 232, 718, 19, chromeInk))),
         )) + ("contentClip" to "shape")),
       ),
     )

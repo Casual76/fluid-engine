@@ -88,11 +88,11 @@ class VisoriMiniatureTest {
   }
 
   /**
-   * I file che sulla JVM non hanno il loro decodificatore e quindi danno l'icona: HEIC, AVIF e DNG (`ImageDecoder`
+   * I file che sulla JVM non hanno il loro decodificatore e quindi danno l'icona: HEIC e AVIF (`ImageDecoder`
    * della piattaforma), l'APK (`PackageManager.getPackageArchiveInfo` di Robolectric non legge l'icona). Sul tablet
    * hanno la loro miniatura. Gli altri segnaposto sono voluti: lo sconosciuto e gli archivi (il simbolo).
    */
-  private val nativeOnly = setOf("grafica-heic", "grafica-avif", "grafica-dng", "aggiornamento")
+  private val nativeOnly = setOf("grafica-heic", "grafica-avif", "aggiornamento")
   private val symbols = setOf("scena", "archivio-zip", "archivio-7z", "archivio-rar", "archivio-tar", "archivio-tgz", "archivio-gz")
 
   private fun corpus(): List<Pair<VisoreFile, dev.antigravity.fluidengine.viewer.FluidViewerFile>> = runBlocking {
@@ -117,6 +117,16 @@ class VisoriMiniatureTest {
         assertTrue("${file.id}: la miniatura non è vuota né uniforme", hasInk(thumbnail.image.asAndroidBitmap()))
         if (file.id !in nativeOnly && file.id !in symbols) {
           assertFalse("${file.id}: mostra il contenuto, non l'icona", thumbnail.isPlaceholder)
+        }
+        val pixels = thumbnail.image.asAndroidBitmap()
+        if (file.id == "dati-html") {
+          assertTrue("La pagina mantiene il suo sfondo CSS", pixels.getPixel(0, 0) == 0xFFF6F3EB.toInt())
+          assertTrue("La pagina contiene l'immagine insieme al testo", colored(pixels) > 200)
+        }
+        if (file.id == "modello-glb") {
+          assertTrue("Anelli con e senza texture nella stessa scena",
+            count(pixels) { Color.blue(it) > 1.35f * Color.red(it) && Color.blue(it) > 34 } > 400 &&
+              count(pixels) { Color.red(it) > 1.45f * Color.blue(it) && Color.red(it) > 70 } > 400)
         }
         if (file.id.startsWith("archivio-")) {
           assertTrue("${file.id}: l'archivio non è una tessera grigia", colored(thumbnail.image.asAndroidBitmap()) > 40)

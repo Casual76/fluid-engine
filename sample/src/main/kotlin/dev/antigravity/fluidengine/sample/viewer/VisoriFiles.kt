@@ -153,7 +153,7 @@ internal object VisoriFiles {
   )
 
   /** Cambia quando cambiano i file di esempio: una cartella nuova li ricopia tutti. */
-  private const val Version = 3
+  private const val Version = 4
 
   /** La radice dei file della galleria; [VisoriPackageProvider] serve solo quello che sta qui sotto. */
   fun root(context: Context): File = File(context.filesDir, "visori-v$Version")

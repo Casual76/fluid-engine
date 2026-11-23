@@ -138,7 +138,8 @@ class FluidGraphicsFamily : FluidViewerFamily {
         val (w, h) = fitRaster(it.width, it.height, edge)
         Bitmap.createScaledBitmap(it.asAndroidBitmap(), w, h, true).asImageBitmap()
       }
-      "dng", "cr2", "cr3", "nef", "arw" -> CameraRaw(request.source.open().use { it.readGraphic() }, format)
+      "dng" -> dngThumbnail(request, edge, limit)
+      "cr2", "cr3", "nef", "arw" -> CameraRaw(request.source.open().use { it.readGraphic() }, format)
         .preview(limit, edge)?.asImageBitmap()
       // F6C.17: un carattere mostra «Aa» nel suo disegno, come in File.
       "ttf", "otf", "ttc", "woff" -> fontThumbnail(request, edge)

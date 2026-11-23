@@ -3467,6 +3467,9 @@ con scheda e fiducia nel KDoc (regola comune).
 | F6B.11 | **Tasto diviso e titolo che diventa selettore**; in più **un tasto che cambia nello stesso posto resta un vetro solo** (Alessio, 22 novembre): l'elemento `split`, `FluidSplitButton`, `action(…, onClick)` (R1 N5); il titolo come sorgente di un menu o di un pannello, in linea, grande e nell'host | `ui/fluid/FluidSplitButton.kt` (nuovo), `ui/fluid/toolbar/FluidToolbar.kt` e `FluidToolbarModel.kt` (dopo F6B.10), `ui/fluid/FluidCollapsingHeader.kt`, `ui/page/FluidPageAnchoredBar.kt` (dopo F6B.10), `test/fluid/toolbar/FluidToolbarSplitTitleTest.kt` | F6B.10 (file), F5A.2, F5B.1 | G | Opus (Claude secondary) |
 | F6B.12 | **Galleria, tracce e schede (1)**: selezione, tasti con esito, avviso, elemento → pagina; nuova scheda `elementi-dinamici.md` | `sample/…/dynamic/` (un file per elemento), `sample/…/GalleryNav.kt`, `test/glass/field/trace/F6b*`, `tools/glassbench/traces/f6b/`, `ref/componenti/elementi-dinamici.md` (nuova), `ref/componenti/toolbar.md`, `ref/componenti/notifiche.md`, `ref/componenti/barre.md` (sezioni) | F6B.1–5c | G | Opus (Claude secondary) |
 | F6B.13 | **Galleria, tracce e schede (2)**: campo e composer, pillole, tastiera, attività, tasto diviso, titolo, trova; gli scenari nuovi della pagina «Misure» (F7.1) per gli elementi che si ripetono spesso (selezione, campo con il composer, barra sopra la tastiera) | `sample/…/dynamic/` (altri file), `sample/…/measure/` (gli scenari), `test/glass/field/trace/`, `ref/componenti/elementi-dinamici.md` (dopo F6B.12), `ref/moduli/ai-ui-chat.md`, `ref/moduli/richtext.md` | F6B.6–11 | G | Opus (Claude secondary) |
+| F6B.11b | **Il vetro vuoto dopo un menu** (difetto dal 19 novembre): il tasto singolo resta nel piano mentre il menu lo porta | `ui/fluid/toolbar/FluidToolbar.kt` | F6B.11 | G | Sol xhigh |
+| F6B.8b | **La pillola che diventa gettone nel campo** (la seconda metà di F6B.8) e **i comandi piccoli più grandi anche a vista** (Alessio, 23 novembre) | `ui/fluid/FluidSearch.kt`, `FluidSearchField.kt`, `toolbar/FluidToolbarSearch.kt`, `ai-ui/chat/` | F6B.13 | G | Opus (Claude secondary) |
+| F6B.10c | **La pillola dopo i video del 23 novembre**: i tempi del menu per tutti i popover; i tre difetti visti da Alessio (il posto vuoto di «Altro», l'icona dei filtri che torna a fine sync, il vetro che sparisce in scuro) | `ui/fluid/activity/`, `ui/fluid/toolbar/`, `ui/fluid/FluidGlassModalPopover.kt`, `FluidMotion.kt` | F6B.13 | G | Sol xhigh |
 | F6B.14 | **Sessione sul tablet** (numero da assegnare) e rapporto | `artifacts/liquid-glass/sessioni/S-F6B.md`, `stato.md` | tutti | G, D | orchestratore + Sol xhigh |
 
 **Ordine di lancio**, che rispetta le scelte di Alessio:
@@ -3674,6 +3677,19 @@ aggiunto parole sue ha preso l'opzione consigliata):
   lente, e per qualche fotogramma si vedono due contorni uno dentro l'altro. Come in iOS, nello stesso posto il vetro
   resta uno: cambia misura con la molla, se serve, e il contenuto si scambia sfocato (R7). La lente resta per un tasto
   che nasce o se ne va davvero. Lo fa F6B.11, che lavora sugli stessi file dopo F6B.10.
+
+**23 novembre 2026, alle 6:50, sui video della notte:**
+- **La pillola di attività (F6B.10) va bene.** I tempi: **tutti i popover prendono quelli del menu «Altro»** (leggibile a
+  ~300 ms, fermo a ~450–500 ms), card della pillola compresa. L'anellino a barra ritirata **resta al centro**, anche
+  sul tablet sopra la maniglia di Samsung.
+- **Tre difetti visti da Alessio**, da correggere prima di confermare F6B.10 e F6B.11 (F6B.10c):
+  - «il tasto altro lascia indietro un posto vuoto dopo essere aperto» (probabilmente il vetro vuoto dopo un menu,
+    corretto da F6B.11b dopo le riprese: va verificato sulla debug integrata);
+  - «quando la sync finisce appare per qualche frame di nuovo l'icona dei filtri, nonostante siano già aperti»;
+  - «in modalità scura non ci sta più il vetro dopo l'animazione dell'apparizione della sync che diventa un semplice
+    titolo».
+- **F6B.13 va bene.** I bersagli sotto i 48 dp: **«tasti più grandi»**, cioè più grandi anche a vista, non solo
+  nell'area che si tocca (F6B.8b). Lente e tasti della barra restano a 46 di vetro con 48 di bersaglio.
 
 Le scelte si rivedono comunque in video, quando gli elementi ci sono.
 
@@ -3917,6 +3933,18 @@ decodificatori.
   parte, `engine-viewer-ar`, che chiede la fotocamera e un dispositivo certificato ARCore. Senza, il visore 3D resta
   quello di Filament sul fondo del tema. È il pacchetto F6C.16.
 
+**23 novembre 2026, alle 6:50, sui video della notte:**
+- **L'apertura dalla miniatura (F6C.10) va bene.** **La galleria «Visori» (F6C.15 e F6C.15b) va bene.**
+- **Le pagine «D · Mix» non ancora:** «Non mi convince che manca tipo l'anteprima, e anche le dimensioni di certi
+  elementi e anche come sono fatti non sono proprio in pari con la reference D».
+  - **L'anteprima** sono le miniature dei file: ogni file mostra il suo contenuto in miniatura come in File di iOS (le
+    prime righe del testo e del codice, il Markdown reso, l'albero JSON, la tabella CSV, l'icona dell'app, il modello
+    3D), e l'apertura parte da lì. Oggi molti tipi hanno una tessera grigia con la sigla (F6C.17).
+  - **Le pagine al dp sulla tavola D**, pagina per pagina accanto alla tavola, in formato telefono; sul tablet le
+    stesse forme in una colonna più larga (F6C.18).
+- **Il peso di Fluid Glass con tutti i visori** (~46 MB la bench): per lo store **APK divisi per architettura**. Si fa
+  alla prima pubblicazione con i visori, dopo aver controllato che lo store li serva.
+
 **Moduli** (i nomi sono proposte; li fissa F6C.7):
 
 | modulo | famiglia |
@@ -3950,6 +3978,8 @@ se:
 | F6C.14 | **Immagini speciali, font, 3D** | `engine-viewer-graphics/**`, `engine-viewer-3d/**` (nuovi), `settings.gradle` (una riga) | F6C.8 | G | Sol |
 | F6C.15 | **La galleria «Visori» rifatta**, partendo da F6C.5: ogni famiglia, l'apertura dalla miniatura, il peso di ogni modulo, le tracce nuove e le schede. Il visore universale di Universal Converter, in sola lettura | `sample/…/viewer/`, `test/glass/field/trace/F6c*`, `tools/glassbench/traces/f6c/`, `ref/componenti/visori.md`, `ref/moduli/viewer*.md` | tutti | G | Opus (Claude secondary) |
 | F6C.16 | **AR**: il modello 3D posato nella stanza con ARCore, come AR Quick Look; il tasto «AR» nel visore 3D solo dove ARCore c'è; la fotocamera chiesta al tocco | `engine-viewer-ar/**` (nuovo), `settings.gradle` (una riga) | F6C.14 | G, D | Sol |
+| F6C.17 | **Le anteprime**: ogni file mostra il suo contenuto in miniatura come in File di iOS, e l'apertura parte da lì (Alessio, 23 novembre) | `engine-viewer/…/FluidViewerRegistry.kt` (le miniature), i file `*Thumbnail.kt` delle famiglie, `sample/…/viewer/` | F6C.15b | G | Opus (Claude secondary) |
+| F6C.18 | **Le pagine al dp sulla tavola D**: misure e forme pagina per pagina accanto alla tavola, in formato telefono (Alessio, 23 novembre) | `engine-ui/…/viewer/` (i preset), le pagine delle famiglie | F6C.15b | G | Sol xhigh |
 
 F6C.11–F6C.14 hanno perimetri disgiunti e partono insieme dopo F6C.8, tranne la riga di `settings.gradle`, che
 l'orchestratore unisce. F6C.9 può lavorare insieme a loro. F6C.16 parte dopo F6C.14. F6C.6, la sessione sul tablet, si fa dopo F6C.15 e F6C.16.

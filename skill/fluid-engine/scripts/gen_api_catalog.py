@@ -47,6 +47,10 @@ UI_FLUID_FILES = {
         "FluidFindInText",
         # il tasto diviso nella barra (F6B.11): azione e freccia in un vetro solo
         "FluidSplitButton",
+        # i gettoni nel campo della ricerca e il viaggio dalla pillola (F6B.8b)
+        "FluidSearchTokens",
+        # i bersagli da 48 dp attorno al disegno (F6B.8b): interni, senza dichiarazioni pubbliche
+        "FluidTargets",
     ],
     # righe, card, liste, testo ricco
     "contenuto": [

@@ -149,7 +149,7 @@ tab bar: non va sommato a `ContentInset`.
 
 La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la
 toolbar ha la precedenza. `query` e `onQueryChange` restano dell'app. Il campo è un vetro del piano con un'identità
-stabile: la lente da 46 dp si allunga nella capsula del campo, alta 40 dp (la riga del tocco è alta 48 dp), mentre i vicini
+stabile: la lente da 46 dp si allunga nella capsula del campo, alta 48 dp (F6B.8b; prima 40), mentre i vicini
 le fanno posto: in basso, e in alto con `expansion = AboveKeyboard`, raccogliendosi in «Altro»; **in alto, col campo che
 resta in cima (`StayAtTop`), rientrando nel campo** (F6B.6): le loro icone si sfocano subito, i vetri confluiscono in quello
 del campo, e alla chiusura rinascono da lui. Il contenuto sta al layout d'arrivo e il segnaposto, la X e gli ambiti entrano
@@ -202,7 +202,8 @@ Le parti stanno in `FluidComposerSlots`, in coda a `FluidSearchSpec` (`composer`
 
 ```kotlin
 FluidSearchSpec.message(text, { text = it }, onSend = invia, composer = FluidComposerSlots(
-  leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli, size = 40.dp) },  // il «+»
+  leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli,
+    size = FluidSearchFieldDefaults.ActionSize) },                                // il «+», da 44 dp come i comandi
   attachments = if (allegati.isEmpty()) null else { { Allegati(allegati) } },  // il vassoio, sopra il testo
   trailing = FluidSearchTrailing.voice(onVoice = detta, sending = invio.state),   // il tasto a destra a stati
   voiceLine = if (ascolta) { { RigaDellaVoce() } } else null,                      // al posto del testo, finché c'è
@@ -232,9 +233,33 @@ FluidSearchSpec.message(text, { text = it }, onSend = invia, composer = FluidCom
   scorrimento l'ultima riga è libera, ma una lista ferma a metà resta dov'era (come in UIKit).
 
 **Limiti.** Il tocco sulla parte del vetro che sborda dalla riga arriva perché nessun antenato ritaglia (c'è un gestore
-apposta): una barra dentro un contenitore che ritaglia lo perde. I comandi dentro il campo (il «+», il tasto a destra, la X,
-le frecce di «trova») sono da 40 dp e la X che cancella da 28: sotto i 48 dp degli altri tasti, da decidere con Alessio
-(F6B.13).
+apposta): una barra dentro un contenitore che ritaglia lo perde.
+
+### I comandi del campo e i bersagli (F6B.8b)
+
+**Scelta di Alessio del 23 novembre 2026, «tasti più grandi»**: i comandi dentro il campo (le frecce e la X di «trova», la X
+che chiude, il «+», la dettatura, «Invia», lo stop) sono da **44 dp** a vista (`FluidSearchFieldDefaults.ActionSize`; le
+icone da 26, il disco di «Invia» da 40 con la freccia da 22, a 4 dp dal bordo del vetro), «Cancella» da **36** col cerchio da 22, le pillole e i chip
+del vassoio dell'assistente alti **40**; il campo aperto è alto **48 dp** (prima 40) e il vassoio ha 4 dp prima della riga
+del testo. Ogni comando ha il **bersaglio da 48 × 48 dp**, tutto dentro il vetro: i bersagli in fila si spostano il meno
+possibile dal loro disegno e non si toccano (`fluidDisjointTargets`, la regola del tasto diviso di F6B.11: dove due si
+toccherebbero lo spazio si divide), il primo prende fino a 24 dp dal testo o dal contatore, l'ultimo esce dal vetro fino a
+metà dello spazio col vicino o al bordo. Il ritaglio del vetro del campo sta sul disegno e non su un livello, così il tocco
+arriva anche dove il bersaglio esce dal vetro. Restano com'erano a vista: la lente a riposo e i tasti della barra (46 dp di
+vetro, il bersaglio da 48), il titolo grande selettore (≈41 dp, il bersaglio arriva a 48) e la fascia del titolo agganciato
+(46, il bersaglio 48). Il composer di prima (`FluidComposer`) tiene le pillole da 30 a vista, col bersaglio da 48.
+
+### I gettoni (F6B.8b)
+
+`tokens`, `onTokensChange` e `filters` in coda a `FluidSearchSpec` (e a `FluidSearchSpec.search`) mettono i gettoni nel
+campo della barra e la fila dei gettoni suggeriti accanto al campo aperto: la pillola scelta vola nel campo e diventa
+gettone. La scheda è in [elementi-dinamici.md](elementi-dinamici.md), «I gettoni nel campo della ricerca».
+
+```kotlin
+FluidScreen(title = "Posta", search = FluidSearchSpec.search(query, { query = it }, prompt = "Cerca nella posta",
+  tokens = gettoni, onTokensChange = { gettoni = it },
+  filters = FluidFilterPresets.tokens(persone.map { FluidFilterValue(it.id, it.nome) }))) { … }
+```
 
 ### `FluidSearchField`, il campo nella pagina
 
@@ -251,13 +276,13 @@ FluidSearchField(query = q, onQueryChange = { q = it; current = 0 }, backdrop = 
     onNext = { if (total > 0) current = (current + 1) % total }))
 ```
 
-- Con `onExpandedChange` è richiudibile: la lente da 46 dp si apre in un campo alto 40, sul piano, con la cattura tenuta;
+- Con `onExpandedChange` è richiudibile: la lente da 46 dp si apre in un campo alto 48 (F6B.8b; prima 40), sul piano, con la cattura tenuta;
   segnaposto e chiusura entrano sfocati. Il campo sempre aperto è alto 52 dp. Il modificatore del chiamante decide il
   lato da cui cresce.
 - `autoFocus` prende il fuoco all'apertura; il fuoco si toglie solo quando il campo si chiude. «Cerca» sulla tastiera
   chiama `onSearch`; senza, nasconde la tastiera e lascia il testo.
 - Il contatore: niente a query vuota, «3/12» entro i limiti, «Nessun risultato» con le frecce spente; TalkBack «3 di
-  12». Comandi interni da 40 dp. Lo stesso contatore sta nel preset `findInPage` della barra e nel preset `findInText`
+  12». Comandi interni da 44 dp (F6B.8b; prima 40), «Cancella» da 36. Lo stesso contatore sta nel preset `findInPage` della barra e nel preset `findInText`
   della barra sopra la tastiera.
 - Di serie il fondale è il canvas della pagina, se c'è; altrimenti la chrome.
 - Nello slot `searchBarContent` della tab bar prende misura, identità e materiale del tondo:
@@ -565,7 +590,7 @@ Codice nuovo usa `FluidFloatingTabBar` con la sua connessione.
 | scheda prominente | tondo 1,00 H, varco 0,115 H; gruppo di tre 5,23 H su una tela larga |
 | `FluidFloatingCapsuleDefaults` | `Height` 62, `ActionSize` 48, `Spacing` 4, `ContentPadding` 6 e 7, `MaxWidth` 560 |
 | ricerca dichiarata | lente 46, campo 40 (riga del tocco 48), velo 40% nero o 16% bianco secondo l'inchiostro |
-| `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `ActionSize` 40, `ExpandedFallbackWidth` 320 |
+| `FluidSearchFieldDefaults` | `Height` 52, `IconSize` 22, `ActionSize` 44 (F6B.8b; prima 40), `ExpandedFallbackWidth` 320 |
 | navigazione adattiva | soglie 600 e 1000; tratte 400 + 500 ms all'apertura, 430 + 400 al ritorno; margine della colonna 12; riflesso 12; velo della colonna 12% |
 | `FluidTabBarDefaults` (rail e barra storica) | `Height` 64, `RailWidth` 84, `RailIconSize` 28, `RailHeaderSpacing` 8, `ContentInset` 80 |
 

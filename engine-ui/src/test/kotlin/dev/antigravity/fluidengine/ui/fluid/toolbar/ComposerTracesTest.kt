@@ -1,6 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid.toolbar
 
-import dev.antigravity.fluidengine.ui.fluid.FluidTextFieldDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchFieldDefaults
 import dev.antigravity.fluidengine.ui.glass.field.trace.GlassTrace
 import dev.antigravity.fluidengine.ui.glass.field.trace.GlassTraceOutput
 import kotlin.math.abs
@@ -19,14 +19,15 @@ internal class ComposerTracesTest {
   private fun GlassTrace.layers(ms: Double, element: String = "contenuto"): List<Map<String, Any?>> =
     frames.minBy { abs(it.tMs - ms) }.elements.first { it["name"] == element }["content"] as List<Map<String, Any?>>
 
-  private val row = FluidTextFieldDefaults.MinHeight.value
+  // F6B.8b: il campo aperto è alto 48 dp (scelta di Alessio del 23 novembre 2026, «tasti più grandi»); prima 40.
+  private val row = FluidSearchFieldDefaults.BarFieldHeight.value
 
   @Test fun theLinesTraceGrowsUpwardWithTheBottomStillAndScrollsPastTheLimit() {
     val trace = trace("composer-righe")
     val bottoms = trace.frames.map { frame -> (frame.elements.first { it["name"] == "misure" }["campoBasso"] as Number).toFloat() }
     // La tastiera è su: il bordo basso del vetro non si muove mai.
     assertTrue(bottoms.all { abs(it - bottoms.first()) < 0.01f })
-    // Una riga: 40 dp; con più righe i due margini da 8 e 23 dp per riga (bodyLarge), con la molla, fino a cinque.
+    // Una riga: 48 dp; con più righe i due margini da 8 e 23 dp per riga (bodyLarge), con la molla, fino a cinque.
     fun lines(n: Int) = 2 * 8f + 23f * n
     assertEquals(row, trace.measure(300.0, "campoAltezza"), 0.05f)
     assertEquals(lines(2), trace.measure(780.0, "campoAltezza"), 0.3f)
@@ -47,11 +48,11 @@ internal class ComposerTracesTest {
     val trace = trace("composer-allegati")
     val bottom = trace.measure(0.0, "campoBasso")
     for (ms in listOf(200.0, 600.0, 1200.0, 1700.0, 2200.0)) assertEquals(bottom, trace.measure(ms, "campoBasso"), 0.01f)
-    // Il vassoio: 6 dp di margine e la pillola da 30, sopra la riga.
-    assertEquals(row + 36f, trace.measure(450.0, "campoAltezza"), 0.3f)
-    assertEquals(row + 36f, trace.measure(1450.0, "campoAltezza"), 0.3f)
+    // Il vassoio: 6 dp di margine, la pillola da 40 e 4 dp prima della riga (F6B.8b; prima la pillola era da 30, senza spazio).
+    assertEquals(row + 50f, trace.measure(450.0, "campoAltezza"), 0.3f)
+    assertEquals(row + 50f, trace.measure(1450.0, "campoAltezza"), 0.3f)
     // Tolto l'ultimo, il contenuto esce sfocato e poi il vetro si richiude: a 100 ms è ancora aperto, alla fine chiuso.
-    assertEquals(row + 36f, trace.measure(1600.0, "campoAltezza"), 0.3f)
+    assertEquals(row + 50f, trace.measure(1600.0, "campoAltezza"), 0.3f)
     assertTrue(trace.layers(1600.0).any { (it["name"] as String).startsWith("vassoio") })
     assertEquals(row, trace.measure(2250.0, "campoAltezza"), 0.05f)
     assertTrue(trace.layers(2250.0).none { (it["name"] as String).startsWith("vassoio") })

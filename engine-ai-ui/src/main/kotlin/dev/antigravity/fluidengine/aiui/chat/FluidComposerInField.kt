@@ -51,6 +51,7 @@ import dev.antigravity.fluidengine.aiui.halo.sampleCycle
 import dev.antigravity.fluidengine.aiui.halo.wrap01
 import dev.antigravity.fluidengine.aiui.strings.FluidChatStrings
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchFieldDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidComposerHalo
 import dev.antigravity.fluidengine.ui.fluid.FluidComposerSlots
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
@@ -174,7 +175,7 @@ fun fluidAssistantField(
 }
 
 /** Il lato del «+» nel campo: quello dei comandi del campo (40 dp). */
-private val AssistantFieldLeadingSize: Dp = 40.dp
+private val AssistantFieldLeadingSize: Dp = FluidSearchFieldDefaults.ActionSize
 
 /** Lo spazio fra le pillole del vassoio: quello delle pillole del composer di prima. */
 private val AssistantFieldTrayGap: Dp = 6.dp

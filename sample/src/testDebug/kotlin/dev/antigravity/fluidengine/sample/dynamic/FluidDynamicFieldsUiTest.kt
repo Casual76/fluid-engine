@@ -56,12 +56,13 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * F6B.13 nell'albero vero: le scene nuove della galleria «Elementi dinamici» (il campo e «trova», il composer, le
- * pillole, la barra sopra la tastiera). Per ogni scena: si apre com'è nella galleria; i bersagli sono di almeno 48 × 48 dp
- * (con un'eccezione dichiarata, sotto); la semantica dice la cosa giusta; il gesto principale fa ciò che deve; e sul
- * telefono, a 360 e a 412 dp, **nessun bersaglio sta sopra un altro**, in alto (la barra) e in basso (il campo, le barre).
+ * pillole, la barra sopra la tastiera). Per ogni scena: si apre com'è nella galleria; i bersagli sono di almeno 48 × 48 dp;
+ * la semantica dice la cosa giusta; il gesto principale fa ciò che deve; e sul telefono, a 360 e a 412 dp, **nessun
+ * bersaglio sta sopra un altro**, in alto (la barra) e in basso (il campo, le barre).
  *
- * L'eccezione: le pillole del vassoio del composer (`FluidComposerPill`, engine-ai-ui) sono alte 30 dp, come nel composer
- * di prima. È un difetto dell'engine, non della scena: lo dice il rapporto di F6B.13.
+ * F6B.8b ha tolto le eccezioni di F6B.13: la lente a riposo, i comandi dentro il campo, «Cancella», le pillole e i chip
+ * del vassoio, il titolo grande selettore e la fascia del titolo agganciato hanno ora il bersaglio da 48 dp attorno al
+ * disegno di prima (vedi [knownSmall]). La scena `gettoni` ha il viaggio vero della pillola nel campo.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -189,40 +190,17 @@ class FluidDynamicFieldsUiTest {
   }
 
   /**
-   * I bersagli più piccoli di 48 dp che la prova non conta, ognuno col suo motivo. Sono dell'engine e non delle scene: li
-   * dice il rapporto di F6B.13, da decidere con Alessio.
-   * - «Torna all'inizio»: la fascia del titolo agganciato, larga quanto la barra e alta 46 dp (riporta in cima).
-   * - La lente della ricerca a riposo: 46 × 46 dp (F4B.2). I tasti della barra hanno un bersaglio da 48 dp attorno al vetro
-   *   da 46; la lente no.
-   * - I comandi dentro il campo: «Risultato precedente», «Risultato successivo», «Chiudi la ricerca» da 40 dp e «Cancella»
-   *   da 28 (F6B.6: «comandi interni da 40 dp»); nel composer il «+» e il tasto a destra (dettatura, «Invia», lo stop, la X
-   *   «Chiudi» a campo vuoto) da 40 dp (F6B.7: «il lato del «+» nel campo: quello dei comandi del campo»).
-   * - Le pillole e i chip del vassoio del composer (`FluidComposerPill`, `FluidComposerChip`, engine-ai-ui): 30 dp, come
-   *   nel composer di prima.
-   * - Il titolo grande che è un selettore: alto quanto la sua riga, ≈41 dp (scelta di F6B.11).
-   * - Gli editor: il bersaglio è il campo che li contiene, non la riga del testo.
+   * I bersagli più piccoli di 48 dp che la prova non conta, col motivo. Dopo F6B.8b ne resta uno solo:
+   * - gli editor: il bersaglio è il campo che li contiene (largo quanto il campo, alto 48 dp), non la riga del testo.
+   *
+   * Le eccezioni di F6B.13 non ci sono più: la lente a riposo (46 dp di vetro, 48 di bersaglio), i comandi dentro il campo
+   * (40 dp di disegno, 48 di bersaglio, disgiunti), «Cancella» (17 dp di cerchio), le pillole e i chip del vassoio
+   * dell'assistente (30 dp), il titolo grande selettore (≈41 dp) e la fascia del titolo agganciato (46 dp).
    */
-  private fun knownSmall(node: SemanticsNode): Boolean {
-    val label = node.label()
-    val config = node.config
-    return label == "Torna all'inizio" || label in SmallFieldControls || label in SearchLenses ||
-      label.startsWith("Togli") || label.contains("Pianta del") || label.contains("Modello ·") ||
-      (config.getOrNull(SemanticsProperties.Role) == Role.DropdownList && SemanticsProperties.Heading in config) ||
-      SemanticsActions.SetText in config
-  }
+  private fun knownSmall(node: SemanticsNode): Boolean = SemanticsActions.SetText in node.config
 
-  private val SmallFieldControls = setOf(
-    "Cancella", "Risultato precedente", "Risultato successivo", "Chiudi la ricerca",
-    "Aggiungi", "Aggiungi un allegato", "Dettatura", "Invia", "Interrompi", "Ferma", "Smetti di dettare", "Chiudi",
-  )
-
-  /** Un comando dentro il campo: un pulsante col suo nome, di almeno 40 dp (vedi [knownSmall]). */
-  private fun SemanticsNode.isFieldControl(what: String) {
-    val box = dp()
-    assertTrue("$what: ${box.width} × ${box.height} dp", box.width >= 39.5f && box.height >= 39.5f)
-    assertEquals(what, Role.Button, config.getOrNull(SemanticsProperties.Role))
-  }
-  private val SearchLenses = setOf("Cerca nella posta", "Cerca una fermata")
+  /** Un comando dentro il campo: un pulsante col suo nome e il bersaglio da 48 dp (F6B.8b). */
+  private fun SemanticsNode.isFieldControl(what: String) = isTarget(what)
 
   /** Il nodo sta in una fila che scorre di lato (la barra del testo ricco): fuori dallo schermo per costruzione. */
   private fun SemanticsNode.scrollsSideways(): Boolean {
@@ -280,10 +258,9 @@ class FluidDynamicFieldsUiTest {
       .first { SemanticsActions.OnClick in it.config && it.config.getOrNull(SemanticsProperties.Heading) != null }
     assertEquals(Role.DropdownList, title.config.getOrNull(SemanticsProperties.Role))
     node("Scrivi").isTarget("Scrivi")
-    // La lente a riposo: 46 dp (vedi [knownSmall]); pulsante, col suo nome.
+    // La lente a riposo: il vetro da 46 dp, il bersaglio da 48 (F6B.8b); pulsante, col suo nome.
     val lens = node("Cerca nella posta")
-    assertEquals(Role.Button, lens.config.getOrNull(SemanticsProperties.Role))
-    assertTrue("la lente è di almeno 46 dp", lens.dp().width >= 45.9f && lens.dp().height >= 45.9f)
+    lens.isTarget("la lente a riposo")
     assertTargets("campo, a riposo")
     tap(lens)
     assertTrue("il campo è aperto in alto", compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty())
@@ -381,16 +358,81 @@ class FluidDynamicFieldsUiTest {
     assertTargets("filtri, campo aperto")
   }
 
-  @Test fun `una pillola scelta diventa gettone nel campo e il suo posto si richiude`() {
+  /** Le pillole dei gettoni suggeriti: i pulsanti che dicono [name] e non sono scelti (i gettoni lo sono, o no). */
+  private fun pills(name: String): List<SemanticsNode> = compose.onAllNodesWithText(name).fetchSemanticsNodes()
+    .filter { SemanticsActions.OnClick in it.config && it.config.getOrNull(SemanticsProperties.Selected) == false &&
+      SemanticsProperties.ContentDescription !in it.config }
+
+  /** I gettoni nel campo: i pulsanti che dicono [name] come nome. */
+  private fun tokenNodes(name: String): List<SemanticsNode> = compose.onAllNodesWithContentDescription(name).fetchSemanticsNodes()
+    .filter { SemanticsActions.OnClick in it.config && it.config.getOrNull(SemanticsProperties.Selected) != null }
+
+  @Test fun `una pillola scelta vola nel campo e diventa gettone, e il gettone tolto torna pillola`() {
     open(DynamicScene.Tokens)
-    val luca = textNode("Luca")
-    luca.isTarget("Luca", role = null)
-    tap(luca)
-    assertTrue("la pillola non c'è più", compose.onAllNodesWithText("Luca").fetchSemanticsNodes()
-      .none { SemanticsActions.OnClick in it.config && it.config.getOrNull(SemanticsProperties.Selected) != null })
-    assertTrue("il gettone nel campo", reads("Luca"))
+    // Il campo a riposo, in basso: toccato si apre, e accanto ci sono le persone.
+    val field = targets("Cerca nella posta").first()
+    field.isTarget("il campo")
+    tap(field)
+    val luca = pills("Luca").single()
+    luca.isTarget("la pillola «Luca»")
+    val fieldTop = compose.onNode(hasSetTextAction()).fetchSemanticsNode().dp().top
+    assertTrue("la fila sta sopra il campo", luca.dp().bottom <= fieldTop)
+    val before = pills("Anna").single().dp()
+    // La pillola sparisce dalla fila nello stesso fotogramma in cui parte il suo volo; il gettone non si legge ancora.
+    val action = luca.config[SemanticsActions.OnClick].action
+    compose.runOnUiThread { action?.invoke() }
+    Snapshot.sendApplyNotifications()
+    advance(100)
+    assertTrue("a metà volo «Luca» non si legge, né pillola né gettone", pills("Luca").isEmpty() && tokenNodes("Luca").isEmpty())
+    advance(600)
+    // Arrivato: il gettone nel campo, la posta di Luca, la fila richiusa (Anna non si è mossa, Marta ha preso il posto).
+    val token = tokenNodes("Luca").single()
+    token.isTarget("il gettone «Luca»")
+    val editor = compose.onNode(hasSetTextAction()).fetchSemanticsNode().dp()
+    assertEquals("il gettone sta nella riga del campo", editor.center.y, token.dp().center.y, 4f)
+    assertTrue("prima del testo", token.dp().right <= editor.left + 1f)
     assertTrue("solo la posta di Luca", shows("Partita di giovedì") && !shows("Fattura di novembre"))
-    assertTargets("gettoni")
+    assertTrue("la pillola non c'è più", pills("Luca").isEmpty())
+    assertEquals("Anna resta al suo posto", before.left, pills("Anna").single().dp().left, 0.5f)
+    assertTrue("Marta ha preso il posto di Luca", pills("Marta").single().dp().left < before.right + 60f)
+    // «Cancella» a testo vuoto: il primo colpo sceglie il gettone, il secondo lo toglie, e torna pillola.
+    compose.onNode(hasSetTextAction()).performTextReplacement("")
+    Snapshot.sendApplyNotifications()
+    advance(200)
+    assertEquals("scelto dal primo cancella", true, tokenNodes("Luca").single().config.getOrNull(SemanticsProperties.Selected))
+    compose.onNode(hasSetTextAction()).performTextReplacement("")
+    Snapshot.sendApplyNotifications()
+    advance(100)
+    assertTrue("a metà ritorno «Luca» non si legge", pills("Luca").isEmpty() && tokenNodes("Luca").isEmpty())
+    advance(600)
+    assertTrue("di nuovo pillola", pills("Luca").size == 1)
+    assertTrue("di nuovo tutta la posta", shows("Fattura di novembre"))
+    // La pillola torna al suo posto dichiarato: fra Anna e Marta.
+    assertTrue("al suo posto", pills("Anna").single().dp().left < pills("Luca").single().dp().left &&
+      pills("Luca").single().dp().left < pills("Marta").single().dp().left)
+    // Il gettone toccato torna pillola anche lui.
+    tap(pills("Marta").single())
+    advance(300)
+    tap(tokenNodes("Marta").single())
+    advance(300)
+    assertTrue("toccato, torna pillola", pills("Marta").size == 1 && tokenNodes("Marta").isEmpty())
+    assertTargets("gettoni, campo aperto")
+  }
+
+  @Test fun `tre gettoni e il testo stanno nel campo del telefono`() {
+    open(DynamicScene.Tokens)
+    tap(targets("Cerca nella posta").first())
+    for (name in listOf("Anna", "Luca", "Marta")) {
+      tap(pills(name).single())
+      advance(300)
+    }
+    val editor = compose.onNode(hasSetTextAction()).fetchSemanticsNode().dp()
+    for (name in listOf("Anna", "Luca", "Marta")) {
+      val token = tokenNodes(name).single().dp()
+      assertTrue("«$name» nel campo: $token, testo $editor", token.left >= 0f && token.right <= editor.left + 1f)
+    }
+    assertTrue("il testo ha ancora almeno 56 dp: $editor", editor.width >= 56f)
+    assertTargets("tre gettoni")
   }
 
   // --- La barra sopra la tastiera ------------------------------------------------------------------------------------

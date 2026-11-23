@@ -2003,6 +2003,18 @@ internal fun FluidLargeTitle(
   val largeLayout = remember { arrayOfNulls<TextLayoutResult>(1) }
   val largeFontPx = with(LocalDensity.current) { if (style.fontSize.isSpecified) style.fontSize.toPx() else 0f }
   val selectorReserve = if (selector != null) fluidTitleSelectorReserve(style) else 0.dp
+  // F6B.8b: il titolo grande selettore è alto una riga (≈41 dp): il bersaglio arriva a 48 uscendo dalla scritta. Sopra ha
+  // metà dell'aria fra lui e la riga della barra (i cui tasti escono di 1 dp), sotto il resto.
+  val largeLine = with(LocalDensity.current) {
+    when {
+      style.lineHeight.isSpecified -> style.lineHeight.toDp()
+      style.fontSize.isSpecified -> (style.fontSize * 1.2f).toDp()
+      else -> FluidTargetMin
+    }
+  }
+  val titleNeed = (FluidTargetMin - largeLine).coerceAtLeast(0.dp)
+  val titleTop = minOf(titleNeed / 2, ((FluidScreenDefaults.TitleTopSpacing - 1.dp) / 2).coerceAtLeast(0.dp))
+  val titleTarget = FluidTargetOutset(top = titleTop, bottom = titleNeed - titleTop)
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -2022,7 +2034,7 @@ internal fun FluidLargeTitle(
         // Il titolo grande e' l'intestazione della pagina: TalkBack lo trova scorrendo per titoli.
         .semantics { heading() }
         // F6B.11: il bersaglio comprende lo spazio del disco, dopo la scritta.
-        .fluidTitleSelectorTarget(selector, FluidTitleSpot.Large, { largeLayout[0] }, largeFontPx)
+        .fluidTitleSelectorTarget(selector, FluidTitleSpot.Large, { largeLayout[0] }, largeFontPx, outset = titleTarget)
         .then(if (selector != null) Modifier.padding(end = selectorReserve) else Modifier)
         .graphicsLayer {
           morphState.followPageMotion()
@@ -2576,7 +2588,11 @@ internal fun FluidTopBarRow(
         .height(FluidScreenDefaults.ControlRowHeight)
         .then(
           if (onTapTitle != null) {
+            // F6B.8b: la fascia è alta 46 dp come i tasti della barra; il suo bersaglio arriva a 48 uscendo di 1 dp sopra e
+            // sotto, come quello dei tasti (la riga e il suo contenuto non si muovono).
             Modifier
+              .fluidTargetOutset(TopBarRowTarget)
+              .height(FluidScreenDefaults.ControlRowHeight + TopBarRowTarget.top + TopBarRowTarget.bottom)
               .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -2584,6 +2600,7 @@ internal fun FluidTopBarRow(
                 onClick = onTapTitle,
               )
               .semantics { contentDescription = scrollToTopLabel }
+              .fluidTargetInner(TopBarRowTarget)
           } else {
             Modifier
           },
@@ -2593,6 +2610,10 @@ internal fun FluidTopBarRow(
     )
   }
 }
+
+/** Il bersaglio della fascia del titolo agganciato (F6B.8b): 1 dp sopra e sotto la riga da 46, fino a 48. */
+private val TopBarRowTarget: FluidTargetOutset =
+  FluidTargetOutset(vertical = ((FluidTargetMin - FluidScreenDefaults.ControlRowHeight) / 2).coerceAtLeast(0.dp))
 
 /**
  * Quanto occupano i controlli di una barra, in px: il tasto indietro (o il margine) a inizio riga, le azioni

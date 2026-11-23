@@ -85,8 +85,28 @@ object FluidSearchFieldDefaults {
    */
   val IconInset: Dp = (Height - IconSize) / 2
 
-  /** Il lato dei comandi dentro il campo (precedente, successivo, chiudi): quattro in 332 dp non ci stanno a 48. */
-  val ActionSize: Dp = 40.dp
+  /**
+   * Il lato dei comandi dentro il campo (precedente, successivo, chiudi, il «+», la dettatura, «Invia», lo stop): 44 dp, col
+   * bersaglio da 48 attorno. **Scelta di Alessio del 23 novembre 2026** («tasti più grandi», F6B.8b): i comandi piccoli
+   * diventano più grandi anche a vista, non solo nell'area che si tocca. Prima era 40 dp.
+   */
+  val ActionSize: Dp = 44.dp
+
+  /**
+   * Il campo della barra aperto (F6B.8b): 48 dp, i comandi da 44 con 2 dp d'aria sopra e sotto e il bersaglio da 48 tutto
+   * dentro il vetro. Prima era 40 dp ([FluidTextFieldDefaults.MinHeight]); scelta di Alessio del 23 novembre 2026 («il campo
+   * cresce in altezza di quanto serve»). La lente a riposo resta da 46.
+   */
+  internal val BarFieldHeight: Dp = 48.dp
+
+  /** L'icona di un comando dentro il campo (F6B.8b): 26 dp nel posto da 44, cresciuta con lui (era 24 in 40). */
+  internal val CommandIconSize: Dp = 26.dp
+
+  /** Il posto di «Cancella» (F6B.8b): 36 dp, col cerchio da 22 (erano 28 e 17); il bersaglio arriva a 48. */
+  internal val ClearSize: Dp = 36.dp
+
+  /** Il cerchio di «Cancella» (F6B.8b): 22 dp. */
+  internal val ClearGlyph: Dp = 22.dp
 
   /** La larghezza di apertura quando il genitore non ne da' una (dentro uno scorrimento orizzontale). */
   val ExpandedFallbackWidth: Dp = 320.dp
@@ -105,6 +125,9 @@ object FluidSearchFieldDefaults {
  * @property findInPage (F6B.6) il segnaposto di serie di [FluidSearchSpec.findInPage].
  * @property dictate (F6B.7) il nome del microfono del composer ([FluidSearchTrailing.voice]).
  * @property stop (F6B.7) il nome dello stop del composer ([FluidSearchTrailing.stop]), se l'app non ne dà uno.
+ * @property tokenRemove (F6B.8b) l'azione del tocco su un gettone, per TalkBack: lo toglie e lo rimanda nella fila.
+ * @property tokenSelected (F6B.8b) lo stato del gettone scelto dal primo «cancella» a testo vuoto.
+ * @property tokensGathered (F6B.8b) cosa legge TalkBack sul gettone «+N» dei gettoni raccolti: riceve quanti sono.
  */
 @Immutable
 data class FluidSearchLabels(
@@ -122,6 +145,9 @@ data class FluidSearchLabels(
   val findInPage: String = "Trova nella pagina",
   val dictate: String = "Dettatura",
   val stop: String = "Interrompi",
+  val tokenRemove: String = "Togli",
+  val tokenSelected: String = "scelto: cancella di nuovo per toglierlo",
+  val tokensGathered: (count: Int) -> String = { "altri $it" },
 )
 
 /**
@@ -392,7 +418,7 @@ private fun SearchFieldSurface(
     FluidGlassContainer(modifier, animation = ToolbarSearchAnimation, propagateMinConstraints = true) {
       val plane = currentFluidGlassContainer(FluidCapsuleShape)
       val lens = FluidMetrics.GlassButtonLens
-      val field = FluidTextFieldDefaults.MinHeight
+      val field = FluidSearchFieldDefaults.BarFieldHeight
       val surface = if (plane != null) {
         Modifier.layout { measurable, constraints ->
           val row = measurable.measure(constraints)
@@ -494,17 +520,26 @@ internal fun SearchCounter(
  * `FluidTextField`, che lo tiene privato. Prende il dito come un tasto (cresce) e dice il suo nome.
  */
 @Composable
-internal fun SearchClearButton(label: String, onClick: () -> Unit) {
+internal fun SearchClearButton(
+  label: String,
+  // F6B.8b: il posto del cerchio (36 dp, scelta di Alessio del 23 novembre 2026; prima 28) e quanto il bersaglio ne esce.
+  cell: Dp = FluidSearchFieldDefaults.ClearSize,
+  outset: FluidTargetOutset? = null,
+  onClick: () -> Unit,
+) {
   val disc = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
   val glyph = MaterialTheme.colorScheme.surface
+  val out = outset?.takeUnless { it.isZero }
   Box(
     modifier = Modifier
-      .size(28.dp)
+      .fluidTargetOutset(out)
+      .size(cell + (out?.let { it.start + it.end } ?: 0.dp), cell + (out?.let { it.top + it.bottom } ?: 0.dp))
       .fluidPressable(onClick = onClick, role = Role.Button, feedback = FluidPressFeedback.Expand)
-      .semantics { contentDescription = label },
+      .semantics { contentDescription = label }
+      .fluidTargetInner(out),
     contentAlignment = Alignment.Center,
   ) {
-    Canvas(modifier = Modifier.size(17.dp)) {
+    Canvas(modifier = Modifier.size(FluidSearchFieldDefaults.ClearGlyph)) {
       val radius = size.minDimension / 2f
       drawCircle(color = disc, radius = radius)
       val arm = radius * 0.44f

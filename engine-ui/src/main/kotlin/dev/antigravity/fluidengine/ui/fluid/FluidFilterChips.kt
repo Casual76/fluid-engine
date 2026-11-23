@@ -171,7 +171,7 @@ data class FluidFilterSelection(
 
 /**
  * Una fila dichiarata: le pillole, il modo e il nome del tasto in cui si raccoglie. E' cio' che restituiscono i preset
- * ([FluidFilterPresets]) e cio' che `FluidSearchSpec` portera' con i gettoni (F6B.8, secondo giro).
+ * ([FluidFilterPresets]) e cio' che `FluidSearchSpec(filters = …)` porta come gettoni suggeriti (F6B.8b).
  *
  * @property label il nome del tasto della fila raccolta («Filtri»); null: quello di [FluidFilterLabels].
  */
@@ -922,8 +922,7 @@ private fun SuggestionRow(
 
 /**
  * I preset della fila e dei suggerimenti (F6B.8): **Ambiti** (esclusivi, in linea), **Filtri a scelta multipla**,
- * **Intervalli** (una pillola a piu' valori), **Recenti**, **Vicini e popolari**. Il preset **Gettoni** («da: persona»)
- * arriva col giro dopo F6B.7, con i gettoni dentro il campo.
+ * **Intervalli** (una pillola a piu' valori), **Gettoni** («da: persona», F6B.8b), **Recenti**, **Vicini e popolari**.
  */
 object FluidFilterPresets {
   /**
@@ -961,6 +960,20 @@ object FluidFilterPresets {
     label = label,
     values = days.map { FluidFilterValue(it.toString(), dayLabel(it)) } + listOfNotNull(other?.let { FluidFilterValue("altro", it) }),
   )
+
+  /**
+   * **Gettoni** («da: persona», F6B.8b): i gettoni suggeriti di una ricerca, per `FluidSearchSpec(filters = …)`. Ogni
+   * valore e' una pillola che, scelta, diventa gettone nel campo (SwiftUI `suggestedTokens`), con l'id e l'etichetta del
+   * valore; [icon] sta in testa alla pillola e al gettone (di serie nessuno: un nome corto e niente simbolo fanno stare tre
+   * gettoni e il testo nel campo di un telefono da 360 dp; [FluidIcons.Person] per la persona). [mode]
+   * [FluidFilterMode.Single]: un gettone solo di questa fila alla volta, che prende il posto dell'altro.
+   */
+  fun tokens(
+    values: List<FluidFilterValue>,
+    label: String? = null,
+    icon: ImageVector? = null,
+    mode: FluidFilterMode = FluidFilterMode.Multiple,
+  ): FluidFilterSet = FluidFilterSet(values.map { FluidFilter(it.id, it.label, icon = icon) }, mode, label)
 
   /** **Recenti**: una ricerca fatta prima, con la ✕ nella lista. */
   fun recent(id: String, title: String, subtitle: String? = null, relevance: Float = 0f): FluidSearchSuggestion =

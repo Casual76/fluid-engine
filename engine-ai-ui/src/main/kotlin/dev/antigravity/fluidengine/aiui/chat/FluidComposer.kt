@@ -47,6 +47,13 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -301,12 +308,13 @@ fun FluidComposer(
   val inputFocus = focusRequester ?: remember { FocusRequester() }
 
   Column(modifier) {
+    // F6B.8b: il composer di prima resta com'è, con le pillole da 30 dp (le nuove del campo sono da 40).
     pills?.let {
       FlowRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
-      ) { it() }
+      ) { CompositionLocalProvider(LocalComposerPillHeight provides ComposerPillHeightBefore) { it() } }
     }
     // La scatola esterna porta l'alone: le macchie stanno dietro al vetro e sbordano attorno, l'anello
     // sopra il bordo. Non clippa, e non deve: la luce vive fuori dalla capsula.
@@ -346,7 +354,7 @@ fun FluidComposer(
             Row(verticalAlignment = Alignment.CenterVertically) {
               leading?.invoke(this, controlBackdrop)
               if (leading != null) Spacer(Modifier.width(8.dp))
-              chips?.invoke(this)
+              CompositionLocalProvider(LocalComposerPillHeight provides ComposerPillHeightBefore) { chips?.invoke(this) }
               Spacer(Modifier.weight(1f))
               when (action) {
                 FluidComposerAction.StopListening -> FluidGlassRoundButton(FluidIcons.Filled.Stop, strings.voiceStop, controlBackdrop, tint = MaterialTheme.colorScheme.error, onClick = onStopListening)
@@ -442,20 +450,68 @@ fun FluidComposerField(
   )
 }
 
+/**
+ * L'altezza disegnata di un chip e di una pillola del vassoio (F6B.8b): 40 dp, **scelta di Alessio del 23 novembre 2026**
+ * («tasti più grandi»: le pillole e i chip del vassoio dell'assistente almeno 40 dp a vista, col bersaglio da 48). Il
+ * composer di prima ([FluidComposer]) resta com'era, a 30 dp: lo dice lui con [LocalComposerPillHeight].
+ */
+private val ComposerPillHeight = 40.dp
+
+/** L'altezza del composer di prima, che resta com'è (scelta di Alessio del 21 novembre 2026). */
+private val ComposerPillHeightBefore = 30.dp
+
+/** L'altezza disegnata dei chip e delle pillole qui sotto: 40 dp, 30 nel composer di prima. */
+internal val LocalComposerPillHeight = staticCompositionLocalOf { ComposerPillHeight }
+
+/** Il bersaglio minimo di un chip o di una pillola (F6B.8b): 48 dp, la regola di Android per il tocco. */
+private val ComposerPillTarget = 48.dp
+
+/**
+ * F6B.8b: il chip (o la pillola) disegnato alto [height] in un bersaglio alto [ComposerPillTarget]. Il genitore vede
+ * l'altezza disegnata; il nodo che segue (la pressione e la semantica) è alto quanto il bersaglio, centrato sul disegno.
+ */
+private fun Modifier.composerTarget(height: Dp): Modifier = layout { measurable, constraints ->
+  val drawn = height.roundToPx()
+  val target = maxOf(drawn, ComposerPillTarget.roundToPx())
+  val inner = measurable.measure(constraints.copy(minHeight = target, maxHeight = target))
+  layout(inner.width, drawn) { inner.placeRelative(0, -(target - drawn) / 2) }
+}
+
+/** Il contenuto alto [height], al centro del bersaglio di [composerTarget]. */
+private fun Modifier.composerTargetInner(height: Dp): Modifier = layout { measurable, constraints ->
+  val drawn = height.roundToPx()
+  val child = measurable.measure(constraints.copy(minHeight = drawn, maxHeight = drawn))
+  val outer = constraints.constrainHeight(maxOf(drawn, ComposerPillTarget.roundToPx()))
+  layout(child.width, outer) { child.placeRelative(0, (outer - drawn) / 2) }
+}
+
+/** La capsula del chip, alta [height] al centro del bersaglio. */
+private fun DrawScope.drawComposerPill(color: Color, height: Dp) {
+  val h = height.toPx().coerceAtMost(size.height)
+  drawRoundRect(color, topLeft = Offset(0f, (size.height - h) / 2f), size = Size(size.width, h), cornerRadius = CornerRadius(h / 2f))
+}
+
 /** Il chip del modello: una pillola bassa, che non ruba la riga al campo di testo. */
 @Composable
 fun FluidComposerChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+  val fill = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+  val height = LocalComposerPillHeight.current
+  val large = height > ComposerPillHeightBefore
   Row(
     modifier = modifier
-      .height(30.dp)
-      .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), FluidCapsuleShape)
+      // F6B.8b: il chip è alto 40 dp (30 nel composer di prima), il suo bersaglio arriva a 48 uscendo sopra e sotto.
+      .composerTarget(height)
+      .drawBehind { drawComposerPill(fill, height) }
       .fluidPressable(onClick = onClick, role = Role.Button, haptic = null)
-      .padding(start = 12.dp, end = 8.dp),
+      .composerTargetInner(height)
+      .padding(start = if (large) 14.dp else 12.dp, end = if (large) 10.dp else 8.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(label, style = if (large) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
     Spacer(Modifier.width(2.dp))
-    FluidIcon(FluidIcons.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+    FluidIcon(FluidIcons.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = Modifier.size(if (large) 18.dp else 16.dp))
   }
 }
 
@@ -476,22 +532,28 @@ fun FluidComposerPill(
 ) {
   val bg = if (accent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
   val fg = if (accent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+  val height = LocalComposerPillHeight.current
+  val large = height > ComposerPillHeightBefore
+  val glyph = if (large) 18.dp else 14.dp
   Row(
     modifier = modifier
-      .height(30.dp)
-      .background(bg, FluidCapsuleShape)
+      // F6B.8b: la pillola è alta 40 dp (30 nel composer di prima), il suo bersaglio arriva a 48 uscendo sopra e sotto.
+      .composerTarget(height)
+      .drawBehind { drawComposerPill(bg, height) }
       .fluidPressable(onClick = onClick, role = Role.Button, haptic = null)
-      .padding(start = 10.dp, end = 6.dp),
+      .composerTargetInner(height)
+      .padding(start = if (large) 12.dp else 10.dp, end = if (large) 10.dp else 6.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(14.dp))
+    Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(glyph))
     Spacer(Modifier.width(6.dp))
-    Text(label, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    Spacer(Modifier.width(4.dp))
+    Text(label, style = if (large) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+      color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Spacer(Modifier.width(if (large) 6.dp else 4.dp))
     if (removable) {
-      FluidIcon(FluidIcons.Close, contentDescription = removeDescription, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+      FluidIcon(FluidIcons.Close, contentDescription = removeDescription, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(glyph))
     } else if (trailingLink != null) {
-      Icon(trailingLink, contentDescription = null, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+      Icon(trailingLink, contentDescription = null, tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(glyph))
     }
   }
 }

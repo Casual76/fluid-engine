@@ -431,9 +431,12 @@ fun FluidCapsuleAction(
   } else {
     Modifier
   }
+  // F6B.8b: dentro il campo il bersaglio esce dal disegno fino a 48 dp (il posto resta quello di [size]).
+  val outset = LocalFluidTargetOutset.current?.takeUnless { it.isZero }
   Box(
     modifier = modifier
-      .size(width, size)
+      .fluidTargetOutset(outset)
+      .size(width + (outset?.let { it.start + it.end } ?: 0.dp), size + (outset?.let { it.top + it.bottom } ?: 0.dp))
       .alpha(if (enabled) 1f else CapsuleActionDisabledAlpha)
       // Prima di tutto il resto: la crescita si applica solo a cio' che sta dopo (regola della pressione).
       .fluidPressable(
@@ -456,6 +459,8 @@ fun FluidCapsuleAction(
           Modifier
         },
       )
+      // Il disegno al suo posto dentro il bersaglio (F6B.8b): quello di prima, al pixel.
+      .fluidTargetInner(outset)
       .then(
         // Il disco: dopo la pressione, cosi' cresce con l'icona, e dentro il bersaglio (3 dp d'aria).
         if (discAlpha > 0f && pending == null) {

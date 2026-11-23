@@ -1,5 +1,8 @@
 package dev.antigravity.fluidengine.ui.fluid.toolbar
 
+import dev.antigravity.fluidengine.ui.fluid.FluidTargetOutset
+import dev.antigravity.fluidengine.ui.fluid.fluidTargetInner
+import dev.antigravity.fluidengine.ui.fluid.fluidTargetOutset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.ColumnScope
@@ -286,15 +289,18 @@ internal fun Modifier.fluidTitleSelectorTarget(
   layout: () -> TextLayoutResult?,
   fontSizePx: Float,
   enabled: Boolean = true,
+  /** (F6B.8b) quanto il bersaglio esce dalla scritta per arrivare a 48 dp: il titolo grande è alto una riga, ≈41 dp. */
+  outset: FluidTargetOutset? = null,
 ): Modifier {
   if (state == null) return this
   val haptics = LocalFluidHaptics.current
   val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == LayoutDirection.Rtl
   val interaction = remember { MutableInteractionSource() }
   val hint = state.selector?.hint
+  val target = outset.takeIf { enabled }
   return this
-    // Il pannello nasce dal titolo intero, che finché il pannello è in scena non si disegna (la sorgente consumata).
-    .fluidTransitionSource(FluidTitleSourceId(spot), state.namespace, FluidCapsuleShape)
+    // F6B.8b: il bersaglio esce dalla scritta (la scritta e il suo posto non si muovono).
+    .fluidTargetOutset(target)
     .then(
       if (!enabled) Modifier else Modifier.clickable(
         interactionSource = interaction,
@@ -303,6 +309,10 @@ internal fun Modifier.fluidTitleSelectorTarget(
         onClickLabel = hint,
       ) { if (state.open(spot)) haptics.play(FluidHapticEvent.Open) },
     )
+    .fluidTargetInner(target)
+    // Il pannello nasce dal titolo intero, che finché il pannello è in scena non si disegna (la sorgente consumata): la
+    // scritta, non il suo bersaglio.
+    .fluidTransitionSource(FluidTitleSourceId(spot), state.namespace, FluidCapsuleShape)
 }
 
 /**

@@ -71,9 +71,13 @@ scure stanno nelle cartelle dei pacchetti.
 | `tasto-diviso-menu` | «Invia ▾»: il menu dal vetro intero (il «diviso-menu» del piano) | `FluidToolbarSplitTitleTraceTest` | `GLASS_F6B11_DIR` | `f6b-11/banco/tasto-diviso-menu/tasto-diviso-menu-collage.jpg` |
 | `titolo-selettore` | il titolo agganciato apre gli account (il «titolo-menu» del piano) | `FluidToolbarSplitTitleTraceTest` | `GLASS_F6B11_DIR` | `f6b-11/banco/titolo-selettore/titolo-selettore-collage.jpg` |
 | `titolo-pannello` | il titolo apre il pannello delle località, popover dal titolo (tablet) | `F6b13TitlePanelTraceTest` (nuovo) | `GLASS_F6B13_DIR`, e sempre `engine-ui/build/reports/f6b-13/tracce/` | `f6b-13/banco/titolo-pannello/titolo-pannello-collage.jpg` |
+| `pillola-gettone` | la pillola «Luca» vola nel campo e diventa gettone; il «cancella» a testo vuoto la sceglie e la toglie, e torna pillola (F6B.8b) | `F6b8bTokenTracesTest` (nuovo) | sempre, `engine-ui/build/reports/f6b-8b/tracce/` (anche `GLASS_TRACE_DIR`) | `f6b-8b/banco/pillola-gettone/pillola-gettone-collage-ogni-fotogramma.jpg` (la scura in `f6b-8b/banco/tracce/`) |
 
-**Manca `pillola-gettone`**: manca il comportamento nell'engine (la pillola che diventa gettone dentro il campo della
-ricerca, la seconda metà di F6B.8). Non c'è una traccia onesta da esportare.
+**F6B.8b, «tasti più grandi» (scelta di Alessio del 23 novembre 2026).** Il campo aperto è alto 48 dp (prima 40), i
+comandi dentro il campo 44 (prima 40), «Cancella» 36 col cerchio da 22, le pillole del vassoio 40 (prima 30). I
+costruttori di F6B.6 e F6B.7 (`SearchPresetTraces`, `ComposerTraces`) usano le misure nuove e i loro test sono verdi; le
+tracce `campo-messaggio`, `campo-alto-inghiotte`, `trova-sopra-tastiera` sono riesportate da F6B.8b, le quattro `composer-*`
+sono ancora quelle di F6B.13 (campo da 40): si rifanno con `GLASS_F6B7_DIR` (attenzione alla memoria per l'alone scuro).
 
 Le curve dei tasti sono `curve.csv` e non `trace.json`: i fotogrammi dei tasti con esito sono le riprese della finestra
 vera (PixelCopy dei `FluidActionButton`, `F6b3GlyphFramesTest` e `FluidActionFramesTest` nel modulo sample), e le curve

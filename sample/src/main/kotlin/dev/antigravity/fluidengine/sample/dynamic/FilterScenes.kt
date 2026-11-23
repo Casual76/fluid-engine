@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -21,8 +22,6 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSearchSuggestions
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidToken
-import dev.antigravity.fluidengine.ui.fluid.FluidTokenField
-import dev.antigravity.fluidengine.ui.fluid.FluidTokenFieldValue
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarPriority
 import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidToolbarTitleMode
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -36,10 +35,9 @@ import dev.antigravity.fluidengine.ui.theme.FluidListRow
 // - `filtri`: Transit, «Cerca una fermata». Sotto il campo la fila dei filtri (a scelta multipla, con la pillola
 //   «Periodo» a più valori) e i suggerimenti, coi recenti che si tolgono dalla ✕; nella pagina la fila delle linee, a
 //   scelta singola. A testo grande (o in una finestra stretta) le pillole che non ci stanno vanno in «Filtri · N».
-// - `gettoni`: Mail, «da: persona». Una pillola scelta (una persona) diventa gettone nel campo «Da» e il suo posto nella
-//   fila si richiude.
-//   Il campo è `FluidTokenField`: i gettoni dentro il campo della ricerca, col viaggio dalla pillola, non ci sono ancora
-//   nell'engine (la seconda metà di F6B.8).
+// - `gettoni`: Mail, «da: persona» (F6B.8b). Una pillola scelta (una persona) vola nel campo della ricerca e diventa
+//   gettone, e il suo posto nella fila si richiude; il gettone tolto torna pillola. Sono `tokens` e `filters` di
+//   `FluidSearchSpec`, col preset `FluidFilterPresets.tokens`.
 
 /** I tag dei test e delle riprese. */
 internal object FilterSceneTags {
@@ -147,7 +145,16 @@ internal fun FiltersScene(onBack: () -> Unit) {
   }
 }
 
-private val MailPeople = listOf("Anna", "Luca", "Marta", "Giorgio")
+/** Le persone della posta: i gettoni suggeriti del campo (il preset «Gettoni», «da: persona»). */
+internal val MailPeople = FluidFilterPresets.tokens(
+  listOf(
+    FluidFilterValue("anna", "Anna"),
+    FluidFilterValue("luca", "Luca"),
+    FluidFilterValue("marta", "Marta"),
+    FluidFilterValue("giorgio", "Giorgio"),
+  ),
+  label = "Da",
+)
 
 private val TokenMail = listOf(
   "Anna" to "Riunione di domani",
@@ -158,60 +165,53 @@ private val TokenMail = listOf(
   "Luca" to "Partita di giovedì",
 )
 
+/** I gettoni sopravvivono alla morte del processo come il testo del campo. */
+private val TokensSaver = listSaver<List<FluidToken>, String>(
+  save = { tokens -> tokens.flatMap { listOf(it.id, it.label) } },
+  restore = { saved -> saved.chunked(2).map { FluidToken(it[0], it[1]) } },
+)
+
 /**
- * Mail, «da: persona»: le persone sono pillole; quella scelta diventa un gettone nel campo «Da» e il suo posto nella
- * fila si richiude (la fila è `FluidFilterChips`, il campo `FluidTokenField`). Toccato il gettone, torna pillola.
+ * Mail, «da: persona» (F6B.8b): la ricerca a gettoni di SwiftUI (`searchable(text:tokens:suggestedTokens:)`) col solo
+ * engine. Aperto il campo, le persone sono pillole di vetro accanto a lui; quella scelta vola nel campo e diventa un
+ * gettone, e il suo posto nella fila si richiude. Il gettone toccato, o tolto col «cancella» a testo vuoto (il primo
+ * colpo lo sceglie), torna pillola. La posta mostra solo quella delle persone scelte, e delle parole scritte.
  */
 @Composable
 internal fun TokensScene(onBack: () -> Unit) {
-  var value by rememberSaveable(stateSaver = FluidTokenFieldValue.Saver) { mutableStateOf(FluidTokenFieldValue()) }
-  val chosen = value.tokens.map { it.label }.toSet()
-  val offered = MailPeople.filter { it !in chosen }
-  val shown = if (chosen.isEmpty()) TokenMail else TokenMail.filter { it.first in chosen }
+  var query by rememberSaveable { mutableStateOf("") }
+  var active by rememberSaveable { mutableStateOf(false) }
+  var tokens by rememberSaveable(stateSaver = TokensSaver) { mutableStateOf(emptyList<FluidToken>()) }
+  val chosen = tokens.map { it.label }.toSet()
+  val shown = TokenMail.filter { (from, subject) ->
+    (chosen.isEmpty() || from in chosen) &&
+      (query.isBlank() || subject.contains(query, ignoreCase = true) || from.contains(query, ignoreCase = true))
+  }
   FluidScreen(
-    title = "Cerca nella posta",
+    title = "Posta",
     onBack = onBack,
     toolbar = { title(FluidToolbarTitleMode.Inline) },
+    search = FluidSearchSpec.search(
+      query, { query = it }, prompt = "Cerca nella posta", active = active, onActiveChange = { active = it },
+      tokens = tokens, onTokensChange = { tokens = it }, filters = MailPeople,
+    ),
   ) {
-    item(key = "da") {
-      FluidTokenField(
-        value = value,
-        onValueChange = { value = it },
-        createToken = { text, tokens ->
-          val name = MailPeople.firstOrNull { it.startsWith(text.trim(), ignoreCase = true) } ?: text.trim()
-          if (name.isEmpty() || tokens.any { it.label == name }) null else FluidToken(name, name)
-        },
-        label = "Da",
-        placeholder = "Una persona",
-        onEditToken = { token -> value = value.copy(tokens = value.tokens - token) },
-      )
+    item(key = "posta-titolo") {
+      FluidSectionHeader(title = if (chosen.isEmpty()) "Tutta la posta" else "Da: ${chosen.joinToString()}")
     }
-    item(key = "persone-titolo") { FluidSectionHeader(title = "Persone") }
-    item(key = "persone") {
-      FluidFilterChips(
-        filters = offered.map { FluidFilter(it, it) },
-        selection = FluidFilterSelection.None,
-        onChange = { next ->
-          val name = next.selected.firstOrNull() ?: return@FluidFilterChips
-          value = value.copy(tokens = value.tokens + FluidToken(name, name))
-        },
-        mode = FluidFilterMode.Single,
-        label = "Persone",
-      )
-    }
-    item(key = "posta-titolo") { FluidSectionHeader(title = "Risultati") }
     item(key = "posta") {
       FluidListGroup(Modifier.testTag(FilterSceneTags.Mail)) {
         shown.forEachIndexed { index, (from, subject) ->
           if (index > 0) FluidListDivider()
           FluidListRow(title = from, subtitle = subject)
         }
+        if (shown.isEmpty()) FluidListRow(title = "Nessuna mail", subtitle = "Togli un gettone")
       }
     }
     item(key = "nota") {
       FluidSectionFootnote(
-        "La pillola scelta diventa gettone nel campo «Da» e il suo posto si richiude; il gettone toccato torna pillola. " +
-          "Il viaggio della pillola dentro il campo della ricerca non c'è ancora nell'engine.",
+        "Tocca il campo: accanto ci sono le persone. Quella scelta vola nel campo e diventa un gettone, e il suo posto " +
+          "nella fila si richiude. Il gettone toccato, o tolto col tasto cancella a testo vuoto, torna pillola.",
       )
     }
   }

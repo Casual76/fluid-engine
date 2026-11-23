@@ -28,6 +28,7 @@ import dev.antigravity.fluidengine.aiui.chat.fluidAssistantField
 import dev.antigravity.fluidengine.aiui.chat.fluidComposerAction
 import dev.antigravity.fluidengine.aiui.chat.rememberFluidComposerState
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleAction
+import dev.antigravity.fluidengine.ui.fluid.FluidSearchFieldDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidComposerSlots
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
@@ -118,7 +119,7 @@ internal fun MessageComposerScene(onBack: () -> Unit) {
     leading = {
       FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = {
         attachments += if (attachments.size % 2 == 0) "Foto ${attachments.size + 1}" else "Video ${attachments.size + 1}"
-      }, size = 40.dp)
+      }, size = FluidSearchFieldDefaults.ActionSize)
     },
     attachments = if (attachments.isEmpty()) null else {
       {

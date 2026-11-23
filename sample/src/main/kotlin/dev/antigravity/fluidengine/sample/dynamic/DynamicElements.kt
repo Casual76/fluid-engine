@@ -132,7 +132,7 @@ internal enum class DynamicScene(
   ),
   Tokens(
     "gettoni", DynamicElement.Filters, "«da: persona»",
-    "Mail · la pillola scelta diventa gettone nel campo «Da» (F6B.8)",
+    "Mail · la pillola scelta vola nel campo della ricerca e diventa gettone (F6B.8b)",
   ),
   KeyboardBar(
     "tastiera", DynamicElement.KeyboardBar, "«Scrivi» con una barra per campo",

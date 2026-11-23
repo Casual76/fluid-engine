@@ -211,6 +211,18 @@ data class FluidComposerSlots(
  *   stati, la riga della voce e l'alone ([FluidComposerSlots]). Null: niente. Un campo con più righe ([maxLines]) o con
  *   il composer **cresce** di riga in riga: il vetro sale dal bordo opposto alla tastiera, e il piano lo segue senza
  *   viaggio (`FluidGlassAnimation.None`, la scheda del piano flottante).
+ * @property tokens (F6B.8b) i gettoni dentro il campo, prima del testo: SwiftUI `searchable(text:tokens:)`. Posseduti
+ *   dall'app, come [query]: il campo non ne tiene una copia. Il testo scorre dopo di loro; se non ci stanno con un po' di
+ *   testo, i primi si raccolgono in un gettone «+N» (come il campo «A:» di Mail). Il campo di una riga li mostra; un campo
+ *   che cresce (il composer) no.
+ * @property onTokensChange (F6B.8b) i gettoni nuovi: una pillola di [filters] scelta (aggiunta in fondo), un gettone
+ *   toccato o tolto col tasto «cancella» a testo vuoto (il primo colpo lo sceglie, il secondo lo toglie, come in iOS).
+ *   Null: i gettoni si vedono ma non cambiano.
+ * @property filters (F6B.8b) i gettoni suggeriti, SwiftUI `suggestedTokens`: una fila di pillole di vetro accanto al campo
+ *   aperto (sopra il campo in basso, sotto quello in alto). La pillola scelta **diventa gettone** con un viaggio: il suo
+ *   vetro vola dentro il campo e diventa il gettone, e il suo posto nella fila si richiude; il gettone tolto rifà il
+ *   viaggio al contrario e torna pillola. Le pillole che sono già gettoni (stesso id) non stanno nella fila. In
+ *   [FluidFilterMode.Single] un gettone della fila prende il posto dell'altro. Il preset è [FluidFilterPresets.tokens].
  */
 @Immutable
 data class FluidSearchSpec(
@@ -233,9 +245,13 @@ data class FluidSearchSpec(
   val trailing: FluidSearchTrailing = FluidSearchTrailing.Clear,
   val showsAtRest: Boolean = true,
   val composer: FluidComposerSlots? = null,
+  val tokens: List<FluidToken> = emptyList(),
+  val onTokensChange: ((List<FluidToken>) -> Unit)? = null,
+  val filters: FluidFilterSet? = null,
 ) {
   init {
     require(maxLines >= 1) { "maxLines deve essere almeno 1: $maxLines" }
+    require(tokens.map { it.id }.toSet().size == tokens.size) { "FluidSearchSpec: gli id dei gettoni devono essere unici" }
   }
 
   /**
@@ -248,6 +264,10 @@ data class FluidSearchSpec(
     /**
      * La ricerca di sempre: la lente, «Cerca», il cerchio che svuota; l'invio chiama [onSearch] e **chiude**,
      * lasciando la parola nel campo a riposo. Una riga.
+     *
+     * Con [tokens] e [filters] (F6B.8b) è la ricerca a gettoni di SwiftUI (`searchable(text:tokens:suggestedTokens:)`):
+     * le pillole di [filters] stanno accanto al campo aperto e, scelte, diventano gettoni nel campo; [onTokensChange]
+     * riceve i gettoni nuovi. Il preset dei gettoni suggeriti è [FluidFilterPresets.tokens] («da: persona»).
      */
     fun search(
       query: String,
@@ -261,11 +281,15 @@ data class FluidSearchSpec(
       scopes: (@Composable () -> Unit)? = null,
       active: Boolean = false,
       onActiveChange: ((Boolean) -> Unit)? = null,
+      tokens: List<FluidToken> = emptyList(),
+      onTokensChange: ((List<FluidToken>) -> Unit)? = null,
+      filters: FluidFilterSet? = null,
     ): FluidSearchSpec = FluidSearchSpec(
       query = query, onQueryChange = onQueryChange, placement = placement, behavior = behavior, prompt = prompt,
       onSearch = onSearch, suggestions = suggestions, scopes = scopes, purpose = FluidSearchPurpose.Search,
       expansion = expansion, active = active, onActiveChange = onActiveChange,
       onSubmit = FluidSearchSubmit.Close, maxLines = 1, icon = FluidIcons.Search, trailing = FluidSearchTrailing.Clear,
+      tokens = tokens, onTokensChange = onTokensChange, filters = filters,
     )
 
     /**

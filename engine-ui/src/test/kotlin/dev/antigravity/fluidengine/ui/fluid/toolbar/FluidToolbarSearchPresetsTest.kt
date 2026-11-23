@@ -294,7 +294,7 @@ internal class FluidToolbarSearchPresetsTest {
     fun piece(key: String, x: Float, w: Float, h: Float) = GlassPlanePiece(key, Rect(x, 48f - h / 2, x + w, 48f + h / 2),
       FluidCornerRadii.all(h / 2), id = key)
     val field = piece("campo", pose.left, pose.width,
-      if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidTextFieldDefaults.MinHeight.value)
+      if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidSearchFieldDefaults.BarFieldHeight.value)
     val groups = pose.neighbours.groups.map { group -> piece(ids.getValue(group.id).toString(), group.leftDp, group.widthDp, row) }
     return GlassPlaneState(groups + field, FluidGlassContainerDefaults.Spacing.value, Rect(0f, 0f, 400f, 96f))
   }
@@ -710,7 +710,7 @@ internal object SearchPresetTraces {
     val row = metrics.buttonWidthDp
     val pieces = pose.neighbours.groups.map { groupPiece(it, ids.getValue(it.id), row) }.toMutableList()
     if (!pose.hidden) {
-      val h = if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidTextFieldDefaults.MinHeight.value
+      val h = if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidSearchFieldDefaults.BarFieldHeight.value
       val bounds = Rect(pose.left * d, (row - h) / 2 * d, (pose.left + pose.width) * d, (row + h) / 2 * d)
       pieces += GlassPlanePiece(FieldKey, bounds, FluidCornerRadii.all(bounds.height / 2), id = FieldKey)
     }
@@ -844,12 +844,16 @@ internal object SearchPresetTraces {
       if (!word.isNullOrEmpty()) items += text(word, 46f, cy + 5.5f, color)
       val parts = toolbarSearchFieldParts(spec, w)
       val navigation = spec.navigation
-      var right = w - 40f
+      // F6B.8b: i comandi da 44 dp con le icone da 26, «Cancella» da 36 col cerchio da 22, «Invia» un disco da 44.
+      val a = FluidSearchFieldDefaults.ActionSize.value
+      val glyph = FluidSearchFieldDefaults.CommandIconSize.value
+      val inset = ToolbarSearchTrailingInset.value
+      var right = w - inset - a
       if (parts.navigation && navigation != null) {
         val arrows = if (navigation.total > 0) color else color + "61"
-        items += icon("keyboard_arrow_down", right - 20f, cy, arrows)
-        items += icon("keyboard_arrow_up", right - 60f, cy, arrows)
-        right -= 80f
+        items += icon("keyboard_arrow_down", right - a / 2f, cy, arrows, glyph)
+        items += icon("keyboard_arrow_up", right - 1.5f * a, cy, arrows, glyph)
+        right -= 2f * a
         val counter = fluidSearchCounter(spec.query, navigation.current, navigation.total, FluidSearchLabels().noResults)
         if (counter != null) {
           val counterWidth = counter.length * 6.6f + 8f
@@ -857,15 +861,17 @@ internal object SearchPresetTraces {
           right -= counterWidth
         }
       }
-      if (parts.clear) items += linkedMapOf("kind" to "rect", "x" to right - 20f - 8.5f, "y" to cy - 8.5f, "w" to 17f,
-        "h" to 17f, "radius" to "capsule", "color" to color + "47")
+      val clear = FluidSearchFieldDefaults.ClearSize.value
+      val circle = FluidSearchFieldDefaults.ClearGlyph.value
+      if (parts.clear) items += linkedMapOf("kind" to "rect", "x" to right - clear / 2f - circle / 2f, "y" to cy - circle / 2f,
+        "w" to circle, "h" to circle, "radius" to "capsule", "color" to color + "47")
       when (trailingFace) {
         ToolbarSearchTrailingFace.Send -> {
-          items += linkedMapOf<String, Any?>("kind" to "rect", "x" to w - 35f, "y" to cy - 15f, "w" to 30f, "h" to 30f,
-            "radius" to "capsule", "color" to accent(scene.dark))
-          items += icon("arrow_upward", w - 20f, cy, "#FFFFFF", 18f)
+          items += linkedMapOf<String, Any?>("kind" to "rect", "x" to w - inset - a / 2f - 20f, "y" to cy - 20f, "w" to 40f,
+            "h" to 40f, "radius" to "capsule", "color" to accent(scene.dark))
+          items += icon("arrow_upward", w - inset - a / 2f, cy, "#FFFFFF", 22f)
         }
-        ToolbarSearchTrailingFace.Close -> items += icon("close", w - 20f, cy, color)
+        ToolbarSearchTrailingFace.Close -> items += icon("close", w - inset - a / 2f, cy, color, glyph)
         null -> Unit
       }
       return items
@@ -875,7 +881,7 @@ internal object SearchPresetTraces {
       val pose = current.pose
       val spec = current.spec
       val flying = flight(frame, FieldKey)
-      val h = if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidTextFieldDefaults.MinHeight.value
+      val h = if (pose.compact) FluidMetrics.GlassButtonLens.value else FluidSearchFieldDefaults.BarFieldHeight.value
       val clip = flying ?: Rect(pose.left, (row - h) / 2f, pose.left + pose.width, (row + h) / 2f)
       val x = flying?.left ?: pose.left
       // «Trova» nasce senza un tasto da cui allungarsi: tutto il contenuto entra come chi nasce (R7 A6).

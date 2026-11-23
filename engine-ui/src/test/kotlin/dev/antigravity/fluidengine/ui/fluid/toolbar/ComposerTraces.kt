@@ -44,7 +44,9 @@ internal object ComposerTraces {
   private const val Line = 23f
   private const val Pad = 8f
   private const val TrayInset = 6f
-  private const val Pill = 30f
+  /** (F6B.8b) le pillole del vassoio da 40 dp e lo spazio di 4 fra il vassoio e la riga del testo. */
+  private const val Pill = 40f
+  private const val TrayGap = 4f
   private const val FieldKey = "campo"
   private const val FirstFrame = -3
   private const val Fps = F38aTraces.Fps
@@ -139,7 +141,7 @@ internal object ComposerTraces {
 
   private val Metrics = fluidBottomBarMetrics()
   private val RowHeight = Metrics.buttonWidthDp
-  private val FieldHeight = FluidTextFieldDefaults.MinHeight.value
+  private val FieldHeight = FluidSearchFieldDefaults.BarFieldHeight.value
   private val Pose: ToolbarSearchPose = ToolbarSearch(
     FluidSearchSpec.message("", {}, onSend = {}, active = true, onActiveChange = {}, composer = FluidComposerSlots()),
     FluidToolbarBar.Bottom, true,
@@ -166,7 +168,7 @@ internal object ComposerTraces {
   /** L'altezza in più che il contenuto di [step] chiede, in dp: la regola del layout del campo. */
   private fun target(scene: Scene, step: Step, withTray: Boolean): Float {
     val lines = if (step.voice != null) 1 else maxOf(1, step.lines.size)
-    val tray = if (withTray && step.tray.isNotEmpty()) px(TrayInset + Pill) else 0
+    val tray = if (withTray && step.tray.isNotEmpty()) px(TrayInset + Pill + TrayGap) else 0
     val content = fluidSearchFieldContentPx(lines, scene.maxLines, px(Line), px(FieldHeight), px(Pad), tray)
     return fluidSearchFieldExtraPx(content, px(FieldHeight), compact = false) / Density
   }
@@ -265,17 +267,19 @@ internal object ComposerTraces {
   /** Il tasto a destra con la faccia [face], centrato in ([cx], [cy]). */
   private fun faceItems(face: Face, cx: Float, cy: Float, dark: Boolean): List<Map<String, Any?>> {
     val color = ink(dark)
-    fun disc() = linkedMapOf<String, Any?>("kind" to "rect", "x" to cx - 15f, "y" to cy - 15f, "w" to 30f, "h" to 30f,
+    // F6B.8b: il disco di «Invia» da 40 dp nel posto da 44, la freccia è da 22; le icone da 26.
+    val glyph = FluidSearchFieldDefaults.CommandIconSize.value
+    fun disc() = linkedMapOf<String, Any?>("kind" to "rect", "x" to cx - 20f, "y" to cy - 20f, "w" to 40f, "h" to 40f,
       "radius" to "capsule", "color" to accent(dark))
     return when (face) {
-      Face.Voice -> listOf(icon("mic", cx, cy, color))
-      Face.Stop -> listOf(icon("stop.fill|stop", cx, cy, color))
-      Face.Send -> listOf(disc(), icon("arrow_upward", cx, cy, "#FFFFFF", 18f))
+      Face.Voice -> listOf(icon("mic", cx, cy, color, glyph))
+      Face.Stop -> listOf(icon("stop.fill|stop", cx, cy, color, glyph))
+      Face.Send -> listOf(disc(), icon("arrow_upward", cx, cy, "#FFFFFF", 22f))
       Face.Sending -> listOf(disc(),
         linkedMapOf("kind" to "shape", "x" to cx - 11f, "y" to cy - 11f, "w" to 22f, "h" to 22f, "radius" to 11f,
           "stroke" to 1.6f, "color" to "#FFFFFFE6"),
         icon("arrow_upward", cx, cy, "#FFFFFF", 12f))
-      Face.Sent -> listOf(disc(), icon("check", cx, cy, "#FFFFFF", 18f))
+      Face.Sent -> listOf(disc(), icon("check", cx, cy, "#FFFFFF", 22f))
     }
   }
 
@@ -475,8 +479,8 @@ internal object ComposerTraces {
       val layers = ArrayList<Map<String, Any?>?>()
       val cy = bottom - FieldHeight / 2f
       // Lo slot a sinistra, in fondo accanto all'ultima riga.
-      layers += layer("sinistra", listOf(icon(scene.leading, rect.left + 23f, cy, color)), rect,
-        box = Rect(rect.left, cy - 20f, rect.left + 46f, cy + 20f))
+      layers += layer("sinistra", listOf(icon(scene.leading, rect.left + 23f, cy, color, FluidSearchFieldDefaults.CommandIconSize.value)), rect,
+        box = Rect(rect.left, cy - 22f, rect.left + 46f, cy + 22f))
       // Le righe, ancorate al bordo basso: oltre `maxLines` si vedono le ultime (il cursore in fondo).
       val shown = step.lines.takeLast(scene.maxLines)
       val textX = rect.left + 46f
@@ -492,23 +496,24 @@ internal object ComposerTraces {
             text(words, textX + 22f, cy + 5.5f, color))
         } else lineItems
         layers += layer("${ink.key}-${ink.id}", items, rect, look.alpha, look.scale, blurDp(look.blur, GlassContentDefaults.BlurReference.value),
-          box = Rect(textX, rect.top, rect.right - 40f, rect.bottom))
+          box = Rect(textX, rect.top, rect.right - 44f, rect.bottom))
       }
       // Il vassoio, sopra il testo: esce sfocato quando l'app lo toglie.
       // Il vassoio (6 dp di margine sopra, la pillola da 30) sta sopra le righe: dal bordo basso, la riga e il testo in più.
-      val trayTop = bottom - FieldHeight - target(scene, step, withTray = false) - Pill
+      val trayTop = bottom - FieldHeight - target(scene, step, withTray = false) - TrayGap - Pill
       for (ink in tray.frame(t).layers) {
         if (ink.key == null) continue
         val look = ink.look
         val items = ArrayList<Map<String, Any?>>()
         var x = rect.left + TrayInset
         for (name in trayShown) {
-          val w = 24f + name.length * 7.2f + 18f
+          // F6B.8b: la pillola da 40 dp, col simbolo e la X da 18 e la scritta `labelLarge`.
+          val w = 12f + 18f + 6f + name.length * 7.8f + 6f + 18f + 10f
           items += linkedMapOf("kind" to "rect", "x" to x, "y" to trayTop, "w" to w, "h" to Pill, "radius" to "capsule",
             "color" to color + "17")
-          items += icon("image", x + 15f, trayTop + Pill / 2f, color, 14f)
-          items += text(name, x + 27f, trayTop + Pill / 2f + 4.5f, color, 13f)
-          items += icon("close", x + w - 12f, trayTop + Pill / 2f, color + "B3", 14f)
+          items += icon("image", x + 21f, trayTop + Pill / 2f, color, 18f)
+          items += text(name, x + 36f, trayTop + Pill / 2f + 5f, color, 14f)
+          items += icon("close", x + w - 19f, trayTop + Pill / 2f, color + "B3", 18f)
           x += w + 6f
         }
         layers += layer("vassoio-${ink.id}", items, rect, look.alpha, look.scale, blurDp(look.blur, GlassContentDefaults.BlurReference.value))
@@ -517,8 +522,9 @@ internal object ComposerTraces {
       for (ink in face.frame(t).layers) {
         val shownFace = ink.key as? Face ?: continue
         val look = ink.look
-        layers += layer("destra-${ink.id}", faceItems(shownFace, rect.right - 20f, cy, scene.dark), rect, look.alpha, look.scale,
-          blurDp(look.blur, GlassContentDefaults.BlurReference.value), box = Rect(rect.right - 40f, cy - 20f, rect.right, cy + 20f))
+        val inset = ToolbarSearchTrailingInset.value
+        layers += layer("destra-${ink.id}", faceItems(shownFace, rect.right - inset - 22f, cy, scene.dark), rect, look.alpha, look.scale,
+          blurDp(look.blur, GlassContentDefaults.BlurReference.value), box = Rect(rect.right - inset - 44f, cy - 22f, rect.right - inset, cy + 22f))
       }
       elements += linkedMapOf("kind" to "shape", "name" to "contenuto", "x" to 0, "y" to 0, "w" to Width, "h" to Height,
         "radius" to 0, "color" to "#00000000", "contentClip" to "none", "content" to layers.filterNotNull())

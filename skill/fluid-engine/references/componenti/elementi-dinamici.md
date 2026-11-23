@@ -341,10 +341,14 @@ I campi in coda a `FluidSearchSpec` (F6B.6), tutti con un valore di serie che ri
 (`FluidSearchTrailing`), `showsAtRest`.
 
 **Le scelte di Alessio.** Dove sta il campo lo decide **l'app, pagina per pagina** (`expansion = StayAtTop` o
-`AboveKeyboard`); i tasti inglobati si sfocano, rientrano nel campo e tornano alla chiusura (11 novembre).
+`AboveKeyboard`); i tasti inglobati si sfocano, rientrano nel campo e tornano alla chiusura (11 novembre). **«Tasti più
+grandi»** (23 novembre, F6B.8b): i comandi dentro il campo (le frecce, la X, il «+», la dettatura, «Invia», lo stop) sono da
+**44 dp** a vista (le icone da 26, il disco di «Invia» da 40 nel posto da 44), «Cancella» da **36** (il cerchio da 22), e il
+campo aperto è alto **48 dp** (prima 40): ogni comando ha il bersaglio da 48 dp, disgiunto dai vicini (dove si
+toccherebbero lo spazio si divide), tutto dentro il vetro. La lente a riposo e i tasti della barra restano da 46 col
+bersaglio da 48.
 
-**Cosa fa da solo l'engine.** Il viaggio della lente da 46 dp nel campo da 40 (la riga del tocco è 48), i vicini che
-rientrano e tornano, la salita sopra la tastiera, il segnaposto che lascia subito il posto al testo (mai due scritte nello
+**Cosa fa da solo l'engine.** Il viaggio della lente da 46 dp nel campo da 48, i vicini che rientrano e tornano, la salita sopra la tastiera, il segnaposto che lascia subito il posto al testo (mai due scritte nello
 stesso posto), l'invio che chiude o resta aperto, lo stato salvato.
 
 **Cosa resta all'app.** Il testo (`query`, `onQueryChange`), cosa fa l'invio, e l'apertura se la vuole tenere lei
@@ -416,7 +420,7 @@ val send = rememberFluidActionRunner(FluidActionPreset.Send)
 FluidScreen(title = "Anna", search = FluidSearchSpec.message(text, { text = it },
   onSend = { val t = text; text = ""; send.run { api.invia(t) } },
   composer = FluidComposerSlots(
-    leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli, size = 40.dp) },
+    leading = { FluidCapsuleAction(FluidIcons.Add, "Aggiungi un allegato", onClick = scegli, size = FluidSearchFieldDefaults.ActionSize) },
     attachments = if (allegati.isEmpty()) null else { { Allegati(allegati) } },
     trailing = if (detta) FluidSearchTrailing.stop(onStop = fermaDettatura)
       else FluidSearchTrailing.voice(onVoice = detta, sending = send.state),
@@ -483,15 +487,72 @@ dalla coda), il tasto «Filtri · N», il menu dal vetro, la pillola a più valo
 
 **Cosa resta all'app.** I filtri e cosa vogliono dire, la pertinenza dei suggerimenti, i recenti veri.
 
-**La pillola che diventa gettone: com'è oggi.** Il piano chiede che una pillola scelta diventi **gettone dentro il campo
-della ricerca**, e che il suo posto si richiuda. Nell'engine i gettoni stanno solo in `FluidTokenField`: dentro
-`FluidSearchSpec` e `FluidSearchField` **non ci sono ancora** (la seconda metà di F6B.8, non fatta), e quindi nemmeno il
-viaggio della pillola nel campo. La scena `gettoni` fa il caso di Mail con quello che c'è: la fila è `FluidFilterChips`,
-il campo «Da» è `FluidTokenField`; la pillola scelta diventa gettone e il suo posto si richiude, senza viaggio.
+**La pillola che diventa gettone** dentro il campo della ricerca è la sezione dopo, «I gettoni nel campo della ricerca»
+(F6B.8b).
 
 **In galleria**: `--es dynamic.scene filtri` (Transit: la fila sotto il campo, «Periodo», i recenti; le linee nella
-pagina; con `--es gallery.text 2.0` la fila diventa «Filtri · N») e `gettoni` (Mail, «da: persona»). Le scene sono in
-`sample/…/dynamic/FilterScenes.kt`.
+pagina; con `--es gallery.text 2.0` la fila diventa «Filtri · N»). La scena è in `sample/…/dynamic/FilterScenes.kt`.
+
+## I gettoni nel campo della ricerca
+
+**Cosa fa.** I **gettoni** stanno dentro il campo della ricerca, prima del testo, e il testo scorre dopo di loro: è
+`searchable(text:tokens:suggestedTokens:)` di SwiftUI. I **gettoni suggeriti** sono una fila di pillole di vetro accanto al
+campo aperto (sopra il campo in basso, sotto quello in alto). La pillola scelta **diventa gettone con un viaggio vero**: il
+suo vetro vola dentro il campo, si fa piccolo e diventa il gettone tinto d'accento, mentre il suo posto nella fila si
+richiude; il gettone tolto rifà il viaggio al contrario e torna pillola nel posto che la fila gli riapre (l'ordine dichiarato,
+non in fondo). In nessun fotogramma si leggono insieme la pillola e il gettone: sono un disegno solo che cambia forma, e la
+scritta è la stessa (cambia solo l'inchiostro).
+
+Un gettone si toglie **toccandolo**, o col tasto **«cancella» a testo vuoto** come in `UISearchTextField`: il primo colpo lo
+**sceglie** (si inverte, e TalkBack lo dice), il secondo lo toglie. Sul telefono a 360 dp tre nomi corti e il testo stanno
+nel campo vuoto; quando i gettoni non ci stanno con un po' di testo (64 dp), **i primi si raccolgono in «+N»** (come il campo
+«A:» di Mail) e l'ultimo arrivato resta in vista; TalkBack ha un'azione per toglierne ognuno. Un gettone che l'app aggiunge
+senza pillola (da un suggerimento, da sé) nasce sfocato al suo posto (R7), e uno tolto che non è nella fila esce sfocato.
+
+**Quando usarlo.** Una ricerca che restringe per categorie: «da: persona» in Mail, i tipi di Foto, le linee di Transit.
+Per filtri che non entrano nel campo (interruttori, periodi) restano le pillole di «Filtri e suggerimenti» sopra.
+
+**L'API.**
+
+```kotlin
+var gettoni by rememberSaveable(stateSaver = …) { mutableStateOf(emptyList<FluidToken>()) }
+val persone = FluidFilterPresets.tokens(listOf(FluidFilterValue("anna", "Anna"), FluidFilterValue("luca", "Luca")))
+FluidScreen(title = "Posta", search = FluidSearchSpec.search(query, { query = it }, prompt = "Cerca nella posta",
+  tokens = gettoni, onTokensChange = { gettoni = it }, filters = persone)) {
+  items(posta.filter { m -> gettoni.isEmpty() || gettoni.any { it.label == m.da } }) { … }
+}
+```
+
+I campi in coda a `FluidSearchSpec` (F6B.8b): `tokens` (i gettoni, dell'app come `query`), `onTokensChange` (i gettoni
+nuovi: una pillola scelta in fondo, un gettone tolto), `filters` (i gettoni suggeriti, un `FluidFilterSet`; in `Single` un
+gettone della fila prende il posto dell'altro). `FluidSearchSpec.search(…)` li prende per nome. Il preset **Gettoni** è
+`FluidFilterPresets.tokens(values, label, icon, mode)`: una pillola per valore, con l'id e l'etichetta del valore (di serie
+senza simbolo, perché tre gettoni stiano sul telefono). Il gettone è `FluidToken(id, label)`. Le parole per TalkBack sono in
+`FluidSearchLabels` (`tokenRemove`, `tokenSelected`, `tokensGathered`).
+
+**Le scelte.** Alessio non ha scelto niente per il viaggio (la riga «pillola → gettone» del piano è **a occhio**); le ho
+fatte io il 23 novembre seguendo Apple e il piano, e sono nel rapporto di F6B.8b:
+- il viaggio sta sulla curva del campo che si apre (334 ms, `CubicBezier(.38, 0, .35, 1)`, F4B.2): la pillola entra nel
+  campo nel tempo in cui il campo si apre;
+- il vetro svanisce fra il 35% e l'80% del viaggio mentre entra la tinta (al ritorno fra il 20% e il 65%): prima è tutto
+  vetro, dopo tutto gettone;
+- il gettone è la capsula d'accento alta 28 dp nel campo da 48 (il `tokenBackgroundColor` di iOS è la tinta del campo),
+  scelto si inverte; mai più stretto di 48 dp;
+- il «cancella» a testo vuoto sceglie e poi toglie (`UISearchTextField`), il tocco toglie subito;
+- a campo chiuso o col movimento ridotto il cambio è di colpo; i gettoni a riposo si vedono nel campo ma non si toccano.
+
+**Cosa fa da solo l'engine.** La fila che si richiude e si riapre, il viaggio (che insegue il campo se la tastiera lo
+sposta, e si inverte a metà), il gettone e il suo bersaglio da 48 dp, il «cancella» a testo vuoto (anche quello della
+tastiera, che a testo vuoto non manda niente: il campo tiene un carattere di guardia, come `FluidTokenField`), «+N», la
+nascita e l'uscita sfocate, i gettoni che escono col campo che si chiude.
+
+**Cosa resta all'app.** I gettoni (`tokens`, `onTokensChange`), che cosa vogliono dire per la ricerca, e i gettoni
+suggeriti. Il campo della pagina (`FluidSearchField`) e il campo sotto il titolo (`Principal`) non li hanno: stanno nel campo
+della barra, in alto e in basso.
+
+**In galleria**: `--es dynamic.scene gettoni` (Mail, «da: persona»: la ricerca in basso sul telefono, le persone sopra il
+campo). Il banco: la traccia `pillola-gettone` (e `-scuro`). La scena è in `sample/…/dynamic/FilterScenes.kt`.
+
 
 ## La barra sopra la tastiera
 

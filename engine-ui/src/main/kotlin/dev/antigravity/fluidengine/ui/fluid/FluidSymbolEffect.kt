@@ -20,11 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -171,6 +174,48 @@ internal object FluidSymbolProfile {
 
   /** La sostituzione (`.replace`): la curva R7 dello scambio d'icona del vetro, [GlassContentDefaults.DurationMs]. */
   val ReplaceMs: Float get() = GlassContentDefaults.DurationMs * GlassContentDefaults.EnterEnd
+}
+
+/**
+ * I numeri della Magic Replace (F8.5b), misurati su WWDC24 10188 «What's new in SF Symbols 6», 5:19–5:26: la campana
+ * diventa barrata, torna campana, prende il pallino e lo perde, a tempo vero (un fotogramma ogni 33,37 ms;
+ * `sessioni/f8-5b/riferimenti/misure.md`). Fiducia **alta** sui tempi, **media** sulle ampiezze dei rimbalzi.
+ */
+internal object FluidSymbolMagic {
+  /** La penna percorre la barra in **267 ms** (8 fotogrammi: dal primo segno a ore 10 alla punta in fondo). */
+  const val PenMs: Float = 8 * FluidSymbolProfile.FrameMs
+
+  /** La barra si ritira verso il suo inizio in **300 ms** (9 fotogrammi). */
+  const val RetractMs: Float = 9 * FluidSymbolProfile.FrameMs
+
+  /** Il pallino: il taglio nella base subito, il pallino dopo **100 ms**, in dissolvenza in **133 ms**. */
+  const val BadgeDelayMs: Float = 3 * FluidSymbolProfile.FrameMs
+  const val BadgeFadeMs: Float = 4 * FluidSymbolProfile.FrameMs
+
+  /**
+   * Il pallino rimbalza come il rimbalzo dei simboli, un po' piu' piccolo e svelto: +21 % a 233 ms dal taglio, −12 % a
+   * 467, fermo a 700 (misurati: area 8212 → 12101 → 7295 → 9353 px).
+   */
+  const val BadgeAmplitude: Float = 0.85f
+  const val BadgeSpeed: Float = 1.2f
+
+  /** Il pallino se ne va in dissolvenza in **167 ms** (5 fotogrammi), stringendosi appena. */
+  const val BadgeOutMs: Float = 5 * FluidSymbolProfile.FrameMs
+
+  /** La base rimbalza poco: ±4–5 % (la larghezza della campana 537 → 563 → 517 px), il 18 % del rimbalzo pieno. */
+  const val BaseAmplitude: Float = 0.18f
+
+  /** Tutto e' fermo in **700 ms** (21 fotogrammi: 0,63–0,73 s nei quattro casi). */
+  const val Ms: Float = 21 * FluidSymbolProfile.FrameMs
+
+  /**
+   * Un pezzo della base cambia in un lampo mentre la punta gli passa sopra: da mezza unita' prima del suo centro a mezza
+   * unita' dopo (a occhio, 24 novembre 2026: nei fotogrammi di Apple il taglio nella campana segue la punta).
+   */
+  const val PieceReach: Float = 0.5f
+
+  /** Con «Riduci movimento» i pezzi diversi si incrociano soltanto, senza penna ne' rimbalzi. */
+  const val ReducedMs: Float = 300f
 }
 
 /**
@@ -494,6 +539,9 @@ internal class FluidSymbolClock {
   var replaceStart = Idle
   var drawStart = Idle
 
+  /** La sostituzione in corso e' una Magic Replace (dura [FluidSymbolMagic.Ms]) e non quella sfocata. */
+  var replaceMagic = false
+
   /** Chiamata (dal fotogramma) quando la sostituzione è finita: chi esce può lasciare la composizione. */
   var onReplaceDone: (() -> Unit)? = null
 
@@ -527,7 +575,8 @@ internal class FluidSymbolClock {
       effectStart = Idle
       effectStop = Float.NaN
     }
-    if (replaceStart != Idle && !replaceStart.isNaN() && t - replaceStart >= FluidSymbolProfile.ReplaceMs) replaceStart = Idle
+    val replaceMs = if (replaceMagic) FluidSymbolMagic.Ms else FluidSymbolProfile.ReplaceMs
+    if (replaceStart != Idle && !replaceStart.isNaN() && t - replaceStart >= replaceMs) replaceStart = Idle
     if (drawStart != Idle && !drawStart.isNaN() && t - drawStart >= FluidSymbolProfile.DrawMs) drawStart = Idle
     return effectStart != Idle || replaceStart != Idle || drawStart != Idle
   }
@@ -581,12 +630,6 @@ internal class FluidSymbolClock {
   fun startDraw(scope: CoroutineScope) {
     drawStart = Pending
     drawVersion.intValue++
-    kick(scope)
-  }
-
-  /** La sostituzione: parte al prossimo fotogramma. */
-  fun startReplace(scope: CoroutineScope) {
-    replaceStart = Pending
     kick(scope)
   }
 
@@ -716,9 +759,13 @@ internal fun GraphicsLayerScope.applySymbolFrame(frame: FluidSymbolFrame) {
  * - **il colore variabile per strati** ([FluidSymbolEffect.VariableColor]): le tacche del Wi-Fi o le onde
  *   dell'altoparlante si accendono in fila (gli strati che cambiano sono i tratti dell'icona, dal più piccolo al più
  *   grande; il resto, come il corpo dell'altoparlante, resta acceso);
- * - **la sostituzione** (`.replace`): quando [icon] cambia, la vecchia esce e la nuova entra **sfocate**, con le curve di
- *   Apple misurate sullo scambio d'icona delle barre (R7, 300 ms): il tono di F8, «il contenuto che cambia identità entra
- *   sfocato»;
+ * - **la sostituzione** (`.replace`): quando [icon] cambia fra due icone **parenti** (la campana e la campana barrata,
+ *   la campana e quella che suona, il microfono e il microfono muto) e' la **Magic Replace** di SF Symbols 6: resta ferma
+ *   la parte comune, la barra si disegna con la penna e taglia la base mentre passa (o si ritira), il pallino compare con
+ *   un rimbalzo, la base rimbalza appena; 0,7 s, nitida. Fra icone che non hanno niente in comune (play e pausa) la
+ *   vecchia esce e la nuova entra **sfocate**, con le curve di Apple misurate sullo scambio d'icona delle barre (R7,
+ *   300 ms): il tono di F8, «il contenuto che cambia identità entra sfocato». Lo decide l'engine dai tracciati
+ *   (`SymbolMagicPlanner`), come Apple ricade sulla sostituzione semplice quando i simboli non sono parenti;
  * - **Draw On e Draw Off** (SF Symbols 7): [drawn] che passa a vero disegna l'icona con la penna, a falso la cancella. I
  *   tratti si percorrono da un capo all'altro, le sagome con un buco (un anello, la campanella) girando da ore 12, il
  *   resto compare al suo turno; 0,8 s. È fedele dove l'icona è fatta di tratti (la spunta, il Wi-Fi, le onde); una
@@ -757,9 +804,24 @@ fun FluidSymbol(
   holder.exitVersion.intValue
   var replaced = false
   if (icon != holder.shown) {
-    holder.previous = holder.shown
+    // Magic Replace dove i tracciati lo permettono (le due icone sono parenti), altrimenti la sostituzione sfocata.
+    val from = SymbolGeometryBuilder.of(holder.shown)
+    val to = SymbolGeometryBuilder.of(icon)
+    val plan = SymbolMagicPlanner.plan(from, to)
+    if (plan != null) {
+      holder.magic = SymbolMagicDrawing(from, plan, to)
+      holder.previous = null
+    } else {
+      holder.magic = null
+      holder.previous = holder.shown
+    }
     holder.shown = icon
     replaced = true
+    // La partenza si segna subito, non nel SideEffect: il livello dell'icona che entra puo' ricalcolarsi mentre la
+    // composizione si applica, prima del SideEffect, e con la sostituzione non ancora partita mostrerebbe per un
+    // fotogramma l'icona nuova nitida sopra la vecchia (visto nei fermi di F8.5b). Il campo non e' stato osservato.
+    clock.replaceMagic = holder.magic != null
+    clock.replaceStart = FluidSymbolClock.Pending
   }
   var redraw = false
   if (drawn != holder.drawOn) {
@@ -776,9 +838,10 @@ fun FluidSymbol(
   SideEffect {
     clock.onReplaceDone = {
       holder.previous = null
+      holder.magic = null
       holder.exitVersion.intValue++
     }
-    if (replaced) clock.startReplace(scope)
+    if (replaced) clock.kick(scope)
     if (redraw) clock.startDraw(scope)
     if (effect != null) {
       if (active || clock.indefinite) clock.setActive(effect, active, scope)
@@ -800,17 +863,20 @@ fun FluidSymbol(
   ) {
     if (exiting != null) {
       key(exiting) {
-        SymbolLayerContent(SymbolGeometryBuilder.of(exiting), exiting, tint, clock, SymbolRole.Exit, reduced, rtl, true)
+        SymbolLayerContent(SymbolGeometryBuilder.of(exiting), exiting, tint, clock, SymbolRole.Exit, reduced, rtl, true, null)
       }
     }
     SymbolLayerContent(geometry, icon, tint, clock, if (exiting != null) SymbolRole.Enter else SymbolRole.Rest,
-      reduced, rtl, holder.drawOn)
+      reduced, rtl, holder.drawOn, holder.magic)
   }
 }
 
 /** Ciò che il simbolo ricorda fra una composizione e l'altra, senza stato osservato (tranne [exitVersion]). */
 private class FluidSymbolHolder(var shown: ImageVector, var drawOn: Boolean, var trigger: Any?) {
   var previous: ImageVector? = null
+
+  /** La Magic Replace in corso, se le due icone sono parenti. */
+  var magic: SymbolMagicDrawing? = null
   val exitVersion = mutableIntStateOf(0)
 }
 
@@ -863,6 +929,7 @@ private fun BoxScope.SymbolLayerContent(
   reduced: Boolean,
   rtl: Boolean,
   drawOn: Boolean,
+  magic: SymbolMagicDrawing?,
 ) {
   val cache = remember(geometry) { SymbolDrawCache(geometry) }
   val mirror = icon.autoMirror && rtl
@@ -878,7 +945,15 @@ private fun BoxScope.SymbolLayerContent(
           clock.effectFrame(f, reduced, rtl, layered = true)
         }
         applySymbolFrame(f)
-        if (role != SymbolRole.Rest && clock.replaceStart != FluidSymbolClock.Idle) {
+        if (magic != null && clock.replaceStart != FluidSymbolClock.Idle && !reduced) {
+          // La Magic Replace: la base rimbalza appena, niente sfocatura (Apple la tiene nitida).
+          val start = clock.replaceStart
+          val t = if (start.isNaN()) 0f else clock.now.floatValue - start
+          val s = 1f + magic.plan.bounce * (FluidSymbolProfile.BounceScale.at(t) - 1f) * FluidSymbolMagic.BaseAmplitude
+          scaleX *= s
+          scaleY *= s
+          renderEffect = null
+        } else if (role != SymbolRole.Rest && clock.replaceStart != FluidSymbolClock.Idle) {
           val start = clock.replaceStart
           val u = if (start.isNaN()) 0f else (clock.now.floatValue - start) / GlassContentDefaults.DurationMs
           val content = if (role == SymbolRole.Exit) GlassContentRole.Exit else GlassContentRole.Enter
@@ -900,7 +975,13 @@ private fun BoxScope.SymbolLayerContent(
           renderEffect = null
         }
       }
-      .drawBehind { drawSymbol(geometry, cache, tint, clock, drawOn, mirror) },
+      .drawBehind {
+        if (magic != null && clock.replaceStart != FluidSymbolClock.Idle) {
+          drawSymbolMagic(magic, geometry, tint, clock, reduced, mirror)
+        } else {
+          drawSymbol(geometry, cache, tint, clock, drawOn, mirror)
+        }
+      },
   )
 }
 
@@ -1019,6 +1100,156 @@ private fun DrawScope.drawSymbolWindow(
       val k = if (from <= 0f) to else 1f - from
       withTransform({ scale(0.5f + 0.5f * k, 0.5f + 0.5f * k, pivot = Offset(layer.centerX, layer.centerY)) }) {
         drawPath(cache.paths[index], tint, alpha = alpha * k)
+      }
+    }
+  }
+}
+
+// --- La Magic Replace (F8.5b) ------------------------------------------------------------------------------------
+
+/**
+ * I tracciati esatti di una Magic Replace, fatti una volta al cambio d'icona: la parte comune, i pezzi nuovi e quelli
+ * che spariscono (operazioni sui tracciati, ogni pezzo ritagliato col suo contorno), e la regione dei pezzi di bande e
+ * pallini, fuori dalla quale i pezzi diversi si incrociano soltanto. Nel fotogramma si riusano due tracciati di
+ * ritaglio: nessuna allocazione.
+ */
+internal class SymbolMagicDrawing(from: SymbolGeometry, val plan: SymbolMagicPlan, to: SymbolGeometry) {
+  val common = Path()
+  val added = Path()
+  val removed = Path()
+  val special = Path()
+  val bandAdded: List<List<Path>>
+  val bandRemoved: List<List<Path>>
+  val badges: List<Path>
+  val clip = Path()
+  val cap = Path()
+
+  init {
+    val a = from.layers.flatMap { it.nodes }.toPath()
+    val b = to.layers.flatMap { it.nodes }.toPath()
+    common.op(a, b, PathOperation.Intersect)
+    added.op(b, a, PathOperation.Difference)
+    removed.op(a, b, PathOperation.Difference)
+    fun cut(source: Path, piece: SymbolPiece): Path {
+      val outline = Path()
+      outline.moveTo(piece.xs[0], piece.ys[0])
+      for (k in 1 until piece.xs.size) outline.lineTo(piece.xs[k], piece.ys[k])
+      outline.close()
+      special.addPath(outline)
+      return Path().apply { op(source, outline, PathOperation.Intersect) }
+    }
+    bandAdded = plan.bands.map { band -> band.added.map { cut(added, it) } }
+    bandRemoved = plan.bands.map { band -> band.removed.map { cut(removed, it) } }
+    badges = plan.badges.map { cut(if (it.appears) added else removed, it.piece) }
+  }
+}
+
+/** Il semipiano della [band] dietro la punta ([behind] vero: fino a [front]) o davanti, in [path]. */
+private fun symbolHalfPlane(path: Path, band: SymbolBand, front: Float, behind: Boolean) {
+  path.reset()
+  val far = 200f
+  val vx = -band.uy * far
+  val vy = band.ux * far
+  val from = if (behind) -far else front
+  val to = if (behind) front else far
+  val ax = band.startX + band.ux * from
+  val ay = band.startY + band.uy * from
+  val bx = band.startX + band.ux * to
+  val by = band.startY + band.uy * to
+  path.moveTo(ax + vx, ay + vy)
+  path.lineTo(bx + vx, by + vy)
+  path.lineTo(bx - vx, by - vy)
+  path.lineTo(ax - vx, ay - vy)
+  path.close()
+}
+
+/**
+ * Un fotogramma della Magic Replace: la parte comune ferma; lungo ogni banda la penna (o la ritirata) col suo capo tondo,
+ * e i pezzi della banda dell'altra icona (il taglio nella campana) si aprono o si chiudono quando la penna ci passa; i
+ * pallini con la dissolvenza e il rimbalzo; il resto (i bordi che cambiano fra due disegni simili, il taglio per il
+ * pallino) si incrocia.
+ */
+private fun DrawScope.drawSymbolMagic(
+  magic: SymbolMagicDrawing,
+  geometry: SymbolGeometry,
+  tint: Color,
+  clock: FluidSymbolClock,
+  reduced: Boolean,
+  mirror: Boolean,
+) {
+  val start = clock.replaceStart
+  val now = clock.now.floatValue
+  val t = if (start.isNaN()) 0f else now - start
+  val plan = magic.plan
+  val sx = size.width / geometry.viewportWidth
+  val sy = size.height / geometry.viewportHeight
+  val center = Offset(size.width / 2f, size.height / 2f)
+  withTransform({
+    if (mirror) scale(-1f, 1f, pivot = center)
+    scale(sx, sy, pivot = Offset.Zero)
+  }) {
+    drawPath(magic.common, tint)
+    if (reduced) {
+      // Niente penna e niente rimbalzi: i pezzi diversi si incrociano e basta.
+      val k = glassContentSmoothstep(0f, FluidSymbolMagic.ReducedMs, t)
+      drawPath(magic.added, tint, alpha = k)
+      drawPath(magic.removed, tint, alpha = 1f - k)
+      return@withTransform
+    }
+    // Il resto: fuori dai pezzi delle bande e dei pallini.
+    val k = glassContentSmoothstep(0f, plan.restMs, t)
+    clipPath(magic.special, ClipOp.Difference) {
+      drawPath(magic.added, tint, alpha = k)
+      drawPath(magic.removed, tint, alpha = 1f - k)
+    }
+    for (i in plan.bands.indices) {
+      val band = plan.bands[i]
+      val p = if (band.drawsOn) {
+        glassContentSmoothstep(0f, FluidSymbolMagic.PenMs, t)
+      } else {
+        1f - glassContentSmoothstep(0f, FluidSymbolMagic.RetractMs, t)
+      }
+      val front = p * band.length
+      // La penna lascia [material] dietro di se'; davanti c'e' ancora [other] (il taglio nella base, o la base intera).
+      val material = if (band.drawsOn) magic.bandAdded[i] else magic.bandRemoved[i]
+      val other = if (band.drawsOn) magic.bandRemoved[i] else magic.bandAdded[i]
+      val otherAt = if (band.drawsOn) band.removedAt else band.addedAt
+      if (p >= 1f) {
+        for (k2 in material.indices) drawPath(material[k2], tint)
+        continue
+      }
+      if (p > 0f) {
+        symbolHalfPlane(magic.clip, band, front, behind = true)
+        clipPath(magic.clip) { for (k2 in material.indices) drawPath(material[k2], tint) }
+        magic.cap.reset()
+        magic.cap.asAndroidPath().addCircle(band.startX + band.ux * front, band.startY + band.uy * front,
+          band.capRadius, android.graphics.Path.Direction.CW)
+        clipPath(magic.cap) { for (k2 in material.indices) drawPath(material[k2], tint) }
+      }
+      // I pezzi dell'altra icona cambiano interi, in un lampo, quando la punta passa sul loro centro: tagliati dal fronte
+      // lascerebbero schegge (il fianco della campana che Material toglie per intero).
+      for (k2 in other.indices) {
+        val alpha = 1f - glassContentSmoothstep(otherAt[k2] - FluidSymbolMagic.PieceReach,
+          otherAt[k2] + FluidSymbolMagic.PieceReach, front)
+        if (alpha > 0f) drawPath(other[k2], tint, alpha = alpha)
+      }
+    }
+    for (i in plan.badges.indices) {
+      val badge = plan.badges[i]
+      val path = magic.badges[i]
+      val pivot = Offset(badge.centerX, badge.centerY)
+      if (badge.appears) {
+        val d = FluidSymbolMagic.BadgeDelayMs
+        val alpha = glassContentSmoothstep(d, d + FluidSymbolMagic.BadgeFadeMs, t)
+        if (alpha > 0f) {
+          val bounce = FluidSymbolProfile.BounceScale.at((t - d) * FluidSymbolMagic.BadgeSpeed) - 1f
+          val s = 1f + bounce * FluidSymbolMagic.BadgeAmplitude
+          withTransform({ scale(s, s, pivot = pivot) }) { drawPath(path, tint, alpha = alpha) }
+        }
+      } else {
+        val q = glassContentSmoothstep(0f, FluidSymbolMagic.BadgeOutMs, t)
+        val s = 1f - 0.1f * q
+        withTransform({ scale(s, s, pivot = pivot) }) { drawPath(path, tint, alpha = 1f - q) }
       }
     }
   }

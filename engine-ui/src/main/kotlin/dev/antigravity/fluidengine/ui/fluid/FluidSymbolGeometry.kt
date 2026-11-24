@@ -383,3 +383,391 @@ internal fun symbolStrokeCap(stroke: SymbolStroke, f: Float, out: FloatArray) {
   out[1] = (ay + by) / 2f
   out[2] = min(sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by)) / 2f, stroke.capLimit)
 }
+
+// --- F8.5b · La Magic Replace: cosa resta, cosa si disegna, cosa compare ------------------------------------------
+//
+// La Magic Replace di SF Symbols 6 (iOS 18) passa fra due simboli «parenti» cambiando solo i pezzi diversi: la barra
+// della campana barrata si disegna con la penna e taglia la campana mentre passa, il pallino compare con un rimbalzo, il
+// resto sta fermo. Apple lo sa dalle annotazioni dei suoi simboli; qui lo si ricava dai tracciati, una volta per coppia:
+// - si confrontano le due icone su una griglia (le celle dentro l'una, dentro l'altra, dentro tutte e due);
+// - se la parte comune e' almeno [SymbolMagicPlanner.MinCommon] di ciascuna, le icone sono parenti: altrimenti resta la
+//   sostituzione sfocata (play e pausa non hanno niente in comune);
+// - le celle nuove e quelle che spariscono si dividono in **pezzi**; i pezzi lunghi e stretti (la barra, le onde della
+//   campana che suona) fanno una **banda**, che una penna percorre da un capo all'altro (o da cui si ritira), e ogni pezzo
+//   che sta lungo la banda (il taglio nella campana) segue la penna per intero; i pezzi raccolti (il pallino) compaiono
+//   o spariscono da soli; i bordi sottilissimi che cambiano fra due disegni simili si incrociano piano.
+// Pura (niente Android): i test la provano sulla JVM. I disegni usano le operazioni sui tracciati, esatte: ogni pezzo e'
+// il tracciato vero ritagliato col suo contorno ([SymbolPiece]).
+
+/** Il contorno di un pezzo (un poligono convesso un po' allargato, nel riquadro dell'icona). */
+internal class SymbolPiece(val xs: FloatArray, val ys: FloatArray)
+
+/** Una banda: l'asse da [startX], [startY] in direzione ([ux], [uy]) da 0 a [length], e i pezzi che la seguono. */
+internal class SymbolBand(
+  val startX: Float,
+  val startY: Float,
+  val ux: Float,
+  val uy: Float,
+  val length: Float,
+  /** Il raggio della punta tonda della penna (mezza larghezza tipica del tratto). */
+  val capRadius: Float,
+  /** Vero: la penna disegna i pezzi nuovi dall'inizio alla fine; falso: si ritira dai pezzi che spariscono verso l'inizio. */
+  val drawsOn: Boolean,
+  /** I pezzi della seconda icona (che compaiono) e della prima (che spariscono) lungo la banda. */
+  val added: List<SymbolPiece>,
+  val removed: List<SymbolPiece>,
+  /** Dove sta, lungo l'asse, il centro di ogni pezzo: un pezzo dell'altra icona cambia intero quando la penna ci passa. */
+  val addedAt: FloatArray,
+  val removedAt: FloatArray,
+)
+
+/** Un pallino: il centro, il suo pezzo, e se compare ([appears]) o sparisce. */
+internal class SymbolBadge(val centerX: Float, val centerY: Float, val piece: SymbolPiece, val appears: Boolean)
+
+/**
+ * Il piano di una Magic Replace fra due icone: le bande, i pallini e il rimbalzo della base ([bounce]: +1 su, -1 giu', 0
+ * niente), come li ha misurati F8.5b sui fotogrammi di Apple.
+ */
+internal class SymbolMagicPlan(
+  val bands: List<SymbolBand>,
+  val badges: List<SymbolBadge>,
+  val bounce: Int,
+) {
+  /** Quanto durano gli incroci dei pezzi che non stanno in una banda o in un pallino. */
+  val restMs: Float
+    get() = when {
+      bands.any { it.drawsOn } -> FluidSymbolMagic.PenMs
+      bands.isNotEmpty() -> FluidSymbolMagic.RetractMs
+      badges.any { it.appears } -> FluidSymbolMagic.BadgeDelayMs
+      else -> FluidSymbolMagic.BadgeOutMs
+    }
+}
+
+internal object SymbolMagicPlanner {
+  /** La griglia del confronto: 96 celle per lato, un quarto di unita' su un'icona da 24. */
+  const val Grid = 96
+
+  /** Le icone sono parenti se la parte comune e' almeno questa frazione di ciascuna (play e pausa: 0,58). */
+  const val MinCommon = 0.75f
+
+  /** Un cambio piu' piccolo di questa frazione della griglia non e' un cambio (due disegni identici). */
+  const val MinChange = 0.004f
+
+  /** Un pezzo con meno celle e' un bordo che cambia, non un pezzo. */
+  const val MinCells = 6
+
+  /** Allungamento (rapporto degli assi) da cui un pezzo e' una banda; per l'insieme dei pezzi, una barra sola. */
+  const val BandElongation = 3f
+  const val UnionElongation = 6f
+
+  /** Quanto lontano dall'asse (in unita' oltre la mezza larghezza) un pezzo segue ancora la banda. */
+  const val BandReach = 1.5f
+
+  private val cache = java.util.WeakHashMap<SymbolGeometry, java.util.WeakHashMap<SymbolGeometry, Any>>()
+  private val none = Any()
+
+  /** Il piano fra [from] e [to], o nulla se non sono parenti (resta la sostituzione sfocata). Una volta per coppia. */
+  fun plan(from: SymbolGeometry, to: SymbolGeometry): SymbolMagicPlan? = synchronized(cache) {
+    val row = cache.getOrPut(from) { java.util.WeakHashMap() }
+    val found = row.getOrPut(to) { build(from, to) ?: none }
+    found as? SymbolMagicPlan
+  }
+
+  fun build(from: SymbolGeometry, to: SymbolGeometry): SymbolMagicPlan? {
+    if (from.viewportWidth != to.viewportWidth || from.viewportHeight != to.viewportHeight) return null
+    val n = Grid
+    val a = symbolMask(from, n)
+    val b = symbolMask(to, n)
+    var countA = 0
+    var countB = 0
+    var common = 0
+    var changed = 0
+    for (i in 0 until n * n) {
+      if (a[i]) countA++
+      if (b[i]) countB++
+      if (a[i] && b[i]) common++
+      if (a[i] != b[i]) changed++
+    }
+    if (countA == 0 || countB == 0) return null
+    if (common < MinCommon * minOf(countA, countB)) return null
+    if (changed < MinChange * n * n) return null
+    val cell = from.viewportWidth / n
+    val addedParts = components(BooleanArray(n * n) { b[it] && !a[it] }, n).map { Part(it, appears = true) }
+    val removedParts = components(BooleanArray(n * n) { a[it] && !b[it] }, n).map { Part(it, appears = false) }
+    val bands = mutableListOf<MutableBand>()
+    val badges = mutableListOf<SymbolBadge>()
+    // Prima l'insieme piu' grande: la barra che compare taglia la campana, non il contrario.
+    val first = if (addedParts.sumOf { it.cells.size } >= removedParts.sumOf { it.cells.size }) addedParts else removedParts
+    val second = if (first === addedParts) removedParts else addedParts
+    for (parts in listOf(first, second)) {
+      val free = parts.filter { part -> part.owner == null && bands.none { it.reaches(part, cell) } }
+      if (free.isEmpty()) continue
+      val union = free.flatMap { it.cells }
+      if (free.size > 1 && axes(union)[4] >= UnionElongation) {
+        val band = MutableBand.of(union, free.first().appears)
+        free.forEach { band.take(it) }
+        bands += band
+      } else {
+        for (part in free) {
+          if (bands.any { it.reaches(part, cell) }) continue
+          if (axes(part.cells)[4] >= BandElongation) {
+            val band = MutableBand.of(part.cells, part.appears)
+            band.take(part)
+            bands += band
+          } else {
+            part.owner = Unit
+            val ax = axes(part.cells)
+            badges += SymbolBadge(ax[0] * cell, ax[1] * cell, hull(part.cells, cell), part.appears)
+          }
+        }
+      }
+    }
+    // Ogni pezzo che sta lungo una banda la segue per intero: il taglio nella campana si apre quando la penna ci passa.
+    for (part in addedParts + removedParts) {
+      if (part.owner != null) continue
+      bands.firstOrNull { it.reaches(part, cell) }?.take(part)
+    }
+    val on = bands.any { it.drawsOn }
+    val off = bands.any { !it.drawsOn }
+    val badgeOn = badges.any { it.appears }
+    val badgeOff = badges.any { !it.appears }
+    // Il rimbalzo della base, dai quattro casi di Apple: la barra che si disegna no; il pallino che arriva e la barra che
+    // si ritira su; il pallino che se ne va giu'.
+    val bounce = when {
+      badgeOff && !badgeOn && !on && !off -> -1
+      on && !off && !badgeOn && !badgeOff -> 0
+      else -> 1
+    }
+    return SymbolMagicPlan(bands.map { it.freeze(cell) }, badges, bounce)
+  }
+
+  /** Un pezzo di celle (x, y in celle), nuove ([appears]) o perse; [owner] non nullo quando qualcuno lo ha preso. */
+  private class Part(val cells: List<FloatArray>, val appears: Boolean) {
+    var owner: Any? = null
+  }
+
+  /** I pezzi: le celle collegate di [mask], ognuna col suo centro in celle. */
+  private fun components(mask: BooleanArray, n: Int): List<List<FloatArray>> {
+    val seen = BooleanArray(n * n)
+    val out = mutableListOf<List<FloatArray>>()
+    val stack = IntArray(n * n)
+    for (start in 0 until n * n) {
+      if (!mask[start] || seen[start]) continue
+      var top = 0
+      stack[top++] = start
+      seen[start] = true
+      val cells = mutableListOf<FloatArray>()
+      while (top > 0) {
+        val i = stack[--top]
+        val x = i % n
+        val y = i / n
+        cells += floatArrayOf(x + 0.5f, y + 0.5f)
+        if (x > 0 && mask[i - 1] && !seen[i - 1]) { seen[i - 1] = true; stack[top++] = i - 1 }
+        if (x < n - 1 && mask[i + 1] && !seen[i + 1]) { seen[i + 1] = true; stack[top++] = i + 1 }
+        if (y > 0 && mask[i - n] && !seen[i - n]) { seen[i - n] = true; stack[top++] = i - n }
+        if (y < n - 1 && mask[i + n] && !seen[i + n]) { seen[i + n] = true; stack[top++] = i + n }
+      }
+      if (cells.size >= MinCells) out += cells
+    }
+    return out
+  }
+
+  /** Centro, asse maggiore e allungamento (radice del rapporto degli autovalori) di un insieme di celle. */
+  internal fun axes(cells: List<FloatArray>): FloatArray {
+    var cx = 0.0
+    var cy = 0.0
+    for (c in cells) { cx += c[0]; cy += c[1] }
+    cx /= cells.size; cy /= cells.size
+    var sxx = 0.0
+    var syy = 0.0
+    var sxy = 0.0
+    for (c in cells) {
+      val dx = c[0] - cx
+      val dy = c[1] - cy
+      sxx += dx * dx; syy += dy * dy; sxy += dx * dy
+    }
+    sxx /= cells.size; syy /= cells.size; sxy /= cells.size
+    val tr = sxx + syy
+    val det = sxx * syy - sxy * sxy
+    val disc = sqrt(maxOf(0.0, tr * tr / 4 - det))
+    val l1 = tr / 2 + disc
+    val l2 = maxOf(tr / 2 - disc, 1e-6)
+    var ux = sxy
+    var uy = l1 - sxx
+    if (abs(ux) < 1e-9 && abs(uy) < 1e-9) { ux = 1.0; uy = 0.0 }
+    val norm = sqrt(ux * ux + uy * uy)
+    return floatArrayOf(cx.toFloat(), cy.toFloat(), (ux / norm).toFloat(), (uy / norm).toFloat(), sqrt(l1 / l2).toFloat())
+  }
+
+  /** Il contorno di un pezzo: l'inviluppo convesso delle celle, allargato di una cella, in unita' del riquadro. */
+  private fun hull(cells: List<FloatArray>, cell: Float): SymbolPiece {
+    // Gli angoli delle celle, non i centri: il tracciato vero arriva al bordo della cella.
+    val pts = ArrayList<FloatArray>(cells.size * 4)
+    for (c in cells) {
+      pts += floatArrayOf(c[0] - 0.5f, c[1] - 0.5f); pts += floatArrayOf(c[0] + 0.5f, c[1] - 0.5f)
+      pts += floatArrayOf(c[0] + 0.5f, c[1] + 0.5f); pts += floatArrayOf(c[0] - 0.5f, c[1] + 0.5f)
+    }
+    pts.sortWith(compareBy<FloatArray>({ it[0] }, { it[1] }))
+    fun cross(o: FloatArray, p: FloatArray, q: FloatArray) = (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0])
+    val lower = ArrayList<FloatArray>()
+    for (p in pts) {
+      while (lower.size >= 2 && cross(lower[lower.size - 2], lower[lower.size - 1], p) <= 0f) lower.removeAt(lower.size - 1)
+      lower += p
+    }
+    val upper = ArrayList<FloatArray>()
+    for (p in pts.asReversed()) {
+      while (upper.size >= 2 && cross(upper[upper.size - 2], upper[upper.size - 1], p) <= 0f) upper.removeAt(upper.size - 1)
+      upper += p
+    }
+    val ring = lower.dropLast(1) + upper.dropLast(1)
+    var cx = 0f
+    var cy = 0f
+    for (p in ring) { cx += p[0]; cy += p[1] }
+    cx /= ring.size; cy /= ring.size
+    val xs = FloatArray(ring.size)
+    val ys = FloatArray(ring.size)
+    for ((k, p) in ring.withIndex()) {
+      val d = hypot(p[0] - cx, p[1] - cy)
+      val grow = if (d > 0f) (d + 1f) / d else 1f
+      xs[k] = (cx + (p[0] - cx) * grow) * cell
+      ys[k] = (cy + (p[1] - cy) * grow) * cell
+    }
+    return SymbolPiece(xs, ys)
+  }
+
+  /** Una banda in costruzione, in celle. */
+  private class MutableBand(
+    val cx: Float,
+    val cy: Float,
+    val ux: Float,
+    val uy: Float,
+    var s0: Float,
+    var s1: Float,
+    var half: Float,
+    val cap: Float,
+    val drawsOn: Boolean,
+  ) {
+    val added = mutableListOf<Part>()
+    val removed = mutableListOf<Part>()
+
+    fun project(x: Float, y: Float): Float = (x - cx) * ux + (y - cy) * uy
+    fun across(x: Float, y: Float): Float = abs(-(x - cx) * uy + (y - cy) * ux)
+
+    /** Il pezzo sta lungo la banda: il suo centro e' vicino all'asse e dentro la lunghezza. */
+    fun reaches(part: Part, cellUnits: Float): Boolean {
+      var mx = 0f
+      var my = 0f
+      for (c in part.cells) { mx += c[0]; my += c[1] }
+      mx /= part.cells.size; my /= part.cells.size
+      val margin = BandReach / cellUnits
+      val s = project(mx, my)
+      return across(mx, my) <= half + margin && s >= s0 - margin && s <= s1 + margin
+    }
+
+    fun take(part: Part) {
+      part.owner = this
+      if (part.appears) added += part else removed += part
+      for (c in part.cells) {
+        val s = project(c[0], c[1])
+        s0 = minOf(s0, s - 0.5f)
+        s1 = maxOf(s1, s + 0.5f)
+      }
+    }
+
+    fun freeze(cell: Float): SymbolBand {
+      val sx = cx + ux * s0
+      val sy = cy + uy * s0
+      fun at(parts: List<Part>) = FloatArray(parts.size) { k ->
+        var mx = 0f
+        var my = 0f
+        for (c in parts[k].cells) { mx += c[0]; my += c[1] }
+        (project(mx / parts[k].cells.size, my / parts[k].cells.size) - s0) * cell
+      }
+      return SymbolBand(sx * cell, sy * cell, ux, uy, (s1 - s0) * cell, cap * cell, drawsOn,
+        added.map { hull(it.cells, cell) }, removed.map { hull(it.cells, cell) }, at(added), at(removed))
+    }
+
+    companion object {
+      fun of(cells: List<FloatArray>, drawsOn: Boolean): MutableBand {
+        val ax = axes(cells)
+        var ux = ax[2]
+        var uy = ax[3]
+        var s0 = Float.MAX_VALUE
+        var s1 = -Float.MAX_VALUE
+        var half = 0f
+        val across = FloatArray(cells.size)
+        for ((k, c) in cells.withIndex()) {
+          val s = (c[0] - ax[0]) * ux + (c[1] - ax[1]) * uy
+          val d = abs(-(c[0] - ax[0]) * uy + (c[1] - ax[1]) * ux)
+          s0 = minOf(s0, s - 0.5f); s1 = maxOf(s1, s + 0.5f); half = maxOf(half, d + 0.5f)
+          across[k] = d
+        }
+        // La penna parte dal capo che si legge per primo: a sinistra, poi in alto (la barra della campana di Apple, da ore
+        // 10); una banda piu' verticale che orizzontale parte dall'alto, cosi' le due onde della campana che suona
+        // scendono insieme.
+        val x0 = ax[0] + ux * s0
+        val y0 = ax[1] + uy * s0
+        val x1 = ax[0] + ux * s1
+        val y1 = ax[1] + uy * s1
+        val upright = abs(uy) > abs(ux) * 1.2f
+        val k0 = if (upright) y0 * 4f + x0 else x0 * 4f + y0
+        val k1 = if (upright) y1 * 4f + x1 else x1 * 4f + y1
+        if (k1 < k0) {
+          ux = -ux; uy = -uy
+          val t = s0; s0 = -s1; s1 = -t
+        }
+        across.sort()
+        // In un tratto pieno la distanza dall'asse e' uniforme fra 0 e la mezza larghezza: la mezza larghezza e' il doppio
+        // della mediana.
+        val cap = minOf(half, 2f * across[across.size / 2] + 0.5f)
+        return MutableBand(ax[0], ax[1], ux, uy, s0, s1, half, cap, drawsOn)
+      }
+    }
+  }
+}
+
+/** La maschera di un'icona intera (tutti gli strati, regola non-zero) su [n] × [n] celle del suo riquadro. */
+internal fun symbolMask(geometry: SymbolGeometry, n: Int): BooleanArray {
+  val mask = BooleanArray(n * n)
+  val cw = geometry.viewportWidth / n
+  val ch = geometry.viewportHeight / n
+  for (layer in geometry.layers) {
+    val minX = layer.outer.minX
+    val maxX = layer.outer.maxX
+    val minY = layer.outer.minY
+    val maxY = layer.outer.maxY
+    val gx0 = ((minX / cw).toInt() - 1).coerceAtLeast(0)
+    val gx1 = ((maxX / cw).toInt() + 1).coerceAtMost(n - 1)
+    val gy0 = ((minY / ch).toInt() - 1).coerceAtLeast(0)
+    val gy1 = ((maxY / ch).toInt() + 1).coerceAtMost(n - 1)
+    for (gy in gy0..gy1) for (gx in gx0..gx1) {
+      val i = gy * n + gx
+      if (mask[i]) continue
+      val x = (gx + 0.5f) * cw
+      val y = (gy + 0.5f) * ch
+      var w = 0
+      for (c in layer.contours) w += winding(c, x, y)
+      if (w != 0) mask[i] = true
+    }
+  }
+  return mask
+}
+
+/** Il numero di avvolgimento del contorno [c] attorno al punto ([x], [y]). */
+private fun winding(c: SymbolContour, x: Float, y: Float): Int {
+  var w = 0
+  val n = c.size
+  for (i in 0 until n) {
+    val x0 = c.xs[i]
+    val y0 = c.ys[i]
+    val x1 = c.xs[(i + 1) % n]
+    val y1 = c.ys[(i + 1) % n]
+    val side = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0)
+    if (y0 <= y) {
+      if (y1 > y && side > 0f) w++
+    } else if (y1 <= y && side < 0f) {
+      w--
+    }
+  }
+  return w
+}

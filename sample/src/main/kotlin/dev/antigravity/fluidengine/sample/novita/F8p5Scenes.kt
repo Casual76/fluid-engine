@@ -68,7 +68,10 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Favorite
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Home
 import dev.antigravity.fluidengine.ui.fluid.icons.Mic
+import dev.antigravity.fluidengine.ui.fluid.icons.MicOff
 import dev.antigravity.fluidengine.ui.fluid.icons.Notifications
+import dev.antigravity.fluidengine.ui.fluid.icons.NotificationsActive
+import dev.antigravity.fluidengine.ui.fluid.icons.NotificationsOff
 import dev.antigravity.fluidengine.ui.fluid.icons.Pause
 import dev.antigravity.fluidengine.ui.fluid.icons.Person
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
@@ -101,7 +104,7 @@ internal val F8p5Scenes: List<NewElementScene> = listOf(
   ) { onBack -> InstallCelebrationScene(onBack) },
   NewElementScene(
     "simboli-tavola", "Gli effetti, uno per uno",
-    "SF Symbols · rimbalzo, pulsazione, dondolio, rotazione, respiro, colore variabile, sostituzione, Draw On",
+    "SF Symbols · rimbalzo, pulsazione, dondolio, rotazione, respiro, colore variabile, sostituzione, Draw On, Magic Replace",
   ) { onBack -> SymbolTableScene(onBack) },
   NewElementScene(
     "simboli-app", "Gli effetti nelle app",
@@ -335,6 +338,10 @@ private val Cells = listOf(
   SymbolCell("riempire", "A riempire", FluidIcons.VolumeUp, FluidSymbolEffect.VariableColorCumulative),
   SymbolCell("sostituzione", "Sostituzione", FluidIcons.PlayArrow, null, alternate = FluidIcons.Pause),
   SymbolCell("disegno", "Draw On e Off", FluidIcons.Check, null, draw = true),
+  // F8.5b · la Magic Replace di SF Symbols 6: fra icone parenti cambiano solo i pezzi diversi.
+  SymbolCell("magia", "Magic Replace", FluidIcons.Notifications, null, alternate = FluidIcons.NotificationsOff),
+  SymbolCell("suona", "Campana che suona", FluidIcons.Notifications, null, alternate = FluidIcons.NotificationsActive),
+  SymbolCell("muto", "Microfono muto", FluidIcons.Mic, null, alternate = FluidIcons.MicOff),
 )
 
 @Composable
@@ -374,7 +381,7 @@ private fun SymbolTableCell(cell: SymbolCell, auto: Boolean, index: Int) {
   }
   LaunchedEffect(auto) {
     if (!auto) return@LaunchedEffect
-    // Uno dopo l'altro: ogni casella al suo turno, un giro ogni 9 × 1,4 s.
+    // Uno dopo l'altro: ogni casella al suo turno, un giro ogni 12 × 1,4 s.
     delay(400L + index * 1_400L)
     while (true) {
       fire()
@@ -420,6 +427,8 @@ private fun SymbolAppsScene(onBack: () -> Unit) {
   var listening by rememberSaveable { mutableStateOf(false) }
   var searching by rememberSaveable { mutableStateOf(false) }
   var playing by rememberSaveable { mutableStateOf(false) }
+  var muted by rememberSaveable { mutableStateOf(false) }
+  var silenced by rememberSaveable { mutableStateOf(false) }
   var saved by rememberSaveable { mutableStateOf(true) }
   LaunchedEffect(syncing) {
     if (syncing) {
@@ -470,6 +479,17 @@ private fun SymbolAppsScene(onBack: () -> Unit) {
       AppRow("Riproduci", "Fluidify · play diventa pausa, sfocata", if (playing) "Pausa" else "Play",
         onClick = { playing = !playing }) {
         FluidSymbol(if (playing) FluidIcons.Pause else FluidIcons.PlayArrow, if (playing) "Pausa" else "Riproduci")
+      }
+      FluidListDivider()
+      AppRow("Silenzia", "Mail · la Magic Replace: la barra si disegna sulla campana e la taglia", if (silenced) "Riattiva" else "Silenzia",
+        onClick = { silenced = !silenced }) {
+        FluidSymbol(if (silenced) FluidIcons.NotificationsOff else FluidIcons.Notifications,
+          if (silenced) "Notifiche silenziate" else "Notifiche attive")
+      }
+      FluidListDivider()
+      AppRow("Microfono", "PampAI · la Magic Replace del microfono muto", if (muted) "Riattiva" else "Muto",
+        onClick = { muted = !muted }) {
+        FluidSymbol(if (muted) FluidIcons.MicOff else FluidIcons.Mic, if (muted) "Microfono spento" else "Microfono acceso")
       }
       FluidListDivider()
       AppRow("Salvato", "Pampa Notes · la spunta si disegna (Draw On) e si cancella (Draw Off)",

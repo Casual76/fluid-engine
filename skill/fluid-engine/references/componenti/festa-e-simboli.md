@@ -23,7 +23,8 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
 | la sincronizzazione che gira finché lavora | `Modifier.fluidSymbolEffectWhile(FluidSymbolEffect.Rotate, active = sincronizza)` |
 | il microfono che respira mentre ascolta | `fluidSymbolEffectWhile(FluidSymbolEffect.Breathe, ascolta)` |
 | le tacche del Wi-Fi o le onde del volume in fila | `FluidSymbol(FluidIcons.Wifi, …, effect = FluidSymbolEffect.VariableColor, active = cerca)` |
-| play che diventa pausa (`.replace`) | `FluidSymbol(if (suona) FluidIcons.Pause else FluidIcons.PlayArrow, …)`: cambiare l'icona basta |
+| la campana che diventa barrata, il microfono muto (la Magic Replace) | `FluidSymbol(if (muto) FluidIcons.NotificationsOff else FluidIcons.Notifications, …)`: cambiare l'icona basta; fra icone parenti la barra si disegna da sola |
+| play che diventa pausa (`.replace`) | `FluidSymbol(if (suona) FluidIcons.Pause else FluidIcons.PlayArrow, …)`: icone non parenti, la sostituzione sfocata |
 | la spunta che si disegna (Draw On) e si cancella (Draw Off) | `FluidSymbol(FluidIcons.CheckCircle, …, drawn = salvato)` |
 | un effetto due volte, o più svelto | `FluidSymbolEffect.Bounce.repeat(2)`, `.speed(1.5f)` |
 
@@ -55,7 +56,8 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
 | `Rotate`, `RotateCounterClockwise` | `.rotate` | 1,9 s un giro | parte svelto e frena a lungo; attivo: rampa di 0,8 s e 180°/s (10188) |
 | `Breathe` | `.breathe` | 3,0 s | +23 % e schiarito al 65 %, salita e discesa di 1,35 s (10188) |
 | `VariableColor`, `VariableColorCumulative` | `.variableColor` | una tacca ogni 334 ms | spente al 24 %, accese in 290 ms; a uno a uno o a riempire (10197) |
-| sostituzione | `.replace` | 0,35 s | la vecchia esce e la nuova entra sfocate, curve R7 dello scambio d'icona |
+| Magic Replace | `.replace` fra simboli parenti (iOS 18) | 0,7 s | resta la parte comune; la barra si disegna in 267 ms e taglia la base (o si ritira in 300), il pallino arriva a 100 ms con un rimbalzo, la base rimbalza di ±4–5 %; nitida (WWDC24 10188) |
+| sostituzione | `.replace` fra simboli non parenti | 0,35 s | la vecchia esce e la nuova entra sfocate, curve R7 dello scambio d'icona |
 | Draw On / Draw Off | `.drawOn`, `.drawOff` (iOS 26) | 0,8 s | la penna percorre i tratti, per strato (WWDC25 337) |
 
 - **Due modi.** `fluidSymbolEffect(effetto, trigger)` suona una volta a ogni cambio di `trigger` (la prima composizione
@@ -64,6 +66,17 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
 - **Il modificatore o `FluidSymbol`.** Il modificatore lavora sul simbolo intero, nel livello del contenuto: scala,
   spostamento, rotazione, opacità. Funziona su qualunque icona o immagine, e il contenuto non ridisegna. `FluidSymbol`
   disegna l'icona da sé e sa i suoi **strati**: il colore variabile per tacche, la sostituzione e Draw On / Off.
+- **La sostituzione** (F8.5b) è la **Magic Replace** dove i tracciati lo permettono, come in iOS 18: le due icone si
+  confrontano su una griglia (`SymbolMagicPlanner`, una volta per coppia); se hanno almeno il 75 % in comune sono
+  parenti, e cambia solo ciò che è diverso. I pezzi nuovi o persi lunghi e stretti (la barra, le onde) diventano
+  **bande** che una penna percorre o da cui si ritira, e ciò che cambia lungo la banda (il taglio nella campana) segue la
+  penna; i pezzi raccolti (un pallino) compaiono o spariscono da soli. Si disegna coi tracciati esatti (le operazioni sui
+  tracciati), senza sfocare. Fra icone che non sono parenti (play e pausa) resta la sostituzione sfocata. Le icone
+  pensate per la Magic Replace: `FluidIcons.NotificationsOff`, `FluidIcons.MicOff` (e `NotificationsActive`,
+  `VisibilityOff`, `VolumeOff`, `CloudOff` che c'erano già).
+- **Nitido sotto il dito.** La regola di Alessio (24 novembre): ciò che muove il dito resta nitido, si sfoca solo ciò che
+  l'app muove da sola. Gli effetti dei simboli partono dall'app (un valore che cambia, uno stato): nessuno segue un gesto
+  e nessuno sfoca sotto il dito; la sola sfocatura è la sostituzione fra icone non parenti, che è un cambio di contenuto.
 - **Gli strati** si ricavano dal tracciato, una volta per icona (`FluidSymbolGeometry.kt`): un contorno con i suoi buchi
   è uno strato; uno strato sottile che si divide in due fianchi da un capo all'altro è un **tratto** (la spunta, gli archi
   del Wi-Fi, le onde dell'altoparlante). Il colore variabile accende i tratti dal più piccolo al più grande e lascia acceso

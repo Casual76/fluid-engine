@@ -185,3 +185,5 @@ filter_list                   # R6: il verbo «filtro» delle barre
 ## Le icone a strati per il colore variabile degli effetti dei simboli (F8.5)
 wifi                          # F8.5: le tacche del Wi-Fi in fila, il colore variabile di SF Symbols
 volume_up                     # F8.5: le onde dell'altoparlante, il colore variabile di SF Symbols
+notifications_off             # F8.5b: la campana barrata, la Magic Replace di SF Symbols 6
+mic_off                       # F8.5b: il microfono barrato, la Magic Replace di SF Symbols 6

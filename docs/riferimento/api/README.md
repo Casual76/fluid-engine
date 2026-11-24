@@ -20,7 +20,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Vetro](vetro.md) | 33 | 258 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
 | [Tema, forma, tipo](tema.md) | 9 | 123 |
-| [Icone (FluidIcons)](icone.md) | 5 | 206 |
+| [Icone (FluidIcons)](icone.md) | 5 | 208 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 13 | 155 |
 | [Aptica](aptica.md) | 4 | 70 |

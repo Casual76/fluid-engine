@@ -31,6 +31,7 @@ Uso:
   python tools/qa/perf-summary.py gfx <file.gfx>...            # il riassunto di gfxinfo, letto e ricalcolato
   python tools/qa/perf-summary.py corsa <cartella>... [--file primi-frame.gfx,azione.gfx] [--origine input1]
   python tools/qa/perf-summary.py prova                        # autoverifica su dati costruiti
+  python tools/qa/perf-summary.py fasi <cartella> --uscita <cartella>  # code F7.8, per corsa o sessione
 
 Solo libreria standard: gira col Python di sistema e con quello del banco.
 """
@@ -181,6 +182,8 @@ def parse_frames(text: str, flagged: bool = False) -> list[Frame]:
             row = dict(zip(header, map(int, values)))
         except ValueError:
             continue
+        if "IntendedVsync" not in row:
+            continue
         if row.get("Flags", 0) != 0 and not flagged:
             continue
         frames.append(
@@ -267,8 +270,8 @@ def read_markers(text: str, scenario: str | None = None) -> tuple[list[Journey],
             if kind != "PRONTO":
                 break
             continue
-        stamp = fields.get("t_ns")
-        if stamp is None or kind == "SONDA":
+        stamp = fields.get("t_ns", "")
+        if not stamp.isdecimal() or kind == "SONDA":
             continue
         # Un ciclo ha più tratti (apre, chiude): il viaggio è la coppia ciclo + fase.
         label = f"{fields.get('ciclo', len(journeys) + 1)}:{fields.get('fase', '')}"
@@ -861,10 +864,26 @@ def main(argv: list[str]) -> int:
     common(p_run)
 
     sub.add_parser("prova", help="autoverifica su dati costruiti")
+    phases = sub.add_parser("fasi", help="code di latenza e presentazioni per fase (F7.8)")
+    phases.add_argument("cartella", type=Path)
+    phases.add_argument("--uscita", type=Path, required=True)
+    phases.add_argument("--metadati", type=Path, help="JSON per corsa, in una cartella separata dagli archivi")
+    phases.add_argument("--trace-processor", type=Path, help="eseguibile Perfetto Trace Processor")
+    phases.add_argument("--traccia", type=Path, help="traccia alternativa per una singola corsa")
+    phases.add_argument("--scena", action="append", help="includi la scena (ripetibile)")
+    phases.add_argument("--file", default="", help="dump in ordine, separati da virgole")
+    phases.add_argument("--registro", default="log.txt", help="registro dei marker SCENARIO")
+    common(phases)
 
     args = parser.parse_args(argv)
     if args.cmd == "prova":
         self_test()
+        from perf_phase_test import self_test as phase_test
+        phase_test(sys.modules[__name__])
+        return 0
+    if args.cmd == "fasi":
+        from perf_phases import run
+        run(args, sys.modules[__name__])
         return 0
     if args.cmd == "gfx":
         writer = csv.writer(sys.stdout)

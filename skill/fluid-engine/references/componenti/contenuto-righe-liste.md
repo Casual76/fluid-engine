@@ -386,6 +386,98 @@ e l'altezza segue con una molla; fra due contenuti pronti non c'è passaggio.
 Il riprova automatico c'è solo con `online` **e** `onRetry`.
 Aspetto di iOS 27 delle azioni a scorrimento (`FluidSwipeStyle`, `LocalFluidSwipeStyle`, `asContextAction`) e separatore sotto il testo: 4.0.0 (F6.6).
 
+## Sezioni richiudibili, selezione trascinando, griglia di anteprime (F8.4)
+
+Tre pezzi nuovi delle liste, nella pagina «Elementi nuovi» della galleria (scene `sezioni`, `selezione-righe`,
+`griglia-foto`, `griglia-file`). File: `FluidDisclosureGroup.kt`, `FluidDragSelection.kt`, `FluidPreviewGrid.kt`.
+
+### Scegliere in fretta
+
+| ho bisogno di… | uso |
+|---|---|
+| un titolo che apre e chiude i dettagli (note di versione, dettagli di consegna, le note di un'assenza) | `FluidDisclosureGroup(title, summary = "3 allegati") { … }` |
+| ricordare quali sezioni erano aperte | lo stato è dell'app: `FluidDisclosureState(initiallyExpanded = …)` creato da ciò che ha salvato |
+| scegliere tante righe in un gesto (Mail) | `Modifier.fluidDragSelection(selection, listState, keyAt = { … })` sulla `LazyColumn` |
+| scegliere tante celle in un gesto (Foto) | `Modifier.fluidDragSelection(selection, gridState, keyAt = { … })` sulla `LazyVerticalGrid`, o la griglia qui sotto |
+| una griglia di foto, video, file o screenshot con pizzico, mesi in alto e scorrimento con la data | `FluidPreviewGrid(sections, itemKey) { item, selected -> … }` |
+| la miniatura vera di un file in una cella | `rememberFluidFileThumbnail(file, sizePx)` + `FluidFileThumbnailImage` di `engine-viewer`, dentro `cell` |
+| «Non così»: un `AnimatedVisibility` sotto una riga per aprire dettagli | è una riga che si allunga: la sezione è un vetro che nasce dal titolo, con lo stato per TalkBack |
+
+### `FluidDisclosureGroup`, `FluidDisclosureState`
+
+`DisclosureGroup` di SwiftUI. Titolo e contenuto sono **due vetri dello stesso piano** (`FluidGlassContainer`) a 8 dp
+(`FluidMetrics.GlassSpacing`), dentro lo `spacing` di 16: aprendo, il contenuto **nasce dal vetro del titolo** (ci sta
+dentro piccolo, ne esce con la molla che supera il suo posto, un collo li tiene uniti finché non si staccano);
+chiudendo **ci torna dentro** e il titolo lo accoglie. È la nota di Alessio: «con effetto di vetro che si separa
+dall'elemento originale all'apertura». Il contenuto si vede solo dentro il suo vetro ed entra sfocato. Intanto la sezione
+allarga il posto che chiede alla lista con una molla tarata sulla nascita (attesa 124 ms, smorzamento 0,6, rigidezza
+122: il colmo cade col colmo del vetro), quindi le righe sotto sono **spinte dal vetro**, non saltano; chiudendo si
+restringe senza attesa (0,85 / 200). In una `LazyColumn` la lista rimisura a ogni fotogramma della molla, senza
+ricomporre.
+
+| parametro | cosa |
+|---|---|
+| `title`, `summary` | il titolo, e il riepilogo da chiusa («3 allegati»), che sparisce aprendo con la freccia |
+| `state` | `rememberFluidDisclosureState()` (salvabile) o uno dell'app; `expand()`, `collapse()`, `toggle()` |
+| `leading` | una piastrella o un'icona prima del titolo |
+| `backdrop` | di serie `LocalFluidCanvasBackdrop` (come i gruppi di lista); sopra una foto quello della foto; null: due superfici piene e il contenuto che esce in dissolvenza |
+| `onExpandedChange` | dopo ogni cambio fatto dal dito o da TalkBack |
+| `labels` | `FluidDisclosureLabels` («Espanso», «Compresso», «Espandi», «Comprimi»; `english()`) |
+
+- **TalkBack e fuoco**: il titolo è un pulsante con lo stato «Espanso»/«Compresso» e le azioni Espandi e Comprimi; il
+  nodo resta lo stesso aprendo e chiudendo, quindi il fuoco non si sposta.
+- **La freccia** gira di 90° (molla 0,8 / 400, a occhio); la riga del titolo è alta almeno 44 dp.
+- **A riposo** niente si scrive e niente si ridisegna (provato). **Movimento ridotto**: il piano cambia senza viaggio e
+  l'altezza arriva in un fotogramma.
+- **Dove sta**: è un gruppo a sé, non una riga dentro `FluidListGroup` (il vetro va sul gruppo, e qui il gruppo si
+  divide). Il contenuto è una colonna: righe con i separatori, un testo.
+
+### `Modifier.fluidDragSelection`
+
+Accanto a `fluidReorderable` e su `FluidSelectionState`: lo scorrimento automatico è quello del riordino (fascia di
+72 dp ai bordi, velocità piena 900 dp/s che cresce col quadrato della profondità, `FluidDragSelectionDefaults`).
+
+- **Griglia** (Foto in «Seleziona»): in modo selezione un dito che va **di lato** (due volte più orizzontale che
+  verticale) sceglie in fila; in su o in giù scorre. **Lista** (Mail, File, Note): **due dita** che scendono insieme su
+  una riga e si muovono. In tutte e due la **pressione lunga** (400 ms) entra nella selezione e continua trascinando
+  (`startWithLongPress = false` se la lista riordina con la pressione lunga).
+- **Il primo elemento decide** se il gesto aggiunge o toglie. L'intervallo va dall'ancora all'elemento sotto il dito
+  nell'ordine della lista (per righe in una griglia) e **si stringe tornando indietro**: chi esce torna com'era prima del
+  gesto. Un tic per passo che cambia la scelta.
+- `inSelectionMode`: di serie `selection.isActive`; un'app col tasto «Seleziona» lo tiene vero anche con zero scelte.
+- `keyAt(index)` dà la chiave di un indice, null per ciò che non si sceglie (un'intestazione).
+- Il gesto preso dalla selezione si consuma prima di tutti: la lista non scorre sotto il dito e la cella non riceve il
+  tocco al rilascio.
+
+### `FluidPreviewGrid`, `FluidPreviewGridState`, `FluidPreviewGridSection`
+
+La griglia di anteprime, come la libreria di Foto ma per qualunque contenuto (nota di Alessio: «più in generale una
+griglia di anteprime… configurabile all'applicazione dell'app»).
+
+| parametro | cosa |
+|---|---|
+| `sections` | `FluidPreviewGridSection(key, title, items)`: `title` null per una griglia senza intestazioni |
+| `itemKey` | la chiave stabile di un elemento |
+| `columns` | le densità del pizzico, di serie 3, 5, 9 (Foto); i file della galleria usano 2, 3, 4 |
+| `cellAspectRatio`, `spacing`, `contentPadding` | la proporzione (1 quadrata), lo spazio (2 dp come Foto), i margini |
+| `selection`, `inSelectionMode` | la selezione e il modo: tocco che sceglie, dito di lato, segno sulle celle |
+| `onItemClick` | il tocco fuori dal modo selezione (aprire nel visore) |
+| `fastScrollLabel` | l'etichetta dello scorrimento rapido (la data); null: il titolo del gruppo |
+| `header` | l'intestazione di un gruppo; di serie `FluidPreviewGridHeader` (titolo sopra un velo che sfuma) |
+| `cell` | il contenuto: riempie la cella, che ritaglia e porta il segno |
+
+- **Il pizzico**: la griglia segue le dita attorno al punto fra di esse; a metà strada (geometrica) verso la densità
+  vicina cambia colonne **restando sul punto**: la cella sotto le dita resta sotto le dita, alla stessa frazione della
+  sua altezza (provato: 30% prima, 30% dopo). Oltre la densità estrema cede poco; al rilascio torna in scala 1 (molla
+  0,86 / 380). Un tic a ogni cambio. TalkBack: «Meno colonne», «Più colonne». `state.density` si può anche scrivere.
+- **Le intestazioni** restano in alto (`stickyHeader` della griglia) finché il gruppo è in vista.
+- **Lo scorrimento rapido** è `FluidFastScroller` sulla griglia.
+- **Memoria**: la griglia non tiene immagini sue; le celle fuori vista escono dalla composizione e la cache è quella
+  delle miniature (`FluidFileThumbnails`, a memoria limitata). Le celle già in vista **non ricompongono scorrendo**
+  (provato): la scelta si legge per cella solo quando cambia, la scala del pizzico solo nel disegno.
+- **Trappola**: decodificare un'immagine dentro la cella (`painterResource` di una foto grande) la decodifica a ogni
+  cella che entra. Le immagini si preparano fuori (la scena `griglia-foto` le decodifica una volta).
+
 ## Righe di impostazioni (`FluidSettingRows.kt`)
 
 Quattro righe che esistevano in ogni app in forme diverse e sbagliavano in modo diverso la stessa cosa. Tutte: stanno dentro un `FluidListGroup`, cedono (tinta, mai scala), sfumano al 50% se `enabled = false`

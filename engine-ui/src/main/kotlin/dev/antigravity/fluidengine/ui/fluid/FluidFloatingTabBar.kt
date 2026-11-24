@@ -398,7 +398,10 @@ fun FluidFloatingTabBar(
     // unrepresentable.
     val scope = FluidFloatingTabBarScopeImpl().apply(content)
     val chrome = LocalFluidChromeController.current
-    val hasTabs = scope.tabs.isNotEmpty() || scope.standaloneTab != null
+    // F8.4: guidata da un pager (`FluidSegmentedPager`) la barra e' un controllo segmentato della pagina, non la
+    // navigazione: le azioni della selezione non la sostituiscono.
+    val drivenByPager = LocalFluidTabBarPuckDriver.current != null
+    val hasTabs = (scope.tabs.isNotEmpty() || scope.standaloneTab != null) && !drivenByPager
     DisposableEffect(chrome, hasTabs) {
         val owner = Any()
         if (hasTabs) chrome?.claimBottomReplacement(owner, true)
@@ -696,6 +699,19 @@ fun FluidFloatingTabBar(
     }
     }
 }
+
+/**
+ * Chi guida la pillola da fuori (F8.4, [FluidSegmentedPager]): la posizione frazionaria del pager, in schede, mentre il
+ * dito lo trascina ([active]). La barra ci scrive dove sta la pillola adesso ([puckValue]). Null di serie: la tab bar
+ * non ne sa niente.
+ */
+internal class FluidTabBarPuckDriver {
+    var position: () -> Float = { 0f }
+    var active: () -> Boolean = { false }
+    var puckValue: () -> Float = { Float.NaN }
+}
+
+internal val LocalFluidTabBarPuckDriver = staticCompositionLocalOf<FluidTabBarPuckDriver?> { null }
 
 /**
  * True for exactly the frames of a tab bar transition (inline <-> expanded <->
@@ -2657,6 +2673,47 @@ private fun SharedTransitionScope.ExpandedTabs(
                 dampedDragAnimation.snapToValue(index.toFloat())
             } else {
                 dampedDragAnimation.animateToValue(index.toFloat())
+            }
+        }
+    }
+
+    // F8.4: la pillola guidata da un pager (`FluidSegmentedPager`). Mentre il dito trascina le pagine la pillola fa cio'
+    // che fa sotto il dito sulla barra: si preme e diventa lente, segue la frazione del pager con la molla rigida del
+    // trascinamento (e si allunga con la velocita'), e tira la barra di qualche dp; quando le pagine si fermano si
+    // rilascia. Fuori da un pager il driver e' null e qui non succede niente: la tab bar resta quella di prima.
+    val puckDriver = LocalFluidTabBarPuckDriver.current
+    if (puckDriver != null) {
+        DisposableEffect(puckDriver, dampedDragAnimation) {
+            puckDriver.puckValue = { dampedDragAnimation.value }
+            onDispose { puckDriver.puckValue = { Float.NaN } }
+        }
+        LaunchedEffect(puckDriver, dampedDragAnimation, tabsCount) {
+            var driving = false
+            var last = Float.NaN
+            snapshotFlow { if (puckDriver.active()) puckDriver.position() else Float.NaN }.collect { at ->
+                val reduced = reducedMotionState.value
+                if (at.isNaN()) {
+                    if (driving) {
+                        driving = false
+                        if (!reduced) dampedDragAnimation.release()
+                        animationScope.launch {
+                            if (reduced) offsetAnimation.snapTo(0f) else offsetAnimation.animateTo(0f, FluidMotion.TabTugReturn)
+                        }
+                    }
+                    last = Float.NaN
+                    return@collect
+                }
+                val clamped = at.fastCoerceIn(0f, (tabsCount - 1).toFloat())
+                if (!driving) {
+                    driving = true
+                    if (!reduced) dampedDragAnimation.press()
+                }
+                if (reduced) dampedDragAnimation.snapToValue(clamped) else dampedDragAnimation.updateValue(clamped)
+                if (!last.isNaN() && !reduced) {
+                    val dx = (clamped - last) * liveTabWidthPx * if (isLtr) 1f else -1f
+                    animationScope.launch { offsetAnimation.snapTo(offsetAnimation.value + dx) }
+                }
+                last = clamped
             }
         }
     }

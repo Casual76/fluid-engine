@@ -38,6 +38,31 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidLoadingBlock(modifier: Modifier = Modifier, minHeight: Dp = 180.dp)` — Placeholder while a screen's first load is in flight.
 - `@Composable fun FluidSectionFootnote(text: String, modifier: Modifier = Modifier)` — Footnote under a grouped list, for the explanation a row's subtitle would make too long.
 
+## `engine-ui/ui/fluid/FluidDisclosureGroup.kt`
+
+- `class FluidDisclosureState(initiallyExpanded: Boolean = false)` — Lo stato di una [FluidDisclosureGroup]: aperta o chiusa (`DisclosureGroup(isExpanded:)` di SwiftUI).
+  - `var expanded: Boolean by mutableStateOf(initiallyExpanded)` — Vero se il contenuto e' aperto sotto il titolo.
+  - `fun expand()`
+  - `fun collapse()`
+  - `fun toggle()`
+  - `companion object`
+    - `val Saver: Saver<FluidDisclosureState, Boolean>` — Salva solo «aperta o chiusa».
+- `@Composable fun rememberFluidDisclosureState(initiallyExpanded: Boolean = false): FluidDisclosureState` — Uno stato di [FluidDisclosureGroup] che sopravvive alla rotazione e alla morte del processo.
+- `data class FluidDisclosureLabels(val expanded: String = "Espanso", val collapsed: String = "Compresso", val expand: String = "Espandi", val collapse: String = "Comprimi")` — Le parole di [FluidDisclosureGroup] per TalkBack: lo stato della riga e le due azioni.
+  - `companion object`
+    - `fun english()`
+- `@Composable fun FluidDisclosureGroup(title: String, modifier: Modifier = Modifier, state: FluidDisclosureState = rememberFluidDisclosureState(), summary: String? = null, leading: (@Composable () -> Unit)? = null, enabled: Boolean = true, backdrop: GlassBackdropState? = LocalFluidCanvasBackdrop.current, onExpandedChange: ((Boolean) -> Unit)? = null, labels: FluidDisclosureLabels = FluidDisclosureLabels(), content: @Composable ColumnScope.() -> Unit)` — Un titolo che apre e chiude cio' che ha sotto: i dettagli di una riga o un gruppo di righe (`DisclosureGroup` di SwiftUI, la scheda `sezioni-richiudibili`).
+
+## `engine-ui/ui/fluid/FluidDragSelection.kt`
+
+- `object FluidDragSelectionDefaults` — I numeri della selezione trascinando (F8.4, la scheda `selezione-trascinando`). Lo scorrimento automatico e' quello del riordino ([FluidReorderDefaults]): la stessa fascia ai bordi e la stessa velocita' che cresce col quadrato della profondita', perche' una lista che scorre da sola sotto il dito deve farlo allo stesso modo qualunque cosa il dito stia facendo.
+  - `val AutoScrollEdge: Dp` — La fascia ai bordi in cui la lista scorre da sola: 72 dp, quella del riordino.
+  - `val AutoScrollMaxSpeed: Dp` — La velocita' piena dello scorrimento automatico, al bordo: 900 dp al secondo, quella del riordino.
+  - `const val HorizontalBias: Float` — Quanto deve essere piu' orizzontale che verticale il primo tratto del dito su una griglia, perche' sia una selezione e non uno scorrimento: il doppio. A occhio, 2026-11-24, sul comportamento di Foto in «Seleziona»: un dito che parte in diagonale scorre, uno che parte di lato seleziona.
+  - `const val LongPressMillis: Long` — L'attesa della pressione lunga che entra nella selezione e continua trascinando: 400 ms, il `longPressTimeout` di Android (`ViewConfiguration`). Apple non lo documenta per questo gesto.
+- `@Composable fun <K : Any> Modifier.fluidDragSelection(selection: FluidSelectionState<K>, gridState: LazyGridState, keyAt: (index: Int) -> K?, enabled: Boolean = true, startWithLongPress: Boolean = true, inSelectionMode: Boolean = selection.isActive): Modifier` — La selezione trascinando su una griglia (`fluidDragSelection` sulla `LazyVerticalGrid`, nel suo `modifier`): come in Foto in «Seleziona», il dito che scorre di lato sulle miniature le sceglie tutte in fila.
+- `@Composable fun <K : Any> Modifier.fluidDragSelection(selection: FluidSelectionState<K>, listState: LazyListState, keyAt: (index: Int) -> K?, enabled: Boolean = true, startWithLongPress: Boolean = true, inSelectionMode: Boolean = selection.isActive): Modifier` — La selezione trascinando su una lista (`fluidDragSelection` sulla `LazyColumn`): come il trascinamento a **due dita** di Mail, File e Note. Su una lista a una colonna un dito solo che va su e giu' deve scorrere, quindi la selezione parte da due dita che scendono insieme su una riga e si muovono (anche fuori dal modo selezione: ci entra), o da una **pressione lunga** ([startWithLongPress]).
+
 ## `engine-ui/ui/fluid/FluidExpandableText.kt`
 
 - `@Composable fun FluidExpandableText(text: AnnotatedString, modifier: Modifier = Modifier, collapsedMaxLines: Int = 3, style: TextStyle = MaterialTheme.typography.bodyLarge, color: Color = MaterialTheme.colorScheme.onSurface, moreLabel: String = LocalFluidLabels.current.liveText.more, moreColor: Color = MaterialTheme.colorScheme.primary, collapsible: Boolean = false, arrival: FluidTextArrival = FluidTextArrival.Lines, onExpandedChange: ((Boolean) -> Unit)? = null)` — Un paragrafo lungo chiuso a [collapsedMaxLines] righe, con «altro» in fondo all'ultima riga: un tocco lo apre sul posto (F8.1, `testo-espandibile`), come le descrizioni e le novità dell'App Store. In SwiftUI non c'è un componente: l'App Store lo fa con `lineLimit` e un tasto in coda alla riga.
@@ -211,6 +236,29 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val MaxVisible: Int` — Quanti punti si vedono al massimo. Oltre, la fila scorre e quelli ai bordi si rimpiccioliscono, come i controlli di pagina di iOS: venti punti in fila non sono un indicatore, sono una riga.
 - `@Composable fun FluidPagerDots(state: PagerState, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurface, activeColor: Color = color, maxVisible: Int = FluidPagerDotsDefaults.MaxVisible, hideForSinglePage: Boolean = true, pageLabel: (page: Int, count: Int) -> String = { page, count -> "Pagina $page di $count" })` — L'indicatore di pagina di un [PagerState]: un punto per pagina, quello corrente piu' grande e pieno.
 - `@Composable fun FluidPagerDots(pageCount: Int, position: () -> Float, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurface, activeColor: Color = color, maxVisible: Int = FluidPagerDotsDefaults.MaxVisible, hideForSinglePage: Boolean = true, pageLabel: (page: Int, count: Int) -> String = { page, count -> "Pagina $page di $count" })` — L'indicatore di pagina: un punto per pagina, quello corrente piu' grande e pieno, che **segue il dito** e non scatta a pagina assestata.
+
+## `engine-ui/ui/fluid/FluidPreviewGrid.kt`
+
+- `class FluidPreviewGridSection<T>(val key: Any, val title: String?, val items: List<T>)` — Un gruppo della [FluidPreviewGrid]: un'intestazione ([title], per esempio il mese) e i suoi elementi. [title] null: nessuna intestazione (una griglia sola, gli screenshot di un'app). [key] dev'essere stabile e unica.
+- `object FluidPreviewGridDefaults` — I numeri della griglia di anteprime (F8.4, la scheda `griglia-media`).
+  - `val Columns: List<Int>` — Le densita' di serie: 3, 5 e 9 colonne, quelle di Foto su iPhone in verticale (iOS 17–26: «Tutte le foto» parte a 5, si pizzica a 3 e a 9; in iOS 18 si arriva anche a 13 e a «zoom piu' lontano», che qui non c'e'). Fiducia alta sui tre numeri, presi dalla guida dell'iPhone e dalle schermate.
+  - `const val InitialDensity: Int` — La densita' di partenza, come indice in [Columns]: 5 colonne, come Foto.
+  - `val Spacing: Dp` — Lo spazio fra le celle: 2 dp. Foto lascia ~2 pt fra le miniature a ogni densita' (misurato a occhio sulle schermate di iOS 26 della guida dell'iPhone, 2026-11-24, fiducia media).
+  - `const val SwitchAtFraction: Float` — Il pizzico cambia densita' a meta' strada (in scala geometrica) fra una densita' e l'altra: da 5 a 3 colonne, quando le dita hanno ingrandito di √(5/3) ≈ 1,29. A occhio, 2026-11-24: in Foto il cambio avviene durante il pizzico, non al rilascio, e la griglia continua a seguire le dita dopo il cambio.
+  - `val Settle: SpringSpec<Float>` — Il ritorno della scala dopo il pizzico: smorzamento 0,86, rigidezza 380 (a occhio, 2026-11-24: in Foto la griglia si assesta in ~300 ms senza rimbalzo visibile).
+  - `const val PinchSlop: Float` — Quanto il dito deve allargare o stringere prima che il pizzico sia della griglia e non uno scorrimento a due dita: il 4% della distanza fra le dita. A occhio, 2026-11-24.
+- `class FluidPreviewGridState(initialDensity: Int = FluidPreviewGridDefaults.InitialDensity, initialFirstVisibleItemIndex: Int = 0, initialFirstVisibleItemScrollOffset: Int = 0)` — Lo stato di una [FluidPreviewGrid]: dove scorre ([gridState]) e a che densita' sta ([density], un indice nelle colonne della griglia). Salvabile: dopo una rotazione la griglia torna allo stesso punto e alla stessa densita'.
+  - `val gridState: LazyGridState`
+  - `var density: Int by mutableIntStateOf(initialDensity)` — La densita' di adesso, come indice nelle colonne della griglia. La cambia il pizzico; l'app puo' scriverla.
+  - `val pinchScale: Float get()` — La scala che la griglia ha adesso sotto le dita (1 a riposo): legge il disegno, non la composizione. Per le prove e per chi disegna qualcosa sopra la griglia che deve seguirla.
+  - `companion object`
+    - `val Saver: Saver<FluidPreviewGridState, *>`
+- `@Composable fun rememberFluidPreviewGridState(initialDensity: Int = FluidPreviewGridDefaults.InitialDensity): FluidPreviewGridState` — Uno stato di [FluidPreviewGrid] che sopravvive alla rotazione.
+- `@Composable fun <T, K : Any> FluidPreviewGrid(sections: List<FluidPreviewGridSection<T>>, itemKey: (T) -> K, modifier: Modifier = Modifier, state: FluidPreviewGridState = rememberFluidPreviewGridState(), columns: List<Int> = FluidPreviewGridDefaults.Columns, cellAspectRatio: Float = 1f, spacing: Dp = FluidPreviewGridDefaults.Spacing, contentPadding: PaddingValues = PaddingValues(0.dp), selection: FluidSelectionState<K>? = null, inSelectionMode: Boolean = selection?.isActive == true, onItemClick: ((T) -> Unit)? = null, fastScrollLabel: ((T) -> String?)? = null, header: (@Composable (FluidPreviewGridSection<T>) -> Unit)? = null, labels: FluidPreviewGridLabels = FluidPreviewGridLabels(), cell: @Composable BoxScope.(item: T, selected: Boolean) -> Unit)` — Una griglia di anteprime: foto e video, ma anche file, allegati, screenshot (la scheda `griglia-media` con la nota di Alessio: «più in generale una griglia di anteprime, non solo di foto e video ma anche di file, configurabile all'applicazione dell'app»). Il riferimento e' la libreria di Foto.
+- `data class FluidPreviewGridLabels(val fewerColumns: String = "Meno colonne", val moreColumns: String = "Più colonne")` — Le parole della griglia per TalkBack: le due azioni che fanno cio' che fa il pizzico.
+  - `companion object`
+    - `fun english()`
+- `@Composable fun FluidPreviewGridHeader(title: String, modifier: Modifier = Modifier)` — L'intestazione di serie di un gruppo: il titolo in grassetto sopra un velo che sfuma verso il basso, come i mesi di Foto (il titolo sta sulle miniature, non su una fascia piena). Resta in alto finche' il gruppo e' sullo schermo. Il velo non imita il vetro: e' l'ombra del bordo di scorrimento, perche' il titolo si legga su qualunque miniatura.
 
 ## `engine-ui/ui/fluid/FluidProgress.kt`
 

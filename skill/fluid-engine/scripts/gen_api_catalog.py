@@ -66,6 +66,8 @@ UI_FLUID_FILES = {
         # F8.1 (4.0): testo e numeri in movimento, tempi vivi, immagine che arriva
         "FluidNumericText", "FluidExpandableText", "FluidLiveTime", "FluidAsyncImage", "FluidThumbHash",
         "FluidTextMotion", "FluidReadyStrings",
+        # F8.4: le sezioni richiudibili, la selezione trascinando e la griglia di anteprime
+        "FluidDisclosureGroup", "FluidDragSelection", "FluidPreviewGrid",
     ],
     # il contenuto web chiuso per costruzione
     "contenuto-web": [

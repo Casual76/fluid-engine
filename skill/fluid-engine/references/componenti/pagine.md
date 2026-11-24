@@ -29,6 +29,7 @@ Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../re
 | una pagina che si apre dal punto toccato | `transition = FluidPageTransition.Expand` |
 | una card (o un elemento qualunque) che **diventa la pagina** e ci torna, anche col dito (lo zoom di iOS) | `Modifier.fluidTransitionSource(id, ns)` sulla card + `composable(route, transition = Expand, zoomSource = { entry -> FluidTransitionSource(id, ns) })` (4.0, sezione «Lo zoom dalla sorgente») |
 | un mini lettore, una miniatura, una pillola o un tasto della barra che **diventa la pagina** (Musica, Foto, Meteo, Mail) | un preset: `composable(route, zoomSource = …, zoom = FluidZoomStyle.Rise)` + `Modifier.fluidZoomSource(id, ns, FluidZoomStyle.Rise) { … }` (F6B.5c, sezione «Un elemento che diventa pagina») |
+| più pagine affiancate con un segmentato sopra che le segue col dito (Voti / Note / Assenze) | `FluidSegmentedPager(segments) { index, contentPadding -> … }` (F8.4) |
 | la pagina che si tira indietro da qualunque punto | `backSwipe = FluidBackSwipe.Anywhere` (di serie e' `EdgeOnly`) |
 | una pagina senza gesto indietro col dito | `backSwipe = FluidBackSwipe.Off` (il back di sistema e il tasto restano) |
 | una conferma «uscire senza salvare?» sul back | un `BackHandler` nella pagina: non serve spegnere il gesto |
@@ -540,6 +541,43 @@ fun NavGraphBuilder.composable(route: String, arguments, deepLinks, transition =
 
 **Versione.** Dalla 4.0 (F6B.5c). La scena della galleria è «Un elemento che diventa pagina» (`ElementToPagePage`); i
 collegamenti `fluidengine://elementi/lettore`, `…/foto/{n}`, `…/luoghi`, `…/scrivi`.
+
+## Il pager col segmentato: `FluidSegmentedPager` (F8.4)
+
+Un pager orizzontale con sopra un segmentato flottante, sincronizzati: le schede segmentate di App Store e di Salute
+in iOS 26 (ClasseViva «Voti / Note / Assenze», Fluidify «Brani / Album / Artisti»). Scena `pager-segmentato`.
+
+**Il segmentato è la pillola della tab bar** (nota di Alessio: «non tanto come l'anteprima ma più tipo la pillola di
+navigazione»): è un `FluidFloatingTabBar` a schede di sole parole, alto 48 dp, con il suo vetro, la sua goccia e la sua
+fisica, non una copia. Il collegamento col pager è un aggancio interno della tab bar (spento di serie: fuori da un pager
+la tab bar non cambia di un pixel):
+
+- **il dito che trascina le pagine trascina la pillola**: la goccia si preme e diventa lente come sotto il dito sulla
+  barra, segue la frazione esatta del pager con la molla rigida del trascinamento, si allunga con la velocità e tira la
+  capsula di qualche dp; quando le pagine si posano si rilascia;
+- **un tocco su un segmento** muove la goccia come sulla tab bar e porta il pager con l'animazione delle pagine;
+- **la goccia trascinata sulla capsula** sceglie al rilascio (un tic per segmento) e il pager la segue.
+
+```kotlin
+val pager = rememberFluidSegmentedPagerState(pageCount = { 3 })
+FluidSegmentedPager(segments = listOf("Voti", "Note", "Assenze"), state = pager) { index, contentPadding ->
+  LazyColumn(contentPadding = contentPadding) { … }     // il contenuto parte sotto la capsula e ci scorre sotto
+}
+```
+
+| | |
+|---|---|
+| `state.selectedPage` | la pagina su cui il pager si è fermato (`settledPage`) |
+| `state.indicatorPosition` | dove sta la goccia adesso, in segmenti (1,5 = a metà fra il secondo e il terzo) |
+| `state.animateScrollToPage(i)` | porta pager e pillola |
+| `backdrop` | ciò che la capsula rifrange; di serie le pagine stesse |
+| `beyondViewportPageCount` | le pagine vicine restano composte (di serie 1): la pillola non aspetta una pagina che si costruisce |
+
+- Guidata dal pager, la barra **non** è la navigazione: le azioni della selezione (`selection(…)`) non la sostituiscono.
+- **TalkBack**: ogni segmento è un tasto col suo titolo, e quello scelto dice «selezionato». **Movimento ridotto**: la goccia arriva senza
+  viaggio né lente.
+- Le misure (48 dp di altezza, segmenti fino a 112 dp, 8 dp dal bordo) sono a occhio sulle schermate di iOS 26,
+  `FluidSegmentedPagerDefaults`.
 
 ## Il passo fra schede: FluidPeerMove
 

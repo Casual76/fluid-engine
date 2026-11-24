@@ -893,6 +893,34 @@ private val F8p2Items: List<TryItem> = listOf(
   ),
 )
 
+/** F8.4 · Liste e pagine (piano dell'ecosistema): sezioni, selezione trascinando, griglia e pager, in «Elementi nuovi». */
+private val F8p4Items: List<TryItem> = listOf(
+  TryItem(
+    "f8-4-sezioni", TryArea.LongLists, "Il vetro che si separa",
+    "Apri «Note di versione e dettagli» su «Foto chiara» e apri «Allegati»: giudica se il contenuto nasce dal vetro " +
+      "del titolo e se ne stacca col collo, e se chiudendo ci torna dentro senza salti delle righe sotto.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Note di versione e dettagli"),
+  ),
+  TryItem(
+    "f8-4-selezione", TryArea.LongLists, "Seleziona trascinando",
+    "Apri «La libreria di foto», tocca «Seleziona» e passa il dito di lato sulle foto, poi giu' fino al bordo: giudica " +
+      "se sceglie in fila, se tornando indietro l'intervallo si stringe e se la griglia scorre da sola.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › La libreria di foto"),
+  ),
+  TryItem(
+    "f8-4-pizzico", TryArea.LongLists, "Il pizzico fra 3, 5 e 9",
+    "Nella libreria pizzica su una foto: giudica se la griglia passa a 3 o a 9 colonne restando sulla foto sotto le " +
+      "dita, come in Foto, e se lo scorrimento rapido dice la data.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › La libreria di foto"),
+  ),
+  TryItem(
+    "f8-4-pager", TryArea.LongLists, "Il segmentato che e' la pillola",
+    "Apri «Voti, note e assenze» e trascina le pagine piano: giudica se la goccia della tab bar segue il dito e si " +
+      "allunga, e se al rilascio si posano insieme.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Voti, note e assenze"),
+  ),
+)
+
 private val Stable = TryRound(
   id = "stabile",
   title = "Stabile",
@@ -1002,7 +1030,7 @@ private val Stable = TryRound(
         "giudica se il tasto dice l'esito, se offline riprova da solo e se «Avanti» passa da uno stato all'altro senza salti.",
       TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Stati pronti"),
     ),
-  ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems,
+  ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems + F8p4Items,
 )
 
 

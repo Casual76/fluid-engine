@@ -152,6 +152,20 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class FluidOpenDirection` — Verso del trascinamento che apre una pagina dalla sorgente.
 - `enum class FluidPageDismiss` — Gesto verticale facoltativo della destinazione, indipendente dal bordo orizzontale.
 
+## `engine-ui/ui/page/FluidSegmentedPager.kt`
+
+- `class FluidSegmentedPagerState(val pagerState: PagerState)` — Lo stato di un [FluidSegmentedPager]: il pager ([pagerState]) e dove sta la pillola ([indicatorPosition]).
+  - `val selectedPage: Int get()` — La pagina scelta: quella su cui il pager si e' fermato.
+  - `val indicatorPosition: Float` — Dove sta la pillola adesso, in segmenti (0 il primo, 1,5 a meta' fra il secondo e il terzo): la posizione animata della goccia di vetro, che segue il pager mentre il dito lo trascina. Prima che la barra sia composta, la pagina.
+  - `suspend fun animateScrollToPage(page: Int)` — Porta il pager a [page] con l'animazione delle pagine; la pillola ci va da sola.
+- `@Composable fun rememberFluidSegmentedPagerState(initialPage: Int = 0, pageCount: () -> Int): FluidSegmentedPagerState` — Uno stato di [FluidSegmentedPager] che sopravvive alla rotazione (la pagina la salva il pager).
+- `object FluidSegmentedPagerDefaults` — Le misure del [FluidSegmentedPager].
+  - `val Height: Dp` — L'altezza della capsula: 48 dp. Il segmentato flottante di iOS 26 sopra le pagine (le schede di App Store, «Giorno / Settimana / Mese» di Salute) sta fra il `UISegmentedControl` grande (36 pt) e la tab bar (62,6 pt); 48 e' la riga del tocco dell'engine per un campo nella barra (F6B.8b). A occhio sulle schermate, 2026-11-24, fiducia media.
+  - `val SegmentWidth: Dp` — La larghezza massima di un segmento: 112 dp (le schede si stringono uguali se lo schermo e' stretto). A occhio.
+  - `val TopMargin: Dp` — Lo spazio fra il bordo alto (sotto la barra di stato) e la capsula: 8 dp.
+  - `val ContentInset: Dp` — Quanto le pagine devono lasciare libero in alto perche' il loro contenuto parta sotto la capsula: 64 dp.
+- `@Composable fun FluidSegmentedPager(segments: List<String>, modifier: Modifier = Modifier, state: FluidSegmentedPagerState = rememberFluidSegmentedPagerState(pageCount = {…, backdrop: GlassBackdropState? = null, beyondViewportPageCount: Int = 1, page: @Composable (index: Int, contentPadding: PaddingValues) -> Unit)` — Un pager orizzontale con sopra un controllo segmentato flottante, sincronizzati (la scheda `pager-segmentato`).
+
 ## `engine-ui/ui/page/FluidSharedElement.kt`
 
 - `fun FluidTransitionSource.growingGlass(tint: GlassTint? = null, optics: GlassOptics = GlassDefaults.buttonOptics()): FluidTransitionSource` — Fa viaggiare il vetro della pillola fino alla posa. Usare la stessa tinta e le stesse ottiche della pillola. La destinazione può avere un fondo opaco proprio.

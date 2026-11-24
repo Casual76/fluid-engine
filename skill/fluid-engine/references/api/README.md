@@ -8,7 +8,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 18 | 268 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 46 | 394 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 49 | 429 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
 | [Controlli](controlli.md) | 21 | 174 |
@@ -19,7 +19,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Tema, forma, tipo](tema.md) | 9 | 123 |
 | [Icone (FluidIcons)](icone.md) | 4 | 197 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
-| [Pagine e navigazione](pagine.md) | 12 | 144 |
+| [Pagine e navigazione](pagine.md) | 13 | 155 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
 | [engine-foundation](foundation.md) | 13 | 161 |

@@ -81,6 +81,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | una schermata, titolo grande che si ritira, refresh, schermi larghi, indice laterale, scroll veloce | `componenti/schermata.md` |
 | barra delle schede a pillola (con segni sulle zone), rail, capsula di azioni (anche accese/spente), campo di ricerca | `componenti/barre.md` |
 | righe, liste raggruppate, card, hero, skeleton, Markdown, visore di immagini, riordino | `componenti/contenuto.md` (indice) → `contenuto-righe-liste.md`, `contenuto-testo-e-media.md` |
+| una sezione che si apre col vetro che si separa, la selezione trascinando, una griglia di foto o di file col pizzico | `componenti/contenuto-righe-liste.md`, «Sezioni richiudibili, selezione trascinando, griglia di anteprime» |
 | una lista **lunga** che cambia mentre la si legge, righe con gesto di lato, «3 nuove in alto», stato vuoto con azione | `componenti/contenuto-righe-liste.md`, «Liste lunghe, una riga per elemento» |
 | l'avatar di una persona, i colori stabili, il badge «3 non lette», la selezione multipla (anche «Seleziona tutto» paginato), un allegato | `componenti/contenuto-testo-e-media.md`, «Identità e selezione», «File» |
 | mostrare un HTML ricevuto (mail, newsletter) in una vista chiusa | `componenti/contenuto-web.md` |

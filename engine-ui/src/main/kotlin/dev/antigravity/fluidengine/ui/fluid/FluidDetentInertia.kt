@@ -16,6 +16,11 @@
  * **Niente sfocatura** (4.0, F8.2b, scelta di Alessio del 24 novembre 2026): una ruota e una ghiera le muove il dito, e
  * cio' che muove l'utente resta nitido, anche durante l'inerzia che continua il suo lancio. Si sfoca solo cio' che l'app
  * muove da sola (la logica di Apple). La sfocatura del moto di F8.2 e' stata tolta.
+ *
+ * **L'ultimo pixel non si aspetta** (4.0, F8.2c): un decadimento lento (un dito lasciato piano) passava piu' di un secondo
+ * sotto il pixel prima di dirsi fermo, e il valore (con AM e PM che lo seguono) arrivava quando la ruota sembrava ferma
+ * da un pezzo. Sotto [FluidDetentMotion.HandoffPx] dalla voce il lancio finisce con la molla dell'assestamento: la coda
+ * invisibile dura ~0,13 s, e il valore arriva alla posa che si vede, come in iOS.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
@@ -75,6 +80,16 @@ internal object FluidDetentMotion {
 
   /** E sotto questa velocita', in pixel al secondo. */
   const val RestSpeedPx: Float = 12f
+
+  /**
+   * Sotto questo scarto, in pixel, un lancio che decade passa la mano alla molla dell'assestamento
+   * ([SettleResponseSeconds]): la ruota sembra gia' ferma, e la coda esponenziale fino a [RestPx] durerebbe
+   * `ln(4) / k`, cioe' 0,7–1,4 s con la costante di un dito lasciato piano. La molla critica, presa con la velocita' del
+   * decadimento, chiude l'ultimo pixel in ~0,13 s senza scavalcare la voce (la sua frequenza, 21 al secondo, e' piu' alta
+   * di quella del decadimento). F8.2c, 24 novembre 2026: in iOS le colonne collegate (AM e PM) cambiano appena la ruota
+   * sembra ferma.
+   */
+  const val HandoffPx: Float = 1f
 }
 
 /**
@@ -106,6 +121,8 @@ internal class FluidDetentInertia {
   private var omega = 0f
   private var restSteps = 0f
   private var restSpeed = 0f
+  private var handoffSteps = 0f
+  private var handoffOmega = 0f
 
   /** Fermo a [value]. */
   fun snapTo(value: Float) {
@@ -125,6 +142,8 @@ internal class FluidDetentInertia {
     if (k > 0f) {
       start(from, speed, to, pxPerStep)
       decayPerSecond = k
+      // L'ultimo pixel lo chiude la molla dell'assestamento (F8.2c).
+      handoffOmega = (2.0 * PI / settleSeconds).toFloat()
     } else {
       springTo(from, speed, to, pxPerStep, settleSeconds)
     }
@@ -154,6 +173,11 @@ internal class FluidDetentInertia {
       val decay = exp(-decayPerSecond * dtSeconds)
       e *= decay
       v = -decayPerSecond * e
+      if (abs(e) <= handoffSteps) {
+        // Sembra gia' ferma: da qui la molla, con la stessa velocita' (F8.2c). Senza, la coda sotto il pixel dura un secondo.
+        decayPerSecond = 0f
+        omega = handoffOmega
+      }
     } else {
       // La molla critica, esatta: e(t) = (e0 + (v0 + w·e0)·t)·exp(−w·t).
       val w = omega
@@ -182,6 +206,7 @@ internal class FluidDetentInertia {
     val px = if (pxPerStep > 0f) pxPerStep else 1f
     restSteps = FluidDetentMotion.RestPx / px
     restSpeed = FluidDetentMotion.RestSpeedPx / px
+    handoffSteps = FluidDetentMotion.HandoffPx / px
     moving = from != to || speed != 0f
     if (!moving) velocity = 0f
   }

@@ -5,3 +5,7 @@ local.properties
 *.iml
 .idea/
 artifacts/
+
+# Log di crash e replay della JVM (24/11/2026: due erano entrati nei commit)
+replay_pid*.log
+hs_err_pid*.log

@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.sample.novita
 
 import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
 import android.graphics.RenderNode
 import android.os.Handler
 import android.os.Looper
@@ -35,7 +36,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * F8.2b · i fermi della ruota per la tavola contro iOS 27, presi in Robolectric col vetro vero (verdetti degli shader
- * accettati) e PixelCopy, come `F6b3GlyphFramesTest`.
+ * accettati: il vetro della pagina) e PixelCopy, come `F6b3GlyphFramesTest`. Dalla F8.2c la fascia e' un grigio piatto,
+ * e la prova lo legge nei pixel.
  *
  * Lo schermo e' quello dell'iPhone delle schermate di Apple: 393 dp di larghezza, a 420 dpi (2,625 px a dp, la scala di
  * `tavole.py`). La scena e' quella vera della galleria, «Il timer di Orologio» (`ruota-timer`), in chiaro e in scuro:
@@ -137,6 +139,7 @@ class F8p2bWheelFramesTest {
     draw(); frame(); draw()
     val rest = window()
     save(rest, wheel, "ruota-timer-$theme-riposo")
+    flatBand(rest, wheel, density, dark)
     rest.recycle()
 
     // A meta' di un lancio dei minuti: le voci corrono e restano nitide.
@@ -157,6 +160,34 @@ class F8p2bWheelFramesTest {
     flight.recycle()
     advance(6000)
   }
+
+  /**
+   * F8.2c · la fascia e' il grigio piatto di iOS (`quaternarySystemFill`: 118, 118, 128 al 18% sullo scuro, 116, 116, 128
+   * all'8% sul chiaro), senza bordo di luce ne' sfumature: dentro la capsula ogni riga ha lo stesso colore, ed e' quello
+   * della pagina sotto piu' il grigio. Si legge fra la colonna delle ore e quella dei minuti, dove non c'e' testo.
+   */
+  private fun flatBand(image: Bitmap, wheel: Rect, density: Float, dark: Boolean) {
+    val inset = 45f * density
+    val x = (wheel.left + inset + (wheel.width - 2f * inset) / 3f).roundToInt()
+    val centre = wheel.center.y
+    val half = 17f * density
+    val rows = (centre - half + 2f).roundToInt()..(centre + half - 2f).roundToInt()
+    val inside = rows.map { image.getPixel(x, it) }
+    for (channel in listOf<(Int) -> Int>({ AndroidColor.red(it) }, { AndroidColor.green(it) }, { AndroidColor.blue(it) })) {
+      val values = inside.map { channel(it) }
+      assertTrue("la fascia e' piatta: ${values.min()}..${values.max()}", values.max() - values.min() <= 2)
+    }
+    val page = image.getPixel(x, (centre - half - 6f * density).roundToInt())
+    val band = inside[inside.size / 2]
+    val (r, g, b, a) = if (dark) listOf(118f, 118f, 128f, 0.18f) else listOf(116f, 116f, 128f, 0.08f)
+    fun expected(p: Int, c: Float) = p * (1f - a) + c * a
+    println("F8p2c fascia ${if (dark) "scura" else "chiara"}: pagina ${hex(page)}, fascia ${hex(band)}")
+    assertEquals("rosso", expected(AndroidColor.red(page), r), AndroidColor.red(band).toFloat(), 2f)
+    assertEquals("verde", expected(AndroidColor.green(page), g), AndroidColor.green(band).toFloat(), 2f)
+    assertEquals("blu", expected(AndroidColor.blue(page), b), AndroidColor.blue(band).toFloat(), 2f)
+  }
+
+  private fun hex(c: Int) = "%d, %d, %d".format(AndroidColor.red(c), AndroidColor.green(c), AndroidColor.blue(c))
 
   @Test
   fun `la ruota del timer in scuro, ferma e lanciata`() = shoot(dark = true)

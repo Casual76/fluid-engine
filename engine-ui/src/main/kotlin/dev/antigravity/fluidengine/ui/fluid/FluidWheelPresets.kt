@@ -52,7 +52,11 @@ data class FluidDurationUnits(
  *
  * **Le colonne sono collegate.** Una durata sotto [minimumSeconds] non si sceglie: se la ruota si ferma su `0 ore 0 min
  * 0 s`, la colonna piu' piccola va al minimo da sola, come `UIDatePicker.Mode.countDownTimer` che non lascia zero
- * minuti. Le ore non girano all'infinito (0…[maxHours]); minuti e secondi si', come in Orologio.
+ * minuti.
+ *
+ * **Di serie nessuna colonna gira all'infinito**, come il timer di Orologio di iOS 26 e 27: sopra «0 ore» e sopra «0 s»
+ * non c'e' niente (F8.2c, dalle schermate di `riferimenti/`). Con [cyclic] minuti e secondi girano (dopo 59 torna 0),
+ * come la ruota di `countDownTimer` fino a iOS 13; le ore mai (0…[maxHours]).
  *
  * @param seconds la durata scelta, in secondi.
  * @param onSecondsChange la ruota si e' fermata su un'altra durata (gia' portata dentro i limiti).
@@ -61,6 +65,7 @@ data class FluidDurationUnits(
  * @param minuteInterval il passo dei minuti (`minuteInterval` di `UIDatePicker`: 1, 5, 15…), un divisore di 60.
  * @param minimumSeconds la durata piu' corta: di serie un secondo, o un minuto senza secondi.
  * @param units le parole: di serie in italiano, [FluidDurationUnits.english] per l'inglese.
+ * @param cyclic minuti e secondi girano all'infinito; di serie no, come il timer di Orologio di iOS 27.
  */
 @Composable
 fun FluidDurationWheel(
@@ -73,7 +78,7 @@ fun FluidDurationWheel(
   minimumSeconds: Long = if (showSeconds) 1L else 60L,
   units: FluidDurationUnits = FluidDurationUnits(),
   enabled: Boolean = true,
-  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+  cyclic: Boolean = false,
 ) {
   val interval = fluidWheelMinuteInterval(minuteInterval)
   val clamped = fluidDurationClamp(seconds, maxHours, showSeconds, interval, minimumSeconds)
@@ -104,7 +109,7 @@ fun FluidDurationWheel(
         selected = minutes / interval,
         onSelectedChange = { propose((current / 3600L).toInt(), it * interval, (current % 60L).toInt()) },
         label = remember(interval) { { i: Int -> (i * interval).toString() } },
-        cyclic = true,
+        cyclic = cyclic,
         unit = units.minutes,
         contentDescription = units.minutesName,
       ),
@@ -116,14 +121,14 @@ fun FluidDurationWheel(
           selected = secs,
           onSelectedChange = { propose((current / 3600L).toInt(), (current % 3600L / 60L).toInt(), it) },
           label = remember { { i: Int -> i.toString() } },
-          cyclic = true,
+          cyclic = cyclic,
           unit = units.seconds,
           contentDescription = units.secondsName,
         ),
       )
     }
   }
-  FluidWheelPicker(columns = columns, modifier = modifier, enabled = enabled, backdrop = backdrop)
+  FluidWheelPicker(columns = columns, modifier = modifier, enabled = enabled)
 }
 
 /**
@@ -154,7 +159,6 @@ fun FluidTimeWheel(
   hourDescription: String = LocalFluidLabels.current.dateTime.hour,
   minuteDescription: String = LocalFluidLabels.current.dateTime.minute,
   enabled: Boolean = true,
-  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
 ) {
   val interval = fluidWheelMinuteInterval(minuteInterval)
   val shown = time.withSecond(0).withNano(0).withMinute(time.minute / interval * interval)
@@ -208,7 +212,7 @@ fun FluidTimeWheel(
     )
     if (periodFirst) listOf(periodColumn, hourColumn, minuteColumn) else listOf(hourColumn, minuteColumn, periodColumn)
   }
-  FluidWheelPicker(columns = columns, modifier = modifier, enabled = enabled, backdrop = backdrop)
+  FluidWheelPicker(columns = columns, modifier = modifier, enabled = enabled)
 }
 
 // ---------------------------------------------------------------------------------------------

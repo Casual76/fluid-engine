@@ -490,7 +490,7 @@ FluidRangeSlider(
 ## FluidWheelPicker (con FluidWheelColumn e FluidWheelDefaults)
 
 **Cos'è.** La ruota di iOS: `Picker` con `.pickerStyle(.wheel)`, `UIPickerView`, `UIDatePicker` a ruota. Una o più
-colonne di voci che girano col dito su un cilindro e si fermano a scatti sotto una **fascia di vetro**, che ingrandisce
+colonne di voci che girano col dito su un cilindro e si fermano a scatti sotto una **fascia grigia**, che ingrandisce
 appena il valore scelto.
 
 **Firma essenziale** (una colonna sola, o più colonne).
@@ -500,10 +500,10 @@ FluidWheelPicker(
   count: Int, selected: Int, onSelectedChange: (Int) -> Unit, label: (Int) -> String,
   modifier: Modifier = Modifier, cyclic: Boolean = false, unit: String? = null,
   contentDescription: String? = null, stateDescription: ((Int) -> String)? = null,
-  enabled: Boolean = true, backdrop: GlassBackdropState = …,
+  enabled: Boolean = true,
 )
 
-FluidWheelPicker(columns: List<FluidWheelColumn>, modifier, enabled, backdrop)
+FluidWheelPicker(columns: List<FluidWheelColumn>, modifier, enabled)
 
 FluidWheelColumn(
   count, selected, onSelectedChange, label,
@@ -535,16 +535,23 @@ FluidWheelPicker(
   rapporto di F8.2): alta 216 dp (`FluidWheelDefaults`), voci da 32 dp (crescono col testo grande fino a 1,6) su un
   cilindro di raggio 0,39 dell'altezza (84 dp: tre voci piene per lato e una quarta schiacciata), la fascia a capsula
   alta 34 dp, la voce nella fascia ingrandita di 1,12, quelle fuori al 45% dell'inchiostro e più tenui verso i bordi.
+- **Le voci sono in peso normale**, anche quella scelta, come in iOS: solo l'unità («ore», «min») è semibold (F8.2c). Il
+  taglio è quello del testo di Inter: Inter Display nell'engine non ha il peso normale.
 - **La fascia rientra come in iOS 26 e 27** (F8.2b): 45 dp per lato (il timer di Orologio, le HIG), mai oltre il 12%
   della larghezza su una ruota stretta; anche le colonne stanno in quello spazio, così il valore scelto resta dentro la
   capsula. In una pagina il timer va da bordo a bordo, come in Orologio.
-- **La costruzione è quella di `UIPickerView`**, in tre strati: le voci fuori dalla fascia sono una sorgente di vetro
-  della ruota (piccola quanto lei, mai lo schermo); la fascia, ferma, le campiona con la pagina e le piega al bordo; le
-  voci dentro la fascia si disegnano sopra il vetro, nitide. Si muove solo il contenuto.
+- **La fascia è un grigio piatto, non vetro** (F8.2c): il `quaternarySystemFill` di iOS (118, 118, 128 al 18% sullo
+  scuro, 116, 116, 128 all'8% sul chiaro, misurato sulle schermate), senza bordo di luce né sfumature. Non galleggia sul
+  contenuto: sta ferma nella ruota.
+- **La costruzione è quella di `UIPickerView`**, in tre strati: la fascia, le voci fuori dalla fascia, le voci dentro la
+  fascia (piene e ingrandite). Si muove solo il contenuto.
 - **Il gesto**: un trascinamento verticale la gira 1:1, con l'elastico di UIKit oltre la prima e l'ultima voce. Lasciata
   con velocità **decelera come una lista di iOS** (0,998 a millisecondo, la proiezione di mezzo secondo di velocità) e si
   ferma **esattamente** su una voce: il punto proiettato si porta sulla voce più vicina e il decadimento si ritocca per
   arrivarci, senza rimbalzo. Un dito su una ruota che gira la ferma; un tocco su una voce la porta al centro.
+- **L'ultimo pixel non si aspetta** (F8.2c): sotto 1 px dalla voce il lancio finisce con la molla dell'assestamento
+  (0,30 s), e il valore arriva ~0,13 s dopo che la ruota sembra ferma. Prima, dopo un dito lasciato piano, la coda
+  invisibile durava 0,7–1,4 s, e AM e PM giravano quando la ruota era ferma da un pezzo.
 - **La presa**: la ruota prende il dito a mezzo slop in verticale prima che di lato (l'arbitro dello slider con gli assi
   scambiati), e da lì consuma tutto: in una lista o in un foglio che si trascina gira la ruota, non la pagina. Un gesto
   che va prima di lato è di chi sta sotto (un pager).
@@ -566,7 +573,9 @@ FluidWheelPicker(
 **FluidDurationWheel** (con `FluidDurationUnits`): il timer di Orologio, ore, minuti e (di serie) secondi con le unità
 ferme nella fascia. Il valore è uno, in secondi; **le colonne sono collegate**: una durata sotto il minimo (di serie un
 secondo, o un minuto senza secondi) non si sceglie, la colonna più piccola sale al minimo, come il `countDownTimer` di
-`UIDatePicker`. I minuti possono andare a passi (un divisore di 60), come in iOS.
+`UIDatePicker`. I minuti possono andare a passi (un divisore di 60), come in iOS. **Di serie nessuna colonna gira**,
+come il timer di Orologio di iOS 26 e 27 (sopra «0 ore» e «0 s» non c'è niente); con `cyclic = true` minuti e secondi
+girano, come la ruota di `countDownTimer` fino a iOS 13 (F8.2c).
 
 **FluidTimeWheel**: l'ora di `UIDatePicker`, in 24 o 12 ore (di serie quello del sistema), le colonne nell'ordine della
 lingua (AM e PM prima dell'ora in coreano e giapponese). In 12 ore la ruota delle ore che passa da 11 a 12 **gira AM e
@@ -623,7 +632,8 @@ FluidRulerDial(
 - **L'aptica**: `DragTick` per tacca a dito veloce, `Tick` per tacca lenta e per ogni principale, `Threshold` sul neutro e
   alle estremità, con la rete dei 55 ms.
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
-  quando si ferma (un tocco da solo non lo chiama). Il valore scritto si ricompone solo quando cambia la scritta.
+  quando si ferma (un tocco da solo non lo chiama): ~0,13 s dopo che sembra ferma, perché l'ultimo pixel lo chiude la
+  molla come nella ruota (F8.2c). Il valore scritto si ricompone solo quando cambia la scritta.
 - **Il movimento ridotto** toglie l'inerzia lunga; lo scatto resta.
 - **TalkBack**: un nodo regolabile con la scritta come valore, «Aumenta» e «Diminuisci» di un passo.
 
@@ -712,6 +722,13 @@ Costanti non pubbliche che conviene sapere (per dimensionare attorno):
   393 dp a 420 dpi, in chiaro e in scuro, a riposo e a metà lancio; le colonne cominciano e finiscono a 45 dp dal bordo,
   dove comincia e finisce la fascia. I fermi vanno in `sample/build/reports/f8-2b/fermi/` (la tavola contro iOS 27).
   In `F8p2WheelsTest`: la fascia contro le misure di iOS 27, e nessun effetto di sfocatura nei file di ruota e ghiera.
+- **F8.2c.** In `F8p2WheelsTest`: un lancio lento (il dito alzato a ~2,9 voci al secondo) si ferma entro 0,3 s dalla posa
+  che si vede (1 px), senza scavalcare né tornare indietro; il grigio della fascia contro le schermate (sullo scuro e sul
+  chiaro) e niente vetro nella ruota; le voci in peso normale e l'unità semibold. In `F8p2GesturesUiTest`, col dito vero:
+  la ruota dell'ora lasciata piano dà il valore entro 0,3 s dalla posa e AM e PM partono con lui; la ghiera lasciata piano
+  finisce entro 0,3 s dalla posa; il timer di serie non gira e con `cyclic` dopo 59 secondi torna lo 0. In
+  `F8p2bWheelFramesTest`: la fascia nei pixel è piatta (ogni riga dello stesso colore, niente bordo di luce) ed è la
+  pagina più il grigio di iOS.
 
 - **`FluidSliderSnapTest`, `FluidSliderClaimTest`** (`engine-ui`): tacche (entro la soglia, la soglia è una frazione, `1f` è un passo, intervallo vuoto, tacca che suona solo all'atterraggio, rete dei 55 ms, afferrare fermo non suona); il test dei mezzi slop; l'isteresi dell'interruttore e dove si posa il pomello lasciato.
 - **`GlassDropRiseTest`** (`engine-ui`, F6.3): la crescita mai oltre ×1,5 e mai sotto il riposo, dentro la finestra dei tempi di Apple; lo stiramento

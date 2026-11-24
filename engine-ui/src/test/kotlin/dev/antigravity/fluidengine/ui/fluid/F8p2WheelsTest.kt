@@ -1,11 +1,15 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontListFontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.io.File
 import java.time.LocalTime
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.ln
 import kotlin.math.sin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,8 +68,45 @@ class F8p2WheelsTest {
     }
     assertEquals(target, inertia.position, 0f)
     assertFalse(inertia.moving)
-    // Un lancio di sei voci dura qualche secondo di coda, come una lista di iOS, ma la coda sotto il quarto di pixel non c'e'.
+    // Un lancio di sei voci dura qualche secondo di coda, come una lista di iOS, ma la coda sotto il pixel la chiude la
+    // molla (F8.2c).
     assertTrue("durata ${frames / 120f} s", frames / 120f in 1.5f..6f)
+  }
+
+  @Test
+  fun `lasciata piano, la ruota non aspetta l'ultimo pixel e si ferma entro 0,3 s dalla posa che si vede`() {
+    // Il pan di agent-device sul tablet (F8.2b): il dito alzato a ~2,9 voci al secondo, a 0,3 voci da una voce. Il
+    // decadimento ritoccato ha una costante bassa (~1,7 al secondo): da un pixel a un quarto ci metterebbe ln(4)/k = 0,8 s,
+    // e il valore (con AM e PM che lo seguono) arrivava quasi un secondo dopo che la ruota sembrava ferma.
+    val px = 84f
+    val from = 8.3f
+    val speed = 2.86f
+    val target = fluidDetentLanding(from, speed, reducedMotion = false, lower = null, upper = null)
+    assertEquals(10f, target, 0f)
+    val inertia = FluidDetentInertia()
+    inertia.flingTo(from, speed, target, px)
+    val k = inertia.decayPerSecond
+    assertTrue("un decadimento lento: $k", k in 1f..3f)
+    val dt = 1f / 120f
+    var t = 0f
+    var pose = -1f
+    var last = from
+    var moving = true
+    while (moving) {
+      moving = inertia.step(dt)
+      t += dt
+      assertTrue("mai oltre la voce: ${inertia.position}", inertia.position <= target + 1e-5f)
+      assertTrue("sempre avanti", inertia.position >= last - 1e-6f)
+      last = inertia.position
+      // La posa che si vede: entro un pixel dalla voce.
+      if (pose < 0f && abs(target - inertia.position) * px <= 1f) pose = t
+      assertTrue("finisce", t < 10f)
+    }
+    assertEquals(target, inertia.position, 0f)
+    val tail = t - pose
+    println("F8p2c lancio lento: k = $k, posa a $pose s, ferma a $t s, coda $tail s (prima ${ln(4f) / k} s)")
+    assertTrue("dalla posa alla fine $tail s", tail <= 0.3f)
+    assertEquals(1f, FluidDetentMotion.HandoffPx, 0f)
   }
 
   @Test
@@ -162,6 +203,48 @@ class F8p2WheelsTest {
   }
 
   // --- La ruota contro iOS -----------------------------------------------------------------------------------------
+
+  /** Il colore di [fill] sopra una pagina [page] (0–255 per canale). */
+  private fun over(fill: Color, page: Int, pageBlue: Int = page): Triple<Float, Float, Float> {
+    val a = fill.alpha
+    fun mix(c: Float, p: Int) = p * (1f - a) + c * 255f * a
+    return Triple(mix(fill.red, page), mix(fill.green, page), mix(fill.blue, pageBlue))
+  }
+
+  @Test
+  fun `la fascia e' il grigio piatto di iOS 26 e 27, il quaternarySystemFill, e non e' vetro`() {
+    // Scuro: sulla pagina 28, 28, 30 la fascia del timer di iOS 27 e' 44, 44, 47 e quella delle HIG 44, 44, 48.
+    val (dr, dg, db) = over(fluidWheelBandFill(dark = true), 28, 30)
+    assertEquals(44f, dr, 1f)
+    assertEquals(44f, dg, 1f)
+    assertEquals(47.5f, db, 1f)
+    // Chiaro: sulla pagina bianca la fascia delle HIG e' 244, 244, 245.
+    val (lr, lg, lb) = over(fluidWheelBandFill(dark = false), 255)
+    assertEquals(244f, lr, 1f)
+    assertEquals(244f, lg, 1f)
+    assertEquals(245f, lb, 1f)
+    // La fascia non galleggia sul contenuto: niente vetro nella ruota.
+    val root = listOf(File("src/main/kotlin"), File("engine-ui/src/main/kotlin")).first { it.isDirectory }
+    val text = File(root, "dev/antigravity/fluidengine/ui/fluid/FluidWheelPicker.kt").readText()
+    assertFalse("fluidGlass", text.contains("fluidGlass("))
+    assertFalse("glassBackdropSource", text.contains("glassBackdropSource("))
+  }
+
+  @Test
+  fun `le voci sono in peso normale come in iOS, anche quella scelta, e solo l'unita' e' semibold`() {
+    val typography = fluidTypography()
+    val style = fluidWheelRowStyle(typography.headlineSmall)
+    assertEquals(FontWeight.Normal, style.fontWeight)
+    assertEquals(FluidFontFamily, style.fontFamily)
+    assertEquals("tnum", style.fontFeatureSettings)
+    assertEquals(typography.headlineSmall.fontSize, style.fontSize)
+    // La famiglia ha davvero il peso normale. Inter Display no (solo semigrassetto e grassetto): il normale chiesto li'
+    // diventava semigrassetto, ed era il «grassetto» delle tavole di F8.2b.
+    assertTrue((style.fontFamily as FontListFontFamily).fonts.any { it.weight == FontWeight.Normal })
+    assertFalse((typography.headlineSmall.fontFamily as FontListFontFamily).fonts.any { it.weight == FontWeight.Normal })
+    // L'unita' («ore», «min», «s») resta semibold.
+    assertEquals(FontWeight.SemiBold, typography.titleMedium.fontWeight)
+  }
 
   /** Le voci 1–3 a `R·sin(n·a)` dal centro, in dp, per una ruota di serie. */
   private fun rowOffsetDp(n: Int): Float {

@@ -2,15 +2,11 @@
  * Il selettore a ruota (4.0, F8.2): la ruota di iOS, `Picker` con `.pickerStyle(.wheel)`, `UIPickerView`, `UIDatePicker`
  * a ruota e la durata del timer di Orologio. Codice del Fluid Engine.
  *
- * La costruzione e' quella di `UIPickerView`, che disegna la ruota in tre strati: le voci fuori dalla fascia (piu'
- * tenui, curve sul cilindro), la fascia di selezione, e le voci dentro la fascia (piene). Qui la fascia e' **vetro**
- * dell'engine (`fluidGlass`) e resta ferma: si muove solo il contenuto, cosi' la lente non costa a ogni fotogramma piu'
- * di quanto costa ridisegnare le voci, che sono una registrazione piccola quanto la ruota (mai lo schermo intero).
- *
- *  1. le voci fuori dalla fascia stanno in una sorgente di vetro propria della ruota (`glassBackdropSource`): la fascia
- *     le piega al suo bordo, come una lente vera piega cio' che ha accanto;
- *  2. la fascia, ferma, campiona la pagina e quella sorgente;
- *  3. le voci dentro la fascia si disegnano **sopra** il vetro, nitide e appena ingrandite: e' il valore scelto.
+ * La costruzione e' quella di `UIPickerView`, che disegna la ruota in tre strati: la fascia di selezione, le voci fuori
+ * dalla fascia (piu' tenui, curve sul cilindro) e le voci dentro la fascia (piene, appena ingrandite: il valore scelto).
+ * La fascia e' un **grigio piatto**, il `quaternarySystemFill` di iOS, ferma: non galleggia sul contenuto, quindi non e'
+ * vetro (F8.2c; in F8.2 e F8.2b era vetro dell'engine). Si muove solo il contenuto, e ridisegnarlo costa una
+ * registrazione piccola quanto la ruota (mai lo schermo intero).
  *
  * Il moto e' quello di UIKit (`FluidDetentInertia.kt`): il lancio decelera come una lista di iOS e finisce esattamente
  * su una voce, il dito che tocca una ruota che gira la ferma, un tocco su una voce la porta al centro. Un tic aptico per
@@ -19,6 +15,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -207,7 +204,28 @@ internal object FluidWheelLook {
 
   /** Fino a che scala del carattere crescono le voci (oltre, la ruota mostrerebbe tre voci). */
   const val MaxRowScale: Float = 1.6f
+
+  /**
+   * Il riempimento della fascia (F8.2c): il `quaternarySystemFill` di UIKit, un grigio piatto e trasparente, senza bordo
+   * di luce ne' sfumature. Misurato sulle schermate di `riferimenti/`: sullo scuro (pagina 28, 28, 30) la fascia del timer
+   * di iOS 27 e quella delle HIG sono 44, 44, 47–48, cioe' 118, 118, 128 al 18%; sul chiaro (pagina bianca) la fascia
+   * delle HIG e' 244, 244, 245, cioe' 116, 116, 128 all'8%. Fiducia alta: sono i valori di UIKit al livello.
+   */
+  val BandFillLight: Color = Color(red = 116, green = 116, blue = 128).copy(alpha = 0.08f)
+  val BandFillDark: Color = Color(red = 118, green = 118, blue = 128).copy(alpha = 0.18f)
 }
+
+/** Il grigio della fascia sul chiaro o sullo scuro: [FluidWheelLook.BandFillLight], [FluidWheelLook.BandFillDark]. */
+internal fun fluidWheelBandFill(dark: Boolean): Color = if (dark) FluidWheelLook.BandFillDark else FluidWheelLook.BandFillLight
+
+/**
+ * Lo stile delle voci, da quello dei titoli ([base], `headlineSmall`): il **peso normale**, come tutte le voci di iOS,
+ * anche quella scelta (solo l'unita' e' semibold), con le cifre tabulari. Il taglio e' quello del testo
+ * ([FluidFontFamily]): Inter Display nell'engine ha solo il semigrassetto e il grassetto, e il peso normale chiesto a
+ * Display diventava semigrassetto (F8.2c: le voci sembravano in grassetto).
+ */
+internal fun fluidWheelRowStyle(base: TextStyle): TextStyle =
+  base.copy(fontFamily = FluidFontFamily, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum")
 
 /**
  * Un selettore a ruota di una sola colonna. Vedi l'altra forma di [FluidWheelPicker] per il comportamento.
@@ -224,7 +242,6 @@ fun FluidWheelPicker(
   contentDescription: String? = null,
   stateDescription: ((Int) -> String)? = null,
   enabled: Boolean = true,
-  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
 ) {
   FluidWheelPicker(
     columns = listOf(
@@ -241,25 +258,26 @@ fun FluidWheelPicker(
     ),
     modifier = modifier,
     enabled = enabled,
-    backdrop = backdrop,
   )
 }
 
 /**
  * Il selettore a ruota di iOS: una o piu' colonne di voci che girano col dito su un cilindro e si fermano a scatti sotto
- * una fascia di vetro, che ingrandisce appena il valore scelto. Piu' colonne affiancate fanno una durata, un'ora, un
+ * una fascia grigia, che ingrandisce appena il valore scelto. Piu' colonne affiancate fanno una durata, un'ora, un
  * valore con la sua unita' (le forme pronte: [FluidDurationWheel], [FluidTimeWheel]).
  *
  * **Le misure sono quelle di `UIPickerView`**, prese dalle schermate di iOS 26 e 27: alta 216 dp, voci da 32 dp su un
  * cilindro di 84 dp di raggio (tre voci piene per lato e una quarta schiacciata, accorciate col coseno dell'angolo), la
- * fascia a capsula alta 34 dp e rientrata di 45 dp per lato come in iOS 26 (le colonne stanno dentro quello spazio), la
- * voce scelta ingrandita di 1,12, le voci fuori dalla fascia al 45% dell'inchiostro e piu' tenui verso i bordi. Vedi
- * [FluidWheelLook].
+ * fascia a capsula alta 34 dp e rientrata di 45 dp per lato come in iOS 26 (le colonne stanno dentro quello spazio),
+ * grigia e piatta come in iOS (`quaternarySystemFill`, niente vetro), la voce scelta ingrandita di 1,12 e in peso normale
+ * come le altre (solo l'unita' e' semibold), le voci fuori dalla fascia al 45% dell'inchiostro e piu' tenui verso i
+ * bordi. Vedi [FluidWheelLook].
  *
  * **Il gesto.**
  *  - Un trascinamento in verticale la gira, 1:1 col dito; oltre la prima e l'ultima voce cede con l'elastico di UIKit.
  *  - Lasciata con velocita' **decelera come una lista di iOS** (0,998 a millisecondo) e si ferma esattamente su una voce:
- *    il punto proiettato si porta sulla voce piu' vicina e il moto si ritocca per arrivarci, senza rimbalzo.
+ *    il punto proiettato si porta sulla voce piu' vicina e il moto si ritocca per arrivarci, senza rimbalzo. L'ultimo
+ *    pixel lo chiude la molla dell'assestamento: il valore arriva ~0,13 s dopo che la ruota sembra ferma (F8.2c).
  *  - Un dito su una ruota che gira la **ferma**; sollevato senza muoversi, la posa sulla voce piu' vicina.
  *  - Un **tocco** su una voce sopra o sotto la fascia la porta al centro.
  *  - La ruota si prende il dito quando va in verticale per mezzo slop prima che di lato; se va prima di lato e' di chi
@@ -279,14 +297,12 @@ fun FluidWheelPicker(
  *
  * @param columns le colonne, da sinistra (da destra a sinistra si specchiano).
  * @param enabled spenta, la ruota e' a meta' opacita' e non risponde.
- * @param backdrop cio' che la fascia di vetro rifrange sotto le voci: di serie la superficie in scope.
  */
 @Composable
 fun FluidWheelPicker(
   columns: List<FluidWheelColumn>,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
-  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
 ) {
   val scheme = MaterialTheme.colorScheme
   val density = LocalDensity.current
@@ -306,12 +322,11 @@ fun FluidWheelPicker(
     for (i in drivers.indices) drivers[i].update(columns[i], rowPx, reducedMotion, haptics, enabled)
   }
 
-  val rowStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum")
+  val rowStyle = fluidWheelRowStyle(MaterialTheme.typography.headlineSmall)
   val unitStyle = MaterialTheme.typography.titleMedium
   val measurer = rememberTextMeasurer(cacheSize = 0)
   val ink = scheme.onSurface
-  val wheelSource = rememberGlassBackdrop()
-  val bandBackdrop = rememberCombinedGlassBackdrop(backdrop, wheelSource)
+  val bandFill = fluidWheelBandFill(GlassDefaults.isDarkSurface())
   val unitGapPx = with(density) { FluidWheelLook.UnitGap.toPx() }
 
   BoxWithConstraints(
@@ -322,8 +337,18 @@ fun FluidWheelPicker(
   ) {
     // La fascia rientra come in iOS 26, e le colonne stanno nello stesso spazio: il valore scelto resta dentro la capsula.
     val inset = fluidWheelBandInset(maxWidth)
-    // 1. Le voci fuori dalla fascia, registrate: la fascia le piega al suo bordo.
-    Row(Modifier.matchParentSize().padding(horizontal = inset).glassBackdropSource(wheelSource)) {
+    // 1. La fascia, ferma: una capsula alta 34 dp, rientrata, grigia e piatta come in iOS 26 e 27 (timer di Orologio,
+    // HIG; fino a iOS 18 era un rettangolo a raggio 8). Non galleggia sul contenuto: non e' vetro (F8.2c).
+    Box(
+      Modifier
+        .align(Alignment.Center)
+        .fillMaxWidth()
+        .padding(horizontal = inset)
+        .height(with(density) { bandPx.toDp() })
+        .background(bandFill, FluidCapsuleShape),
+    )
+    // 2. Le voci fuori dalla fascia.
+    Row(Modifier.matchParentSize().padding(horizontal = inset)) {
       columns.forEachIndexed { i, column ->
         key(i) {
           val texts = rememberWheelLabels(measurer, rowStyle, unitStyle, column)
@@ -331,17 +356,7 @@ fun FluidWheelPicker(
         }
       }
     }
-    // 2. La fascia di vetro, ferma: una capsula alta 34 dp, rientrata.
-    Box(
-      Modifier
-        .align(Alignment.Center)
-        .fillMaxWidth()
-        .padding(horizontal = inset)
-        .height(with(density) { bandPx.toDp() })
-        // Una capsula: la fascia di iOS 26 e 27 (timer di Orologio, HIG); fino a iOS 18 era un rettangolo a raggio 8.
-        .fluidGlass(FluidGlass.Regular, FluidCapsuleShape, bandBackdrop),
-    )
-    // 3. Le voci dentro la fascia, sopra il vetro; i gesti e i nodi per TalkBack, una colonna per nodo.
+    // 3. Le voci dentro la fascia, sopra; i gesti e i nodi per TalkBack, una colonna per nodo.
     Row(Modifier.matchParentSize().padding(horizontal = inset)) {
       columns.forEachIndexed { i, column ->
         key(i) {

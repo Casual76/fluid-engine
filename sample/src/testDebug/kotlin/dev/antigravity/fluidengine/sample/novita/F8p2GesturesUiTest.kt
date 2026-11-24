@@ -11,9 +11,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,14 +30,17 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.material.MaterialFinger
+import dev.antigravity.fluidengine.ui.fluid.FluidDurationWheel
 import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.FluidRangeSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidRulerDial
+import dev.antigravity.fluidengine.ui.fluid.FluidTimeWheel
 import dev.antigravity.fluidengine.ui.fluid.FluidWheelPicker
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
@@ -46,6 +51,10 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.time.Duration
+import java.time.LocalTime
+import java.util.IdentityHashMap
+import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -74,8 +83,8 @@ private class WheelHaptics : FluidHaptics {
 
 /**
  * F8.2 · Gesti e ruote, col dito vero (eventi del sistema, con l'orologio che avanza: `idleFor` al passo di
- * `advanceTimeBy`, come `MaterialFinger` vuole) e col vetro vero (verdetti degli shader accettati: la fascia della ruota
- * e le maniglie sono vetro dell'engine).
+ * `advanceTimeBy`, come `MaterialFinger` vuole) e col vetro vero (verdetti degli shader accettati: le maniglie sono vetro
+ * dell'engine; la fascia della ruota, dalla F8.2c, e' un grigio piatto).
  *
  * In Robolectric la densita' e' 2 (xhdpi): una voce della ruota e' 64 px, una tacca della ghiera 18 px, e lo slop del
  * tocco e' 32 px (16 dp, il doppio di un telefono): la ruota e la ghiera si prendono il dito a meta', 16 px.
@@ -315,6 +324,154 @@ class F8p2GesturesUiTest {
     assertEquals(0, list.firstVisibleItemIndex)
     assertEquals(0, list.firstVisibleItemScrollOffset)
     assertEquals(13, minute)
+  }
+
+  // --- La posa che si vede (F8.2c) ----------------------------------------------------------------------------------
+
+  /**
+   * Le posizioni disegnate, fotogramma per fotogramma: gli stati Float scritti (la posizione di ogni colonna della ruota e
+   * quella della ghiera sono stati Float letti in disegno). Una colonna ferma non scrive, quindi non ha campioni.
+   */
+  private class Tracks {
+    val samples = IdentityHashMap<MutableFloatState, ArrayList<Pair<Long, Float>>>()
+    val pending = IdentityHashMap<MutableFloatState, Unit>()
+  }
+
+  private fun <T> tracking(tracks: Tracks, block: () -> T): T {
+    val observer = Snapshot.registerGlobalWriteObserver { (it as? MutableFloatState)?.let { s -> tracks.pending[s] = Unit } }
+    try {
+      return block()
+    } finally {
+      observer.dispose()
+    }
+  }
+
+  /** Un fotogramma, e la posizione di chi si e' mosso. */
+  private fun trackedFrame(tracks: Tracks) {
+    advance(16)
+    Snapshot.sendApplyNotifications()
+    val now = compose.mainClock.currentTime
+    for (s in tracks.pending.keys) tracks.samples.getOrPut(s) { ArrayList() }.add(now to s.floatValue)
+    tracks.pending.clear()
+  }
+
+  /** Quando [track] si e' posata a vista: il primo campione da cui resta entro un pixel dalla posizione finale. */
+  private fun poseOf(track: List<Pair<Long, Float>>, pxPerStep: Float): Long {
+    val final = track.last().second
+    var pose = track.last().first
+    for (i in track.indices.reversed()) {
+      if (abs(track[i].second - final) * pxPerStep > 1f) break
+      pose = track[i].first
+    }
+    return pose
+  }
+
+  /** La posizione di [track] all'istante [time] (l'ultimo campione fino a li'). */
+  private fun at(track: List<Pair<Long, Float>>, time: Long): Float = track.last { it.first <= time }.second
+
+  // Dalle 9: un viaggio di 6 voci (9 → 3) e' ambiguo per la strada corta di `fluidTimeWheelHour12`, qui si resta sotto.
+  private var lesson by mutableStateOf(LocalTime.of(9, 0))
+
+  @Test
+  fun `lasciata piano, la ruota da' il valore entro 0,3 s dalla posa che si vede, e AM e PM girano insieme`() {
+    show {
+      FluidTimeWheel(
+        time = lesson,
+        onTimeChange = { lesson = it },
+        use24Hour = false,
+        locale = Locale.US,
+        hourDescription = "Ore",
+        minuteDescription = "Minuti",
+        modifier = Modifier.testTag("ora"),
+      )
+    }
+    val hours = node("Ore").boundsInRoot
+    val tracks = Tracks()
+    var up = 0L
+    var valueAt = -1L
+    tracking(tracks) {
+      // Piano e costante, come il pan di agent-device sul tablet: 4 px ogni 16 ms (~3,9 voci al secondo), alzato in
+      // corsa. Mezzo slop per prendersi il dito, poi ~3,4 voci: da 9 AM oltre il 12.
+      var at = Offset(hours.center.x, hours.center.y + 120f)
+      finger.down(at)
+      repeat(58) {
+        trackedFrame(tracks)
+        at = Offset(at.x, at.y - 4f)
+        finger.move(at)
+      }
+      finger.up(at)
+      up = compose.mainClock.currentTime
+      repeat(250) {
+        trackedFrame(tracks)
+        if (valueAt < 0L && lesson.hour >= 12) valueAt = compose.mainClock.currentTime
+      }
+    }
+    // La colonna delle ore e' quella che si e' mossa col dito; quella di AM e PM si muove dopo, da sola.
+    val hourTrack = tracks.samples.values.maxBy { track -> track.count { it.first <= up } }
+    val periodTrack = tracks.samples.values.first { track -> track !== hourTrack && track.first().first > up }
+    val pose = poseOf(hourTrack, 64f)
+    val beyond = hourTrack.last().second - at(hourTrack, up)
+    println("F8p2c ruota: alzata a $up ms (${at(hourTrack, up)}), posa a $pose ms (${hourTrack.last().second}), valore a $valueAt ms ($lesson), AM e PM da ${periodTrack.first().first} ms")
+    assertTrue("e' andata oltre il dito: $beyond voci", beyond > 0.5f)
+    assertTrue("PM: $lesson", lesson.hour in 12..14)
+    assertTrue("il valore e' arrivato", valueAt > 0L)
+    assertTrue("il valore non arriva prima della posa ($valueAt, $pose)", valueAt >= pose)
+    assertTrue("il valore arriva entro 0,3 s dalla posa: ${valueAt - pose} ms", valueAt - pose <= 300L)
+    // AM e PM partono col valore, non dopo.
+    assertTrue("AM e PM partono ${periodTrack.first().first - valueAt} ms dopo il valore", periodTrack.first().first - valueAt <= 64L)
+    assertEquals("AM e PM su PM", 1f, periodTrack.last().second, 1e-3f)
+    compose.onNode(hasStateDescription("PM"), useUnmergedTree = true).assertExists()
+    assertEquals("scritture a riposo", 0, writesDuring(1000))
+  }
+
+  @Test
+  fun `lasciata piano, la ghiera finisce entro 0,3 s dalla posa che si vede`() {
+    showDial()
+    val b = bounds("ghiera")
+    val tracks = Tracks()
+    var up = 0L
+    var finishedAt = -1L
+    tracking(tracks) {
+      // Verso sinistra, 3 px ogni 16 ms (~10 tacche al secondo), alzato in corsa.
+      var at = Offset(b.center.x + 90f, b.center.y)
+      finger.down(at)
+      repeat(60) {
+        trackedFrame(tracks)
+        at = Offset(at.x - 3f, at.y)
+        finger.move(at)
+      }
+      finger.up(at)
+      up = compose.mainClock.currentTime
+      val before = dialFinished
+      repeat(250) {
+        trackedFrame(tracks)
+        if (finishedAt < 0L && dialFinished > before) finishedAt = compose.mainClock.currentTime
+      }
+    }
+    val track = tracks.samples.values.maxBy { it.size }
+    val pose = poseOf(track, 18f)
+    val beyond = track.last().second - at(track, up)
+    println("F8p2c ghiera: alzata a $up ms (${at(track, up)}), posa a $pose ms (${track.last().second}, $degrees gradi), fine a $finishedAt ms")
+    assertTrue("e' andata oltre il dito: $beyond tacche", beyond > 0.5f)
+    assertEquals("una tacca intera", degrees.roundToInt().toFloat(), degrees, 1e-4f)
+    assertTrue("e' finita", finishedAt > 0L)
+    assertTrue("la fine arriva entro 0,3 s dalla posa: ${finishedAt - pose} ms", finishedAt - pose in 0L..300L)
+  }
+
+  private var timer by mutableLongStateOf(119L)
+  private var timerCyclic by mutableStateOf(false)
+
+  @Test
+  fun `il timer di serie non gira, come in iOS 27, e con cyclic dopo 59 secondi torna lo 0`() {
+    show { FluidDurationWheel(seconds = timer, onSecondsChange = { timer = it }, cyclic = timerCyclic) }
+    // 1 min 59 s: sopra lo 0 non c'e' niente e dopo il 59 nemmeno.
+    node("Secondi").custom("Aumenta")
+    assertEquals(119L, timer)
+    timerCyclic = true
+    Snapshot.sendApplyNotifications()
+    advance(100)
+    node("Secondi").custom("Aumenta")
+    assertEquals("1 min 0 s", 60L, timer)
   }
 
   // --- La ghiera ---------------------------------------------------------------------------------------------------

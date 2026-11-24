@@ -109,6 +109,25 @@ finale.
 
     L'engine prende l'estrazione e i ruoli col contrasto verificato. L'app sceglie l'immagine e la superficie.
 
+**Le scelte di Alessio sulla prima ondata (24 novembre 2026, mattina).**
+
+Regola generale: **ciò che muove il dito resta nitido, ciò che muove l'app da sola si sfoca**. È la logica di Apple:
+anche una pagina che scorre veloce non si sfoca. Quindi:
+- niente sfocatura su ruote, ghiere, cursori, liste e pagine, neanche durante l'inerzia di un lancio;
+- il blur resta per i numeri che scorrono, il testo che arriva, il badge e le sostituzioni.
+
+Le scelte per pacchetto:
+- **F8.1, il testo che arriva:** resta svelto, va per parole e righe, è sfocato più forte, come Apple.
+- **F8.1, il badge:** scorre col blur.
+- **F8.2, la ruota:** fascia a 1,12; la fascia diventa una capsula rientrata dai bordi, come iOS 26/27.
+- **F8.3, la password forte:** resta nella scheda sotto il campo.
+- **F8.3, il valore riservato:** si ricopre dopo 30 s.
+- **F8.4, la griglia:** i mesi come in Foto, cioè titolo grande e data sopra le foto, che scorrono sotto i tasti di vetro.
+- **F8.5, la festa:** 120 coriandoli; Magic Replace dove i tracciati lo permettono.
+- **F8.6, il quadrante:** arco riempito.
+- **F7, il bordo a metà risoluzione:** solo nel moto rapido, sui profili bassi.
+- **F7, la prima apertura di una pagina enorme:** anteprima subito, poi i tasselli nitidi.
+
 ### Ondata 2: pannelli, date, condivisione, prima volta
 
 - **F8.8 Date**

@@ -5,13 +5,16 @@ import android.app.ActivityManager
 import android.app.Application
 import android.app.ApplicationExitInfo
 import android.content.ComponentCallbacks2
+import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.Process
 import android.util.Log
+import android.view.FrameMetrics
 import android.view.View
 import android.view.Window
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.glass.quality.GlassConditions
 import dev.antigravity.fluidengine.ui.glass.quality.GlassFrameEvidence
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
 import org.junit.Assert.*
@@ -28,6 +31,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
+import org.robolectric.shadows.FrameMetricsBuilder
 import org.robolectric.shadows.ShadowActivityManager.ApplicationExitInfoBuilder
 import org.robolectric.shadows.ShadowWindow
 import org.robolectric.shadows.ShadowLog
@@ -103,6 +109,78 @@ class AndroidGlassResourcesTest {
     app.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
     assertEquals(1, received.size)
     activity.pause().stop().destroy()
+  }
+
+  @Config(shadows = [RecoveryTestHeap::class])
+  @Test fun coldMemoryPressureClearsDuringMotionWithoutAllocationOrForegroundEvent() {
+    prepare()
+    val memory = ActivityManager.MemoryInfo().apply {
+      totalMem = 8L shl 30
+      availMem = 200L shl 20
+      threshold = 256L shl 20
+      lowMemory = true
+    }
+    shadowOf(am).setMemoryInfo(memory)
+    val resources = GlassStartup().create(app)
+    val activity = visibleActivity()
+    val window = activity.get().window
+    val owner = ReflectionHelpers.getField<Map<Window, GlassWindow>>(resources, "windows").getValue(window)
+    val period = 20_000_000L
+    var now = System.nanoTime()
+    val frames = WindowFrames(resources, owner.policy, Handler(Looper.getMainLooper()), 0, period, owner.render) { now }
+    fun motion(count: Int) {
+      frames.scrolling(true)
+      repeat(count) {
+        now += period
+        val metrics = FrameMetricsBuilder()
+          .setMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP, now)
+          .setMetric(FrameMetrics.VSYNC_TIMESTAMP, now)
+          .setMetric(FrameMetrics.DEADLINE, period)
+          .setMetric(FrameMetrics.DRAW_DURATION, period / 4)
+          .build()
+        if (it == 0) {
+          assertEquals(period, metrics.getMetric(FrameMetrics.DEADLINE))
+          assertEquals(period / 4, metrics.getMetric(FrameMetrics.TOTAL_DURATION))
+        }
+        frames.onFrameMetricsAvailable(window, metrics, 0)
+      }
+    }
+    try {
+      assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+      assertFalse(resources.prefetchAllowed.value)
+      motion(300)
+      // Cambia soltanto la memoria offerta dal sistema. Nessun trim, broadcast, riapertura o allocazione.
+      memory.availMem = 4L shl 30
+      memory.lowMemory = false
+      shadowOf(am).setMemoryInfo(memory)
+      motion(300)
+      val healthy = ReflectionHelpers.getField<GlassReading>(resources, "reading")
+      assertEquals(false, healthy.conditions.lowMemory)
+      motion(1)
+      assertSame(healthy, ReflectionHelpers.getField<GlassReading>(resources, "reading"))
+      frames.scrolling(false)
+      assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+      motion(1501)
+      // Il dito resta fermo prima del rilascio e la memoria torna sotto soglia.
+      memory.lowMemory = true
+      memory.availMem = memory.threshold
+      shadowOf(am).setMemoryInfo(memory)
+      now += 6_000_000_000L
+      frames.scrolling(false)
+      assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+      memory.lowMemory = false
+      memory.availMem = 4L shl 30
+      shadowOf(am).setMemoryInfo(memory)
+      motion(1802)
+      assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+      frames.scrolling(false)
+      assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+      assertEquals(24L shl 20, resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes)
+      assertTrue(resources.prefetchAllowed.value)
+    } finally {
+      frames.close()
+      activity.pause().stop().destroy()
+    }
   }
 
   @Test fun severeThermalFromPowerManagerProtectsAllWindowsImmediately() {
@@ -301,4 +379,10 @@ class AndroidGlassResourcesTest {
     }
     assertTrue(paths.isEmpty())
   }
+}
+
+/** Solo l'heap Java del dispositivo di prova: le condizioni lowMemory/availMem vengono da ActivityManager. */
+@Implements(value = GlassVariantSignals::class, isInAndroidSdk = false)
+internal class RecoveryTestHeap {
+  @Implementation protected fun conditions(real: GlassConditions): GlassConditions = real.copy(heapFraction = 0.2)
 }

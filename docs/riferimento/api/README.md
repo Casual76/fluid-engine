@@ -11,21 +11,21 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 18 | 268 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 50 | 437 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 52 | 442 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
-| [Controlli](controlli.md) | 22 | 233 |
+| [Controlli](controlli.md) | 26 | 289 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 258 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
 | [Tema, forma, tipo](tema.md) | 11 | 148 |
-| [Icone (FluidIcons)](icone.md) | 5 | 208 |
+| [Icone (FluidIcons)](icone.md) | 5 | 209 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 14 | 174 |
+| [engine-foundation](foundation.md) | 17 | 201 |
 | [engine-storage](storage.md) | 1 | 14 |
 | [engine-net](net.md) | 2 | 10 |
 | [engine-config](config.md) | 1 | 9 |

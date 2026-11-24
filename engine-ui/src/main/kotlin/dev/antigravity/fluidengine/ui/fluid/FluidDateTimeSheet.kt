@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -113,6 +114,10 @@ private fun DateTimeBody(
   val local = LocalDateTime.parse(localText)
   var monthText by state.month
   val month = YearMonth.parse(monthText)
+  // Il mese del calendario e quello salvato nel foglio sono lo stesso: il foglio lo riporta a ogni apertura.
+  val calendar = remember(state) { FluidCalendarState(month) }
+  LaunchedEffect(calendar, monthText) { if (calendar.month != month) calendar.showMonth(month) }
+  LaunchedEffect(calendar) { snapshotFlow { calendar.month }.collect { monthText = it.toString() } }
   var custom by state.custom
   var quick by state.quick
   var offsetText by state.offset
@@ -147,51 +152,25 @@ private fun DateTimeBody(
       DateTimeChoiceRow(words.choose, custom, { custom = true })
     }
     if (custom) {
-      FluidButton(words.previousMonth, { monthText = month.minusMonths(1).toString() },
-        style = FluidButtonStyle.Plain, size = FluidButtonSize.Large, fillWidth = true, grip = FluidPressGrip.YieldsToScroll)
-      Text(month.format(DateTimeFormatter.ofPattern("LLLL yyyy", locale)), style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.semantics { heading() })
-      FluidButton(words.nextMonth, { monthText = month.plusMonths(1).toString() },
-        style = FluidButtonStyle.Plain, size = FluidButtonSize.Large, fillWidth = true, grip = FluidPressGrip.YieldsToScroll)
-      // Seven true week columns. Large type expands cells and the grid scrolls horizontally rather
-      // than shrinking touch targets or clipping two-digit dates on narrow phones.
-      BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val cell = maxOf(48.dp * LocalDensity.current.fontScale, maxWidth / 7)
-        Column(Modifier.horizontalScroll(rememberScrollState())) {
-          Row {
-            repeat(7) { i ->
-              val day = FluidDateTimeMath.weekStart(locale).plus(i.toLong())
-              Box(Modifier.width(cell).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
-                Text(day.getDisplayName(TextStyle.NARROW, locale), style = MaterialTheme.typography.labelLarge)
-              }
-            }
-          }
-          FluidDateTimeMath.cells(month, locale).chunked(7).forEach { week ->
-            Row {
-              week.forEach { date ->
-                if (date == null) Spacer(Modifier.width(cell)) else {
-                  val active = date == local.toLocalDate()
-                  val available = FluidDateTimeMath.dayAvailable(date, zone, now, min, max)
-                  val scheme = MaterialTheme.colorScheme
-                  Box(Modifier.width(cell).heightIn(min = cell)
-                    .background(if (active) scheme.primaryContainer else scheme.surfaceContainer,
-                      ContinuousCornerShape(FluidRadius.Small))
-                    .fluidPressable(onClick = { update(LocalDateTime.of(date, local.toLocalTime())) },
-                      enabled = available, role = Role.Button, haptic = FluidHapticEvent.Tick,
-                      grip = FluidPressGrip.YieldsToScroll)
-                    .semantics(mergeDescendants = true) {
-                      contentDescription = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale))
-                      selected = active
-                    }, contentAlignment = Alignment.Center) {
-                    Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.bodyLarge,
-                      color = if (active) scheme.onPrimaryContainer else scheme.onSurface)
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      // La griglia del mese e' il calendario in pagina (F8.8), con la testata e le frecce sue: un giorno solo, il mese che
+      // cambia col dito, le sette colonne vere col testo grande. Le descrizioni restano quelle intere, con l'anno.
+      FluidCalendarContent(
+        selection = FluidDateSelection.Single(local.toLocalDate()),
+        onSelectionChange = { picked ->
+          (picked as? FluidDateSelection.Single)?.date?.let { update(LocalDateTime.of(it, local.toLocalTime())) }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        state = calendar,
+        marks = null,
+        minDate = null,
+        maxDate = null,
+        isDateEnabled = { FluidDateTimeMath.dayAvailable(it, zone, now, min, max) },
+        today = now.atZone(zone).toLocalDate(),
+        locale = locale,
+        labels = (if (locale.language == "it") FluidCalendarLabels() else FluidCalendarLabels.english())
+          .copy(previousMonth = words.previousMonth, nextMonth = words.nextMonth),
+        fullDayDescriptions = true,
+      )
       val pattern = DateFormat.getBestDateTimePattern(locale, if (use24Hour) "Hm" else "hm")
       Text(local.format(DateTimeFormatter.ofPattern(pattern, locale)) + " / " + zone.id,
         style = MaterialTheme.typography.titleMedium)

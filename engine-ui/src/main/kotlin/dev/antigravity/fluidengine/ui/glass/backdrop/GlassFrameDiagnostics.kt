@@ -9,7 +9,35 @@ import android.util.Log
 import android.view.View
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.TraversableNode
+import androidx.compose.ui.node.findNearestAncestor
 import java.lang.ref.WeakReference
+
+/** Il proprietario si riconosce anche quando Android registra un figlio senza ridisegnare il padre. */
+internal fun Modifier.glassFrameMarker(label: String): Modifier = then(FrameMarkerElement(label))
+
+private data class FrameMarkerElement(val label: String) : ModifierNodeElement<FrameMarkerNode>() {
+  override fun create() = FrameMarkerNode(label)
+  override fun update(node: FrameMarkerNode) { node.label = label }
+}
+
+private class FrameMarkerNode(var label: String) : Modifier.Node(), TraversableNode, DrawModifierNode {
+  override val traverseKey get() = FrameMarkerElement::class
+  override fun ContentDrawScope.draw() {
+    GlassFrameDiagnostics.span(label, this@FrameMarkerNode) {
+      GlassFrameDiagnostics.event(label, this@FrameMarkerNode) { "size=$size" }
+      drawContent()
+    }
+  }
+}
+
+internal fun DelegatableNode.glassFrameOwner(): String? =
+  (findNearestAncestor(FrameMarkerElement::class) as? FrameMarkerNode)?.label
 
 /**
  * Correlazione fra stato, catena installata e disegno sullo stesso orologio di `gfxinfo` (nanosecondi monotoni).

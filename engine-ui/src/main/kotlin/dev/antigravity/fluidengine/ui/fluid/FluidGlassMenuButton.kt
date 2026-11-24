@@ -88,7 +88,7 @@ fun FluidGlassMenuButton(
   shape: Shape = FluidCapsuleShape,
 ) {
   val host = LocalFluidGlassModalHostState.current
-  val entry = remember { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry()
   val haptics = LocalFluidHaptics.current
   val anchor = remember { FluidMenuAnchor() }
   // La pressione del vetro, condivisa: al click lungo serve il tasto COME IL DITO LO STA GONFIANDO,

@@ -67,9 +67,14 @@ class FluidAddressNavigation<P : Any>(
   private val missingRoute: Any,
   private val signInRoute: Any,
 ) {
-  /** Sostituisce la pila col percorso naturale in un solo turno del thread UI. Un rifiuto conserva la pila. */
+  /** Accetta il link e sostituisce la pila dopo il ritorno di eventuali modali alla radice. Un rifiuto conserva la pila. */
   fun open(nav: NavHostController, request: FluidAddressRequest): Boolean {
+    return open(nav, request, nav.navigatorProvider.pageNavigatorOrNull()?.addressQueue)
+  }
+
+  internal fun open(nav: NavHostController, request: FluidAddressRequest, queue: FluidModalAddressQueue?): Boolean {
     val result = table.resolve(request)
+    if (result !== FluidAddressResult.Rejected && queue?.deferIfNeeded(this, request) == true) return true
     val routes = when (result) {
       is FluidAddressResult.Open -> result.stack.map(routeOf)
       is FluidAddressResult.Missing -> result.parents.map(routeOf) + missingRoute

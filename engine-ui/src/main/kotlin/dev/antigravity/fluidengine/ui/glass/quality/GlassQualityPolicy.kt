@@ -72,6 +72,10 @@ internal class GlassQualityPolicy(
     private set
   val peakDeadlineOverrunNs get() = frames.peakOverrunNs
 
+  /** Una nuova lettura Android può riaprire la risalita. Il veto del lettore ha un rilascio esplicito. */
+  internal val needsRecoveryReading: Boolean
+    get() = !budgetDenied && (decision.optics < minOf(technicalLimit ?: GlassOptics.Full, appLimit) || !prefetch)
+
   /** Unica base tempi (ns monotoni) per le chiamate. Un riavvio del clock apre una nuova epoca. */
   private fun observeClock(nowNs: Long): Boolean {
     if (nowNs < 0) return false

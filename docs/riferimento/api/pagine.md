@@ -11,7 +11,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun Activity.newFluidAddress(intent: Intent, allowedPackages: Set<String> = emptySet()): FluidAddressRequest?` — Da chiamare dentro onNewIntent. Conta esclusivamente il chiamante di questa consegna.
 - `fun ContentProvider.fluidAddressFromCall(url: String, allowedPackages: Set<String>): FluidAddressRequest` — Alternativa per le app Pampa anche prima di Android 15. Dentro ContentProvider.call, sul thread Binder, Android verifica il nome contro l'UID. Consegnare l'esito all'host per un canale interno.
 - `class FluidAddressNavigation<P : Any>(private val table: FluidAddressTable<P>, private val routeOf: (P) -> Any, private val missingRoute: Any, private val signInRoute: Any)` — Collega la tabella dell'app alle sue rotte in FluidNavHost. Le rotte di servizio [missingRoute] e [signInRoute] mostrano rispettivamente lo stato gentile e l'accesso forniti dall'app. Le rotte possono essere stringhe già pronte o oggetti serializzabili di Navigation.
-  - `fun open(nav: NavHostController, request: FluidAddressRequest): Boolean` — Sostituisce la pila col percorso naturale in un solo turno del thread UI. Un rifiuto conserva la pila.
+  - `fun open(nav: NavHostController, request: FluidAddressRequest): Boolean` — Accetta il link e sostituisce la pila dopo il ritorno di eventuali modali alla radice. Un rifiuto conserva la pila.
   - `fun resumeAfterSignIn(nav: NavHostController): Boolean` — Rivaluta l'indirizzo dopo l'accesso. Indietro o un nuovo indirizzo annullano l'attesa originale.
 
 ## `engine-ui/ui/navigation/FluidNavHost.kt`

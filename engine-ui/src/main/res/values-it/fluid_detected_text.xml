@@ -1,0 +1,14 @@
+<resources>
+    <string name="fluid_detected_calendar">Aggiungi all’agenda</string>
+    <string name="fluid_detected_show_calendar">Mostra nell’agenda</string>
+    <string name="fluid_detected_dial">Chiama</string>
+    <string name="fluid_detected_sms">Invia messaggio</string>
+    <string name="fluid_detected_contact">Aggiungi ai contatti</string>
+    <string name="fluid_detected_map">Apri in Mappe</string>
+    <string name="fluid_detected_directions">Indicazioni</string>
+    <string name="fluid_detected_email">Scrivi una mail</string>
+    <string name="fluid_detected_open_link">Apri il link</string>
+    <string name="fluid_detected_copy">Copia</string>
+    <string name="fluid_detected_copy_address">Copia indirizzo</string>
+    <string name="fluid_detected_no_handler">Nessuna app disponibile per questa azione</string>
+</resources>

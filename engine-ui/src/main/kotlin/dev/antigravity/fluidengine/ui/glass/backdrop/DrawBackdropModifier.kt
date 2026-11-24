@@ -1507,7 +1507,8 @@ private class DrawBackdropNode(
                     GlassFrameDiagnostics.event("capture", this@DrawBackdropNode) {
                         // F6B.15: anche dove sta il vetro (nella radice), per riconoscerlo sul dispositivo.
                         "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()}" +
-                            " optics=${renderState.optics} sample=${activeSample?.sampleScale ?: contentScale} bytes=$residentBytes"
+                            " optics=${renderState.optics} sample=${activeSample?.sampleScale ?: contentScale} bytes=$residentBytes" +
+                            " owner=${this@DrawBackdropNode.glassFrameOwner()} travel=${activeSample?.travelling == true}"
                     }
                     recordedPipeline = activeSample
                     recordedSampleScale = activeSample?.sampleScale ?: 0f

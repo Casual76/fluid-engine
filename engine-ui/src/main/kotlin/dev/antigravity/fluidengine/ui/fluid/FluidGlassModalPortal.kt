@@ -286,7 +286,7 @@ private fun FluidGlassModalPortalEntry(
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val host = LocalFluidGlassModalHostState.current ?: return
-  val entry = remember { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry()
 
   // Written after composition succeeds rather than during it. The lambda is rebuilt on every
   // recomposition of the feature, so whatever it captured is never more than one frame old — and

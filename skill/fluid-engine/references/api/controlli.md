@@ -2,6 +2,60 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidCalendar.kt`
+
+- `class FluidCalendarState(initialMonth: YearMonth, collapsed: Boolean = false)` — Lo stato di un [FluidCalendar]: il mese che mostra, la striscia della settimana e il collegamento con la lista sotto.
+  - `var month: YearMonth by mutableStateOf(initialMonth)` — Il mese mostrato; nella striscia, il mese del giorno di riferimento.
+  - `val collapseProgress: Float get()` — Quanto la griglia e' stretta: 0 il mese intero, 1 la striscia della settimana.
+  - `val isWeekStrip: Boolean get()` — Vero quando si vede solo la striscia della settimana (derivato: cambia una volta, non a ogni fotogramma).
+  - `var isMonthYearPickerShown: Boolean by mutableStateOf(false)` — Vero mentre al posto della griglia ci sono le ruote del mese e dell'anno: il titolo toccato, come in `DatePicker(.graphical)`. Le ruote cambiano [month] mentre girano; il titolo toccato di nuovo torna alla griglia.
+  - `fun showMonthYearPicker(show: Boolean)` — Apre ([show] vero) o chiude le ruote del mese e dell'anno. Si aprono solo dalla griglia intera, non dalla striscia.
+  - `fun showMonth(month: YearMonth)` — Mostra [month] subito, senza moto.
+  - `suspend fun animateToMonth(month: YearMonth)` — Porta il calendario a [month]: scorrendo se e' quello dopo o quello prima, se no subito.
+  - `suspend fun collapse()` — Chiude la griglia nella striscia della settimana.
+  - `suspend fun expand()` — Riapre la griglia del mese.
+  - `val nestedScrollConnection: NestedScrollConnection` — Da dare alla lista sotto il calendario: quando la lista scorre in su la griglia si stringe prima che la lista si muova; quando la lista e' in cima e si tira giu', la griglia si riapre. A dito lasciato la striscia si posa aperta o chiusa, mai a meta'.
+  - `companion object`
+    - `val Saver` — Conserva mese, giorno di riferimento, striscia e ruote aperte fra una ricreazione e l'altra.
+- `@Composable fun rememberFluidCalendarState(initialMonth: YearMonth = YearMonth.now(), collapsed: Boolean = false): FluidCalendarState` — Uno stato del calendario che sopravvive alla ricreazione, aperto su [initialMonth].
+- `@Composable fun FluidCalendar(selection: FluidDateSelection, onSelectionChange: (FluidDateSelection) -> Unit, modifier: Modifier = Modifier, state: FluidCalendarState = rememberFluidCalendarState(YearMonth.from(selec…, marks: FluidCalendarMarks? = null, minDate: LocalDate? = null, maxDate: LocalDate? = null, isDateEnabled: ((LocalDate) -> Boolean)? = null, today: LocalDate = remember { LocalDate.now() }, locale: Locale = LocalConfiguration.current.locales[0], labels: FluidCalendarLabels = FluidCalendarLabels())` — Il calendario del mese, da mettere nella pagina: `DatePicker` con lo stile `.graphical` di SwiftUI, `MultiDatePicker` e le decorazioni di `UICalendarView`, con la striscia della settimana dell'app Calendario.
+
+## `engine-ui/ui/fluid/FluidCalendarModel.kt`
+
+- `sealed interface FluidDateSelection` — Cosa e' scelto nel calendario, e quindi cosa fa un tocco su un giorno. Le tre forme di Apple: `DatePicker` (`.graphical`), `MultiDatePicker` e l'intervallo «dal… al…».
+  - `data class Single(val date: LocalDate?) : FluidDateSelection` — Un giorno solo ([date] nullo: niente ancora). Il tocco sceglie il giorno toccato.
+  - `data class Multiple(val dates: Set<LocalDate> = emptySet()) : FluidDateSelection` — Giorni sparsi, anche in mesi diversi (`MultiDatePicker`). Il tocco accende o spegne il giorno.
+  - `data class Range(val start: LocalDate? = null, val end: LocalDate? = null) : FluidDateSelection` — Un intervallo dal [start] all'[end], compresi. Il primo tocco fissa l'inizio; il secondo la fine, se viene dopo (o e' lo stesso giorno: un intervallo di un giorno); un secondo tocco **prima** dell'inizio ricomincia da li', e un tocco a intervallo completo ricomincia da capo. I giorni in mezzo si disegnano come una fascia.
+    - `val range: FluidDateRange? get()` — L'intervallo completo, o nulla mentre manca la fine.
+- `enum class FluidCalendarMarkStyle` — Come si mostra un segno sotto un giorno.
+- `data class FluidCalendarMark(val count: Int = 1, val style: FluidCalendarMarkStyle = FluidCalendarMarkStyle.Dots, val color: Color = Color.Unspecified, val description: String? = null)` — Il segno sotto un giorno: quanti impegni, verifiche o note ha. L'app dice quali giorni hanno un segno e cosa vuol dire; l'engine lo disegna dentro la cella, **senza cambiare l'altezza della riga**: un segno che arriva non sposta niente.
+- `class FluidCalendarMarks` — I segni del calendario, un giorno alla volta. Ogni giorno ha il suo stato: un segno che arriva o cambia **ricompone solo il suo giorno**, e un mese che arriva dalla rete ([setMonth]) tocca solo i giorni che cambiano davvero. Si scrive dal thread principale o da qualunque altro (gli stati sono di Compose, la tabella e' protetta).
+  - `operator fun get(date: LocalDate): FluidCalendarMark?` — Il segno di [date], o nulla.
+  - `operator fun set(date: LocalDate, mark: FluidCalendarMark?)` — Mette o toglie (nulla) il segno di [date].
+  - `fun setMonth(month: YearMonth, marks: Map<LocalDate, FluidCalendarMark>)` — I segni di [month], arrivati tutti insieme: i giorni di [month] che non sono in [marks] perdono il loro. Scrive solo i giorni che cambiano.
+  - `fun clear()` — Toglie tutti i segni.
+- `data class FluidCalendarLabels(val previousMonth: String = "Mese precedente", val nextMonth: String = "Mese successivo", val previousWeek: String = "Settimana precedente", val nextWeek: String = "Settimana successiva", val today: String = "oggi", val rangeStart: String = "inizio dell'intervallo", val rangeEnd: String = "fine dell'intervallo", val inRange: String = "nell'intervallo", val oneMark: String = "1 impegno", val manyMarks: String = "%d impegni", val noDate: String = "Nessuna data", val fromDate: String = "Dal %s", val days: String = "%d giorni", val showMonthYear: String = "Scegli mese e anno", val hideMonthYear: String = "Torna ai giorni", val monthWheel: String = "Mese", val yearWheel: String = "Anno")` — Le parole del calendario: i tasti del mese, e cosa legge TalkBack su un giorno («25 novembre, 3 impegni»). Di serie in italiano; [english] per l'inglese.
+  - `companion object`
+    - `fun english(): FluidCalendarLabels` — Le stesse in inglese.
+- `object FluidCalendarDefaults` — Le misure del calendario, da `DatePicker(.graphical)` di SwiftUI e dalle HIG «Pickers» (iOS 26), misurate il 24 novembre 2026 sulle immagini ufficiali (`artifacts/liquid-glass/sessioni/f8-8/riferimenti/misure.md`).
+  - `val MaxColumnWidth: Dp` — La colonna piu' larga: **64 dp**. Il calendario divide la sua larghezza per sette (come `DatePicker` e la vista mese di Calendario, 55,9 pt su un iPhone da 393), ma su un tablet sette colonne da 220 dp non sono un calendario: oltre questa misura la griglia resta al centro. A occhio, 24 novembre 2026.
+  - `const val CircleFraction: Float` — Il cerchio del giorno scelto e il passo delle righe, in frazione della colonna: **0,82**. Il render di `graphicalStyle` da' cerchio/colonna 0,815 e riga/colonna 0,82 (i cerchi di due righe si toccano); le HIG 0,86. Fiducia media.
+  - `val MinRowHeight: Dp` — La riga non scende mai sotto i 44 dp di un bersaglio (HIG), anche su una finestra stretta.
+  - `val MinCellAtFontScale: Dp` — Il lato minimo di una cella col testo grande: **48 dp per la scala del carattere**, la regola delle sette colonne di `FluidDateTimeSheet` (3.1.0). Quando sette celle cosi' non ci stanno, la griglia scorre di lato invece di stringersi, e il mese cambia con le frecce.
+  - `val HeaderHeight: Dp` — La testata col mese: **44 dp**, la fila di un bersaglio; il titolo a 17 sp semibold (`DatePicker`, fiducia media).
+  - `val WeekdayRowHeight: Dp` — La fila delle lettere dei giorni: **20 dp**, lettere a 13 sp semibold maiuscole nel grigio terziario. Dal centro delle lettere al centro della prima riga ci sono cosi' 10 + 22 = 32 dp: 31 nel render di SwiftUI, 33 nelle HIG.
+  - `const val DayFontSp: Float` — Il numero del giorno: **20 sp** regular; scelto e oggi semibold, e il scelto 7% piu' grande (misurato: +7%).
+  - `const val SelectedDayScale: Float`
+  - `const val SelectedTintAlpha: Float` — L'accento sotto il giorno scelto: **12%** sul fondo, in chiaro e in scuro (render di SwiftUI e HIG, fiducia alta).
+  - `const val RangeTintAlpha: Float` — La fascia di un intervallo: l'accento al **12%**, alta quanto il cerchio, con le estremita' piene nell'accento e il numero bianco. Apple non ha un intervallo nel calendario: e' la forma della fascia di Voli e di Calendario quando si trascina un evento su piu' giorni, a occhio il 24 novembre 2026.
+  - `val MarkDotSize: Dp` — I pallini dei segni: **5 dp**, **3 dp** fra l'uno e l'altro, al piu' tre (il pallino di Calendario, a occhio).
+  - `val MarkDotGap: Dp`
+  - `const val MaxMarkDots: Int`
+  - `const val MarkCountFontSp: Float` — Il numero di un segno: 11 sp, a metà fra il numero del giorno e il fondo del cerchio.
+  - `const val Rows: Int` — Le righe di un mese: sempre **sei**, come `DatePicker`: cambiare mese non cambia l'altezza e la lista sotto non salta.
+  - `const val PageResponseSeconds: Double` — La molla di una pagina lasciata a meta' o di un tocco sulle frecce: critica, **0,38 s** ([FluidMotion.ResponseStandard]).
+  - `const val CollapseResponseSeconds: Double` — La molla della striscia che si chiude o si apre dopo un lancio della lista: critica, **0,30 s**.
+
 ## `engine-ui/ui/fluid/FluidCodeField.kt`
 
 - `class FluidCodeFieldState(val length: Int)` — Lo stato di un [FluidCodeField]: il codice scritto, e l'esito che l'app gli dà. È dell'app (ricordato con [rememberFluidCodeFieldState]): l'app legge [code], e a codice sbagliato chiama [fail].
@@ -97,6 +151,17 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidRowValue(text: String, modifier: Modifier = Modifier)` — A stepper-free numeric or textual value shown at the trailing edge of a settings row.
 - `@Composable fun FluidHairline(modifier: Modifier = Modifier, startInset: Dp = 0.dp, color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha…)` — A hairline. 0.5dp is a real width on every screen the app runs on, and it is what iOS draws.
 - `@Composable fun FluidColorDot(color: Color, selected: Boolean, onClick: () -> Unit, label: String, modifier: Modifier = Modifier, size: Dp = 30.dp)` — A circular dot, used to preview an accent colour in the picker.
+
+## `engine-ui/ui/fluid/FluidDateCapsule.kt`
+
+- `object FluidDateCapsuleDefaults` — Le misure della capsula, da `DatePicker(.compact)` (HIG «Pickers» di iOS 26 e la scheda dell'evento di Calendario in iOS 26 e 27, misurate il 24 novembre 2026: `artifacts/liquid-glass/sessioni/f8-8/riferimenti/misure.md`, § 2).
+  - `val Height: Dp` — L'altezza: **34 dp** (HIG 34 pt, Calendario 34,5 in iOS 27 e 36 in iOS 26). Fiducia media.
+  - `val TouchHeight: Dp` — Il bersaglio intorno: **44 dp**, quanto chiedono le HIG; la capsula sta al centro.
+  - `val HorizontalPadding: Dp` — Il margine del testo: **13 dp** per lato (13–14 pt misurati). Il raggio e' meta' dell'altezza: una capsula piena.
+  - `const val FontSp: Float` — Il testo: **17 sp** nel colore dell'etichetta (`label`), come in Calendario.
+  - `val Fill: Color` — Il fondo: il grigio `tertiarySystemFill`, **(118, 118, 128) al 12%**, in chiaro e in scuro (HIG di iOS 26; iOS 27 lo porta al 16%). Fiducia alta sul colore.
+- `@Composable fun FluidDateCapsule(selection: FluidDateSelection, onSelectionChange: (FluidDateSelection) -> Unit, modifier: Modifier = Modifier, label: String? = null, minDate: LocalDate? = null, maxDate: LocalDate? = null, isDateEnabled: ((LocalDate) -> Boolean)? = null, marks: FluidCalendarMarks? = null, today: LocalDate = remember { LocalDate.now() }, locale: Locale = LocalConfiguration.current.locales[0], labels: FluidCalendarLabels = FluidCalendarLabels(), text: (FluidDateSelection) -> String = { fluidDateCapsuleText(it, locale, labels) }, closeOnSelection: Boolean = true)` — La capsula di una data in una riga, come `DatePicker` con lo stile `.compact`: «23 nov 2026» (la data media della lingua) in un grigio leggero. Toccata, **diventa il popover del calendario** e, scelto il giorno, ci rientra col valore nuovo: il popover dalla sorgente dell'engine (F5B.1), anche sul telefono (`FluidCompactAdaptation.Popover`).
+- `@Composable fun FluidDurationCapsule(seconds: Long, onSecondsChange: (Long) -> Unit, modifier: Modifier = Modifier, label: String? = null, showSeconds: Boolean = false, maxHours: Int = 23, minuteInterval: Int = 1, minimumSeconds: Long = if (showSeconds) 1L else 60L, units: FluidDurationUnits = FluidDurationUnits(), text: (Long) -> String = { fluidDurationText(it, showSeconds, units) })` — La capsula di una durata («45 min», «1 h 30 min»): toccata diventa il popover con la ruota del timer di Orologio ([FluidDurationWheel], F8.2), la `UIDatePicker` in modo `countDownTimer` con l'aptica a scatti. La ruota non e' rifatta: e' quella, con le sue colonne collegate e il suo minimo. Il popover si chiude toccando fuori.
 
 ## `engine-ui/ui/fluid/FluidFieldClipboard.kt`
 
@@ -221,6 +286,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidRangeSliderDefaults` — I nomi di serie delle due maniglie per TalkBack. Un'app in un'altra lingua li passa sempre.
   - `const val StartDescription: String`
   - `const val EndDescription: String`
+
+## `engine-ui/ui/fluid/FluidRecurrenceSheet.kt`
+
+- `data class FluidRecurrenceLabels(val title: String = "Ripeti", val never: String = "Mai", val daily: String = "Ogni giorno", val weekly: String = "Ogni settimana", val biweekly: String = "Ogni 2 settimane", val monthly: String = "Ogni mese", val yearly: String = "Ogni anno", val custom: String = "Personalizza", val every: String = "Ogni", val unitsOne: List<String> = listOf("giorno", "settimana", "mese", "anno"), val unitsMany: List<String> = listOf("giorni", "settimane", "mesi", "anni"), val unitName: String = "Frequenza", val days: String = "Giorni", val repeatOn: String = "Il giorno", val end: String = "Fine ripetizione", val endNever: String = "Mai", val endOnDate: String = "In una data", val endAfter: String = "Dopo", val oneTime: String = "1 volta", val manyTimes: String = "%d volte", val next: String = "Prossime date", val noNext: String = "Nessuna data in arrivo", val confirm: String = "Fine", val cancel: String = "Annulla")` — Le parole del pannello «Ripeti», di serie in italiano; [english] per l'inglese. Le frasi della regola non stanno qui: le scrive [FluidRecurrenceText] nella lingua del pannello.
+  - `companion object`
+    - `fun english(): FluidRecurrenceLabels` — Le stesse in inglese, come la schermata Repeat di Calendario.
+- `@Composable fun FluidRecurrenceSheet(visible: Boolean, onDismissRequest: () -> Unit, onConfirm: (FluidRecurrenceRule?) -> Unit, start: LocalDate, initialRule: FluidRecurrenceRule? = null, locale: Locale = LocalConfiguration.current.locales[0], labels: FluidRecurrenceLabels = FluidRecurrenceLabels(), source: FluidTransitionSource? = null, previewCount: Int = 5)` — Il pannello «Ripeti», come la schermata Ripetizione di Calendario e Promemoria: in un foglio di vetro dell'engine ([FluidGlassSheet], a meta' e in cima, che nasce dalla [source] se c'e' e ci torna).
 
 ## `engine-ui/ui/fluid/FluidRulerDial.kt`
 

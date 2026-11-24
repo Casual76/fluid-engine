@@ -34,9 +34,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidIcons` — Le icone dell'engine: Material Symbols arrotondate a peso 500, al tratto.
   - `object Filled` — Le stesse sagome a riempimento pieno, solo per le icone che ne hanno bisogno: la scheda della tab bar (in Apple la tab bar e' piena e le barre al tratto, R6), la forma «accesa» di uno stato (preferito, scelto) e i comandi di riproduzione. Nelle barre si usa la forma al tratto.
 
-## Il set: 166 icone al tratto, 31 anche piene
+## Il set: 167 icone al tratto, 31 anche piene
 
-Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31; `FluidIconsOutline.kt`: 166), una riga per icona invece che una per dichiarazione. Ogni riga vale la proprietà al tratto `val FluidIcons.<icona>: ImageVector` e, quando la terza colonna non è vuota, anche quella piena `val FluidIcons.Filled.<icona>: ImageVector`, con l'uso per cui la piena esiste. Si importano per nome (`import dev.antigravity.fluidengine.ui.fluid.icons.<icona>`): lo stesso import porta tutte e due. La seconda colonna è il nome in Material Symbols, quello da cercare partendo da un'icona Material; la corrispondenza con le icone che le app usano oggi è in `tools/icons/corrispondenza.md`.
+Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31; `FluidIconsOutline.kt`: 167), una riga per icona invece che una per dichiarazione. Ogni riga vale la proprietà al tratto `val FluidIcons.<icona>: ImageVector` e, quando la terza colonna non è vuota, anche quella piena `val FluidIcons.Filled.<icona>: ImageVector`, con l'uso per cui la piena esiste. Si importano per nome (`import dev.antigravity.fluidengine.ui.fluid.icons.<icona>`): lo stesso import porta tutte e due. La seconda colonna è il nome in Material Symbols, quello da cercare partendo da un'icona Material; la corrispondenza con le icone che le app usano oggi è in `tools/icons/corrispondenza.md`.
 
 | icona | Material Symbols | piena |
 |---|---|---|
@@ -151,6 +151,7 @@ Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31
 | `Notifications` | `notifications` |  |
 | `NotificationsActive` | `notifications_active` |  |
 | `NotificationsOff` | `notifications_off` |  |
+| `NotificationsUnread` | `notifications_unread` |  |
 | `OpenInNew` | `open_in_new` |  |
 | `Palette` | `palette` |  |
 | `Pause` | `pause` | `Filled.Pause` · riproduzione |

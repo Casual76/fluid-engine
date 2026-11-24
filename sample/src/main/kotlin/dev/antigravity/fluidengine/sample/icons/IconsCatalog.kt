@@ -15,7 +15,7 @@ internal class IconsCatalogEntry(
 )
 
 /**
- * Tutto il set `FluidIcons`, nell'ordine dell'elenco: 162 icone al tratto, 31 con la gemella piena.
+ * Tutto il set `FluidIcons`, nell'ordine dell'elenco: 167 icone al tratto, 31 con la gemella piena.
  *
  * Scritto per esteso e non letto per riflessione: la galleria si pubblica minificata, e R8 toglierebbe i getter che
  * nessuno nomina. Se il set cambia (una riga in `tools/icons/fluid-icons.txt`), `IconsPageTest` fallisce e dice quale
@@ -133,6 +133,7 @@ internal val IconsCatalog: List<IconsCatalogEntry> = listOf(
   IconsCatalogEntry("Notifications", "notifications", { FluidIcons.Notifications }, null),
   IconsCatalogEntry("NotificationsActive", "notifications_active", { FluidIcons.NotificationsActive }, null),
   IconsCatalogEntry("NotificationsOff", "notifications_off", { FluidIcons.NotificationsOff }, null),
+  IconsCatalogEntry("NotificationsUnread", "notifications_unread", { FluidIcons.NotificationsUnread }, null),
   IconsCatalogEntry("OpenInNew", "open_in_new", { FluidIcons.OpenInNew }, null),
   IconsCatalogEntry("Palette", "palette", { FluidIcons.Palette }, null),
   IconsCatalogEntry("Pause", "pause", { FluidIcons.Pause }, { FluidIcons.Filled.Pause }),

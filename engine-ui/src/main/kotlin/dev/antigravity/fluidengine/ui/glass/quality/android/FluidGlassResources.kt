@@ -146,13 +146,24 @@ class FluidGlassResources private constructor(private val app: Application) {
 
   @Synchronized
   internal fun refresh(thermalStatus: Int? = null) {
-    applyReading(signals.read(thermalStatus))
+    refreshReading(signals.read(thermalStatus), System.nanoTime())
+  }
+
+  /** Chiamata sotto il lock del processo dal monitor del moto. Una lettura ogni cinque secondi
+   * al massimo fra tutte le finestre degradate, senza timer in quiete né nuove richieste di frame. */
+  internal fun refreshForRecovery(policy: GlassQualityPolicy, now: Long) {
+    if (policy.needsRecoveryReading && now - lastReadingNs >= RecoveryReadingIntervalNs) {
+      refreshReading(signals.read(), now)
+    }
+  }
+
+  private fun refreshReading(value: GlassReading, now: Long) {
+    applyReading(value, now)
     pressured = false
     publish()
   }
 
-  private fun applyReading(value: GlassReading) {
-    val now = System.nanoTime()
+  private fun applyReading(value: GlassReading, now: Long = System.nanoTime()) {
     lastReadingNs = now
     reading = value
     fun update(policy: GlassQualityPolicy) {
@@ -285,6 +296,8 @@ class FluidGlassResources private constructor(private val app: Application) {
   }
 
   companion object {
+    private const val RecoveryReadingIntervalNs = 5_000_000_000L
+
     @Volatile
     private var process: FluidGlassResources? = null
 

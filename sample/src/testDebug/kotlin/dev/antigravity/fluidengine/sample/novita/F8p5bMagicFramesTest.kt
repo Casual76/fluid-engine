@@ -30,6 +30,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.MicOff
 import dev.antigravity.fluidengine.ui.fluid.icons.Notifications
 import dev.antigravity.fluidengine.ui.fluid.icons.NotificationsActive
 import dev.antigravity.fluidengine.ui.fluid.icons.NotificationsOff
+import dev.antigravity.fluidengine.ui.fluid.icons.NotificationsUnread
 import dev.antigravity.fluidengine.ui.fluid.icons.Pause
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
@@ -37,6 +38,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.io.File
 import java.time.Duration
 import kotlin.math.abs
+import kotlin.math.hypot
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -52,8 +54,9 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * F8.5b · La Magic Replace nell'albero Compose vero, coi pixel (PixelCopy): la campana che diventa barrata disegna la
  * barra dall'alto a sinistra e resta nitida; la barra che se ne va si ritira; play e pausa restano la sostituzione
- * sfocata. I fermi agli istanti misurati su Apple finiscono in `build/reports/f8-5b/fermi/` per la tavola accanto ad Apple
- * (`sessioni/f8-5b/tavola-magic.py`).
+ * sfocata. F8.5c: la campana prende il pallino di Material (`notifications_unread`) come in Apple, prima l'intaglio
+ * e poi il pallino intero col rimbalzo. I fermi agli istanti misurati su Apple finiscono in `build/reports/f8-5b/fermi/`
+ * per la tavola accanto ad Apple (`sessioni/f8-5c/tavola-magic.py`).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -177,6 +180,75 @@ class F8p5bMagicFramesTest {
     var diff = 0
     for (y in 0 until h) for (x in 0 until w) if (abs(inkOf(after.getPixel(x, y)) - inkOf(end.getPixel(x, y))) > 0.05f) diff++
     assertEquals("ferma dopo la sostituzione", 0, diff)
+  }
+
+  @Test fun `il pallino entra dopo l'intaglio, intero e col rimbalzo, e la campana si richiude quando se ne va`() {
+    show(FluidIcons.Notifications)
+    val on = replace(FluidIcons.NotificationsUnread, "campana-pallino", times)
+    val start = on.getValue(-1)
+    val end = on.getValue(9999)
+    val w = start.width
+    // Il pallino nel riquadro: centro 18,1 / 5,93 e raggio 3,14 su 24 unita'.
+    val unit = w / 24f
+    val cx = 18.1f * unit
+    val cy = 5.93f * unit
+    val r = 3.14f * unit
+    fun inside(x: Int, y: Int, radius: Float) = hypot(x + 0.5f - cx, y + 0.5f - cy) <= radius
+    var dot = 0
+    var under = 0
+    var cut = 0
+    for (y in 0 until w) for (x in 0 until w) {
+      val was = inkOf(start.getPixel(x, y)) > 0.8f
+      val now = inkOf(end.getPixel(x, y)) > 0.8f
+      if (inside(x, y, r * 0.85f) && now) { dot++; if (was) under++ }
+      if (was && inkOf(end.getPixel(x, y)) < 0.2f && !inside(x, y, r * 1.2f)) cut++
+    }
+    assertTrue("il pallino c'e': $dot pixel", dot > 1000)
+    assertTrue("il pallino copre un tratto della campana: $under pixel", under > 150)
+    assertTrue("l'intaglio c'e': $cut pixel", cut > 150)
+    fun inked(b: Bitmap, test: (Int, Int) -> Boolean): Int {
+      var n = 0
+      for (y in 0 until w) for (x in 0 until w) if (test(x, y) && inkOf(b.getPixel(x, y)) > 0.5f) n++
+      return n
+    }
+    val early = on.getValue(67)
+    // Prima l'intaglio, in un fotogramma di Apple (qui il fermo «33» cade a meta' dello scatto): a 67 ms la campana e'
+    // aperta, e il tratto della campana che il pallino coprira' se n'e' andato con lei (non resta fermo come parte
+    // comune); il pallino e' appena accennato.
+    val cutLeft = inked(early) { x, y ->
+      inkOf(start.getPixel(x, y)) > 0.8f && inkOf(end.getPixel(x, y)) < 0.2f && !inside(x, y, r * 1.2f)
+    }
+    assertTrue("a 67 ms l'intaglio e' aperto: restano $cutLeft pixel su $cut", cutLeft < cut / 5)
+    val underEarly = inked(early) { x, y -> inside(x, y, r * 0.85f) && inkOf(start.getPixel(x, y)) > 0.8f }
+    assertTrue("a 67 ms il tratto sotto il pallino non c'e' piu': $underEarly pixel su $under", underEarly < under / 5)
+    // Il pallino entra in dissolvenza: a 133 ms e' a meta' strada (Apple 0,63), pieno a 233.
+    fun core(b: Bitmap): Float {
+      var sum = 0f
+      var count = 0
+      for (y in 0 until w) for (x in 0 until w) if (inside(x, y, r * 0.5f)) { sum += inkOf(b.getPixel(x, y)); count++ }
+      return sum / count
+    }
+    val half = core(on.getValue(133)) / core(end)
+    assertTrue("a 133 ms il pallino e' a meta' della dissolvenza: $half", half in 0.4f..0.85f)
+    // Poi il pallino, col rimbalzo: a 267 ms e' piu' grande che a riposo (+21 % di lato in Apple).
+    val ring = 1.6f * r
+    val rest = inked(end) { x, y -> inside(x, y, ring) }
+    val peak = inked(on.getValue(267)) { x, y -> inside(x, y, ring) }
+    assertTrue("il pallino rimbalza: $peak pixel contro $rest a riposo", peak > rest * 1.2f)
+
+    val off = replace(FluidIcons.Notifications, "pallino-campana", times)
+    // Come in Apple il pallino svanisce con l'intaglio ancora aperto, e la campana si richiude quando non c'e' piu'.
+    val open = inked(off.getValue(100)) { x, y ->
+      inkOf(start.getPixel(x, y)) > 0.8f && inkOf(end.getPixel(x, y)) < 0.2f && !inside(x, y, r * 1.2f)
+    }
+    assertTrue("a 100 ms l'intaglio e' ancora aperto: $open pixel su $cut", open < cut / 5)
+    val gone = inked(off.getValue(200)) { x, y -> inside(x, y, r * 0.85f) && inkOf(start.getPixel(x, y)) < 0.2f }
+    assertTrue("a 200 ms il pallino non c'e' piu': $gone pixel", gone < (dot - under) / 10)
+    val closed = inked(off.getValue(200)) { x, y ->
+      inkOf(start.getPixel(x, y)) > 0.8f && inkOf(end.getPixel(x, y)) < 0.2f && !inside(x, y, r * 1.2f)
+    }
+    // La base rimbalza giu' (-4 %) e sposta l'arco di qualche pixel: richiusa vuol dire piu' di meta'.
+    assertTrue("a 200 ms la campana e' richiusa: $closed pixel su $cut", closed > cut * 0.6f)
   }
 
   @Test fun `la barra se ne va ritirandosi, e le altre coppie lasciano i loro fermi`() {

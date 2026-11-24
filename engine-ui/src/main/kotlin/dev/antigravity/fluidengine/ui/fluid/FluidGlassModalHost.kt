@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -55,6 +56,7 @@ import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.scrimBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
@@ -128,6 +130,23 @@ class FluidGlassModalHostState internal constructor() {
    */
   val isOnScreen: Boolean get() = entries.any { it.visible || it.lifted }
 
+  internal val rootOnScreen: Boolean get() = entries.any { it.rootOnScreen }
+
+  /** Chiede il congedo dall'alto e aspetta anche l'ultimo fotogramma del ritorno. */
+  internal suspend fun awaitRootDismissal() {
+    val original = entries.filter { it.rootOnScreen }.sortedByDescending { it.openedAt }
+    for (entry in original) {
+      // Un congedo può aver aperto una conferma sopra il modale successivo.
+      snapshotFlow {
+        entry !in entries || !entry.visible || entries.none { it.rootOnScreen && it.openedAt > entry.openedAt }
+      }.first { it }
+      if (entry in entries && entry.visible) entry.onDismissRequest()
+      snapshotFlow { entry !in entries || !entry.rootOnScreen }.first { it }
+    }
+    // Un congedo può chiedere conferma. La nuova finestra appartiene all'utente.
+    snapshotFlow { !rootOnScreen }.first { it }
+  }
+
   internal fun register(entry: FluidGlassModalEntry) {
     if (entries.none { it === entry }) entries.add(entry)
   }
@@ -195,7 +214,8 @@ val LocalFluidGlassModalHostState: ProvidableCompositionLocal<FluidGlassModalHos
   staticCompositionLocalOf { null }
 
 @Stable
-internal class FluidGlassModalEntry {
+internal class FluidGlassModalEntry(val atRoot: Boolean = true) {
+  val rootOnScreen get() = atRoot && (visible || lifted || retiring)
   var visible by mutableStateOf(false)
   var openedAt by mutableIntStateOf(0)
   var onDismissRequest: () -> Unit by mutableStateOf({})
@@ -298,8 +318,10 @@ fun FluidGlassModalHost(
       // Every registered entry, in the order they were opened, so a menu raised from inside a modal
       // sits over it instead of replacing it. An entry that is closed and finished animating draws
       // nothing at all and costs one float animation.
-      state.entries.sortedBy { it.openedAt }.forEach { entry ->
-        key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
+      FluidLayerModalBackScope(state) {
+        state.entries.sortedBy { it.openedAt }.forEach { entry ->
+          key(entry) { FluidGlassModalLayer(entry = entry, backdrop = backdrop, host = state) }
+        }
       }
       // Sopra tutto: un menu che si trasforma aperto in un palco si chiude toccando ovunque fuori.
       state.outsideCatchers.forEach { catcher ->

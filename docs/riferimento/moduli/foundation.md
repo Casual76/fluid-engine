@@ -43,6 +43,11 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | un numero con la sua unità, convertito senza `Double` (F8.3) | `FluidQuantity(valore, FluidUnits.Kilometer).to(FluidUnits.Mile)`, `FluidUnits.convert(…)` |
 | scrivere o leggere «12,5 km», «€12.50» nella lingua | `FluidUnitFormat.format(quantità, locale)`, `FluidUnitFormat.parse(testo, locale)` |
 | le regole di una password, la forza, una password forte (F8.3) | `FluidPasswordRules.parse(…)`, `FluidPasswordStrength.estimate(…)`, `rules.generate()` |
+| una ricorrenza («ogni lun e gio fino al 20 dicembre») come dato, le sue prossime date (F8.8) | `FluidRecurrenceRule(…)`, `regola.occurrences(inizio, limit = 5)` |
+| la frase di una ricorrenza in italiano o in inglese | `FluidRecurrenceText.describe(regola, inizio, locale)` |
+| leggere o scrivere una `RRULE` (RFC 5545, EventKit) | `FluidRecurrenceRule.parseRRule(testo)`, `regola.toRRule()` |
+| un intervallo di giorni «dal… al…», anche sull'ora legale | `FluidDateRange(inizio, fine)`: `dayCount`, `startInstant(zona)`, `endInstantExclusive(zona)` |
+| il primo giorno della settimana della lingua | `FluidDates.firstDayOfWeek(locale)`, `FluidDates.weekdays(locale)` |
 
 ## Versioni: `EngineBuild`, `compareVersions`, `isStableVersionNewer`, `EngineCompatibility`
 
@@ -384,6 +389,32 @@ minuti, ore, giorni fino a 6, settimane fino a 4, mesi, anni. `fluidFormatFileSi
 `FluidFormat.bytes`, con lo stesso testo di prima. Le ICU cambiano un poco fra versioni di Android («1 min fa» o «1 minuto
 fa»): le prove (`F8p1FormatTest`, Robolectric) fissano la lingua e l'SDK.
 
+## Date e ricorrenze (F8.8): `FluidRecurrenceRule`, `FluidRecurrenceText`, `FluidDateRange`, `FluidDates`
+
+La parte pura delle date di `engine-ui` ([../componenti/date.md](../componenti/date.md)): il pannello «Ripeti» restituisce
+una `FluidRecurrenceRule`, il calendario sceglie un `FluidDateRange`.
+
+- **`FluidRecurrenceRule`**: `EKRecurrenceRule` e la `RRULE` di RFC 5545 come data class: frequenza
+  (`FluidRecurrenceFrequency`), intervallo, giorni della settimana col numero (`FluidRecurrenceDay`, «l'ultimo venerdì» è
+  `FluidRecurrenceDay.last(FRIDAY)`), giorni del mese (anche dalla fine), mesi, posizioni (`setPositions`: «l'ultimo giorno
+  feriale»), fine (`FluidRecurrenceEnd.Never`, `OnDate`, `AfterCount`) e `weekStart`. I campi vuoti prendono il giorno
+  dall'inizio passato a `occurrences`.
+  - **L'espansione lavora su date locali**: `occurrences(inizio)` è una sequenza pigra di `LocalDate`; con un
+    `LocalDateTime` e una zona ogni data prende l'ora solo alla fine (`ZonedDateTime.of`: l'ora che manca va avanti del
+    salto, quella che si ripete vale la prima, come RFC 5545 § 3.3.5). Mai millisecondi sommati.
+  - **I casi limite seguono RFC 5545 e Calendario**: il 31 salta i mesi senza 31 (per l'ultimo giorno si usa
+    `daysOfMonth = listOf(-1)`), il 29 febbraio cade solo negli anni bisestili, il quinto lunedì salta i mesi che non lo
+    hanno, l'inizio conta solo se rispetta la regola. Una regola che non cade mai finisce da sola dopo 400 anni vuoti.
+  - `toRRule()` e `parseRRule()` parlano la sintassi di RFC 5545 (`FREQ`, `INTERVAL`, `BYDAY`, `BYMONTHDAY`, `BYMONTH`,
+    `BYSETPOS`, `UNTIL`, `COUNT`, `WKST`); le altre parti fanno fallire la lettura invece di essere ignorate.
+- **`FluidRecurrenceText.describe`**: la frase in una riga, in italiano per `it` e in inglese per le altre lingue, con le
+  parole scritte nell'engine (le stesse sul telefono e nelle prove): «Ogni lun e gio fino al 20 dicembre», «Ogni mese
+  l'ultima domenica», «Ogni giorno fino all'8 dicembre», «Every month on the last Friday, 10 times».
+- **`FluidDateRange`**: dal primo all'ultimo giorno compresi; `dayCount` conta i giorni, `duration(zona)` le ore (71 nei tre
+  giorni del passaggio all'ora legale, 73 in quelli del ritorno).
+- **`FluidDates`**: il primo giorno della settimana dai dati CLDR della lingua (`WeekFields.of`, con la scelta dell'utente
+  di Android 14 nell'estensione `fw`), i sette giorni in ordine, la settimana di un giorno.
+
 ## Token, costanti, Defaults
 
 | nome | valore | note |
@@ -400,6 +431,10 @@ fa»): le prove (`F8p1FormatTest`, Robolectric) fissano la lingua e l'SDK.
   i campi sconosciuti sono ignorati; il pavimento di versione ritira una build vecchia (0.9.9 → richiesto, 1.1.0 → consigliato, 1.2.0 → ok).
 - `EngineVersionTest` (4): confronto per segmento e non testuale; pre-release prima della release; lo stabile non offre mai una pre-release;
   segmenti senza senso non lanciano.
+- `FluidRecurrenceTest` (13, F8.8): il 31 del mese e l'ultimo giorno, il 29 febbraio e il 2100, l'ultimo venerdì, il quinto
+  lunedì, l'ultimo giorno feriale, le settimane alterne col loro `WKST`, la fine per data e per conteggio, l'ora legale a
+  Roma e a New York, la `RRULE` avanti e indietro, le regole rifiutate, la frase in italiano e in inglese, il primo giorno
+  della settimana per lingua, l'intervallo sull'ora legale.
 - **Non verificato dai test:** il confronto fra due pre-release con numeri a due cifre (vedi la trappola), l'override del `killSwitch`,
   `SyncStatus`, `EngineSettings`.
 
@@ -411,6 +446,7 @@ fa»): le prove (`F8p1FormatTest`, Robolectric) fissano la lingua e l'SDK.
 - `.../EngineSettings.kt` — `EngineSettings`, `ThemeMode`, `AccentMode`.
 - `.../AppUpdate.kt` — `AppUpdater`, `UpdateChannel`, `AvailableAppUpdate`, `AppUpdateInstallState`, `AppUpdateErrorKind`.
 - `.../SyncStatus.kt` — `SyncStatus`, `SyncState`.
+- `.../FluidRecurrence.kt`, `.../FluidRecurrenceText.kt`, `.../FluidDates.kt` — la ricorrenza, la sua frase, gli intervalli di giorni (F8.8).
 - `templates/engine-manifest.json`, `manifest.json` (radice) — il modello e il manifest vero di Fluid Glass.
 
 ## Dipendenze e configurazione minima

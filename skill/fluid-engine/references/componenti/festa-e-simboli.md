@@ -56,7 +56,7 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
 | `Rotate`, `RotateCounterClockwise` | `.rotate` | 1,9 s un giro | parte svelto e frena a lungo; attivo: rampa di 0,8 s e 180°/s (10188) |
 | `Breathe` | `.breathe` | 3,0 s | +23 % e schiarito al 65 %, salita e discesa di 1,35 s (10188) |
 | `VariableColor`, `VariableColorCumulative` | `.variableColor` | una tacca ogni 334 ms | spente al 24 %, accese in 290 ms; a uno a uno o a riempire (10197) |
-| Magic Replace | `.replace` fra simboli parenti (iOS 18) | 0,7 s | resta la parte comune; la barra si disegna in 267 ms e taglia la base (o si ritira in 300), il pallino arriva a 100 ms con un rimbalzo, la base rimbalza di ±4–5 %; nitida (WWDC24 10188) |
+| Magic Replace | `.replace` fra simboli parenti (iOS 18) | 0,7 s | resta la parte comune; la barra si disegna in 267 ms e taglia la base (o si ritira in 300), il pallino entra in dissolvenza dopo l'intaglio (pieno a 233 ms) con un rimbalzo, la base rimbalza di ±4–5 %; nitida (WWDC24 10188) |
 | sostituzione | `.replace` fra simboli non parenti | 0,35 s | la vecchia esce e la nuova entra sfocate, curve R7 dello scambio d'icona |
 | Draw On / Draw Off | `.drawOn`, `.drawOff` (iOS 26) | 0,8 s | la penna percorre i tratti, per strato (WWDC25 337) |
 
@@ -70,10 +70,12 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
   confrontano su una griglia (`SymbolMagicPlanner`, una volta per coppia); se hanno almeno il 75 % in comune sono
   parenti, e cambia solo ciò che è diverso. I pezzi nuovi o persi lunghi e stretti (la barra, le onde) diventano
   **bande** che una penna percorre o da cui si ritira, e ciò che cambia lungo la banda (il taglio nella campana) segue la
-  penna; i pezzi raccolti (un pallino) compaiono o spariscono da soli. Si disegna coi tracciati esatti (le operazioni sui
-  tracciati), senza sfocare. Fra icone che non sono parenti (play e pausa) resta la sostituzione sfocata. Le icone
-  pensate per la Magic Replace: `FluidIcons.NotificationsOff`, `FluidIcons.MicOff` (e `NotificationsActive`,
-  `VisibilityOff`, `VolumeOff`, `CloudOff` che c'erano già).
+  penna; i pezzi raccolti (un pallino) compaiono o spariscono da soli, interi, e l'intaglio che fa loro posto nella
+  base si apre in un fotogramma prima che il pallino arrivi e si richiude quando è svanito. Si disegna coi tracciati
+  esatti (le operazioni sui tracciati), senza sfocare. Fra icone che non sono parenti (play e pausa) resta la sostituzione sfocata.
+  Le icone pensate per la Magic Replace: `FluidIcons.NotificationsOff`, `FluidIcons.MicOff`,
+  `FluidIcons.NotificationsUnread` (la campana col pallino; e `NotificationsActive`, `VisibilityOff`, `VolumeOff`,
+  `CloudOff` che c'erano già).
 - **Nitido sotto il dito.** La regola di Alessio (24 novembre): ciò che muove il dito resta nitido, si sfoca solo ciò che
   l'app muove da sola. Gli effetti dei simboli partono dall'app (un valore che cambia, uno stato): nessuno segue un gesto
   e nessuno sfoca sotto il dito; la sola sfocatura è la sostituzione fra icone non parenti, che è un cambio di contenuto.

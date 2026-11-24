@@ -188,9 +188,13 @@ internal object FluidSymbolMagic {
   /** La barra si ritira verso il suo inizio in **300 ms** (9 fotogrammi). */
   const val RetractMs: Float = 9 * FluidSymbolProfile.FrameMs
 
-  /** Il pallino: il taglio nella base subito, il pallino dopo **100 ms**, in dissolvenza in **133 ms**. */
+  /**
+   * Il pallino entra in dissolvenza dal taglio ed e' pieno a **233 ms** (7 fotogrammi), e il suo rimbalzo parte a
+   * **100 ms**, quando e' a meta'. Misurato in F8.5c fotogramma per fotogramma sulla campana col pallino: pieno 0,11 ·
+   * 0,26 · 0,47 · 0,63 · 0,82 · 0,96 · 1 (F8.5b lo faceva partire a 100 ms, in ritardo di mezza dissolvenza).
+   */
   const val BadgeDelayMs: Float = 3 * FluidSymbolProfile.FrameMs
-  const val BadgeFadeMs: Float = 4 * FluidSymbolProfile.FrameMs
+  const val BadgeFadeMs: Float = 7 * FluidSymbolProfile.FrameMs
 
   /**
    * Il pallino rimbalza come il rimbalzo dei simboli, un po' piu' piccolo e svelto: +21 % a 233 ms dal taglio, −12 % a
@@ -199,8 +203,17 @@ internal object FluidSymbolMagic {
   const val BadgeAmplitude: Float = 0.85f
   const val BadgeSpeed: Float = 1.2f
 
-  /** Il pallino se ne va in dissolvenza in **167 ms** (5 fotogrammi), stringendosi appena. */
+  /**
+   * Il pallino se ne va in **167 ms** (5 fotogrammi): svanisce quasi in linea retta nei primi 133, stringendosi appena
+   * (pieno 0,89 · 0,63 · 0,35 · 0,12 · 0, F8.5c), poi l'intaglio si richiude ([CutMs]).
+   */
   const val BadgeOutMs: Float = 5 * FluidSymbolProfile.FrameMs
+
+  /**
+   * L'intaglio che fa posto al pallino si apre in **un fotogramma**, prima del pallino, e si richiude in uno quando il
+   * pallino e' svanito (F8.5c, sulla campana col pallino: aperto a f128, richiuso a f170).
+   */
+  const val CutMs: Float = FluidSymbolProfile.FrameMs
 
   /** La base rimbalza poco: ±4–5 % (la larghezza della campana 537 → 563 → 517 px), il 18 % del rimbalzo pieno. */
   const val BaseAmplitude: Float = 0.18f
@@ -1112,35 +1125,47 @@ private fun DrawScope.drawSymbolWindow(
  * che spariscono (operazioni sui tracciati, ogni pezzo ritagliato col suo contorno), e la regione dei pezzi di bande e
  * pallini, fuori dalla quale i pezzi diversi si incrociano soltanto. Nel fotogramma si riusano due tracciati di
  * ritaglio: nessuna allocazione.
+ *
+ * Dentro il contorno di un pallino non c'e' niente di fermo: il pallino si disegna intero, e quello che l'altra icona
+ * ha li' ([badgeOther]: in `notifications_unread`, il tratto della campana che il pallino copre) si incrocia col resto,
+ * cioe' va via con l'intaglio prima che il pallino arrivi (F8.5c).
  */
 internal class SymbolMagicDrawing(from: SymbolGeometry, val plan: SymbolMagicPlan, to: SymbolGeometry) {
+  /** La parte comune fuori dai pallini, ferma; [shared] e' tutta, per «Riduci movimento». */
   val common = Path()
+  val shared = Path()
   val added = Path()
   val removed = Path()
   val special = Path()
   val bandAdded: List<List<Path>>
   val bandRemoved: List<List<Path>>
   val badges: List<Path>
+  val badgeOther: List<Path>
   val clip = Path()
   val cap = Path()
 
   init {
     val a = from.layers.flatMap { it.nodes }.toPath()
     val b = to.layers.flatMap { it.nodes }.toPath()
-    common.op(a, b, PathOperation.Intersect)
+    shared.op(a, b, PathOperation.Intersect)
     added.op(b, a, PathOperation.Difference)
     removed.op(a, b, PathOperation.Difference)
-    fun cut(source: Path, piece: SymbolPiece): Path {
+    fun outline(piece: SymbolPiece): Path {
       val outline = Path()
       outline.moveTo(piece.xs[0], piece.ys[0])
       for (k in 1 until piece.xs.size) outline.lineTo(piece.xs[k], piece.ys[k])
       outline.close()
       special.addPath(outline)
-      return Path().apply { op(source, outline, PathOperation.Intersect) }
+      return outline
     }
-    bandAdded = plan.bands.map { band -> band.added.map { cut(added, it) } }
-    bandRemoved = plan.bands.map { band -> band.removed.map { cut(removed, it) } }
-    badges = plan.badges.map { cut(if (it.appears) added else removed, it.piece) }
+    fun cut(source: Path, outline: Path): Path = Path().apply { op(source, outline, PathOperation.Intersect) }
+    bandAdded = plan.bands.map { band -> band.added.map { cut(added, outline(it)) } }
+    bandRemoved = plan.bands.map { band -> band.removed.map { cut(removed, outline(it)) } }
+    val zone = Path()
+    val outlines = plan.badges.map { outline(it.piece).also { o -> zone.addPath(o) } }
+    badges = plan.badges.mapIndexed { i, badge -> cut(if (badge.appears) b else a, outlines[i]) }
+    badgeOther = plan.badges.mapIndexed { i, badge -> cut(if (badge.appears) a else b, outlines[i]) }
+    if (plan.badges.isEmpty()) common.addPath(shared) else common.op(shared, zone, PathOperation.Difference)
   }
 }
 
@@ -1188,7 +1213,7 @@ private fun DrawScope.drawSymbolMagic(
     if (mirror) scale(-1f, 1f, pivot = center)
     scale(sx, sy, pivot = Offset.Zero)
   }) {
-    drawPath(magic.common, tint)
+    drawPath(if (reduced) magic.shared else magic.common, tint)
     if (reduced) {
       // Niente penna e niente rimbalzi: i pezzi diversi si incrociano e basta.
       val k = glassContentSmoothstep(0f, FluidSymbolMagic.ReducedMs, t)
@@ -1197,7 +1222,7 @@ private fun DrawScope.drawSymbolMagic(
       return@withTransform
     }
     // Il resto: fuori dai pezzi delle bande e dei pallini.
-    val k = glassContentSmoothstep(0f, plan.restMs, t)
+    val k = glassContentSmoothstep(plan.restStartMs, plan.restMs, t)
     clipPath(magic.special, ClipOp.Difference) {
       drawPath(magic.added, tint, alpha = k)
       drawPath(magic.removed, tint, alpha = 1f - k)
@@ -1238,16 +1263,19 @@ private fun DrawScope.drawSymbolMagic(
       val badge = plan.badges[i]
       val path = magic.badges[i]
       val pivot = Offset(badge.centerX, badge.centerY)
+      // Quello che l'altra icona ha sotto il pallino va e viene col resto (l'intaglio).
+      val other = if (badge.appears) 1f - k else k
+      if (other > 0f) drawPath(magic.badgeOther[i], tint, alpha = other)
       if (badge.appears) {
-        val d = FluidSymbolMagic.BadgeDelayMs
-        val alpha = glassContentSmoothstep(d, d + FluidSymbolMagic.BadgeFadeMs, t)
+        val alpha = glassContentSmoothstep(0f, FluidSymbolMagic.BadgeFadeMs, t)
         if (alpha > 0f) {
-          val bounce = FluidSymbolProfile.BounceScale.at((t - d) * FluidSymbolMagic.BadgeSpeed) - 1f
+          val since = t - FluidSymbolMagic.BadgeDelayMs
+          val bounce = FluidSymbolProfile.BounceScale.at(since * FluidSymbolMagic.BadgeSpeed) - 1f
           val s = 1f + bounce * FluidSymbolMagic.BadgeAmplitude
           withTransform({ scale(s, s, pivot = pivot) }) { drawPath(path, tint, alpha = alpha) }
         }
       } else {
-        val q = glassContentSmoothstep(0f, FluidSymbolMagic.BadgeOutMs, t)
+        val q = (t / (FluidSymbolMagic.BadgeOutMs - FluidSymbolMagic.CutMs)).coerceIn(0f, 1f)
         val s = 1f - 0.1f * q
         withTransform({ scale(s, s, pivot = pivot) }) { drawPath(path, tint, alpha = 1f - q) }
       }

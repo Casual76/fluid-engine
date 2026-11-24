@@ -484,7 +484,7 @@ internal fun Modifier.fluidChipMenuGate(source: FluidChipMenuSource, exit: Graph
 @Composable
 internal fun rememberFluidChipMenu(title: String, actions: () -> List<FluidContextAction>): FluidChipMenuSource? {
   val host = fluidChipMenuHost() ?: return null
-  val entry = remember(host) { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry(host)
   val source = remember(host) { FluidChipMenuSource(FluidMenuAnchor()) }
   val anchor = source.anchor
   val currentActions by rememberUpdatedState(actions)

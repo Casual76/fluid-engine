@@ -281,6 +281,39 @@ dal thread principale.
 
 ## Testo
 
+### `FluidDetectedText` e `FluidTextDetection`
+
+Un avviso, una nota o il corpo di una mail in testo semplice. Il testo è visibile subito e i dati vengono
+sottolineati dopo il riconoscimento. Il segno ha lo stesso colore del testo, senza cambiare i caratteri
+o gli a capo. Il tocco e la pressione lunga aprono il menu contestuale di vetro, ancorato al dato toccato.
+Per un link web il tocco apre la destinazione e la pressione lunga apre il menu. Con TalkBack o tastiera
+si può attivare il dato per aprire il menu e scegliere fra tutte le voci.
+
+```kotlin
+FluidDetectedText(
+  text = notice,
+  detection = FluidTextDetection(kinds = setOf(FluidDetectedTextKind.Date, FluidDetectedTextKind.Time)) { data ->
+    listOf(FluidContextAction("Aggiungi ai compiti") { addTask(data.date, data.time) })
+  },
+)
+FluidMarkdown(markdown = note, selectable = true, detection = FluidTextDetection())
+```
+
+**Azioni.** Data e ora permettono di aggiungere un evento o mostrare il giorno nell’agenda di Android. Una data
+senza ora è un evento giornaliero. Per un numero il menu offre il tastierino, una bozza di messaggio e Contatti.
+Per un indirizzo offre indicazioni in Google Maps e apertura nell’app di mappe. Per una mail offre una bozza
+e Contatti. Copia usa la grafia del testo mostrato; per i link il menu offre anche Apri il link. Le voci dell'app ricevono un
+`FluidDetectedValue`, con gli indici nel testo e i valori normalizzati, e sono lette quando si apre il menu.
+La data mostra un'anteprima locale del giorno. L'app ospita il menu nello stesso `FluidGlassModalHost`
+delle altre azioni. In una schermata senza host i link web restano apribili e gli altri dati sono solo sottolineati.
+
+**Lingua e selezione.** `FluidTextDetection` segue la lingua dell'app di serie, oppure riceve il locale del documento.
+Le date e gli orari semplici sono risolti dalle regole italiane e inglesi, con la data di oggi al momento
+del riconoscimento. Il servizio Android 9+ integra indirizzi, link, mail e telefoni, soggetti alle regole di
+convalida. Il riconoscimento gira in background e la cache in memoria ha dimensione limitata. Il testo non
+sottolineato resta selezionabile con `selectable = true`. Nei paragrafi Markdown il riconoscimento parte a
+testo arrivato e mantiene i link dell'autore e il codice in linea.
+
 ### `FluidMarkdown` e `FluidMarkdownParser`
 
 **Cos'è.** Il Markdown disegnato, senza libreria esterna e senza dipendenza dall'assistente: una nota, le novità di una versione, il testo di una guida, la risposta di un modello. Il **parser** (`FluidMarkdownParser`) è puro Kotlin, senza una riga di Compose:
@@ -290,7 +323,8 @@ dal thread principale.
 ```kotlin
 FluidMarkdown(markdown: String, streaming: Boolean = false, animateFirst: Boolean = streaming,
   style: FluidMarkdownStyle = FluidMarkdownDefaults.style(), strings: FluidMarkdownStrings = FluidMarkdownStrings(),
-  options: FluidMarkdownOptions = FluidMarkdownOptions(), onLinkClick: ((String) -> Unit)? = null, selectable: Boolean = false)
+  options: FluidMarkdownOptions = FluidMarkdownOptions(), onLinkClick: ((String) -> Unit)? = null,
+  selectable: Boolean = false, detection: FluidTextDetection? = null)
 
 FluidMarkdownDefaults.style(textColor, mutedColor, blockSpacing = 8.dp, body = bodyLarge, headings = emptyList())
 FluidMarkdownDefaults.documentHeadings()        // 4 misure per `#`…`####`, da passare come `headings`

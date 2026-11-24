@@ -58,7 +58,8 @@ UI_FLUID_FILES = {
     "contenuto": [
         "FluidContent", "FluidGlassGroups", "FluidSettingRows", "FluidVividCard", "FluidHero",
         "FluidSkeleton", "FluidLiveDot", "FluidSelectionMark", "FluidMarkdown",
-        "FluidMarkdownParser", "FluidTextReveal", "FluidSpokenText", "FluidImageViewer",
+        "FluidMarkdownParser", "FluidDetectedText", "FluidDetectedTextActions",
+        "FluidDetectedTextClassifier", "FluidDetectedTextRules", "FluidTextReveal", "FluidSpokenText", "FluidImageViewer",
         "FluidPagerDots", "FluidStepProgress", "FluidProgress", "FluidReorderable",
         # Fase 1 di Pampa Mail (3.1.0): liste lunghe, identita' e selezione, file
         "FluidGroupedItems", "FluidSwipeActions", "FluidJumpPill", "FluidAvatar", "FluidBadge",
@@ -90,12 +91,14 @@ UI_FLUID_FILES = {
         "FluidSpecialFieldLabels",
         # F8.7: il selettore di colore (pozzetto, riga, fila corta, foglio, contagocce)
         "FluidColorPicker",
+        # F8.8: il calendario in pagina, la capsula della data e della durata, il pannello «Ripeti»
+        "FluidCalendar", "FluidCalendarModel", "FluidDateCapsule", "FluidRecurrenceSheet",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [
         # `FluidGlassModal.kt` spezzato in sette file (F5A.0): portale, host, scrim, finestra ancorata, foglio, riga sollevata, menu contestuale
         "FluidGlassModalPortal", "FluidGlassModalHost", "FluidGlassModalScrim", "FluidGlassModalPopover",
-        "FluidConfirmationDialog",
+        "FluidConfirmationDialog", "FluidModalBackScope",
         "FluidGlassModalSheet", "FluidLiftedPreview", "FluidContextMenu", "FluidTransitionSource",
         # il foglio di vetro con i detent (F5B.2)
         "FluidGlassSheet",

@@ -8,6 +8,7 @@ import android.view.FrameMetrics
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import java.util.function.LongSupplier
 import dev.antigravity.fluidengine.ui.glass.quality.GlassFrameEvidence
 import dev.antigravity.fluidengine.ui.glass.quality.GlassQualityPolicy
 import kotlin.math.roundToLong
@@ -134,9 +135,10 @@ internal class WindowFrames(
   private val displayId: Int,
   private val period: Long,
   private val render: GlassRenderState? = null,
+  private val clock: LongSupplier = FrameClock,
 ) : Window.OnFrameMetricsAvailableListener, Runnable {
   private val quietNs = 4 * period
-  private val born = System.nanoTime()
+  private val born = clock.asLong
   private var closed = false
   private var moving = false
   private var scrolling = false
@@ -154,7 +156,7 @@ internal class WindowFrames(
     if (closed || scrolling == value) return
     scrolling = value
     handler.removeCallbacks(this)
-    val now = System.nanoTime()
+    val now = clock.asLong
     if (value) {
       moving = true
       render?.windowMotion = true
@@ -169,7 +171,7 @@ internal class WindowFrames(
     synchronized(process) {
       if (closed) return
       val vsync = metrics.getMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP)
-      val now = System.nanoTime()
+      val now = clock.asLong
       if (vsync < born || vsync <= lastVsync || vsync > now) return
       val continuous = lastVsync >= 0 && vsync - lastVsync <= quietNs
       lastVsync = vsync
@@ -195,6 +197,7 @@ internal class WindowFrames(
           GlassFrameEvidence.Unattributed
         else -> GlassFrameEvidence.MeasuredApp
       }
+      if (evidence == GlassFrameEvidence.MeasuredApp && dropped == 0) process.refreshForRecovery(policy, now)
       val elapsed = timings.duration(total, deadline, period, evidence)
       val appDuration = timings.duration(work, deadline, period, evidence)
       if (policy.onFrame(now, vsync, elapsed, deadline, appDuration, evidence, dropped) != null) process.publish()
@@ -224,7 +227,7 @@ internal class WindowFrames(
   override fun run() {
     synchronized(process) {
       if (closed || !moving) return
-      val now = System.nanoTime()
+      val now = clock.asLong
       val remaining = quietNs - (now - lastDelivery)
       if (remaining > 0) schedulePose(remaining) else pose(now)
     }
@@ -233,6 +236,10 @@ internal class WindowFrames(
   private fun pose(now: Long) {
     moving = false
     render?.windowMotion = false
+    // Un dito può restare fermo a lungo prima del rilascio: la posa usa condizioni ancora recenti.
+    process.refreshForRecovery(policy, now)
     if (policy.onWindow(now, true, false, displayId, period) != null) process.publish()
   }
 }
+
+private val FrameClock = LongSupplier(System::nanoTime)

@@ -7,7 +7,8 @@ import java.util.Locale
 
 /** Calendar arithmetic deliberately independent of Android and of the scheduling domain. */
 internal object FluidDateTimeMath {
-  fun weekStart(locale: Locale): DayOfWeek = WeekFields.of(locale).firstDayOfWeek
+  // Il primo giorno della settimana sta in engine-foundation dalla 4.0 (F8.8): lo usa anche il calendario in pagina.
+  fun weekStart(locale: Locale): DayOfWeek = dev.antigravity.fluidengine.foundation.FluidDates.firstDayOfWeek(locale)
   fun cells(month: YearMonth, locale: Locale): List<LocalDate?> {
     val padding = Math.floorMod(month.atDay(1).dayOfWeek.value - weekStart(locale).value, 7)
     return List(padding) { null } + (1..month.lengthOfMonth()).map(month::atDay)

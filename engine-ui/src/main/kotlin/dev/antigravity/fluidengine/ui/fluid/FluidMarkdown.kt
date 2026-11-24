@@ -201,8 +201,28 @@ fun FluidMarkdown(
   onLinkClick: ((String) -> Unit)? = null,
   selectable: Boolean = false,
 ) {
+  FluidMarkdown(markdown, modifier, streaming, animateFirst, style, strings, options, onLinkClick, selectable, detection = null)
+}
+
+/**
+ * Il renderer Markdown con [detection] nei paragrafi. Il riconoscimento parte quando il testo
+ * ha finito di arrivare. I link scritti dall'autore conservano [onLinkClick].
+ */
+@Composable
+fun FluidMarkdown(
+  markdown: String,
+  modifier: Modifier = Modifier,
+  streaming: Boolean = false,
+  animateFirst: Boolean = streaming,
+  style: FluidMarkdownStyle = FluidMarkdownDefaults.style(),
+  strings: FluidMarkdownStrings = FluidMarkdownStrings(),
+  options: FluidMarkdownOptions = FluidMarkdownOptions(),
+  onLinkClick: ((String) -> Unit)? = null,
+  selectable: Boolean = false,
+  detection: FluidTextDetection?,
+) {
   val blocks = remember(markdown, options) { FluidMarkdownParser.parse(markdown, options) }
-  val reveal = RevealMode(streaming = streaming, animateFirst = animateFirst)
+  val reveal = RevealMode(streaming = streaming, animateFirst = animateFirst, detection = detection)
   val firstCount = remember { blocks.size }
   if (selectable) {
     SelectionContainer(modifier) { MarkdownBlocks(blocks, firstCount, reveal, style, strings, onLinkClick, Modifier) }
@@ -233,7 +253,12 @@ private fun MarkdownBlocks(
 }
 
 /** Come si rivela un blocco: se il testo sta arrivando, e se *questo* blocco e' nato adesso. */
-private data class RevealMode(val streaming: Boolean, val animateFirst: Boolean, val fresh: Boolean = false) {
+private data class RevealMode(
+  val streaming: Boolean,
+  val animateFirst: Boolean,
+  val fresh: Boolean = false,
+  val detection: FluidTextDetection? = null,
+) {
   fun forBlock(fresh: Boolean) = copy(fresh = fresh)
 
   /** Vero se le parole di questo blocco sfumano dentro: sta arrivando, ed e' nuovo o il testo e' tutto nato adesso. */
@@ -249,7 +274,7 @@ private fun FluidMarkdownBlock(
   onLinkClick: ((String) -> Unit)?,
 ) {
   when (block) {
-    is FluidMdBlock.Paragraph -> MarkdownText(block.inlines, style.body, style, reveal, onLinkClick)
+    is FluidMdBlock.Paragraph -> MarkdownText(block.inlines, style.body, style, reveal, onLinkClick, detection = reveal.detection)
     is FluidMdBlock.Heading -> MarkdownText(
       block.inlines,
       style.headingFor(block.level),
@@ -286,10 +311,15 @@ private fun MarkdownText(
   reveal: RevealMode,
   onLinkClick: ((String) -> Unit)?,
   modifier: Modifier = Modifier,
+  detection: FluidTextDetection? = null,
 ) {
   val code = style.code.toSpanStyle().copy(background = style.codeBackground)
   val annotated = remember(inlines, style.linkColor, code, onLinkClick) {
     FluidMarkdownText.annotate(inlines, linkColor = style.linkColor, code = code, onLinkClick = onLinkClick)
+  }
+  if (detection != null) {
+    DetectedTextContent(annotated, textStyle, style.textColor, detection, modifier, reveal.animateThis, reveal.streaming)
+    return
   }
   FluidRevealingText(
     text = annotated,
@@ -510,7 +540,11 @@ internal object FluidMarkdownText {
         is FluidMdInline.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { add(item.children) }
         is FluidMdInline.Italic -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { add(item.children) }
         is FluidMdInline.Strike -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { add(item.children) }
-        is FluidMdInline.Code -> withStyle(code) { append(item.text) }
+        is FluidMdInline.Code -> withStyle(code) {
+          pushStringAnnotation(DetectedTextCodeAnnotation, "")
+          append(item.text)
+          pop()
+        }
         is FluidMdInline.Link -> {
           val styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))
           val link = LinkAnnotation.Url(

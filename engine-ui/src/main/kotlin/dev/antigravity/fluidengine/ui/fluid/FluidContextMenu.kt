@@ -220,7 +220,7 @@ fun rememberFluidContextMenu(
   preview: (@Composable () -> Unit)? = null,
 ): FluidContextMenuController {
   val host = LocalFluidGlassModalHostState.current
-  val entry = remember { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry()
   val layer = rememberGraphicsLayer()
   val controller = remember(host, entry, layer) {
     FluidContextMenuController(host, entry, layer)

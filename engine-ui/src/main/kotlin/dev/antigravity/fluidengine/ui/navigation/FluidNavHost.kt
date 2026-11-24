@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import dev.antigravity.fluidengine.foundation.FluidAddressRequest
+import dev.antigravity.fluidengine.ui.fluid.FluidPageModalBackScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -127,9 +128,7 @@ fun <P : Any> FluidNavHost(
   state: FluidPageHostState = rememberFluidPageHostState(),
   pageColor: Color = MaterialTheme.colorScheme.background,
 ) {
-  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor) {
-    if (initialAddress != null) addresses.open(navController, initialAddress)
-  }
+  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor, addresses, initialAddress)
 }
 
 /** Come sopra, con rotte tipizzate. */
@@ -167,7 +166,7 @@ fun FluidNavHost(
   state: FluidPageHostState = rememberFluidPageHostState(),
   pageColor: Color = MaterialTheme.colorScheme.background,
 ) {
-  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor, null)
+  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor, null, null)
 }
 
 @Composable
@@ -178,7 +177,8 @@ private fun FluidNavHostContent(
   peer: FluidPeerMove<NavBackStackEntry>?,
   state: FluidPageHostState,
   pageColor: Color,
-  onInitialGraph: (() -> Unit)?,
+  addresses: FluidAddressNavigation<*>?,
+  initialAddress: FluidAddressRequest?,
 ) {
   val lifecycleOwner = LocalLifecycleOwner.current
   val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) {
@@ -189,15 +189,15 @@ private fun FluidNavHostContent(
   // L'ordine e' quello di NavHost: prima il ViewModelStore, poi il grafo, poi il ciclo di vita.
   navController.setViewModelStore(viewModelStoreOwner.viewModelStore)
   navController.graph = graph
-  if (onInitialGraph != null) {
+  val navigator = navController.navigatorProvider.pageNavigatorOrNull() ?: return
+  val queue = rememberFluidModalAddressQueue(navController, navigator, addresses)
+  if (addresses != null) {
     val consumed = rememberSaveable(navController) { mutableStateOf(false) }
     if (!consumed.value) {
       consumed.value = true
-      onInitialGraph()
+      if (initialAddress != null) addresses.open(navController, initialAddress, queue)
     }
   }
-
-  val navigator = navController.navigatorProvider.pageNavigatorOrNull() ?: return
 
   DisposableEffect(lifecycleOwner) {
     navController.setLifecycleOwner(lifecycleOwner)
@@ -209,33 +209,35 @@ private fun FluidNavHostContent(
   val transitions by navigator.transitionsInProgress.collectAsState()
   val leaving = remember(backStack, transitions) { transitions - backStack.toSet() }
 
-  FluidPageHostImpl(
-    stack = backStack,
-    onBack = { navController.popBackStack() },
-    modifier = modifier,
-    transition = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.transition ?: FluidPageTransition.Slide },
-    backSwipe = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.backSwipe ?: FluidBackSwipe.EdgeOnly },
-    dismiss = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.dismiss ?: FluidPageDismiss.None },
-    peer = peer,
-    onTransitionStart = { entries -> entries.forEach(navigator::prepareForTransition) },
-    // A riposo ogni voce in transizione va al suo stato finale: la cima RESUMED, quella sotto
-    // CREATED, quelle uscite distrutte (e il loro ViewModelStore pulito).
-    onSettled = { navigator.transitionsInProgress.value.forEach(navigator::onTransitionComplete) },
-    leaving = leaving,
-    state = state,
-    pageColor = pageColor,
-    ownOwners = false,
-    // L'id della voce e' stabile alla ricreazione, la voce no: vedi [FluidPageHostImpl].
-    pageKey = { entry -> entry.id },
-    // Lo zoom dalla sorgente (F5B.3), dichiarato sulla destinazione e letto dalla voce.
-    zoomSource = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoomSource?.invoke(entry) },
-    // I preset di «un elemento che diventa pagina» (F6B.5c), dichiarati sulla destinazione.
-    zoom = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoom },
-  ) { entry ->
-    // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato
-    // salvabile, come in NavHost.
-    entry.LocalOwnersProvider(saveableStateHolder) {
-      (entry.destination as? FluidPageNavigator.Destination)?.content?.invoke(this, entry)
+  FluidPageModalBackScope {
+    FluidPageHostImpl(
+      stack = backStack,
+      onBack = { navController.popBackStack() },
+      modifier = modifier,
+      transition = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.transition ?: FluidPageTransition.Slide },
+      backSwipe = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.backSwipe ?: FluidBackSwipe.EdgeOnly },
+      dismiss = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.dismiss ?: FluidPageDismiss.None },
+      peer = peer,
+      onTransitionStart = { entries -> entries.forEach(navigator::prepareForTransition) },
+      // A riposo ogni voce in transizione va al suo stato finale: la cima RESUMED, quella sotto
+      // CREATED, quelle uscite distrutte (e il loro ViewModelStore pulito).
+      onSettled = { navigator.transitionsInProgress.value.forEach(navigator::onTransitionComplete) },
+      leaving = leaving,
+      state = state,
+      pageColor = pageColor,
+      ownOwners = false,
+      // L'id della voce e' stabile alla ricreazione, la voce no: vedi [FluidPageHostImpl].
+      pageKey = { entry -> entry.id },
+      // Lo zoom dalla sorgente (F5B.3), dichiarato sulla destinazione e letto dalla voce.
+      zoomSource = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoomSource?.invoke(entry) },
+      // I preset di «un elemento che diventa pagina» (F6B.5c), dichiarati sulla destinazione.
+      zoom = { entry -> (entry.destination as? FluidPageNavigator.Destination)?.zoom },
+    ) { entry ->
+      // La voce da' alla pagina ViewModelStore, ciclo di vita (CREATED quando e' coperta) e stato
+      // salvabile, come in NavHost.
+      entry.LocalOwnersProvider(saveableStateHolder) {
+        (entry.destination as? FluidPageNavigator.Destination)?.content?.invoke(this, entry)
+      }
     }
   }
 
@@ -248,7 +250,7 @@ private fun FluidNavHostContent(
  * qui manca e basta (un controller costruito senza [rememberFluidNavController]), e [FluidNavHost] allora non
  * disegna niente, come prima.
  */
-private fun NavigatorProvider.pageNavigatorOrNull(): FluidPageNavigator? =
+internal fun NavigatorProvider.pageNavigatorOrNull(): FluidPageNavigator? =
   try {
     getNavigator<Navigator<*>>(FluidPageNavigator.NAME) as? FluidPageNavigator
   } catch (_: IllegalStateException) {

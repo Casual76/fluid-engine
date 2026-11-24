@@ -3,11 +3,11 @@
 package dev.antigravity.fluidengine.sample
 
 import android.graphics.RenderNode
-import android.app.ActivityManager
 import android.os.PowerManager
 import android.util.Log
 import androidx.compose.runtime.mutableIntStateOf
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits
 import dev.antigravity.fluidengine.ui.glass.quality.GlassConditions
 import dev.antigravity.fluidengine.ui.glass.quality.GlassDeviceCapacity
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
@@ -125,32 +125,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import dev.antigravity.fluidengine.sample.dynamic.ActivityPillScene
 
-/** Il banco da 800 x 1280 rappresenta una macchina con memoria per la ricetta di controllo.
- * Robolectric offre 16 MiB di heap Android di serie, cioè solo 1,5 MiB per il vetro. */
-internal fun prepareGlassBenchMemory(activity: ComponentActivity): java.io.Closeable {
-  val resources = FluidGlassResources.get(activity)
-  val app = ReflectionHelpers.getField<android.app.Application>(resources, "app")
-  val am = app.getSystemService(ActivityManager::class.java)!!
-  val heapClass = am.memoryClass
-  val low = am.isLowRamDevice
-  val memory = ActivityManager.MemoryInfo().also(am::getMemoryInfo)
-  val manager = shadowOf(am)
-  manager.setIsLowRamDevice(false)
-  manager.setMemoryClass(1024)
-  manager.setMemoryInfo(ActivityManager.MemoryInfo().apply {
-    totalMem = 8L shl 30
-    availMem = 4L shl 30
-    threshold = 128L shl 20
-  })
-  resources.refresh()
-  return java.io.Closeable {
-    manager.setIsLowRamDevice(low)
-    manager.setMemoryClass(heapClass)
-    manager.setMemoryInfo(memory)
-    resources.refresh()
-  }
-}
-
 /**
  * Quanti nodi e quanti layer costa una lastra ferma (piano «iOS in Android», 3.3, 4.4, F1A-f), contati in due modi
  * che non dipendono l'uno dall'altro:
@@ -172,7 +146,7 @@ internal fun prepareGlassBenchMemory(activity: ComponentActivity): java.io.Close
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w800dp-h1280dp-mdpi")
+@Config(sdk = [35], qualifiers = "w800dp-h1280dp-mdpi", application = GlassBenchDevice::class, shadows = [GlassBenchHeap::class])
 class GlassNodeCountTest {
 
   @get:Rule
@@ -203,6 +177,25 @@ class GlassNodeCountTest {
     FluidGlassDiagnostics.enabled = diagnosticsWere
     FluidGlassDiagnostics.resetForTesting()
     FluidGlassDiagnostics.warmUpEnabled = warmUpWas
+  }
+
+  @Test fun ilPrimoMenuParteGiaConIlProfiloDelBanco() {
+    val resources = FluidGlassResources.get(compose.activity)
+    val window = compose.activity.window
+    resources.acquire(window).use {
+      val process = resources.decision(null)
+      val first = resources.decision(window)
+      assertTrue(process.optics != GlassOptics.Protected)
+      assertEquals(process, first)
+      assertEquals(1024L shl 20, first.heapReferenceBytes)
+      val before = resources.budget.usage(FluidMemoryCategory.GLASS)
+      assertEquals(0L, before.usedBytes)
+      val limits = if (first.optics == GlassOptics.Full) FluidMemoryLimits.Full else FluidMemoryLimits.Reduced
+      assertEquals(limits.glassBytes, before.limitBytes)
+      resources.refresh()
+      assertEquals(first, resources.decision(window))
+      assertEquals(before.limitBytes, resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes)
+    }
   }
 
   @Test fun livelloProtettoCatturaIlGrandeFondaleUnaVoltaAMetaLato() {
@@ -239,7 +232,6 @@ class GlassNodeCountTest {
     val watch = ReflectionHelpers.getField<Map<android.view.Window, GlassWindow>>(resources, "windows").getValue(window)
     val original = watch.policy
     val pm = compose.activity.getSystemService(PowerManager::class.java)!!
-    val memory = prepareGlassBenchMemory(compose.activity)
     val healthy = GlassConditions(4L shl 30, 128L shl 20, false, 0.2, GlassThermal.None, false)
     val full = GlassQualityPolicy(
       GlassDeviceCapacity(8L shl 30, 2L shl 30, 2048, false, 35, true),
@@ -249,11 +241,6 @@ class GlassNodeCountTest {
     val mount = mutableStateOf(true)
     var draws = 0
     var cursor = ShadowLog.getLogsForTag(FrameTag).size
-    fun forcedThermal() = synchronized(resources) {
-      val signals = dev.antigravity.fluidengine.ui.glass.quality.android.GlassVariantSignals.conditions(healthy)
-      full.updateConditions(System.nanoTime(), signals)
-      resources.publish()
-    }
     fun captures(): List<Float> {
       compose.runOnUiThread { tick.intValue++; Snapshot.sendApplyNotifications() }
       drawHardwareFrame()
@@ -270,8 +257,6 @@ class GlassNodeCountTest {
       resources.refresh()
       synchronized(resources) {
         ReflectionHelpers.setField(watch, "policy", full)
-        // La prova inietta campioni di memoria deterministici anche quando la JVM del lotto è piena.
-        ReflectionHelpers.setField(resources, "lastReadingNs", Long.MAX_VALUE / 2)
         resources.publish()
       }
       compose.setContent {
@@ -289,7 +274,7 @@ class GlassNodeCountTest {
       val scroll = resources.scrollStarted(window)
       try {
         ShadowLog.setLoggable("FluidF7Warm", Log.VERBOSE)
-        forcedThermal()
+        resources.refresh()
         assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
         assertEquals(emptyList<Float>(), captures())
         // Un nuovo lettore entra mentre la finestra scorre. Quello che era visibile ha tenuto la cattura.
@@ -299,7 +284,7 @@ class GlassNodeCountTest {
         compose.waitForIdle()
         assertEquals(listOf(0.75f), captures())
         ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
-        forcedThermal()
+        resources.refresh()
         assertEquals(GlassOptics.Protected, resources.decision(window).optics)
         assertEquals(emptyList<Float>(), captures())
       } finally { scroll.close() }
@@ -317,7 +302,6 @@ class GlassNodeCountTest {
       ShadowLog.setLoggable("FluidF7Warm", Log.INFO)
       synchronized(resources) { ReflectionHelpers.setField(watch, "policy", original); resources.refresh() }
       lease.close()
-      memory.close()
     }
   }
 
@@ -444,9 +428,6 @@ class GlassNodeCountTest {
 
   @Test fun ilMezzoLatoLocaleNonDimezzaLaFinituraDelViaggioProtetto() {
     ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
-    val am = compose.activity.application.getSystemService(ActivityManager::class.java)!!
-    val originalHeapClass = am.memoryClass
-    shadowOf(am).setMemoryClass(512)
     val resources = FluidGlassResources.get(compose.activity)
     resources.refresh()
     val tick = mutableIntStateOf(0)
@@ -483,7 +464,6 @@ class GlassNodeCountTest {
       }
     } finally {
       GlassCostLevers.onCapture = previous
-      shadowOf(am).setMemoryClass(originalHeapClass)
       ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
       resources.refresh()
     }
@@ -921,7 +901,6 @@ class GlassNodeCountTest {
     expectedLiftMillis: Long? = null,
     content: @Composable (ScenarioActions, GlassBackdropState) -> Unit,
   ) {
-    val memory = prepareGlassBenchMemory(compose.activity)
     val actions = ScenarioActions()
     val display = RenderNode("F7.6 • finestra")
     val previousObserver = GlassCostLevers.onCapture
@@ -1053,7 +1032,6 @@ class GlassNodeCountTest {
       GlassCostLevers.onCapture = previousObserver
       substitutes.forEach(shaderCache::remove)
       display.discardDisplayList()
-      memory.close()
     }
   }
 
@@ -1073,19 +1051,16 @@ class GlassNodeCountTest {
 
   private data class Capture(val size: IntSize, val windowed: Boolean, val fromMenu: Boolean)
 
-  /** I marker distinguono la finitura del menu dalle catture della card e del velo. */
+  /** Ogni cattura valida dichiara il proprio antenato anche se il padre ha riusato la sua registrazione. */
   private fun captureRecords(logs: List<ShadowLog.LogItem>): List<Capture> = buildList {
-    var drawingMenu = false
     for (entry in logs) {
       val line = entry.msg
-      if (" kind=menu.surface " in line) {
-        drawingMenu = " size=" in line
-      }
       val size = CaptureSize.find(line) ?: continue
+      val owner = line.substringAfter(" owner=", "").substringBefore(' ')
       add(Capture(
         IntSize(size.groupValues[1].toInt(), size.groupValues[2].toInt()),
-        windowed = !line.endsWith("window=null"),
-        fromMenu = drawingMenu,
+        windowed = " window=" in line && " window=null" !in line,
+        fromMenu = owner == "menu.surface",
       ))
     }
   }

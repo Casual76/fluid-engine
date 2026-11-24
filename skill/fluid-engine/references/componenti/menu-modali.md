@@ -47,7 +47,7 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 | una conferma con un corpo («Eliminare 12 elementi?» e l'elenco degli effetti) | `FluidConfirmSheet` |
 | una conferma compatta **sopra il comando** che l'ha aperta («Elimina») | `FluidConfirmationDialog(source = …)` (senza sorgente: al centro, con Annulla) |
 | un pannello laterale modale con le sezioni, le cartelle o gli account su una finestra stretta | `FluidDrawer` + `rememberFluidDrawerState` (aperto **solo da un tuo tasto**; sezione «Il pannello laterale») |
-| far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora») |
+| far scegliere una data e un'ora, con proposte rapide («Domani alle 9») | `FluidDateTimeSheet(visible, onDismissRequest, onConfirm, quickOptions)` (sezione «Il foglio data e ora»); solo un giorno, un intervallo o un calendario nella pagina: [date.md](date.md) |
 | un avviso breve con due o tre pulsanti (UIKit) | `FluidAlert` con `FluidAlertAction`; con `source = …` esce dall'elemento che lo apre |
 | chiedere una riga di testo (rinomina, valore) | `FluidPromptAlert` |
 | una pagina intera per un compito con più di tre campi | `FluidGlassModalPortal(presentation = FullScreen)` |
@@ -150,6 +150,8 @@ float.
   più recente, perché l'host compone le voci ordinate per `openedAt`. Il back predittivo arretra lo scrim (fino al
   60%) e rimpicciolisce il pannello (10%, 6% per il foglio); a gesto completato chiama `onDismissRequest`; annullato,
   torna com'era. `FluidGlassModalHostState.dismissTop()` fa la stessa cosa da codice.
+  Con il modale aperto, i gestori di Indietro delle pagine sottostanti di `FluidNavHost` aspettano.
+  Il contenuto del modale mantiene i propri gestori, compreso il ritorno da un sottomenu.
 - **Voci in pila.** «Più recente» = aperta per ultima, non dichiarata per ultima. Un menu aperto da dentro un modale
   sta **sopra** il modale, non lo sostituisce.
 - **Fuoco e TalkBack.** Ogni layer è un `isTraversalGroup` + `focusGroup` con un bersaglio da 1 dp che prende il fuoco
@@ -1067,7 +1069,8 @@ FluidDateTimeSelection(instant: Instant, zone: ZoneId)           // il risultato
 - **Le proposte sono dell'app.** L'engine non inventa tempi relativi specifici di un dominio («Dopo pranzo»): l'app li calcola come `Instant` (con la sua zona e il suo orologio) e li passa con etichetta e dettaglio. Senza
   proposte il foglio si apre direttamente sulla scelta personalizzata.
 - **Precisione al minuto.** I controlli personalizzati scelgono minuti interi (le proposte rapide valgono invece **all'istante esatto** che l'app ha passato, secondi compresi); un intervallo che non contiene nessun minuto intero non ha selezione personalizzata (le proposte rapide, esatte, restano usabili).
-- **Testo grande.** La griglia del mese ha sette colonne vere: a testo grande le celle crescono e la griglia **scorre di lato** invece di stringere i bersagli sotto i 48 dp o di tagliare i numeri.
+- **La griglia del mese è il calendario in pagina** (4.0, F8.8): `FluidCalendar` con un giorno solo, la testata col mese e le frecce, il mese che cambia anche col dito, oggi nell'accento ([date.md](date.md)). TalkBack legge il giorno intero, con l'anno.
+- **Testo grande.** La griglia del mese ha sette colonne vere: a testo grande le celle crescono e la griglia **scorre di lato** invece di stringere i bersagli sotto i 48 dp o di tagliare i numeri; il mese allora cambia con le frecce.
 - **Lingua e formato.** `locale` decide il primo giorno della settimana e i formati delle date; il sistema decide 12/24 ore, salvo `use24Hour`. Le parole sono `FluidLabels.dateTime` (`FluidDateTimeLabels`, con la versione
   inglese di `FluidLabels.english()`).
 - **Dichiarazione e chiusura.** Resta **composto** mentre `visible` diventa falso, così l'host può invertire l'apertura. L'app lo chiude in `onDismissRequest` o `onConfirm`; **annullare non conferma mai** (il back annulla).

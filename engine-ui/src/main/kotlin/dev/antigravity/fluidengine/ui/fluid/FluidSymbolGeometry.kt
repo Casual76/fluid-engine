@@ -395,7 +395,11 @@ internal fun symbolStrokeCap(stroke: SymbolStroke, f: Float, out: FloatArray) {
 // - le celle nuove e quelle che spariscono si dividono in **pezzi**; i pezzi lunghi e stretti (la barra, le onde della
 //   campana che suona) fanno una **banda**, che una penna percorre da un capo all'altro (o da cui si ritira), e ogni pezzo
 //   che sta lungo la banda (il taglio nella campana) segue la penna per intero; i pezzi raccolti (il pallino) compaiono
-//   o spariscono da soli; i bordi sottilissimi che cambiano fra due disegni simili si incrociano piano.
+//   o spariscono da soli; i bordi sottilissimi che cambiano fra due disegni simili si incrociano piano;
+// - un pallino e' la sua isola intera, quando nell'icona sta da se' (come in Apple): in `notifications_unread` il
+//   pallino copre un tratto della campana, che e' comune alle due icone ma va via con l'intaglio. I pezzi dell'altra
+//   icona che gli stanno intorno sono l'intaglio che gli fa posto: si incrociano coi tempi del pallino, non fanno una
+//   banda (F8.5c).
 // Pura (niente Android): i test la provano sulla JVM. I disegni usano le operazioni sui tracciati, esatte: ogni pezzo e'
 // il tracciato vero ritagliato col suo contorno ([SymbolPiece]).
 
@@ -421,7 +425,7 @@ internal class SymbolBand(
   val removedAt: FloatArray,
 )
 
-/** Un pallino: il centro, il suo pezzo, e se compare ([appears]) o sparisce. */
+/** Un pallino: il centro, il suo contorno (l'isola intera, se sta da se'), e se compare ([appears]) o sparisce. */
 internal class SymbolBadge(val centerX: Float, val centerY: Float, val piece: SymbolPiece, val appears: Boolean)
 
 /**
@@ -433,13 +437,23 @@ internal class SymbolMagicPlan(
   val badges: List<SymbolBadge>,
   val bounce: Int,
 ) {
-  /** Quanto durano gli incroci dei pezzi che non stanno in una banda o in un pallino. */
+  /**
+   * Quando si incrociano i pezzi che non stanno in una banda o in un pallino, da [restStartMs] a [restMs]: lungo la
+   * penna o la ritirata; l'intaglio di un pallino che arriva nel primo fotogramma, quello di un pallino che se ne va
+   * nell'ultimo, quando il pallino e' svanito.
+   */
   val restMs: Float
     get() = when {
       bands.any { it.drawsOn } -> FluidSymbolMagic.PenMs
       bands.isNotEmpty() -> FluidSymbolMagic.RetractMs
-      badges.any { it.appears } -> FluidSymbolMagic.BadgeDelayMs
+      badges.any { it.appears } -> FluidSymbolMagic.CutMs
       else -> FluidSymbolMagic.BadgeOutMs
+    }
+  val restStartMs: Float
+    get() = if (bands.isEmpty() && badges.isNotEmpty() && badges.none { it.appears }) {
+      FluidSymbolMagic.BadgeOutMs - FluidSymbolMagic.CutMs
+    } else {
+      0f
     }
 }
 
@@ -462,6 +476,12 @@ internal object SymbolMagicPlanner {
 
   /** Quanto lontano dall'asse (in unita' oltre la mezza larghezza) un pezzo segue ancora la banda. */
   const val BandReach = 1.5f
+
+  /** Fin dove (in unita' oltre il raggio del pallino) un pezzo dell'altra icona e' l'intaglio che gli fa posto. */
+  const val BadgeRoom = 1.5f
+
+  /** L'isola di un pallino e' al massimo questo multiplo del pezzo: se e' di piu', il pallino tocca la base. */
+  const val IslandGrowth = 2f
 
   private val cache = java.util.WeakHashMap<SymbolGeometry, java.util.WeakHashMap<SymbolGeometry, Any>>()
   private val none = Any()
@@ -496,10 +516,16 @@ internal object SymbolMagicPlanner {
     val removedParts = components(BooleanArray(n * n) { a[it] && !b[it] }, n).map { Part(it, appears = false) }
     val bands = mutableListOf<MutableBand>()
     val badges = mutableListOf<SymbolBadge>()
+    val rooms = mutableListOf<Room>()
     // Prima l'insieme piu' grande: la barra che compare taglia la campana, non il contrario.
     val first = if (addedParts.sumOf { it.cells.size } >= removedParts.sumOf { it.cells.size }) addedParts else removedParts
     val second = if (first === addedParts) removedParts else addedParts
     for (parts in listOf(first, second)) {
+      // L'intaglio attorno a un pallino dell'altro insieme e' suo: si incrocia, coi tempi del pallino.
+      for (part in parts) {
+        if (part.owner != null) continue
+        rooms.firstOrNull { it.appears != part.appears && it.holds(part, cell) }?.let { part.owner = it }
+      }
       val free = parts.filter { part -> part.owner == null && bands.none { it.reaches(part, cell) } }
       if (free.isEmpty()) continue
       val union = free.flatMap { it.cells }
@@ -516,8 +542,12 @@ internal object SymbolMagicPlanner {
             bands += band
           } else {
             part.owner = Unit
-            val ax = axes(part.cells)
-            badges += SymbolBadge(ax[0] * cell, ax[1] * cell, hull(part.cells, cell), part.appears)
+            val cells = island(if (part.appears) b else a, n, part) ?: part.cells
+            val ax = axes(cells)
+            var radius = 0f
+            for (c in cells) radius = maxOf(radius, hypot(c[0] - ax[0], c[1] - ax[1]))
+            rooms += Room(ax[0], ax[1], radius + 0.5f, part.appears)
+            badges += SymbolBadge(ax[0] * cell, ax[1] * cell, hull(cells, cell), part.appears)
           }
         }
       }
@@ -544,6 +574,46 @@ internal object SymbolMagicPlanner {
   /** Un pezzo di celle (x, y in celle), nuove ([appears]) o perse; [owner] non nullo quando qualcuno lo ha preso. */
   private class Part(val cells: List<FloatArray>, val appears: Boolean) {
     var owner: Any? = null
+  }
+
+  /** Lo spazio di un pallino, in celle: il centro e il raggio della sua isola. */
+  private class Room(val cx: Float, val cy: Float, val radius: Float, val appears: Boolean) {
+    /** Il pezzo e' l'intaglio che fa posto al pallino: il suo centro sta entro il raggio, piu' [BadgeRoom]. */
+    fun holds(part: Part, cellUnits: Float): Boolean {
+      var mx = 0f
+      var my = 0f
+      for (c in part.cells) { mx += c[0]; my += c[1] }
+      mx /= part.cells.size; my /= part.cells.size
+      return hypot(mx - cx, my - cy) <= radius + BadgeRoom / cellUnits
+    }
+  }
+
+  /**
+   * L'isola di [mask] che contiene il pezzo: le celle collegate, tutto il pallino anche dove copre un tratto
+   * dell'altra icona. Nulla se l'isola e' molto piu' grande del pezzo ([IslandGrowth]): il pallino tocca la base, e
+   * conta il pezzo.
+   */
+  private fun island(mask: BooleanArray, n: Int, part: Part): List<FloatArray>? {
+    val limit = (part.cells.size * IslandGrowth).toInt()
+    val seed = part.cells[0][1].toInt() * n + part.cells[0][0].toInt()
+    if (!mask[seed]) return null
+    val seen = HashSet<Int>()
+    val stack = ArrayDeque<Int>()
+    val out = mutableListOf<FloatArray>()
+    seen += seed
+    stack.addLast(seed)
+    while (stack.isNotEmpty()) {
+      val i = stack.removeLast()
+      val x = i % n
+      val y = i / n
+      out += floatArrayOf(x + 0.5f, y + 0.5f)
+      if (out.size > limit) return null
+      if (x > 0 && mask[i - 1] && seen.add(i - 1)) stack.addLast(i - 1)
+      if (x < n - 1 && mask[i + 1] && seen.add(i + 1)) stack.addLast(i + 1)
+      if (y > 0 && mask[i - n] && seen.add(i - n)) stack.addLast(i - n)
+      if (y < n - 1 && mask[i + n] && seen.add(i + n)) stack.addLast(i + n)
+    }
+    return out
   }
 
   /** I pezzi: le celle collegate di [mask], ognuna col suo centro in celle. */

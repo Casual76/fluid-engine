@@ -30,6 +30,8 @@ import kotlin.reflect.KType
  */
 @Navigator.Name(FluidPageNavigator.NAME)
 class FluidPageNavigator : Navigator<FluidPageNavigator.Destination>() {
+  internal var addressQueue: FluidModalAddressQueue? = null
+
   // Il costruttore `Navigator(name)` e' riservato al gruppo di navigation (RestrictedApi): il nome lo dicono
   // `@Navigator.Name` qui sopra e `addNavigator(NAME, …)`, che e' come l'engine registra il navigator.
 

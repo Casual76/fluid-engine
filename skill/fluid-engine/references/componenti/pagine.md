@@ -40,6 +40,14 @@ compreso l'arrivo di un intent prima che la composizione sia pronta.
 Le rotte della tabella possono essere stringhe o oggetti serializzabili di Navigation. Chi ha già
 un grafo tipizzato lo passa all'overload con `graph`, che mantiene anche le opzioni di movimento fra schede.
 
+Con un modale di vetro dichiarato alla radice, un indirizzo accettato chiede la sua chiusura
+e aspetta la fine del ritorno. Il valore `true` di `open` indica che il link è stato accettato.
+La pagina precedente resta al suo posto durante l’uscita. Se arriva
+un secondo link valido, vale l’ultimo. Un link rifiutato lascia aperto il modale. Se l’app chiede
+una conferma, il viaggio aspetta la risposta. Un modale dichiarato dalla pagina esce con quella pagina.
+Con `nav.navigate` la nuova pagina può invece entrare sotto un modale globale aperto. Il primo Indietro
+resta al modale, anche se la pagina appena arrivata è un editor con modifiche da salvare.
+
 L'ingresso sostituisce la pila con il percorso naturale. A freddo l'host riceve la pila prima
 del primo disegno. A caldo la nuova cima entra con il movimento Fluid. Indietro percorre i
 genitori e dalla radice torna al sistema. La ricreazione riparte dall'ultima voce salvata.

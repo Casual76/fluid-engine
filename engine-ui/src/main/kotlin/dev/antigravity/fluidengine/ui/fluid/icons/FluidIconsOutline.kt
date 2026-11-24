@@ -694,6 +694,12 @@ val FluidIcons.NotificationsOff: ImageVector
 
 private var _notificationsOff: ImageVector? = null
 
+/** `notifications_unread`, al tratto. Nel set per: F8.5c: la campana col pallino, la Magic Replace del pallino di SF Symbols 6. */
+val FluidIcons.NotificationsUnread: ImageVector
+  get() = _notificationsUnread ?: icon("FluidIcons.NotificationsUnread", false, "M12.01 22.27Q11.15 22.27 10.54 21.66Q9.93 21.06 9.93 20.2H14.07Q14.07 21.06 13.47 21.66Q12.86 22.27 12.01 22.27ZM4.93 19.2Q4.46 19.2 4.13 18.87Q3.8 18.54 3.8 18.07Q3.8 17.59 4.13 17.26Q4.46 16.93 4.93 16.93H5.72V10.13Q5.72 7.98 7.01 6.29Q8.29 4.6 10.36 4.09V3.43Q10.36 2.75 10.84 2.27Q11.32 1.8 12 1.8Q12.63 1.8 13.09 2.22Q13.55 2.64 13.6 3.25V3.5Q13.23 4.14 13.07 4.83Q12.92 5.52 12.98 6.25Q12.74 6.2 12.5 6.17Q12.27 6.13 12 6.13Q10.35 6.13 9.18 7.31Q8 8.48 8 10.13V16.93H16V10.62Q16.52 10.85 17.1 10.97Q17.68 11.09 18.28 11.06V16.93H19.07Q19.54 16.93 19.87 17.26Q20.2 17.59 20.2 18.07Q20.2 18.54 19.87 18.87Q19.54 19.2 19.07 19.2H4.93ZM18.1 9.07Q16.79 9.07 15.88 8.16Q14.96 7.24 14.96 5.93Q14.96 4.63 15.88 3.71Q16.79 2.8 18.1 2.8Q19.41 2.8 20.32 3.71Q21.24 4.63 21.24 5.93Q21.24 7.24 20.32 8.16Q19.41 9.07 18.1 9.07Z").also { _notificationsUnread = it }
+
+private var _notificationsUnread: ImageVector? = null
+
 /** `open_in_new`, al tratto. Nel set per: 4 app, 13 usi. Si gira da sola nelle lingue da destra a sinistra. */
 val FluidIcons.OpenInNew: ImageVector
   get() = _openInNew ?: icon("FluidIcons.OpenInNew", true, "M5.07 21.2Q4.13 21.2 3.46 20.54Q2.8 19.87 2.8 18.93V5.07Q2.8 4.13 3.46 3.46Q4.13 2.8 5.07 2.8H10.86Q11.34 2.8 11.67 3.13Q12 3.46 12 3.93Q12 4.41 11.67 4.74Q11.34 5.07 10.86 5.07H5.07V18.93H18.93V13.14Q18.93 12.66 19.26 12.33Q19.59 12 20.07 12Q20.54 12 20.87 12.33Q21.2 12.66 21.2 13.14V18.93Q21.2 19.87 20.54 20.54Q19.87 21.2 18.93 21.2H5.07ZM18.93 6.66L10.68 14.91Q10.36 15.23 9.89 15.22Q9.41 15.22 9.1 14.9Q8.78 14.59 8.78 14.11Q8.78 13.64 9.1 13.32L17.34 5.07H15.14Q14.66 5.07 14.33 4.74Q14 4.41 14 3.93Q14 3.46 14.33 3.13Q14.66 2.8 15.14 2.8H20.07Q20.54 2.8 20.87 3.13Q21.2 3.46 21.2 3.93V8.86Q21.2 9.34 20.87 9.67Q20.54 10 20.07 10Q19.59 10 19.26 9.67Q18.93 9.34 18.93 8.86V6.66Z").also { _openInNew = it }

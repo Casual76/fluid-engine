@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassFrameMarker
 import dev.antigravity.fluidengine.ui.glass.field.glassMenuPointOfLight
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -798,12 +799,7 @@ internal fun Modifier.menuBirthMarker(journey: FluidMenuJourney, physics: FluidP
 
 /** Marcatori per distinguere il velo, la finestra fisica e le voci nel rilievo sul dispositivo. */
 internal fun Modifier.menuDrawMarker(name: String): Modifier = if (GlassFrameDiagnostics.enabled) {
-  drawWithContent {
-    GlassFrameDiagnostics.span("menu.$name", this) {
-      GlassFrameDiagnostics.event("menu.$name", this) { "size=$size" }
-      drawContent()
-    }
-  }
+  glassFrameMarker("menu.$name")
 } else this
 
 /**
@@ -1046,7 +1042,8 @@ internal fun rememberFluidMenuStructureMetrics(
 @Composable
 internal fun rememberFluidToolbarMenu(): FluidToolbarMenu {
   val host = LocalFluidGlassModalHostState.current
-  val menu = remember(host) { FluidToolbarMenu(host) }
+  val entry = rememberFluidGlassModalEntry(host)
+  val menu = remember(host, entry) { FluidToolbarMenu(host, entry) }
   DisposableEffect(host, menu) {
     host?.register(menu.entry)
     onDispose {
@@ -1059,14 +1056,14 @@ internal fun rememberFluidToolbarMenu(): FluidToolbarMenu {
   return menu
 }
 
-internal class FluidToolbarMenu(private val host: FluidGlassModalHostState?) {
+internal class FluidToolbarMenu(private val host: FluidGlassModalHostState?, val entry: FluidGlassModalEntry) {
   val anchor = FluidMenuAnchor()
-  val entry = FluidGlassModalEntry().apply {
-    presentation = FluidGlassModalPresentation.Expand
-    menuAnchor = anchor
-    menuHandOff = anchor.handOff
-    origin = { anchor.restBounds }
-    onDismissRequest = { visible = false }
+  init {
+    entry.presentation = FluidGlassModalPresentation.Expand
+    entry.menuAnchor = anchor
+    entry.menuHandOff = anchor.handOff
+    entry.origin = { anchor.restBounds }
+    entry.onDismissRequest = { entry.visible = false }
   }
 
   fun open(actions: List<FluidContextAction>, group: Rect?, groupLease: (Boolean) -> Unit): Boolean {
@@ -1160,7 +1157,7 @@ internal fun FluidAlertLayer(
   }
   val inline = spec.confirmationCancel != null && sourceJourney != null
   SideEffect {
-    if (sourceJourney != null) entry.lifted = true
+    entry.lifted = true
     entry.inlineConfirmation = inline
   }
   val shownSpec = remember(spec, inline) {

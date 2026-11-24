@@ -3156,7 +3156,7 @@ private fun FluidBarActionImpl(
   }
 
   val host = LocalFluidGlassModalHostState.current
-  val entry = remember { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry()
   val haptics = LocalFluidHaptics.current
   val anchor = remember { FluidMenuAnchor() }
   val press = rememberFluidPressState(FluidPressFeedback.ExpandRound)

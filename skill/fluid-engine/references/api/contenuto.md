@@ -38,6 +38,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidLoadingBlock(modifier: Modifier = Modifier, minHeight: Dp = 180.dp)` — Placeholder while a screen's first load is in flight.
 - `@Composable fun FluidSectionFootnote(text: String, modifier: Modifier = Modifier)` — Footnote under a grouped list, for the explanation a row's subtitle would make too long.
 
+## `engine-ui/ui/fluid/FluidDetectedText.kt`
+
+- `data class FluidTextDetection(val kinds: Set<FluidDetectedTextKind> = FluidDetectedTextKind.entries.toSet(), val locale: Locale? = null, val additionalActions: (FluidDetectedValue) -> List<FluidContextAction> = { emptyList() })` — Configura [FluidDetectedText] o il riconoscimento facoltativo di [FluidMarkdown].
+- `@Composable fun FluidDetectedText(text: String, modifier: Modifier = Modifier, detection: FluidTextDetection = FluidTextDetection(), selectable: Boolean = true, style: TextStyle = MaterialTheme.typography.bodyLarge, color: Color = Color.Unspecified)` — Testo semplice con dati sottolineati appena finisce il riconoscimento fuori dal thread UI. La sottolineatura usa l'inchiostro del testo, così eredita il suo contrasto. Il primo layout contiene già tutto il testo e il segno non cambia le misure della tipografia.
+
+## `engine-ui/ui/fluid/FluidDetectedTextRules.kt`
+
+- `enum class FluidDetectedTextKind` — Un tipo di dato che [FluidDetectedText] può rendere azionabile.
+- `data class FluidDetectedValue internal constructor(val kind: FluidDetectedTextKind, val start: Int, val end: Int, val text: String, val value: String = text, val date: LocalDate? = null, val time: LocalTime? = null)` — Un dato che l'app può usare nelle sue azioni. [start] e [end] sono gli indici UTF-16 (inizio incluso, fine esclusa) nel testo mostrato. [text] conserva la grafia originale, [value] è la destinazione normalizzata per telefoni e link.
+
 ## `engine-ui/ui/fluid/FluidDisclosureGroup.kt`
 
 - `class FluidDisclosureState(initiallyExpanded: Boolean = false)` — Lo stato di una [FluidDisclosureGroup]: aperta o chiusa (`DisclosureGroup(isExpanded:)` di SwiftUI).
@@ -192,6 +202,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `@Composable fun style(textColor: Color = MaterialTheme.colorScheme.onSurface, mutedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant, blockSpacing: Dp = 8.dp, body: TextStyle = MaterialTheme.typography.bodyLarge, headings: List<TextStyle> = emptyList()): FluidMarkdownStyle` — Lo stile del tema corrente.
   - `@Composable fun documentHeadings(): List<TextStyle>` — I titoli di una pagina di testo, una nota o un changelog: quattro misure in semigrassetto, da `titleLarge` per `#` a `bodyLarge` dal `####`. Si passa a [style] come `headings`.
 - `@Composable fun FluidMarkdown(markdown: String, modifier: Modifier = Modifier, streaming: Boolean = false, animateFirst: Boolean = streaming, style: FluidMarkdownStyle = FluidMarkdownDefaults.style(), strings: FluidMarkdownStrings = FluidMarkdownStrings(), options: FluidMarkdownOptions = FluidMarkdownOptions(), onLinkClick: ((String) -> Unit)? = null, selectable: Boolean = false)` — Il Markdown, disegnato: la risposta di un assistente come una nota, le novita' di una versione, il testo di una guida. Titoli, elenchi (anche annidati), corsivo, grassetto, barrato, codice in linea e a blocco (con la lingua in testa e il tasto "copia", il testo che scorre invece di essere tagliato), link, citazioni, tabelle che scorrono, righe.
+- `@Composable fun FluidMarkdown(markdown: String, modifier: Modifier = Modifier, streaming: Boolean = false, animateFirst: Boolean = streaming, style: FluidMarkdownStyle = FluidMarkdownDefaults.style(), strings: FluidMarkdownStrings = FluidMarkdownStrings(), options: FluidMarkdownOptions = FluidMarkdownOptions(), onLinkClick: ((String) -> Unit)? = null, selectable: Boolean = false, detection: FluidTextDetection?)` — Il renderer Markdown con [detection] nei paragrafi. Il riconoscimento parte quando il testo ha finito di arrivare. I link scritti dall'autore conservano [onLinkClick].
 
 ## `engine-ui/ui/fluid/FluidMarkdownParser.kt`
 

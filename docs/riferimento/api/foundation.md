@@ -61,6 +61,21 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class EngineCompatibility` — How far behind the engine this app carries is.
 - `fun engineCompatibility(engineVersion: String = EngineBuild.VERSION, minimumVersion: String?, recommendedVersion: String?): EngineCompatibility`
 
+## `engine-foundation/foundation/FluidDates.kt`
+
+- `object FluidDates` — I giorni della settimana come li conta una lingua.
+  - `fun firstDayOfWeek(locale: Locale): DayOfWeek` — Il primo giorno della settimana per [locale], dai dati CLDR della piattaforma (`WeekFields.of`): lunedi' in Italia e nel Regno Unito, domenica negli Stati Uniti e in Israele, sabato in Egitto. Su Android segue anche la scelta dell'utente nelle impostazioni («Primo giorno della settimana», Android 14), che arriva come estensione `fw` della lingua (`it-IT-u-fw-sun`).
+  - `fun weekdays(locale: Locale): List<DayOfWeek>` — I sette giorni nell'ordine di [locale], dal primo.
+  - `fun weekOf(date: LocalDate, locale: Locale): FluidDateRange` — La settimana di [date] nell'ordine di [locale], come intervallo di sette giorni.
+- `data class FluidDateRange(override val start: LocalDate, override val endInclusive: LocalDate) : ClosedRange<LocalDate>, Iterable<LocalDate>` — Un intervallo di giorni, dal [start] al [endInclusive] compresi (F8.8, `intervalli-e-giorni-sparsi`): la scelta «dal… al…» del calendario. Vive su **date locali**: tre giorni sono tre giorni anche se in mezzo c'e' il cambio dell'ora, e un giorno solo e' un intervallo con lo stesso inizio e la stessa fine.
+  - `val dayCount: Long get()` — Quanti giorni, contando il primo e l'ultimo.
+  - `val isSingleDay: Boolean get()` — Vero se c'e' un giorno solo.
+  - `fun startInstant(zone: ZoneId): Instant` — La mezzanotte del primo giorno in [zone] (la prima ora valida, se quella notte manca la mezzanotte).
+  - `fun endInstantExclusive(zone: ZoneId): Instant` — La mezzanotte del giorno dopo l'ultimo in [zone]: la fine esclusa.
+  - `fun duration(zone: ZoneId): Duration` — Quanto dura l'intervallo in [zone]: 24 ore per giorno, meno o piu' un'ora nei giorni del cambio.
+  - `companion object`
+    - `fun between(a: LocalDate, b: LocalDate): FluidDateRange` — L'intervallo fra [a] e [b] in qualunque ordine: il tocco «al» prima del «dal» non e' un errore.
+
 ## `engine-foundation/foundation/FluidFormat.kt`
 
 - `enum class FluidFormatWidth` — La larghezza delle parole, come `unitsStyle` di Apple: `.wide`, `.abbreviated`, `.narrow`.
@@ -129,6 +144,30 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val GoodBits: Double`
     - `const val StrongBits: Double`
     - `fun estimate(password: String): FluidPasswordStrength` — La stima: - **l'alfabeto** è la somma delle classi usate (26 minuscole, 26 maiuscole, 10 cifre, 33 simboli, 100 per il resto); - **la lunghezza efficace** toglie tre quarti di carattere per ogni ripetizione («aaa») e per ogni passo di una sequenza («abc», «321», «qwe»); - **una password comune** (fra le più usate, anche con cifre o simboli in coda: «Password1!») resta debole.
+
+## `engine-foundation/foundation/FluidRecurrence.kt`
+
+- `enum class FluidRecurrenceFrequency` — Ogni quanto si ripete una regola: `EKRecurrenceFrequency` (`FREQ` di RFC 5545).
+- `data class FluidRecurrenceDay(val dayOfWeek: DayOfWeek, val ordinal: Int = 0)` — Un giorno della settimana di una regola, con il suo numero: `EKRecurrenceDayOfWeek` (`BYDAY` di RFC 5545).
+  - `companion object`
+    - `fun last(day: DayOfWeek): FluidRecurrenceDay` — L'ultimo [day] del periodo («l'ultimo venerdì»).
+- `sealed class FluidRecurrenceEnd` — Quando finisce una regola: `EKRecurrenceEnd` (`UNTIL` e `COUNT` di RFC 5545).
+  - `data object Never : FluidRecurrenceEnd()` — Non finisce mai.
+  - `data class OnDate(val date: LocalDate) : FluidRecurrenceEnd()` — L'ultima ricorrenza possibile e' il giorno [date], compreso (`UNTIL`).
+  - `data class AfterCount(val count: Int) : FluidRecurrenceEnd()` — Dopo [count] ricorrenze, contando la prima (`COUNT`).
+- `data class FluidRecurrenceRule(val frequency: FluidRecurrenceFrequency, val interval: Int = 1, val daysOfWeek: List<FluidRecurrenceDay> = emptyList(), val daysOfMonth: List<Int> = emptyList(), val monthsOfYear: List<Month> = emptyList(), val setPositions: List<Int> = emptyList(), val end: FluidRecurrenceEnd = FluidRecurrenceEnd.Never, val weekStart: DayOfWeek = DayOfWeek.MONDAY)` — La regola di una ricorrenza, come `EKRecurrenceRule` e la `RRULE` di RFC 5545.
+  - `fun occurrences(start: LocalDate): Sequence<LocalDate>` — Le ricorrenze dal giorno [start] in poi, in ordine: una sequenza pigra, infinita se la regola non finisce. Una regola che non cade mai («ogni mese il 30» solo a febbraio) finisce da sola dopo 400 anni di periodi vuoti, un ciclo intero del calendario gregoriano.
+  - `fun occurrences(start: LocalDate, limit: Int, from: LocalDate = start): List<LocalDate>` — Le prime [limit] ricorrenze dal giorno [from] in poi (di serie l'inizio), contate dall'inizio [start].
+  - `fun occurrencesBetween(start: LocalDate, first: LocalDate, last: LocalDate): List<LocalDate>` — Le ricorrenze che cadono fra [first] e [last], compresi.
+  - `fun occurrences(start: LocalDateTime, zone: ZoneId): Sequence<ZonedDateTime>` — Le ricorrenze con un'ora: la regola si espande in date ([occurrences]) e solo dopo ogni data prende l'ora di [start] nella [zone]. Nell'ora che manca (l'ora legale che comincia) l'ora va avanti della lunghezza del salto; nell'ora che si ripete vale la prima, come vuole RFC 5545 (§ 3.3.5) e come fa `ZonedDateTime.of`.
+  - `fun toRRule(): String` — La regola nella sintassi di RFC 5545, senza `RRULE:` davanti: `FREQ=WEEKLY;BYDAY=MO,TH;UNTIL=20261220`.
+  - `companion object`
+    - `fun parseRRule(text: String): FluidRecurrenceRule` — Legge una regola di RFC 5545 (`FREQ=MONTHLY;BYDAY=-1FR`, anche con `RRULE:` davanti). Le parti che una regola di calendario non usa (`BYHOUR`, `BYWEEKNO`, `BYYEARDAY`…) fanno fallire la lettura invece di essere ignorate: una regola letta a meta' darebbe date sbagliate senza dirlo. `UNTIL` con un'ora vale per la sua data.
+
+## `engine-foundation/foundation/FluidRecurrenceText.kt`
+
+- `object FluidRecurrenceText` — La frase che riassume una [FluidRecurrenceRule] (F8.8): «Ogni lun e gio fino al 20 dicembre», «Every month on the last Friday, 10 times». La scrive il pannello «Ripeti» sopra le prossime date, come la riga di Calendario di Apple sotto la ripetizione personalizzata («L'evento si ripeterà ogni settimana il lunedì e il giovedì»), ma piu' corta: sta in una riga.
+  - `fun describe(rule: FluidRecurrenceRule, start: LocalDate, locale: Locale): String` — La frase di [rule] cominciata il giorno [start] (serve ai campi vuoti, che prendono il giorno dall'inizio, e all'anno della fine, scritto solo se e' un altro). [locale] sceglie la lingua.
 
 ## `engine-foundation/foundation/FluidUnitFormat.kt`
 

@@ -52,7 +52,7 @@ import org.robolectric.util.ReflectionHelpers
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w800dp-h1280dp-mdpi")
+@Config(sdk = [35], qualifiers = "w800dp-h1280dp-mdpi", application = GlassBenchDevice::class, shadows = [GlassBenchHeap::class])
 class GlassCostScenarioTest {
   @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
@@ -169,7 +169,6 @@ class GlassCostScenarioTest {
   }
 
   private fun measure(scene: MeasureScenario, phase: String) {
-    val memory = prepareGlassBenchMemory(compose.activity)
     val diagnostics = FluidGlassDiagnostics
     val enabled = diagnostics.enabled
     val warm = diagnostics.warmUpEnabled
@@ -279,7 +278,6 @@ class GlassCostScenarioTest {
       diagnostics.enabled = enabled
       diagnostics.warmUpEnabled = warm
       diagnostics.resetForTesting()
-      memory.close()
     }
   }
 }

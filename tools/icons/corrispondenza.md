@@ -3,7 +3,7 @@
 Generato da `tools/icons/gen_fluid_icons.py`: non modificare a mano. Stesse righe, in forma da script, in
 `corrispondenza.csv` (`origine;nome;symbols;fluid;nota`).
 
-Il set ha **166 icone** al tratto e **31** varianti piene. Delle icone Material del
+Il set ha **167 icone** al tratto e **31** varianti piene. Delle icone Material del
 censimento (`censimento-app.txt`) **182 su 361** hanno un equivalente nel set (1694 usi su 2117); **179** restano fuori (423 usi). Per ognuna
 c'e' il nome di Material Symbols: per portarla nel set basta la riga nell'elenco.
 

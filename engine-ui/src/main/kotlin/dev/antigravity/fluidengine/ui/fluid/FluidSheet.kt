@@ -444,7 +444,7 @@ internal fun FluidAlertInHost(
   /** Null: il chiamante governa l'avviso montando e smontando il composable. */
   visible: Boolean? = null,
 ) {
-  val entry = remember { FluidGlassModalEntry() }
+  val entry = rememberFluidGlassModalEntry()
   SideEffect {
     if (visible != false) {
       entry.alert = spec

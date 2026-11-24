@@ -1,0 +1,14 @@
+<resources>
+    <string name="fluid_detected_calendar">Add to calendar</string>
+    <string name="fluid_detected_show_calendar">Show in calendar</string>
+    <string name="fluid_detected_dial">Call</string>
+    <string name="fluid_detected_sms">Send message</string>
+    <string name="fluid_detected_contact">Add to contacts</string>
+    <string name="fluid_detected_map">Open in Maps</string>
+    <string name="fluid_detected_directions">Directions</string>
+    <string name="fluid_detected_email">Send email</string>
+    <string name="fluid_detected_open_link">Open link</string>
+    <string name="fluid_detected_copy">Copy</string>
+    <string name="fluid_detected_copy_address">Copy address</string>
+    <string name="fluid_detected_no_handler">No app is available for this action</string>
+</resources>

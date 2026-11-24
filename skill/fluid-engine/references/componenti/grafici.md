@@ -1,4 +1,4 @@
-# Grafici: ciambella, barre, andamento, legenda
+# Grafici: ciambella, barre, andamento, legenda, scrubber e quadrante
 
 Quattro componenti per **mostrare quanto**: `FluidDonutChart` (di cosa è fatto un totale), `FluidBarChart` (confronto fra voci, anche impilato), `FluidLineChart` (come è andata nel tempo), `FluidChartLegend` (il testo che
 spiega i colori), più due riquadri di stato (`FluidChartMessage`, `FluidChartSkeleton`). Famiglia nuova dalla 3.1.0 (Pampa Mail, F1.5, gruppo G-G1). File: `engine-ui/.../ui/fluid/FluidCharts.kt` (disegno) e `FluidChartMath.kt` (i
@@ -23,6 +23,9 @@ non validi» (mai disegnati), un buco in una serie spezza la linea (mai un valor
 | una legenda in un layout tuo, o per grafici a più serie | `FluidChartLegend(series)` (in fila) o `FluidChartLegend(items, vertical = true)` (con dettagli) |
 | «nessun dato», «dati non validi», un errore con «Riprova» al posto del grafico | `FluidChartMessage(text, detail, actionLabel, onAction)` |
 | «sto calcolando» | `FluidChartSkeleton(height)` (stessa altezza del grafico: la pagina non salta) |
+| «quanto valeva quel giorno?», col dito sull'andamento o sulle barre (Borsa, Salute) | niente da fare: **lo scrubber c'è di serie** in `FluidLineChart` e `FluidBarChart` verticale (4.0, F8.6); `onScrub` per scrivere il valore anche in testata |
+| «quanto è cambiato fra due punti?» | due dita sul grafico: la fascia e la differenza («+1,5 (+25%)»); `deltaText` per scriverla a modo tuo |
+| un valore in un intervallo, a colpo d'occhio («18% di assenze, limite 25%», lo spazio occupato, i decibel) | `FluidGauge(valore, intervallo)` (4.0, F8.6): arco, anello da riga o barra a capacità, con le soglie; sul widget `EngineWidgetGauge` |
 | una sola cifra con una variazione | **non un grafico**: `FluidMetricTile` ([contenuto-righe-liste.md](contenuto-righe-liste.md)) |
 | decine di serie o un asse x continuo con migliaia di punti | **non questi**: campiona **prima** (50.000 record → 30 punti) e passa i punti; l'engine non campiona |
 
@@ -45,7 +48,19 @@ FluidLineChart(series, points: List<List<Float?>>, xLabels: List<String>, modifi
 FluidChartSeries(label, color = Color.Unspecified)      // Unspecified: dalla palette d'identità, per posizione
 FluidChartLegend(items: List<FluidChartLegendItem>, modifier, vertical = false, selectedIndex, onItemClick, accessible = true)
 FluidChartLegendItem(label, color, detail = null)       // + overload FluidChartLegend(series, …)
+
+// 4.0, F8.6: in coda a FluidLineChart e FluidBarChart
+  scrubbing = true, onScrub: ((IntRange?) -> Unit)? = null, deltaText: ((from: Float, to: Float) -> String)? = null
+
+FluidGauge(value: Float, range: ClosedFloatingPointRange<Float>, modifier, style = FluidGaugeStyle.Arc,
+  label: String? = null, valueText: ((Float) -> String)? = null, minLabel: String? = null, maxLabel: String? = null,
+  thresholds: List<FluidGaugeThreshold> = emptyList(), color = Color.Unspecified, size = …)
+FluidGauge(value: () -> Float, range, …)                 // lo stesso, col valore letto nel disegno (otto volte al secondo)
+FluidGaugeThreshold(value: Float, label: String? = null, color = Color.Unspecified)
+FluidGaugeStyle.Arc | Ring | Capacity
 ```
+Altri nomi (4.0, F8.6): `FluidChartTouchDefaults` (le misure dello scrubber), `FluidChartDiagnostics` (contatori e tag delle prove, non per le app), `FluidGaugeDefaults`, `FluidGaugeReading`/`fluidGaugeReading(…)`, `fluidGaugeArcAngles(…)`, `fluidGaugeDescription(…)` (le usa anche il widget), `FluidDataLabels`/`LocalFluidDataLabels` (le parole, con `FluidDataLabels.English`).
+
 Altri nomi: `FluidChartDefaults` (soglie e misure), `FluidDonutSlice`, `FluidDonutLayout`/`fluidDonutLayout(…)` (le stesse fette del grafico, con `sourceIndices`), `FluidDonutProblem`, `FluidChartSumPolicy`, `LocalFluidChartLocale`.
 
 ## La ciambella è una promessa: le parti fanno il tutto
@@ -92,6 +107,41 @@ vuole barre separate col denominatore dichiarato.
   che un asse che non parte da zero non inganna (un andamento di temperature, non di conteggi). Le etichette di `xLabels` si diradano e vanno a capo senza sovrapporsi, anche al 200%.
 - **La curva non inventa picchi.** Fra due punti la linea è una curva **monotona** (`fluidMonotoneTangents`, interna): non supera mai i due valori misurati. Una spline qualunque «rimbalza» e disegna un massimo che i dati non hanno.
 - **Selezione.** Un tocco su un punto (la sua colonna) lo evidenzia e scrive sotto «etichetta – valori»; con TalkBack si esplora punto per punto.
+
+## Da toccare: lo scrubber (4.0, F8.6)
+
+Il riferimento è Swift Charts con `chartXSelection` e le annotazioni, il gesto di Borsa e di Salute («tocca e tieni premuto il grafico con un dito; con due dita la differenza»). File: `FluidChartScrub.kt`.
+
+- **Il gesto.** Sull'andamento e sulle barre verticali il dito che scorre **di lato** (mezzo slop, come lo slider) o che resta **fermo 300 ms** (`FluidChartTouchDefaults.HoldMillis`) prende lo scrubber; il dito che scorre in **verticale**
+  lascia scorrere la pagina (l'arbitraggio dello slider, `fluidSliderClaim`); un **tocco breve** sceglie ancora la colonna, come prima. Preso il gesto, il grafico consuma tutto fino al rilascio: la pagina sotto non si muove. Il dito
+  che sborda dal grafico resta sull'estremo.
+- **Cosa compare.** La linea verticale (1 dp, il `RuleMark` di serie), il punto sulla serie (5 dp con l'alone di 1,5 dp: il punto di Borsa) o la casella evidenziata per le barre, e una **capsula di vetro** dell'engine (`fluidGlass`)
+  col valore e l'etichetta. La capsula sta in cima al grafico, centrata sulla linea e **tenuta dentro i bordi**; scende sotto il punto se il punto starebbe sotto di lei. Nasce dal punto e ci torna al rilascio (il viaggio d'oro),
+  scivola da un punto all'altro con la molla dei controlli; con «Riduci movimento» compare e va via senza viaggio.
+- **Due dita.** Una fascia d'accento fra le due linee e, nella capsula, la differenza con la variazione («+1,5 (+25%)», il meno è quello tipografico) e l'intervallo («26 set – 5 dic»). Un buco a un estremo dice «nessun dato»: la
+  differenza non si inventa. Con più serie la capsula le nomina tutte. `deltaText` la scrive a modo dell'app.
+- **Aptica.** Un `Tick` per punto nuovo con la rete dei 55 ms dei gesti continui (`FluidSliderNotchGate`, la stessa dello scrubber e dello slider), uno per dito.
+- **`onScrub`** dice all'app i punti sotto le dita (`i..i` con un dito, dal più piccolo al più grande con due) e `null` al rilascio: serve per scrivere il valore anche in testata, come Borsa.
+- **Costo.** Lo stato dello scrubber è letto **solo** dal suo livello (un `graphicsLayer` suo: linea, fascia, punto) e dalla capsula: il piano del grafico, i tracciati e le etichette non si ricompongono e non si ridisegnano mentre il
+  dito scorre; la capsula si ricompone una volta per punto, non per pixel. Il piano è sorgente di vetro della capsula solo mentre la capsula c'è (`rememberGlassBackdrop`, su richiesta). A dito fermo nessuno scrive.
+- **Non c'è** sulla ciambella (il dito che gira intorno all'anello litiga con lo scorrimento) né sulle barre orizzontali (stanno in una colonna che scorre, e le righe si toccano già una per una). Niente suono alla «Audio
+  Graphs»: TalkBack legge già i valori punto per punto, un nodo per colonna.
+
+## Il quadrante: `FluidGauge` (4.0, F8.6)
+
+Un valore dentro un intervallo, da leggere a colpo d'occhio: `Gauge` di SwiftUI, gli anelli di Attività, il widget Batterie. File: `FluidGauge.kt`.
+
+- **Tre forme.** `Arc`: l'arco grande aperto in basso (242°, l'apertura di 118° misurata sulle HIG «Gauges»; spessore 0,1 del diametro), col numero al centro, l'etichetta sotto e il minimo e il massimo sotto le estremità.
+  `Ring`: l'anello chiuso da riga (36 dp di serie, sta in una riga da 44), col numero dentro da 32 dp in su. `Capacity`: la barra (6 dp) con l'etichetta e il valore sopra e gli estremi sotto.
+- **Soglie.** `FluidGaugeThreshold(25f, "Limite")`: da quel valore in su l'arco prende il colore della soglia (in dissolvenza) e la pista ha un segno; sotto arco e barra le soglie con nome si leggono col valore
+  («Limite 25 %»), e quella superata è scritta in grassetto, «oltre: Limite 25 %». Senza colore le intermedie sono l'avviso e l'ultima l'errore del tema: il caso comune è «più alto è peggio»; una soglia buona (la media sopra
+  il 6) passa il suo colore. I colori sono portati a 3:1, lo scritto resta a 4,5:1: **il colore non è l'unica informazione**.
+- **Mai bugiardo.** Un valore fuori dall'intervallo si ferma all'estremo e il numero resta quello vero; un intervallo vuoto non divide per zero.
+- **Movimento.** L'arco insegue il valore con la `.spring()` di serie di SwiftUI (risposta 0,55 s, smorzamento 1: niente rimbalzo, che direbbe un numero falso); la prima volta cresce con l'ingresso dei grafici. Fermo, non ridisegna.
+- **Valori veloci.** `FluidGauge(value = { db })`: la lambda si legge nel disegno e nel numero, mai in chi chiama (otto valori al secondo ridisegnano l'arco, non la pagina; provato).
+- **TalkBack.** Un nodo: `label` come nome, l'intervallo (`ProgressBarRangeInfo`) e la frase dai dati, «18 %, da 0 a 100 %. Limite 25 %.» (`fluidGaugeDescription`).
+- **Il numero** cambia di colpo: quando `FluidNumericText` (F8.1) sarà nell'engine, il punto da cambiare è uno solo, `GaugeNumber` in `FluidGauge.kt`.
+- **Sul widget** c'è `EngineWidgetGauge` (`engine-widget`, [../widget.md](../widget.md)): stessa lettura, stesse forme e stessa frase.
 
 ## Legenda
 
@@ -145,6 +195,12 @@ un solo fotogramma di crescita. L'evidenza di una voce scelta cresce e torna con
 - **`FluidChartsTest`** (`sample`, Robolectric, 30): ciambella letta come sintesi + un nodo per fetta (in italiano e inglese), percentuali che sommano cento, la selezione con TalkBack, col tocco e dalla legenda (riga da 48 dp), controllata o no,
   vuoto e tutto zero nelle due lingue, il valore negativo e il totale mancato (con `Normalize` si disegna), «Altro», barre orizzontali col denominatore, valore sopra il denominatore «non valido» e non tagliato, pile, negativi ed enormi,
   l'andamento con buchi e due serie, le etichette dell'asse che si diradano a 200%, ciambella e barre che **crescono in altezza** a 200% invece di tagliare, il movimento ridotto, il tema scuro, la demo.
+- **`F8p6ChartTouchMathTest`** (`engine-ui`, JVM, 4.0 F8.6): la colonna sotto il dito (e l'estremo fuori dall'area), l'intervallo di due dita, cosa scrive la capsula (valore, buco, differenza con la percentuale, più serie), il meno
+  tipografico, una tacca per punto nuovo con la rete dei 55 ms; il quadrante (frazione, estremi, soglia superata, intervallo vuoto, non finito), gli angoli dell'arco, la frase per TalkBack, i colori delle soglie.
+- **`F8p6ChartsUiTest`** (`sample`, Robolectric, dito vero e vetro vero): lo scrubber preso di lato e col dito fermo, sul punto giusto, una tacca per punto, la capsula dentro il grafico sul primo e sull'ultimo punto, la linea nei
+  pixel, due dita con la differenza e l'intervallo, il dito in verticale che fa scorrere la pagina e il tocco che sceglie ancora, **il piano mai ricomposto** sotto il dito e nessuna scrittura a riposo, «Riduci movimento», le barre; il
+  quadrante col suo nodo (valore, intervallo, soglia, soglia superata), la lambda che non ricompone chi chiama, anello e barra.
+- **`EngineWidgetGaugeTest`** (`engine-widget`, Robolectric + `glance-appwidget-testing`): Glance compone anello, arco e barra col numero e la frase; le maschere si disegnano davvero (pista, valore fino alla frazione, segni).
 - **Non provato da test**: l'aspetto vero (la curva, le ombre, il vetro sotto un grafico) e TalkBack su un telefono.
 
 ## Dove guardare
@@ -153,4 +209,7 @@ un solo fotogramma di crescita. L'evidenza di una voce scelta cresce e torna con
 |---|---|
 | `engine-ui/.../ui/fluid/FluidCharts.kt` | i quattro componenti, i riquadri di stato, la legenda, le descrizioni generate, i colori e il movimento, `FluidChartDefaults`, `LocalFluidChartLocale` |
 | `engine-ui/.../ui/fluid/FluidChartMath.kt` | i dati (`FluidChartEntry`, `FluidDonutSlice`, `FluidDonutLayout`, `FluidChartSumPolicy`), la validazione, le scale, il diradamento, le tangenti: tutto puro |
+| `engine-ui/.../ui/fluid/FluidChartScrub.kt` | lo scrubber: il gesto, il suo livello, la capsula di vetro, `FluidChartTouchDefaults`, `FluidChartDiagnostics` |
+| `engine-ui/.../ui/fluid/FluidGauge.kt` | il quadrante: `FluidGauge`, le soglie, la lettura pura, `FluidGaugeDefaults` |
+| `sample/.../novita/F8p6Scenes.kt` | le scene di «Elementi nuovi»: voti di ClasseViva, spazio di MyCloud, ascolto di Fluidify, assenze, spazio e decibel |
 | `sample/.../catalog/ChartsDemo.kt` | il call-site vero: ciambella, barre (anche impilate e orizzontali), andamento, stati, chiaro/scuro, testo grande, movimento ridotto |

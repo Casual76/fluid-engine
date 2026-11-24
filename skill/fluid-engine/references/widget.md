@@ -39,6 +39,17 @@ alle righe.
 `EngineWidgetRow`, `EngineWidgetHairline`, `EngineWidgetIconTile`, `EngineWidgetPill`,
 `EngineWidgetMessage`. Radii in `EngineWidgetShape`.
 
+**Il quadrante** (4.0, F8.6): `EngineWidgetGauge(value, range, palette, layout, valueText, style = FluidGaugeStyle.Ring,
+label, minText, maxText, thresholds, thresholdTexts, tone = palette.accent, size, barWidth)`. E' `FluidGauge` di
+`engine-ui` ([componenti/grafici.md](componenti/grafici.md)) per Glance: la stessa lettura (`fluidGaugeReading`), le
+stesse tre forme (arco, anello, barra a capacita') e la stessa frase per TalkBack (`fluidGaugeDescription`). Glance non
+ha un canvas: le forme sono **maschere bianche** (pista, valore, un segno per soglia) tinte dall'host coi `ColorProvider`
+della palette, cosi' il widget segue chiaro e scuro del launcher senza ridisegnarsi; numero ed etichette restano testo
+vero di Glance. Una soglia senza colore prende `warningTone` (l'ultima `dangerTone`). Il widget non anima: mostra il
+valore con cui e' composto, e l'app lo aggiorna quando cambia. La barra non sa misurarsi: `barWidth` e' la larghezza
+della cella meno il margine. Misure in `EngineWidgetGaugeMetrics`. Provato da `EngineWidgetGaugeTest` (Robolectric e
+`glance-appwidget-testing`).
+
 Le icone sono `@DrawableRes` tinti con il colore del tono: usa vettoriali **a tratto**, non glifi
 pieni — accanto a un testo di peso iOS un glifo pieno legge molto più pesante.
 

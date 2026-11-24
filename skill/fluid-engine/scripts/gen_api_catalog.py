@@ -76,7 +76,7 @@ UI_FLUID_FILES = {
         "FluidWebClosedView", "FluidWebClosing", "FluidWebProfiles", "FluidWebPlatform",
     ],
     # grafici: ciambella, barre, linea, legenda
-    "grafici": ["FluidCharts", "FluidChartMath"],
+    "grafici": ["FluidCharts", "FluidChartMath", "FluidChartScrub", "FluidGauge", "FluidDataLabels"],
     # tasti, interruttori, cursori, campi
     "controlli": [
         "FluidControls", "FluidSlider", "FluidSwitch", "FluidScrubber", "FluidGlassControls", "FluidGlassButtonStyle",
@@ -178,7 +178,7 @@ FAMILY_TITLES = {
     "barre": "Barre di navigazione e di azione",
     "contenuto": "Contenuto: righe, card, liste, identità, testo, file",
     "contenuto-web": "Contenuto web chiuso (FluidWebContent)",
-    "grafici": "Grafici: ciambella, barre, linea, legenda",
+    "grafici": "Grafici: ciambella, barre, linea, legenda, scrubber e quadrante",
     "controlli": "Controlli",
     "menu-modali": "Menu, pop-up, fogli, avvisi, notifiche",
     "movimento": "Pressione, gesto e movimento",

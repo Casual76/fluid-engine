@@ -10,7 +10,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Barre di navigazione e di azione](barre.md) | 18 | 268 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 49 | 429 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
-| [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
+| [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 70 |
 | [Controlli](controlli.md) | 21 | 174 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
@@ -27,7 +27,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-net](net.md) | 2 | 10 |
 | [engine-config](config.md) | 1 | 9 |
 | [engine-update](update.md) | 2 | 14 |
-| [engine-widget](widget.md) | 3 | 34 |
+| [engine-widget](widget.md) | 4 | 41 |
 | [engine-wear](wear.md) | 17 | 87 |
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-viewer](viewer.md) | 29 | 204 |

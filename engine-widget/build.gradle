@@ -26,6 +26,13 @@ android {
   kotlinOptions {
     jvmTarget = engine.jvmTarget
   }
+
+  testOptions {
+    unitTests {
+      // F8.6: il quadrante del widget si prova in Robolectric (le maschere si disegnano davvero, Glance compone).
+      includeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
@@ -38,4 +45,7 @@ dependencies {
   api "androidx.glance:glance-appwidget:${engine.glance}"
 
   testImplementation "junit:junit:${engine.junit}"
+  // F8.6: il quadrante del widget, composto da Glance e disegnato nelle maschere.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.glance:glance-appwidget-testing:${engine.glance}"
 }

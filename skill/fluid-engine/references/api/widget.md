@@ -20,6 +20,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun EngineWidgetMessage(message: String, palette: EngineWidgetPalette, layout: EngineWidgetLayout, @DrawableRes icon: Int? = null, tone: EngineWidgetTone = palette.neutralTone, detail: String? = null)` — The card a widget shows when it has nothing to list.
 - `fun engineWidgetTextStyle(color: ColorProvider, size: TextUnit, weight: FontWeight = FontWeight.Normal): TextStyle` — Glance text has no typography scale to inherit, so the sizes are stated at each call site.
 
+## `engine-widget/widget/EngineWidgetGauge.kt`
+
+- `@Composable fun EngineWidgetGauge(value: Float, range: ClosedFloatingPointRange<Float>, palette: EngineWidgetPalette, layout: EngineWidgetLayout, valueText: String, modifier: GlanceModifier = GlanceModifier, style: FluidGaugeStyle = FluidGaugeStyle.Ring, label: String? = null, minText: String = "", maxText: String = "", thresholds: List<FluidGaugeThreshold> = emptyList(), thresholdTexts: List<String> = thresholds.map { engineWidgetPlainNumber(it.val…, tone: ColorProvider = palette.accent, size: Dp = if (style == FluidGaugeStyle.Ring) EngineWidget…, barWidth: Dp = EngineWidgetGaugeMetrics.BarWidth, labels: FluidDataLabels = FluidDataLabels())` — The gauge on the home screen (4.0, F8.6): `FluidGauge` for Glance, with the same reading, the same shapes and the same sentence for TalkBack — the arc open at the bottom with the number in it, the small ring, the capacity bar.
+- `object EngineWidgetGaugeMetrics` — The sizes of the widget gauge.
+  - `val RingSize: Dp` — A ring that sits in a widget row (34–48 dp) with its margin.
+  - `val ArcSize: Dp` — The large arc, for a 2×2 cell.
+  - `val BarHeight: Dp` — The capacity bar's height: thicker than in the app (6 dp), as the Batteries widget's bar is at arm's length.
+  - `val BarWidth: Dp` — The default bar width: a 2×1 cell minus its padding.
+  - `const val MaxBitmapScale: Float` — The bitmap scale cap. Masks are drawn at the screen density up to this, then scaled by the host: a 120 dp arc at 3× is 360 px a side (half a megabyte a mask), and a widget's bitmaps share one budget with the whole RemoteViews.
+
 ## `engine-widget/widget/EngineWidgetLayout.kt`
 
 - `data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean)` — How much of a list fits in the cell the launcher handed over.

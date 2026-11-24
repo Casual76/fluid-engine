@@ -360,3 +360,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val isAnimating: Boolean` — True while the highlight is on screen or moving: pressed, following the finger, or settling back after a release. The window in which the glass under it is genuinely live. Since 2.10.0.
   - `val modifier: Modifier`
   - `val gestureModifier: Modifier`
+
+## `engine-ui/ui/glass/quality/android/FluidGlassResources.kt`
+
+- `class FluidGlassResources private constructor(private val app: Application)` — Limiti condivisi dai moduli Fluid nello stesso processo. Accessibile anche prima del primo Composable.
+  - `val budget` — Un solo registro per tutti i layer e i decoder, comprese finestre simultanee.
+  - `val prefetchAllowed: StateFlow<Boolean>` — Controllare il valore prima di accodare. I produttori in vita possono osservare anche lo stop.
+  - `fun observeTrim(onTrim: (Int) -> Unit): Closeable` — Registrarsi mentre il modulo possiede cache o lavoro. Chiudere sul main thread alla disattivazione.
+  - `fun refreshBeforeAllocation()` — Ricontrolla disponibilità e heap prima di una richiesta grande se l'ultima lettura è vecchia. Fuori dal draw.
+  - `fun visibleBudgetDenied(window: Window?, denied: Boolean)` — Segnale del produttore visibile. Un rifiuto restringe le quote prima del tentativo successivo.
+  - `companion object`
+    - `fun get(context: Context): FluidGlassResources` — Inizializzazione sincrona, idempotente anche nei processi secondari senza AndroidX Startup.

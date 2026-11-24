@@ -182,7 +182,74 @@ data class FluidLabels(
   val more: String = "Altro",
   /** La conferma di un'azione della pagina, indipendente da quella del calendario. */
   val confirm: String = "Conferma",
+  // --- F8.1 ---
+  /** Le parole del testo che si muove (F8.1), piatte come quelle del calendario: le vede la verifica delle traduzioni. */
+  val liveTextMore: String = FluidLiveTextStrings().more,
+  val liveTextExpand: String = FluidLiveTextStrings().expand,
+  val liveTextCollapse: String = FluidLiveTextStrings().collapse,
+  val liveTextCollapsed: String = FluidLiveTextStrings().collapsed,
+  val liveTextExpanded: String = FluidLiveTextStrings().expanded,
+  val liveTextRemaining: String = FluidLiveTextStrings().remaining,
+  val liveTextExpired: String = FluidLiveTextStrings().expired,
+  val liveTextImageLoading: String = FluidLiveTextStrings().imageLoading,
+  val liveTextImageFailed: String = FluidLiveTextStrings().imageFailed,
+  val liveTextRetry: String = FluidLiveTextStrings().retry,
+  /** Le parole degli stati pronti di una pagina senza contenuto (F8.1, `FluidEmptyState(preset)`). */
+  val contentStatesNoResultsFor: String = FluidContentStateStrings().noResultsFor,
+  val contentStatesNoResults: String = FluidContentStateStrings().noResults,
+  val contentStatesNoResultsDetail: String = FluidContentStateStrings().noResultsDetail,
+  val contentStatesOffline: String = FluidContentStateStrings().offline,
+  val contentStatesOfflineDetail: String = FluidContentStateStrings().offlineDetail,
+  val contentStatesError: String = FluidContentStateStrings().error,
+  val contentStatesErrorDetail: String = FluidContentStateStrings().errorDetail,
+  val contentStatesRetry: String = FluidContentStateStrings().retry,
+  val contentStatesRetrying: String = FluidContentStateStrings().retrying,
+  val contentStatesRetried: String = FluidContentStateStrings().retried,
+  val contentStatesRetryFailed: String = FluidContentStateStrings().retryFailed,
+  val contentStatesPermission: String = FluidContentStateStrings().permission,
+  val contentStatesPermissionDetail: String = FluidContentStateStrings().permissionDetail,
+  val contentStatesOpenSettings: String = FluidContentStateStrings().openSettings,
+  val contentStatesEmpty: String = FluidContentStateStrings().empty,
+  val contentStatesEmptyDetail: String = FluidContentStateStrings().emptyDetail,
+  val contentStatesLoading: String = FluidContentStateStrings().loading,
+  // --- fine F8.1 ---
 ) {
+  // --- F8.1 ---
+  /** Le parole del testo che si muove, raggruppate: `FluidExpandableText`, `FluidTimerText`, `FluidAsyncImage`. */
+  val liveText: FluidLiveTextStrings get() = FluidLiveTextStrings(
+    more = liveTextMore,
+    expand = liveTextExpand,
+    collapse = liveTextCollapse,
+    collapsed = liveTextCollapsed,
+    expanded = liveTextExpanded,
+    remaining = liveTextRemaining,
+    expired = liveTextExpired,
+    imageLoading = liveTextImageLoading,
+    imageFailed = liveTextImageFailed,
+    retry = liveTextRetry,
+  )
+
+  /** Le parole degli stati pronti, raggruppate (`FluidEmptyState(preset)`, `FluidContentState`). */
+  val contentStates: FluidContentStateStrings get() = FluidContentStateStrings(
+    noResultsFor = contentStatesNoResultsFor,
+    noResults = contentStatesNoResults,
+    noResultsDetail = contentStatesNoResultsDetail,
+    offline = contentStatesOffline,
+    offlineDetail = contentStatesOfflineDetail,
+    error = contentStatesError,
+    errorDetail = contentStatesErrorDetail,
+    retry = contentStatesRetry,
+    retrying = contentStatesRetrying,
+    retried = contentStatesRetried,
+    retryFailed = contentStatesRetryFailed,
+    permission = contentStatesPermission,
+    permissionDetail = contentStatesPermissionDetail,
+    openSettings = contentStatesOpenSettings,
+    empty = contentStatesEmpty,
+    emptyDetail = contentStatesEmptyDetail,
+    loading = contentStatesLoading,
+  )
+  // --- fine F8.1 ---
   // --- pm-f1/gf2 ---
   /** A grouped view of the calendar vocabulary, without another stored translation object. */
   val dateTime: FluidDateTimeLabels get() = FluidDateTimeLabels(
@@ -297,6 +364,35 @@ data class FluidLabels(
       fileExecutable = "Executable or package, warning",
       fileOther = "Unknown file",
       // --- fine pm-f1/gg2 ---
+      // --- F8.1 ---
+      liveTextMore = FluidLiveTextStrings.english().more,
+      liveTextExpand = FluidLiveTextStrings.english().expand,
+      liveTextCollapse = FluidLiveTextStrings.english().collapse,
+      liveTextCollapsed = FluidLiveTextStrings.english().collapsed,
+      liveTextExpanded = FluidLiveTextStrings.english().expanded,
+      liveTextRemaining = FluidLiveTextStrings.english().remaining,
+      liveTextExpired = FluidLiveTextStrings.english().expired,
+      liveTextImageLoading = FluidLiveTextStrings.english().imageLoading,
+      liveTextImageFailed = FluidLiveTextStrings.english().imageFailed,
+      liveTextRetry = FluidLiveTextStrings.english().retry,
+      contentStatesNoResultsFor = FluidContentStateStrings.english().noResultsFor,
+      contentStatesNoResults = FluidContentStateStrings.english().noResults,
+      contentStatesNoResultsDetail = FluidContentStateStrings.english().noResultsDetail,
+      contentStatesOffline = FluidContentStateStrings.english().offline,
+      contentStatesOfflineDetail = FluidContentStateStrings.english().offlineDetail,
+      contentStatesError = FluidContentStateStrings.english().error,
+      contentStatesErrorDetail = FluidContentStateStrings.english().errorDetail,
+      contentStatesRetry = FluidContentStateStrings.english().retry,
+      contentStatesRetrying = FluidContentStateStrings.english().retrying,
+      contentStatesRetried = FluidContentStateStrings.english().retried,
+      contentStatesRetryFailed = FluidContentStateStrings.english().retryFailed,
+      contentStatesPermission = FluidContentStateStrings.english().permission,
+      contentStatesPermissionDetail = FluidContentStateStrings.english().permissionDetail,
+      contentStatesOpenSettings = FluidContentStateStrings.english().openSettings,
+      contentStatesEmpty = FluidContentStateStrings.english().empty,
+      contentStatesEmptyDetail = FluidContentStateStrings.english().emptyDetail,
+      contentStatesLoading = FluidContentStateStrings.english().loading,
+      // --- fine F8.1 ---
     )
   }
 }

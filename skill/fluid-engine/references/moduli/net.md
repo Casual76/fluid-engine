@@ -93,6 +93,25 @@ class FakeHttp(private val body: String) : EngineHttp() {
 
 **Versione.** Dalla 1.0; la verifica della dimensione attesa e `open` dalla 1.1.0.
 
+## Lo stato della rete: `EngineNetwork`, `EngineNetworkState` (F8.1, 4.0)
+
+L'osservatore della rete dell'engine, **senza interfaccia** (lo usano gli stati pronti di `engine-ui` e, più avanti,
+`stato-rete-e-offline` di F8.20). Guarda la rete predefinita del telefono, quella che le app usano davvero.
+
+```kotlin
+EngineNetwork.current(context): EngineNetworkState          // adesso
+EngineNetwork.states(context): Flow<EngineNetworkState>     // ogni volta che cambia; parte dallo stato di adesso
+EngineNetworkState(connected, validated, metered).online    // connected && validated
+```
+
+- **«Offline» non è «senza rete»**: un Wi-Fi d'albergo senza accesso è una rete che non porta a internet. `online` chiede
+  anche `validated`, cioè `NET_CAPABILITY_VALIDATED` (Android ha provato che quella rete arriva a internet).
+- `metered` è la rete a consumo (dati mobili, hotspot): un'app rimanda i download grandi.
+- Il flusso non ripete uno stato uguale e si stacca da solo quando chi raccoglie smette (`callbackFlow` con
+  `registerDefaultNetworkCallback`, API 24).
+- Serve `ACCESS_NETWORK_STATE`, che il manifesto di `engine-net` dichiara già.
+- La regola delle capacità è pura (`EngineNetworkState.of`) e si prova sul computer.
+
 ## Token, costanti, Defaults
 
 | nome | valore |

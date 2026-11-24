@@ -1973,6 +1973,21 @@ fun FluidEmptyState(
   FluidEmptyStateContent(title, detail, modifier, illustration, actionLabel, onAction)
 }
 
+/**
+ * Il cuore di [FluidEmptyState] per gli stati pronti (F8.1, `FluidEmptyState(preset)`): lo stesso stato vuoto, con
+ * un'azione che è un composable (il tasto con esito di «Riprova»).
+ */
+@Composable
+internal fun FluidEmptyStateWithAction(
+  title: String,
+  detail: String,
+  modifier: Modifier,
+  illustration: (@Composable () -> Unit)?,
+  action: (@Composable () -> Unit)?,
+) {
+  FluidEmptyStateContent(title, detail, modifier, illustration, actionLabel = null, onAction = null, actionSlot = action)
+}
+
 @Composable
 private fun FluidEmptyStateContent(
   title: String,
@@ -1981,6 +1996,7 @@ private fun FluidEmptyStateContent(
   illustration: (@Composable () -> Unit)?,
   actionLabel: String?,
   onAction: (() -> Unit)?,
+  actionSlot: (@Composable () -> Unit)? = null,
 ) {
   val centered = illustration != null
   val textAlign = if (centered) TextAlign.Center else TextAlign.Start
@@ -2021,6 +2037,9 @@ private fun FluidEmptyStateContent(
         modifier = Modifier.padding(top = 12.dp),
         style = dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle.Tinted,
       )
+    }
+    if (actionSlot != null) {
+      Box(Modifier.padding(top = 12.dp)) { actionSlot() }
     }
   }
 }

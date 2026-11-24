@@ -18,7 +18,17 @@ android {
     compose = true
   }
 
+  buildTypes {
+    bench {
+      initWith release
+      matchingFallbacks = ['release']
+    }
+  }
+
   sourceSets {
+    debug.java.srcDir 'src/devSignals/kotlin'
+    bench.java.srcDirs += ['src/devSignals/kotlin', 'src/release/kotlin']
+    release.java.srcDir 'src/productionSignals/kotlin'
     // F1B.8: catalogo del banco condiviso col sample, escluso dalla libreria.
     test.java.srcDir 'src/robustness/kotlin'
   }
@@ -48,6 +58,7 @@ android {
 }
 
 dependencies {
+  implementation 'androidx.startup:startup-runtime:1.2.0'
   api project(':engine-foundation')
 
   api platform("androidx.compose:compose-bom:${engine.composeBom}")
@@ -78,5 +89,6 @@ dependencies {
   implementation "androidx.webkit:webkit:${engine.webkit}"
 
   testImplementation "junit:junit:${engine.junit}"
+  testDebugImplementation "org.robolectric:robolectric:${engine.robolectric}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
 }

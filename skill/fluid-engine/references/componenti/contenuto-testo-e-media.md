@@ -355,7 +355,9 @@ Una risposta che arriva: `FluidMarkdown(text, streaming = streaming, animateFirs
 
 **Cos'è.** Testo che *arriva*: le parole nuove sfumano dentro, quelle già viste restano ferme. Un unico `Text`, un solo layout; la sfumatura è una maschera `DstOut` sui glifi delle parole nuove, in un layer fuori schermo acceso **solo mentre c'è qualcosa da rivelare**.
 
-**Firma essenziale.** `FluidRevealingText(text: AnnotatedString, style: TextStyle, color: Color, maxLines, overflow, revealMillis = FluidRevealMillis /* 180 */, rewriteMillis = FluidRewriteMillis /* 120 */, softWrap = true, animateFirst = false, reveal = true)`.
+**Firma essenziale.** `FluidRevealingText(text: AnnotatedString, style: TextStyle, color: Color, maxLines, overflow, revealMillis = FluidRevealMillis /* 260 dalla 4.0 */, rewriteMillis = FluidRewriteMillis /* 120 */, softWrap = true, animateFirst = false, reveal = true, arrival = FluidTextArrival.Streaming)`.
+
+**Dalla 4.0 (F8.1) le parole arrivano sfocate e una dopo l'altra** (la nota di Alessio: «non tutto insieme ma gradualmente, col blur»): è il primitivo del testo che arriva, descritto sotto in «Testo e numeri in movimento». `FluidMarkdown(streaming = true)` e quindi la bolla dell'assistente di `engine-ai-ui` lo usano già, senza una riga cambiata. `arrival = FluidTextArrival.Fade` torna alla sola dissolvenza di prima.
 
 **Comportamento.** Solo alfa (un `Text` già impaginato non può spostare una parola). I «token» sono le sequenze massimali di non-spazio; si tiene il prefisso comune col testo precedente e ciò che segue nasce in attesa. Se il nuovo testo diverge **prima** della
 fine del vecchio è una **riscrittura** (il riconoscitore che cambia idea, il modello che chiude un `**`): la coda dalla divergenza rinasce, più veloce (120 ms, perché al posto della parola vecchia ce n'è già una nuova da leggere). Una parola tagliata («Prima» poi «vera»)
@@ -379,6 +381,135 @@ fluidSpokenChars(words, positionMs): Int
 parole e, dentro una parola, avanza **in proporzione** (l'evidenziazione scorre invece di scattare); nel silenzio fra due parole resta accesa la precedente, tutta; senza parole non si accende niente.
 
 **Trappole.** `words` deve essere in **ordine di tempo** (ricerca binaria). `start`/`end` sono indici nel `text` passato. Per TalkBack è un `Text` normale: legge tutto, non segue l'audio.
+
+## Testo e numeri in movimento (F8.1, 4.0)
+
+Gli elementi scelti da Alessio il 23 novembre 2026 per il testo che si muove. Il tono è uno: **ciò che arriva o cambia è
+sfocato mentre si muove e si mette a fuoco** (R7, la nota «col blur durante il movimento»). I numeri di movimento stanno in
+`FluidTextMotion`, ognuno con la sua fonte o «a occhio» con la data. Da fermo nessuno di questi elementi ridisegna; col
+movimento ridotto il numero cambia a dissolvenza e il testo compare intero, senza sfocatura. Le scene sono nella pagina
+«Elementi nuovi» della galleria (`--es gallery.page NewElements --es novita.scene <id>`).
+
+### Scegliere in fretta
+
+| ho bisogno di… | uso |
+|---|---|
+| un numero che cambia (saldo, contatore, percentuale, media) | `FluidNumericText(text, value)` o `FluidNumericText(value)` |
+| un testo che arriva da un modello, parola per parola | `FluidMarkdown(streaming = true)` o `FluidRevealingText` (sfocati di serie) |
+| un testo che compare intero o cambia, riga per riga | `FluidArrivingText(text)` |
+| un paragrafo lungo chiuso a N righe con «altro» | `FluidExpandableText(text, collapsedMaxLines = 3)` |
+| il tempo che manca, da cronometro | `FluidTimerText(endsAt)`; in una capsula con l'anello `FluidCountdownBadge(endsAt, total = …)` |
+| «2 min fa» che si aggiorna da solo | `FluidRelativeText(instant)`, con `FluidLiveClockProvider` una volta per pagina |
+| scrivere una data, un peso, un elenco, una durata | `FluidFormat` di `engine-foundation` ([`../moduli/foundation.md`](../moduli/foundation.md)) |
+
+### `FluidNumericText`: i numeri che scorrono
+
+**Cos'è.** `Text(…).contentTransition(.numericText(value:))` di SwiftUI: quando il valore cambia **scorrono solo le cifre
+cambiate**, in su se cresce e in giù se cala, sfocate mentre viaggiano. Il riferimento sono i timer di Orologio e i saldi di
+Wallet.
+
+**Firma essenziale.** `FluidNumericText(text: String, value: Double, modifier, style = FluidTextStyles.numeric, color, contentDescription = null)`;
+`FluidNumericText(value: Number, modifier, style, color, format = { FluidFormat.number(it.toDouble()) })`.
+
+**Comportamento.** Il testo si divide in tre parti: ciò che sta prima della prima cifra (il segno, «€ »), il corpo dalla
+prima all'ultima cifra, l'unità. Il corpo si allinea **da destra**, per valore di posizione (99 → 100 fa entrare l'1 e
+scorrere le altre due); segno, virgola e unità **non scorrono mai**: restano, scivolano di lato se il numero si allunga, o
+cambiano a dissolvenza sul posto (MB → GB). Il verso viene dal **valore**, non dal testo: un conto alla rovescia scende anche
+da «1:00» a «0:59». La molla è quella di serie di SwiftUI da iOS 17 (0,5 s senza rimbalzo); la cifra viaggia di 0,62 righe
+e la sua σ arriva a 0,15 dell'altezza delle maiuscole (R7). Un testo solo, impaginato una volta per valore; il movimento si
+legge nel disegno e nella misura (la larghezza segue fra il vecchio e il nuovo), mai nella composizione. Le cifre in viaggio
+sono il testo vero in due livelli sfocati (chi esce, chi entra), solo mentre viaggiano; sotto il mezzo pixel di σ si
+disegnano nitide, così la cifra che si ferma non salta. TalkBack sente solo il valore finale.
+
+**Trappole.** Un valore che cambia molte volte al secondo (i dB di un fonometro) va limitato dall'app: ogni cambio riparte
+dal valore precedente. Le cifre decimali fisse le dà il formato (`FluidFormat.number(fractionDigits = 2)`): con un numero di
+decimali che cambia il corpo si allinea comunque da destra.
+
+### Il testo che arriva: `FluidTextArrival`, `FluidArrivingText`
+
+**Cos'è.** Il primitivo riusabile del testo che arriva, per il testo che si espande **e** per il testo generato da PampAI:
+un pezzo alla volta (`FluidTextArrivalUnit.Word` o `FluidTextArrivalUnit.Line`), sfocato che si mette a fuoco.
+
+**Firma essenziale.** `FluidTextArrival(unit, staggerMillis, maxSpreadMillis, blur = true, peakBlur = 0.15f)` con i preset
+`FluidTextArrival.Streaming` (parole, passo 24 ms, al più 200 ms indietro), `FluidTextArrival.Lines` (righe, passo 55 ms, al
+più 440 ms) e `FluidTextArrival.Fade` (la dissolvenza di prima); `FluidArrivingText(text, modifier, style, color, animateFirst = true, arrival = FluidTextArrival.Lines)`.
+
+**Comportamento.** Un `Text` solo e un layout solo, come `FluidRevealingText`: i pezzi che arrivano sono nascosti dalla
+maschera sui loro riquadri e ridisegnati come un fantasma sfocato che si mette a fuoco sulla parola vera: il testo stesso,
+ritagliato sulle parole che arrivano, in al più quattro livelli sfocati alti quanto il paragrafo (le parole raggruppate per
+quanto sono ancora nascoste). Nessun livello per parola e nessun livello a tutto schermo; i livelli e il layer fuori schermo
+del testo ci sono solo mentre qualcosa arriva. I pezzi di uno stesso arrivo nascono **uno dopo l'altro**, di un passo; il passo non si accumula (un pezzo aspetta al
+più il ritardo massimo) e **l'ordine resta**, anche fra due arrivi vicini. `FluidArrivingText` fa arrivare il testo nuovo dal
+primo carattere diverso; ciò che resta uguale non si muove.
+
+**Trappole.** La sfocatura vuole Android 12 (`RenderEffect`): sotto resta la dissolvenza. Non si disegna la sagoma dei
+glifi: `TextLayoutResult.getPathForRange` dà il riquadro della selezione (il primo giro sul Tab S9 ha mostrato rettangoli
+al posto delle lettere sfocate), quindi il fantasma è sempre il testo vero, coi colori dei suoi link.
+
+### `FluidExpandableText`: il testo che si espande
+
+**Cos'è.** Un paragrafo chiuso a N righe con «altro» in fondo all'ultima riga, come le descrizioni e le novità dell'App
+Store (in SwiftUI non c'è: l'App Store lo fa con `lineLimit`).
+
+**Firma essenziale.** `FluidExpandableText(text: String | AnnotatedString, modifier, collapsedMaxLines = 3, style = bodyLarge, color, moreLabel = «altro», moreColor = primary, collapsible = false, arrival = FluidTextArrival.Lines, onExpandedChange)`.
+
+**Comportamento.** Il taglio si misura sul layout vero (una volta per larghezza, testo e stile): «… altro» sta nell'ultima
+riga senza coprire il testo, e se la misura del pezzo e dell'insieme non coincidono al pixel si toglie una lettera piuttosto
+che mandare «altro» a capo. Un tocco apre il paragrafo sul posto: l'altezza cresce con una molla senza rimbalzo (0,5 s) e il
+resto **arriva riga per riga, sfocato** (lo stesso arrivo del testo di PampAI). Un tocco su un link apre il link, non il
+paragrafo. Lo stato si salva; TalkBack ha «Espandi» sul paragrafo e lo stato «Testo ridotto» / «Testo intero». Aperto resta
+aperto, come nell'App Store; `collapsible = true` lo richiude.
+
+**Trappole.** Il paragrafo misura con `BoxWithConstraints`: in una lista lunga va bene, ma non metterne cento in una
+`Column` che scorre.
+
+### Tempi vivi: `FluidRelativeText`, `FluidTimerText`, `FluidCountdownBadge`, `FluidLiveClock`
+
+**Cos'è.** `Text(date, style: .relative)` e `Text(timerInterval:)` di SwiftUI, e la capsula col tempo che scende dei timer di
+WidgetKit e delle Live Activity.
+
+**Firma essenziale.**
+```kotlin
+FluidRelativeText(instant, modifier, style, color, width = FluidFormatWidth.Short, locale)        // «12 min fa»
+FluidTimerText(endsAt: Instant, modifier, style = FluidTextStyles.numeric, color, onExpire)      // «4:59»
+FluidCountdownBadge(endsAt, modifier, total: Duration? = null, tone = primary, onExpire)          // anello + cifre
+FluidLiveClockProvider(clock = rememberFluidLiveClock()) { … }                                    // l'orologio della pagina
+LocalFluidTimeSource provides FluidTimeSource { … }                                               // l'ora, per le prove
+```
+
+**Comportamento.** Nessuno ridisegna a ogni fotogramma: ognuno sa **quando il suo testo cambia** e aspetta fino ad allora
+(«12 min fa» una volta al minuto, «3 h fa» una volta all'ora, il cronometro una volta al secondo). Con
+`FluidLiveClockProvider` sulla pagina c'è **un'attesa sola** per tutti i tempi della pagina, arrotondata al secondo pieno: una
+lista di cento righe batte al più una volta al secondo, e solo quando un testo cambia. Senza, ogni testo aspetta da solo.
+Il cronometro scorre con le cifre di `FluidNumericText`, verso il basso; a zero chiama `onExpire` una volta. In sottofondo non
+batte (`repeatOnLifecycle(STARTED)`). L'anello della capsula avanza di un passo al secondo con una molla breve e poi sta
+fermo. TalkBack legge la forma intera («2 minuti fa», «Mancano 4 minuti e 59 secondi»).
+
+**Trappole.** La capsula è quieta, nel tono: sta nella riga o nella barra. Sopra una foto la si mette in un vetro dell'app
+(`Modifier.fluidGlass` dentro un `FluidGlassContainer`).
+
+## Immagine che arriva: `FluidAsyncImage`, `FluidImagePhase`, `FluidThumbHash` (F8.1, 4.0)
+
+**Cos'è.** Le fasi di `AsyncImage` di SwiftUI: **segnaposto, poi sfocata, poi nitida**, o una tessera d'errore con «Riprova».
+Il segnaposto è l'impronta ThumbHash (poche decine di byte salvate accanto all'immagine) coi colori veri.
+
+**Firma essenziale.**
+```kotlin
+FluidAsyncImage(phase: FluidImagePhase, contentDescription, modifier, thumbHash: ByteArray? = null,
+  contentScale = ContentScale.Crop, shape = RectangleShape, onRetry = null)
+FluidImagePhase.Loading / FluidImagePhase.Success(painter | imageBitmap) / FluidImagePhase.Failure(error)
+FluidThumbHash.encode(width, height, rgba) / decode(hash) / imageBitmap(hash) / averageColor(hash) / aspectRatio(hash)
+```
+
+**Comportamento.** L'app fa il caricamento vero (Coil o il suo client) e dice la fase; con Coil la traduzione è di poche righe
+(c'è l'esempio nel KDoc di `FluidImagePhase`), quindi **nessun modulo adattatore**. La foto entra sopra l'impronta e si
+mette a fuoco in 300 ms (il T del contenuto di R7, σ 6 dp), sul livello della sola foto e solo mentre arriva; una foto già
+pronta alla prima composizione non si anima. Le impronte decodificate stanno in una cache (128): in una griglia lunga la
+stessa impronta non si decodifica a ogni scorrimento. ThumbHash è portato come sorgente, MIT (`LICENSES/ThumbHash.md`, e
+la voce in `FluidEngineLicenses`).
+
+**Trappole.** L'impronta si calcola **al caricamento** (lavoro dell'app o del server), su un'immagine di al più 100 pixel per
+lato. La sfocatura dell'arrivo vuole Android 12; prima è la sola dissolvenza.
 
 ## Visore di immagini
 

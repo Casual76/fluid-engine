@@ -176,6 +176,7 @@ pensati per stare insieme: `fluidGroupedItems` (il contenitore), `FluidGroupedMa
 | deve dire «ci sono 3 nuove» senza spostare la lista sotto il dito | `FluidJumpPill` nell'`overlay` di `FluidScreen` |
 | ha una stella, un avatar o un chip toccabili dentro la riga | `FluidListRow(customActions = …)`: per TalkBack sono azioni della riga |
 | è vuota o in errore e c'è una cosa da fare | `FluidEmptyState(title, detail, actionLabel, onAction)` |
+| è uno dei casi di sempre (nessun risultato, offline, errore, permesso, ancora niente) | `FluidEmptyState(FluidEmptyPreset.…)`; fra caricamento e contenuto `FluidContentState` |
 | ha un'etichetta in un colore che sceglie l'utente | `FluidStatusBadge(label, color)` |
 | riordina le righe a mano | un `item` per riga e `fluidReorderable`; non `fluidGlassGroups` |
 
@@ -359,6 +360,33 @@ Non è una notifica: non ha durata, sparisce quando il conteggio torna a zero.
   Trappola: un colore che l'app cambia a runtime non porta mai una pillola illeggibile, ma l'**identità** del colore (due etichette quasi uguali) non si distingue da questo: per distinguere serve anche il testo.
 
 **Versione.** `fluidGroupedItems`, `FluidGroupedMaterial`, `fluidSwipeActions`, `FluidJumpPill`, `customActions`, `FluidEmptyState` con azione, `FluidStatusBadge(label, color)`: 3.1.0 (Pampa Mail, F1.2).
+
+### Gli stati pronti: `FluidEmptyState(preset)`, `FluidEmptyPreset`, `FluidContentState` (F8.1, 4.0)
+
+**Cos'è.** `ContentUnavailableView` di SwiftUI (iOS 17) e il suo `.search(text:)`: i casi già scritti di una pagina senza
+contenuto, sopra lo stesso `FluidEmptyState` (non un componente nuovo).
+
+**Firma essenziale.**
+```kotlin
+FluidEmptyState(preset: FluidEmptyPreset, modifier, title = null, detail = null,
+  onRetry: (suspend () -> Unit)? = null, online: Boolean? = null, onAction = null, actionLabel = null)
+FluidEmptyPreset.NoResults(query) / Offline / Error(detail) / Permission(detail) / Empty
+FluidContentState(state: FluidLoadState<T>, modifier, loading = { FluidSkeletonList() }, unavailable = { FluidEmptyState(it) }) { value -> … }
+FluidLoadState.Loading / FluidLoadState.Ready(value) / FluidLoadState.Unavailable(preset)
+```
+
+**Comportamento.** Ogni caso ha l'icona grande e quieta (48 dp, non letta da TalkBack), il titolo e la frase in
+`FluidLabels.contentStates` (italiano di serie, `FluidContentStateStrings.english()`); le parole dell'app vincono. **«Riprova»
+è un tasto con esito** (`FluidActionButton`): mostra il lavoro, la spunta o l'errore, e mentre lavora non riparte; `onRetry`
+riesce se finisce e non riesce se lancia. **Offline** con `online` riprova da solo quando la rete torna (da falso a vero), al
+più una volta ogni 5 s (`FluidEmptyStateDefaults.AutoRetryGapMillis`): una rete che va e viene non lo fa partire a raffica.
+Lo stato della rete lo dà l'app, con `EngineNetwork.states` di `engine-net` ([`../moduli/net.md`](../moduli/net.md)), che
+guarda `NET_CAPABILITY_VALIDATED`. **Permesso**: `onAction` è «Apri le impostazioni». `FluidContentState` passa fra scheletro,
+stato pronto e contenuto **senza salti**: il nuovo entra sfocato e si mette a fuoco mentre il vecchio svanisce (R7, T = 300 ms)
+e l'altezza segue con una molla; fra due contenuti pronti non c'è passaggio.
+
+**Trappole.** `FluidEmptyPreset` è una classe chiusa e non un enum: un caso nuovo si aggiunge senza rompere chi usa questi.
+Il riprova automatico c'è solo con `online` **e** `onRetry`.
 Aspetto di iOS 27 delle azioni a scorrimento (`FluidSwipeStyle`, `LocalFluidSwipeStyle`, `asContextAction`) e separatore sotto il testo: 4.0.0 (F6.6).
 
 ## Righe di impostazioni (`FluidSettingRows.kt`)

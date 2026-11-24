@@ -99,6 +99,24 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidLoading(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary)`
 - `@Composable fun FluidListItem(title: String, subtitle: String, supporting: String? = null, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null)` — **DEPRECATO: Era una ListItem di Material con una gerarchia sua; adesso è una FluidListRow. Usa ** — La riga semplice di prima, sotto il nome che le app già chiamano.
 
+## `engine-ui/ui/theme/FluidEmptyStatePresets.kt`
+
+- `sealed class FluidEmptyPreset` — I casi pronti di una pagina senza contenuto (F8.1, `stati-pronti`), come `ContentUnavailableView` di SwiftUI (iOS 17) e il suo preset `.search(text:)`: ognuno ha l'icona, le parole e l'azione di serie, e l'app dice solo in che stato è e cosa fa «Riprova». Una classe chiusa e non un enum: un caso nuovo si aggiunge senza rompere chi usa questi.
+  - `data class NoResults(val query: String? = null) : FluidEmptyPreset()` — Una ricerca senza risultati: «Nessun risultato per «cena»», «Controlla come l'hai scritto…».
+  - `data object Offline : FluidEmptyPreset()` — Senza rete: la pagina riprova da sola quando torna (`online` di [FluidEmptyState]).
+  - `data class Error(val detail: String? = null) : FluidEmptyPreset()` — Un errore, con «Riprova» come tasto con esito. [detail] è la frase dell'app, se ne ha una.
+  - `data class Permission(val detail: String? = null) : FluidEmptyPreset()` — Un permesso spento, con «Apri le impostazioni». [detail] dice quale e perché.
+  - `data object Empty : FluidEmptyPreset()` — Non c'è ancora niente («Ancora niente qui»): una casella vuota, un album senza foto.
+- `@Composable fun FluidEmptyState(preset: FluidEmptyPreset, modifier: Modifier = Modifier, title: String? = null, detail: String? = null, onRetry: (suspend () -> Unit)? = null, online: Boolean? = null, onAction: (() -> Unit)? = null, actionLabel: String? = null)` — Uno stato vuoto **già pronto** (F8.1): [FluidEmptyState] con l'icona, il titolo e la frase del caso ([preset]), nelle parole di `FluidLabels.contentStates` (in italiano di serie). Le parole dell'app vincono ([title], [detail]).
+- `object FluidEmptyStateDefaults` — Le misure e i tempi degli stati pronti.
+  - `val IconSize` — L'icona: 48 dp, il simbolo grande di `ContentUnavailableView` (`.largeTitle` ingrandito), a occhio sul confronto.
+  - `const val AutoRetryGapMillis: Long` — Il tempo minimo fra due tentativi automatici quando torna la rete: **5 s**, a occhio il 23 novembre 2026. Una rete che va e viene (un treno in galleria) non deve far partire un tentativo a ogni passaggio.
+- `sealed interface FluidLoadState<out T>` — Lo stato del contenuto di una pagina, per [FluidContentState]: carica, è pronto col suo valore, o non c'è (con il caso pronto da mostrare).
+  - `data object Loading : FluidLoadState<Nothing>` — Sta caricando: lo scheletro.
+  - `data class Ready<T>(val value: T) : FluidLoadState<T>` — Il contenuto.
+  - `data class Unavailable(val preset: FluidEmptyPreset) : FluidLoadState<Nothing>` — Niente da mostrare: uno degli stati pronti.
+- `@Composable fun <T> FluidContentState(state: FluidLoadState<T>, modifier: Modifier = Modifier, loading: @Composable () -> Unit = { FluidSkeletonList() }, unavailable: @Composable (FluidEmptyPreset) -> Unit = { FluidEmptyState(it) }, content: @Composable (T) -> Unit)` — Il contenuto di una pagina che passa **fra caricamento, vuoto, errore e contenuto senza salti** (F8.1, `stati-pronti`): lo scheletro ([loading], di serie [FluidSkeletonList]), lo stato pronto ([unavailable], di serie [FluidEmptyState] col preset) o il contenuto.
+
 ## `engine-ui/ui/theme/FluidTheme.kt`
 
 - `data class AccentPreset(val name: String, val label: String, val light: Color, val dark: Color, val poles: AccentPoles? = null)` — The seed of an app palette.

@@ -58,6 +58,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassWindow
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidSurface
@@ -232,6 +233,7 @@ val DefaultGlassBlurRadius: Dp = 2.5.dp
 
 @Composable
 fun rememberGlassBackdrop(blurRadius: Dp = DefaultGlassBlurRadius): GlassBackdropState {
+  ObserveGlassWindow(activityToo = true)
   val layerBackdrop = rememberLayerBackdrop()
   return remember(layerBackdrop, blurRadius) {
     // La pagina e il materiale esportato conoscono tutti i lettori di questo stato.
@@ -411,8 +413,10 @@ internal fun rememberGlassOpaquePanel(): GlassBackdropState? {
 
 /** The backdrop a control should use unless its caller names a different one. */
 @Composable
-fun currentGlassBackdrop(): GlassBackdropState =
-  LocalGlassBackdrop.current ?: rememberEmptyGlassBackdrop()
+fun currentGlassBackdrop(): GlassBackdropState {
+  ObserveGlassWindow()
+  return LocalGlassBackdrop.current ?: rememberEmptyGlassBackdrop()
+}
 
 /**
  * The screen's *ambient* recording: the coloured wash and motif painted under the page, and nothing

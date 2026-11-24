@@ -84,6 +84,15 @@ val FluidEngineLicenses: List<FluidLicense> = listOf(
     role = "Il bordo dello scorrimento: la sfocatura che cresce verso il bordo, in due passate.",
   ),
   FluidLicense(
+    // Dalla 4.0 (F8.1) l'immagine che arriva (`FluidAsyncImage`) decodifica le impronte ThumbHash, portate come
+    // sorgente in `FluidThumbHash`. MIT chiede che l'avviso viaggi con l'app. Vedi LICENSES/ThumbHash.md.
+    name = "ThumbHash",
+    author = "Evan Wallace — Copyright 2023",
+    licence = "MIT License",
+    url = "https://github.com/evanw/thumbhash",
+    role = "L'impronta sfocata di un'immagine che si carica, in poche decine di byte.",
+  ),
+  FluidLicense(
     name = "Inter",
     author = "Rasmus Andersson",
     licence = "SIL Open Font License 1.1",

@@ -1,7 +1,8 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import android.icu.text.RelativeDateTimeFormatter
-import java.text.NumberFormat
+import dev.antigravity.fluidengine.foundation.FluidByteStyle
+import dev.antigravity.fluidengine.foundation.FluidFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -10,8 +11,6 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.format.FormatStyle
 import java.time.chrono.IsoChronology
 import java.util.Locale
-import kotlin.math.ln
-import kotlin.math.pow
 
 /** Categoria visiva generica; non certifica la sicurezza o il contenuto del file. */
 enum class FluidFileKind {
@@ -54,15 +53,13 @@ enum class FluidFileKind {
   }
 }
 
-/** Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante. */
+/**
+ * Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante.
+ * Dalla 4.0 (F8.1) è [FluidFormat.bytes] con lo stile dei file, che ha preso la stessa regola: il testo non cambia.
+ */
 fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): String {
   require(bytes >= 0) { "La dimensione non puo essere negativa" }
-  val units = arrayOf("B", "KB", "MB", "GB", "TB", "PB", "EB")
-  var unit = if (bytes < 1000) 0 else (ln(bytes.toDouble()) / ln(1000.0)).toInt().coerceAtMost(units.lastIndex)
-  // Non mostrare 1000 KB quando l'arrotondamento raggiunge il confine successivo.
-  if (unit < units.lastIndex && bytes / 1000.0.pow(unit) >= 999.95) unit++
-  val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = if (unit == 0) 0 else 1; isGroupingUsed = false }
-  return "${number.format(bytes / 1000.0.pow(unit))} ${units[unit]}"
+  return FluidFormat.bytes(bytes, FluidByteStyle.File, locale)
 }
 
 /** The original and expanded sizes share a unit when both values use the same one. */

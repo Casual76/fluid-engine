@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassWindow
 import dev.antigravity.fluidengine.ui.glass.field.GlassPaintedScrim
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassPaintedPanel
 import dev.antigravity.fluidengine.ui.glass.field.glassPainted
@@ -162,6 +163,7 @@ fun FluidSheet(
     },
     contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
   ) {
+    ObserveGlassWindow()
     Column(
       modifier = if (liquid) {
         Modifier
@@ -517,6 +519,7 @@ internal fun FluidAlertDialog(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false),
   ) {
+    ObserveGlassWindow()
     val accessibility = rememberGlassMaterialAccessibility().value
     val body = remember(page, darkSide, preference, accessibility) {
       glassPaintedPanelBody(page, darkSide, preference = preference, accessibility = accessibility)

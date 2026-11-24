@@ -63,6 +63,9 @@ UI_FLUID_FILES = {
         # Fase 1 di Pampa Mail (3.1.0): liste lunghe, identita' e selezione, file
         "FluidGroupedItems", "FluidSwipeActions", "FluidJumpPill", "FluidAvatar", "FluidBadge",
         "FluidIdentityColors", "FluidSelectionState", "FluidFileTile", "FluidFileInfo",
+        # F8.1 (4.0): testo e numeri in movimento, tempi vivi, immagine che arriva
+        "FluidNumericText", "FluidExpandableText", "FluidLiveTime", "FluidAsyncImage", "FluidThumbHash",
+        "FluidTextMotion", "FluidReadyStrings",
     ],
     # il contenuto web chiuso per costruzione
     "contenuto-web": [

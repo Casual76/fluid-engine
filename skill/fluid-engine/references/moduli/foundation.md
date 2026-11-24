@@ -347,6 +347,32 @@ La parte pura dei campi speciali di `engine-ui` ([../componenti/campi-speciali.m
   spunte, `generate` la password forte (il formato di Apple quando le regole lo ammettono, da `SecureRandom`).
 - **`FluidPasswordStrength`**: la stima semplice e dichiarata (alfabeto per lunghezza efficace, le password comuni
   deboli), quattro livelli. Non è zxcvbn e non promette niente.
+## Formattatori: `FluidFormat` (F8.1, 4.0)
+
+Un posto solo per scrivere i valori come li legge una persona, sul modello delle `FormatStyle` di Foundation (iOS 15):
+funzioni pure, con la lingua (di serie quella del sistema), l'istante «adesso» e il fuso passati da fuori, così si provano
+con un orologio finto. Le parole e i plurali vengono da CLDR attraverso le ICU di Android (`android.icu.*`), le stesse tabelle
+di Apple.
+
+| funzione | esempio (italiano) | Apple |
+|---|---|---|
+| `FluidFormat.date(instant, style)` / `time(instant)` | «23 nov 2026», «09:04» | `Date.FormatStyle` |
+| `FluidFormat.dayAndTime(instant, now)` | «ieri, 09:04» | `Date.FormatStyle` relativo |
+| `FluidFormat.listDate(instant, now)` | «09:04», «ieri», «giovedì», «12 mar», «12/03/24» | la colonna dell'ora di Mail |
+| `FluidFormat.relative(instant, now, width)` | «ora», «12 min fa», «tra 2 giorni» | `Date.RelativeFormatStyle` |
+| `FluidFormat.relativeNextChangeMillis(instant, now)` | fra quanto il testo di `relative` cambia | (per i testi vivi) |
+| `FluidFormat.bytes(count, FluidByteStyle.File)` | «2,4 MB» (1000), `FluidByteStyle.Memory` (1024) | `ByteCountFormatStyle` |
+| `FluidFormat.list(items, limit = 2)` | «Anna, Luca e altri 3» | `ListFormatStyle` |
+| `FluidFormat.duration(duration, width)` | «1 h e 25 min», «1 ora e 25 minuti» | `Duration.UnitsFormatStyle` |
+| `FluidFormat.timer(duration)` | «0:07», «25:07», «1:02:07» | `Duration.TimeFormatStyle`, `Text(timerInterval:)` |
+| `FluidFormat.number(value)` / `percent(fraction)` | «1.234,5», «43%» | `.number`, `.percent` |
+| `FluidFormat.compact(value)` | «1,2 Mln» (le migliaia in italiano non si abbreviano, come iOS) | `.notation(.compactName)` |
+
+`FluidFormatWidth` è la larghezza delle parole (`Wide` per TalkBack: «12 minuti fa»). Le soglie del tempo relativo (a occhio
+il 23 novembre 2026, sul modello di Apple che mostra l'unità più grande non nulla e tronca): sotto il minuto «ora», poi
+minuti, ore, giorni fino a 6, settimane fino a 4, mesi, anni. `fluidFormatFileSize` dell'interfaccia ora chiama
+`FluidFormat.bytes`, con lo stesso testo di prima. Le ICU cambiano un poco fra versioni di Android («1 min fa» o «1 minuto
+fa»): le prove (`F8p1FormatTest`, Robolectric) fissano la lingua e l'SDK.
 
 ## Token, costanti, Defaults
 

@@ -181,6 +181,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateMapOf
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidAdaptiveMillis
+import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassScroll
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.GlassScrollEdgeSplit
@@ -1407,6 +1408,7 @@ private fun FluidScreenLayout(
   // Il tetto viene dal movimento fra pagine: durante una transizione esistono due schermate intere
   // e il conto del vetro raddoppia nel fotogramma che ne ha meno.
   val routeSignals = LocalRouteMotionSignals.current
+  ObserveGlassScroll(listState)
   val glassQuality = rememberFluidGlassQuality { routeSignals.glassQuality }
   val qualityConnection = remember(glassQuality) {
     fluidGlassQualityScrollConnection(glassQuality)

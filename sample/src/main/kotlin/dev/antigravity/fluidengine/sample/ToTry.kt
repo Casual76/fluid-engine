@@ -959,6 +959,49 @@ private val Stable = TryRound(
         "giudica se la barra si trasforma senza salti e segue la tastiera.",
       TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › La barra sopra la tastiera"),
     ),
+    // --- F8.1 · Testo e numeri in movimento ---
+    TryItem(
+      "f8-numeri-che-scorrono", TryArea.ContentData, "Numeri che scorrono",
+      "Apri «Numeri che scorrono» e tocca «+ 12,40», «− 7,25» e «+ 990» sul saldo: " +
+        "giudica se scorrono solo le cifre cambiate, nel verso giusto e sfocate mentre viaggiano.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Numeri che scorrono"),
+    ),
+    TryItem(
+      "f8-testo-che-arriva", TryArea.ContentData, "Testo che arriva",
+      "Apri «Testo che arriva» e tocca «Ripeti la risposta», poi «Cambia»: " +
+        "giudica se le parole e le righe arrivano una dopo l'altra, sfocate, e alla fine si leggono nitide.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Testo che arriva"),
+    ),
+    TryItem(
+      "f8-testo-espandibile", TryArea.ContentData, "Testo che si espande",
+      "Apri «Testo che si espande» e tocca «altro» nella descrizione, poi il link delle novità: " +
+        "giudica se l'apertura è fluida, se le righe nuove arrivano gradualmente e se il link apre solo il link.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Testo che si espande"),
+    ),
+    TryItem(
+      "f8-conto-alla-rovescia", TryArea.ContentData, "Conto alla rovescia",
+      "Apri «Conto alla rovescia» e tocca «Ultimi 5 s»: " +
+        "giudica se le cifre scendono una volta al secondo, se l'anello si svuota con calma e se «Annulla invio» finisce in «Inviata».",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Conto alla rovescia"),
+    ),
+    TryItem(
+      "f8-tempi-vivi", TryArea.ContentData, "Formattatori e tempi vivi",
+      "Apri «Formattatori e tempi vivi» e resta sulla pagina un paio di minuti: " +
+        "giudica se «ora» diventa «1 min fa» da solo e se le righe in italiano e in inglese si leggono come le scriveresti.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Formattatori e tempi vivi"),
+    ),
+    TryItem(
+      "f8-immagine-che-arriva", TryArea.ContentData, "Immagine che arriva",
+      "Apri «Immagine che arriva», tocca «Ricarica» e poi «Riprova» sulla foto che non arriva: " +
+        "giudica se l'impronta ha i colori della foto e se la foto si mette a fuoco senza scatti.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Immagine che arriva"),
+    ),
+    TryItem(
+      "f8-stati-pronti", TryArea.ContentData, "Stati pronti",
+      "Apri «Stati pronti», tocca «Riprova» due volte sull'errore, poi scegli «Offline» e accendi «Rete»: " +
+        "giudica se il tasto dice l'esito, se offline riprova da solo e se «Avanti» passa da uno stato all'altro senza salti.",
+      TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Stati pronti"),
+    ),
   ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems,
 )
 

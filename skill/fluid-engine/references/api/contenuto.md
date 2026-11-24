@@ -2,6 +2,14 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidAsyncImage.kt`
+
+- `sealed interface FluidImagePhase` — La fase di un'immagine che si carica, come `AsyncImagePhase` di SwiftUI: [Loading] (`.empty`), [Success], [Failure]. La dice l'app, che fa il caricamento vero (Coil, il suo client): l'engine disegna le fasi.
+  - `data object Loading : FluidImagePhase` — Non c'è ancora niente: si vede l'impronta ([FluidAsyncImage] `thumbHash`) o un fondo quieto.
+  - `data class Success(val painter: Painter) : FluidImagePhase` — L'immagine è arrivata.
+  - `data class Failure(val error: Throwable? = null) : FluidImagePhase` — Non è arrivata: la tessera d'errore, con «Riprova» se l'app lo permette.
+- `@Composable fun FluidAsyncImage(phase: FluidImagePhase, contentDescription: String?, modifier: Modifier = Modifier, thumbHash: ByteArray? = null, contentScale: ContentScale = ContentScale.Crop, shape: Shape = RectangleShape, onRetry: (() -> Unit)? = null)` — Il posto di un'immagine che arriva dalla rete o dal NAS (F8.1, `immagine-che-arriva`): **segnaposto, poi sfocata, poi nitida**, come le fasi di `AsyncImage` di SwiftUI.
+
 ## `engine-ui/ui/fluid/FluidAvatar.kt`
 
 - `object FluidAvatarDefaults` — Le misure dell'[FluidAvatar] e del suo mosaico.
@@ -30,12 +38,17 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidLoadingBlock(modifier: Modifier = Modifier, minHeight: Dp = 180.dp)` — Placeholder while a screen's first load is in flight.
 - `@Composable fun FluidSectionFootnote(text: String, modifier: Modifier = Modifier)` — Footnote under a grouped list, for the explanation a row's subtitle would make too long.
 
+## `engine-ui/ui/fluid/FluidExpandableText.kt`
+
+- `@Composable fun FluidExpandableText(text: AnnotatedString, modifier: Modifier = Modifier, collapsedMaxLines: Int = 3, style: TextStyle = MaterialTheme.typography.bodyLarge, color: Color = MaterialTheme.colorScheme.onSurface, moreLabel: String = LocalFluidLabels.current.liveText.more, moreColor: Color = MaterialTheme.colorScheme.primary, collapsible: Boolean = false, arrival: FluidTextArrival = FluidTextArrival.Lines, onExpandedChange: ((Boolean) -> Unit)? = null)` — Un paragrafo lungo chiuso a [collapsedMaxLines] righe, con «altro» in fondo all'ultima riga: un tocco lo apre sul posto (F8.1, `testo-espandibile`), come le descrizioni e le novità dell'App Store. In SwiftUI non c'è un componente: l'App Store lo fa con `lineLimit` e un tasto in coda alla riga.
+- `@Composable fun FluidExpandableText(text: String, modifier: Modifier = Modifier, collapsedMaxLines: Int = 3, style: TextStyle = MaterialTheme.typography.bodyLarge, color: Color = MaterialTheme.colorScheme.onSurface, moreLabel: String = LocalFluidLabels.current.liveText.more, moreColor: Color = MaterialTheme.colorScheme.primary, collapsible: Boolean = false, arrival: FluidTextArrival = FluidTextArrival.Lines, onExpandedChange: ((Boolean) -> Unit)? = null)` — Lo stesso paragrafo da un testo semplice.
+
 ## `engine-ui/ui/fluid/FluidFileInfo.kt`
 
 - `enum class FluidFileKind` — Categoria visiva generica; non certifica la sicurezza o il contenuto del file.
   - `companion object`
     - `fun from(mimeType: String?, fileName: String): FluidFileKind` — L'ultima estensione prevale; un MIME eseguibile non viene mai declassato da un nome innocuo.
-- `fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): String` — Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante.
+- `fun fluidFormatFileSize(bytes: Long, locale: Locale = Locale.getDefault()): String` — Dimensione decimale (1000 byte = 1 KB), una cifra decimale al massimo; ignoto va rappresentato con null dal chiamante. Dalla 4.0 (F8.1) è [FluidFormat.bytes] con lo stile dei file, che ha preso la stessa regola: il testo non cambia.
 - `fun fluidFormatFileSizeRange(before: Long?, after: Long?, locale: Locale = Locale.getDefault()): String?` — The original and expanded sizes share a unit when both values use the same one.
 - `fun fluidFormatFileDate(instant: Instant, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault(), today: LocalDate = LocalDate.now(zone), includeTime: Boolean = false): String` — A file timestamp in the user's time zone. The current day and its predecessor use the locale's relative names.
 
@@ -130,6 +143,21 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val Size: Dp` — Il diametro: 7 dp, accanto a un testo da 13-17 sp il pallino si legge senza farsi guardare.
 - `@Composable fun FluidLiveDot(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary, size: Dp = FluidLiveDotDefaults.Size, pulsing: Boolean = true, contentDescription: String? = null)` — Il pallino che pulsa accanto a un dato vivo: i minuti di un bus seguito dal feed, «in diretta», un lettore che sta registrando.
 
+## `engine-ui/ui/fluid/FluidLiveTime.kt`
+
+- `fun interface FluidTimeSource` — L'ora dei testi vivi, in millisecondi dall'epoca. Di serie quella del sistema; le prove ne passano una finta.
+  - `fun nowMillis(): Long`
+  - `companion object`
+    - `val System: FluidTimeSource` — L'orologio del sistema (`System.currentTimeMillis`).
+- `val LocalFluidTimeSource` — L'ora dei testi vivi sotto questo punto dell'albero.
+- `val LocalFluidLiveClock` — L'orologio della pagina, se c'è ([FluidLiveClockProvider]); senza, ogni testo vivo aspetta da solo.
+- `class FluidLiveClock` — L'orologio unico di una pagina per i testi vivi: **un'attesa sola** per tutti i [FluidRelativeText] e i [FluidTimerText] sotto di lui, invece di un'attesa per riga. Si sveglia al primo cambio che serve, arrotondato al secondo pieno, e in quel giro aggiorna tutti i testi il cui cambio è arrivato: una lista di cento righe col «12 min fa» batte al più una volta al secondo, e solo quando un testo cambia davvero (la sched…
+- `@Composable fun rememberFluidLiveClock(): FluidLiveClock` — Un orologio della pagina ricordato.
+- `@Composable fun FluidLiveClockProvider(clock: FluidLiveClock = rememberFluidLiveClock(), content: @Composable () -> Unit)` — Mette l'orologio unico ([FluidLiveClock]) sotto [content]: una volta per pagina, attorno alla lista che ha i tempi vivi. Gira solo finché c'è un testo che aspetta.
+- `@Composable fun FluidRelativeText(instant: Instant, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, color: Color = Color.Unspecified, width: FluidFormatWidth = FluidFormatWidth.Short, locale: Locale = currentLocale())` — Un tempo relativo che **si aggiorna da solo**, al passo giusto: «ora», «2 min fa», «tra 3 giorni» (F8.1, `formattatori-e-tempi-vivi`), come `Text(date, style: .relative)` di SwiftUI, con le parole e le soglie di [FluidFormat.relative]. Batte una volta al minuto a «12 min fa», una volta all'ora a «3 h fa», mai a ogni fotogramma; con [FluidLiveClockProvider] sulla pagina tutti i tempi della pagina battono insieme.
+- `@Composable fun FluidTimerText(endsAt: Instant, modifier: Modifier = Modifier, style: TextStyle = FluidTextStyles.numeric, color: Color = Color.Unspecified, onExpire: (() -> Unit)? = null)` — Il tempo che manca a [endsAt], da cronometro: «4:59», «1:02:07» (F8.1, `conto-alla-rovescia`), come `Text(timerInterval:)` di SwiftUI. Le cifre **scorrono** come i numeri che scorrono ([FluidNumericText]), verso il basso perché il tempo cala, e sono tabulari: la riga non balla.
+- `@Composable fun FluidCountdownBadge(endsAt: Instant, modifier: Modifier = Modifier, total: Duration? = null, tone: Color = MaterialTheme.colorScheme.primary, onExpire: (() -> Unit)? = null)` — Una capsula col tempo che scende (F8.1, `conto-alla-rovescia`): un anello che si svuota e il cronometro ([FluidTimerText]), come i timer delle Live Activity e di WidgetKit (`ProgressView(timerInterval:)` accanto a `Text(timerInterval:)`). Per il timer della notte di Sounds, la consegna di un compito, l'«Annulla invio» in linea.
+
 ## `engine-ui/ui/fluid/FluidMarkdown.kt`
 
 - `data class FluidMarkdownStrings(val codeLabel: String = "codice", val copy: String = "copia", val copied: String = "copiato", val copyDescription: String = "Copia il codice", val codeBlockDescription: String = "Blocco di %1\$s", val taskDone: String = "Fatto", val taskOpen: String = "Da fare")` — Le parole del renderer: l'etichetta del blocco di codice e il suo tasto. Come le altre `Fluid*Strings`: un'app tradotta le passa tutte.
@@ -167,6 +195,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun plainText(markdown: String, includeCode: Boolean = false, bullets: Boolean = false, options: FluidMarkdownOptions = FluidMarkdownOptions()): String` — Lo stesso testo senza i segni: per la voce di sistema (che leggerebbe gli asterischi), per un'anteprima in cronologia, per la condivisione in chiaro. Il codice e' rumore detto ad alta voce e di default si salta; le voci di un elenco restano una per riga.
   - `fun plain(inlines: List<FluidMdInline>): String`
 
+## `engine-ui/ui/fluid/FluidNumericText.kt`
+
+- `@Composable fun FluidNumericText(text: String, value: Double, modifier: Modifier = Modifier, style: TextStyle = FluidTextStyles.numeric, color: Color = Color.Unspecified, contentDescription: String? = null)` — Un numero che cambia **facendo scorrere solo le cifre cambiate** (F8.1, `numeri-che-scorrono`): in su se il valore cresce, in giù se cala, sfocate mentre viaggiano (la nota di Alessio: «col blur durante il movimento»). È `Text(…).contentTransition(.numericText(value:))` di SwiftUI (iOS 17), quello dei timer di Orologio e dei saldi di Wallet.
+- `@Composable fun FluidNumericText(value: Number, modifier: Modifier = Modifier, style: TextStyle = FluidTextStyles.numeric, color: Color = Color.Unspecified, format: (Number) -> String = { FluidFormat.number(it.toDouble()) })` — Un numero che scorre, scritto da [format]: di serie con i separatori della lingua ([FluidFormat.number]). Per un contatore («3 non lette») o una percentuale.
+
 ## `engine-ui/ui/fluid/FluidPagerDots.kt`
 
 - `object FluidPagerDotsDefaults` — Le misure del [FluidPagerDots].
@@ -184,6 +217,15 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidSpinner(modifier: Modifier = Modifier, size: Dp = 20.dp, color: Color = MaterialTheme.colorScheme.onSurfaceVariant, progress: (() -> Float)? = null)` — The spinner.
 - `@Composable fun FluidProgressBar(progress: () -> Float, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary, height: Dp = 4.dp)` — A determinate bar.
 - `@Composable fun FluidIndeterminateBar(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary, height: Dp = 3.dp)` — An indeterminate bar, for the rare case where something is loading but nothing knows how far.
+
+## `engine-ui/ui/fluid/FluidReadyStrings.kt`
+
+- `data class FluidLiveTextStrings(val more: String = "altro", val expand: String = "Espandi", val collapse: String = "Riduci", val collapsed: String = "Testo ridotto", val expanded: String = "Testo intero", val remaining: String = "Mancano %1\$s", val expired: String = "Tempo scaduto", val imageLoading: String = "Caricamento dell'immagine", val imageFailed: String = "Immagine non caricata", val retry: String = "Riprova")` — Le parole del testo che si muove (F8.1), **in italiano di serie** come il resto di [FluidLabels], che le porta in `FluidLabels.liveText`. Le frasi con un segnaposto (`%1$s`) restano stringhe, così un'app le traduce come le sue risorse.
+  - `companion object`
+    - `fun english(): FluidLiveTextStrings` — Le stesse parole in inglese.
+- `data class FluidContentStateStrings(val noResultsFor: String = "Nessun risultato per «%1\$s»", val noResults: String = "Nessun risultato", val noResultsDetail: String = "Controlla come l'hai scritto o prova un'altra…, val offline: String = "Sei offline", val offlineDetail: String = "Quando torna la connessione la pagina si aggio…, val error: String = "Qualcosa non ha funzionato", val errorDetail: String = "Non è colpa tua. Puoi riprovare fra un momento…, val retry: String = "Riprova", val retrying: String = "Nuovo tentativo in corso…", val retried: String = "Fatto", val retryFailed: String = "Non è riuscito", val permission: String = "Serve un permesso", val permissionDetail: String = "Per mostrare questa pagina serve un permesso c…, val openSettings: String = "Apri le impostazioni", val empty: String = "Ancora niente qui", val emptyDetail: String = "Quando ci sarà qualcosa, lo troverai qui.", val loading: String = "Caricamento")` — Le parole degli stati pronti di una pagina (F8.1, `stati-pronti`), **in italiano di serie**: `FluidLabels.contentStates`. I titoli e le frasi sono quelli di `ContentUnavailableView` di Apple, detti come li direbbe una persona.
+  - `companion object`
+    - `fun english(): FluidContentStateStrings` — Le stesse parole in inglese.
 
 ## `engine-ui/ui/fluid/FluidReorderable.kt`
 
@@ -303,11 +345,47 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun Modifier.fluidSwipeActions(state: FluidSwipeState, startAction: FluidSwipeAction? = null, endAction: FluidSwipeAction? = null, enabled: Boolean = true, shape: Shape = RectangleShape, fill: Color = Color.Unspecified, accessibilityActions: Boolean = true, style: FluidSwipeStyle = LocalFluidSwipeStyle.current): Modifier` — Azioni a scorrimento orizzontale su una riga: un'azione per verso, soglia che si sente, annullabile tornando indietro col dito, uscita o ritorno al rilascio, e le stesse azioni per TalkBack.
 - `fun Modifier.fluidAccessibilityActions(actions: List<CustomAccessibilityAction>): Modifier` — Le azioni personalizzate di TalkBack, **aggiunte** a quelle che il nodo ha gia'.
 
+## `engine-ui/ui/fluid/FluidTextMotion.kt`
+
+- `object FluidTextMotion` — I numeri di movimento del testo che si muove (F8.1): le parole e le righe che arrivano sfocate e si mettono a fuoco, le cifre che scorrono, il testo che si espande, l'immagine che arriva. Stanno qui, in un profilo loro, come chiedono le regole del piano («ogni numero di movimento sta nei profili o in `FluidMotion`»), e ognuno dice la fonte e la fiducia oppure «a occhio» con la data.
+  - `const val WordArrivalMillis: Int` — Quanto ci mette una parola che arriva a mettersi a fuoco: **260 ms**. A occhio il 23 novembre 2026 (nota di Alessio «col blur»): i 180 ms della sola alfa (F3.2) bastavano a una dissolvenza, non lasciano vedere la messa a fuoco. È il tempo di [FluidRevealMillis].
+  - `const val WordStaggerMillis: Int` — Il passo fra due parole dello stesso pezzo che arriva: **24 ms**, a occhio il 23 novembre 2026. Un modello manda le parole a pezzi di 3–10: senza passo un pezzo comparirebbe tutto insieme, ed è proprio quello che Alessio non vuole.
+  - `const val WordSpreadMillis: Int` — Il ritardo massimo di una parola dietro al testo che arriva: **200 ms**, a occhio il 23 novembre 2026. Il passo non deve accumularsi: con un modello veloce le parole restano al più 200 ms indietro, e restano nell'ordine.
+  - `const val LineArrivalMillis: Int` — Quanto ci mette una riga che arriva (il testo che si espande, una risposta che compare intera): **380 ms**, a occhio il 23 novembre 2026, vicino alla molla dell'altezza ([ExpandResponseSeconds]) perché l'ultima riga si mette a fuoco quando la cornice si ferma.
+  - `const val LineStaggerMillis: Int` — Il passo fra due righe: **55 ms**, a occhio il 23 novembre 2026 (il «non tutto insieme ma gradualmente» di Alessio).
+  - `const val LineSpreadMillis: Int` — Il ritardo massimo di una riga: **440 ms**, a occhio il 23 novembre 2026: un testo di 30 righe non arriva in due secondi.
+  - `const val ArrivalPeakBlur: Float` — σ della sfocatura di ciò che arriva, al massimo, in frazione dell'altezza delle maiuscole: **0,15**. È la σ massima del contenuto che cambia identità di R7 A.2–A.3 (0,14–0,17 della sagoma, fiducia alta sulle icone; sul testo la stessa frazione è a occhio, 23 novembre 2026).
+  - `const val CapHeight: Float` — L'altezza delle maiuscole di Inter in frazione del corpo: 0,727 (dai dati del carattere, `capHeight / unitsPerEm`).
+  - `const val DigitResponseSeconds: Double` — La molla delle cifre che scorrono: risposta **0,5 s**, smorzamento 1. È `.smooth`, l'animazione di serie di `withAnimation` da iOS 17 (`Animation.default` è una molla senza rimbalzo di 0,5 s), con cui gira `contentTransition(.numericText(value:))` nei timer di Orologio e nei saldi di Wallet. Fiducia media: la durata è quella documentata, l'aspetto dei saldi è stato confrontato sulle tavole (F8.1).
+  - `const val DigitTravel: Float` — Di quanto viaggia una cifra che esce o entra, in frazione dell'altezza della riga: **0,62**. A occhio il 23 novembre 2026 sui timer di Orologio: la cifra nuova non parte da una riga intera di distanza, sale da poco più di metà riga mentre la vecchia esce sfocandosi.
+  - `const val DigitPeakBlur: Float` — σ massima di una cifra in viaggio, in frazione dell'altezza delle maiuscole: **0,15**, come [ArrivalPeakBlur] (R7).
+  - `const val DigitReducedFadeMillis: Int` — La dissolvenza delle cifre col movimento ridotto: **200 ms**, quella di [FluidMotion.crossFade]. Apple col movimento ridotto sostituisce lo scorrimento con una dissolvenza (Riduci movimento, «Preferisci le dissolvenze»).
+  - `const val ExpandResponseSeconds: Double` — La molla dell'altezza del testo che si espande: risposta **0,5 s**, smorzamento 1, quella delle superfici grandi ([FluidMotion.ResponseSmooth]) senza il rimbalzo: il testo che si apre nell'App Store non supera la sua altezza. A occhio il 23 novembre 2026.
+  - `const val ImageArrivalMillis: Int` — Quanto ci mette un'immagine che arriva a passare dall'impronta alla foto nitida: **300 ms**, il T del contenuto che cambia identità di R7 ([GlassContentDefaults.DurationMs]). `AsyncImage` di SwiftUI non ha una transizione di serie: l'app la sceglie, e qui è quella del contenuto dell'engine.
+  - `const val ImageArrivalBlurDp: Float` — σ massima dell'immagine che arriva: **6 dp**, a occhio il 23 novembre 2026 (leggera: la foto deve leggersi subito).
+
 ## `engine-ui/ui/fluid/FluidTextReveal.kt`
 
-- `const val FluidRevealMillis` — Quanto ci mette una parola nuova a sfumare dentro.
+- `const val FluidRevealMillis` — Quanto ci mette una parola nuova a mettersi a fuoco. Dalla 4.0 (F8.1) è [FluidTextMotion.WordArrivalMillis], 260 ms: col blur chiesto da Alessio la sola alfa di 180 ms non lasciava vedere la messa a fuoco.
 - `const val FluidRewriteMillis` — Quanto ci mette una parola riscritta: il riconoscitore che cambia idea su cio' che ha gia' detto, o il modello che chiude un `**`. Piu' corta, perche' al posto della parola vecchia ce n'e' gia' una nuova da leggere.
-- `@Composable fun FluidRevealingText(text: AnnotatedString, style: TextStyle, color: Color, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip, onTextLayout: ((TextLayoutResult) -> Unit)? = null, revealMillis: Int = FluidRevealMillis, rewriteMillis: Int = FluidRewriteMillis, softWrap: Boolean = true, animateFirst: Boolean = false, reveal: Boolean = true)` — Testo che *arriva*: le parole nuove sfumano dentro in [revealMillis], quelle gia' viste restano ferme. Un unico `Text`, un solo layout; la sfumatura e' una maschera `DstOut` sui glifi delle parole nuove, in un layer fuori schermo acceso solo mentre c'e' qualcosa da rivelare.
+- `enum class FluidTextArrivalUnit` — In che pezzi arriva il testo.
+- `data class FluidTextArrival(val unit: FluidTextArrivalUnit = FluidTextArrivalUnit.Word, val staggerMillis: Int = FluidTextMotion.WordStaggerMillis, val maxSpreadMillis: Int = FluidTextMotion.WordSpreadMillis, val blur: Boolean = true, val peakBlur: Float = FluidTextMotion.ArrivalPeakBlur)` — Come arriva il testo nuovo (F8.1, `testo-espandibile` e lo streaming di PampAI): **sfocato, che si mette a fuoco**, e non tutto insieme ma a pezzi, uno dopo l'altro. È la nota di Alessio: «il testo non appare tutto insieme ma gradualmente, e con il blur», da usare sia per il testo che si espande sia per il testo generato.
+  - `companion object`
+    - `val Streaming: FluidTextArrival` — Il testo generato o dettato: parola per parola, sfocato (di serie in [FluidRevealingText] e `FluidMarkdown`).
+    - `val Lines: FluidTextArrival` — Il testo che compare intero o si apre: riga per riga, sfocato ([FluidExpandableText], [FluidArrivingText]).
+    - `val Fade: FluidTextArrival` — La sola dissolvenza, senza sfocatura e senza passo: il testo che arrivava prima della 4.0.
+- `@Composable fun FluidRevealingText(text: AnnotatedString, style: TextStyle, color: Color, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip, onTextLayout: ((TextLayoutResult) -> Unit)? = null, revealMillis: Int = FluidRevealMillis, rewriteMillis: Int = FluidRewriteMillis, softWrap: Boolean = true, animateFirst: Boolean = false, reveal: Boolean = true, arrival: FluidTextArrival = FluidTextArrival.Streaming)` — Testo che *arriva*: le parole nuove arrivano sfocate e si mettono a fuoco in [revealMillis], quelle gia' viste restano ferme. Un unico `Text`, un solo layout; la sfumatura e' una maschera `DstOut` sui glifi delle parole nuove, in un layer fuori schermo acceso solo mentre c'e' qualcosa da rivelare, e la sfocatura un fantasma del testo stesso in un livello sfocato ([FluidTextArrival]).
+- `@Composable fun FluidArrivingText(text: String, modifier: Modifier = Modifier, style: TextStyle = androidx.compose.material3.MaterialTheme.typogr…, color: Color = Color.Unspecified, animateFirst: Boolean = true, arrival: FluidTextArrival = FluidTextArrival.Lines, maxLines: Int = Int.MAX_VALUE)` — Un testo che **arriva intero**, riga per riga, sfocato, e si mette a fuoco: una risposta che compare, una descrizione caricata, un testo che cambia identità. Quando [text] cambia, il nuovo arriva allo stesso modo dal primo carattere diverso in poi; quello che resta uguale non si muove.
+
+## `engine-ui/ui/fluid/FluidThumbHash.kt`
+
+- `class FluidThumbHashImage internal constructor(val width: Int, val height: Int, val rgba: ByteArray)` — Un'immagine piccola decodificata da un ThumbHash: [width] × [height] pixel (al più 32 per lato) in RGBA, un byte per canale, non premoltiplicati.
+- `object FluidThumbHash` — ThumbHash (F8.1, `immagine-che-arriva`): l'impronta di un'immagine in **poche decine di byte**, che si decodifica in una miniatura sfocata coi colori veri, le proporzioni e la trasparenza. È il segnaposto di [FluidAsyncImage]: l'app (o il server) la calcola una volta al caricamento con [encode] e la salva accanto all'immagine.
+  - `fun encode(width: Int, height: Int, rgba: ByteArray): ByteArray` — L'impronta di un'immagine di [width] × [height] pixel (al più 100 per lato: si rimpicciolisce prima, il dettaglio oltre non entra comunque nell'impronta), in RGBA non premoltiplicato, un byte per canale.
+  - `fun decode(hash: ByteArray): FluidThumbHashImage` — La miniatura dell'impronta: al più 32 pixel sul lato lungo, con le proporzioni dell'immagine.
+  - `fun averageColor(hash: ByteArray): Color` — Il colore medio dell'impronta: il fondo più semplice mentre l'immagine arriva.
+  - `fun aspectRatio(hash: ByteArray): Float` — Le proporzioni (larghezza / altezza) dell'immagine, approssimate, lette dall'impronta.
+  - `fun imageBitmap(hash: ByteArray): ImageBitmap` — L'impronta come immagine per Compose, **decodificata una volta e tenuta**: in una griglia lunga la stessa impronta torna a ogni scorrimento (la scheda dell'idea: «la decodifica delle impronte va messa in cache»). Al più 128 impronte, le meno usate escono.
 
 ## `engine-ui/ui/fluid/FluidVividCard.kt`
 

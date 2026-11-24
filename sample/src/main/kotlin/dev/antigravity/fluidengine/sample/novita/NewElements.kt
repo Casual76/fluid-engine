@@ -51,6 +51,7 @@ internal class NewElementSection(
 
 /** Un pacchetto per riga, nell'ordine del piano. */
 internal val NewElementSections: List<NewElementSection> = listOf(
+  F8p1Section,
   F8p2Section,
   F8p3Section,
 )

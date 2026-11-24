@@ -45,6 +45,8 @@ import dev.antigravity.fluidengine.ui.fluid.rememberGlassMultiWindow
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassSystemReduceTransparency
 import dev.antigravity.fluidengine.ui.glass.field.LocalGlassLightEnvironment
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassLightEnvironment
+import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassWindow
+import dev.antigravity.fluidengine.ui.glass.quality.android.LocalGlassHostView
 import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
@@ -154,6 +156,7 @@ fun FluidTheme(
   systemBars: Boolean = true,
   content: @Composable () -> Unit,
 ) {
+  ObserveGlassWindow(activityToo = true)
   val context = LocalContext.current
   val isDark = when (settings.themeMode) {
     ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -201,6 +204,7 @@ fun FluidTheme(
   val motionPolicy = LocalFluidMotionPolicy.current
   val systemMotion = rememberFluidMotionPolicy()
   CompositionLocalProvider(
+    LocalGlassHostView provides LocalView.current,
     LocalFluidHaptics provides haptics,
     // Il lato lo sa il tema, quindi il vetro non deve indovinarlo dalla luminanza di `surface`.
     // Vedi LocalFluidSurfaceSide: un'app che mette una pellicola traslucida in `surface` non e'

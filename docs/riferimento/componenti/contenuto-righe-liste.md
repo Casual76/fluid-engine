@@ -402,7 +402,7 @@ Tre pezzi nuovi delle liste, nella pagina «Elementi nuovi» della galleria (sce
 | ricordare quali sezioni erano aperte | lo stato è dell'app: `FluidDisclosureState(initiallyExpanded = …)` creato da ciò che ha salvato |
 | scegliere tante righe in un gesto (Mail) | `Modifier.fluidDragSelection(selection, listState, keyAt = { … })` sulla `LazyColumn` |
 | scegliere tante celle in un gesto (Foto) | `Modifier.fluidDragSelection(selection, gridState, keyAt = { … })` sulla `LazyVerticalGrid`, o la griglia qui sotto |
-| una griglia di foto, video, file o screenshot con pizzico, mesi in alto e scorrimento con la data | `FluidPreviewGrid(sections, itemKey) { item, selected -> … }` |
+| una griglia di foto, video, file o screenshot con pizzico, la testata come Foto e scorrimento con la data | `FluidPreviewGrid(sections, itemKey, title = "Libreria", dateLabel = { … }, actions = { … }) { item, selected -> … }` |
 | la miniatura vera di un file in una cella | `rememberFluidFileThumbnail(file, sizePx)` + `FluidFileThumbnailImage` di `engine-viewer`, dentro `cell` |
 | «Non così»: un `AnimatedVisibility` sotto una riga per aprire dettagli | è una riga che si allunga: la sezione è un vetro che nasce dal titolo, con lo stato per TalkBack |
 
@@ -466,14 +466,29 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 | `selection`, `inSelectionMode` | la selezione e il modo: tocco che sceglie, dito di lato, segno sulle celle |
 | `onItemClick` | il tocco fuori dal modo selezione (aprire nel visore) |
 | `fastScrollLabel` | l'etichetta dello scorrimento rapido (la data); null: il titolo del gruppo |
-| `header` | l'intestazione di un gruppo; di serie `FluidPreviewGridHeader` (titolo sopra un velo che sfuma) |
+| `header` | l'intestazione di un gruppo, **in linea** (scorre con la griglia); di serie nessuna; `FluidPreviewGridHeader` è quella pronta |
+| `title`, `dateLabel` | la testata come Foto: il titolo grande e la data degli elementi in cima, sopra le foto (F8.4b); null: nessuna testata |
+| `navigation`, `actions` | i tasti di vetro della testata: a sinistra (indietro) e a destra («Seleziona»); rifrangono le foto |
 | `cell` | il contenuto: riempie la cella, che ritaglia e porta il segno |
 
 - **Il pizzico**: la griglia segue le dita attorno al punto fra di esse; a metà strada (geometrica) verso la densità
   vicina cambia colonne **restando sul punto**: la cella sotto le dita resta sotto le dita, alla stessa frazione della
   sua altezza (provato: 30% prima, 30% dopo). Oltre la densità estrema cede poco; al rilascio torna in scala 1 (molla
   0,86 / 380). Un tic a ogni cambio. TalkBack: «Meno colonne», «Più colonne». `state.density` si può anche scrivere.
-- **Le intestazioni** restano in alto (`stickyHeader` della griglia) finché il gruppo è in vista.
+- **La testata come Foto** (F8.4b, scelta di Alessio del 24 novembre 2026: «Come Foto»). Con `title` il titolo grande e,
+  sotto, la data degli elementi in cima stanno **sopra le foto**, che scorrono fin sotto la barra di stato; i tasti sono
+  vetro che galleggia; un velo scuro che sfuma (nero al 50% in cima, 22% a metà, a occhio sulla libreria di Foto di iOS
+  26) tiene leggibile il bianco del titolo, in tutti e due i temi. **Niente fascia ferma**: le intestazioni dei gruppi,
+  se ci sono, scorrono con la griglia. Senza `navigation` titolo e tasti stanno sulla stessa riga (Foto); con
+  `navigation` la riga dei tasti sta sopra il titolo.
+- **Chi muove la griglia decide come cambia la data** (regola di Alessio del 24 novembre 2026: ciò che muove il dito
+  resta nitido, si sfoca solo ciò che muove l'app da sola). Col dito sulla griglia (trascinamento, pizzico,
+  scorrimento rapido, selezione) la data nuova arriva di colpo, nitida; quando la griglia corre da sola (inerzia, uno
+  scorrimento chiesto dall'app) entra sfocata con `FluidGlassContentTransition`. Pizzico, selezione e scorrimento non
+  sfocano mai niente.
+- **Trappola**: con la testata la prima riga sta sotto il titolo. Per una griglia di file col nome sotto la miniatura
+  si dà un `contentPadding` in alto (barra di stato + ~150 dp): la prima riga parte sotto la testata e poi ci scorre
+  sotto.
 - **Lo scorrimento rapido** è `FluidFastScroller` sulla griglia.
 - **Memoria**: la griglia non tiene immagini sue; le celle fuori vista escono dalla composizione e la cache è quella
   delle miniature (`FluidFileThumbnails`, a memoria limitata). Le celle già in vista **non ricompongono scorrendo**

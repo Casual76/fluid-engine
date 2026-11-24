@@ -119,6 +119,8 @@ class F8p4ListsUiTest {
   private fun advance(ms: Long) {
     var left = ms
     while (left > 0) {
+      // Le scritture fatte dal test arrivano alla composizione solo con la notifica (orologio manuale).
+      Snapshot.sendApplyNotifications()
       compose.mainClock.advanceTimeBy(16)
       shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(16))
       left -= 16
@@ -281,7 +283,12 @@ class F8p4ListsUiTest {
     tap(headerNode().boundsInRoot.center)
     advance(1500)
     val draws = bodyDraws
+    var applied = 0
+    val observer = Snapshot.registerApplyObserver { changed, _ -> applied += changed.size }
     assertEquals("scritture a riposo", 0, writesDuring(1000))
+    observer.dispose()
+    // In Robolectric la finestra non ridisegna da sola: la prova vera sono gli stati applicati, zero.
+    assertEquals("stati applicati a riposo", 0, applied)
     assertEquals("disegni del contenuto a riposo", draws, bodyDraws)
   }
 
@@ -436,6 +443,99 @@ class F8p4ListsUiTest {
     val again = composed.filterValues { it > 1 }
     println("F8p4 scorrimento: celle composte ${composed.size}, ricomposte ${again.size}")
     assertTrue("nessuna cella ricomposta scorrendo: $again", again.isEmpty())
+  }
+
+  // --- La testata come Foto (F8.4b) -----------------------------------------------------------------------------------
+
+  private fun dates(): List<String> =
+    compose.onAllNodes(hasText("Giorno ", substring = true), useUnmergedTree = true).fetchSemanticsNodes()
+      .map { node -> node.config[SemanticsProperties.Text].joinToString("") { it.text } }
+
+  @Test
+  fun `la testata come Foto dice la data in cima, nitida col dito e sfocata quando la griglia corre da sola`() {
+    show {
+      val sections = remember { listOf(FluidPreviewGridSection(key = "tutte", title = null, items = (0 until 400).toList())) }
+      FluidPreviewGrid(
+        sections = sections,
+        itemKey = { it },
+        state = gridState,
+        title = "Libreria",
+        dateLabel = { "Giorno ${it / 25}" },
+        modifier = Modifier.fillMaxSize().testTag("griglia"),
+      ) { id, _ ->
+        Box(Modifier.fillMaxSize().background(Color(0xFF406080)).testTag("cella:$id"))
+      }
+    }
+    // Il titolo e la data stanno sopra le foto, e le foto partono dal bordo alto: niente fascia, niente margine.
+    assertTrue(compose.onAllNodes(hasText("Libreria"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
+    assertEquals(listOf("Giorno 0"), dates())
+    assertEquals("la prima riga parte dal bordo, sotto la testata", 0f, cell(0).top, 1f)
+
+    // Col dito giu' la data e' del dito: la nuova arriva di colpo, nitida, e non c'e' una vecchia che sfuma.
+    val from = cell(17).center
+    finger.down(from)
+    val at = moveTo(from, Offset(from.x, from.y - 1100f), steps = 16)
+    advance(48)
+    val first = gridState.gridState.firstVisibleItemIndex
+    val expected = "Giorno ${first / 25}"
+    println("F8p4b testata col dito: prima visibile $first, date ${dates()}")
+    assertTrue("ha scorso di qualche riga: $first", first >= 25)
+    assertEquals("col dito: solo la data nuova, subito", listOf(expected), dates())
+    finger.up(at)
+    advance(1500)
+
+    // La griglia corre da sola (uno scorrimento chiesto dall'app): la data nuova entra sfocata, incrociandosi con la
+    // vecchia per qualche fotogramma.
+    val before = dates()
+    compose.runOnUiThread { gridState.gridState.requestScrollToItem(300) }
+    Snapshot.sendApplyNotifications()
+    advance(48)
+    val during = dates()
+    println("F8p4b testata da sola: prima $before, durante $during")
+    assertTrue("la vecchia e la nuova si incrociano: $during", during.size >= 2 && "Giorno 12" in during)
+    advance(1200)
+    assertEquals(listOf("Giorno 12"), dates())
+    assertEquals("a riposo niente si scrive", 0, writesDuring(600))
+  }
+
+  @Test
+  fun `la data entra sfocata solo se la griglia corre da sola e il movimento non e' ridotto`() {
+    // La regola di Alessio del 24 novembre: ciò che muove il dito resta nitido.
+    val blurs = Class.forName("dev.antigravity.fluidengine.ui.fluid.FluidPreviewGridKt")
+      .getDeclaredMethod("previewGridDateBlurs", Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType)
+      .apply { isAccessible = true }
+    assertEquals(false, blurs.invoke(null, true, false))
+    assertEquals(true, blurs.invoke(null, false, false))
+    assertEquals(false, blurs.invoke(null, false, true))
+  }
+
+  @Test
+  fun `le intestazioni dei gruppi scorrono con la griglia e non restano in alto`() {
+    show {
+      val sections = remember {
+        listOf(
+          FluidPreviewGridSection(key = "a", title = "Primo", items = (0 until 60).toList()),
+          FluidPreviewGridSection(key = "b", title = "Secondo", items = (60 until 200).toList()),
+        )
+      }
+      FluidPreviewGrid(
+        sections = sections,
+        itemKey = { it },
+        state = gridState,
+        header = { section -> dev.antigravity.fluidengine.ui.fluid.FluidPreviewGridHeader(section.title ?: "") },
+        modifier = Modifier.fillMaxSize().testTag("griglia"),
+      ) { id, _ ->
+        Box(Modifier.fillMaxSize().background(Color(0xFF406080)).testTag("cella:$id"))
+      }
+    }
+    assertTrue(compose.onAllNodes(hasText("Primo"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
+    // Tre righe piu' in giu': l'intestazione del primo gruppo e' uscita dallo schermo con le sue foto.
+    repeat(30) {
+      compose.runOnUiThread { gridState.gridState.dispatchRawDelta(20f) }
+      advance(16)
+    }
+    val primo = compose.onAllNodes(hasText("Primo"), useUnmergedTree = true).fetchSemanticsNodes()
+    assertTrue("non resta ferma in alto: ${primo.map { it.boundsInRoot }}", primo.all { it.boundsInRoot.bottom <= 0f })
   }
 
   // --- La selezione trascinando su una lista -------------------------------------------------------------------------

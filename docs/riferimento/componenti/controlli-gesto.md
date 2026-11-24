@@ -537,8 +537,10 @@ FluidWheelPicker(
 - **Le misure sono quelle di iOS 26 e 27**, prese dalle schermate (il timer di Orologio, la ruota delle HIG; vedi il
   rapporto di F8.2): alta 216 dp (`FluidWheelDefaults`), voci da 32 dp (crescono col testo grande fino a 1,6) su un
   cilindro di raggio 0,39 dell'altezza (84 dp: tre voci piene per lato e una quarta schiacciata), la fascia a capsula
-  alta 34 dp con 9 dp di margine, la voce nella fascia ingrandita di 1,12, quelle fuori al 45% dell'inchiostro e più
-  tenui verso i bordi.
+  alta 34 dp, la voce nella fascia ingrandita di 1,12, quelle fuori al 45% dell'inchiostro e più tenui verso i bordi.
+- **La fascia rientra come in iOS 26 e 27** (F8.2b): 45 dp per lato (il timer di Orologio, le HIG), mai oltre il 12%
+  della larghezza su una ruota stretta; anche le colonne stanno in quello spazio, così il valore scelto resta dentro la
+  capsula. In una pagina il timer va da bordo a bordo, come in Orologio.
 - **La costruzione è quella di `UIPickerView`**, in tre strati: le voci fuori dalla fascia sono una sorgente di vetro
   della ruota (piccola quanto lei, mai lo schermo); la fascia, ferma, le campiona con la pagina e le piega al bordo; le
   voci dentro la fascia si disegnano sopra il vetro, nitide. Si muove solo il contenuto.
@@ -552,9 +554,8 @@ FluidWheelPicker(
 - **Il valore è del chiamante**: `onSelectedChange` arriva **quando la ruota si ferma** (come `didSelectRow`), non a
   ogni voce. Un chiamante che rifiuta vede la ruota tornare. Un `selected` cambiato da fuori la porta con la molla (0,38 s).
 - **Le voci spente** (`isEnabled`) sono al 35%; una ruota che si ferma su una di loro scivola alla più vicina.
-- **La sfocatura del moto** (il tono di F8, i numeri che scorrono): una ruota lanciata oltre 12 voci al secondo sfoca le
-  voci in verticale, fino a 3 dp a 40 voci al secondo, e torna nitida prima di fermarsi. Sotto il dito e col movimento
-  ridotto mai. iOS non la ha: è una scelta di casa.
+- **Sempre nitida** (F8.2b, scelta di Alessio): la ruota la muove il dito, e ciò che muove l'utente resta nitido anche
+  durante l'inerzia. Si sfoca solo ciò che l'app muove da sola, come in iOS.
 - **L'aptica**: un tic per voce che passa sotto la fascia, con la rete dei 55 ms; sopra 8 voci al secondo il `DragTick`
   leggero, sotto il `Tick` di un aggancio.
 - **Il movimento ridotto**: niente inerzia lunga (un lancio porta al più una voce oltre il dito, assestamento di 0,20 s);
@@ -621,8 +622,7 @@ FluidRulerDial(
   principali. Un dito sulla ghiera che scorre la ferma; il **doppio tocco** torna al neutro. Presa a mezzo slop di lato
   prima che in verticale: in un pager scorre la ghiera.
 - **Il neutro attira**: trascinando, entro mezza tacca il valore è il neutro, con un `Threshold` all'arrivo.
-- **La sfocatura del moto**: lanciata veloce (oltre 30 tacche al secondo) le tacche sfocano di lato, fino a 3 dp; l'indice
-  resta nitido. Mai sotto il dito né col movimento ridotto.
+- **Sempre nitida** (F8.2b): anche lanciata, le tacche non si sfocano; la ghiera la muove il dito.
 - **L'aptica**: `DragTick` per tacca a dito veloce, `Tick` per tacca lenta e per ogni principale, `Threshold` sul neutro e
   alle estremità, con la rete dei 55 ms.
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
@@ -711,6 +711,10 @@ Costanti non pubbliche che conviene sapere (per dimensionare attorno):
   principale, il lancio su una tacca intera, il doppio tocco allo zero con il colpo, TalkBack. Le due maniglie: niente
   scavalco con la distanza minima e il colpo, la separazione dal verso, i due nodi per TalkBack. Ogni scena di F8.2 a
   riposo non scrive niente.
+- **`F8p2bWheelFramesTest`** (`sample`, Robolectric, vetro vero e PixelCopy, F8.2b): la scena del timer su uno schermo da
+  393 dp a 420 dpi, in chiaro e in scuro, a riposo e a metà lancio; le colonne cominciano e finiscono a 45 dp dal bordo,
+  dove comincia e finisce la fascia. I fermi vanno in `sample/build/reports/f8-2b/fermi/` (la tavola contro iOS 27).
+  In `F8p2WheelsTest`: la fascia contro le misure di iOS 27, e nessun effetto di sfocatura nei file di ruota e ghiera.
 
 - **`FluidSliderSnapTest`, `FluidSliderClaimTest`** (`engine-ui`): tacche (entro la soglia, la soglia è una frazione, `1f` è un passo, intervallo vuoto, tacca che suona solo all'atterraggio, rete dei 55 ms, afferrare fermo non suona); il test dei mezzi slop; l'isteresi dell'interruttore e dove si posa il pomello lasciato.
 - **`GlassDropRiseTest`** (`engine-ui`, F6.3): la crescita mai oltre ×1,5 e mai sotto il riposo, dentro la finestra dei tempi di Apple; lo stiramento

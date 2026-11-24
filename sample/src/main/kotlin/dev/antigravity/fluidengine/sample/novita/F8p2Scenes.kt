@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidRangeSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidRulerDial
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
+import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
@@ -123,7 +125,13 @@ private fun F8p2Screen(id: String, title: String, onBack: () -> Unit, content: @
 @Composable
 private fun F8p2Stage(ground: F8p2Ground, content: @Composable ColumnScope.() -> Unit) {
   if (ground == F8p2Ground.Page) {
-    Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+    // Da bordo a bordo, come il timer di Orologio (F8.2b): la ruota e' larga quanto lo schermo e la sua fascia rientra di
+    // 45 dp dal bordo, dove rientra in iOS 26. Ogni elemento della scena ha gia' il suo margine.
+    Column(
+      Modifier.fillMaxWidth().edgeToEdge().padding(top = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+      content = content,
+    )
     return
   }
   val photo = rememberGlassBackdrop()
@@ -144,6 +152,14 @@ private fun F8p2Stage(ground: F8p2Ground, content: @Composable ColumnScope.() ->
       content = content,
     )
   }
+}
+
+/** Esce dai margini di [FluidScreen] (`FluidScreenDefaults.HorizontalPadding` per lato) e va da bordo a bordo. */
+private fun Modifier.edgeToEdge(): Modifier = layout { measurable, constraints ->
+  val extra = FluidScreenDefaults.HorizontalPadding.roundToPx() * 2
+  val width = constraints.maxWidth + extra
+  val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+  layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
 }
 
 @Composable

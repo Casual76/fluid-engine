@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -25,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -44,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -55,6 +63,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -167,12 +176,22 @@ private class PreviewEntry<T>(val section: FluidPreviewGridSection<T>, val item:
  * - **La selezione trascinando** con [selection] ([fluidDragSelection]): in modo selezione un dito che va di lato
  *   sceglie in fila, la pressione lunga entra nella selezione; un tocco in modo selezione sceglie o toglie una cella.
  *   Le celle scelte portano il segno ([FluidSelectionMark]).
- * - **Le intestazioni restano in alto** finche' il loro gruppo e' sullo schermo, e la successiva le spinge via.
+ * - **La testata come Foto di iOS 26** (scelta di Alessio del 24 novembre 2026, «Come Foto»), con [title]: il titolo
+ *   grande e sotto la data degli elementi in cima ([dateLabel]) stanno **sopra le foto**, che scorrono fin sotto la barra
+ *   di stato; i tasti ([navigation], [actions]) sono vetro che galleggia sulle foto e le rifrange; un velo scuro che
+ *   sfuma verso il basso tiene leggibile il bianco del titolo. Niente fascia ferma: i gruppi non hanno un'intestazione
+ *   che resta in alto, la data in testata dice dove si e'.
+ * - **La data cambia secondo chi muove la griglia** (regola di Alessio del 24 novembre 2026: ciò che muove il dito
+ *   resta nitido, si sfoca solo ciò che muove l'app da sola). Col dito sulla griglia (trascinamento, pizzico,
+ *   scorrimento rapido, selezione) la data nuova arriva nitida, di colpo; quando la griglia corre da sola (l'inerzia di
+ *   un lancio, uno scorrimento chiesto dall'app) entra sfocata, come ogni contenuto che cambia identità (R7).
+ * - **Le intestazioni dei gruppi**, se l'app le vuole ([header]), stanno nella griglia come una riga che scorre, mai
+ *   ferme in alto.
  * - **Lo scorrimento rapido** ([FluidFastScroller]) con l'etichetta ([fastScrollLabel], per esempio la data); senza
- *   etichetta propria dice il titolo del gruppo.
+ *   etichetta propria dice la data della testata, o il titolo del gruppo.
  *
- * **Cosa sceglie l'app.** Le colonne, la proporzione delle celle ([cellAspectRatio], 1 quadrata), le intestazioni
- * ([header], di serie il titolo), il contenuto della cella ([cell]): la griglia non sa se e' una foto, un video o un
+ * **Cosa sceglie l'app.** Le colonne, la proporzione delle celle ([cellAspectRatio], 1 quadrata), la testata e i suoi
+ * tasti, le intestazioni in linea ([header], di serie nessuna), il contenuto della cella ([cell]): la griglia non sa se e' una foto, un video o un
  * PDF. La miniatura la da' l'app: per i file, `rememberFluidFileThumbnail` di `engine-viewer`, che la carica fuori dal
  * disegno e la tiene nella sua cache a memoria limitata.
  *
@@ -191,8 +210,16 @@ private class PreviewEntry<T>(val section: FluidPreviewGridSection<T>, val item:
  * @param inSelectionMode il modo selezione: di serie vero quando qualcosa e' scelto; un'app col tasto «Seleziona» lo
  *   tiene vero anche con zero elementi (in modo selezione il tocco sceglie, il dito di lato sceglie in fila).
  * @param onItemClick il tocco fuori dal modo selezione (apri nel visore).
- * @param fastScrollLabel l'etichetta dello scorrimento rapido per un elemento; null: il titolo del gruppo.
- * @param header l'intestazione di un gruppo, se diversa da quella di serie.
+ * @param fastScrollLabel l'etichetta dello scorrimento rapido per un elemento; null: [dateLabel], o il titolo del gruppo.
+ * @param header l'intestazione di un gruppo, in linea (scorre con la griglia); null, di serie: nessuna intestazione.
+ *   [FluidPreviewGridHeader] e' quella pronta.
+ * @param title il titolo grande della testata come Foto («Libreria», «12 selezionate»); null: nessuna testata, la
+ *   griglia e' solo la griglia (dentro una pagina che ha gia' la sua barra).
+ * @param dateLabel la data (o l'etichetta) degli elementi in cima, sotto il titolo; null: il titolo del gruppo in cima.
+ * @param navigation il tasto a sinistra della testata (indietro), di solito un `FluidGlassIconButton`: con lui la riga
+ *   dei tasti sta sopra il titolo, come in una pagina figlia di iOS; senza, titolo e tasti stanno sulla stessa riga, come
+ *   in Foto.
+ * @param actions i tasti a destra della testata («Seleziona»), di solito `FluidGlassButton`: rifrangono le foto.
  * @param cell il contenuto di una cella: riempie la cella (`fillMaxSize`), che ritaglia e porta il segno.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -212,15 +239,20 @@ fun <T, K : Any> FluidPreviewGrid(
   fastScrollLabel: ((T) -> String?)? = null,
   header: (@Composable (FluidPreviewGridSection<T>) -> Unit)? = null,
   labels: FluidPreviewGridLabels = FluidPreviewGridLabels(),
+  title: String? = null,
+  dateLabel: ((T) -> String?)? = null,
+  navigation: (@Composable () -> Unit)? = null,
+  actions: (@Composable RowScope.() -> Unit)? = null,
   cell: @Composable BoxScope.(item: T, selected: Boolean) -> Unit,
 ) {
   require(columns.isNotEmpty()) { "FluidPreviewGrid: servono delle colonne" }
   val density = state.density.coerceIn(0, columns.size - 1)
   val count = columns[density]
-  val entries = remember(sections) {
+  val withHeaders = header != null
+  val entries = remember(sections, withHeaders) {
     buildList {
       for (section in sections) {
-        if (section.title != null) add(PreviewEntry(section, null, -1))
+        if (withHeaders) add(PreviewEntry(section, null, -1))
         section.items.forEachIndexed { i, item -> add(PreviewEntry(section, item, i)) }
       }
     }
@@ -349,9 +381,38 @@ fun <T, K : Any> FluidPreviewGrid(
   }
 
   val showScroller by remember(grid) { derivedStateOf { grid.layoutInfo.totalItemsCount > 0 } }
+  val currentDateLabel by rememberUpdatedState(dateLabel)
+  // Chi muove la griglia: un dito giu' (trascinamento, pizzico, scorrimento rapido, selezione) o la griglia da sola.
+  // Scritto solo quando cambia: due scritture per gesto.
+  val finger = remember { mutableStateOf(false) }
+  val fingerWatch = if (title != null) {
+    Modifier.pointerInput(Unit) {
+      awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        finger.value = true
+        do {
+          val event = awaitPointerEvent(PointerEventPass.Initial)
+        } while (event.changes.any { it.pressed })
+        finger.value = false
+      }
+    }
+  } else {
+    Modifier
+  }
+  // La data della testata: quella degli elementi in cima. Ricompone solo quando cambia.
+  val topDate by remember(grid) {
+    derivedStateOf {
+      val all = currentEntries
+      val first = grid.firstVisibleItemIndex
+      val entry = all.getOrNull(first)?.let { if (it.item == null) all.getOrNull(first + 1) ?: it else it }
+      entry?.item?.let { currentDateLabel?.invoke(it) } ?: entry?.section?.title
+    }
+  }
+  val chromeBackdrop = if (title != null) rememberGlassBackdrop() else null
   Box(
     modifier
       .onSizeChanged { size = it }
+      .then(fingerWatch)
       .semantics {
         customActions = listOf(
           CustomAccessibilityAction(labels.fewerColumns) {
@@ -373,6 +434,7 @@ fun <T, K : Any> FluidPreviewGrid(
       verticalArrangement = Arrangement.spacedBy(spacing),
       modifier = Modifier
         .fillMaxSize()
+        .then(if (chromeBackdrop != null) Modifier.glassBackdropSource(chromeBackdrop) else Modifier)
         .then(pinch)
         .then(selectionModifier)
         .graphicsLayer {
@@ -388,10 +450,14 @@ fun <T, K : Any> FluidPreviewGrid(
         },
     ) {
       for (section in sections) {
-        val title = section.title
-        if (title != null) {
-          stickyHeader(key = "fluid-preview-header:${section.key}", contentType = HeaderContentType) {
-            if (header != null) header(section) else FluidPreviewGridHeader(title)
+        if (header != null) {
+          // In linea, mai ferma in alto (F8.4b, «Come Foto»): la testata dice gia' dove si e'.
+          item(
+            key = "fluid-preview-header:${section.key}",
+            span = { GridItemSpan(maxLineSpan) },
+            contentType = HeaderContentType,
+          ) {
+            header(section)
           }
         }
         items(
@@ -436,10 +502,143 @@ fun <T, K : Any> FluidPreviewGrid(
         state = grid,
         label = { index ->
           val entry = currentEntries.getOrNull(index) ?: return@FluidFastScroller null
-          entry.item?.let { fastScrollLabel?.invoke(it) } ?: entry.section.title
+          entry.item?.let { fastScrollLabel?.invoke(it) ?: currentDateLabel?.invoke(it) } ?: entry.section.title
         },
         modifier = Modifier.align(Alignment.CenterEnd),
       )
+    }
+    if (title != null && chromeBackdrop != null) {
+      FluidPreviewGridChrome(
+        title = title,
+        date = topDate,
+        fingerDown = finger.value,
+        navigation = navigation,
+        actions = actions,
+        backdrop = chromeBackdrop,
+        modifier = Modifier.align(Alignment.TopCenter),
+      )
+    }
+  }
+}
+
+/** I numeri della testata come Foto ([FluidPreviewGrid] con `title`). */
+internal object FluidPreviewGridChromeLook {
+  /**
+   * Il velo sotto la testata: nero al 50% sul bordo dello schermo, al 22% a meta', trasparente in fondo. A occhio, 24
+   * novembre 2026, sulla libreria di Foto di iOS 26 (guida dell'iPhone): le foto sotto la barra di stato e sotto
+   * «Library» sono scurite quanto basta perche' il bianco si legga su una foto chiara, e senza un bordo visibile.
+   */
+  const val VeilTop: Float = 0.5f
+  const val VeilMiddle: Float = 0.22f
+
+  /** Lo spazio sotto la data prima che il velo finisca: 28 dp, a occhio sulla stessa schermata. */
+  val VeilTail: Dp = 28.dp
+
+  /** Il margine laterale della testata: 16 dp, quello di un titolo grande di iOS. */
+  val SideMargin: Dp = 16.dp
+
+  /** Quanto e' sfocata la data che entra quando la griglia corre da sola: la sagoma di riferimento e' la riga, 22 dp. */
+  val DateBlurReference: Dp = 22.dp
+}
+
+/**
+ * Vero se la data nuova della testata entra sfocata: solo quando la griglia corre da sola (nessun dito giu') e il
+ * movimento non e' ridotto. Ciò che muove il dito resta nitido (regola di Alessio, 24 novembre 2026).
+ */
+internal fun previewGridDateBlurs(fingerDown: Boolean, reducedMotion: Boolean): Boolean = !fingerDown && !reducedMotion
+
+/**
+ * La testata come Foto: il velo, i tasti di vetro che galleggiano, il titolo grande e la data. Il titolo e la data sono
+ * bianchi sul velo scuro in tutti e due i temi, come in Foto.
+ */
+@Composable
+private fun FluidPreviewGridChrome(
+  title: String,
+  date: String?,
+  fingerDown: Boolean,
+  navigation: (@Composable () -> Unit)?,
+  actions: (@Composable RowScope.() -> Unit)?,
+  backdrop: GlassBackdropState,
+  modifier: Modifier = Modifier,
+) {
+  val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
+  val blurs = previewGridDateBlurs(fingerDown, reducedMotion)
+  Box(
+    modifier
+      .fillMaxWidth()
+      .drawBehind {
+        drawRect(
+          Brush.verticalGradient(
+            0f to Color.Black.copy(alpha = FluidPreviewGridChromeLook.VeilTop),
+            0.55f to Color.Black.copy(alpha = FluidPreviewGridChromeLook.VeilMiddle),
+            1f to Color.Transparent,
+          ),
+        )
+      },
+  ) {
+    CompositionLocalProvider(
+      LocalGlassBackdrop provides backdrop,
+      LocalFluidCanvasBackdrop provides null,
+    ) {
+      Column(
+        Modifier
+          .statusBarsPadding()
+          .padding(
+            start = FluidPreviewGridChromeLook.SideMargin,
+            end = FluidPreviewGridChromeLook.SideMargin,
+            top = 6.dp,
+            bottom = FluidPreviewGridChromeLook.VeilTail,
+          ),
+      ) {
+        if (navigation != null) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            navigation()
+            Spacer(Modifier.weight(1f))
+            if (actions != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+          }
+          Spacer(Modifier.height(8.dp))
+          PreviewGridTitle(title, date, blurs)
+        } else {
+          Row(verticalAlignment = Alignment.Top) {
+            PreviewGridTitle(title, date, blurs, Modifier.weight(1f))
+            if (actions != null) {
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun PreviewGridTitle(title: String, date: String?, blurs: Boolean, modifier: Modifier = Modifier) {
+  val ink = Color.White
+  Column(modifier) {
+    Text(
+      text = title,
+      style = MaterialTheme.typography.displaySmall,
+      color = ink,
+      maxLines = 1,
+      modifier = Modifier.semantics { heading() },
+    )
+    if (date != null) {
+      val style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+      if (blurs) {
+        // La griglia corre da sola: la data nuova entra sfocata (R7), come ogni contenuto che cambia identita'.
+        FluidGlassContentTransition(
+          targetState = date,
+          blurReference = FluidPreviewGridChromeLook.DateBlurReference,
+          contentAlignment = Alignment.CenterStart,
+        ) { shown -> Text(shown, style = style, color = ink, maxLines = 1) }
+      } else {
+        // Col dito giu' la data e' del dito: nitida, di colpo.
+        Text(date, style = style, color = ink, maxLines = 1)
+      }
     }
   }
 }
@@ -456,27 +655,20 @@ data class FluidPreviewGridLabels(
 }
 
 /**
- * L'intestazione di serie di un gruppo: il titolo in grassetto sopra un velo che sfuma verso il basso, come i mesi di
- * Foto (il titolo sta sulle miniature, non su una fascia piena). Resta in alto finche' il gruppo e' sullo schermo. Il
- * velo non imita il vetro: e' l'ombra del bordo di scorrimento, perche' il titolo si legga su qualunque miniatura.
+ * Un'intestazione pronta per i gruppi ([FluidPreviewGrid] `header`): il titolo del gruppo in grassetto, in linea, che
+ * scorre con la griglia (mai ferma in alto: la testata come Foto dice gia' dove si e').
  */
 @Composable
 fun FluidPreviewGridHeader(title: String, modifier: Modifier = Modifier) {
-  val veil = MaterialTheme.colorScheme.surface
-  Box(
-    modifier
+  Text(
+    text = title,
+    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+    color = MaterialTheme.colorScheme.onSurface,
+    modifier = modifier
       .fillMaxWidth()
-      .drawBehind {
-        drawRect(Brush.verticalGradient(0f to veil.copy(alpha = 0.92f), 0.6f to veil.copy(alpha = 0.7f), 1f to veil.copy(alpha = 0f)))
-      }
-      .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 14.dp),
-  ) {
-    Text(
-      text = title,
-      style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-      color = MaterialTheme.colorScheme.onSurface,
-    )
-  }
+      .padding(start = 4.dp, end = 4.dp, top = 14.dp, bottom = 6.dp)
+      .semantics { heading() },
+  )
 }
 
 private object HeaderContentType

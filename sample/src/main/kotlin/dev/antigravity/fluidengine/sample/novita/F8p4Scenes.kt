@@ -8,6 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,6 +60,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidPreviewGrid
+import dev.antigravity.fluidengine.ui.fluid.FluidPreviewGridHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidPreviewGridSection
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -157,6 +165,9 @@ private fun DisclosureScene(onBack: () -> Unit) {
   }
 }
 
+/** L'altezza della foto dietro le sezioni: piu' di tutte e tre aperte, cosi' non si riscala mai. */
+private val DisclosurePhotoHeight = 1100.dp
+
 @Composable
 private fun DisclosureStage(ground: F8p4Ground) {
   val backdrop = rememberGlassBackdrop()
@@ -164,12 +175,19 @@ private fun DisclosureStage(ground: F8p4Ground) {
     if (ground == F8p4Ground.Page) {
       Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background).glassBackdropSource(backdrop))
     } else {
-      Image(
-        painter = painterResource(if (ground == F8p4Ground.LightPhoto) R.drawable.viewer_flower else R.drawable.viewer_astronaut),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.matchParentSize().glassBackdropSource(backdrop),
-      )
+      // La foto ha un'altezza sua, fissa, e il riquadro la ritaglia: quando una sezione si apre il riquadro si allunga e
+      // ne scopre di piu', invece di riscalarla a ogni fotogramma (F8.4b).
+      Box(Modifier.matchParentSize().clipToBounds().glassBackdropSource(backdrop)) {
+        Image(
+          painter = painterResource(if (ground == F8p4Ground.LightPhoto) R.drawable.viewer_flower else R.drawable.viewer_astronaut),
+          contentDescription = null,
+          contentScale = ContentScale.Crop,
+          modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(align = Alignment.Top, unbounded = true)
+            .requiredHeight(DisclosurePhotoHeight),
+        )
+      }
     }
     Column(
       Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp),
@@ -280,8 +298,6 @@ private fun RowsSelectionScene(onBack: () -> Unit) {
   }
 }
 
-/** L'altezza della barra delle scene sotto la barra di stato: 8 + 44 + 8. */
-private val SceneBarHeight = 60.dp
 
 @Composable
 private fun SceneTopBar(title: String, onBack: () -> Unit, action: String?, onAction: () -> Unit) {
@@ -318,7 +334,8 @@ internal fun f8p4Library(count: Int = 2400): List<FluidPreviewGridSection<F8p4Ph
     F8p4Photo(
       id = i,
       date = day,
-      image = i % 5,
+      // Sparse con un passo primo, non `i % 5`: a 5 colonne ogni colonna ripeteva la stessa immagine (F8.4b).
+      image = Math.floorMod(i * 7919 + (i / 5) * 104729 + (i / 3) * 31, 9),
       bias = BiasAlignment(((i * 37) % 21 - 10) / 10f, ((i * 53) % 21 - 10) / 10f),
       color = Color.hsv(h.toFloat(), 0.35f + (i % 7) * 0.05f, 0.55f + (i % 5) * 0.08f),
     )
@@ -338,10 +355,13 @@ private fun PhotoGridScene(onBack: () -> Unit) {
   val selection = rememberFluidSelectionState<Int>()
   val grid = rememberFluidPreviewGridState()
   val context = LocalContext.current
-  // Le quattro immagini, decodificate una volta per la scena: nessuna cella decodifica niente.
+  // Le cinque immagini, decodificate una volta per la scena: nessuna cella decodifica niente. Le voci da 5 a 8 sono
+  // colori.
   val images = remember(context) {
-    listOf(R.drawable.viewer_flower, R.drawable.viewer_astronaut, R.drawable.viewer_rocket, R.drawable.viewer_campanelle_cover)
-      .map { BitmapPainter(ImageBitmap.imageResource(context.resources, it)) }
+    listOf(
+      R.drawable.viewer_flower, R.drawable.viewer_astronaut, R.drawable.viewer_rocket, R.drawable.viewer_campanelle_cover,
+      R.drawable.viewer_notes_cover,
+    ).map { BitmapPainter(ImageBitmap.imageResource(context.resources, it)) }
   }
   val total = remember(sections) { sections.sumOf { it.items.size } }
   var selecting by rememberSaveable { mutableStateOf(false) }
@@ -349,33 +369,24 @@ private fun PhotoGridScene(onBack: () -> Unit) {
   FluidSelectionBackHandler(selection, onExit = { selecting = false })
   BackHandler(enabled = selecting && !selection.isActive) { selecting = false }
   BackHandler(enabled = !mode) { onBack() }
-  val backdrop = rememberGlassBackdrop()
+  // Come Foto di iOS 26 (F8.4b, scelta di Alessio): il titolo e la data sopra le foto, i tasti di vetro che galleggiano,
+  // le foto fin sotto la barra di stato. La testata la fa la griglia.
   Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-    // La griglia sta sotto la barra: le intestazioni dei mesi si fermano in cima alla griglia, e sotto una barra posata
-    // sopra non si vedrebbero.
-    Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = SceneBarHeight).glassBackdropSource(backdrop)) {
-      FluidPreviewGrid(
-        sections = sections,
-        itemKey = { it.id },
-        state = grid,
-        selection = selection,
-        inSelectionMode = mode,
-        contentPadding = PaddingValues(bottom = 24.dp),
-        fastScrollLabel = { photo ->
-          "${photo.date.dayOfMonth} ${photo.date.month.getDisplayName(TextStyle.SHORT, Locale.ITALY)} ${photo.date.year}"
-        },
-        modifier = Modifier.fillMaxSize().testTag(F8p4Tags.Grid),
-      ) { photo, selected ->
-        F8p4PhotoCell(photo, images, selected)
-      }
-    }
-    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-      Column(Modifier.statusBarsPadding()) {
-        SceneTopBar(
-          title = if (mode) "${selection.countIn(total)} selezionate" else "Libreria",
-          onBack = onBack,
-          action = if (mode) "Fine" else "Seleziona",
-          onAction = {
+    FluidPreviewGrid(
+      sections = sections,
+      itemKey = { it.id },
+      state = grid,
+      selection = selection,
+      inSelectionMode = mode,
+      contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+      title = if (mode) "${selection.countIn(total)} selezionate" else "Libreria",
+      dateLabel = { photo -> F8p4Dates.long(photo.date) },
+      fastScrollLabel = { photo -> F8p4Dates.short(photo.date) },
+      navigation = { FluidGlassIconButton(onClick = onBack) { FluidIcon(FluidIcons.ArrowBack, "Indietro") } },
+      actions = {
+        FluidGlassButton(
+          text = if (mode) "Fine" else "Seleziona",
+          onClick = {
             if (mode) {
               selection.clear()
               selecting = false
@@ -383,10 +394,21 @@ private fun PhotoGridScene(onBack: () -> Unit) {
               selecting = true
             }
           },
+          modifier = Modifier.testTag(F8p4Tags.Select),
         )
-      }
+      },
+      modifier = Modifier.fillMaxSize().testTag(F8p4Tags.Grid),
+    ) { photo, selected ->
+      F8p4PhotoCell(photo, images, selected)
     }
   }
+}
+
+/** Le date della libreria: «24 novembre 2026» in testata, «24 nov 2026» nello scorrimento rapido. */
+internal object F8p4Dates {
+  fun long(date: LocalDate): String = "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.ITALY)} ${date.year}"
+
+  fun short(date: LocalDate): String = "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.SHORT, Locale.ITALY)} ${date.year}"
 }
 
 /** Una cella di foto: niente alloca disegnando (la tinta della scelta e' un velo letto dal layer). */
@@ -434,12 +456,11 @@ private fun FileGridScene(onBack: () -> Unit) {
       }
     }.map { (title, items) -> FluidPreviewGridSection(key = title, title = title, items = items) }
   }
-  val backdrop = rememberGlassBackdrop()
   val cellPx = with(LocalDensity.current) { 160.dp.roundToPx() }
+  val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + FileGridTitleRoom
+  val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
   Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-    // La griglia sta sotto la barra: le intestazioni dei mesi si fermano in cima alla griglia, e sotto una barra posata
-    // sopra non si vedrebbero.
-    Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = SceneBarHeight).glassBackdropSource(backdrop)) {
+    run {
       FluidPreviewGrid(
         sections = sections,
         itemKey = { it.first.id },
@@ -447,9 +468,27 @@ private fun FileGridScene(onBack: () -> Unit) {
         columns = listOf(2, 3, 4),
         cellAspectRatio = 0.78f,
         spacing = 12.dp,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+        // La prima riga parte sotto la testata, e poi ci scorre sotto.
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = top, bottom = bottom),
         selection = selection,
         inSelectionMode = mode,
+        header = { section -> FluidPreviewGridHeader(section.title ?: "") },
+        title = if (mode) "${selection.countIn(entries.size)} selezionati" else "File",
+        navigation = { FluidGlassIconButton(onClick = onBack) { FluidIcon(FluidIcons.ArrowBack, "Indietro") } },
+        actions = {
+          FluidGlassButton(
+            text = if (mode) "Fine" else "Seleziona",
+            onClick = {
+              if (mode) {
+                selection.clear()
+                selecting = false
+              } else {
+                selecting = true
+              }
+            },
+            modifier = Modifier.testTag(F8p4Tags.Select),
+          )
+        },
         modifier = Modifier.fillMaxSize().testTag(F8p4Tags.Grid),
       ) { (file, viewer), selected ->
         Column(Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 0.72f else 1f }) {
@@ -475,25 +514,11 @@ private fun FileGridScene(onBack: () -> Unit) {
         }
       }
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-      Column(Modifier.statusBarsPadding()) {
-        SceneTopBar(
-          title = if (mode) "${selection.countIn(entries.size)} selezionati" else "File",
-          onBack = onBack,
-          action = if (mode) "Fine" else "Seleziona",
-          onAction = {
-            if (mode) {
-              selection.clear()
-              selecting = false
-            } else {
-              selecting = true
-            }
-          },
-        )
-      }
-    }
   }
 }
+
+/** Lo spazio della testata sopra la prima riga dei file: la riga dei tasti, il titolo grande e la data. */
+private val FileGridTitleRoom = 150.dp
 
 // --- Il pager col segmentato -----------------------------------------------------------------------------------------
 
@@ -509,12 +534,13 @@ private fun PagerScene(onBack: () -> Unit) {
     FluidSegmentedPager(segments = segments, state = pager) { index, padding ->
       LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 40.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         when (index) {
           0 -> {
             item { PagerPhoto(R.drawable.viewer_flower) }
+            item { PagerCaption(index, segments.size) }
             item {
               FluidListGroup {
                 Subjects.forEachIndexed { i, (subject, mark) ->
@@ -526,6 +552,7 @@ private fun PagerScene(onBack: () -> Unit) {
           }
           1 -> {
             item { PagerPhoto(R.drawable.viewer_astronaut) }
+            item { PagerCaption(index, segments.size) }
             item {
               FluidListGroup {
                 listOf("Compiti non svolti" to "12 nov", "Ottima partecipazione" to "6 nov", "Ritardo" to "28 ott")
@@ -538,6 +565,7 @@ private fun PagerScene(onBack: () -> Unit) {
           }
           else -> {
             item { PagerPhoto(R.drawable.viewer_rocket) }
+            item { PagerCaption(index, segments.size) }
             item {
               FluidListGroup {
                 listOf("18 novembre" to "Giustificata", "3 novembre" to "Da giustificare", "21 ottobre" to "Giustificata")
@@ -551,17 +579,18 @@ private fun PagerScene(onBack: () -> Unit) {
         }
       }
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides null) {
-      Box(Modifier.statusBarsPadding().padding(start = 12.dp, top = 64.dp)) {
-        Text(
-          "Pagina ${pager.selectedPage + 1} di ${segments.size}",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.padding(start = 4.dp).testTag(F8p4Tags.Readout),
-        )
-      }
-    }
   }
+}
+
+/** «Pagina 2 di 3», sotto la foto della pagina: scorre con lei e non copre niente (F8.4b). */
+@Composable
+private fun PagerCaption(index: Int, count: Int) {
+  Text(
+    "Pagina ${index + 1} di $count",
+    style = MaterialTheme.typography.bodySmall,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier = Modifier.padding(start = 4.dp).testTag(F8p4Tags.Readout),
+  )
 }
 
 @Composable

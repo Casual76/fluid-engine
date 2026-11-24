@@ -12,6 +12,10 @@
  *
  * Quando il ritocco sarebbe troppo (un dito quasi fermo, una voce proiettata che torna indietro, la fine della lista
  * vicina) il moto e' una molla critica con la velocita' del dito: la stessa risposta dei tasti (0,30 s).
+ *
+ * **Niente sfocatura** (4.0, F8.2b, scelta di Alessio del 24 novembre 2026): una ruota e una ghiera le muove il dito, e
+ * cio' che muove l'utente resta nitido, anche durante l'inerzia che continua il suo lancio. Si sfoca solo cio' che l'app
+ * muove da sola (la logica di Apple). La sfocatura del moto di F8.2 e' stata tolta.
  */
 package dev.antigravity.fluidengine.ui.fluid
 
@@ -180,51 +184,6 @@ internal class FluidDetentInertia {
     restSpeed = FluidDetentMotion.RestSpeedPx / px
     moving = from != to || speed != 0f
     if (!moving) velocity = 0f
-  }
-}
-
-/**
- * La sfocatura del movimento (F8.2): il tono di F8 voluto da Alessio, «il blur durante il movimento» dei numeri che
- * scorrono. Una ruota o una ghiera lanciate veloci sfocano le voci **lungo il moto**, poco, e tornano nitide prima di
- * fermarsi; sotto il dito non sfocano (il dito fermo lascerebbe una velocita' vecchia), col movimento ridotto mai. iOS
- * non sfoca la ruota: e' una scelta di casa, a occhio, 23 novembre 2026.
- *
- * Gli effetti sono pochi e fissi (un pixel di raggio per gradino) e si tengono in una cache: cambiare sfocatura a ogni
- * fotogramma non alloca.
- */
-internal object FluidDetentBlur {
-  /** La sfocatura piena, in dp: tre, abbastanza da leggersi come moto e non come un difetto. */
-  const val MaxDp: Float = 3f
-
-  /** Le velocita' (in voci o tacche al secondo) fra cui la sfocatura sale da zero a piena: la ruota. */
-  const val WheelFrom: Float = 12f
-  const val WheelFull: Float = 40f
-
-  /** La ghiera: le tacche sono fitte (9 dp), quindi servono piu' tacche al secondo. */
-  const val RulerFrom: Float = 30f
-  const val RulerFull: Float = 120f
-
-  private const val Steps = 16
-  private val vertical = arrayOfNulls<androidx.compose.ui.graphics.RenderEffect>(Steps + 1)
-  private val horizontal = arrayOfNulls<androidx.compose.ui.graphics.RenderEffect>(Steps + 1)
-
-  /** Il raggio, in pixel, a [speed] voci al secondo, fra [from] e [full], fino a [maxPx]. */
-  fun radiusPx(speed: Float, from: Float, full: Float, maxPx: Float): Float {
-    val s = abs(speed)
-    if (s <= from || full <= from) return 0f
-    return ((s - from) / (full - from)).coerceIn(0f, 1f) * maxPx
-  }
-
-  /** L'effetto per un raggio di [radiusPx] (arrotondato al pixel), solo in verticale o solo in orizzontale; null se zero. */
-  fun effect(radiusPx: Float, verticalMotion: Boolean): androidx.compose.ui.graphics.RenderEffect? {
-    val step = radiusPx.roundToInt().coerceIn(0, Steps)
-    if (step == 0) return null
-    val cache = if (verticalMotion) vertical else horizontal
-    return cache[step] ?: androidx.compose.ui.graphics.BlurEffect(
-      radiusX = if (verticalMotion) 0f else step.toFloat(),
-      radiusY = if (verticalMotion) step.toFloat() else 0f,
-      edgeTreatment = androidx.compose.ui.graphics.TileMode.Decal,
-    ).also { cache[step] = it }
   }
 }
 

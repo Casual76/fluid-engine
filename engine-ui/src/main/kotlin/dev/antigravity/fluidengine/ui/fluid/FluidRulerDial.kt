@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -222,19 +221,8 @@ fun FluidRulerDial(
       RulerLabel(driver, scale, valueText, accent, scheme.onSurfaceVariant)
     }
     Box(Modifier.fillMaxWidth().height(FluidRulerLook.NeedleHeight)) {
-      Canvas(
-        Modifier
-          .matchParentSize()
-          // La sfocatura del moto (F8): solo le tacche e solo mentre la ghiera corre da sola; l'indice resta nitido.
-          .graphicsLayer {
-            @Suppress("UNUSED_VARIABLE")
-            val moved = driver.position
-            val radius = if (reducedMotion) 0f else FluidDetentBlur.radiusPx(
-              driver.motionSpeed, FluidDetentBlur.RulerFrom, FluidDetentBlur.RulerFull, FluidDetentBlur.MaxDp * this.density,
-            )
-            renderEffect = FluidDetentBlur.effect(radius, verticalMotion = false)
-          },
-      ) {
+      // Le tacche restano nitide anche durante l'inerzia: la ghiera la muove il dito (F8.2b).
+      Canvas(Modifier.matchParentSize()) {
         val position = driver.position
         val w = size.width
         val cx = w / 2f
@@ -367,10 +355,6 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
   var isLtr: Boolean = true
     private set
 
-  /** Quanto corre la ghiera da sola, in tacche al secondo (zero sotto il dito e a riposo): per la sfocatura del moto. */
-  var motionSpeed: Float = 0f
-    private set
-
   private val inertia = FluidDetentInertia().apply { snapTo(initial) }
   private val notches = FluidSliderNotchGate()
   private var job: Job? = null
@@ -410,7 +394,6 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
     val was = moving
     job?.cancel()
     job = null
-    motionSpeed = 0f
     inertia.snapTo(position)
     restartHaptics()
     return was
@@ -545,11 +528,9 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
         val dt = if (last < 0L) 0f else (now - last) / 1e9f
         last = now
         inertia.step(dt)
-        motionSpeed = inertia.velocity
         position = inertia.position
         if (live) report(now / 1_000_000L, inertia.velocity) else restartHaptics()
       }
-      motionSpeed = 0f
       position = inertia.position
       if (live) {
         report(lastMillis, 0f)

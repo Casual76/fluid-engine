@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.ui.unit.dp
+import java.io.File
 import java.time.LocalTime
 import kotlin.math.PI
 import kotlin.math.abs
@@ -132,19 +134,23 @@ class F8p2WheelsTest {
     val (longBytes, longFrames) = measure(300)
     val perFrame = (longBytes - shortBytes).toDouble() / (longFrames - shortFrames).toDouble()
     println("F8p2 inerzia: $shortBytes byte in $shortFrames fotogrammi, $longBytes byte in $longFrames: $perFrame byte a fotogramma")
-    assertTrue("$perFrame byte a fotogramma", perFrame < 0.01)
+    // Un oggetto per fotogramma costerebbe almeno 16 byte a fotogramma; cio' che resta (centesimi di byte, cioe' un oggetto
+    // ogni migliaia di fotogrammi) e' il rumore del JIT e cambia da un giro all'altro (0,005 e 0,011 nei lotti di F8.2).
+    assertTrue("$perFrame byte a fotogramma", perFrame < 1.0)
     assertTrue("costo fisso della misura: $longBytes byte", longBytes < 2048)
   }
 
   @Test
-  fun `la sfocatura del moto arriva solo a ruota veloce e non alloca a ogni fotogramma`() {
-    val max = FluidDetentBlur.MaxDp * 2.625f
-    assertEquals(0f, FluidDetentBlur.radiusPx(5f, FluidDetentBlur.WheelFrom, FluidDetentBlur.WheelFull, max), 0f)
-    assertEquals(max, FluidDetentBlur.radiusPx(-80f, FluidDetentBlur.WheelFrom, FluidDetentBlur.WheelFull, max), 1e-5f)
-    assertEquals(null, FluidDetentBlur.effect(0.3f, verticalMotion = true))
-    val first = FluidDetentBlur.effect(4.2f, verticalMotion = true)
-    assertTrue("lo stesso effetto per lo stesso raggio", first === FluidDetentBlur.effect(3.8f, verticalMotion = true))
-    assertTrue("un effetto per asse", first !== FluidDetentBlur.effect(4.2f, verticalMotion = false))
+  fun `ruota e ghiera restano nitide anche durante l'inerzia, perche' le muove il dito`() {
+    // F8.2b, la scelta di Alessio del 24 novembre 2026: cio' che muove l'utente col dito resta nitido. Nessun effetto di
+    // sfocatura nei tre file del moto a scatti (la sfocatura del moto di F8.2 e' stata tolta).
+    val root = listOf(File("src/main/kotlin"), File("engine-ui/src/main/kotlin")).first { it.isDirectory }
+    for (name in listOf("FluidWheelPicker.kt", "FluidRulerDial.kt", "FluidDetentInertia.kt")) {
+      val text = File(root, "dev/antigravity/fluidengine/ui/fluid/$name").readText()
+      assertFalse("$name: renderEffect", text.contains("renderEffect"))
+      assertFalse("$name: BlurEffect", text.contains("BlurEffect"))
+      assertFalse("$name: blur(", text.contains("blur("))
+    }
   }
 
   @Test
@@ -174,6 +180,20 @@ class F8p2WheelsTest {
     assertEquals(216f, FluidWheelDefaults.Height.value, 0f)
     assertEquals(32f, FluidWheelDefaults.RowHeight.value, 0f)
     assertEquals(34f, FluidWheelDefaults.RowHeight.value + FluidWheelLook.BandExtra.value, 0f)
+  }
+
+  @Test
+  fun `la fascia e' una capsula rientrata di 45 punti come in iOS 26 e 27, e meno su una ruota stretta`() {
+    // Il timer di Orologio di iOS 27: la fascia da 73 a 415 px su uno schermo largo 393 pt da 22 a 466 px.
+    val pxPerPt = (466 - 22 + 1) / 393f
+    assertEquals((73 - 22) / pxPerPt, FluidWheelLook.BandInset.value, 1.5f)
+    assertEquals((466 - 415) / pxPerPt, FluidWheelLook.BandInset.value, 1.5f)
+    assertEquals(45f, fluidWheelBandInset(393.dp).value, 0f)
+    assertEquals(45f, fluidWheelBandInset(411.dp).value, 0f)
+    // Una ruota da 200 dp (un popover): la fascia resta larga 152.
+    assertEquals(24f, fluidWheelBandInset(200.dp).value, 1e-3f)
+    // Alta 34, cioe' 38,7 px a 1,13 px a punto nelle schermate.
+    assertEquals(38.7f / pxPerPt, FluidWheelDefaults.RowHeight.value + FluidWheelLook.BandExtra.value, 0.5f)
   }
 
   @Test

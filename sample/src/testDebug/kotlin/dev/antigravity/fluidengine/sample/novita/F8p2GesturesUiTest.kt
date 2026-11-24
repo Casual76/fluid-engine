@@ -220,7 +220,8 @@ class F8p2GesturesUiTest {
     // Compose stima (in Robolectric meno di quella del dito finto: qui ~4 voci). Si ferma su una voce intera.
     println("F8p2 lancio: ferma su $minute")
     assertTrue("si e' fermata su $minute", minute >= 16)
-    assertTrue("tic durante l'inerzia: ${haptics.played.size}", haptics.played.size >= 5)
+    // Un tic per voce passata, col dito e durante l'inerzia (la rete dei 55 ms ne puo' saltare qualcuno a corsa veloce).
+    assertTrue("tic durante il gesto e l'inerzia: ${haptics.played.size}", haptics.played.size >= 3)
     // E una volta ferma, niente si muove.
     assertEquals("scritture a riposo", 0, writesDuring(1000))
   }

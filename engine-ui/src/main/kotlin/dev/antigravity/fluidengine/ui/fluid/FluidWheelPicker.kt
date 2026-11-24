@@ -22,6 +22,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -51,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -154,8 +154,19 @@ internal object FluidWheelLook {
   /** La fascia: 34 pt su voci da 32 (Flutter da iOS; 39 px ≈ 34 pt nel timer di iOS 27). Fiducia alta. */
   val BandExtra: Dp = 2.dp
 
-  /** Il margine della fascia dai bordi della ruota: 9 pt (Flutter, da iOS 14–18). Fiducia media. */
-  val BandInset: Dp = 9.dp
+  /**
+   * Il margine della fascia dai bordi della ruota: 45 pt, quello di iOS 26 e 27 (F8.2b). Misurato sulle schermate del
+   * timer di Orologio (iOS 27 e 26: la fascia va da 73 a 415 px su uno schermo da 22 a 466 px, a 1,13 px a punto: 45 pt
+   * per lato) e sulla ruota delle HIG (44,5 pt dal bordo della scheda). Fiducia alta. Fino a iOS 18 era di 9 pt, ed era
+   * il valore di F8.2: la fascia andava quasi da bordo a bordo.
+   */
+  val BandInset: Dp = 45.dp
+
+  /**
+   * Su una ruota stretta (un popover, una colonna sola) il margine non supera questa frazione della larghezza: 45 pt su
+   * 393 sono l'11,5%, e una ruota da 200 dp tiene cosi' una fascia di 152. A occhio, 24 novembre 2026.
+   */
+  const val BandInsetMaxFraction: Float = 0.12f
 
   /**
    * Il raggio del cilindro, come frazione dell'altezza della ruota: 0,39, cioe' 84 pt su 216. Dalle schermate: le voci
@@ -241,8 +252,9 @@ fun FluidWheelPicker(
  *
  * **Le misure sono quelle di `UIPickerView`**, prese dalle schermate di iOS 26 e 27: alta 216 dp, voci da 32 dp su un
  * cilindro di 84 dp di raggio (tre voci piene per lato e una quarta schiacciata, accorciate col coseno dell'angolo), la
- * fascia a capsula alta 34 dp con 9 dp di margine, la voce scelta ingrandita di 1,12, le voci fuori dalla fascia al 45%
- * dell'inchiostro e piu' tenui verso i bordi. Vedi [FluidWheelLook].
+ * fascia a capsula alta 34 dp e rientrata di 45 dp per lato come in iOS 26 (le colonne stanno dentro quello spazio), la
+ * voce scelta ingrandita di 1,12, le voci fuori dalla fascia al 45% dell'inchiostro e piu' tenui verso i bordi. Vedi
+ * [FluidWheelLook].
  *
  * **Il gesto.**
  *  - Un trascinamento in verticale la gira, 1:1 col dito; oltre la prima e l'ultima voce cede con l'elastico di UIKit.
@@ -262,7 +274,8 @@ fun FluidWheelPicker(
  * con le parole di `FluidLabels`, che su una ruota che gira all'infinito passano dall'ultima alla prima).
  *
  * **A riposo non ridisegna niente**; mentre gira si ridisegnano solo le voci (in disegno, nessuna ricomposizione) e il
- * moto non alloca per fotogramma. Le voci si misurano una volta.
+ * moto non alloca per fotogramma. Le voci si misurano una volta. Le voci restano **nitide** anche durante l'inerzia:
+ * le muove il dito (F8.2b).
  *
  * @param columns le colonne, da sinistra (da destra a sinistra si specchiano).
  * @param enabled spenta, la ruota e' a meta' opacita' e non risponde.
@@ -301,14 +314,16 @@ fun FluidWheelPicker(
   val bandBackdrop = rememberCombinedGlassBackdrop(backdrop, wheelSource)
   val unitGapPx = with(density) { FluidWheelLook.UnitGap.toPx() }
 
-  Box(
+  BoxWithConstraints(
     modifier
       .alpha(if (enabled) 1f else 0.5f)
       .fillMaxWidth()
       .height(FluidWheelDefaults.Height),
   ) {
+    // La fascia rientra come in iOS 26, e le colonne stanno nello stesso spazio: il valore scelto resta dentro la capsula.
+    val inset = fluidWheelBandInset(maxWidth)
     // 1. Le voci fuori dalla fascia, registrate: la fascia le piega al suo bordo.
-    Row(Modifier.matchParentSize().glassBackdropSource(wheelSource)) {
+    Row(Modifier.matchParentSize().padding(horizontal = inset).glassBackdropSource(wheelSource)) {
       columns.forEachIndexed { i, column ->
         key(i) {
           val texts = rememberWheelLabels(measurer, rowStyle, unitStyle, column)
@@ -316,18 +331,18 @@ fun FluidWheelPicker(
         }
       }
     }
-    // 2. La fascia di vetro, ferma.
+    // 2. La fascia di vetro, ferma: una capsula alta 34 dp, rientrata.
     Box(
       Modifier
         .align(Alignment.Center)
         .fillMaxWidth()
-        .padding(horizontal = FluidWheelLook.BandInset)
+        .padding(horizontal = inset)
         .height(with(density) { bandPx.toDp() })
         // Una capsula: la fascia di iOS 26 e 27 (timer di Orologio, HIG); fino a iOS 18 era un rettangolo a raggio 8.
         .fluidGlass(FluidGlass.Regular, FluidCapsuleShape, bandBackdrop),
     )
     // 3. Le voci dentro la fascia, sopra il vetro; i gesti e i nodi per TalkBack, una colonna per nodo.
-    Row(Modifier.matchParentSize()) {
+    Row(Modifier.matchParentSize().padding(horizontal = inset)) {
       columns.forEachIndexed { i, column ->
         key(i) {
           val driver = drivers[i]
@@ -348,6 +363,13 @@ fun FluidWheelPicker(
   }
 }
 
+/**
+ * Il margine della fascia (e delle colonne) su una ruota larga [width]: [FluidWheelLook.BandInset], 45 dp come iOS 26,
+ * ma mai oltre [FluidWheelLook.BandInsetMaxFraction] della larghezza.
+ */
+internal fun fluidWheelBandInset(width: Dp): Dp =
+  minOf(FluidWheelLook.BandInset, width * FluidWheelLook.BandInsetMaxFraction)
+
 // ---------------------------------------------------------------------------------------------
 // Il disegno
 // ---------------------------------------------------------------------------------------------
@@ -363,7 +385,7 @@ private fun RowScope.WheelCanvas(
   isLtr: Boolean,
   unitGapPx: Float,
 ) {
-  Canvas(Modifier.weight(column.weight.coerceAtLeast(0.01f)).fillMaxHeight().wheelMotionBlur(driver)) {
+  Canvas(Modifier.weight(column.weight.coerceAtLeast(0.01f)).fillMaxHeight()) {
     drawWheel(driver, texts, column, bandPx, inner, ink, isLtr, unitGapPx)
   }
 }
@@ -378,22 +400,9 @@ private fun WheelCanvasBox(
   isLtr: Boolean,
   unitGapPx: Float,
 ) {
-  Canvas(Modifier.fillMaxSize().wheelMotionBlur(driver)) {
+  Canvas(Modifier.fillMaxSize()) {
     drawWheel(driver, texts, column, bandPx, inner = true, ink, isLtr, unitGapPx)
   }
-}
-
-/**
- * La sfocatura del movimento delle voci ([FluidDetentBlur]): solo mentre la ruota corre da sola, lungo il moto. Il blocco
- * del layer legge la posizione, quindi si rifa' a ogni fotogramma del moto e a riposo no.
- */
-private fun Modifier.wheelMotionBlur(driver: FluidWheelDriver): Modifier = graphicsLayer {
-  @Suppress("UNUSED_VARIABLE")
-  val moved = driver.position
-  val radius = if (driver.reduced) 0f else FluidDetentBlur.radiusPx(
-    driver.motionSpeed, FluidDetentBlur.WheelFrom, FluidDetentBlur.WheelFull, FluidDetentBlur.MaxDp * density,
-  )
-  renderEffect = FluidDetentBlur.effect(radius, verticalMotion = true)
 }
 
 /**
@@ -648,13 +657,6 @@ internal class FluidWheelDriver(
   private var haptics: FluidHaptics? = null
   private var enabled = true
 
-  /** Il movimento ridotto, per il disegno (niente sfocatura). */
-  val reduced: Boolean get() = reducedMotion
-
-  /** Quanto corre la ruota da sola, in voci al secondo (zero sotto il dito e a riposo): per la sfocatura del moto. */
-  var motionSpeed: Float = 0f
-    private set
-
   private val inertia = FluidDetentInertia().apply { snapTo(column.selected.toFloat()) }
   private val notches = FluidSliderNotchGate()
   private var job: Job? = null
@@ -699,7 +701,6 @@ internal class FluidWheelDriver(
     val wasMoving = moving
     job?.cancel()
     job = null
-    motionSpeed = 0f
     inertia.snapTo(position)
     notches.restart(centred)
     return wasMoving
@@ -812,13 +813,10 @@ internal class FluidWheelDriver(
         val dt = if (last < 0L) 0f else (now - last) / 1e9f
         last = now
         inertia.step(dt)
-        // Prima della posizione: il layer che la legge trova la velocita' di questo fotogramma.
-        motionSpeed = inertia.velocity
         position = inertia.position
         // Un valore cambiato da fuori (l'app, TalkBack) non vibra: il dito non ha fatto niente, come nello scrubber.
         if (report) tick(now / 1_000_000L, inertia.velocity)
       }
-      motionSpeed = 0f
       position = inertia.position
       if (report) land() else notches.restart(centred)
     }

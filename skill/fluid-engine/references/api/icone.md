@@ -7,14 +7,36 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val LocalFluidIconSize: ProvidableCompositionLocal<Dp>` — La taglia che una [FluidIcon] senza `size` prende dal posto in cui sta.
 - `@Composable fun FluidIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current, size: Dp = LocalFluidIconSize.current)` — Un'icona che prende **la taglia dal posto in cui sta** ([LocalFluidIconSize]) e **l'inchiostro dal contenuto** (`LocalContentColor`, come `Icon` di Material).
 
+## `engine-ui/ui/fluid/FluidSymbolEffect.kt`
+
+- `class FluidSymbolEffect private constructor(internal val kind: Int, internal val variant: Int, val speed: Float, val repeatCount: Int, internal val pivotX: Float, internal val pivotY: Float)` — Un effetto dei simboli, dal vocabolario di SF Symbols: si applica a un'icona con [fluidSymbolEffect] (una volta, a ogni cambio di un valore), con [fluidSymbolEffectWhile] (finché è attivo), o dentro [FluidSymbol], che sa anche il colore variabile per strati, la sostituzione e Draw On / Draw Off.
+  - `fun speed(factor: Float): FluidSymbolEffect` — Lo stesso effetto alla velocità [factor] (`.speed` di Apple).
+  - `fun repeat(count: Int): FluidSymbolEffect` — Lo stesso effetto ripetuto [count] volte a ogni colpo (`.repeat` di Apple).
+  - `companion object`
+    - `val Bounce: FluidSymbolEffect` — Il rimbalzo verso l'alto (`.bounce`): il simbolo cresce del 25 %, scende sotto la taglia e si posa, 0,6 s.
+    - `val BounceDown: FluidSymbolEffect` — Il rimbalzo verso il basso (`.bounce.down`): si stringe e torna.
+    - `val Pulse: FluidSymbolEffect` — La pulsazione (`.pulse`): l'opacità scende al 48 % e torna, 2 s.
+    - `val Wiggle: FluidSymbolEffect` — Il dondolio in avanti, nel verso della lettura (`.wiggle.forward`): 0,9 s, picco al 7 % della taglia.
+    - `val WiggleUp: FluidSymbolEffect` — Il dondolio in alto e in basso (`.wiggle.up`).
+    - `val WiggleClockwise: FluidSymbolEffect` — Il dondolio che ruota attorno al centro in senso orario (`.wiggle.clockwise`): ±10°.
+    - `fun wiggleRotation(clockwise: Boolean = true, pivotX: Float = 0.5f, pivotY: Float = 0.5f): FluidSymbolEffect` — Il dondolio che ruota attorno a un perno ([pivotX], [pivotY], in frazione del riquadro): la campanella si appende in alto (`pivotY = 0,12`). [clockwise] falso parte in senso antiorario.
+    - `val Rotate: FluidSymbolEffect` — Un giro in senso orario (`.rotate`), 1,9 s; attivo, gira finché lo è.
+    - `val RotateCounterClockwise: FluidSymbolEffect` — Un giro in senso antiorario (`.rotate.counterClockwise`).
+    - `val Breathe: FluidSymbolEffect` — Il respiro (`.breathe`): +23 % e schiarito al 65 %, un ciclo di 3 s.
+    - `val VariableColor: FluidSymbolEffect` — Il colore variabile «a uno a uno» (`.variableColor.iterative`): una tacca accesa per volta.
+    - `val VariableColorCumulative: FluidSymbolEffect` — Il colore variabile «a riempire» (`.variableColor.cumulative`): le tacche restano accese.
+- `fun Modifier.fluidSymbolEffect(effect: FluidSymbolEffect, trigger: Any?): Modifier` — Suona [effect] sul contenuto (un'icona, un'immagine) ogni volta che [trigger] cambia, come `symbolEffect(_:value:)` di SwiftUI: la prima composizione non suona. Lavora sul simbolo intero (scala, spostamento, rotazione, opacità nel livello del contenuto): il contenuto non si ridisegna e non si ricompone. Il colore variabile per strati, la sostituzione e Draw On / Off sono in [FluidSymbol];
+- `fun Modifier.fluidSymbolEffectWhile(effect: FluidSymbolEffect, active: Boolean): Modifier` — Tiene [effect] in corso finché [active] è vero, come `symbolEffect(_:isActive:)`: la sincronizzazione che gira, il microfono che respira. Spento, finisce il ciclo in corso e si ferma a riposo (la rotazione finisce il giro frenando). Fuori dallo schermo il giro dei fotogrammi si ferma col nodo.
+- `@Composable fun FluidSymbol(icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current, size: Dp = LocalFluidIconSize.current, effect: FluidSymbolEffect? = null, trigger: Any? = null, active: Boolean = false, drawn: Boolean = true)` — Un'icona che sa i suoi strati: il simbolo di SF Symbols per le icone di [dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons]. Oltre a ciò che fa [fluidSymbolEffect] sa:
+
 ## `engine-ui/ui/fluid/icons/FluidIcons.kt`
 
 - `object FluidIcons` — Le icone dell'engine: Material Symbols arrotondate a peso 500, al tratto.
   - `object Filled` — Le stesse sagome a riempimento pieno, solo per le icone che ne hanno bisogno: la scheda della tab bar (in Apple la tab bar e' piena e le barre al tratto, R6), la forma «accesa» di uno stato (preferito, scelto) e i comandi di riproduzione. Nelle barre si usa la forma al tratto.
 
-## Il set: 162 icone al tratto, 31 anche piene
+## Il set: 164 icone al tratto, 31 anche piene
 
-Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31; `FluidIconsOutline.kt`: 162), una riga per icona invece che una per dichiarazione. Ogni riga vale la proprietà al tratto `val FluidIcons.<icona>: ImageVector` e, quando la terza colonna non è vuota, anche quella piena `val FluidIcons.Filled.<icona>: ImageVector`, con l'uso per cui la piena esiste. Si importano per nome (`import dev.antigravity.fluidengine.ui.fluid.icons.<icona>`): lo stesso import porta tutte e due. La seconda colonna è il nome in Material Symbols, quello da cercare partendo da un'icona Material; la corrispondenza con le icone che le app usano oggi è in `tools/icons/corrispondenza.md`.
+Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31; `FluidIconsOutline.kt`: 164), una riga per icona invece che una per dichiarazione. Ogni riga vale la proprietà al tratto `val FluidIcons.<icona>: ImageVector` e, quando la terza colonna non è vuota, anche quella piena `val FluidIcons.Filled.<icona>: ImageVector`, con l'uso per cui la piena esiste. Si importano per nome (`import dev.antigravity.fluidengine.ui.fluid.icons.<icona>`): lo stesso import porta tutte e due. La seconda colonna è il nome in Material Symbols, quello da cercare partendo da un'icona Material; la corrispondenza con le icone che le app usano oggi è in `tools/icons/corrispondenza.md`.
 
 | icona | Material Symbols | piena |
 |---|---|---|
@@ -177,6 +199,8 @@ Dai file generati da `tools/icons/gen_fluid_icons.py` (`FluidIconsFilled.kt`: 31
 | `Visibility` | `visibility` |  |
 | `VisibilityOff` | `visibility_off` |  |
 | `VolumeOff` | `volume_off` |  |
+| `VolumeUp` | `volume_up` |  |
 | `Warning` | `warning` |  |
 | `WbSunny` | `wb_sunny` | `Filled.WbSunny` · tab bar |
 | `Widgets` | `widgets` | `Filled.Widgets` · tab bar |
+| `Wifi` | `wifi` |  |

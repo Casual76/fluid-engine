@@ -3,8 +3,8 @@
 Generato da `tools/icons/gen_fluid_icons.py`: non modificare a mano. Stesse righe, in forma da script, in
 `corrispondenza.csv` (`origine;nome;symbols;fluid;nota`).
 
-Il set ha **162 icone** al tratto e **31** varianti piene. Delle icone Material del
-censimento (`censimento-app.txt`) **180 su 361** hanno un equivalente nel set (1684 usi su 2117); **181** restano fuori (433 usi). Per ognuna
+Il set ha **164 icone** al tratto e **31** varianti piene. Delle icone Material del
+censimento (`censimento-app.txt`) **182 su 361** hanno un equivalente nel set (1694 usi su 2117); **179** restano fuori (423 usi). Per ognuna
 c'e' il nome di Material Symbols: per portarla nel set basta la riga nell'elenco.
 
 **Come si migra.** `Icons.Rounded.X` (o `Icons.AutoMirrored.Rounded.X`, `Icons.Outlined.X`) diventa
@@ -77,6 +77,7 @@ piena.
 | `Pause` | 9 | `FluidIcons.Filled.Pause` | riproduzione: pieni come in Apple |
 | `Public` | 9 | `FluidIcons.Language` | al posto di `public` (continenti pieni): il globo a reticolo, al tratto |
 | `Sync` | 9 | `FluidIcons.Sync` |  |
+| `Wifi` | 9 | `FluidIcons.Wifi` |  |
 | `ArrowUpward` | 8 | `FluidIcons.ArrowUpward` |  |
 | `ChevronRight` | 8 | `FluidIcons.ChevronRight` | si gira da sola da destra a sinistra |
 | `Code` | 8 | `FluidIcons.Code` |  |
@@ -198,6 +199,7 @@ piena.
 | `PictureAsPdf` | 1 | `FluidIcons.PictureAsPdf` |  |
 | `Redo` | 1 | `FluidIcons.Redo` | si gira da sola da destra a sinistra |
 | `SkipNext` | 1 | `FluidIcons.Filled.SkipNext` | riproduzione: pieni come in Apple |
+| `VolumeUp` | 1 | `FluidIcons.VolumeUp` | si gira da sola da destra a sinistra |
 
 ## Fuori dal set
 
@@ -208,7 +210,6 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 |---|---:|---|---|
 | `Block` | 9 | MyCloud-Gallery-2 | `block` |
 | `WaterDrop` | 9 | FluidWeather | `water_drop` |
-| `Wifi` | 9 | MyCloud-Gallery-2 | `wifi` |
 | `AdminPanelSettings` | 8 | MyCloud-Gallery-2 | `admin_panel_settings` |
 | `TextFields` | 8 | MyCloud-Gallery-2 | `text_fields` |
 | `Backup` | 7 | MyCloud-Gallery-2 | `backup` |
@@ -383,7 +384,6 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 | `VerticalSplit` | 1 | MyCloud-Gallery-2 | `vertical_split` |
 | `ViewInAr` | 1 | universal_converter | `view_in_ar` |
 | `ViewList` | 1 | Pampa widgets | `view_list` |
-| `VolumeUp` | 1 | MyCloud-Gallery-2 | `volume_up` |
 | `WbTwilight` | 1 | FluidWeather | `wb_twilight` |
 | `WifiFind` | 1 | MyCloud-Gallery-2 | `wifi_find` |
 | `Work` | 1 | Pampa notes | `work` |
@@ -391,8 +391,8 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 ## Fluidify (Phosphor)
 
 Fluidify usa Phosphor (`com.adamglin.phosphoricons`), non Material: le sue icone non entrano come tali.
-Qui l'equivalente Material Symbols di ognuna, per nome e stile (98 righe, 84 nomi): 46 righe sono gia' nel set,
-50 hanno un equivalente fuori dal set, 2 non ne hanno. «Vicina» vuol dire
+Qui l'equivalente Material Symbols di ognuna, per nome e stile (98 righe, 84 nomi): 49 righe sono gia' nel set,
+47 hanno un equivalente fuori dal set, 2 non ne hanno. «Vicina» vuol dire
 stessa idea, sagoma diversa; lo stile `Fill` va sulla variante piena.
 
 | Phosphor | Material Symbols | FluidIcons | nota |
@@ -468,10 +468,10 @@ stessa idea, sagoma diversa; lo stile `Fill` va sulla variante piena.
 | `Fill.SkipBack` | `skip_previous` |  | fuori dal set: per averla, la riga `skip_previous` in fluid-icons.txt |
 | `Fill.SkipForward` | `skip_next` | `FluidIcons.Filled.SkipNext` |  |
 | `Regular.SpeakerHifi` | `speaker` |  | fuori dal set: per averla, la riga `speaker` in fluid-icons.txt |
-| `Fill.SpeakerHigh` | `volume_up` |  | fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt |
-| `Regular.SpeakerHigh` | `volume_up` |  | fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt |
+| `Fill.SpeakerHigh` | `volume_up` | `FluidIcons.VolumeUp` | la piena non e' nel set (`volume_up pieno` nell'elenco per averla) |
+| `Regular.SpeakerHigh` | `volume_up` | `FluidIcons.VolumeUp` |  |
 | `Fill.SpeakerLow` | `volume_down` |  | fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt |
-| `Regular.SpeakerSimpleHigh` | `volume_up` |  | fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt |
+| `Regular.SpeakerSimpleHigh` | `volume_up` | `FluidIcons.VolumeUp` |  |
 | `Regular.SpeakerSimpleLow` | `volume_down` |  | fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt |
 | `Fill.SpeakerX` | `volume_off` | `FluidIcons.VolumeOff` | la piena non e' nel set (`volume_off pieno` nell'elenco per averla) |
 | `Regular.SpotifyLogo` | — |  | nessun equivalente; marchio di terzi |

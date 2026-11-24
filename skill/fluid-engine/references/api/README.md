@@ -13,11 +13,11 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 70 |
 | [Controlli](controlli.md) | 21 | 174 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
-| [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
+| [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 256 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
 | [Tema, forma, tipo](tema.md) | 9 | 123 |
-| [Icone (FluidIcons)](icone.md) | 4 | 197 |
+| [Icone (FluidIcons)](icone.md) | 5 | 206 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 13 | 155 |
 | [Aptica](aptica.md) | 4 | 70 |

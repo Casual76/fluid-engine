@@ -93,6 +93,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber, cursore a due maniglie, ruota di iOS (anche durata e ora), ghiera a righello (i controlli a gesto) | `componenti/controlli-gesto.md` |
 | un numero con l'unità (importi, misure), il codice a caselle, la password con le regole, un valore riservato, la copia che si cancella, il tasto incolla per i dati concordati | `componenti/campi-speciali.md` |
+| i coriandoli di un successo; un'icona che rimbalza, dondola, gira, respira o pulsa, le tacche del Wi-Fi in fila, play che diventa pausa, la spunta che si disegna (gli effetti di SF Symbols) | `componenti/festa-e-simboli.md` |
 | pop-up, foglio, avviso, conferma, portale, pannello laterale (`FluidDrawer`), scelta di data e ora | `componenti/menu-modali.md` |
 | menu che si trasforma, azioni della barra, menu contestuale | `componenti/menu-liquidi.md` |
 | notifiche contestuali (la card che si tocca; azioni in linea, sostituzione per gruppo, esito) | `componenti/notifiche.md` |

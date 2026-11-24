@@ -60,7 +60,7 @@ material;Pause;pause;FluidIcons.Filled.Pause;riproduzione: pieni come in Apple
 material;Public;language;FluidIcons.Language;al posto di `public` (continenti pieni): il globo a reticolo, al tratto
 material;Sync;sync;FluidIcons.Sync;
 material;WaterDrop;water_drop;;fuori dal set: per averla, la riga `water_drop` in fluid-icons.txt
-material;Wifi;wifi;;fuori dal set: per averla, la riga `wifi` in fluid-icons.txt
+material;Wifi;wifi;FluidIcons.Wifi;
 material;AdminPanelSettings;admin_panel_settings;;fuori dal set: per averla, la riga `admin_panel_settings` in fluid-icons.txt
 material;ArrowUpward;arrow_upward;FluidIcons.ArrowUpward;
 material;ChevronRight;chevron_right;FluidIcons.ChevronRight;si gira da sola da destra a sinistra
@@ -356,7 +356,7 @@ material;UploadFile;upload_file;;fuori dal set: per averla, la riga `upload_file
 material;VerticalSplit;vertical_split;;fuori dal set: per averla, la riga `vertical_split` in fluid-icons.txt
 material;ViewInAr;view_in_ar;;fuori dal set: per averla, la riga `view_in_ar` in fluid-icons.txt
 material;ViewList;view_list;;fuori dal set: per averla, la riga `view_list` in fluid-icons.txt
-material;VolumeUp;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+material;VolumeUp;volume_up;FluidIcons.VolumeUp;si gira da sola da destra a sinistra
 material;WbTwilight;wb_twilight;;fuori dal set: per averla, la riga `wb_twilight` in fluid-icons.txt
 material;WifiFind;wifi_find;;fuori dal set: per averla, la riga `wifi_find` in fluid-icons.txt
 material;Work;work;;fuori dal set: per averla, la riga `work` in fluid-icons.txt
@@ -431,10 +431,10 @@ phosphor;Regular.Shuffle;shuffle;;fuori dal set: per averla, la riga `shuffle` i
 phosphor;Fill.SkipBack;skip_previous;;fuori dal set: per averla, la riga `skip_previous` in fluid-icons.txt
 phosphor;Fill.SkipForward;skip_next;FluidIcons.Filled.SkipNext;
 phosphor;Regular.SpeakerHifi;speaker;;fuori dal set: per averla, la riga `speaker` in fluid-icons.txt
-phosphor;Fill.SpeakerHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
-phosphor;Regular.SpeakerHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+phosphor;Fill.SpeakerHigh;volume_up;FluidIcons.VolumeUp;la piena non e' nel set (`volume_up pieno` nell'elenco per averla)
+phosphor;Regular.SpeakerHigh;volume_up;FluidIcons.VolumeUp;
 phosphor;Fill.SpeakerLow;volume_down;;fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt
-phosphor;Regular.SpeakerSimpleHigh;volume_up;;fuori dal set: per averla, la riga `volume_up` in fluid-icons.txt
+phosphor;Regular.SpeakerSimpleHigh;volume_up;FluidIcons.VolumeUp;
 phosphor;Regular.SpeakerSimpleLow;volume_down;;fuori dal set: per averla, la riga `volume_down` in fluid-icons.txt
 phosphor;Fill.SpeakerX;volume_off;FluidIcons.VolumeOff;la piena non e' nel set (`volume_off pieno` nell'elenco per averla)
 phosphor;Regular.SpotifyLogo;-;;"nessun equivalente; marchio di terzi"

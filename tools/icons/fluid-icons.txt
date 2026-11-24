@@ -181,3 +181,7 @@ leaderboard pieno             # 1 app, 1 usi; tab bar
 ## Le forme di Apple che R6 chiede alle barre
 arrow_back_ios_new            # R6: la freccia indietro centrata, come il chevron di Apple
 filter_list                   # R6: il verbo «filtro» delle barre
+
+## Le icone a strati per il colore variabile degli effetti dei simboli (F8.5)
+wifi                          # F8.5: le tacche del Wi-Fi in fila, il colore variabile di SF Symbols
+volume_up                     # F8.5: le onde dell'altoparlante, il colore variabile di SF Symbols

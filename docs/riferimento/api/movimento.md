@@ -9,6 +9,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `enum class FluidPressGrip` — Di chi e' il dito che e' sceso su un pulsante, quando una pagina che lo contiene vuole scorrere.
 
+## `engine-ui/ui/fluid/FluidCelebration.kt`
+
+- `class FluidCelebrationState internal constructor()` — Lo stato della festa: [launch] la fa partire, [isCelebrating] dice se e' in corso. Si crea con [rememberFluidCelebrationState] e si passa a [FluidCelebration].
+  - `var isCelebrating: Boolean by mutableStateOf(false)` — Vero dalla partenza finche' l'ultimo coriandolo non e' uscito (o il segno fermo non e' svanito).
+  - `fun launch(originInRoot: Offset? = null)` — Fa partire la festa. Senza [originInRoot] e' la pioggia dall'alto su tutto lo strato (iMessage); con un punto nella radice (il centro del tasto che ha avuto successo, da `boundsInRoot()`) e' uno scoppio che sale da li' e ricade. Una festa in corso riparte da capo.
+- `@Composable fun rememberFluidCelebrationState(): FluidCelebrationState` — Lo stato di una festa, ricordato.
+- `object FluidCelebrationDefaults` — I colori dei coriandoli.
+  - `@Composable fun colors(): List<Color>` — I colori di sistema di Apple (HIG «Color», iOS 17–18): rosso, arancio, giallo, verde, azzurro, blu, viola, rosa, nella variante chiara o scura del tema. Fiducia **alta** sui valori; che siano quelli dei coriandoli di iMessage e' a occhio (24 novembre 2026, sul confronto in `sessioni/f8-5`).
+- `@Composable fun FluidCelebration(state: FluidCelebrationState, modifier: Modifier = Modifier, colors: List<Color> = FluidCelebrationDefaults.colors(), haptic: Boolean = true)` — La festa per un successo: i coriandoli che piovono dall'alto, come l'effetto «Coriandoli» di iMessage, o che scoppiano da un punto (l'installazione riuscita in Pampa Store, un bel voto in ClasseViva). Si mette **sopra** il contenuto, ultimo in un `Box` grande quanto lo schermo, e parte con [FluidCelebrationState.launch]:
+
 ## `engine-ui/ui/fluid/FluidClock.kt`
 
 - `@Composable fun rememberCurrentDate(): LocalDate` — La data di oggi, che resta oggi.

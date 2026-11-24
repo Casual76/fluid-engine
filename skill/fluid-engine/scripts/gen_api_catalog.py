@@ -106,6 +106,8 @@ UI_FLUID_FILES = {
     "movimento": [
         "FluidPress", "FluidButtonGesture", "FluidInteractions", "FluidMotion",
         "FluidMotionPolicy", "FluidClock", "FluidGooey",
+        # F8.5: la festa (i coriandoli di un successo)
+        "FluidCelebration",
     ],
     # il materiale
     "vetro": [
@@ -127,7 +129,11 @@ UI_FLUID_FILES = {
     # forma e tipo stanno col tema; le misure di tasti, barre e icone (FluidMetrics, 4.0) pure, e le forme concentriche (F3.5)
     "tema": ["FluidShape", "FluidConcentricShape", "FluidType", "FluidMetrics"],
     # l'icona che prende taglia e inchiostro dal posto in cui sta (4.0); il set e' la cartella ui/fluid/icons
-    "icone": ["FluidIcon"],
+    "icone": [
+        "FluidIcon",
+        # F8.5: gli effetti dei simboli (il vocabolario di SF Symbols) e gli strati delle icone
+        "FluidSymbolEffect", "FluidSymbolGeometry",
+    ],
 }
 
 # sottocartelle di ui/fluid che sono una famiglia intera, qualunque nome abbiano i file dentro

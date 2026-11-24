@@ -38,6 +38,8 @@ cedono» e «Un solo vocabolario di movimento» in [../regole.md](../regole.md).
 | spegnere il movimento decorativo | `FluidTheme` applica la durata di sistema a zero. I tuoi componenti leggono `LocalFluidMotionPolicy`. Fuori dal tema usa `FluidMotionPolicyProvider` |
 | sapere che «oggi» è oggi anche dopo mezzanotte | `rememberCurrentDate()`; **non** `remember { LocalDate.now() }` |
 | due forme che si fondono come gocce | `Modifier.gooey { raggioPx }` (offscreen layer + soglia sull'alfa) |
+| far muovere un'icona come SF Symbols (rimbalzo, dondolio, rotazione, respiro, colore variabile, Draw On) | `Modifier.fluidSymbolEffect(FluidSymbolEffect.Bounce, trigger)` o `FluidSymbol`: [festa-e-simboli.md](festa-e-simboli.md) |
+| i coriandoli di un successo | `FluidCelebration` + `rememberFluidCelebrationState().launch()`: [festa-e-simboli.md](festa-e-simboli.md) |
 | un'animazione di **pagina** | non qui: [pagine](../api/pagine.md) e la scheda delle pagine |
 | una barra di scorrimento o un cursore | non una molla tua: `FluidFastScroller`, `FluidScrubber`, `FluidSlider` hanno già i loro token (`FastScrollerHideMillis`, `ScrubberHoldMillis`) |
 

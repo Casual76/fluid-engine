@@ -55,6 +55,7 @@ internal val NewElementSections: List<NewElementSection> = listOf(
   F8p2Section,
   F8p3Section,
   F8p4Section,
+  NewElementSection(pack = "F8.5", title = "Festa e simboli", scenes = F8p5Scenes, detail = "I coriandoli di un successo e gli effetti di SF Symbols sulle icone"),
   F8p6Section,
 )
 

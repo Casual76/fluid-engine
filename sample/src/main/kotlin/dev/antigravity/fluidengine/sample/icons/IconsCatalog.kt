@@ -181,7 +181,9 @@ internal val IconsCatalog: List<IconsCatalogEntry> = listOf(
   IconsCatalogEntry("Visibility", "visibility", { FluidIcons.Visibility }, null),
   IconsCatalogEntry("VisibilityOff", "visibility_off", { FluidIcons.VisibilityOff }, null),
   IconsCatalogEntry("VolumeOff", "volume_off", { FluidIcons.VolumeOff }, null),
+  IconsCatalogEntry("VolumeUp", "volume_up", { FluidIcons.VolumeUp }, null),
   IconsCatalogEntry("Warning", "warning", { FluidIcons.Warning }, null),
   IconsCatalogEntry("WbSunny", "wb_sunny", { FluidIcons.WbSunny }, { FluidIcons.Filled.WbSunny }),
   IconsCatalogEntry("Widgets", "widgets", { FluidIcons.Widgets }, { FluidIcons.Filled.Widgets }),
+  IconsCatalogEntry("Wifi", "wifi", { FluidIcons.Wifi }, null),
 )

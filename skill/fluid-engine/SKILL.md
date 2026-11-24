@@ -92,6 +92,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |
 | tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber, cursore a due maniglie, ruota di iOS (anche durata e ora), ghiera a righello (i controlli a gesto) | `componenti/controlli-gesto.md` |
+| un numero con l'unità (importi, misure), il codice a caselle, la password con le regole, un valore riservato, la copia che si cancella, il tasto incolla per i dati concordati | `componenti/campi-speciali.md` |
 | pop-up, foglio, avviso, conferma, portale, pannello laterale (`FluidDrawer`), scelta di data e ora | `componenti/menu-modali.md` |
 | menu che si trasforma, azioni della barra, menu contestuale | `componenti/menu-liquidi.md` |
 | notifiche contestuali (la card che si tocca; azioni in linea, sostituzione per gruppo, esito) | `componenti/notifiche.md` |

@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.sample
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -148,7 +150,9 @@ class FluidBetaGalleryTest {
     allItems.forEach { item ->
       compose.runOnIdle { nav.reset(GalleryNav.Launch) }
       compose.waitForIdle()
-      scrollTo("to-try-${item.id}").performClick()
+      // L'azione della riga, non il tocco: con molte voci la riga portata in vista puo' finire sotto la tab bar
+      // flottante, e il dito toccherebbe la tab bar (F8.3, sei voci nuove in coda).
+      scrollTo("to-try-${item.id}").performSemanticsAction(SemanticsActions.OnClick)
       compose.waitForIdle()
 
       when (val target = item.target) {

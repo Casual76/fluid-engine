@@ -959,7 +959,7 @@ private val Stable = TryRound(
         "giudica se la barra si trasforma senza salti e segue la tastiera.",
       TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › La barra sopra la tastiera"),
     ),
-  ) + VisoriItems + F8p2Items,
+  ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems,
 )
 
 

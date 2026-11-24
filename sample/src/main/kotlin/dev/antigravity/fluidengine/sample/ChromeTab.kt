@@ -353,7 +353,7 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
         FluidListDivider()
         FluidListRow(
           title = "Elementi nuovi",
-          subtitle = "F8: gli elementi nuovi del 23 novembre, un pacchetto per sezione (ruote, ghiera, due maniglie…)",
+          subtitle = "F8: gli elementi nuovi del 23 novembre, un pacchetto per sezione (ruote, ghiera, campi speciali…)",
           modifier = Modifier.testTag("chrome-open-new-elements"),
           onClick = { onOpen(GalleryPage.NewElements) },
         )

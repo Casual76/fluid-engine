@@ -5,6 +5,25 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-ui/ui/fluid/FluidCodeField.kt`
+
+- `class FluidCodeFieldState(val length: Int)` — Lo stato di un [FluidCodeField]: il codice scritto, e l'esito che l'app gli dà. È dell'app (ricordato con [rememberFluidCodeFieldState]): l'app legge [code], e a codice sbagliato chiama [fail].
+  - `var code: String by mutableStateOf("")` — Il codice scritto finora, mai più lungo di [length].
+  - `val isComplete: Boolean get()` — Vero quando tutte le caselle sono piene.
+  - `var isError: Boolean by mutableStateOf(false)` — Vero dal [fail] finché non si riscrive: le caselle sono nella tinta d'errore.
+  - `fun set(value: String)` — Scrive [value] (tagliato a [length]): lo usano l'incolla e l'autocompilazione. Toglie l'errore.
+  - `fun clear()` — Svuota le caselle.
+  - `fun fail()` — Il codice non è giusto: le caselle tremano con l'aptica d'errore, prendono la tinta d'errore e si svuotano (come il codice di sblocco di iOS e i campi del codice dell'Account Apple).
+- `@Composable fun rememberFluidCodeFieldState(length: Int = 6): FluidCodeFieldState` — Uno stato del campo a codice di [length] caselle, ricordato nella composizione.
+- `object FluidCodeFieldDefaults` — Le misure del campo a codice. **A occhio** (23 novembre 2026), dai campi del codice dell'Account Apple e di Impostazioni su iOS 26 (fiducia media: nessuna misura al pixel), nella famiglia dei campi dell'engine.
+  - `val CellHeight: Dp` — L'altezza di una casella: 52 dp, quella del campo di vetro dell'engine ([FluidSearchFieldDefaults.Height], F6B.15).
+  - `val CellMinWidth: Dp` — La larghezza minima di una casella: 48 dp, il bersaglio minimo; col testo grande la casella cresce con la cifra e le caselle vanno a capo a gruppi, mai sotto i 48 dp (scheda dell'idea, «rischi»).
+  - `val CellSpacing: Dp` — Lo spazio fra due caselle: 8 dp.
+  - `val GroupSpacing: Dp` — Lo spazio fra due gruppi (3 + 3 per sei cifre, 4 + 4 per otto): 20 dp, come lo stacco dei codici di Apple.
+  - `val CellRadius: Dp` — Il raggio di una casella: quello dei controlli ([FluidRadius.Control], 12 dp), con l'angolo continuo.
+  - `val FocusBorder: Dp` — Il bordo della casella attiva e di quella in errore: 2 dp, nell'accento o nella tinta d'errore.
+- `@Composable fun FluidCodeField(state: FluidCodeFieldState, onComplete: (String) -> Unit, modifier: Modifier = Modifier, digitsOnly: Boolean = true, secret: Boolean = false, verifying: Boolean = false, enabled: Boolean = true, autoFocus: Boolean = false, pasteButton: Boolean = true, label: String? = null, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current)` — Il campo a codice (F8.3, idea `campo-codice`): le caselle per un codice di 4–8 cifre (verifica in due passaggi, PIN, codice di abbinamento). È **un campo solo** per la tastiera, con le caselle disegnate sopra: il fuoco avanza e torna indietro da solo, «cancella» toglie l'ultima cifra, e a codice completo chiama [onComplete].
+
 ## `engine-ui/ui/fluid/FluidControls.kt`
 
 - `enum class FluidButtonStyle` — How much a control's colour says about it.
@@ -19,6 +38,33 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidRowValue(text: String, modifier: Modifier = Modifier)` — A stepper-free numeric or textual value shown at the trailing edge of a settings row.
 - `@Composable fun FluidHairline(modifier: Modifier = Modifier, startInset: Dp = 0.dp, color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha…)` — A hairline. 0.5dp is a real width on every screen the app runs on, and it is what iOS draws.
 - `@Composable fun FluidColorDot(color: Color, selected: Boolean, onClick: () -> Unit, label: String, modifier: Modifier = Modifier, size: Dp = 30.dp)` — A circular dot, used to preview an accent colour in the picker.
+
+## `engine-ui/ui/fluid/FluidFieldClipboard.kt`
+
+- `class FluidPasteKind private constructor(internal val id: String, val codeLengths: IntRange, val digitsOnly: Boolean)` — Il tipo di dato che un campo aspetta: il **dato concordato** della nota di Alessio («se è richiesto un OTP, o un link, o uno screen, allora si appaiono in automatico; appunti normali no»). Il tasto compare **solo** se negli appunti c'è questo tipo di dato.
+  - `companion object`
+    - `fun code(lengths: IntRange = 4..8, digitsOnly: Boolean = true): FluidPasteKind` — Un codice di [lengths] cifre (di serie 4–8: verifica in due passaggi, PIN, abbinamento).
+    - `val Link: FluidPasteKind` — Un link web (`http`, `https`).
+    - `val Image: FluidPasteKind` — Un'immagine, per esempio uno screenshot appena fatto.
+- `sealed class FluidPasted` — Quello che il tasto incolla consegna, già del tipo concordato.
+  - `data class Code(val code: String) : FluidPasted()` — Il codice, solo le sue cifre («123-456» diventa «123456»).
+  - `data class Link(val url: String) : FluidPasted()` — Il link, intero.
+  - `data class Image(val uri: Uri, val mimeType: String) : FluidPasted()` — L'immagine: l'indirizzo e il tipo. Leggerla (con `contentResolver`) è dell'app.
+- `class FluidPasteOffer internal constructor(val kind: FluidPasteKind, private val context: Context, private val manager: ClipboardManager?)` — L'offerta del tasto incolla: se negli appunti c'è il dato di [kind] ([available]) e, al tocco, il dato ([take]). Si aggiorna quando gli appunti cambiano, quando la finestra torna in primo piano (la persona ha copiato in un'altra app) e quando la pagina riprende. Non legge mai il contenuto prima di [take] (da Android 12).
+  - `var available: Boolean by mutableStateOf(false)` — Vero se il tasto deve comparire.
+  - `fun take(): FluidPasted?` — Il dato, letto ora (è il tocco della persona: qui Android può mostrare il suo avviso). Null se nel frattempo gli appunti sono cambiati e il dato non c'è più.
+- `@Composable fun rememberFluidPasteOffer(kind: FluidPasteKind): FluidPasteOffer` — L'offerta del tasto incolla per [kind], che si aggiorna da sola. Per un tasto suo; quello pronto è [FluidPasteButton].
+- `@Composable fun FluidPasteButton(kind: FluidPasteKind, onPaste: (FluidPasted) -> Unit, modifier: Modifier = Modifier, label: String? = null, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current, backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop…)` — Il tasto incolla per i dati concordati (F8.3, idea `tasto-incolla` rivista da Alessio): un tasto di vetro dell'engine che **compare da solo solo se negli appunti c'è il dato che il campo aspetta** — un codice per il campo del codice, un link per un campo link, un'immagine per un campo che accetta uno screenshot — e altrimenti non c'è. Gli appunti normali non lo fanno comparire.
+- `class FluidSensitiveCopy internal constructor(internal val token: String, val expiresAtElapsedRealtime: Long, val duration: Duration)` — Una copia delicata in corso (F8.3, `copia-delicata`): il suo tempo e la sua fine. [isPending] è vero finché gli appunti non sono stati cancellati o sostituiti.
+  - `var isPending: Boolean by mutableStateOf(true)` — Vero finché la copia aspetta la sua cancellazione.
+  - `var wasCleared: Boolean by mutableStateOf(false)` — Vero se alla fine gli appunti sono stati cancellati dall'engine (falso: sostituiti da altro, o lasciati nel dubbio).
+  - `fun remainingMillis(now: Long = SystemClock.elapsedRealtime()): Long` — I millisecondi che restano, mai sotto zero.
+- `object FluidSensitiveClipboard` — La copia delicata: un dato che si copia **segnato come riservato** e che **si cancella dopo un tempo** (di serie 60 s). È `UIPasteboard.setItems(_:options:)` con `.expirationDate` di iOS, come copiano le app di password.
+  - `val DefaultExpiry: Duration` — Il tempo di serie: 60 s, quello della scheda dell'idea (e delle app di password su iOS, che di solito danno 60–90 s).
+  - `fun copy(context: Context, text: CharSequence, label: CharSequence = "", expireAfter: Duration = DefaultExpiry): FluidSensitiveCopy` — Copia [text] come dato riservato, che si cancella dopo [expireAfter] se è ancora negli appunti. [label] è l'etichetta del clip (non si vede da nessuna parte, ma i gestori degli appunti la leggono): di serie vuota, così non racconta cosa è stato copiato.
+  - `fun clearNow(copy: FluidSensitiveCopy)` — Cancella subito gli appunti di [copy], se sono ancora i suoi.
+- `fun Context.fluidCopySensitive(text: CharSequence, label: CharSequence = "", expireAfter: Duration = FluidSensitiveClipboard.DefaultExpiry): FluidSensitiveCopy` — Copia [text] come dato riservato che si cancella dopo [expireAfter] (di serie 60 s): [FluidSensitiveClipboard.copy].
+- `@Composable fun FluidCopyButton(text: () -> String, modifier: Modifier = Modifier, label: String? = null, expireAfter: Duration? = FluidSensitiveClipboard.DefaultExpiry, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current, backdrop: GlassBackdropState = currentGlassBackdrop())` — Il tasto della copia delicata (F8.3): il tasto con esito di Copia ([FluidActionPreset.Copy]) che copia [text] come dato riservato, poi **dice «Copiato» e fa vedere il tempo che resta** nello stesso vetro, col pieno che avanza del contatore «Annulla» ([FluidUndoCountdown]); TalkBack legge «Copiato, si cancella fra 58 s». Alla fine gli appunti si cancellano (se sono ancora quelli) e il tasto torna Copia.
 
 ## `engine-ui/ui/fluid/FluidFilterChips.kt`
 
@@ -83,6 +129,33 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidGlassIconButton(onClick: () -> Unit, size: Dp, modifier: Modifier = Modifier, backdrop: GlassBackdropState = currentGlassBackdrop(), enabled: Boolean = true, selected: Boolean = false, shape: Shape = FluidCapsuleShape, onLongClick: (() -> Unit)? = null, haptic: FluidHapticEvent? = FluidHapticEvent.Tap, longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart, grip: FluidPressGrip = FluidPressGrip.HoldsFinger, style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current, content: @Composable BoxScope.() -> Unit)` — Un tasto tondo di vetro di una misura qualunque (3.0): i 62 e i 76 dp dei dischi del trasporto di un player, i 52 di un hero, i 54 di un pulsante di menu, che le tre taglie di [FluidGlassSize] non dicono.
 - `@Composable fun FluidGlassButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop…, enabled: Boolean = true, selected: Boolean = false, shape: Shape = FluidCapsuleShape, size: FluidGlassSize = LocalFluidGlassSize.current, haptic: FluidHapticEvent? = FluidHapticEvent.Tap, grip: FluidPressGrip = FluidPressGrip.HoldsFinger, leading: (@Composable () -> Unit)? = null, maxLines: Int = Int.MAX_VALUE, style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current, sizing: FluidButtonSizing = LocalFluidButtonSizing.current)` — A glass action button.
 
+## `engine-ui/ui/fluid/FluidPasswordField.kt`
+
+- `object FluidPasswordFieldDefaults` — Le misure del campo password. A occhio, 23 novembre 2026, nella famiglia del campo di testo.
+  - `val StrengthHeight: Dp` — I segmenti della forza: quattro capsule alte 4 dp, a 4 dp l'una dall'altra.
+  - `val StrengthGap: Dp`
+  - `val RuleMark: Dp` — Il segno di una regola: 16 dp, il cerchio vuoto o la spunta.
+- `@Composable fun FluidPasswordField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, rules: FluidPasswordRules? = FluidPasswordRules.Default, newPassword: Boolean = rules != null, showStrength: Boolean = newPassword, suggestStrong: Boolean = newPassword && rules != null, label: String? = null, placeholder: String? = null, enabled: Boolean = true, isError: Boolean = false, supportingText: String? = null, imeAction: ImeAction = if (newPassword) ImeAction.Next else ImeAction.…, keyboardActions: KeyboardActions = KeyboardActions.Default, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current)` — Il campo password guidato (F8.3, idea `campo-password`): [FluidTextField] segreto, con l'occhio che mostra e nasconde, e sotto **le regole che si spuntano mentre si scrive**, **la forza stimata** e, a campo vuoto, **la password forte proposta**, come le schermate di registrazione di iOS con le Password Rules di iCloud Keychain.
+
+## `engine-ui/ui/fluid/FluidPrivateValue.kt`
+
+- `val LocalFluidDiscreetMode: ProvidableCompositionLocal<Boolean>` — La **modalità discreta** (F8.3, `valore-riservato`): vera, vela insieme tutti i valori riservati segnati `discreetOnly` (un voto in classe, un saldo sui mezzi). L'interruttore è dell'app; l'engine la legge da qui.
+- `fun interface FluidPrivateGate` — Chi decide se un valore si può scoprire: di serie nessuno (basta il tocco). L'app, o il blocco dell'engine quando ci sarà (`blocco-biometrico`), ne dà uno che chiede l'impronta o il PIN e risponde vero o falso.
+  - `suspend fun authorize(): Boolean` — Vero se il valore si può mostrare. Si chiama dopo il tocco, sul thread dell'interfaccia.
+- `val LocalFluidPrivateGate: ProvidableCompositionLocal<FluidPrivateGate?>` — Il cancello in uso per i valori riservati di questo albero; null: il tocco basta.
+- `class FluidPrivateState` — Lo stato di un valore riservato: coperto o scoperto. Non si salva: dopo una rotazione o il ritorno nell'app è coperto.
+  - `var isRevealed: Boolean by mutableStateOf(false)` — Vero se il valore si vede.
+  - `fun reveal()` — Mostra il valore, senza passare dal cancello (per un tasto «Mostra» dell'app che ha già chiesto l'impronta).
+  - `fun cover()` — Copre il valore.
+- `@Composable fun rememberFluidPrivateState(): FluidPrivateState` — Uno stato coperto, ricordato nella composizione.
+- `class FluidPrivateVeil private constructor(internal val blur: Boolean)` — Come si vela un valore riservato: un segnaposto al posto del testo, o la sfocatura per un'immagine.
+  - `companion object`
+    - `val Placeholder: FluidPrivateVeil` — Il segnaposto di `redacted(reason: .privacy)` di SwiftUI: barre arrotondate al posto delle righe, col segno dell'occhio barrato. Il valore **non si disegna** (scheda dell'idea: un testo corto sfocato si indovina).
+    - `val Blur: FluidPrivateVeil` — Il velo dei contenuti sensibili di Messaggi: l'immagine molto sfocata con l'occhio e «Tocca per vedere». Per le immagini: una foto sfocata non si legge, e la sagoma aiuta a riconoscerla. Sotto Android 12 (niente sfocatura) diventa il segnaposto.
+- `object FluidPrivateDefaults` — I numeri del valore riservato. **A occhio**, 23 novembre 2026, salvo dove detto.
+  - `val RecoverAfter: Duration` — Dopo quanto un valore scoperto si ricopre da solo: 30 s. Apple non ricopre a tempo un `privacySensitive` (lo fa il sistema col blocco dello schermo); 30 s è il tempo dei gestori di password per un campo mostrato. A occhio.
+- `@Composable fun Modifier.fluidPrivate(state: FluidPrivateState, discreetOnly: Boolean = false, veil: FluidPrivateVeil = FluidPrivateVeil.Placeholder, recoverAfter: Duration? = FluidPrivateDefaults.RecoverAfter, protectWindow: Boolean = true, blockScreenshots: Boolean = false, gate: FluidPrivateGate? = LocalFluidPrivateGate.current, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current): Modifier` — Un valore riservato (F8.3, idea `valore-riservato`): il dato — una chiave, un voto, un saldo, un'anteprima — coperto da un velo finché la persona non lo tocca, come `redacted(reason: .privacy)` e `privacySensitive()` di SwiftUI e il velo dei contenuti sensibili di Messaggi.
+
 ## `engine-ui/ui/fluid/FluidRangeSlider.kt`
 
 - `@Composable fun FluidRangeSlider(value: ClosedFloatingPointRange<Float>, onValueChange: (ClosedFloatingPointRange<Float>) -> Unit, modifier: Modifier = Modifier, valueRange: ClosedFloatingPointRange<Float> = 0f..1f, enabled: Boolean = true, onValueChangeFinished: (() -> Unit)? = null, minDistance: Float = 0f, snapValues: List<Float> = emptyList(), snapThreshold: Float = 0.03f, startContentDescription: String? = null, endContentDescription: String? = null, startStateDescription: String? = null, endStateDescription: String? = null, backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop…)` — Un cursore con due maniglie: il minimo e il massimo di un intervallo (la durata dei brani, il peso delle foto, la dimensione di un allegato). E' [FluidSlider] con una maniglia in piu': la pista, le maniglie di vetro che salgono sotto il dito, la presa, le tacche e l'aptica sono le sue.
@@ -114,6 +187,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidSlider.kt`
 
 - `@Composable fun FluidSlider(value: Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier, valueRange: ClosedFloatingPointRange<Float> = 0f..1f, enabled: Boolean = true, onValueChangeFinished: (() -> Unit)? = null, snapValues: List<Float> = emptyList(), snapThreshold: Float = 0.03f, contentDescription: String? = null, stateDescription: String? = null, backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop…)` — Uno slider di vetro: una pista sottile riempita con l'accento, e una pillola che a riposo e' bianca e opaca e si fa lente mentre il dito la tiene.
+
+## `engine-ui/ui/fluid/FluidSpecialFieldLabels.kt`
+
+- `data class FluidSpecialFieldLabels(val unitPicker: String = "Cambia unità", val converted: (String) -> String = { "≈ $it" }, val code: String = "Codice", val codePosition: (position: Int, total: Int) -> String = { position, total -> "cifra $position di $total…, val codeComplete: String = "codice completo", val codeVerifying: String = "verifica in corso", val codeWrong: String = "Codice non corretto", val strengthLevels: List<String> = listOf("Debole", "Discreta", "Buona", "Forte"), val strengthSpoken: (String) -> String = { "Forza stimata: ${it.lowercase()}" }, val strengthNote: String = "Stima indicativa", val ruleMinLength: (Int) -> String = { "Almeno $it caratteri" }, val ruleMaxLength: (Int) -> String = { "Al massimo $it caratteri" }, val ruleLower: String = "Una lettera minuscola", val ruleUpper: String = "Una lettera maiuscola", val ruleDigit: String = "Un numero", val ruleSpecial: String = "Un simbolo", val ruleLetter: String = "Una lettera", val ruleCustom: (String) -> String = { "Uno di questi: $it" }, val ruleOr: String = " o ", val ruleMaxConsecutive: (Int) -> String = { "Non più di $it caratteri uguali di fila" }, val ruleOnlyAllowed: String = "Solo caratteri ammessi", val ruleMet: String = "fatto", val ruleMissing: String = "da fare", val suggestedTitle: String = "Password forte", val useSuggested: String = "Usa password forte", val suggestedNote: String = "Generata su questo dispositivo. Salvala nel tu…, val ownPassword: String = "Scegli la mia password", val tapToReveal: String = "Tocca per vedere", val hidden: String = "Valore nascosto", val reveal: String = "Mostra", val hide: String = "Nascondi", val copy: String = "Copia", val copied: String = "Copiato", val clearsIn: (seconds: Int) -> String = { "Si cancella fra $it s" }, val cleared: String = "Appunti cancellati", val pasteCode: String = "Incolla il codice", val pasteLink: String = "Incolla il link", val pasteImage: String = "Incolla l'immagine")` — Le parole dei campi speciali (F8.3): il campo con unità, il campo a codice, il campo password, il valore riservato, la copia delicata e il tasto incolla. Di serie in italiano; [English] è la versione inglese completa. Un'app in un'altra lingua ne dà una sua con [LocalFluidSpecialFieldLabels].
+  - `companion object`
+    - `val English: FluidSpecialFieldLabels` — La versione inglese completa.
+- `val LocalFluidSpecialFieldLabels: ProvidableCompositionLocal<FluidSpecialFieldLabels>` — Le parole dei campi speciali in uso.
 
 ## `engine-ui/ui/fluid/FluidStepper.kt`
 
@@ -153,6 +233,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class FluidTokenSuggestion(val id: String, val title: String, val subtitle: String? = null, val leading: (@Composable () -> Unit)? = null)` — Suggerimento controllato dall'app: ID stabile per evitare che un aggiornamento scelga un'altra riga.
 - `@Composable fun FluidTokenField(value: FluidTokenFieldValue, onValueChange: (FluidTokenFieldValue) -> Unit, createToken: (String, List<FluidToken>) -> FluidToken?, modifier: Modifier = Modifier, label: String? = null, placeholder: String? = null, separators: Set<Char> = FluidTokenFieldDefaults.Separators, enabled: Boolean = true, keyboardOptions: KeyboardOptions = KeyboardOptions.Default, onEditToken: ((FluidToken) -> Unit)? = null, suggestions: List<FluidTokenSuggestion> = emptyList(), onSuggestionClick: (FluidTokenSuggestion) -> Unit = {})` — Campo a gettoni che cresce nella pagina: inserirlo nello scroll del chiamante, senza limite verticale interno. createToken valida, normalizza e deduplica (null conserva il testo); un gettone non valido usa isError. onEditToken è opzionale: l'app decide se rimuovere il gettone e mettere la sua etichetta nella bozza.
 - `@Composable fun FluidSuggestionRow(title: String, subtitle: String? = null, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, selected: Boolean = false)` — Riga in pagina, un nodo accessibile; non prende focus alla tastiera mentre si sceglie un suggerimento.
+
+## `engine-ui/ui/fluid/FluidUnitField.kt`
+
+- `object FluidUnitFieldDefaults` — Le misure della capsula dell'unità. A occhio, 23 novembre 2026: alta quanto il contenuto del campo da 40 dp.
+  - `val CapsuleHeight: Dp` — L'altezza della capsula dell'unità: 28 dp, nel campo da 40 con 8 dp sopra e sotto meno 2.
+  - `val CapsulePadding: Dp` — Il margine ai lati del simbolo nella capsula.
+- `@Composable fun FluidUnitField(value: BigDecimal?, onValueChange: (BigDecimal?) -> Unit, unit: FluidUnit, modifier: Modifier = Modifier, units: List<FluidUnit> = emptyList(), onUnitChange: ((FluidUnit) -> Unit)? = null, convertOnUnitChange: Boolean = true, convertTo: FluidUnit? = null, label: String? = null, placeholder: String? = null, supportingText: String? = null, isError: Boolean = false, enabled: Boolean = true, allowNegative: Boolean = unit.dimension == FluidUnitDimension.Temperature, locale: Locale = fluidCurrentLocale(), imeAction: ImeAction = ImeAction.Done, keyboardActions: KeyboardActions = KeyboardActions.Default, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current)` — Il campo con unità (F8.3, idea `campo-con-unita`): un numero con significato — un importo, una misura, una percentuale — con la sua unità accanto, che si legge, si scrive e si converte. **Restituisce sempre il numero** ([onValueChange], un [BigDecimal] nell'unità [unit], o null a campo vuoto), mai la stringa; il valore nell'unità base è `FluidQuantity(valore, unit).inBase()`.
 
 ## `engine-ui/ui/fluid/FluidWheelPicker.kt`
 

@@ -58,6 +58,132 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class EngineCompatibility` — How far behind the engine this app carries is.
 - `fun engineCompatibility(engineVersion: String = EngineBuild.VERSION, minimumVersion: String?, recommendedVersion: String?): EngineCompatibility`
 
+## `engine-foundation/foundation/FluidPasswordRules.kt`
+
+- `class FluidPasswordCharset private constructor(val id: String, internal val test: (Char) -> Boolean, internal val pool: String)` — Un insieme di caratteri di una regola: le classi di Apple (`upper`, `lower`, `digit`, `special`, `ascii-printable`, `unicode`) o un insieme su misura (`[-().&@?'#,/"+]`).
+  - `operator fun contains(c: Char): Boolean` — Vero se [c] è di questo insieme.
+  - `companion object`
+    - `val Upper: FluidPasswordCharset`
+    - `val Lower: FluidPasswordCharset`
+    - `val Digit: FluidPasswordCharset`
+    - `val Special: FluidPasswordCharset`
+    - `val AsciiPrintable: FluidPasswordCharset`
+    - `val Unicode: FluidPasswordCharset`
+    - `fun of(chars: String): FluidPasswordCharset` — Un insieme su misura, i caratteri come li scrive la regola fra parentesi quadre.
+- `sealed class FluidPasswordRequirement` — Una regola sola, quella che il campo spunta mentre si scrive.
+  - `data class MinLength(val count: Int) : FluidPasswordRequirement()` — Almeno [count] caratteri (`minlength`).
+  - `data class MaxLength(val count: Int) : FluidPasswordRequirement()` — Al più [count] caratteri (`maxlength`).
+  - `data class Contains(val any: List<FluidPasswordCharset>) : FluidPasswordRequirement()` — Almeno un carattere di uno degli [any] insiemi (un `required`).
+  - `data class MaxConsecutive(val count: Int) : FluidPasswordRequirement()` — Mai più di [count] caratteri uguali di fila (`max-consecutive`).
+  - `data class OnlyAllowed(val allowed: List<FluidPasswordCharset>) : FluidPasswordRequirement()` — Solo caratteri degli [allowed] insiemi (gli `allowed` e i `required` insieme).
+- `data class FluidPasswordCheck(val requirement: FluidPasswordRequirement, val satisfied: Boolean)` — Una regola e se la password di adesso la rispetta.
+- `class FluidPasswordRules(val minLength: Int = 8, val maxLength: Int? = null, val required: List<List<FluidPasswordCharset>> = emptyList(), val allowed: List<FluidPasswordCharset>? = null, val maxConsecutive: Int? = null)` — Le regole di un servizio: le dichiara l'app (scheda dell'idea: «le regole sono dati che l'app dichiara»), a mano o con la riga di Apple ([parse]). Servono a tre cose: le spunte ([check]), la conferma ([isSatisfiedBy]) e la password forte proposta ([generate]), che le rispetta sempre.
+  - `val requirements: List<FluidPasswordRequirement>` — Le regole nell'ordine in cui il campo le mostra: lunghezza, classi, ripetizioni, caratteri ammessi.
+  - `fun check(password: String): List<FluidPasswordCheck>` — Ogni regola con la sua spunta per [password].
+  - `fun isSatisfiedBy(password: String): Boolean` — Vero se [password] rispetta tutte le regole.
+  - `fun generate(random: Random = SecureRandom()): String` — Una password forte che rispetta queste regole, da [random] (di serie `SecureRandom`, mai un generatore prevedibile).
+  - `companion object`
+    - `val Default: FluidPasswordRules` — Le regole di serie: almeno 8 caratteri con una minuscola, una maiuscola e una cifra. È il minimo che quasi ogni servizio accetta (le linee guida NIST SP 800-63B chiedono 8 caratteri; le classi sono la richiesta più comune dei servizi delle app Pampa). A occhio, 23 novembre 2026.
+    - `fun parse(rules: String): FluidPasswordRules` — Le regole scritte come le Password Rules di Apple: `minlength: 8; maxlength: 64; required: lower; required: upper; required: digit; required: [-().&@?'#,/"+]; max-consecutive: 2; allowed: ascii-printable`. Le proprietà sconosciute e i valori non validi si ignorano, come fa Safari.
+- `data class FluidPasswordStrength(val level: Int, val bits: Double)` — La forza stimata di una password: **una stima semplice, dichiarata come tale** (scheda dell'idea: niente zxcvbn, «la forza stimata è un aiuto visivo»). Non promette niente: dice solo se una password è corta, prevedibile o comune.
+  - `companion object`
+    - `const val FairBits: Double` — Le soglie, in bit: sotto 36 debole, poi discreta fino a 60, buona fino a 80, forte da 80. A occhio, 23 novembre 2026, sulle fasce dei gestori di password (KeePass chiama «buone» le password da 64 bit, «forti» da 80; la password suggerita da Apple ne ha 71 per Apple e sta fra le forti con questa stima, che conta l'alfabeto e non il modello).
+    - `const val GoodBits: Double`
+    - `const val StrongBits: Double`
+    - `fun estimate(password: String): FluidPasswordStrength` — La stima: - **l'alfabeto** è la somma delle classi usate (26 minuscole, 26 maiuscole, 10 cifre, 33 simboli, 100 per il resto); - **la lunghezza efficace** toglie tre quarti di carattere per ogni ripetizione («aaa») e per ogni passo di una sequenza («abc», «321», «qwe»); - **una password comune** (fra le più usate, anche con cifre o simboli in coda: «Password1!») resta debole.
+
+## `engine-foundation/foundation/FluidUnitFormat.kt`
+
+- `object FluidUnitFormat` — Scrivere e leggere un numero con la sua unità nella lingua di chi legge (F8.3, `campo-con-unita`), pure e senza Android. È la parte delle `FormatStyle` di Apple che serve a un campo: `Measurement.FormatStyle(width: .abbreviated, usage: .asProvided)` e `Decimal.FormatStyle.Currency` col loro `parse`.
+  - `const val NoBreakSpace: Char` — Lo spazio che non va a capo fra il numero e il simbolo.
+  - `data class Separators(val decimal: Char, val grouping: Char)` — Il separatore decimale e quello delle migliaia di una lingua.
+  - `fun separators(locale: Locale): Separators` — I separatori di [locale], dalle `DecimalFormatSymbols` della piattaforma. Lo spazio stretto delle migliaia (francese, U+202F) e quello largo restano quelli della lingua: in lettura valgono tutti.
+  - `fun number(value: BigDecimal, locale: Locale, maxFractionDigits: Int, minFractionDigits: Int = 0, grouping: Boolean = true): String` — [value] scritto nella lingua di [locale], con al più [maxFractionDigits] cifre dopo la virgola (arrotondate al pari) e almeno [minFractionDigits]; le migliaia raggruppate se [grouping]. «1234,5» → «1.234,5» in italiano.
+  - `fun group(digits: String, separator: Char): String` — Le cifre intere [digits] raggruppate a tre con [separator], dalle quattro cifre in su.
+  - `fun symbol(unit: FluidUnit, locale: Locale): String` — Il simbolo di [unit] in [locale]: per una valuta quello della lingua («€», «$», «USD» in italiano), se no il suo.
+  - `fun format(quantity: FluidQuantity, locale: Locale, maxFractionDigits: Int = quantity.unit.fractionDigits, minFractionDigits: Int = quantity.unit.minFractionDigits): String` — [quantity] scritta come la scriverebbe Apple con le `FormatStyle` abbreviate: «12,5 km», «21 °C», «12,50 €» in italiano; «12.5 km», «21°C», «€12.50» in inglese. Le cifre sono quelle dell'unità, se non le passi.
+  - `fun attach(number: String, unit: FluidUnit, locale: Locale): String` — Il numero già scritto [number] col simbolo di [unit] al suo posto, secondo le regole della lingua.
+  - `fun symbolBefore(unit: FluidUnit, locale: Locale): Boolean` — Dove sta il simbolo di [unit] in [locale], e se staccato: l'unica parte delle regole CLDR che serve qui. Pubblica per il campo, che mette la capsula dell'unità dallo stesso lato.
+  - `fun name(unit: FluidUnit, locale: Locale, plural: Boolean = false): String?` — Il nome di [unit] in [locale], al singolare o al [plural]: «chilometro», «gradi Celsius». Null per le lingue senza le parole (ci sono italiano e inglese) e per le unità che non sono di serie.
+  - `fun spoken(quantity: FluidQuantity, locale: Locale): String` — Come la legge TalkBack: «12,5 chilometri», «21 gradi Celsius», «1 metro». Le parole ci sono in italiano e in inglese per le unità di serie; per le altre (e per le valute, che TalkBack legge bene da sé) resta [format].
+  - `fun parse(text: String, locale: Locale): BigDecimal?` — Un numero scritto da una persona o incollato da un'altra app, nella lingua di [locale] e con tolleranza: «1.234,5», «1 234,5», «1'234.5», «1,234.5», «−3», «12,5 km». Null se non è un numero.
+  - `fun parseQuantity(text: String, locale: Locale, units: List<FluidUnit>, fallback: FluidUnit): FluidQuantity?` — Come [parse], e in più riconosce il simbolo di una delle [units] attaccato al numero («12,5 km», «€ 12,50»): la quantità ha quell'unità, o [fallback] se il testo non ne porta una. Null se non è un numero o se il simbolo è di un'unità che non è fra le [units].
+
+## `engine-foundation/foundation/FluidUnits.kt`
+
+- `class FluidUnitDimension(val id: String)` — Una grandezza fisica o di conto: lunghezza, massa, temperatura, valuta… Due unità si convertono solo se hanno la stessa dimensione. È un valore (uguale per [id]): un'app può dichiararne una sua, per esempio `FluidUnitDimension("punti")`.
+  - `companion object`
+    - `val Length: FluidUnitDimension`
+    - `val Mass: FluidUnitDimension`
+    - `val Temperature: FluidUnitDimension`
+    - `val Volume: FluidUnitDimension`
+    - `val Area: FluidUnitDimension`
+    - `val Speed: FluidUnitDimension`
+    - `val Duration: FluidUnitDimension`
+    - `val Data: FluidUnitDimension`
+    - `val Energy: FluidUnitDimension`
+    - `val Percent: FluidUnitDimension`
+    - `val Currency: FluidUnitDimension`
+- `class FluidUnit private constructor(val id: String, val dimension: FluidUnitDimension, val symbol: String, internal val numerator: BigInteger?, internal val denominator: BigInteger, internal val shift: Ratio, val fractionDigits: Int, val minFractionDigits: Int, val currencyCode: String?)` — Una unità: il simbolo che si legge accanto al numero e come si arriva all'unità base della sua [dimension].
+  - `val isConvertible: Boolean get()` — Vero se si converte: una valuta senza cambio dichiarato non si converte in nessun'altra.
+  - `fun canConvertTo(other: FluidUnit): Boolean` — Vero se si converte in [other]: stessa dimensione ed entrambe con il loro fattore.
+  - `companion object`
+    - `fun linear(id: String, dimension: FluidUnitDimension, symbol: String, factor: String, fractionDigits: Int = 2, minFractionDigits: Int = 0): FluidUnit` — Una unità lineare: un'unità vale `factor` unità base. [factor] è una stringa decimale esatta ("1609.344") o una frazione ("5/9"), così non passa mai da un Double.
+    - `fun affine(id: String, dimension: FluidUnitDimension, symbol: String, factor: String, shift: String, fractionDigits: Int = 2, minFractionDigits: Int = 0): FluidUnit` — Una unità con uno scostamento ([shift], sommato prima del fattore): i gradi Fahrenheit e i kelvin.
+    - `fun currency(code: String, rate: String? = null, digits: Int? = null): FluidUnit` — Una valuta (ISO 4217, «EUR»). Le cifre decimali sono quelle della valuta (2 per l'euro, 0 per lo yen) se [digits] è null. Il cambio è dell'app ([rate]: quante unità della valuta base vale una di questa; null: non si converte), perché l'engine non sa quanto vale un dollaro oggi. Mai Double: [rate] è una stringa decimale.
+- `data class FluidQuantity(val value: BigDecimal, val unit: FluidUnit)` — Un numero con la sua unità: quello che il campo con unità restituisce, mai la stringa (scheda dell'idea). È un valore: `FluidQuantity(BigDecimal("12.5"), FluidUnits.Kilometer)`.
+  - `fun to(target: FluidUnit, scale: Int = target.fractionDigits): FluidQuantity?` — Lo stesso valore in [target], arrotondato a [scale] cifre (di serie quelle di [target]); null se non si converte.
+  - `fun inBase(scale: Int = 12): BigDecimal?` — Il valore nell'unità base della dimensione, a [scale] cifre; null se l'unità non si converte.
+- `object FluidUnits` — Le unità di serie e le conversioni. I fattori sono le definizioni esatte del SI e degli accordi internazionali (1 in = 2,54 cm dal 1959, 1 lb = 0,45359237 kg, 1 gal US = 231 in³ = 3,785411784 l, 1 kcal = 4184 J, 1 KiB = 1024 B): fiducia alta, sono definizioni, non misure.
+  - `val Millimeter: FluidUnit`
+  - `val Centimeter: FluidUnit`
+  - `val Meter: FluidUnit`
+  - `val Kilometer: FluidUnit`
+  - `val Inch: FluidUnit`
+  - `val Foot: FluidUnit`
+  - `val Yard: FluidUnit`
+  - `val Mile: FluidUnit`
+  - `val Gram: FluidUnit`
+  - `val Kilogram: FluidUnit`
+  - `val Ounce: FluidUnit`
+  - `val Pound: FluidUnit`
+  - `val Celsius: FluidUnit`
+  - `val Fahrenheit: FluidUnit`
+  - `val Kelvin: FluidUnit`
+  - `val Milliliter: FluidUnit`
+  - `val Liter: FluidUnit`
+  - `val CubicMeter: FluidUnit`
+  - `val GallonUS: FluidUnit`
+  - `val SquareMeter: FluidUnit`
+  - `val Hectare: FluidUnit`
+  - `val SquareKilometer: FluidUnit`
+  - `val MetersPerSecond: FluidUnit`
+  - `val KilometersPerHour: FluidUnit`
+  - `val MilesPerHour: FluidUnit`
+  - `val Knot: FluidUnit`
+  - `val Second: FluidUnit`
+  - `val Minute: FluidUnit`
+  - `val Hour: FluidUnit`
+  - `val Byte: FluidUnit`
+  - `val Kilobyte: FluidUnit`
+  - `val Megabyte: FluidUnit`
+  - `val Gigabyte: FluidUnit`
+  - `val Kibibyte: FluidUnit`
+  - `val Mebibyte: FluidUnit`
+  - `val Joule: FluidUnit`
+  - `val Kilojoule: FluidUnit`
+  - `val Kilocalorie: FluidUnit`
+  - `val KilowattHour: FluidUnit`
+  - `val Percent: FluidUnit`
+  - `val Euro: FluidUnit`
+  - `val Dollar: FluidUnit`
+  - `val PoundSterling: FluidUnit`
+  - `val all: List<FluidUnit>` — Tutte le unità di serie, nell'ordine delle dimensioni.
+  - `fun byId(id: String): FluidUnit?` — L'unità di serie con questo [id] ("km", "celsius", "EUR"), o null.
+  - `fun of(dimension: FluidUnitDimension): List<FluidUnit>` — Le unità di serie di una [dimension], nell'ordine della tabella: quelle che il campo offre di serie.
+  - `fun convert(value: BigDecimal, from: FluidUnit, to: FluidUnit, scale: Int = to.fractionDigits): BigDecimal?` — [value] da [from] a [to], arrotondato a [scale] cifre dopo la virgola con l'arrotondamento al pari (quello di serie delle `FormatStyle` di Apple, `.toNearestOrEven`). Null se le due unità non si convertono.
+  - `fun toBase(value: BigDecimal, unit: FluidUnit, scale: Int = 12): BigDecimal?` — [value] di [unit] nell'unità base della sua dimensione, a [scale] cifre. Null se [unit] non si converte.
+
 ## `engine-foundation/foundation/SyncStatus.kt`
 
 - `enum class SyncState` — What the last attempt to refresh the app's data did.

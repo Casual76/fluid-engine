@@ -24,6 +24,10 @@ Le righe di impostazioni che contengono un interruttore o un cursore (`FluidTogg
 scheda [contenuto.md](contenuto.md); qui si dice solo come interruttore e cursore si comportano *dentro* la riga.
 Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 
+I campi che sanno cosa contengono (un numero con l'unità, un codice a caselle, una password con le regole, un valore
+riservato, la copia che si cancella, il tasto incolla) hanno la loro scheda, [campi-speciali.md](campi-speciali.md): sono
+tutti questo campo di testo, senza un aspetto loro.
+
 ## Scegliere in fretta
 
 | ho bisogno di… | uso |

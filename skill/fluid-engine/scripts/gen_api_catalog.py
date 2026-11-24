@@ -80,6 +80,9 @@ UI_FLUID_FILES = {
         "FluidFilterChips",
         # F8.2: la ruota, le ruote pronte, la ghiera a righello, il cursore a intervallo e la loro inerzia a scatti
         "FluidWheelPicker", "FluidWheelPresets", "FluidRulerDial", "FluidRangeSlider", "FluidDetentInertia",
+        # F8.3: i campi speciali (unità, codice, password, valore riservato, copia delicata, tasto incolla) e le loro parole
+        "FluidUnitField", "FluidCodeField", "FluidPasswordField", "FluidPrivateValue", "FluidFieldClipboard",
+        "FluidSpecialFieldLabels",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [

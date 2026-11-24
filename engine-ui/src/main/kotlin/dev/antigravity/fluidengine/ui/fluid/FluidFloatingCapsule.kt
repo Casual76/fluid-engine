@@ -493,8 +493,9 @@ fun FluidCapsuleAction(
           FluidActionLook(iconSize, color, scheme.error, reducedMotion))
       }
     }
-    if (undoSlot == null) rest() else FluidGlassContentTransition(undoSlot.face, key = { it?.label },
-      modifier = Modifier.clearAndSetSemantics { }) { shown ->
+    if (undoSlot == null) rest() else FluidGlassContentTransition(FluidUndoFace(undoSlot.face), key = { it.key },
+      modifier = Modifier.clearAndSetSemantics { }) { face ->
+      val shown = face.countdown
       if (shown == null) rest() else {
         val fill = rememberFluidUndoFill(shown.state)
         Box(Modifier.size(width, size).fluidUndoFill(fill, accent), contentAlignment = Alignment.Center) {

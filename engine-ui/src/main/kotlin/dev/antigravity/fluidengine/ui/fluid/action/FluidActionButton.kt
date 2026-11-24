@@ -62,6 +62,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButtonCore
 import dev.antigravity.fluidengine.ui.fluid.FluidPressFeedback
 import dev.antigravity.fluidengine.ui.fluid.FluidUndoCountdown
 import dev.antigravity.fluidengine.ui.fluid.fluidUndoDescription
+import dev.antigravity.fluidengine.ui.fluid.FluidUndoFace
 import dev.antigravity.fluidengine.ui.fluid.fluidUndoFill
 import dev.antigravity.fluidengine.ui.fluid.fluidUndoLabelWidth
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPressState
@@ -483,7 +484,8 @@ fun FluidActionButton(
         lens = inkSize, lensWidth = targetWidth, style = style,
       ) {
         val ink = LocalContentColor.current
-        FluidGlassContentTransition(undoSlot.face, key = { it?.label }) { shown ->
+        FluidGlassContentTransition(FluidUndoFace(undoSlot.face), key = { it.key }) { face ->
+          val shown = face.countdown
           if (shown != null) {
             val fill = rememberFluidUndoFill(shown.state)
             Box(Modifier.size(targetWidth, inkSize).fluidUndoFill(fill, ink), contentAlignment = Alignment.Center) {

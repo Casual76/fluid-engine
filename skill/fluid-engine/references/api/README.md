@@ -11,7 +11,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 39 | 343 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda](grafici.md) | 2 | 30 |
-| [Controlli](controlli.md) | 15 | 111 |
+| [Controlli](controlli.md) | 21 | 174 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 7 | 203 |
 | [Vetro](vetro.md) | 32 | 249 |
@@ -22,7 +22,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 12 | 144 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 9 | 55 |
+| [engine-foundation](foundation.md) | 12 | 145 |
 | [engine-storage](storage.md) | 1 | 14 |
 | [engine-net](net.md) | 1 | 4 |
 | [engine-config](config.md) | 1 | 9 |

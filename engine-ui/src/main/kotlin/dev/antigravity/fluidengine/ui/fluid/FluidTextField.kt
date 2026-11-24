@@ -24,7 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,6 +113,56 @@ fun FluidTextField(
   leading: (@Composable () -> Unit)? = null,
   trailing: (@Composable () -> Unit)? = null,
 ) {
+  FluidTextFieldText(value, onValueChange, modifier, placeholder, label, enabled, readOnly, singleLine, minLines, maxLines,
+    isError, supportingText, minHeight, keyboardOptions, keyboardActions, visualTransformation, showClearButton, secret,
+    leading, trailing, extras = null)
+}
+
+/**
+ * Le estensioni interne del campo (F8.3): quello che i campi speciali (password, unità, incolla) aggiungono al campo di
+ * sempre senza un aspetto loro. Null in [FluidTextField]: il campo di prima, nodo per nodo.
+ *
+ * @property contentType il tipo di contenuto per l'autocompilazione del sistema (password nuova, codice SMS).
+ * @property revealed l'occhio di un campo segreto comandato da fuori: la password forte proposta si mostra in chiaro.
+ * @property fieldModifier sul campo di testo vero (il fuoco, i tag dei test), non sul pozzo.
+ * @property leadingWide / [trailingWide] un posto largo quanto il suo contenuto, prima o dopo il testo: la capsula
+ *   dell'unità, il tasto «Incolla». Lo slot di 24 dp di [FluidTextField] resta quello che è.
+ * @property supporting sotto il campo, al posto del testo di aiuto: le spunte delle regole, la forza.
+ */
+internal class FluidTextFieldExtras(
+  val contentType: ContentType? = null,
+  val revealed: MutableState<Boolean>? = null,
+  val fieldModifier: Modifier = Modifier,
+  val leadingWide: (@Composable () -> Unit)? = null,
+  val trailingWide: (@Composable () -> Unit)? = null,
+  val supporting: (@Composable () -> Unit)? = null,
+)
+
+/** La forma a [String] con le [extras] interne (F8.3). */
+@Composable
+internal fun FluidTextFieldText(
+  value: String,
+  onValueChange: (String) -> Unit,
+  modifier: Modifier,
+  placeholder: String?,
+  label: String?,
+  enabled: Boolean,
+  readOnly: Boolean,
+  singleLine: Boolean,
+  minLines: Int,
+  maxLines: Int,
+  isError: Boolean,
+  supportingText: String?,
+  minHeight: Dp,
+  keyboardOptions: KeyboardOptions,
+  keyboardActions: KeyboardActions,
+  visualTransformation: VisualTransformation,
+  showClearButton: Boolean,
+  secret: Boolean,
+  leading: (@Composable () -> Unit)?,
+  trailing: (@Composable () -> Unit)?,
+  extras: FluidTextFieldExtras?,
+) {
   // Lo stesso accorgimento di BasicTextField(String): la selezione e la composizione IME stanno in
   // uno stato locale, il testo e' sempre quello del chiamante. Se il chiamante cambia il testo da
   // fuori, la selezione locale si tiene (e il campo la riporta nei limiti da solo).
@@ -121,7 +175,7 @@ fun FluidTextField(
   }
   var lastText by remember(value) { mutableStateOf(value) }
 
-  FluidTextField(
+  FluidTextFieldCore(
     value = current,
     onValueChange = { new ->
       fieldValue = new
@@ -148,6 +202,7 @@ fun FluidTextField(
     secret = secret,
     leading = leading,
     trailing = trailing,
+    extras = extras,
   )
 }
 
@@ -181,6 +236,54 @@ fun FluidTextField(
   leading: (@Composable () -> Unit)? = null,
   trailing: (@Composable () -> Unit)? = null,
 ) {
+  FluidTextFieldCore(value, onValueChange, modifier, placeholder, label, enabled, readOnly, singleLine, minLines, maxLines,
+    isError, supportingText, minHeight, keyboardOptions, keyboardActions, visualTransformation, showClearButton, secret,
+    leading, trailing, extras = null)
+}
+
+/**
+ * Il pozzo del campo di testo, del colore che [FluidTextField] si dà dove sta: velato sulla pagina, opaco del colore del
+ * pannello sopra il vetro, tinto d'errore con [isError]. Lo usano i campi che disegnano più pozzi (il campo a codice,
+ * F8.3), così una casella del codice è lo stesso incavo del campo accanto.
+ */
+@Composable
+internal fun fluidTextFieldWellColor(isError: Boolean): Color {
+  val scheme = MaterialTheme.colorScheme
+  val onGlass = LocalFluidCanvasIsGlass.current
+  val film = GlassDefaults.glassFilm()
+  return when {
+    onGlass && isError -> lerp(film, scheme.error, 0.22f)
+    onGlass -> lerp(film, scheme.onSurface, 0.18f)
+    isError -> scheme.error.copy(alpha = 0.10f)
+    else -> scheme.onSurface.copy(alpha = fluidQuietFillAlpha(GlassDefaults.isDarkSurface()))
+  }
+}
+
+/** Il corpo del campo, con le [extras] interne dei campi speciali (F8.3); null è il campo di sempre. */
+@Composable
+internal fun FluidTextFieldCore(
+  value: TextFieldValue,
+  onValueChange: (TextFieldValue) -> Unit,
+  modifier: Modifier,
+  placeholder: String?,
+  label: String?,
+  enabled: Boolean,
+  readOnly: Boolean,
+  singleLine: Boolean,
+  minLines: Int,
+  maxLines: Int,
+  isError: Boolean,
+  supportingText: String?,
+  minHeight: Dp,
+  keyboardOptions: KeyboardOptions,
+  keyboardActions: KeyboardActions,
+  visualTransformation: VisualTransformation,
+  showClearButton: Boolean,
+  secret: Boolean,
+  leading: (@Composable () -> Unit)?,
+  trailing: (@Composable () -> Unit)?,
+  extras: FluidTextFieldExtras?,
+) {
   val scheme = MaterialTheme.colorScheme
   val interactionSource = remember { MutableInteractionSource() }
   // Chi chiede almeno due righe vuole un campo su piu' righe, anche se non ha tolto `singleLine`
@@ -194,7 +297,9 @@ fun FluidTextField(
   val clearButton = showClearButton && oneLine && !secret
   // Parte nascosto a ogni composizione: ricordarsi di essere stato mostrato vorrebbe dire che una
   // rotazione dello schermo, o il ritorno da un'altra app, rimette in chiaro una password.
-  var revealed by remember { mutableStateOf(false) }
+  val localRevealed = remember { mutableStateOf(false) }
+  val revealState = extras?.revealed ?: localRevealed
+  var revealed by revealState
   val masked = secret && !revealed
   val transformation = if (masked) PasswordVisualTransformation() else visualTransformation
   val options = if (secret && keyboardOptions == KeyboardOptions.Default) {
@@ -224,15 +329,8 @@ fun FluidTextField(
   // punti sotto il pannello, cioe' MENO stacco della velatura che aveva prima. Piatto e
   // indistinguibile non e' un incavo, e' una toppa. Diciotto centesimi lo portano a circa 210: i
   // venti punti che l'incavo aveva sulla pagina opaca, questa volta senza la pagina dentro.
-  val onGlass = LocalFluidCanvasIsGlass.current
-  val film = GlassDefaults.glassFilm()
-  val wellColor = when {
-    onGlass && isError -> lerp(film, scheme.error, 0.22f)
-    onGlass -> lerp(film, scheme.onSurface, 0.18f)
-    isError -> scheme.error.copy(alpha = 0.10f)
-    // Il grigio di riempimento di Apple (F6.6): 18 livelli sotto la pagina chiara, ~28 sopra la scura.
-    else -> scheme.onSurface.copy(alpha = fluidQuietFillAlpha(GlassDefaults.isDarkSurface()))
-  }
+  // Il grigio di riempimento di Apple (F6.6): 18 livelli sotto la pagina chiara, ~28 sopra la scura (fluidTextFieldWellColor).
+  val wellColor = fluidTextFieldWellColor(isError)
   // Capsula a una riga, rettangolo arrotondato col raggio della capsula su piu' righe (F6.6).
   val wellShape = if (oneLine) FluidCapsuleShape else FluidTextFieldMultilineShape
 
@@ -252,7 +350,11 @@ fun FluidTextField(
     BasicTextField(
       value = value,
       onValueChange = onValueChange,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = if (extras == null) Modifier.fillMaxWidth() else {
+        val type = extras.contentType
+        Modifier.fillMaxWidth().then(extras.fieldModifier)
+          .then(if (type != null) Modifier.semantics { contentType = type } else Modifier)
+      },
       enabled = enabled,
       readOnly = readOnly,
       singleLine = oneLine,
@@ -279,6 +381,9 @@ fun FluidTextField(
             CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) {
               Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) { leading() }
             }
+          }
+          extras?.leadingWide?.let { wide ->
+            CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) { wide() }
           }
           Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.text.isEmpty() && placeholder != null) {
@@ -309,6 +414,9 @@ fun FluidTextField(
               Box(modifier = Modifier.size(FluidFieldTrailingSize), contentAlignment = Alignment.Center) { trailing() }
             }
           }
+          extras?.trailingWide?.let { wide ->
+            CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) { wide() }
+          }
           if (secret) {
             CompositionLocalProvider(LocalContentColor provides scheme.onSurfaceVariant) {
               FluidRevealButton(revealed = revealed, enabled = enabled, onToggle = { revealed = !revealed })
@@ -318,6 +426,7 @@ fun FluidTextField(
       },
     )
 
+    extras?.supporting?.invoke()
     supportingText?.takeIf { it.isNotBlank() }?.let {
       Text(
         text = it,

@@ -41,16 +41,18 @@ internal class NewElementScene(
   val content: @Composable (onBack: () -> Unit) -> Unit,
 )
 
-/** Le scene di un pacchetto di F8: la sigla ([pack], «F8.2»), il titolo e le scene. */
+/** Le scene di un pacchetto di F8: la sigla ([pack], «F8.2»), il titolo, le scene e una riga facoltativa ([detail]). */
 internal class NewElementSection(
   val pack: String,
   val title: String,
   val scenes: List<NewElementScene>,
+  val detail: String? = null,
 )
 
 /** Un pacchetto per riga, nell'ordine del piano. */
 internal val NewElementSections: List<NewElementSection> = listOf(
   F8p2Section,
+  F8p3Section,
 )
 
 /** Gli extra di lancio della pagina (solo nella build di debug). */
@@ -76,10 +78,11 @@ internal fun newElementScene(id: String?): NewElementScene? {
  * all'indice; quello dell'indice chiude la pagina ([onBack]). La scena chiesta con `novita.scene` si apre da sola.
  */
 @Composable
-internal fun NewElementsPage(onBack: () -> Unit) {
+internal fun NewElementsPage(onBack: () -> Unit, initial: String? = null) {
   val context = LocalContext.current
   val launched = remember(context) {
-    context.findActivity()?.takeIf { context.isDebuggableApp() }?.intent?.getStringExtra(NewElementsLaunch.ExtraScene)
+    initial ?: context.findActivity()?.takeIf { context.isDebuggableApp() }?.intent
+      ?.getStringExtra(NewElementsLaunch.ExtraScene)
   }
   NewElementsPageAt(onBack = onBack, initial = launched)
 }
@@ -113,7 +116,7 @@ private fun NewElementsIndex(onBack: () -> Unit, onOpen: (NewElementScene) -> Un
     NewElementSections.forEach { section ->
       item(key = "sezione-${section.pack}") {
         Column {
-          FluidSectionHeader(title = "${section.pack} · ${section.title}")
+          FluidSectionHeader(title = "${section.pack} · ${section.title}", detail = section.detail)
           FluidListGroup {
             section.scenes.forEachIndexed { index, scene ->
               if (index > 0) FluidListDivider()

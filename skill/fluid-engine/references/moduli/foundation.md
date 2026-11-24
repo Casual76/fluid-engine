@@ -30,6 +30,9 @@ Schede dei moduli che lo usano: [storage](storage.md), [net](net.md), [config](c
 | mostrare «aggiornato 5 min fa / offline / errore» | `SyncStatus` + `SyncState`; la riga la disegna `engine-ui` (`FluidSync*`) |
 | un'altra implementazione dell'aggiornamento in-app (non GitHub) | implementare `AppUpdater`; l'UI parla solo questo contratto |
 | un campo di configurazione **senza** default sicuro | non e' un flag: va nella build (vedi `EngineFlag`) |
+| un numero con la sua unità, convertito senza `Double` (F8.3) | `FluidQuantity(valore, FluidUnits.Kilometer).to(FluidUnits.Mile)`, `FluidUnits.convert(…)` |
+| scrivere o leggere «12,5 km», «€12.50» nella lingua | `FluidUnitFormat.format(quantità, locale)`, `FluidUnitFormat.parse(testo, locale)` |
+| le regole di una password, la forza, una password forte (F8.3) | `FluidPasswordRules.parse(…)`, `FluidPasswordStrength.estimate(…)`, `rules.generate()` |
 
 ## Versioni: `EngineBuild`, `compareVersions`, `isStableVersionNewer`, `EngineCompatibility`
 
@@ -326,6 +329,24 @@ sessione scaduta insegna a ignorare il rosso. **Con `notice` valorizzato** i com
 frase cosi' com'e' e **non offrono il riprova** (riprovare non aiuta). `failedSections` serve a `PARTIAL`: quali parti non sono arrivate.
 
 **Trappola.** Mettere un guasto vero in `notice` per «renderlo meno rosso»: sparisce il tasto riprova e l'utente non ha piu' modo di agire.
+
+## Unità e password (F8.3): `FluidUnits`, `FluidUnitFormat`, `FluidPasswordRules`
+
+La parte pura dei campi speciali di `engine-ui` ([../componenti/campi-speciali.md](../componenti/campi-speciali.md)).
+
+- **`FluidUnit` e `FluidUnits`**: una unità è un simbolo e la strada esatta verso l'unità base della sua dimensione
+  (`FluidUnitDimension`): `base = (valore + scostamento) × fattore`, con fattore e scostamento frazioni di `BigInteger`.
+  La sola divisione è l'ultima, arrotondata al pari (`.toNearestOrEven` delle `FormatStyle`). Le unità di serie sono le
+  più usate di Foundation, coi fattori delle definizioni; un'app ne dichiara di sue con `FluidUnit.linear` e
+  `FluidUnit.affine`, e le valute con `FluidUnit.currency(codice, rate)`: senza cambio una valuta non si converte.
+- **`FluidQuantity`**: il numero con la sua unità, quello che il campo restituisce; `to(unità)` e `inBase()`.
+- **`FluidUnitFormat`**: i separatori della lingua, i numeri raggruppati, il simbolo al suo posto con lo spazio che non
+  va a capo, le parole per TalkBack in italiano e in inglese, e la lettura larga (l'altra convenzione dei separatori, gli
+  spazi e gli apostrofi delle migliaia, il meno tipografico, il simbolo attaccato). Fiducia alta per italiano e inglese.
+- **`FluidPasswordRules`**: le regole come dati, anche dalla riga delle Password Rules di Apple (`parse`); `check` dà le
+  spunte, `generate` la password forte (il formato di Apple quando le regole lo ammettono, da `SecureRandom`).
+- **`FluidPasswordStrength`**: la stima semplice e dichiarata (alfabeto per lunghezza efficace, le password comuni
+  deboli), quattro livelli. Non è zxcvbn e non promette niente.
 
 ## Token, costanti, Defaults
 

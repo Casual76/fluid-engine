@@ -126,9 +126,16 @@ internal fun rememberFluidUndoFill(state: FluidUndoCountdownState): State<Float>
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val fill = remember(state) { mutableFloatStateOf(state.fill()) }
   LaunchedEffect(state, reduced) {
+    // Una finestra lunga (la copia delicata, 60 s: F8.3) avanza di frazioni di punto per fotogramma: a passi di 125 ms il
+    // bordo si sposta di meno di mezzo dp su un tasto da 120, e il tasto non ridisegna 120 volte al secondo per un minuto.
+    val long = state.timing.durationMillis >= FluidUndoLongWindowMillis
     while (state.isActive) {
       fill.floatValue = state.fill()
-      if (reduced) delay(state.nextSecondDelay()) else withInfiniteAnimationFrameNanos { }
+      when {
+        reduced -> delay(state.nextSecondDelay())
+        long -> delay(FluidUndoLongWindowStepMillis)
+        else -> withInfiniteAnimationFrameNanos { }
+      }
     }
     fill.floatValue = state.fill()
   }
@@ -163,6 +170,10 @@ internal fun Modifier.fluidUndoFill(fill: State<Float>, color: Color): Modifier 
 
 /** Il pieno avanza sul posto. A occhio, 21 novembre 2026, sullo stesso peso ottico di una selezione. */
 private const val FluidUndoFillAlpha = 0.24f
+
+/** Da quanto una finestra è lunga (10 s) e il passo del suo pieno (125 ms). A occhio, 23 novembre 2026 (F8.3). */
+internal const val FluidUndoLongWindowMillis = 10_000L
+internal const val FluidUndoLongWindowStepMillis = 125L
 private const val MillisPerSecond = 1_000L
 
 /** Tre annunci nella maggior parte delle finestre brevi. A occhio, 21 novembre 2026. */
@@ -182,6 +193,19 @@ private fun FluidUndoCountdownState.nextSecondDelay(): Long =
   (remainingMillis() % MillisPerSecond).takeIf { it > 0L } ?: MillisPerSecond
 
 internal data class FluidUndoSlot(val active: FluidUndoCountdown?, val face: FluidUndoCountdown?)
+
+/**
+ * La faccia di un posto col contatore per [FluidGlassContentTransition]: il contatore ([countdown]) o la faccia di riposo
+ * (null). **Lo stato della transizione non è mai `null`**, e nemmeno la chiave: la transizione non disegna uno strato con lo
+ * stato `null` e tratta la chiave `null` come il vuoto, e un tasto che tornava a riposo dopo il contatore restava un vetro
+ * senza contenuto (F8.3, visto sul tablet con la copia delicata; provato in `F8p3FieldsUiTest`).
+ */
+@Immutable
+internal class FluidUndoFace(val countdown: FluidUndoCountdown?) {
+  val key: Any get() = countdown?.label ?: FluidUndoRestFace
+}
+
+private object FluidUndoRestFace
 
 /** Tiene il nodo del tasto anche quando l'app ritira il contatore e la faccia in uscita si sfoca. */
 @Composable

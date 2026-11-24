@@ -76,7 +76,7 @@ enum class FluidTextArrivalUnit {
  *
  * Il disegno resta un `Text` solo, con un layout solo. I pezzi che arrivano sono nascosti da una maschera sui loro
  * riquadri e ridisegnati come un fantasma sfocato che si mette a fuoco sulla parola vera: il testo stesso, ritagliato sulle
- * parole che arrivano, in al più quattro livelli sfocati alti quanto il paragrafo (le parole raggruppate per quanto sono
+ * parole che arrivano, in al più sei livelli sfocati alti quanto il paragrafo (le parole raggruppate per quanto sono
  * ancora nascoste). Nessun livello per parola, nessun livello a tutto schermo; i livelli e il layer fuori schermo del testo
  * ci sono solo mentre qualcosa arriva. Da fermo il testo non ridisegna. La sfocatura vuole Android 12; prima resta la
  * dissolvenza.
@@ -309,8 +309,8 @@ internal fun FluidRevealingTextCore(
           val mask = token.mask(now)
           if (mask <= MaskFloor) continue
           val progress = 1f - mask
-          // Col fantasma la parola vera si accende piu' tardi: a meta' strada e' un quarto, il resto e' il fantasma.
-          val hidden = if (peakPx <= 0f) mask else 1f - progress * progress
+          // Col fantasma la parola vera si accende tardi (F8.1b, come Apple): nella prima meta' si vede solo il fantasma.
+          val hidden = if (peakPx <= 0f) mask else 1f - fluidArrivalSharp(progress)
           drawPath(token.path(result), Color.Black, alpha = hidden, blendMode = BlendMode.DstOut)
         }
         if (peakPx <= 0f) return@drawWithContent
@@ -340,7 +340,7 @@ internal fun FluidRevealingTextCore(
             }
           }
           layer.topLeft = IntOffset(-margin, -margin)
-          layer.alpha = 2f * progress * (1f - progress)
+          layer.alpha = fluidArrivalGhost(progress)
           layer.renderEffect = ghost.blur(sigma)
           drawLayer(layer)
         }
@@ -348,8 +348,24 @@ internal fun FluidRevealingTextCore(
   )
 }
 
-/** Quanti gruppi di sfocatura ha il fantasma: quattro gradini fra nascosta e dentro (a occhio, 24 novembre 2026). */
-internal const val GhostBuckets = 4
+/**
+ * Quanti gruppi di sfocatura ha il fantasma: sei gradini fra nascosta e dentro (F8.1b, a occhio il 24 novembre 2026: con la
+ * sfocatura piu' forte quattro gradini si vedevano scattare).
+ */
+internal const val GhostBuckets = 6
+
+private fun smoothstep01(edge0: Float, edge1: Float, x: Float): Float {
+  val t = ((x - edge0) / (edge1 - edge0)).coerceIn(0f, 1f)
+  return t * t * (3f - 2f * t)
+}
+
+/** Quanto si vede il testo nitido a [progress] dell'arrivo (0 → 1): niente nella prima parte, pieno alla fine (F8.1b). */
+internal fun fluidArrivalSharp(progress: Float): Float =
+  smoothstep01(FluidTextMotion.ArrivalSharpFrom, FluidTextMotion.ArrivalSharpTo, progress)
+
+/** Quanto si vede il fantasma sfocato a [progress]: sale presto, regge la prima meta', lascia il posto al nitido (F8.1b). */
+internal fun fluidArrivalGhost(progress: Float): Float =
+  (progress / FluidTextMotion.ArrivalGhostFull).coerceIn(0f, 1f) * (1f - smoothstep01(0.5f, 0.95f, progress))
 
 internal fun ghostBucketOf(mask: Float): Int = (mask * GhostBuckets).toInt().coerceIn(0, GhostBuckets - 1)
 

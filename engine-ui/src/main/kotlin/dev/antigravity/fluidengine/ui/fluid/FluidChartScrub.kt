@@ -4,8 +4,14 @@
  *
  * Il riferimento e' Swift Charts con `chartXSelection` e le annotazioni, il gesto di Borsa e di Salute: il dito sul
  * grafico sceglie il punto piu' vicino, compaiono la linea verticale, il punto e una capsula col valore; con due dita si
- * sceglie un intervallo e la capsula dice la differenza, su una fascia fra le due linee. Al rilascio tutto torna nel
- * punto da cui era nato.
+ * sceglie un intervallo e la capsula dice la differenza. Con due dita (4.0, F8.6b, scelta di Alessio del 24 novembre) il
+ * grafico fa come Borsa: fuori dall'intervallo linea e area sbiadiscono, e la differenza, le due linee e i due punti sono
+ * verdi se si sale e rossi se si scende ([FluidChartRangeHighlight.Signed]); la fascia d'accento resta per i grafici in
+ * cui salire non e' ne' bene ne' male ([FluidChartRangeHighlight.Band]). Al rilascio tutto torna nel punto da cui era
+ * nato.
+ *
+ * **Cio' che muove il dito resta nitido** (regola di Alessio, 24 novembre): la linea, il punto, la capsula e lo sbiadito
+ * seguono il dito senza alcuna sfocatura di movimento. Si sfoca solo cio' che si muove da solo.
  *
  * Il costo e' tenuto fuori dal grafico: lo stato dello scrubber ([FluidChartScrubState]) e' letto **solo** nel disegno
  * di un livello suo (la linea, la fascia e il punto) e nella capsula. Il piano del grafico, i tracciati e le etichette
@@ -38,9 +44,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -67,6 +80,24 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/**
+ * Come si legge l'intervallo scelto con due dita (4.0, F8.6b).
+ */
+enum class FluidChartRangeHighlight {
+  /**
+   * Come Borsa: fuori dall'intervallo linea e area sbiadiscono, e la differenza, le due linee e i due punti sono verdi se
+   * si sale e rossi se si scende. Per i grafici in cui il segno dice «meglio» o «peggio»: i voti, un prezzo, i minuti di
+   * ascolto. E' il modo di serie.
+   */
+  Signed,
+
+  /**
+   * Una fascia d'accento fra le due linee, senza il colore del segno e senza sbiadire niente: per i grafici in cui salire
+   * non e' ne' bene ne' male (lo spazio occupato, i download).
+   */
+  Band,
+}
 
 /** Le misure e i tempi dello scrubber dei grafici (F8.6). */
 object FluidChartTouchDefaults {
@@ -99,8 +130,28 @@ object FluidChartTouchDefaults {
   /** L'alone del punto scelto, del colore della superficie: lo stacca dalla linea che gli passa sotto. */
   val DotHalo: Dp = 1.5.dp
 
-  /** La fascia fra due punti scelti con due dita: l'accento a **0,14** (a occhio, 24 novembre 2026, come Borsa). */
+  /**
+   * La fascia fra due punti scelti con due dita, nel modo [FluidChartRangeHighlight.Band]: l'accento a **0,14** (a occhio,
+   * 24 novembre 2026).
+   */
   const val BandAlpha: Float = 0.14f
+
+  /**
+   * Quanto sbiadisce il grafico fuori dall'intervallo nel modo [FluidChartRangeHighlight.Signed]: se ne toglie lo **0,6**,
+   * ne resta il 40%. Misura sull'immagine @2x della guida di Borsa per Mac (il tratto e l'area fuori dall'intervallo hanno
+   * circa il 40% dell'inchiostro di quelli dentro; fiducia media, 24 novembre 2026; `sessioni/f8-6/riferimenti/fonti.md`).
+   */
+  const val RangeFadeAlpha: Float = 0.6f
+
+  /**
+   * Il verde di chi sale e il rosso di chi scende: `systemGreen` e `systemRed` delle HIG «Color». In chiaro le varianti
+   * ad alto contrasto (#248A3D, #D70015), in scuro quelle di serie (#30D158, #FF453A): fiducia alta, sono i valori della
+   * tabella. Si usano anche come testo, e sono portati a 4,5:1 sulle superfici dei grafici ([fluidChartSignColors]).
+   */
+  val RiseLight: Color = Color(0xFF248A3D)
+  val RiseDark: Color = Color(0xFF30D158)
+  val FallLight: Color = Color(0xFFD70015)
+  val FallDark: Color = Color(0xFFFF453A)
 
   /** Lo spazio fra la capsula e il punto, quando la capsula deve scendere sotto il punto per non coprirlo. */
   val CapsuleGap: Dp = 6.dp
@@ -204,6 +255,44 @@ internal class FluidChartScrubber(val state: FluidChartScrubState) {
   }
 }
 
+/**
+ * Il verde e il rosso del segno come si leggono: quelli di [FluidChartTouchDefaults] per il lato del tema, portati verso
+ * `onSurface` del minimo che serve perche' si leggano a 4,5:1 su tutte le superfici dei grafici (sono anche testo).
+ */
+internal fun fluidChartSignColors(scheme: ColorScheme, glassFilm: Color, dark: Boolean): Pair<Color, Color> {
+  val surfaces = fluidChartSurfaces(scheme, glassFilm)
+  fun legible(start: Color): Color {
+    fun worst(c: Color) = surfaces.minOf { fluidContrastRatio(c, it) }
+    if (worst(start) >= 4.5f) return start
+    var low = 0f
+    var high = 1f
+    repeat(12) {
+      val mid = (low + high) / 2f
+      if (worst(androidx.compose.ui.graphics.lerp(start, scheme.onSurface, mid)) >= 4.5f) high = mid else low = mid
+    }
+    return androidx.compose.ui.graphics.lerp(start, scheme.onSurface, high)
+  }
+  val rise = if (dark) FluidChartTouchDefaults.RiseDark else FluidChartTouchDefaults.RiseLight
+  val fall = if (dark) FluidChartTouchDefaults.FallDark else FluidChartTouchDefaults.FallLight
+  return legible(rise) to legible(fall)
+}
+
+@Composable
+internal fun rememberFluidChartSignColors(): Pair<Color, Color> {
+  val scheme = MaterialTheme.colorScheme
+  val film = GlassDefaults.glassFilm()
+  val dark = GlassDefaults.isDarkSurface()
+  return remember(scheme, film, dark) { fluidChartSignColors(scheme, film, dark) }
+}
+
+/** Il segno di una differenza: +1 se si sale, -1 se si scende, 0 se resta uguale o non si sa. */
+internal fun fluidChartSign(from: Float?, to: Float?): Int = when {
+  from == null || to == null || !(to - from).isFinite() -> 0
+  to > from -> 1
+  to < from -> -1
+  else -> 0
+}
+
 /** L'intervallo scelto: un punto solo con un dito, dal piu' piccolo al piu' grande con due. */
 internal fun fluidChartScrubRange(a: Int, b: Int): IntRange? = when {
   a < 0 -> null
@@ -227,6 +316,8 @@ internal class FluidChartScrubModel(
   val locale: Locale,
   /** Vero per un andamento (il punto si disegna), falso per le barre (si evidenzia la casella). */
   val dots: Boolean,
+  /** Vero nel modo di Borsa ([FluidChartRangeHighlight.Signed]): con due dita il segno colora e il fuori sbiadisce. */
+  val signed: Boolean = false,
 ) {
   val count: Int get() = xLabels.size
 
@@ -245,28 +336,70 @@ internal class FluidChartScrubModel(
 
   /** Le due righe della capsula: in alto il valore (o la differenza), sotto l'etichetta (o l'intervallo). */
   fun text(first: Int, second: Int): Pair<String, String> {
-    val range = fluidChartScrubRange(first, second) ?: return "" to ""
+    val (parts, label) = parts(first, second)
+    return parts.joinToString(PartSeparator) { it.text } to label
+  }
+
+  /**
+   * La prima riga della capsula a pezzi, uno per serie, ognuno col suo segno (+1 sale, -1 scende, 0 niente: con un dito,
+   * per un buco, per una differenza nulla), e la seconda riga. Con piu' serie ogni pezzo porta il nome della sua.
+   */
+  fun parts(first: Int, second: Int): Pair<List<FluidChartScrubPart>, String> {
+    val range = fluidChartScrubRange(first, second) ?: return emptyList<FluidChartScrubPart>() to ""
     if (range.first == range.last) {
       val i = range.first
-      val line = joinSeries { s -> values[s].getOrNull(i)?.let(format) ?: noValue }
-      return line to xLabels.getOrElse(i) { "" }
+      val parts = eachSeries { s -> FluidChartScrubPart(values[s].getOrNull(i)?.let(format) ?: noValue, 0) }
+      return parts to xLabels.getOrElse(i) { "" }
     }
     val from = range.first
     val to = range.last
-    val line = joinSeries { s ->
+    val parts = eachSeries { s ->
       val a = values[s].getOrNull(from)
       val b = values[s].getOrNull(to)
-      if (a == null || b == null) noValue else delta?.invoke(a, b) ?: fluidChartDeltaText(a, b, format, locale, labels)
+      if (a == null || b == null) {
+        FluidChartScrubPart(noValue, 0)
+      } else {
+        FluidChartScrubPart(delta?.invoke(a, b) ?: fluidChartDeltaText(a, b, format, locale, labels), fluidChartSign(a, b))
+      }
     }
-    return line to labels.chartSpan(xLabels.getOrElse(from) { "" }, xLabels.getOrElse(to) { "" })
+    return parts to labels.chartSpan(xLabels.getOrElse(from) { "" }, xLabels.getOrElse(to) { "" })
   }
 
-  private fun joinSeries(value: (Int) -> String): String =
+  /** Il segno di tutto l'intervallo (per le due linee): quello delle serie se va per tutte nello stesso verso, se no 0. */
+  fun rangeSign(first: Int, second: Int): Int {
+    val range = fluidChartScrubRange(first, second) ?: return 0
+    if (range.first == range.last) return 0
+    val signs = values.indices.map { s -> fluidChartSign(values[s].getOrNull(range.first), values[s].getOrNull(range.last)) }
+      .filter { it != 0 }
+    return if (signs.isNotEmpty() && signs.all { it == signs[0] }) signs[0] else 0
+  }
+
+  /** Il segno della serie [series] nell'intervallo (per il suo punto). */
+  fun seriesSign(series: Int, first: Int, second: Int): Int {
+    val range = fluidChartScrubRange(first, second) ?: return 0
+    if (range.first == range.last) return 0
+    return fluidChartSign(values.getOrNull(series)?.getOrNull(range.first), values.getOrNull(series)?.getOrNull(range.last))
+  }
+
+  private fun eachSeries(part: (Int) -> FluidChartScrubPart): List<FluidChartScrubPart> =
     if (values.size <= 1) {
-      if (values.isEmpty()) "" else value(0)
+      if (values.isEmpty()) emptyList() else listOf(part(0))
     } else {
-      values.indices.joinToString(" · ") { s -> "${seriesLabels.getOrElse(s) { "" }} ${value(s)}".trim() }
+      values.indices.map { s ->
+        val p = part(s)
+        FluidChartScrubPart("${seriesLabels.getOrElse(s) { "" }} ${p.text}".trim(), p.sign)
+      }
     }
+
+  private companion object {
+    const val PartSeparator = " · "
+  }
+}
+
+/** Un pezzo della prima riga della capsula: il testo e il segno (+1 sale, -1 scende, 0 niente). */
+internal class FluidChartScrubPart(val text: String, val sign: Int) {
+  override fun equals(other: Any?): Boolean = other is FluidChartScrubPart && other.text == text && other.sign == sign
+  override fun hashCode(): Int = text.hashCode() * 31 + sign
 }
 
 /**
@@ -404,8 +537,37 @@ internal suspend fun PointerInputScope.fluidChartGesture(
 }
 
 /**
- * Il livello dello scrubber, sopra il piano: la fascia fra due punti, le linee verticali e i punti. Ha un layer suo
- * (`graphicsLayer`): quando il dito cambia punto si ridisegna lui, il piano no.
+ * Lo sbiadito di Borsa fuori dall'intervallo (4.0, F8.6b), sul piano del grafico: una maschera `DstOut` sopra il piano
+ * gia' registrato. Il piano sta nel suo layer (quello della sorgente di vetro) e non si ridisegna: quando le dita
+ * cambiano punto si rifa' solo questo involucro, che riusa il layer del piano. Fuori dai due punti resta il 40%
+ * dell'inchiostro ([FluidChartTouchDefaults.RangeFadeAlpha]). Il layer si compone fuori schermo solo mentre l'intervallo
+ * c'e': a riposo il piano si compone come prima.
+ */
+internal fun Modifier.fluidChartRangeFade(state: FluidChartScrubState, plan: FluidCartesianPlan, model: FluidChartScrubModel?): Modifier {
+  if (model == null || !model.signed) return this
+  return this
+    .graphicsLayer {
+      val a = state.first
+      val b = state.second
+      compositingStrategy = if (a >= 0 && b >= 0 && a != b) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+    }
+    .drawWithContent {
+      drawContent()
+      val a = state.first
+      val b = state.second
+      if (a < 0 || b < 0 || a == b) return@drawWithContent
+      val lo = min(plan.centerX(a), plan.centerX(b))
+      val hi = max(plan.centerX(a), plan.centerX(b))
+      val veil = Color.Black.copy(alpha = FluidChartTouchDefaults.RangeFadeAlpha)
+      if (lo > 0f) drawRect(veil, Offset.Zero, Size(lo, size.height), blendMode = BlendMode.DstOut)
+      if (hi < size.width) drawRect(veil, Offset(hi, 0f), Size(size.width - hi, size.height), blendMode = BlendMode.DstOut)
+    }
+}
+
+/**
+ * Il livello dello scrubber, sopra il piano: le linee verticali e i punti, e la fascia fra due punti nel modo
+ * [FluidChartRangeHighlight.Band]. Ha un layer suo (`graphicsLayer`): quando il dito cambia punto si ridisegna lui, il
+ * piano no. Nel modo di Borsa le due linee e i due punti prendono il colore del segno ([rise], [fall]).
  */
 @Composable
 internal fun FluidChartScrubLayer(
@@ -413,6 +575,8 @@ internal fun FluidChartScrubLayer(
   plan: FluidCartesianPlan,
   model: FluidChartScrubModel,
   modifier: Modifier = Modifier,
+  rise: Color = Color.Unspecified,
+  fall: Color = Color.Unspecified,
 ) {
   val scheme = MaterialTheme.colorScheme
   val rule = scheme.onSurface.copy(alpha = FluidChartTouchDefaults.RuleAlpha)
@@ -429,9 +593,18 @@ internal fun FluidChartScrubLayer(
         val b = state.second
         val ruleWidth = FluidChartTouchDefaults.RuleWidth.toPx()
         // Con una serie sola la linea e' del colore della serie, come in Borsa; con piu' serie e per le barre, neutra.
-        val ruleColor = if (model.dots && model.values.size == 1) model.colors.getOrElse(0) { rule } else rule
+        // Con due dita nel modo di Borsa e' del colore del segno.
+        val range = b >= 0 && b != a
+        fun signColor(sign: Int, otherwise: Color): Color = when {
+          !model.signed || !range -> otherwise
+          sign > 0 && rise != Color.Unspecified -> rise
+          sign < 0 && fall != Color.Unspecified -> fall
+          else -> otherwise
+        }
+        val plain = if (model.dots && model.values.size == 1) model.colors.getOrElse(0) { rule } else rule
+        val ruleColor = signColor(model.rangeSign(a, b), plain)
         val xa = plan.centerX(a)
-        if (b >= 0 && b != a) {
+        if (range && !model.signed) {
           val xb = plan.centerX(b)
           drawRect(band, Offset(min(xa, xb), plan.top), Size(abs(xb - xa), plan.height))
         }
@@ -448,7 +621,7 @@ internal fun FluidChartScrubLayer(
             for (s in model.values.indices) {
               val y = model.pointY(plan, s, index) ?: continue
               drawCircle(halo, radius + haloPx, Offset(x, y))
-              drawCircle(model.colors.getOrElse(s) { scheme.primary }, radius, Offset(x, y))
+              drawCircle(signColor(model.seriesSign(s, a, b), model.colors.getOrElse(s) { scheme.primary }), radius, Offset(x, y))
             }
           }
         }
@@ -472,6 +645,8 @@ internal fun FluidChartScrubCapsule(
   model: FluidChartScrubModel,
   backdrop: GlassBackdropState,
   widthPx: Float,
+  rise: Color = Color.Unspecified,
+  fall: Color = Color.Unspecified,
 ) {
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   val density = androidx.compose.ui.platform.LocalDensity.current
@@ -517,10 +692,10 @@ internal fun FluidChartScrubCapsule(
     }
   }
   // Al rilascio la capsula torna nel punto col suo ultimo testo: il testo si tiene finche' non ce n'e' uno nuovo.
-  val lastText = remember(model) { arrayOf("" to "") }
+  val lastText = remember(model) { arrayOf(emptyList<FluidChartScrubPart>() to "") }
   val texts by remember(model) {
     derivedStateOf {
-      if (state.first >= 0) model.text(state.first, state.second).also { lastText[0] = it } else lastText[0]
+      if (state.first >= 0) model.parts(state.first, state.second).also { lastText[0] = it } else lastText[0]
     }
   }
   val scheme = MaterialTheme.colorScheme
@@ -555,7 +730,19 @@ internal fun FluidChartScrubCapsule(
       .semantics { hideFromAccessibility() },
   ) {
     SideEffect { FluidChartDiagnostics.capsuleCompositions++ }
-    val (value, label) = texts
+    val (parts, label) = texts
+    // Nel modo di Borsa ogni differenza ha il colore del suo segno; il resto e' il testo del tema.
+    val value = buildAnnotatedString {
+      parts.forEachIndexed { i, part ->
+        if (i > 0) append(" · ")
+        val color = when {
+          !model.signed || part.sign == 0 -> Color.Unspecified
+          part.sign > 0 -> rise
+          else -> fall
+        }
+        if (color == Color.Unspecified) append(part.text) else withStyle(SpanStyle(color = color)) { append(part.text) }
+      }
+    }
     if (present && (value.isNotEmpty() || label.isNotEmpty())) {
       Column(
         Modifier

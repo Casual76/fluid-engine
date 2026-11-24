@@ -242,7 +242,9 @@ disegnata in cinque modi, con il numero a 99 che in tre usciva dalla capsula. Ci
 
 **Misure e contrasto.** Il pallino è 8 dp e non cresce; la capsula è alta almeno 16 dp e **cresce col testo di sistema** (a 200% «99+» resta dentro la sua capsula): il numero è informazione, il pallino no. Il colore che passi è
 un'**identità**, non una garanzia di leggibilità: il riempimento si porta, del minimo che serve, a 3:1 da tutte le superfici (anche dalla pellicola del vetro, quasi bianca in tema scuro) e la cifra a 4,5:1. Il colore che si vede
-può quindi essere un poco più scuro o chiaro di quello passato. Nessuna animazione: compare e scompare con la riga che lo porta.
+può quindi essere un poco più scuro o chiaro di quello passato. Compare e scompare con la riga che lo porta; **il numero
+scorre** quando cambia (F8.1b), con le cifre di `FluidNumericText`: solo quelle cambiate, sfocate in viaggio, e la capsula
+segue la larghezza nuova.
 
 ### `FluidSelectionState`: selezione multipla, anche su liste paginate
 
@@ -424,8 +426,15 @@ legge nel disegno e nella misura (la larghezza segue fra il vecchio e il nuovo),
 sono il testo vero in due livelli sfocati (chi esce, chi entra), solo mentre viaggiano; sotto il mezzo pixel di σ si
 disegnano nitide, così la cifra che si ferma non salta. TalkBack sente solo il valore finale.
 
-**Trappole.** Un valore che cambia molte volte al secondo (i dB di un fonometro) va limitato dall'app: ogni cambio riparte
-dal valore precedente. Le cifre decimali fisse le dà il formato (`FluidFormat.number(fractionDigits = 2)`): con un numero di
+**Cambi fitti** (F8.1b). Un valore che cambia più spesso di 300 ms (`FluidTextMotion.DigitMinIntervalMillis`: i dB di un
+fonometro, otto volte al secondo) **non scorre**: cambia di colpo, come un `Text`, e torna a scorrere quando rallenta. Niente
+tremolio, e niente da limitare nell'app.
+
+**Solo ciò che muove l'app** (regola di Alessio del 24 novembre 2026: ciò che muove il dito resta nitido, si sfoca solo ciò
+che muove l'app da sola). Un numero che segue il dito (il valore sotto il dito di un grafico, una ruota, un cursore) è un
+`Text`, non un `FluidNumericText`. Lo usano `FluidBadge` e il numero di `FluidGauge`, che cambiano per conto dell'app.
+
+**Trappole.** Le cifre decimali fisse le dà il formato (`FluidFormat.number(fractionDigits = 2)`): con un numero di
 decimali che cambia il corpo si allinea comunque da destra.
 
 ### Il testo che arriva: `FluidTextArrival`, `FluidArrivingText`
@@ -433,14 +442,17 @@ decimali che cambia il corpo si allinea comunque da destra.
 **Cos'è.** Il primitivo riusabile del testo che arriva, per il testo che si espande **e** per il testo generato da PampAI:
 un pezzo alla volta (`FluidTextArrivalUnit.Word` o `FluidTextArrivalUnit.Line`), sfocato che si mette a fuoco.
 
-**Firma essenziale.** `FluidTextArrival(unit, staggerMillis, maxSpreadMillis, blur = true, peakBlur = 0.15f)` con i preset
+**Firma essenziale.** `FluidTextArrival(unit, staggerMillis, maxSpreadMillis, blur = true, peakBlur = 0.20f)` con i preset
 `FluidTextArrival.Streaming` (parole, passo 24 ms, al più 200 ms indietro), `FluidTextArrival.Lines` (righe, passo 55 ms, al
 più 440 ms) e `FluidTextArrival.Fade` (la dissolvenza di prima); `FluidArrivingText(text, modifier, style, color, animateFirst = true, arrival = FluidTextArrival.Lines)`.
 
 **Comportamento.** Un `Text` solo e un layout solo, come `FluidRevealingText`: i pezzi che arrivano sono nascosti dalla
 maschera sui loro riquadri e ridisegnati come un fantasma sfocato che si mette a fuoco sulla parola vera: il testo stesso,
-ritagliato sulle parole che arrivano, in al più quattro livelli sfocati alti quanto il paragrafo (le parole raggruppate per
-quanto sono ancora nascoste). Nessun livello per parola e nessun livello a tutto schermo; i livelli e il layer fuori schermo
+ritagliato sulle parole che arrivano, in al più sei livelli sfocati alti quanto il paragrafo (le parole raggruppate per
+quanto sono ancora nascoste). **Come Apple, all'inizio si vede solo il fantasma sfocato** (F8.1b, scelta di Alessio del 24
+novembre 2026): σ fino a 0,20 dell'altezza delle maiuscole (sulla tavola WWDC24 Apple ha 0,14 al primo fotogramma visibile
+e 0,06 a metà), il testo nitido entra solo nella seconda metà dell'arrivo. Il tempo resta svelto: 260 ms a parola, 380 a
+riga. Nessun livello per parola e nessun livello a tutto schermo; i livelli e il layer fuori schermo
 del testo ci sono solo mentre qualcosa arriva. I pezzi di uno stesso arrivo nascono **uno dopo l'altro**, di un passo; il passo non si accumula (un pezzo aspetta al
 più il ritardo massimo) e **l'ordine resta**, anche fra due arrivi vicini. `FluidArrivingText` fa arrivare il testo nuovo dal
 primo carattere diverso; ciò che resta uguale non si muove.

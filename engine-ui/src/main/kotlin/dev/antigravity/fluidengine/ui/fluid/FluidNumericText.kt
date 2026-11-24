@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -52,8 +53,11 @@ import kotlin.math.roundToInt
  * - **Col movimento ridotto** il numero cambia a dissolvenza ([FluidTextMotion.DigitReducedFadeMillis]).
  * - **TalkBack** sente solo il valore finale ([contentDescription], di serie il testo).
  *
- * Un valore che cambia molte volte al secondo (i dB di un fonometro) va limitato dall'app a pochi cambi al secondo: ogni
- * cambio riparte dal valore precedente.
+ * Un valore che cambia molte volte al secondo (i dB di un fonometro) non scorre: sotto
+ * [FluidTextMotion.DigitMinIntervalMillis] fra due cambi il numero cambia di colpo, e torna a scorrere quando rallenta (F8.1b).
+ *
+ * **Le cifre scorrono solo se le muove l'app** (regola di Alessio del 24 novembre 2026: ciò che muove il dito resta nitido).
+ * Un numero che segue il dito (il valore sotto il dito di un grafico, una ruota) usa un `Text`, non questo.
  *
  * @param text il numero già scritto, con i suoi separatori e la sua unità («1.234,5 kg»).
  * @param value il valore del numero, per il verso: cresce, le cifre salgono.
@@ -80,7 +84,9 @@ fun FluidNumericText(
   val roll = remember { NumericRollState() }
   // In composizione, come il tracker del testo che arriva: il fotogramma che disegna il valore nuovo sa già cosa scorre.
   remember(layout) {
-    roll.show(text, value, layout)
+    // L'ora del cambio dall'orologio di sistema (in Robolectric quello delle prove): un cambio troppo vicino al precedente
+    // non scorre. Letta qui, nel cambio, e non dal prossimo fotogramma: lo scorrimento parte senza ritardo.
+    roll.show(text, value, layout, SystemClock.uptimeMillis())
     roll.generation
   }
   val progress = remember { Animatable(1f) }
@@ -89,6 +95,16 @@ fun FluidNumericText(
   DisposableEffect(ghost) { onDispose { ghost.release() } }
   LaunchedEffect(roll.generation, reduced) {
     if (!roll.moving) return@LaunchedEffect
+    // Un cambio che arriva troppo presto dopo l'altro non scorre (F8.1b): il numero cambia di colpo, come prima.
+    if (roll.rapid) {
+      FluidNumericTextDiagnostics.jumps++
+      progress.snapTo(1f)
+      roll.started = true
+      roll.settle()
+      ghost.release()
+      return@LaunchedEffect
+    }
+    FluidNumericTextDiagnostics.rolls++
     progress.snapTo(0f)
     roll.started = true
     if (reduced) {
@@ -96,7 +112,8 @@ fun FluidNumericText(
     } else {
       progress.animateTo(
         1f,
-        spring(FluidMotion.DampingChrome, FluidMotion.stiffnessForResponse(FluidTextMotion.DigitResponseSeconds), 0.001f),
+        // Ferma a 0,004 del viaggio (0,2 px: invisibile): la molla si posa a ~0,62 s invece di ~0,73.
+        spring(FluidMotion.DampingChrome, FluidMotion.stiffnessForResponse(FluidTextMotion.DigitResponseSeconds), DigitSettle),
       )
     }
     roll.settle()
@@ -112,7 +129,7 @@ fun FluidNumericText(
         val transition = roll.transition
         // Letto sempre, anche prima della partenza: è la lettura che iscrive il disegno ai passi dell'animazione.
         val raw = progress.value
-        val p = if (roll.started) raw else 0f
+        val p = if (roll.rapid) 1f else if (roll.started) raw else 0f
         if (transition == null || p >= 1f) {
           drawText(roll.layout ?: return@drawBehind, color = ink)
           return@drawBehind
@@ -128,7 +145,7 @@ fun FluidNumericText(
     val current = roll.layout
     val transition = roll.transition
     val raw = progress.value
-    val p = if (roll.started) raw else 0f
+    val p = if (roll.rapid) 1f else if (roll.started) raw else 0f
     val width = if (transition != null && p < 1f && !reduced) {
       lerp(transition.from.size.width.toFloat(), transition.to.size.width.toFloat(), p)
     } else {
@@ -159,6 +176,15 @@ fun FluidNumericText(
 
 private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
+/** Dove si ferma la molla delle cifre: a 0,004 del viaggio (0,2 px su una riga da 50). */
+private const val DigitSettle = 0.004f
+
+/** I contatori delle prove: quanti cambi sono scorsi e quanti sono saltati perche' troppo fitti. */
+internal object FluidNumericTextDiagnostics {
+  var rolls: Int = 0
+  var jumps: Int = 0
+}
+
 /** Il passaggio da una scrittura all'altra, già pianificato: chi resta, chi scorre, chi entra, chi esce. */
 internal class NumericTransition(
   val from: TextLayoutResult,
@@ -184,6 +210,13 @@ internal class NumericRollState {
     private set
   var transition: NumericTransition? = null
     private set
+  /** L'istante (`SystemClock.uptimeMillis`) dell'ultimo cambio: un cambio piu' vicino di `DigitMinIntervalMillis` non scorre. */
+  private var lastChangeMillis: Long = Long.MIN_VALUE
+
+  /** Il cambio in corso e' arrivato troppo presto dopo il precedente: cambia di colpo. */
+  var rapid: Boolean = false
+    private set
+
   /** Cresce a ogni cambio: la chiave dell'animazione. Un numero semplice, letto in composizione dopo [show]. */
   var generation = 0
     private set
@@ -196,7 +229,7 @@ internal class NumericRollState {
 
   val moving: Boolean get() = transition != null
 
-  fun show(newText: String, newValue: Double, newLayout: TextLayoutResult) {
+  fun show(newText: String, newValue: Double, newLayout: TextLayoutResult, nowMillis: Long = Long.MIN_VALUE) {
     val oldText = text
     val oldLayout = layout
     val oldValue = value
@@ -214,6 +247,9 @@ internal class NumericRollState {
       direction = FluidNumericRoll.direction(oldValue, newValue, oldText, newText),
       slots = FluidNumericRoll.plan(oldText, newText),
     )
+    rapid = nowMillis != Long.MIN_VALUE && lastChangeMillis != Long.MIN_VALUE &&
+      nowMillis - lastChangeMillis < FluidTextMotion.DigitMinIntervalMillis
+    if (nowMillis != Long.MIN_VALUE) lastChangeMillis = nowMillis
     started = false
     generation++
   }

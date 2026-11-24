@@ -96,6 +96,22 @@ class FluidTextArrivalTest {
     assertEquals(FluidTextMotion.WordArrivalMillis, FluidRevealMillis)
   }
 
+  @Test
+  fun `come Apple all'inizio si vede solo il fantasma sfocato, poi il testo nitido prende il posto`() {
+    // F8.1b: nella prima parte dell'arrivo il testo vero non c'e', il fantasma regge; alla fine c'e' solo il testo vero.
+    assertEquals(0f, fluidArrivalSharp(0.3f), 0f)
+    assertTrue(fluidArrivalGhost(0.3f) > 0.8f)
+    assertTrue("a meta' il fantasma pesa piu' del nitido", fluidArrivalGhost(0.5f) > fluidArrivalSharp(0.5f))
+    assertEquals(1f, fluidArrivalSharp(1f), 0f)
+    assertEquals(0f, fluidArrivalGhost(1f), 1e-4f)
+    assertEquals(0f, fluidArrivalGhost(0f), 0f)
+    assertEquals(0.20f, FluidTextMotion.ArrivalPeakBlur, 0f)
+    assertEquals(6, GhostBuckets)
+    // Ogni maschera cade in un gruppo, e i gruppi coprono tutto l'intervallo.
+    assertEquals(0, ghostBucketOf(0f))
+    assertEquals(GhostBuckets - 1, ghostBucketOf(1f))
+  }
+
   // ---- le cifre che scorrono --------------------------------------------------------------------
 
   private fun kinds(old: String, new: String) = FluidNumericRoll.plan(old, new).map { it.kind }

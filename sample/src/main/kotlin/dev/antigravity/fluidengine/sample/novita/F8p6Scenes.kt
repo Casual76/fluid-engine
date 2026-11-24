@@ -34,6 +34,7 @@ import dev.antigravity.fluidengine.sample.TryTarget
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidBarChart
 import dev.antigravity.fluidengine.ui.fluid.FluidBarGroup
+import dev.antigravity.fluidengine.ui.fluid.FluidChartRangeHighlight
 import dev.antigravity.fluidengine.ui.fluid.FluidChartSeries
 import dev.antigravity.fluidengine.ui.fluid.FluidGauge
 import dev.antigravity.fluidengine.ui.fluid.FluidGaugeStyle
@@ -69,11 +70,11 @@ internal val F8p6Section = NewElementSection(
   scenes = listOf(
     NewElementScene(
       "andamento-voti", "I voti di Matematica",
-      "ClasseViva · il dito sull'andamento: punto, linea e capsula; due dita per la differenza fra due verifiche",
+      "ClasseViva · il dito sull'andamento: punto, linea e capsula; due dita come Borsa, verde se sale e rosso se scende",
     ) { onBack -> GradesScene(onBack) },
     NewElementScene(
       "spazio-mese", "Lo spazio mese per mese",
-      "MyCloud Gallery · le barre da toccare: la casella, la capsula coi GB, due dita per quanto e' cresciuto",
+      "MyCloud Gallery · le barre da toccare: la casella, la capsula coi GB, due dita con la fascia neutra",
     ) { onBack -> StorageBarsScene(onBack) },
     NewElementScene(
       "ascolto-settimane", "Minuti di ascolto",
@@ -100,10 +101,11 @@ internal val F8p6TryItems: List<TryItem> = listOf(
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › I voti di Matematica"),
   ),
   TryItem(
-    "f8-6-due-dita", TryArea.ContentData, "Due dita, la differenza",
-    "Nello stesso grafico, e in «Lo spazio mese per mese», appoggia due dita su due punti lontani: giudica se la fascia " +
-      "e la differenza («+1,5 (+20%)») si leggono, e se la pagina sotto resta ferma.",
-    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Lo spazio mese per mese"),
+    "f8-6-due-dita", TryArea.ContentData, "Due dita come Borsa",
+    "In «I voti di Matematica» appoggia due dita su due verifiche lontane, poi su due in cui il voto scende: giudica se " +
+      "il resto sbiadisce come in Borsa e se il verde e il rosso della differenza si leggono; in «Lo spazio mese per " +
+      "mese» la fascia neutra.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › I voti di Matematica"),
   ),
   TryItem(
     "f8-6-quadrante", TryArea.ContentData, "Il quadrante delle assenze",
@@ -228,7 +230,10 @@ private fun GradesScene(onBack: () -> Unit) {
       onScrub = { scrub = it },
       modifier = Modifier.testTag(F8p6Tags.Chart),
     )
-    Caption("Trascina di lato, o tieni fermo il dito: il punto, la linea e la capsula. Con due dita la differenza fra due verifiche.")
+    Caption(
+      "Trascina di lato, o tieni fermo il dito: il punto, la linea e la capsula. Con due dita, come Borsa, il resto " +
+        "sbiadisce e la differenza fra due verifiche e' verde se il voto sale, rossa se scende.",
+    )
   }
 }
 
@@ -248,9 +253,14 @@ private fun StorageBarsScene(onBack: () -> Unit) {
       valueText = gb,
       scaleLabel = "GB occupati alla fine del mese",
       contentDescription = "Lo spazio di MyCloud",
+      // Lo spazio che cresce non e' ne' bene ne' male: la fascia neutra, senza verde e rosso.
+      rangeHighlight = FluidChartRangeHighlight.Band,
       modifier = Modifier.testTag(F8p6Tags.Chart),
     )
-    Caption("La capsula dice i GB del mese; con due dita quanto e' cresciuto lo spazio fra due mesi.")
+    Caption(
+      "La capsula dice i GB del mese; con due dita quanto e' cresciuto lo spazio fra due mesi, su una fascia neutra: " +
+        "qui salire non e' ne' bene ne' male.",
+    )
   }
 }
 

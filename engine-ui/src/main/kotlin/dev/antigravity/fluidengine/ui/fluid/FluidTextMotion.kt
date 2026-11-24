@@ -43,11 +43,27 @@ object FluidTextMotion {
   const val LineSpreadMillis: Int = 440
 
   /**
-   * σ della sfocatura di ciò che arriva, al massimo, in frazione dell'altezza delle maiuscole: **0,15**. È la σ massima
-   * del contenuto che cambia identità di R7 A.2–A.3 (0,14–0,17 della sagoma, fiducia alta sulle icone; sul testo la
-   * stessa frazione è a occhio, 23 novembre 2026).
+   * σ della sfocatura di ciò che arriva, al massimo, in frazione dell'altezza delle maiuscole: **0,20** (F8.1b). Scelta di
+   * Alessio del 24 novembre 2026, «più forte, come Apple all'inizio», misurata sulla tavola WWDC24 (sessione 10151, 17:57,
+   * il titolo che arriva): adattando una gaussiana sulla prima parola, Apple ha σ ≈ 0,14 al primo fotogramma visibile e
+   * ≈ 0,06 a metà dell'arrivo. Noi partiamo un poco più forte. Prima era 0,15, la σ del contenuto di R7.
+   *
+   * Conta anche *chi si vede*: in Apple, finché la lettera non è quasi a fuoco, si vede solo la versione sfocata. Per questo
+   * il testo nitido entra nella seconda metà dell'arrivo ([ArrivalSharpFrom]) e il fantasma sfocato regge la prima.
    */
-  const val ArrivalPeakBlur: Float = 0.15f
+  const val ArrivalPeakBlur: Float = 0.20f
+
+  /**
+   * Da dove (in frazione dell'arrivo, dopo la curva) comincia a vedersi il testo nitido: **0,4**; è pieno a 0,9. Prima c'è
+   * solo il fantasma sfocato. Dalla tavola WWDC24 (F8.1b, 24 novembre 2026): l'opacità sale a 0,5 con σ ancora a metà.
+   */
+  const val ArrivalSharpFrom: Float = 0.4f
+
+  /** Dove il testo nitido è pieno: **0,9** (F8.1b, sulla stessa tavola). */
+  const val ArrivalSharpTo: Float = 0.9f
+
+  /** Dove il fantasma sfocato è già pieno: **0,35** dell'arrivo; poi lascia il posto al nitido da 0,5 a 0,95 (F8.1b). */
+  const val ArrivalGhostFull: Float = 0.35f
 
   /** L'altezza delle maiuscole di Inter in frazione del corpo: 0,727 (dai dati del carattere, `capHeight / unitsPerEm`). */
   const val CapHeight: Float = 0.727f
@@ -69,6 +85,13 @@ object FluidTextMotion {
 
   /** σ massima di una cifra in viaggio, in frazione dell'altezza delle maiuscole: **0,15**, come [ArrivalPeakBlur] (R7). */
   const val DigitPeakBlur: Float = 0.15f
+
+  /**
+   * Sotto questo intervallo fra due cambi le cifre **non scorrono**: il numero cambia di colpo, come faceva prima. **300 ms**,
+   * a occhio il 24 novembre 2026 (F8.1b), poco più di metà della molla: un valore che cambia otto volte al secondo (i
+   * decibel del quadrante di Sounds) non diventa un tremolio, e un contatore o un cronometro scorrono come devono.
+   */
+  const val DigitMinIntervalMillis: Int = 300
 
   /**
    * La dissolvenza delle cifre col movimento ridotto: **200 ms**, quella di [FluidMotion.crossFade]. Apple col movimento

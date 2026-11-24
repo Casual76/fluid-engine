@@ -27,7 +27,7 @@ non validi» (mai disegnati), un buco in una serie spezza la linea (mai un valor
 | «nessun dato», «dati non validi», un errore con «Riprova» al posto del grafico | `FluidChartMessage(text, detail, actionLabel, onAction)` |
 | «sto calcolando» | `FluidChartSkeleton(height)` (stessa altezza del grafico: la pagina non salta) |
 | «quanto valeva quel giorno?», col dito sull'andamento o sulle barre (Borsa, Salute) | niente da fare: **lo scrubber c'è di serie** in `FluidLineChart` e `FluidBarChart` verticale (4.0, F8.6); `onScrub` per scrivere il valore anche in testata |
-| «quanto è cambiato fra due punti?» | due dita sul grafico: la fascia e la differenza («+1,5 (+25%)»); `deltaText` per scriverla a modo tuo |
+| «quanto è cambiato fra due punti?» | due dita sul grafico: come Borsa, il resto sbiadisce e la differenza («+1,5 (+25%)») è verde se si sale e rossa se si scende; `rangeHighlight = Band` per una fascia neutra (dove salire non è né bene né male); `deltaText` per scriverla a modo tuo |
 | un valore in un intervallo, a colpo d'occhio («18% di assenze, limite 25%», lo spazio occupato, i decibel) | `FluidGauge(valore, intervallo)` (4.0, F8.6): arco, anello da riga o barra a capacità, con le soglie; sul widget `EngineWidgetGauge` |
 | una sola cifra con una variazione | **non un grafico**: `FluidMetricTile` ([contenuto-righe-liste.md](contenuto-righe-liste.md)) |
 | decine di serie o un asse x continuo con migliaia di punti | **non questi**: campiona **prima** (50.000 record → 30 punti) e passa i punti; l'engine non campiona |
@@ -53,7 +53,8 @@ FluidChartLegend(items: List<FluidChartLegendItem>, modifier, vertical = false, 
 FluidChartLegendItem(label, color, detail = null)       // + overload FluidChartLegend(series, …)
 
 // 4.0, F8.6: in coda a FluidLineChart e FluidBarChart
-  scrubbing = true, onScrub: ((IntRange?) -> Unit)? = null, deltaText: ((from: Float, to: Float) -> String)? = null
+  scrubbing = true, onScrub: ((IntRange?) -> Unit)? = null, deltaText: ((from: Float, to: Float) -> String)? = null,
+  rangeHighlight = FluidChartRangeHighlight.Signed      // 4.0, F8.6b: Signed (come Borsa) | Band (fascia neutra)
 
 FluidGauge(value: Float, range: ClosedFloatingPointRange<Float>, modifier, style = FluidGaugeStyle.Arc,
   label: String? = null, valueText: ((Float) -> String)? = null, minLabel: String? = null, maxLabel: String? = null,
@@ -121,8 +122,14 @@ Il riferimento è Swift Charts con `chartXSelection` e le annotazioni, il gesto 
 - **Cosa compare.** La linea verticale (1 dp, il `RuleMark` di serie), il punto sulla serie (5 dp con l'alone di 1,5 dp: il punto di Borsa) o la casella evidenziata per le barre, e una **capsula di vetro** dell'engine (`fluidGlass`)
   col valore e l'etichetta. La capsula sta in cima al grafico, centrata sulla linea e **tenuta dentro i bordi**; scende sotto il punto se il punto starebbe sotto di lei. Nasce dal punto e ci torna al rilascio (il viaggio d'oro),
   scivola da un punto all'altro con la molla dei controlli; con «Riduci movimento» compare e va via senza viaggio.
-- **Due dita.** Una fascia d'accento fra le due linee e, nella capsula, la differenza con la variazione («+1,5 (+25%)», il meno è quello tipografico) e l'intervallo («26 set – 5 dic»). Un buco a un estremo dice «nessun dato»: la
-  differenza non si inventa. Con più serie la capsula le nomina tutte. `deltaText` la scrive a modo dell'app.
+- **Due dita** (4.0, F8.6b, scelta di Alessio del 24 novembre: come Borsa). Nella capsula la differenza con la variazione («+1,5 (+25%)», il meno è quello tipografico) e l'intervallo
+  («26 set – 5 dic»). Di serie (`FluidChartRangeHighlight.Signed`) **fuori dall'intervallo linea e area sbiadiscono** (ne resta il 40%, misura sulla guida di Borsa per Mac) e **la differenza, le due linee e i
+  due punti sono verdi se si sale e rossi se si scende** (`systemGreen` e `systemRed` delle HIG, portati a 4,5:1 come testo); con più serie ogni differenza ha il suo colore e le linee lo prendono solo se
+  vanno tutte nello stesso verso. Lo sbiadito è una maschera `DstOut` sul piano già registrato (`fluidChartRangeFade`): **il piano non si ridisegna**, si rifà solo l'involucro, e si compone fuori schermo
+  solo mentre l'intervallo c'è. `FluidChartRangeHighlight.Band` è il ripiego per i grafici in cui salire non è né bene né male (lo spazio occupato): la fascia d'accento, niente verde e rosso, niente
+  sbiadito. Un buco a un estremo dice «nessun dato»: la differenza non si inventa, e non ha colore. `deltaText` la scrive a modo dell'app.
+- **Nitido sotto il dito** (regola di Alessio, 24 novembre): ciò che muove il dito resta nitido, si sfoca solo ciò che muove l'app da sola. Linea, punto, capsula e sbiadito seguono il dito senza alcuna
+  sfocatura di movimento.
 - **Aptica.** Un `Tick` per punto nuovo con la rete dei 55 ms dei gesti continui (`FluidSliderNotchGate`, la stessa dello scrubber e dello slider), uno per dito.
 - **`onScrub`** dice all'app i punti sotto le dita (`i..i` con un dito, dal più piccolo al più grande con due) e `null` al rilascio: serve per scrivere il valore anche in testata, come Borsa.
 - **Costo.** Lo stato dello scrubber è letto **solo** dal suo livello (un `graphicsLayer` suo: linea, fascia, punto) e dalla capsula: il piano del grafico, i tracciati e le etichette non si ricompongono e non si ridisegnano mentre il
@@ -143,7 +150,7 @@ Un valore dentro un intervallo, da leggere a colpo d'occhio: `Gauge` di SwiftUI,
 - **Movimento.** L'arco insegue il valore con la `.spring()` di serie di SwiftUI (risposta 0,55 s, smorzamento 1: niente rimbalzo, che direbbe un numero falso); la prima volta cresce con l'ingresso dei grafici. Fermo, non ridisegna.
 - **Valori veloci.** `FluidGauge(value = { db })`: la lambda si legge nel disegno e nel numero, mai in chi chiama (otto valori al secondo ridisegnano l'arco, non la pagina; provato).
 - **TalkBack.** Un nodo: `label` come nome, l'intervallo (`ProgressBarRangeInfo`) e la frase dai dati, «18 %, da 0 a 100 %. Limite 25 %.» (`fluidGaugeDescription`).
-- **Il numero** cambia di colpo: quando `FluidNumericText` (F8.1) sarà nell'engine, il punto da cambiare è uno solo, `GaugeNumber` in `FluidGauge.kt`.
+- **Il numero scorre** (F8.1b, `GaugeNumber` in `FluidGauge.kt`): solo le cifre cambiate, nel verso del cambio, sfocate in viaggio (`FluidNumericText`). Con la lambda dei valori fitti (i decibel, otto volte al secondo) cambia di colpo: sotto 300 ms fra due cambi `FluidNumericText` non scorre, quindi niente tremolio. Il quadrante non si tocca col dito: la regola «ciò che muove il dito resta nitido» qui non entra.
 - **Sul widget** c'è `EngineWidgetGauge` (`engine-widget`, [../widget.md](../widget.md)): stessa lettura, stesse forme e stessa frase.
 
 ## Legenda
@@ -200,6 +207,10 @@ un solo fotogramma di crescita. L'evidenza di una voce scelta cresce e torna con
   l'andamento con buchi e due serie, le etichette dell'asse che si diradano a 200%, ciambella e barre che **crescono in altezza** a 200% invece di tagliare, il movimento ridotto, il tema scuro, la demo.
 - **`F8p6ChartTouchMathTest`** (`engine-ui`, JVM, 4.0 F8.6): la colonna sotto il dito (e l'estremo fuori dall'area), l'intervallo di due dita, cosa scrive la capsula (valore, buco, differenza con la percentuale, più serie), il meno
   tipografico, una tacca per punto nuovo con la rete dei 55 ms; il quadrante (frazione, estremi, soglia superata, intervallo vuoto, non finito), gli angoli dell'arco, la frase per TalkBack, i colori delle soglie.
+- **`F8p6bRangeSignTest`** (`engine-ui`, JVM, 4.0 F8.6b): il segno di ogni differenza e di tutto l'intervallo (anche con più serie e coi buchi), la capsula a pezzi col segno, il verde e il rosso a 4,5:1 su ogni superficie nei due temi.
+- **`F8p6bDueDitaUiTest`** (`sample`, Robolectric, dito vero e pixel veri con PixelCopy): fuori dall'intervallo l'inchiostro scende sotto il 70%, dentro resta; la differenza verde se si sale e rossa se si scende, la linea
+  verticale verde nei pixel; **il piano non si ricompone e non si ridisegna** mentre le due dita si allargano (`plotDraws` = 0), si ridisegna solo il livello dello scrubber; con `Band` la fascia senza sbiadito e
+  senza colore; i fermi in chiaro e in scuro per la tavola contro Borsa.
 - **`F8p6ChartsUiTest`** (`sample`, Robolectric, dito vero e vetro vero): lo scrubber preso di lato e col dito fermo, sul punto giusto, una tacca per punto, la capsula dentro il grafico sul primo e sull'ultimo punto, la linea nei
   pixel, due dita con la differenza e l'intervallo, il dito in verticale che fa scorrere la pagina e il tocco che sceglie ancora, **il piano mai ricomposto** sotto il dito e nessuna scrittura a riposo, «Riduci movimento», le barre; il
   quadrante col suo nodo (valore, intervallo, soglia, soglia superata), la lambda che non ricompone chi chiama, anello e barra.

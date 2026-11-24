@@ -53,6 +53,7 @@ import dev.antigravity.fluidengine.foundation.FluidFormatWidth
 import dev.antigravity.fluidengine.sample.R
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidArrivingText
+import dev.antigravity.fluidengine.ui.fluid.FluidBadge
 import dev.antigravity.fluidengine.ui.fluid.FluidAsyncImage
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonSize
@@ -138,6 +139,7 @@ internal object F8p1Tags {
   const val BalanceUp = "f8p1:saldo-su"
   const val BalanceDown = "f8p1:saldo-giu"
   const val Unread = "f8p1:non-lette"
+  const val Badge = "f8p1:badge"
   const val Replay = "f8p1:ripeti"
   const val Expandable = "f8p1:descrizione"
   const val Countdown = "f8p1:capsula"
@@ -301,6 +303,14 @@ internal fun NumbersScene(onBack: () -> Unit) {
               Text(" non lette", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
           },
+          onClick = { unread++ },
+        )
+        FluidListDivider()
+        // F8.1b: anche il badge scorre, col blur durante lo scorrimento.
+        FluidListRow(
+          title = "Il badge",
+          subtitle = "FluidBadge: la capsula segue la larghezza nuova",
+          badge = { FluidBadge(count = unread, modifier = Modifier.testTag(F8p1Tags.Badge)) },
           onClick = { unread++ },
         )
         FluidListDivider()

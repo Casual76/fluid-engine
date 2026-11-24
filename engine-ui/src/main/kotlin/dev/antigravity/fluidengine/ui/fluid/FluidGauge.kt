@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -242,8 +243,9 @@ fun fluidGaugeDescription(
  * **Accessibilita'.** Un nodo solo, con [label] come nome, l'intervallo e una frase dai dati: «18 %, da 0 a 100 %.
  * Limite 25 %.»
  *
- * Il numero e' un testo che cambia di colpo: quando `FluidNumericText` (F8.1) sara' nell'engine, il punto da cambiare e'
- * uno solo (`GaugeNumber` qui sotto).
+ * **Il numero scorre** (F8.1b, `GaugeNumber` qui sotto): quando cambia scorrono solo le cifre cambiate, nel verso del
+ * cambio, sfocate mentre viaggiano ([FluidNumericText]). Un valore che cambia piu' spesso di
+ * [FluidTextMotion.DigitMinIntervalMillis] (i decibel, otto volte al secondo) cambia di colpo, come prima: niente tremolio.
  *
  * @param value il valore, nell'unita' di [range].
  * @param range l'intervallo.
@@ -355,11 +357,11 @@ fun FluidGauge(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-      ArcGauge(size, geometry, reading, thresholds, label, { number }, minText, maxText, muted)
+      ArcGauge(size, geometry, reading, thresholds, label, { number }, { currentValue() }, minText, maxText, muted)
       ThresholdLegend(thresholds, thresholdTexts, colors.second, { reading.active }, muted, dataLabels, centered = true)
     }
     FluidGaugeStyle.Ring -> Box(modifier = modifier.then(semanticsModifier)) {
-      RingGauge(size, geometry, { number })
+      RingGauge(size, geometry, { number }, { currentValue() })
     }
     FluidGaugeStyle.Capacity -> Column(
       modifier = modifier.fillMaxWidth().then(semanticsModifier),
@@ -374,7 +376,7 @@ fun FluidGauge(
           overflow = TextOverflow.Ellipsis,
           modifier = Modifier.weight(1f),
         )
-        GaugeNumber({ number }, MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"), scheme.onSurface)
+        GaugeNumber({ number }, { currentValue() }, MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"), scheme.onSurface)
       }
       Box(Modifier.fillMaxWidth().height(FluidGaugeDefaults.CapacityHeight + FluidGaugeDefaults.ThresholdMarkReach * 2).drawBehind { drawCapacity(geometry, reading) })
       if (minText.isNotEmpty() || maxText.isNotEmpty()) {
@@ -400,12 +402,15 @@ private class GaugeGeometry(
 }
 
 /**
- * Il numero del quadrante. **Il punto pronto per `FluidNumericText`** (F8.1, le cifre che scorrono col blur): quando sara'
- * nell'engine, si sostituisce qui il `Text`. Il testo si legge da una lambda: cambia il numero, si ricompone solo lui.
+ * Il numero del quadrante, con le cifre che scorrono ([FluidNumericText], F8.1b). Il testo si legge da una lambda: cambia
+ * il numero, si ricompone solo lui. Il valore (per il verso dello scorrimento) si legge una volta per testo e senza
+ * iscriversi: un valore che cambia senza cambiare il numero scritto non ricompone niente.
  */
 @Composable
-private fun GaugeNumber(text: () -> String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
-  Text(text = text(), style = style, color = color, maxLines = 1, softWrap = false, modifier = modifier)
+private fun GaugeNumber(text: () -> String, value: () -> Float, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
+  val shown = text()
+  val direction = remember(shown) { Snapshot.withoutReadObservation { value() } }
+  FluidNumericText(text = shown, value = direction.toDouble(), modifier = modifier, style = style, color = color)
 }
 
 @Composable
@@ -416,6 +421,7 @@ private fun ArcGauge(
   thresholds: List<FluidGaugeThreshold>,
   label: String?,
   number: () -> String,
+  value: () -> Float,
   minText: String,
   maxText: String,
   muted: Color,
@@ -434,7 +440,7 @@ private fun ArcGauge(
       Modifier.align(Alignment.Center).padding(bottom = size * 0.08f).width(size * 0.7f),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      GaugeNumber(number, numberStyle, scheme.onSurface)
+      GaugeNumber(number, value, numberStyle, scheme.onSurface)
       if (!label.isNullOrEmpty()) {
         Text(
           text = label,
@@ -472,7 +478,7 @@ private fun ArcGauge(
 }
 
 @Composable
-private fun RingGauge(size: Dp, geometry: GaugeGeometry, number: () -> String) {
+private fun RingGauge(size: Dp, geometry: GaugeGeometry, number: () -> String, value: () -> Float) {
   val scheme = MaterialTheme.colorScheme
   Box(Modifier.size(size), contentAlignment = Alignment.Center) {
     Box(Modifier.size(size).drawBehind { drawRound(geometry, null) })
@@ -481,6 +487,7 @@ private fun RingGauge(size: Dp, geometry: GaugeGeometry, number: () -> String) {
       val fontSize = (size.value * 0.3f).coerceIn(10f, 13f).sp
       GaugeNumber(
         number,
+        value,
         MaterialTheme.typography.labelSmall.copy(fontSize = fontSize, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
         scheme.onSurface,
       )

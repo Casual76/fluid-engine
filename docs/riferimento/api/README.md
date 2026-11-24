@@ -11,9 +11,9 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 18 | 268 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 50 | 433 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 50 | 437 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
-| [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 70 |
+| [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Controlli](controlli.md) | 21 | 174 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |

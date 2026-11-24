@@ -1122,6 +1122,8 @@ private fun FluidCartesian(
   val plotSource = rememberGlassBackdrop()
   val capsuleBackdrop = rememberCombinedGlassBackdrop(currentCanvasBackdrop() ?: currentGlassBackdrop(), plotSource)
   val scrubbing = scrub != null
+  // F8.6b · Il verde e il rosso del segno, per le due dita nel modo di Borsa.
+  val (rise, fall) = rememberFluidChartSignColors()
 
   BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
     SideEffect { FluidChartDiagnostics.plotCompositions++ }
@@ -1155,6 +1157,8 @@ private fun FluidCartesian(
       Box(
         modifier = Modifier
           .matchParentSize()
+          // F8.6b · Con due dita, fuori dall'intervallo il piano sbiadisce: una maschera sul piano gia' registrato.
+          .fluidChartRangeFade(scrubState, plan, scrub)
           // Il piano e' anche cio' che la capsula di vetro piega: si registra solo mentre la capsula c'e'.
           .then(if (scrubbing) Modifier.glassBackdropSource(plotSource) else Modifier)
           .drawBehind {
@@ -1179,7 +1183,7 @@ private fun FluidCartesian(
             fluidChartGesture({ plan }, if (scrubbing) scrubber else null) { selectedBy.tap(it) }
           },
       )
-      if (scrub != null) FluidChartScrubLayer(scrubState, plan, scrub, Modifier.matchParentSize())
+      if (scrub != null) FluidChartScrubLayer(scrubState, plan, scrub, Modifier.matchParentSize(), rise, fall)
 
       // Le tacche dei valori, a destra nella colonna a sinistra.
       plan.scale.ticks.forEachIndexed { i, tick ->
@@ -1237,7 +1241,7 @@ private fun FluidCartesian(
         )
       }
       // La capsula di vetro dello scrubber, sopra tutto il resto del grafico.
-      if (scrub != null) FluidChartScrubCapsule(scrubState, plan, scrub, capsuleBackdrop, widthPx)
+      if (scrub != null) FluidChartScrubCapsule(scrubState, plan, scrub, capsuleBackdrop, widthPx, rise, fall)
       // Un nodo per casella, per TalkBack: lo stesso rettangolo del tocco.
       Box(
         modifier = Modifier
@@ -1328,6 +1332,8 @@ private fun rememberTickBudget(plotHeight: Dp): Int {
  *   colonna che scorre, e le righe si toccano gia' una per una.
  * @param onScrub le caselle sotto le dita mentre lo scrubber e' preso, null al rilascio. Vedi [FluidLineChart].
  * @param deltaText la differenza fra due caselle scelte con due dita; per le pile, fra i totali.
+ * @param rangeHighlight come si legge l'intervallo di due dita (4.0, F8.6b), come in [FluidLineChart]: di serie col
+ *   segno a colori e le barre fuori dall'intervallo sbiadite.
  */
 @Composable
 fun FluidBarChart(
@@ -1348,6 +1354,7 @@ fun FluidBarChart(
   scrubbing: Boolean = true,
   onScrub: ((IntRange?) -> Unit)? = null,
   deltaText: ((from: Float, to: Float) -> String)? = null,
+  rangeHighlight: FluidChartRangeHighlight = FluidChartRangeHighlight.Signed,
 ) {
   val labels = LocalFluidLabels.current
   val locale = fluidChartLocale()
@@ -1381,7 +1388,7 @@ fun FluidBarChart(
   val selection = rememberFluidChartSelection(groups.size, selectedIndex, onSelectedChange)
   val dataLabels = LocalFluidDataLabels.current
   // Le barre orizzontali stanno in una colonna che scorre: lo scrubber e' solo delle verticali.
-  val scrubModel = remember(scrubbing, horizontal, groups, series, stacked, colors, valueText, deltaText, locale, labels, dataLabels) {
+  val scrubModel = remember(scrubbing, horizontal, groups, series, stacked, colors, valueText, deltaText, locale, labels, dataLabels, rangeHighlight) {
     if (!scrubbing || horizontal) {
       null
     } else {
@@ -1400,6 +1407,7 @@ fun FluidBarChart(
         labels = dataLabels,
         locale = locale,
         dots = false,
+        signed = rangeHighlight == FluidChartRangeHighlight.Signed,
       )
     }
   }
@@ -1779,10 +1787,12 @@ private fun HorizontalBars(
  * **Da toccare (4.0, F8.6).** Il dito che scorre di lato sull'andamento, o che resta fermo per
  * [FluidChartTouchDefaults.HoldMillis], prende lo **scrubber**, come `chartXSelection` di Swift Charts e il grafico di
  * Borsa: compaiono la linea verticale, il punto piu' vicino e una capsula di vetro col valore e l'etichetta, tenuta
- * dentro il grafico; un `Tick` per punto, con la rete dei 55 ms. Con **due dita** si scelgono due punti: una fascia li
- * unisce e la capsula dice la differenza e la variazione («+1,5 (+20 %)», [deltaText]). Al rilascio tutto torna nel
- * punto. Il dito che scorre in verticale lascia scorrere la pagina. Lo scrubber non ricompone e non ridisegna il
- * grafico: si ridisegna solo il suo livello, una volta per punto.
+ * dentro il grafico; un `Tick` per punto, con la rete dei 55 ms. Con **due dita** si scelgono due punti e la capsula dice
+ * la differenza e la variazione («+1,5 (+20 %)», [deltaText]); di serie (4.0, F8.6b) come Borsa: fuori dall'intervallo
+ * linea e area sbiadiscono, e differenza, linee e punti sono verdi se si sale e rossi se si scende
+ * ([FluidChartRangeHighlight.Signed]; [FluidChartRangeHighlight.Band] per una fascia neutra). Al rilascio tutto torna
+ * nel punto. Il dito che scorre in verticale lascia scorrere la pagina. Lo scrubber non ricompone e non ridisegna il
+ * grafico: si ridisegna solo il suo livello, una volta per punto. Cio' che segue il dito non si sfoca mai.
  *
  * @param series le serie (nome, colore); piu' di una mostra la legenda.
  * @param valueText il testo di un valore (assi e descrizioni); di serie il numero nella lingua.
@@ -1793,6 +1803,8 @@ private fun HorizontalBars(
  *   piccolo al piu' grande con due; null al rilascio. Per scrivere il valore anche in testa alla pagina, come Borsa.
  * @param deltaText la differenza fra due punti scelti con due dita (il valore del primo e quello del secondo); di
  *   serie il segno, il valore nel formato di [valueText] e la variazione in percentuale.
+ * @param rangeHighlight come si legge l'intervallo di due dita (4.0, F8.6b): di serie come Borsa, col segno a colori e il
+ *   fuori sbiadito; [FluidChartRangeHighlight.Band] per i grafici in cui salire non e' ne' bene ne' male.
  */
 @Composable
 fun FluidLineChart(
@@ -1813,6 +1825,7 @@ fun FluidLineChart(
   scrubbing: Boolean = true,
   onScrub: ((IntRange?) -> Unit)? = null,
   deltaText: ((from: Float, to: Float) -> String)? = null,
+  rangeHighlight: FluidChartRangeHighlight = FluidChartRangeHighlight.Signed,
 ) {
   val labels = LocalFluidLabels.current
   val locale = fluidChartLocale()
@@ -1854,7 +1867,7 @@ fun FluidLineChart(
   val selection = rememberFluidChartSelection(xLabels.size, selectedIndex, onSelectedChange)
   val density = LocalDensity.current
   val dataLabels = LocalFluidDataLabels.current
-  val scrubModel = remember(scrubbing, xLabels, series, points, colors, valueText, deltaText, locale, labels, dataLabels) {
+  val scrubModel = remember(scrubbing, xLabels, series, points, colors, valueText, deltaText, locale, labels, dataLabels, rangeHighlight) {
     if (!scrubbing) {
       null
     } else {
@@ -1869,6 +1882,7 @@ fun FluidLineChart(
         labels = dataLabels,
         locale = locale,
         dots = true,
+        signed = rangeHighlight == FluidChartRangeHighlight.Signed,
       )
     }
   }

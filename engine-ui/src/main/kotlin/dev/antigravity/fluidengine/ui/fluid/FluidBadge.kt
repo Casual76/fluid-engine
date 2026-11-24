@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -82,7 +81,9 @@ fun fluidBadgeText(count: Int, max: Int = FluidBadgeDefaults.Max): String {
  * che ci sta sopra arriva a 4,5:1 ([fluidBadgeColors]). Il colore che si vede puo' quindi essere un
  * poco piu' scuro (o chiaro) di quello passato.
  *
- * Non fa animazioni: il segno compare e scompare con la riga che lo porta.
+ * **Il numero scorre** (F8.1b): quando cambia, scorrono solo le cifre cambiate, in su se cresce e in giu' se cala,
+ * sfocate mentre viaggiano ([FluidNumericText], come le cifre di `numericText` di SwiftUI). La capsula segue la larghezza
+ * nuova; col movimento ridotto il numero cambia a dissolvenza. Il segno compare e scompare con la riga che lo porta.
  *
  * @param count vedi sopra.
  * @param max oltre questo numero la capsula scrive «max+»; da 1 in su.
@@ -131,11 +132,12 @@ fun FluidBadge(
       .padding(horizontal = 5.dp),
     contentAlignment = Alignment.Center,
   ) {
-    Text(
+    // Il numero scorre (F8.1b): solo le cifre cambiate, nel verso del cambio, col blur durante lo scorrimento. Muto per
+    // TalkBack come prima: la frase (o il silenzio) l'ha messa il nodo del badge, qui sopra.
+    FluidNumericText(
       text = fluidBadgeText(count, max),
+      value = count.toDouble(),
       color = colors.ink,
-      maxLines = 1,
-      softWrap = false,
       style = MaterialTheme.typography.labelSmall.copy(
         fontWeight = FontWeight.SemiBold,
         // Cifre di larghezza fissa: «11» e «88» occupano lo stesso, e un contatore che sale non fa

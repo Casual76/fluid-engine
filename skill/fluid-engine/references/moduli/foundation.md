@@ -16,6 +16,13 @@ Schede dei moduli che lo usano: [storage](storage.md), [net](net.md), [config](c
 
 ## Scegliere in fretta
 
+Per gli indirizzi delle pagine, `FluidAddressPage` associa a un tipo Kotlin il nome, i parametri,
+il genitore, la visibilità e la disponibilità. `FluidAddressParameters` contiene i segmenti del
+percorso e i parametri della query già decodificati. `FluidAddressTable` emette il link con
+`addressOf` e risolve una `FluidAddressRequest` in un `FluidAddressResult`. La disponibilità
+è `FluidAddressAvailability`. La stessa verifica pura del pacchetto e della firma è disponibile
+con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.md) mostra il collegamento ad Android.
+
 | ho bisogno di… | uso |
 |---|---|
 | sapere con quale engine e' stata compilata l'app | `EngineBuild.VERSION` (costante compilata, non letta a runtime) |

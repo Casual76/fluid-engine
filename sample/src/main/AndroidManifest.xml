@@ -35,6 +35,21 @@
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+    <!-- Gli indirizzi della galleria arrivano alla stessa pila anche quando la scena è già aperta. -->
+    <activity
+        android:name=".novita.AddressDemoActivity"
+        android:exported="true"
+        android:launchMode="singleTop"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="33"
+        android:theme="@style/Theme.FluidSample">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="fluidglass" />
+      </intent-filter>
+    </activity>
     <!-- Le pagine della 3.0: il back predittivo deve arrivare all'host, quindi acceso qui. -->
     <activity
         android:name=".PagesDemoActivity"

@@ -80,6 +80,22 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun percent(fraction: Double, locale: Locale = Locale.getDefault(), fractionDigits: Int = 0): String` — Una frazione come percentuale: 0,425 è «43%» (o «42,5%» con una cifra), con la forma della lingua.
   - `fun compact(value: Double, locale: Locale = Locale.getDefault(), width: FluidFormatWidth = FluidFormatWidth.Short): String` — Un numero grande in breve: «1,2 Mln», «3,4 Mrd» in italiano, «1.2K» in inglese, come `.notation(.compactName)` di Apple (`CompactDecimalFormat` delle ICU, stesse tabelle CLDR). In italiano le migliaia non si abbreviano: CLDR scrive «1200», come iOS.
 
+## `engine-foundation/foundation/FluidPageAddress.kt`
+
+- `data class FluidAddressParameters(val segments: List<String> = emptyList(), val query: Map<String, String> = emptyMap())` — I valori di una pagina già decodificati. Un segmento può contenere anche una barra o un +.
+- `enum class FluidAddressAvailability` — I tre esiti dell'app. Per i dati riservati controllare l'accesso prima dell'esistenza.
+- `class FluidAddressPage<P : Any, T : P>(internal val type: KClass<T>, internal val name: String, internal val decode: (FluidAddressParameters) -> T?, private val encode: (T) -> FluidAddressParameters, private val parent: (T) -> P?, internal val public: Boolean = false, private val availability: (T) -> FluidAddressAvailability = { FluidAddressAvailability.Available })` — Una riga per tipo concreto di pagina. [name] è la prima parola dell'indirizzo (es. «nota»). [decode] restituisce null per parametri inattesi. [encode] scrive gli stessi valori. [parent] indica il contesto naturale della pagina. [public] autorizza un ingresso da fuori.
+- `data class FluidAddressRequest(val url: String, val trusted: Boolean = false)` — Un indirizzo in ingresso con l'esito della verifica del mittente. Di serie è esterno.
+- `fun fluidAddressCallerTrusted(callerPackage: String?, allowedPackages: Set<String>, sameSignature: (String) -> Boolean): Boolean` — Richiede sia un nome ammesso sia la stessa firma. Il nome viene dal sistema operativo.
+- `sealed interface FluidAddressResult<out P>` — La pila visibile, dalla radice alla cima, oppure un ingresso da ignorare.
+  - `data class Open<P>(val stack: List<P>) : FluidAddressResult<P>` — Tutte le pagine sono disponibili.
+  - `data class Missing<P>(val parents: List<P>) : FluidAddressResult<P>` — La prima pagina mancante. L'app presenta un avviso sopra i genitori disponibili.
+  - `data class SignIn<P>(val parents: List<P>, val pending: FluidAddressRequest) : FluidAddressResult<P>` — Dopo l'accesso va rivalutata la richiesta originale, con la stessa provenienza.
+  - `data object Rejected : FluidAddressResult<Nothing>` — Indirizzo malformato, sconosciuto o non pubblico per un mittente esterno.
+- `class FluidAddressTable<P : Any>(private val scheme: String, pages: List<FluidAddressPage<P, out P>>, private val httpsHost: String? = null)` — La tabella bidirezionale dell'app. [httpsHost] abilita anche https://dominio/nome/parametri sul solo host esatto. L'associazione Android del dominio rimane a carico dell'app.
+  - `fun addressOf(page: P): String` — L'indirizzo canonico della pagina, pronto per gli appunti o la condivisione.
+  - `fun resolve(request: FluidAddressRequest): FluidAddressResult<P>` — Risolve fino a 64 pagine inclusa la destinazione. Per un esterno anche i genitori devono essere pubblici.
+
 ## `engine-foundation/foundation/FluidPasswordRules.kt`
 
 - `class FluidPasswordCharset private constructor(val id: String, internal val test: (Char) -> Boolean, internal val pool: String)` — Un insieme di caratteri di una regola: le classi di Apple (`upper`, `lower`, `digit`, `special`, `ascii-printable`, `unicode`) o un insieme su misura (`[-().&@?'#,/"+]`).

@@ -8,6 +8,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import dev.antigravity.fluidengine.foundation.FluidAddressRequest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -90,6 +93,45 @@ fun FluidNavHost(
   FluidNavHost(navController, graph, modifier, peer, state, pageColor)
 }
 
+/**
+ * Apre [initialAddress] prima che il motore delle pagine osservi la prima pila. Al ripristino
+ * prevale la pila salvata da Navigation, anche se l'utente era già tornato al genitore.
+ * I nuovi intent si consegnano ad [FluidAddressNavigation.open] con lo stesso controller.
+ */
+@Composable
+fun <P : Any> FluidNavHost(
+  navController: NavHostController,
+  startDestination: String,
+  addresses: FluidAddressNavigation<P>,
+  initialAddress: FluidAddressRequest?,
+  modifier: Modifier = Modifier,
+  state: FluidPageHostState = rememberFluidPageHostState(),
+  builder: NavGraphBuilder.() -> Unit,
+) {
+  EnsurePageNavigator(navController)
+  val graph = remember(startDestination, builder) {
+    NavGraphBuilder(navController.navigatorProvider, startDestination, null).apply(builder).build()
+  }
+  FluidNavHost(navController, graph, addresses, initialAddress, modifier, state = state)
+}
+
+/** Lo stesso ingresso per un grafo già costruito, anche con destinazione iniziale serializzabile. */
+@Composable
+fun <P : Any> FluidNavHost(
+  navController: NavHostController,
+  graph: NavGraph,
+  addresses: FluidAddressNavigation<P>,
+  initialAddress: FluidAddressRequest?,
+  modifier: Modifier = Modifier,
+  peer: FluidPeerMove<NavBackStackEntry>? = null,
+  state: FluidPageHostState = rememberFluidPageHostState(),
+  pageColor: Color = MaterialTheme.colorScheme.background,
+) {
+  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor) {
+    if (initialAddress != null) addresses.open(navController, initialAddress)
+  }
+}
+
 /** Come sopra, con rotte tipizzate. */
 @Composable
 fun FluidNavHost(
@@ -125,6 +167,19 @@ fun FluidNavHost(
   state: FluidPageHostState = rememberFluidPageHostState(),
   pageColor: Color = MaterialTheme.colorScheme.background,
 ) {
+  FluidNavHostContent(navController, graph, modifier, peer, state, pageColor, null)
+}
+
+@Composable
+private fun FluidNavHostContent(
+  navController: NavHostController,
+  graph: NavGraph,
+  modifier: Modifier,
+  peer: FluidPeerMove<NavBackStackEntry>?,
+  state: FluidPageHostState,
+  pageColor: Color,
+  onInitialGraph: (() -> Unit)?,
+) {
   val lifecycleOwner = LocalLifecycleOwner.current
   val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) {
     "FluidNavHost ha bisogno di un ViewModelStoreOwner in LocalViewModelStoreOwner"
@@ -134,6 +189,13 @@ fun FluidNavHost(
   // L'ordine e' quello di NavHost: prima il ViewModelStore, poi il grafo, poi il ciclo di vita.
   navController.setViewModelStore(viewModelStoreOwner.viewModelStore)
   navController.graph = graph
+  if (onInitialGraph != null) {
+    val consumed = rememberSaveable(navController) { mutableStateOf(false) }
+    if (!consumed.value) {
+      consumed.value = true
+      onInitialGraph()
+    }
+  }
 
   val navigator = navController.navigatorProvider.pageNavigatorOrNull() ?: return
 

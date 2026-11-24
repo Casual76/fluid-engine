@@ -19,6 +19,52 @@ sistema, `FluidPageInput`, la barra ancorata, i token numerici e i test stanno i
 Firme complete: [../api/pagine.md](../api/pagine.md). Il perche' storico: [../regole.md](../regole.md) («Le pagine non sfumano e seguono il dito»,
 «Le pagine: una barra per host») e [docs/riferimenti-3.0.md](../../riferimenti-3.0.md) sezione 2 (come fa LibrePods, da cui l'host e' portato, GPL-3.0).
 
+## Aprire una pagina da un indirizzo (F8.12)
+
+L'app dichiara una riga `FluidAddressPage` per ogni tipo concreto. La riga di una nota può
+leggere un id intero, scriverlo e restituire il quaderno genitore. La tabella codifica in UTF-8
+ogni segmento e ogni parametro della query. L'app valida i parametri che ammette. I nomi delle
+pagine sono unici. Il genitore deve essere calcolabile anche per una risorsa cancellata o chiusa.
+Per un identificatore senza genitore noto si può tornare alla home.
+Una catena può contenere fino a 64 pagine. Un ciclo o una gerarchia oltre questo limite rifiuta l'ingresso.
+
+```kotlin
+val addresses = FluidAddressNavigation(table, ::routeOf, missingRoute = "mancante", signInRoute = "accesso")
+FluidNavHost(nav, "home", addresses, initialRequest) {
+  // Le destinazioni Fluid dell'app, comprese le due pagine di servizio.
+}
+```
+
+Per ricevere il link, una Activity dedicata con filtro VIEW/BROWSABLE e modalità singleTop
+chiama `takeInitialFluidAddress` in onCreate prima di installare il grafo. Questo metodo consuma
+l'intero intent di lancio. In onNewIntent chiama `newFluidAddress` dentro il callback e consegna
+la richiesta ad `addresses.open(nav, request)`. Il sample contiene il collegamento completo,
+compreso l'arrivo di un intent prima che la composizione sia pronta.
+Le rotte della tabella possono essere stringhe o oggetti serializzabili di Navigation. Chi ha già
+un grafo tipizzato lo passa all'overload con `graph`, che mantiene anche le opzioni di movimento fra schede.
+
+L'ingresso sostituisce la pila con il percorso naturale. A freddo l'host riceve la pila prima
+del primo disegno. A caldo la nuova cima entra con il movimento Fluid. Indietro percorre i
+genitori e dalla radice torna al sistema. La ricreazione riparte dall'ultima voce salvata.
+Se manca la risorsa, l'app mostra la propria pagina di avviso sopra i genitori disponibili.
+Per un accesso richiesto, l'engine conserva la richiesta sulla voce di login. Dopo l'accesso reale
+l'app chiama `addresses.resumeAfterSignIn(nav)`. L'engine rivaluta visibilità ed esistenza.
+L'app mantiene i consueti controlli di sessione anche quando mostra dati già aperti.
+Per gli appunti o la condivisione la pagina usa `table.addressOf(pagina)` con i dati della propria voce.
+
+Ogni ingresso esterno richiede che la pagina e i suoi genitori siano pubblici. Per le app Pampa
+si passano i nomi esatti ammessi. Su Android 15 e successivi la chiamante può condividere la
+propria identità con `ActivityOptions.setShareIdentityEnabled(true)`. L'engine verifica la firma
+con PackageManager per il chiamante di quella consegna. Un mittente anonimo riceve il trattamento
+pubblico. Sulle versioni precedenti, per un collegamento privato fra app si può usare
+`fluidAddressFromCall` dentro ContentProvider.call e inoltrare il risultato alla UI sul canale
+interno dell'app. Il nome del pacchetto fornito da Android e la firma devono coincidere con quelli attesi.
+Per i futuri App Links, `httpsHost` accetta un solo dominio nella forma https://dominio/nome/id.
+Quando ci sarà il dominio, l'app aggiungerà il filtro autoVerify e l'associazione Digital Asset Links.
+
+Il riferimento Apple per consegna e ricostruzione è documentato in [onOpenURL](https://developer.apple.com/documentation/swiftui/view/onopenurl%28perform%3A%29) e [NavigationPath](https://developer.apple.com/documentation/swiftui/navigationpath).
+Il mittente per singolo intent è descritto da Android in [ComponentCaller](https://developer.android.com/reference/android/app/ComponentCaller).
+
 ## Scegliere in fretta
 
 | ho bisogno di… | uso |

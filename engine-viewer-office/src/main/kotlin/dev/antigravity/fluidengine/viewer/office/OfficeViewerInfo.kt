@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.viewer.office
 
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
+import androidx.compose.runtime.snapshots.Snapshot
 import dev.antigravity.fluidengine.viewer.FluidViewerDocument
 import java.time.DateTimeException
 import java.time.LocalDate
@@ -16,6 +17,8 @@ import java.util.Locale
  * pagination.
  */
 fun FluidViewerDocument.officeInfo(): FluidViewerInfo {
+  // La lista cresce da un filo in sottofondo (l'impaginazione): si legge una copia ferma, presa in un'istantanea.
+  val details = details.consistentCopy()
   val presentation = file.name.substringAfterLast('.').lowercase(Locale.ROOT) in setOf("pptx", "odp")
   val officePages = (content as? FluidViewerContent.Pages)?.source as? OfficePages
   val facts = buildList {
@@ -75,5 +78,15 @@ internal fun officeDisplayDate(raw: String, locale: Locale, zone: ZoneId): Strin
     }
   } catch (_: DateTimeException) {
     raw
+  }
+}
+
+/** Una copia ferma della lista, letta in un'istantanea: fuori dalla composizione una riga nuova può arrivare a metà lettura. */
+internal fun <T> List<T>.consistentCopy(): List<T> {
+  val snapshot = Snapshot.takeSnapshot()
+  try {
+    return snapshot.enter { toList() }
+  } finally {
+    snapshot.dispose()
   }
 }

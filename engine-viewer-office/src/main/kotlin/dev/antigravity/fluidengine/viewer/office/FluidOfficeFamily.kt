@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.viewer.office
 
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.ImageBitmap
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
@@ -147,18 +148,20 @@ class FluidOfficeFamily : FluidViewerFamily {
         val details = mutableStateListOf<FluidViewerDetail>().apply { addAll(info.finish()) }
         pages.start(
           onPartial = { error ->
-            details.add(
-              FluidViewerDetail(
-                "Impaginazione interrotta",
-                error.message ?: "Errore di lettura",
-                "Lettura",
+            Snapshot.withMutableSnapshot {
+              details.add(
+                FluidViewerDetail(
+                  "Impaginazione interrotta",
+                  error.message ?: "Errore di lettura",
+                  "Lettura",
+                )
               )
-            )
+            }
           }
         ) {
           if (laidOut != null) paginate(laidOut, it, fonts)
           else fixed.orEmpty().forEach { page -> it.append(page) }
-          details.add(FluidViewerDetail("Pagine", it.count.toString(), "Contenuto"))
+          Snapshot.withMutableSnapshot { details.add(FluidViewerDetail("Pagine", it.count.toString(), "Contenuto")) }
         }
         FluidViewerOpened(FluidViewerContent.Pages(pages), details, pages::close)
       } catch (t: Throwable) {

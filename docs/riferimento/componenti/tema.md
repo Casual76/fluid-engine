@@ -25,6 +25,7 @@ righe e le card di questa scheda sono i mattoni di `FluidScreen` ([schermata.md]
 | ho bisogno di… | uso |
 |---|---|
 | vestire un'app intera | `FluidTheme(settings, brand = …)` alla radice, una volta |
+| tingere **una pagina** coi colori della sua immagine (una copertina), leggibile in chiaro e in scuro | `FluidContentTheme(colors)` con `rememberFluidContentColors` → [colore.md](colore.md) |
 | vestire un pezzo di schermata con un'altra «parte» (testata su una copertina scura) | `FluidTheme(settings, systemBars = false) { … }`: **non** rivendica le barre di sistema |
 | i colori dell'app fuori da una composizione (widget Glance, notifiche) | `fluidColorScheme(settings, isDark, brand, presets, dynamicScheme)` |
 | il colore dell'app (marchio) | `AccentPreset("nome", "Etichetta", chiaro, scuro)` e `brand = …`: tutto il resto si deriva |

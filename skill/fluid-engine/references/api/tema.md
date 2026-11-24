@@ -96,6 +96,37 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidLoading(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary)`
 - `@Composable fun FluidListItem(title: String, subtitle: String, supporting: String? = null, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null)` — **DEPRECATO: Era una ListItem di Material con una gerarchia sua; adesso è una FluidListRow. Usa ** — La riga semplice di prima, sotto il nome che le app già chiamano.
 
+## `engine-ui/ui/theme/FluidContentColor.kt`
+
+- `data class FluidContentColors(val seed: Color, val dominant: Color, val vibrant: Color, val swatches: List<Color>, val monochrome: Boolean)` — I colori letti da un'immagine: il seme per il tema della pagina e due o tre colori distinti per chi si muove fra piu' tinte (un'aura, un fondo animato), tutti dalla stessa immagine.
+- `object FluidContentColorDefaults` — Le misure dell'estrattore e della transizione del tema della pagina.
+  - `const val SampleSize: Int` — Il lato massimo dell'immagine campionata: **96 px**, come Pampa Widgets e Fluidify (decodificano a 96).
+  - `const val SampleStep: Int` — Un pixel ogni **2** su entrambi i lati, come Pampa Widgets: 48 x 48 campioni bastano per le proporzioni.
+  - `const val MinAlpha: Int` — Sotto quest'alfa (su 255) un pixel non conta: **160**, come Pampa Widgets (bordi sfumati, fondi trasparenti).
+  - `const val MonochromeShare: Float` — La quota di pixel colorati sotto cui l'immagine e' «monocroma»: **4 %**. A occhio, 24 novembre 2026: un logo rosso su una copertina bianca (piu' del 4 % dei pixel) tinge la pagina, un fondo grigio con qualche pixel di rumore no.
+  - `const val CacheSize: Int` — Quante voci tiene la cache per chiave: **64**, come la cache dei colori di Fluidify.
+  - `const val TransitionMillis: Int` — La durata del passaggio fra il tema normale e quello tinto, e fra due tinte: **450 ms**, sulla curva dei colori dell'engine (`FluidMotion.color`). A occhio, 24 novembre 2026, sul cambio di brano di Apple Music (fiducia bassa: il fondo sfuma in circa mezzo secondo). E' un cambio guidato dall'app, quindi sfuma; col movimento ridotto e' immediato.
+- `fun fluidContentColorsOf(bitmap: Bitmap): FluidContentColors?` — Legge i colori da un'immagine gia' in memoria. **Fuori dal thread principale**: ridimensiona a [FluidContentColorDefaults.SampleSize] e campiona. Null se l'immagine non ha pixel abbastanza opachi (tutta trasparente): li' non c'e' un colore da prendere, e il tema resta quello normale.
+- `fun fluidContentColorsOf(image: ImageBitmap): FluidContentColors?` — [fluidContentColorsOf] per un'immagine di Compose.
+- `fun fluidContentColorsOf(pixels: IntArray, width: Int, height: Int): FluidContentColors?` — Il cuore dell'estrattore, sui pixel ARGB (`0xAARRGGBB`) di un'immagine gia' piccola ([width] x [height]): pura, cosi' si prova sulla JVM. Null se nessun pixel e' abbastanza opaco.
+- `object FluidContentColorCache` — La cache dei colori letti, per chiave (l'indirizzo della copertina, l'id della foto): la stessa copertina la chiedono il mini player, la pagina del brano e il widget insieme, e leggerla tre volte a ogni cambio di brano e' uno spreco (Fluidify). Tiene [FluidContentColorDefaults.CacheSize] voci, l'ultima usata davanti.
+  - `operator fun get(key: Any): FluidContentColors?` — I colori gia' letti per [key], o null.
+  - `operator fun set(key: Any, colors: FluidContentColors)` — Conserva i colori letti per [key].
+  - `fun clear()` — Dimentica tutto (per esempio quando l'app svuota le sue copertine).
+  - `val size: Int` — Quante voci tiene adesso.
+- `@Composable fun rememberFluidContentColors(key: Any?, load: suspend () -> Bitmap?): State<FluidContentColors?>` — I colori dell'immagine che [key] identifica, letti una volta sola: dalla cache se ci sono, altrimenti [load] e [fluidContentColorsOf] su `Dispatchers.Default`, mai sul thread principale.
+- `@Composable fun rememberFluidContentColors(image: ImageBitmap?, key: Any? = image): State<FluidContentColors?>` — [rememberFluidContentColors] per un'immagine gia' in memoria; la chiave di serie e' l'immagine stessa.
+
+## `engine-ui/ui/theme/FluidContentTheme.kt`
+
+- `data class FluidContentRoles(val isDark: Boolean, val pageTint: Color, val onPage: Color, val onPageVariant: Color, val barGlass: Color, val onBar: Color, val accent: Color, val onAccent: Color)` — I ruoli di una pagina tinta dal suo contenuto, per un lato del tema ([isDark]). Ogni colore di fondo viaggia col suo inchiostro, e ogni coppia fa **almeno 4,5:1** (WCAG 1.4.3, il testo), provato da un test su tutta la ruota dei colori, sui grigi, sul nero, sul bianco e sui colori «tossici».
+  - `@Composable fun barTint(): GlassTint` — La tinta per un vetro di barra che l'app vuole del colore della pagina: la pellicola [barGlass] come tinta di Apple (`GlassTintMode.Colored`), col filetto del suo inchiostro. Va con `fluidGlassPanel` o con i vetri che accettano una `GlassTint`.
+- `fun fluidContentRoles(colors: FluidContentColors, isDark: Boolean): FluidContentRoles` — I ruoli di una pagina tinta da [colors], per il lato [isDark]. Pura: si prova sulla JVM su tutta la ruota dei colori.
+- `enum class FluidContentSide` — Da che parte sta la pagina tinta.
+- `fun fluidContentRoles(colors: FluidContentColors, isDark: Boolean, side: FluidContentSide): FluidContentRoles` — I ruoli di una pagina tinta da [colors], dalla parte [side]: [FluidContentSide.Theme] e' [fluidContentRoles] col lato del tema ([isDark]); [FluidContentSide.Content] e' il lato della copertina, come Apple Music, e non dipende dal tema. Ogni coppia fa almeno 4,5:1 in tutti e due i casi.
+- `val LocalFluidContentRoles` — I ruoli della pagina tinta in cui ci si trova, mentre `FluidContentTheme` la tinge (anche a meta' del passaggio), o null fuori da una pagina tinta o a tema normale. Per i pezzi che l'app disegna da se': il vetro di una barra ([FluidContentRoles.barTint]), un'aura, un fondo che sfuma nella copertina.
+- `@Composable fun FluidContentTheme(colors: FluidContentColors?, enabled: Boolean = true, page: Boolean = true, accent: Boolean = true, side: FluidContentSide = FluidContentSide.Content, content: @Composable () -> Unit)` — Tinge **la sola pagina** che avvolge coi colori del suo contenuto, e torna al tema normale quando [colors] diventa null (o [enabled] falso), sfumando in [FluidContentColorDefaults.TransitionMillis]. Anche il cambio da una tinta all'altra (un brano dopo l'altro) sfuma: e' un cambio guidato dall'app, quindi puo' sfumare. Col movimento ridotto e' immediato.
+
 ## `engine-ui/ui/theme/FluidEmptyStatePresets.kt`
 
 - `sealed class FluidEmptyPreset` — I casi pronti di una pagina senza contenuto (F8.1, `stati-pronti`), come `ContentUnavailableView` di SwiftUI (iOS 17) e il suo preset `.search(text:)`: ognuno ha l'icona, le parole e l'azione di serie, e l'app dice solo in che stato è e cosa fa «Riprova». Una classe chiusa e non un enum: un caso nuovo si aggiunge senza rompere chi usa questi.

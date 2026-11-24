@@ -57,6 +57,7 @@ internal val NewElementSections: List<NewElementSection> = listOf(
   F8p4Section,
   NewElementSection(pack = "F8.5", title = "Festa e simboli", scenes = F8p5Scenes, detail = "I coriandoli di un successo e gli effetti di SF Symbols sulle icone"),
   F8p6Section,
+  NewElementSection(pack = "F8.7", title = "Colore", scenes = F8p7Scenes, detail = "Il selettore di colore di iOS e la pagina tinta dalla copertina, come Apple Music"),
 )
 
 /** Gli extra di lancio della pagina (solo nella build di debug). */

@@ -21,6 +21,9 @@ Le righe di impostazioni che contengono un interruttore o un cursore (`FluidTogg
 scheda [contenuto.md](contenuto.md); qui si dice solo come interruttore e cursore si comportano *dentro* la riga.
 Catalogo delle firme: [../api/controlli.md](../api/controlli.md).
 
+Il selettore di colore (il pozzetto, la riga col pozzetto, la fila corta di campioni, il foglio con griglia, spettro e
+cursori, il contagocce) ha la sua scheda, [colore.md](colore.md): usa `FluidColorDot` e `FluidSegmentedControl` di qui.
+
 I campi che sanno cosa contengono (un numero con l'unità, un codice a caselle, una password con le regole, un valore
 riservato, la copia che si cancella, il tasto incolla) hanno la loro scheda, [campi-speciali.md](campi-speciali.md): sono
 tutti questo campo di testo, senza un aspetto loro.

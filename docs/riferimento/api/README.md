@@ -14,12 +14,12 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 50 | 437 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
-| [Controlli](controlli.md) | 21 | 174 |
+| [Controlli](controlli.md) | 22 | 233 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 258 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
-| [Tema, forma, tipo](tema.md) | 9 | 123 |
+| [Tema, forma, tipo](tema.md) | 11 | 148 |
 | [Icone (FluidIcons)](icone.md) | 5 | 208 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 13 | 155 |

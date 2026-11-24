@@ -21,6 +21,68 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val FocusBorder: Dp` — Il bordo della casella attiva e di quella in errore: 2 dp, nell'accento o nella tinta d'errore.
 - `@Composable fun FluidCodeField(state: FluidCodeFieldState, onComplete: (String) -> Unit, modifier: Modifier = Modifier, digitsOnly: Boolean = true, secret: Boolean = false, verifying: Boolean = false, enabled: Boolean = true, autoFocus: Boolean = false, pasteButton: Boolean = true, label: String? = null, labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current)` — Il campo a codice (F8.3, idea `campo-codice`): le caselle per un codice di 4–8 cifre (verifica in due passaggi, PIN, codice di abbinamento). È **un campo solo** per la tastiera, con le caselle disegnate sopra: il fuoco avanza e torna indietro da solo, «cancella» toglie l'ultima cifra, e a codice completo chiama [onComplete].
 
+## `engine-ui/ui/fluid/FluidColorPicker.kt`
+
+- `enum class FluidColorPickerMode` — I tre modi del foglio, come i segmenti di `UIColorPickerViewController`: Griglia, Spettro, Cursori.
+- `class FluidRecentColors(initial: List<Color> = emptyList(), val capacity: Int = FluidColorPickerDefaults.RecentCapacity, onChange: (List<Color>) -> Unit = {})` — I colori recenti del selettore: l'ultimo scelto davanti, senza doppioni, al massimo [capacity]. Il foglio ci aggiunge il colore scelto quando si chiude (se e' cambiato) e quello che il «+» salva, come i colori salvati di `UIColorPickerViewController`.
+  - `var colors: List<Color> by mutableStateOf(normalize(initial))` — I colori, il piu' recente per primo.
+  - `fun add(color: Color)` — Mette [color] davanti (togliendolo da dov'era) e lascia cadere il piu' vecchio oltre [capacity].
+  - `fun clear()` — Dimentica tutto.
+- `@Composable fun rememberFluidRecentColors(initial: List<Color> = emptyList(), capacity: Int = FluidColorPickerDefaults.RecentCapacity, onChange: (List<Color>) -> Unit = {}): FluidRecentColors` — I colori recenti, conservati attraverso i cambi di configurazione. [initial] e' quello che l'app aveva salvato, [onChange] dove salvarli di nuovo.
+- `data class FluidColorPickerStrings(val title: String = "Colori", val grid: String = "Griglia", val spectrum: String = "Spettro", val sliders: String = "Cursori", val red: String = "Rosso", val green: String = "Verde", val blue: String = "Blu", val hex: String = "Codice esadecimale", val opacity: String = "Opacità", val recents: String = "Recenti", val addToRecents: String = "Salva il colore", val eyedropper: String = "Contagocce", val eyedropperHint: String = "Trascina la lente sul colore e solleva il dito", val close: String = "Chiudi", val current: String = "Colore scelto", val custom: String = "Altro colore", val colorName: (Color) -> String = ::fluidColorName)` — Le parole del selettore, in italiano di serie. [colorName] dice un colore a parole a chi usa TalkBack: un colore da solo non e' un'etichetta.
+  - `fun modeLabel(mode: FluidColorPickerMode): String` — Il nome di un modo, per il segmento.
+- `object FluidColorPickerDefaults` — Le misure del selettore. Dove non c'e' una misura di Apple a cui appoggiarsi il KDoc dice «a occhio» con la data: le schermate di riferimento sono quelle di `UIColorPickerViewController` su iPhone (iOS 17–26), fiducia media sulla struttura e bassa sui punti.
+  - `val WellSize: Dp` — Il diametro del pozzetto: **28 dp**, quanto `UIColorWell` in una riga di Impostazioni. A occhio, 24 novembre 2026.
+  - `val WellRing: Dp` — Lo spessore dell'anello dell'arcobaleno del pozzetto: **3 dp** (a occhio, 24 novembre 2026, su `UIColorWell`).
+  - `val WellGap: Dp` — Il vuoto fra l'anello e il colore: **2 dp** (a occhio, 24 novembre 2026).
+  - `val WellTarget: Dp` — Il bersaglio del pozzetto: **44 dp**, il minimo di Apple per un tocco.
+  - `const val GridColumns: Int` — La griglia: **12 colonne per 10 righe**, la prima di grigi dal bianco al nero e nove di tinte dallo scuro al chiaro, come la griglia di `UIColorPickerViewController` (fiducia media: stessa struttura; i valori sono quelli della griglia di iOS ripresi dalle schermate, fiducia bassa sul singolo colore).
+  - `const val GridRows: Int` — Le righe della griglia: vedi [GridColumns].
+  - `val PanelCorner: Dp` — Il raggio degli angoli della griglia e dello spettro: **16 dp**. Misurato sulla schermata di iOS 26 a @3x (la griglia del selettore su iPhone, `riferimentipple-colorpicker-griglia-iphone-ios26.webp` di F8.7): ~15 pt, con le caselle da 29,7 pt. Fiducia media (una schermata), 24 novembre 2026.
+  - `val SliderHeight: Dp` — L'altezza della pista dei cursori: **30 dp**, una capsula col colore dentro (a occhio, 24 novembre 2026, su iOS).
+  - `val ThumbRing: Dp` — L'anello bianco del pomello dei cursori e del segno dello spettro: **3 dp** (a occhio, 24 novembre 2026).
+  - `val SpectrumMarker: Dp` — Il diametro del segno sullo spettro: **28 dp** (a occhio, 24 novembre 2026, sul segno di iOS).
+  - `val CurrentSwatch: Dp` — Il quadrato del colore scelto in fondo al foglio: **74 dp**, angoli `FluidRadius.Card` (18). Misurato sulla stessa schermata di iOS 26: 74 × 75 pt, angoli ~17 pt (fiducia media, 24 novembre 2026).
+  - `val RecentDot: Dp` — Il diametro dei colori recenti: **28 dp**, i pallini di [FluidColorDot] (bersaglio 48 dp). Misurato su iOS 26: 28 pt, a 46 pt di passo, in righe che vanno a capo col «+» in fondo (fiducia media, 24 novembre 2026).
+  - `val ValueBoxWidth: Dp` — La casella del valore accanto ai cursori («255», «100 %»): **64 × 34 dp**, a capsula, chiara sul foglio. iOS 26 mette il valore in una capsula bianca accanto alla pista (fiducia media sulla forma, a occhio sulla misura).
+  - `val ValueBoxHeight: Dp` — L'altezza della casella del valore: vedi [ValueBoxWidth].
+  - `const val RecentCapacity: Int` — Quanti colori recenti tiene la lista di serie: **10** (a occhio, 24 novembre 2026: una fila che scorre poco).
+  - `val CheckerCell: Dp` — Il lato dei quadretti della scacchiera dietro i colori trasparenti: **6 dp** (a occhio, 24 novembre 2026).
+  - `val SheetHeight: Dp` — L'altezza del foglio a riposo: **640 dp**, quanto serve ai tre modi con l'opacita' e i recenti; sotto quella altezza il foglio e' vetro staccato dai bordi, sopra (il secondo detent, `Large`) diventa pagina come ogni foglio di vetro. A occhio, 24 novembre 2026: il selettore di iOS sta quasi a tutta altezza su iPhone.
+  - `val MaxContentWidth: Dp` — La larghezza massima del contenuto del foglio, su un tablet: **420 dp** (a occhio, 24 novembre 2026).
+  - `val LoupeSize: Dp` — Il diametro della lente del contagocce: **120 dp**. Sulla lente di iPadOS delle HIG («Color wells», l'immagine della lente su un iPad da 12,9") ~122 pt (fiducia bassa: la scala dell'immagine e' stimata), 24 novembre 2026.
+  - `const val LoupePixels: Int` — Quanti pixel per lato mostra la lente: **11**, dispari perche' quello scelto stia nel mezzo.
+  - `val LoupeRing: Dp` — Lo spessore dell'anello del colore attorno alla lente: **12 dp** (sulla stessa immagine ~14 pt; fiducia bassa).
+  - `const val LoupeVeilAlpha: Float` — Il velo sull'app mentre si sceglie: nero al **28 %**, con una finestra chiara attorno alla lente larga **3,4** raggi e alta tre quarti, come la lente di iPadOS (264 × 200 px attorno a una lente di 156: a occhio sulla stessa immagine, 24 novembre 2026).
+  - `const val LoupeWindow: Float` — Vedi [LoupeVeilAlpha]: la finestra chiara, in raggi della lente.
+  - `const val EyedropperCaptureDelayMillis: Long` — Quanto aspetta il contagocce prima di fotografare la finestra: **420 ms**, il tempo in cui il foglio esce del tutto (la molla d'uscita dell'host e' ferma verso 400 ms). Col movimento ridotto il foglio sparisce subito e bastano 60 ms.
+  - `const val EyedropperCaptureDelayReducedMillis: Long` — Vedi [EyedropperCaptureDelayMillis]: col movimento ridotto.
+- `object FluidColorPickerTags` — I tag dei test e delle riprese.
+  - `const val Well`
+  - `const val Picker`
+  - `const val Modes`
+  - `const val Grid`
+  - `const val Spectrum`
+  - `const val Hex`
+  - `const val Opacity`
+  - `const val Current`
+  - `const val Recents`
+  - `const val AddRecent`
+  - `const val Eyedropper`
+  - `const val Loupe`
+  - `const val Close`
+  - `fun slider(channel: String): String`
+- `fun fluidColorHex(color: Color, withAlpha: Boolean = false): String` — Il codice esadecimale di [color] in sRGB, `#RRGGBB` (o `#RRGGBBAA` con [withAlpha]), in maiuscolo.
+- `fun fluidParseHexColor(text: String): Color?` — Il colore di un codice esadecimale: `RGB`, `RRGGBB` o `RRGGBBAA`, col `#` o senza, maiuscole o minuscole, spazi ai lati. Null se il testo non e' un colore.
+- `fun fluidColorName(color: Color): String` — Un colore detto a parole, in italiano: «rosso», «blu scuro», «verde chiaro», «grigio», «bianco», con l'opacita' se non e' piena. Per TalkBack: e' il nome che il selettore da' a ogni casella, al pozzetto e ai recenti.
+- `val FluidColorGrid: List<Color> by lazy` — I 120 colori della griglia, riga per riga: la prima di grigi dal bianco al nero, poi nove righe dallo scuro al chiaro, come la griglia di `UIColorPickerViewController`. I valori sono quelli del selettore di sistema, campionati al centro di ogni casella della schermata di iOS 26 su iPhone (F8.7, `riferimenti/apple-colorpicker-griglia-iphone-ios26.webp`;
+- `@Composable fun FluidColorWell(color: Color, onColorChange: (Color) -> Unit, label: String, modifier: Modifier = Modifier, enabled: Boolean = true, supportsOpacity: Boolean = true, recents: FluidRecentColors = rememberFluidRecentColors(), strings: FluidColorPickerStrings = FluidColorPickerStrings())` — Il pozzetto: un cerchio col colore scelto dentro l'anello dell'arcobaleno, come `ColorPicker` di SwiftUI e `UIColorWell`. Toccato apre [FluidColorPickerSheet], che **nasce dal pozzetto** e ci rientra (il viaggio del foglio di vetro dell'engine). Bersaglio di 44 dp; per TalkBack dice [label] e il nome del colore.
+- `@Composable fun FluidColorRow(title: String, color: Color, onColorChange: (Color) -> Unit, modifier: Modifier = Modifier, subtitle: String = "", enabled: Boolean = true, supportsOpacity: Boolean = true, recents: FluidRecentColors = rememberFluidRecentColors(), strings: FluidColorPickerStrings = FluidColorPickerStrings())` — Una riga delle impostazioni col pozzetto a destra, come `ColorPicker("Sfondo", selection: …)` dentro un `Form` di SwiftUI: tutta la riga si tocca e apre il foglio, che nasce dal pozzetto. Per TalkBack e' un tasto che dice il titolo e il nome del colore.
+- `@Composable fun FluidColorSwatches(colors: List<Color>, selected: Color?, onSelect: (Color) -> Unit, modifier: Modifier = Modifier, strings: FluidColorPickerStrings = FluidColorPickerStrings(), customLabel: String? = strings.custom, supportsOpacity: Boolean = false, recents: FluidRecentColors = rememberFluidRecentColors())` — La versione corta, per una riga delle impostazioni: una fila di campioni ([FluidColorDot], gli stessi pallini di `FluidAccentPicker`, bersaglio 48 dp, ruolo `RadioButton` e nome a parole) e, se [customLabel] non e' null, un pozzetto in fondo per un colore su misura. La fila scorre di lato se non ci sta.
+- `@Composable fun FluidColorPickerSheet(visible: Boolean, color: Color, onColorChange: (Color) -> Unit, onDismissRequest: () -> Unit, supportsOpacity: Boolean = true, recents: FluidRecentColors = rememberFluidRecentColors(), source: FluidTransitionSource? = null, strings: FluidColorPickerStrings = FluidColorPickerStrings())` — Il foglio del selettore: il foglio di vetro dell'engine (`FluidGlassSheet`) con dentro [FluidColorPicker], a [FluidColorPickerDefaults.SheetHeight] (vetro) e a tutta altezza (pagina). Con [source] nasce da quella vista e ci rientra (il pozzetto lo passa da se'). Il colore scelto entra nei [recents] quando il foglio si chiude, se e' cambiato.
+- `@Composable fun FluidColorPicker(color: Color, onColorChange: (Color) -> Unit, modifier: Modifier = Modifier, supportsOpacity: Boolean = true, recents: FluidRecentColors? = null, initialMode: FluidColorPickerMode = FluidColorPickerMode.Grid, onEyedropper: (() -> Unit)? = null, onClose: (() -> Unit)? = null, strings: FluidColorPickerStrings = FluidColorPickerStrings(), mode: FluidColorPickerMode? = null, onModeChange: (FluidColorPickerMode) -> Unit = {})` — Il contenuto del selettore, anche fuori da un foglio (in un popover, in una pagina su un tablet): la testata col contagocce, il titolo e Chiudi; i tre modi; l'opacita'; il colore scelto e i recenti.
+- `@Composable fun FluidColorEyedropper(active: Boolean, onPick: (Color?) -> Unit, strings: FluidColorPickerStrings = FluidColorPickerStrings())` — Il contagocce: quando [active], fotografa la finestra dell'app (`PixelCopy`, dopo che il foglio e' uscito) e mostra la lente al centro; il dito la porta, la lente ingrandisce gli [FluidColorPickerDefaults.LoupePixels] pixel attorno al suo centro, e al rilascio [onPick] riceve il colore del pixel nel mezzo. Indietro, o una finestra che non si lascia fotografare (`FLAG_SECURE`), danno null.
+
 ## `engine-ui/ui/fluid/FluidControls.kt`
 
 - `enum class FluidButtonStyle` — How much a control's colour says about it.

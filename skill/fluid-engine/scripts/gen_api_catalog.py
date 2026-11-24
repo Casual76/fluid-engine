@@ -88,6 +88,8 @@ UI_FLUID_FILES = {
         # F8.3: i campi speciali (unità, codice, password, valore riservato, copia delicata, tasto incolla) e le loro parole
         "FluidUnitField", "FluidCodeField", "FluidPasswordField", "FluidPrivateValue", "FluidFieldClipboard",
         "FluidSpecialFieldLabels",
+        # F8.7: il selettore di colore (pozzetto, riga, fila corta, foglio, contagocce)
+        "FluidColorPicker",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [

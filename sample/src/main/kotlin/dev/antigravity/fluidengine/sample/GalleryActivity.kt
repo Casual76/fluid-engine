@@ -97,6 +97,9 @@ import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
+import dev.antigravity.fluidengine.storage.EngineFirstUseStore
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidFirstUseMemory
+import dev.antigravity.fluidengine.ui.fluid.fluidFirstFrame
 import dev.antigravity.fluidengine.sample.viewer.VisoriArchiveExport
 import kotlinx.coroutines.delay
 import androidx.compose.material3.Text
@@ -135,6 +138,9 @@ class GalleryActivity : ComponentActivity() {
       // la galleria la rotazione la gestisce da sé): dopo, lo si rispegne (F6B.12, riprese del 22 novembre 2026).
       addOnConfigurationChangedListener { window.decorView.post { window.isNavigationBarContrastEnforced = false } }
     }
+    // F8.11: il primo fotogramma pronto. La finestra prende subito il fondo e il lato che il tema ha usato l'ultima volta
+    // (il tema dell'Activity, Theme.Fluid, da' gia' quello del sistema); da qui in poi FluidTheme li tiene uguali.
+    fluidFirstFrame()
     // Gli extra di lancio (pagina e matrice di partenza) li legge solo la build di debug, e la `bench` (la release
     // misurabile: non debuggable ma profilabile, vedi `build.gradle`): servono al giro di verifica su emulatore e sul
     // tablet, e la galleria pubblicata non ha scorciatoie nascoste. Decide `isDebuggableApp()`, un punto solo.
@@ -159,7 +165,10 @@ class GalleryActivity : ComponentActivity() {
       val nav = remember { GalleryNav(launch.stack()) }
       val matrix = remember { launch.matrix() }
       val glass = rememberGalleryGlassSwitches(glassLaunch)
+      // F8.11: la memoria della prima volta nel file dell'engine (il benvenuto visto, i permessi gia' chiesti).
+      val firstUse = remember { EngineFirstUseStore(applicationContext) }
       CompositionLocalProvider(
+        LocalFluidFirstUseMemory provides firstUse,
         LocalGalleryGlassSwitches provides glass.takeIf { debuggable },
         LocalFluidGlassModel provides glass.model,
         LocalFluidGlassMotionLight provides glassMotionLight,

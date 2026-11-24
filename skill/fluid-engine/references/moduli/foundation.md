@@ -45,6 +45,10 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | leggere o scrivere una `RRULE` (RFC 5545, EventKit) | `FluidRecurrenceRule.parseRRule(testo)`, `regola.toRRule()` |
 | un intervallo di giorni «dal… al…», anche sull'ora legale | `FluidDateRange(inizio, fine)`: `dayCount`, `startInstant(zona)`, `endInstantExclusive(zona)` |
 | il primo giorno della settimana della lingua | `FluidDates.firstDayOfWeek(locale)`, `FluidDates.weekdays(locale)` |
+| se mostrare il benvenuto o le novita' all'apertura (F8.11) | `fluidWelcomeKind(versione, vista, installazioneNuova, haNovita)` |
+| le novita' di una versione dal manifest | `manifest.releaseNotesFor(versione)`, `AppRelease.releaseNotes()`, `fluidReleaseNotesFromChangelog(testo)` |
+| lo stato di un permesso e il passo del tasto (F8.11) | `fluidPermissionStatus(…)`, `fluidPermissionAfterRequest(…)`, `fluidPermissionStep(…)` |
+| la memoria della prima volta (interfaccia) | `FluidFirstUseMemory`, le chiavi in `FluidFirstUseKeys`; su disco `EngineFirstUseStore` di `engine-storage` |
 
 ## Versioni: `EngineBuild`, `compareVersions`, `isStableVersionNewer`, `EngineCompatibility`
 
@@ -411,6 +415,21 @@ una `FluidRecurrenceRule`, il calendario sceglie un `FluidDateRange`.
   giorni del passaggio all'ora legale, 73 in quelli del ritorno).
 - **`FluidDates`**: il primo giorno della settimana dai dati CLDR della lingua (`WeekFields.of`, con la scelta dell'utente
   di Android 14 nell'estensione `fw`), i sette giorni in ordine, la settimana di un giorno.
+
+## La prima volta (F8.11): `FluidFirstUseMemory`, `fluidWelcomeKind`, `FluidReleaseNote`, `fluidPermissionStatus`
+
+Le decisioni pure del benvenuto e dei permessi, senza Android, provate in `FluidFirstUseTest`:
+- **`fluidWelcomeKind`**: `Welcome` a un'installazione nuova, `WhatsNew` a un aggiornamento con delle novita' (anche alla prima
+  versione col benvenuto dell'engine, senza versione vista), niente alla stessa versione o a un ritorno indietro;
+  `fluidWelcomeMarksSilently` dice quando segnare la versione senza mostrare niente.
+- **`FluidReleaseNote`** e `AppRelease.highlights` (campo nuovo in coda, `"highlights": [{"title", "text", "symbol"}]`): senza,
+  `releaseNotes()` divide il `changelog` in righe («Titolo: frase» con un titolo corto). `releaseNotesFor(versione)` guarda la
+  stabile e la beta con quella versione; un'altra versione non ha novita'.
+- **`fluidPermissionStatus`**: Android dice concesso e spiegazione, la memoria dice «chiesto»: insieme `NeverAsked`, `Granted`,
+  `Partial`, `Denied`, `DeniedForever`. `fluidPermissionAfterRequest` tiene `NeverAsked` per un primo dialogo chiuso senza
+  scegliere; `fluidPermissionStep` mostra la spiegazione una volta sola.
+
+La parte visibile e' in [../componenti/prima-volta.md](../componenti/prima-volta.md).
 
 ## Token, costanti, Defaults
 

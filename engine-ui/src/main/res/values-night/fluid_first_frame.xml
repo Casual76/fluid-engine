@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- F8.11: lo stesso tema dal lato scuro (il fondo scuro della palette Fluid, #0D0D0F). -->
+  <color name="fluid_page_background">#FF0D0D0F</color>
+  <bool name="fluid_light_bars">false</bool>
+  <style name="Fluid.Platform" parent="android:Theme.Material.NoActionBar" />
+</resources>

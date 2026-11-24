@@ -5,6 +5,8 @@ import dev.antigravity.fluidengine.foundation.EngineCompatibility
 import dev.antigravity.fluidengine.foundation.EngineConfig
 import dev.antigravity.fluidengine.foundation.EngineFlag
 import dev.antigravity.fluidengine.foundation.EngineManifestParser
+import dev.antigravity.fluidengine.foundation.FluidReleaseNote
+import dev.antigravity.fluidengine.foundation.releaseNotesFor
 import dev.antigravity.fluidengine.foundation.resolveEngineConfig
 import dev.antigravity.fluidengine.net.EngineHttp
 import dev.antigravity.fluidengine.storage.EngineConfigCache
@@ -101,6 +103,19 @@ class EngineRemoteConfig(
       applicationId = source.applicationId,
       fetchedAtEpochMillis = fetchedAt,
     )
+  }
+
+  /**
+   * Le novità di [versionName] per il foglio «Novità di…» (F8.11, `benvenuto-e-novita`), lette dalla copia del manifest
+   * già in cache: le righe `highlights` della release con quella versione, o il suo `changelog` diviso in righe.
+   *
+   * Facoltativo per costruzione: senza una copia, o se il manifest non parla di questa versione, la lista è vuota e il
+   * foglio non compare (l'app può sempre scrivere le sue novità a mano). Non va in rete: il foglio non aspetta mai un
+   * download per aprirsi. [beta] guarda prima la release beta.
+   */
+  suspend fun releaseNotes(versionName: String, beta: Boolean = false): List<FluidReleaseNote> {
+    val raw = cache.cached.first()?.raw ?: return emptyList()
+    return runCatching { EngineManifestParser.parse(raw).releaseNotesFor(versionName, beta) }.getOrDefault(emptyList())
   }
 
   /** Refreshes only if the cached copy is older than [EngineConfigSource.refreshIntervalMillis]. */

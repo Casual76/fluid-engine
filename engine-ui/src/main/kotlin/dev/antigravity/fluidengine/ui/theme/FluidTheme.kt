@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.content.OnConfigurationChangedProvider
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
+import dev.antigravity.fluidengine.ui.fluid.fluidFirstFrameFollowTheme
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.fluidTypography
@@ -197,7 +198,7 @@ fun FluidTheme(
   // Il lato sotto la barra di stato (4.0, F2.3b): una schermata la cui barra scurisce sopra un contenuto scuro chiede le
   // icone chiare. Solo il tema che governa la finestra lo fornisce; un tema su una toppa passa quello di fuori.
   val statusBar = if (systemBars) remember { FluidStatusBarSide() } else LocalFluidStatusBarSide.current
-  if (systemBars && statusBar != null) SystemBarsAppearance(isDark, statusBar)
+  if (systemBars && statusBar != null) SystemBarsAppearance(isDark, statusBar, colors.background)
 
   // L'aptica del design system (1.19.0): un solo motore per tema, dietro l'interruttore condiviso.
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)
@@ -254,13 +255,16 @@ fun FluidTheme(
  * arriva dopo che l'Activity e la finestra hanno avvisato tutte le loro viste, quella di `enableEdgeToEdge()` compresa.
  */
 @Composable
-private fun SystemBarsAppearance(isDark: Boolean, statusBar: FluidStatusBarSide) {
+private fun SystemBarsAppearance(isDark: Boolean, statusBar: FluidStatusBarSide, background: Color) {
   val view = LocalView.current
   val lightBars = !isDark
   // Una chiave dell'effetto: ogni cambio di configurazione che arriva alla composizione rimette le barre (vedi sopra).
   val configuration = LocalConfiguration.current
   if (!view.isInEditMode) {
-    DisposableEffect(view, configuration, lightBars, statusBar) {
+    DisposableEffect(view, configuration, lightBars, statusBar, background) {
+      // F8.11: un'Activity che ha chiesto il primo fotogramma pronto tiene il fondo della finestra uguale alla pagina, e
+      // il suggerimento per il prossimo avvio (`fluidFirstFrame`). Le altre non cambiano.
+      fluidFirstFrameFollowTheme(view, background, isDark)
       val window = (view.context as? Activity)?.window
       val apply = Runnable {
         if (window == null) return@Runnable

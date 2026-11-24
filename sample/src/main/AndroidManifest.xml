@@ -29,7 +29,7 @@
         android:name=".GalleryActivity"
         android:exported="true"
         android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|keyboardHidden"
-        android:theme="@style/Theme.FluidSample">
+        android:theme="@style/Theme.FluidSample.Gallery">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />

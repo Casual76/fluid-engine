@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.foundation
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
@@ -46,6 +47,11 @@ data class AppRelease(
   val releaseDate: String = "",
   /** Hex SHA-256 of the APK, when the publisher wrote one. Blank: not checked. Since 2.10.0. */
   val sha256: String = "",
+  /**
+   * Le novità scritte apposta per il foglio «Novità di…» (F8.11, 4.0): `"highlights": [{"title", "text", "symbol"}]`.
+   * Vuoto: il foglio usa il [changelog] diviso in righe ([releaseNotes]).
+   */
+  val highlights: List<FluidReleaseNote> = emptyList(),
 )
 
 /**
@@ -129,6 +135,11 @@ object EngineManifestParser {
       sizeBytes = long("sizeBytes") ?: 0L,
       releaseDate = string("releaseDate").orEmpty(),
       sha256 = string("sha256").orEmpty(),
+      highlights = (this["highlights"] as? JsonArray).orEmpty().mapNotNull { item ->
+        val note = item as? JsonObject ?: return@mapNotNull null
+        val title = note.string("title")?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+        FluidReleaseNote(title = title, text = note.string("text")?.trim().orEmpty(), symbol = note.string("symbol")?.trim()?.takeIf { it.isNotEmpty() })
+      },
     )
   }
 

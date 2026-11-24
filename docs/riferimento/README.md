@@ -111,6 +111,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | colori, tipografia, angoli, tema, accento, la palette d'identità | `componenti/tema.md` |
 | sezione aspetto, aggiornamento in-app, parole traducibili, licenze | `componenti/impostazioni.md` |
 | suggerimenti al primo uso | `componenti/tutorial.md` |
+| il foglio «Benvenuto in…» e «Novità di…» una volta per versione, un permesso chiesto dal tasto che ne ha bisogno (anche le foto «solo alcune»), uno sfondo vivo per un onboarding o un traguardo, la finestra del colore giusto al primo fotogramma | `componenti/prima-volta.md` |
 | un orologio | `moduli/wear.md` |
 | un assistente IA | `ai.md`, `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md`, e l'interfaccia in `moduli/ai-ui.md` (+ `ai-ui-overlay`, `-chat`, `-impostazioni`, `-stringhe`) |
 

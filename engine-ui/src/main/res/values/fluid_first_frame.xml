@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!--
+    F8.11 · Il primo fotogramma pronto. Un tema di piattaforma per le Activity delle app Fluid: la finestra ha gia' il
+    colore della pagina (chiaro qui, scuro in values-night), cosi' fra la schermata d'avvio di Android e il primo disegno
+    di Compose non c'e' un lampo d'altro colore, e le icone delle barre stanno dalla parte giusta. La schermata d'avvio
+    resta quella di Android: prende il fondo dalla finestra, come fa per ogni app.
+  -->
+  <item name="fluid_first_frame" type="id" />
+  <color name="fluid_page_background">#FFF2F2F7</color>
+  <bool name="fluid_light_bars">true</bool>
+  <style name="Fluid.Platform" parent="android:Theme.Material.Light.NoActionBar" />
+  <style name="Theme.Fluid" parent="Fluid.Platform">
+    <item name="android:windowBackground">@color/fluid_page_background</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowLightStatusBar">@bool/fluid_light_bars</item>
+    <item name="android:windowLightNavigationBar">@bool/fluid_light_bars</item>
+  </style>
+</resources>

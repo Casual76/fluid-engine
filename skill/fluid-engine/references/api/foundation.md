@@ -35,7 +35,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class EngineManifest(val app: AppReleases? = null, val engine: EngineSection? = null)` — The one file that every app built on the engine reads.
 - `data class AppReleases(val id: String = "", val packageName: String = "", val repository: ReleaseRepository? = null, val stable: AppRelease? = null, val beta: AppRelease? = null)`
 - `data class ReleaseRepository(val owner: String, val name: String)`
-- `data class AppRelease(val version: String, val changelog: String = "", val releaseTag: String = "", val apkAsset: String = "", val sizeBytes: Long = 0L, val releaseDate: String = "", val sha256: String = "")`
+- `data class AppRelease(val version: String, val changelog: String = "", val releaseTag: String = "", val apkAsset: String = "", val sizeBytes: Long = 0L, val releaseDate: String = "", val sha256: String = "", val highlights: List<FluidReleaseNote> = emptyList())`
 - `data class EngineSection(val schema: Int = EngineManifestSchema, val minimumVersion: String? = null, val recommendedVersion: String? = null, val notice: String? = null, val flags: Map<String, Boolean> = emptyMap(), val killSwitch: EngineKillSwitch = EngineKillSwitch(), val overrides: Map<String, EngineOverride> = emptyMap())` — The remotely controlled half of the manifest.
 - `data class EngineOverride(val minimumVersion: String? = null, val recommendedVersion: String? = null, val notice: String? = null, val flags: Map<String, Boolean> = emptyMap(), val killSwitch: EngineKillSwitch? = null)`
 - `data class EngineKillSwitch(val enabled: Boolean = false, val message: String? = null)` — The last resort: a remote instruction to stop.
@@ -72,6 +72,30 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun duration(zone: ZoneId): Duration` — Quanto dura l'intervallo in [zone]: 24 ore per giorno, meno o piu' un'ora nei giorni del cambio.
   - `companion object`
     - `fun between(a: LocalDate, b: LocalDate): FluidDateRange` — L'intervallo fra [a] e [b] in qualunque ordine: il tocco «al» prima del «dal» non e' un errore.
+
+## `engine-foundation/foundation/FluidFirstUse.kt`
+
+- `interface FluidFirstUseMemory` — Dove l'engine ricorda le cose della prima volta: quale versione ha già mostrato il suo benvenuto, quali permessi ha già chiesto e quali spiegazioni ha già dato (F8.11).
+  - `suspend fun read(key: String): String?` — Il valore della chiave, o nulla se non c'è.
+  - `suspend fun write(key: String, value: String?)` — Scrive il valore della chiave; nulla la cancella.
+  - `companion object`
+    - `fun inMemory(): FluidFirstUseMemory` — Una memoria che dura quanto il processo: per i test e per le prove.
+- `object FluidFirstUseKeys` — Le chiavi della memoria della prima volta. Un nome stabile: cambiarle fa rivedere a tutti il benvenuto.
+  - `fun welcomeSeen(scope: String = "app"): String` — L'ultima versione per cui il benvenuto (o le novità) di [scope] è stato mostrato o saltato apposta.
+  - `fun permissionAsked(id: String): String` — Il permesso [id] è già stato chiesto almeno una volta col dialogo di Android («1»).
+  - `fun permissionExplained(id: String): String` — La spiegazione del permesso [id] è già stata mostrata una volta («1»): da lì in poi, il dialogo diretto.
+- `enum class FluidWelcomeKind` — Che foglio mostrare all'apertura (F8.11, `benvenuto-e-novita`).
+- `fun fluidWelcomeKind(currentVersion: String, seenVersion: String?, freshInstall: Boolean, hasNews: Boolean, hasWelcome: Boolean = true): FluidWelcomeKind?` — Se all'apertura va mostrato il benvenuto, le novità o niente. Pura: la chiama lo stato del foglio in `engine-ui`.
+- `fun fluidWelcomeMarksSilently(currentVersion: String, seenVersion: String?): Boolean` — Se la versione corrente va segnata come vista anche senza mostrare niente: un aggiornamento senza novità, o una prima apertura senza benvenuto. Così una nota aggiunta dopo nel manifest non compare a chi quella versione l'ha già aperta.
+- `data class FluidReleaseNote(val title: String, val text: String = "", val symbol: String? = null)` — Una novità di una versione: una riga del foglio «Novità di…», con il titolo, la frase e il nome di un simbolo facoltativo (`star`, `bolt`, `lock`…: l'app o `engine-ui` lo traducono in un'icona).
+- `fun AppRelease.releaseNotes(): List<FluidReleaseNote>` — Le novità di questa release: le righe scritte apposta nel manifest (`highlights`) se ci sono, altrimenti il `changelog` diviso in righe ([fluidReleaseNotesFromChangelog]).
+- `fun EngineManifest.releaseNotesFor(version: String, beta: Boolean = false): List<FluidReleaseNote>` — Le novità di [version] nel manifest dello store: della stabile o della beta, quella con la stessa versione ([beta] dice quale guardare per prima). Nessuna release con quella versione: nessuna novità, perché le note di un'altra versione non sono le novità di questa.
+- `fun fluidReleaseNotesFromChangelog(changelog: String): List<FluidReleaseNote>` — Il `changelog` dello store diviso in righe di novità: una riga per voce (i trattini, i pallini e gli asterischi in testa si tolgono, i titoli Markdown si saltano). Una voce «Titolo: frase» con un titolo corto (al più [TitleMaxWords] parole e [TitleMaxChars] caratteri) diventa titolo e frase; le altre restano un titolo solo.
+- `enum class FluidPermissionStatus` — Lo stato di un permesso (F8.11, `permesso-nel-punto-giusto`). Android ne dice due cose (concesso o no, e se mostrare una spiegazione), l'engine ricorda la terza (se l'ha già chiesto): insieme fanno questi cinque.
+- `fun fluidPermissionStatus(granted: Boolean, partial: Boolean, asked: Boolean, rationale: Boolean): FluidPermissionStatus` — Lo stato di un permesso da quello che dice Android e da quello che ricorda l'engine.
+- `fun fluidPermissionAfterRequest(previous: FluidPermissionStatus, granted: Boolean, partial: Boolean, rationale: Boolean): FluidPermissionStatus` — Lo stato dopo la risposta al dialogo di Android.
+- `enum class FluidPermissionStep` — Cosa fa il tasto che ha bisogno di un permesso, quando lo si tocca.
+- `fun fluidPermissionStep(status: FluidPermissionStatus, explained: Boolean, hasExplanation: Boolean = true, requestable: Boolean = true): FluidPermissionStep` — Il passo del tocco, dallo [status] e da quello che l'engine ricorda.
 
 ## `engine-foundation/foundation/FluidFormat.kt`
 

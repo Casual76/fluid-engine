@@ -7,7 +7,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidAmbient.kt`
 
-- `data class FluidAmbient(val tone: FluidHeroTone, val motif: FluidHeroMotif, val intensity: Float = 1f, val urgent: Boolean = false, val showMotif: Boolean = true)` — Il fondale di una schermata: una lavata di colore e un motivo, e nient'altro.
+- `data class FluidAmbient(val tone: FluidHeroTone, val motif: FluidHeroMotif, val intensity: Float = 1f, val urgent: Boolean = false, val showMotif: Boolean = true, val live: FluidLiveBackground? = null)` — Il fondale di una schermata: una lavata di colore e un motivo, e nient'altro.
 - `@Composable fun FluidAmbientCanvas(ambient: FluidAmbient, modifier: Modifier = Modifier)`
 
 ## `engine-ui/ui/fluid/FluidAmbientSurface.kt`

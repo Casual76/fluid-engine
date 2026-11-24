@@ -8,4 +8,11 @@
     <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowLightStatusBar">true</item>
   </style>
+
+  <!--
+    F8.11 · La galleria parte dal tema dell'engine per il primo fotogramma pronto: la finestra ha gia' il colore della pagina
+    (chiaro o scuro, dal sistema) e le icone delle barre stanno dalla parte giusta. Solo GalleryActivity: le altre Activity e
+    quella vuota delle prove restano su Theme.FluidSample.
+  -->
+  <style name="Theme.FluidSample.Gallery" parent="Theme.Fluid" />
 </resources>

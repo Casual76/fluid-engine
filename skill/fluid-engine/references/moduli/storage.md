@@ -22,6 +22,22 @@ Catalogo completo delle firme: [`../api/storage.md`](../api/storage.md).
 | la copia del manifest per la config remota | `EngineConfigCache` (la crea chi costruisce `EngineRemoteConfig`, non la leggi tu) |
 | salvare **altre** preferenze dell'app | il tuo DataStore, con un **nome diverso** da `fluid_engine` |
 | un database, un file, una cache d'immagini | non e' compito di questo modulo |
+| ricordare il benvenuto visto e i permessi gia' chiesti (F8.11) | `EngineFirstUseStore(context)`, passata a `engine-ui` con `LocalFluidFirstUseMemory` |
+
+## `EngineFirstUseStore` (F8.11, 4.0)
+
+La memoria della prima volta: implementa `FluidFirstUseMemory` di `engine-foundation` sullo stesso DataStore `fluid_engine`,
+con le chiavi sotto `first_use.` (quelle di `FluidFirstUseKeys`: la versione per cui il benvenuto e' stato mostrato, «chiesto» e
+«spiegato» per ogni permesso). Android non distingue un permesso «mai chiesto» da uno «negato per sempre»: lo distingue questa
+memoria. Un'app che cancella le sue preferenze non rivede il benvenuto, perche' il file e' dell'engine.
+
+```kotlin
+val firstUse = remember { EngineFirstUseStore(applicationContext) }
+CompositionLocalProvider(LocalFluidFirstUseMemory provides firstUse) { … }
+```
+
+Provata da `EngineFirstUseStoreTest` (un DataStore riaperto sullo stesso file rilegge i valori). La parte visibile:
+[../componenti/prima-volta.md](../componenti/prima-volta.md).
 
 ## `EngineSettingsStore`
 
@@ -114,7 +130,7 @@ Nessun oggetto `Defaults`. Il nome del file DataStore e' `fluid_engine` (privato
 
 ## Cosa e' verificato dai test
 
-**Nessun test** in `engine-storage` (la cartella `src/test` non esiste). Le garanzie sopra vengono dal codice e dal KDoc, non da una prova: in
+Un solo test, `EngineFirstUseStoreTest` (F8.11): la memoria della prima volta resta su disco. Per il resto le garanzie sopra vengono dal codice e dal KDoc, non da una prova: in
 particolare la tolleranza ai nomi di enum sconosciuti e l'atomicita' di `update` non sono coperte. Le rappresentazioni che il resto dell'engine usa
 (`EngineSettings`, il parse del manifest) sono invece provate in `engine-foundation` ([foundation](foundation.md)).
 
@@ -122,6 +138,7 @@ particolare la tolleranza ai nomi di enum sconosciuti e l'atomicita' di `update`
 
 - `engine-storage/src/main/kotlin/dev/antigravity/fluidengine/storage/EngineStore.kt` — tutto: il DataStore condiviso, `EngineSettingsStore` con le sue chiavi
   e la lettura tollerante, `CachedManifest`, `EngineConfigCache`.
+- `engine-storage/src/main/kotlin/dev/antigravity/fluidengine/storage/EngineFirstUseStore.kt` — la memoria della prima volta (F8.11).
 
 ## Dipendenze e configurazione minima
 

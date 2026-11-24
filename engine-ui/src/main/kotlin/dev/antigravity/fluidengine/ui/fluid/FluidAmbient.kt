@@ -60,6 +60,13 @@ data class FluidAmbient(
    * da se' in quel caso.
    */
   val showMotif: Boolean = true,
+  /**
+   * Uno sfondo vivo al posto della lavata e del motivo (F8.11, `sfondi-vivi`): l'aurora, le onde o le stelle coi colori
+   * di [tone], pesati da [intensity]. Solo per le pagine speciali (un benvenuto, un traguardo, la pagina vuota
+   * dell'assistente), mai per quelle di tutti i giorni. Il fondale resta opaco e la chrome lo rifrange; si ferma da solo
+   * col movimento ridotto, la batteria scarica e a pagina nascosta ([FluidLiveBackgroundCanvas]). Null: il fondale fermo.
+   */
+  val live: FluidLiveBackground? = null,
 )
 
 /**
@@ -121,6 +128,11 @@ fun FluidAmbientCanvas(
   val colors = remember(scheme, ambient) { fluidAmbientColors(scheme, ambient) }
   val amount = colors.motifAlpha
 
+  val live = ambient.live
+  if (live != null) {
+    FluidLiveBackgroundCanvas(live, modifier.fillMaxSize(), tone = ambient.tone, intensity = ambient.intensity)
+    return
+  }
   Box(modifier = modifier.fillMaxSize()) {
     Box(
       modifier = Modifier

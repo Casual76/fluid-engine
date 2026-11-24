@@ -30,6 +30,7 @@ Catalogo: [`../api/config.md`](../api/config.md).
 | un valore **senza** default sicuro (chiave, endpoint) | non e' un flag: va nella build |
 | un flag **diverso per un'app** su un file condiviso | `overrides` nel manifest, chiave = `applicationId` (si fonde sui flag) |
 | una configurazione che cambia ogni minuto / per utente | non e' un feed: questo e' un file di controllo, che cambia poche volte l'anno |
+| le novita' di questa versione per il foglio «Novita' di…» (F8.11) | `remoteConfig.releaseNotes(versionName)`: le `highlights` della release o il suo `changelog`, dalla copia in cache, senza rete |
 
 ## `EngineRemoteConfig`
 

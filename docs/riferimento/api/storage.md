@@ -5,6 +5,10 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-storage/storage/EngineFirstUseStore.kt`
+
+- `class EngineFirstUseStore internal constructor(private val store: DataStore<Preferences>) : FluidFirstUseMemory` — La memoria della prima volta (F8.11) nel file dell'engine: quale versione ha già mostrato il benvenuto o le novità, quali permessi sono già stati chiesti e quali spiegazioni date.
+
 ## `engine-storage/storage/EngineStore.kt`
 
 - `class EngineSettingsStore(private val context: Context)` — The appearance settings the design system reads.

@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.map
  * reset by the engine without touching a single one of the app's preferences, which is what makes
  * an engine update a safe thing to ship.
  */
-private val Context.fluidEngineStore: DataStore<Preferences> by preferencesDataStore(name = "fluid_engine")
+internal val Context.fluidEngineStore: DataStore<Preferences> by preferencesDataStore(name = "fluid_engine")
 
 /**
  * The appearance settings the design system reads.

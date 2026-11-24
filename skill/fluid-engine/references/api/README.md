@@ -13,6 +13,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Controlli](controlli.md) | 26 | 289 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
+| [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 258 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
@@ -22,10 +23,10 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 17 | 201 |
-| [engine-storage](storage.md) | 1 | 14 |
+| [engine-foundation](foundation.md) | 18 | 221 |
+| [engine-storage](storage.md) | 2 | 15 |
 | [engine-net](net.md) | 2 | 10 |
-| [engine-config](config.md) | 1 | 9 |
+| [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
 | [engine-widget](widget.md) | 4 | 41 |
 | [engine-wear](wear.md) | 17 | 87 |

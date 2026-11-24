@@ -13,4 +13,5 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun current(): EngineConfig`
   - `suspend fun compatibility(): EngineCompatibility`
   - `suspend fun refresh(): Result<EngineConfig>` — Fetches the manifest and caches it.
+  - `suspend fun releaseNotes(versionName: String, beta: Boolean = false): List<FluidReleaseNote>` — Le novità di [versionName] per il foglio «Novità di…» (F8.11, `benvenuto-e-novita`), lette dalla copia del manifest già in cache: le righe `highlights` della release con quella versione, o il suo `changelog` diviso in righe.
   - `suspend fun refreshIfStale(): Result<EngineConfig>?` — Refreshes only if the cached copy is older than [EngineConfigSource.refreshIntervalMillis].

@@ -107,6 +107,8 @@ UI_FLUID_FILES = {
         "FluidPromptAlert", "FluidNotification", "FluidNotificationSource", "FluidSourceJourney", "FluidUndoCountdown", "FluidDrawer", "FluidDateTimeSheet",
         "FluidDateTimeMath",
     ],
+    # F8.11: la prima volta (benvenuto e novità, permessi, sfondi vivi, primo fotogramma pronto)
+    "prima-volta": ["FluidWelcome", "FluidPermission", "FluidLiveBackground", "FluidFirstFrame", "FluidFirstUseLabels"],
     # pressione, gesto, molle
     "movimento": [
         "FluidPress", "FluidButtonGesture", "FluidInteractions", "FluidMotion",
@@ -192,6 +194,7 @@ FAMILY_TITLES = {
     "grafici": "Grafici: ciambella, barre, linea, legenda, scrubber e quadrante",
     "controlli": "Controlli",
     "menu-modali": "Menu, pop-up, fogli, avvisi, notifiche",
+    "prima-volta": "Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma",
     "movimento": "Pressione, gesto e movimento",
     "vetro": "Vetro",
     "impostazioni": "Aspetto, aggiornamento in-app, parole, licenze",

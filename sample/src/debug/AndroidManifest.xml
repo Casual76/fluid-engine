@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!--
+    F8.11 · La scena «Permesso nel punto giusto» chiede le foto (anche «solo alcune» da Android 14), le notifiche e la
+    posizione approssimativa, come MyCloud Gallery, Pampa Mail e Fluid Transit. Solo nella build di debug: Fluid Glass
+    pubblicata non chiede niente di tutto questo. Niente CAMERA (checkArViewerManifests) e niente RECORD_AUDIO (vedi il
+    manifest principale).
+  -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+</manifest>

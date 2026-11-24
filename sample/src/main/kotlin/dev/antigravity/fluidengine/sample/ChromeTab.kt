@@ -350,6 +350,13 @@ internal fun ChromeTab(bottomInset: Dp, onOpen: (GalleryPage) -> Unit = {}) {
           modifier = Modifier.testTag("chrome-open-dynamic-elements"),
           onClick = { onOpen(GalleryPage.DynamicElements) },
         )
+        FluidListDivider()
+        FluidListRow(
+          title = "Elementi nuovi",
+          subtitle = "F8: gli elementi nuovi del 23 novembre, un pacchetto per sezione (ruote, ghiera, due maniglie…)",
+          modifier = Modifier.testTag("chrome-open-new-elements"),
+          onClick = { onOpen(GalleryPage.NewElements) },
+        )
       }
     }
 

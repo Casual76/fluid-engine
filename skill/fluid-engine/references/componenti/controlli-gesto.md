@@ -1,8 +1,10 @@
-# Controlli a gesto: interruttore, cursore, scrubber
+# Controlli a gesto: interruttore, cursore, scrubber, ruota, ghiera
 
 Usa `FluidSwitch` per un valore acceso o spento, `FluidSlider` per un valore che l'app può cambiare mentre lo
 trascini e `FluidScrubber` per raggiungere un punto in qualcosa che avanza da sé. Il pomello è pieno a riposo
 e si fa lente sotto il dito. La mano può continuare il gesto in diagonale senza far scorrere la pagina.
+Dalla 4.0 (F8.2) ci sono anche le due maniglie di `FluidRangeSlider`, la ruota di iOS (`FluidWheelPicker`, con le forme
+pronte `FluidDurationWheel` e `FluidTimeWheel`) e il righello di «Raddrizza» (`FluidRulerDial`).
 
 Le regole comuni di fondale, bersaglio e disattivazione sono nella [scheda dei controlli](controlli.md).
 Le righe con titolo e valore sono in [contenuto.md](contenuto.md). Le firme complete sono nel
@@ -19,6 +21,11 @@ Le righe con titolo e valore sono in [contenuto.md](contenuto.md). Le firme comp
 | Dove andare in un brano / registrazione / cronologia | `FluidScrubber` (la posizione è di un lettore che avanza da solo) |
 | Una cronologia a passi con un «adesso» | `FluidScrubber(step = 1f, marks = …)` |
 | Un avanzamento che non si tocca | `FluidProgressBar` |
+| Un minimo e un massimo (un filtro per durata, per peso) | `FluidRangeSlider` |
+| Una voce fra tante, che gira col dito (la ruota di iOS) | `FluidWheelPicker` (una o più colonne) |
+| Una durata come il timer di Orologio | `FluidDurationWheel` |
+| Un'ora a ruota, come `UIDatePicker` | `FluidTimeWheel` |
+| Un valore fine senza inizio e fine in vista (gradi, zoom, velocità, dB) | `FluidRulerDial` |
 | Una scelta fra 3+ voci esclusive | `FluidSegmentedControl` ([controlli.md](controlli.md)) |
 | Il vecchio nome dell'interruttore | non `FluidGlassSwitch` (deprecato, delega): `FluidSwitch` |
 
@@ -412,6 +419,225 @@ toccabili e `onStartLabelClick` / `onEndLabelClick`: 3.0.1.
 
 ---
 
+## FluidRangeSlider (con FluidRangeSliderDefaults)
+
+**Cos'è.** Il cursore con due maniglie: il minimo e il massimo di un filtro. È `FluidSlider` con una maniglia in più, e
+**la maniglia e la sua fisica sono quelle dello slider**, non una copia: `FluidSlider.kt` espone all'interno del modulo
+la maniglia di vetro, la sua molla e ciò che la lente rifrange, e tutte e due le maniglie le usano. Apple non ha il
+controllo: il riferimento per il gesto e l'accessibilità è `UISlider`.
+
+**Firma essenziale.**
+
+```kotlin
+FluidRangeSlider(
+  value: ClosedFloatingPointRange<Float>,
+  onValueChange: (ClosedFloatingPointRange<Float>) -> Unit,
+  modifier: Modifier = Modifier,
+  valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+  enabled: Boolean = true,
+  onValueChangeFinished: (() -> Unit)? = null,   // il momento di applicare il filtro
+  minDistance: Float = 0f,                        // nell'unità del valore
+  snapValues: List<Float> = emptyList(),
+  snapThreshold: Float = 0.03f,
+  startContentDescription: String? = null,        // di serie «Minimo»
+  endContentDescription: String? = null,          // di serie «Massimo»
+  startStateDescription: String? = null,
+  endStateDescription: String? = null,
+  backdrop: GlassBackdropState = currentCanvasBackdrop() ?: currentGlassBackdrop(),
+)
+```
+
+**Uso: la durata dei brani.**
+
+```kotlin
+var from by remember { mutableFloatStateOf(60f) }
+var to by remember { mutableFloatStateOf(270f) }
+FluidRangeSlider(
+  value = from..to,
+  onValueChange = { from = it.start; to = it.endInclusive },
+  valueRange = 0f..600f,
+  minDistance = 30f,
+  startStateDescription = "1:00", endStateDescription = "4:30",
+  onValueChangeFinished = { applyFilter(from, to) },
+)
+```
+
+**Comportamento.**
+
+- **Le maniglie non si scavalcano**: quella che si trascina si ferma sull'altra, o a `minDistance` da lei, con un
+  `Threshold` quando la raggiunge; non la spinge.
+- **Chi prende il dito**: una maniglia sotto il dito (o a 10 dp) la prende subito; due maniglie sovrapposte le separa il
+  primo movimento (verso i valori alti il massimo, verso i bassi il minimo: così due maniglie in fondo si separano
+  sempre); sulla pista nuda un tocco porta lì la più vicina, un trascinamento di lato a mezzo slop la prende.
+- **La maniglia presa per ultima sta sopra**, e solo lei ha la lente che si stira col dito.
+- L'accento sta **fra** le due maniglie; due maniglie che si toccano lasciano un punto d'accento, non un buco.
+- Le tacche, l'aptica, il movimento ridotto, la destra a sinistra e il ripiego senza RenderEffect sono quelli di
+  `FluidSlider`.
+- **TalkBack**: due nodi, uno per maniglia, sopra le maniglie: ognuno con il suo nome, l'intervallo che l'altra gli
+  lascia, «imposta», «Aumenta» e «Diminuisci» (le parole di `FluidLabels`): la tacca dopo, o un ventesimo dell'intervallo.
+
+**Trappole.**
+
+- **Parole in italiano scritte nei default**: `FluidRangeSliderDefaults` («Minimo», «Massimo»). Un'app in un'altra lingua
+  passa sempre i nomi delle due maniglie.
+- Un `value` più stretto di `minDistance` si mostra allargato (la fine si allontana; in fondo alla pista l'inizio
+  arretra), ma `onValueChange` non arriva finché il dito non muove una maniglia.
+
+**Non usarlo quando.** Un valore solo (`FluidSlider`); un punto in qualcosa che avanza (`FluidScrubber`).
+
+---
+
+## FluidWheelPicker (con FluidWheelColumn e FluidWheelDefaults)
+
+**Cos'è.** La ruota di iOS: `Picker` con `.pickerStyle(.wheel)`, `UIPickerView`, `UIDatePicker` a ruota. Una o più
+colonne di voci che girano col dito su un cilindro e si fermano a scatti sotto una **fascia di vetro**, che ingrandisce
+appena il valore scelto.
+
+**Firma essenziale** (una colonna sola, o più colonne).
+
+```kotlin
+FluidWheelPicker(
+  count: Int, selected: Int, onSelectedChange: (Int) -> Unit, label: (Int) -> String,
+  modifier: Modifier = Modifier, cyclic: Boolean = false, unit: String? = null,
+  contentDescription: String? = null, stateDescription: ((Int) -> String)? = null,
+  enabled: Boolean = true, backdrop: GlassBackdropState = …,
+)
+
+FluidWheelPicker(columns: List<FluidWheelColumn>, modifier, enabled, backdrop)
+
+FluidWheelColumn(
+  count, selected, onSelectedChange, label,
+  cyclic = false,                 // ore e minuti: dopo l'ultima la prima
+  unit = null,                    // «ore», «min»: ferma nella fascia, come in Orologio
+  contentDescription = null, stateDescription = null,
+  weight = 1f, textAlign = …,     // al centro, o a destra con l'unità
+  isEnabled = null,               // le voci che si possono scegliere (minimo e massimo)
+)
+```
+
+**Uso: una data come `UIDatePicker`** (dal `sample`, scena `ruota-data`).
+
+```kotlin
+FluidWheelPicker(
+  columns = listOf(
+    FluidWheelColumn(31, day - 1, { day = it + 1 }, { "${it + 1}" }, cyclic = true,
+      isEnabled = { it < monthLength }),          // 29, 30 e 31 spenti quando il mese è corto
+    FluidWheelColumn(12, month - 1, { month = it + 1 }, { monthName(it) }, cyclic = true, weight = 1.4f),
+    FluidWheelColumn(201, year - 1900, { year = 1900 + it }, { "${1900 + it}" },
+      isEnabled = { 1900 + it in 1950..2050 }),   // minimumDate e maximumDate
+  ),
+)
+```
+
+**Comportamento.**
+
+- **Le misure sono quelle di iOS 26 e 27**, prese dalle schermate (il timer di Orologio, la ruota delle HIG; vedi il
+  rapporto di F8.2): alta 216 dp (`FluidWheelDefaults`), voci da 32 dp (crescono col testo grande fino a 1,6) su un
+  cilindro di raggio 0,39 dell'altezza (84 dp: tre voci piene per lato e una quarta schiacciata), la fascia a capsula
+  alta 34 dp con 9 dp di margine, la voce nella fascia ingrandita di 1,12, quelle fuori al 45% dell'inchiostro e più
+  tenui verso i bordi.
+- **La costruzione è quella di `UIPickerView`**, in tre strati: le voci fuori dalla fascia sono una sorgente di vetro
+  della ruota (piccola quanto lei, mai lo schermo); la fascia, ferma, le campiona con la pagina e le piega al bordo; le
+  voci dentro la fascia si disegnano sopra il vetro, nitide. Si muove solo il contenuto.
+- **Il gesto**: un trascinamento verticale la gira 1:1, con l'elastico di UIKit oltre la prima e l'ultima voce. Lasciata
+  con velocità **decelera come una lista di iOS** (0,998 a millisecondo, la proiezione di mezzo secondo di velocità) e si
+  ferma **esattamente** su una voce: il punto proiettato si porta sulla voce più vicina e il decadimento si ritocca per
+  arrivarci, senza rimbalzo. Un dito su una ruota che gira la ferma; un tocco su una voce la porta al centro.
+- **La presa**: la ruota prende il dito a mezzo slop in verticale prima che di lato (l'arbitro dello slider con gli assi
+  scambiati), e da lì consuma tutto: in una lista o in un foglio che si trascina gira la ruota, non la pagina. Un gesto
+  che va prima di lato è di chi sta sotto (un pager).
+- **Il valore è del chiamante**: `onSelectedChange` arriva **quando la ruota si ferma** (come `didSelectRow`), non a
+  ogni voce. Un chiamante che rifiuta vede la ruota tornare. Un `selected` cambiato da fuori la porta con la molla (0,38 s).
+- **Le voci spente** (`isEnabled`) sono al 35%; una ruota che si ferma su una di loro scivola alla più vicina.
+- **La sfocatura del moto** (il tono di F8, i numeri che scorrono): una ruota lanciata oltre 12 voci al secondo sfoca le
+  voci in verticale, fino a 3 dp a 40 voci al secondo, e torna nitida prima di fermarsi. Sotto il dito e col movimento
+  ridotto mai. iOS non la ha: è una scelta di casa.
+- **L'aptica**: un tic per voce che passa sotto la fascia, con la rete dei 55 ms; sopra 8 voci al secondo il `DragTick`
+  leggero, sotto il `Tick` di un aggancio.
+- **Il movimento ridotto**: niente inerzia lunga (un lancio porta al più una voce oltre il dito, assestamento di 0,20 s);
+  lo scatto resta; un valore da fuori si posa.
+- **TalkBack**: un nodo per colonna, regolabile (nome, valore detto, intervallo, «imposta», «Aumenta» e «Diminuisci»; su
+  una ruota che gira dopo l'ultima viene la prima).
+- **Il costo**: a riposo nessuna scrittura di stato e nessun ridisegno; mentre gira si ridisegnano solo le voci (la
+  posizione si legge in disegno) e il moto non alloca per fotogramma. Le voci si misurano una volta (le liste lunghe in
+  un anello delle ultime 48).
+
+**FluidDurationWheel** (con `FluidDurationUnits`): il timer di Orologio, ore, minuti e (di serie) secondi con le unità
+ferme nella fascia. Il valore è uno, in secondi; **le colonne sono collegate**: una durata sotto il minimo (di serie un
+secondo, o un minuto senza secondi) non si sceglie, la colonna più piccola sale al minimo, come il `countDownTimer` di
+`UIDatePicker`. I minuti possono andare a passi (un divisore di 60), come in iOS.
+
+**FluidTimeWheel**: l'ora di `UIDatePicker`, in 24 o 12 ore (di serie quello del sistema), le colonne nell'ordine della
+lingua (AM e PM prima dell'ora in coreano e giapponese). In 12 ore la ruota delle ore che passa da 11 a 12 **gira AM e
+PM**, come in iOS; i minuti non portano le ore. È fatta per prendere il posto dei tasti «−» e «+» di
+`FluidDateTimeSheet` (F8.8).
+
+**Trappole.**
+
+- `label` dev'essere una funzione pura dell'indice: le voci si misurano una volta. Se le parole cambiano (un'altra
+  lingua), passa una lambda nuova.
+- Le parole di serie di `FluidDurationUnits` sono in italiano («ore», «min», «s»): c'è la forma inglese.
+- Una colonna in cui `isEnabled` spegne tutto non ha dove posarsi: almeno una voce deve potersi scegliere.
+
+**Non usarlo quando.** Poche scelte che stanno in vista (`FluidSegmentedControl`, un menu); un valore continuo
+(`FluidSlider`, `FluidRulerDial`).
+
+---
+
+## FluidRulerDial
+
+**Cos'è.** La ghiera a righello: il righello di «Raddrizza» in Foto e la ghiera dello zoom in Fotocamera. Un righello di
+tacche fitte scorre di lato sotto un indice fermo; il valore è scritto sopra l'indice, dove il dito non lo copre. Apple
+non ha un'API: le misure vengono dalle schermate di Foto in iOS 26 e 18.
+
+**Firma essenziale.**
+
+```kotlin
+FluidRulerDial(
+  value: Float,
+  onValueChange: (Float) -> Unit,
+  modifier: Modifier = Modifier,
+  valueRange: ClosedFloatingPointRange<Float> = -45f..45f,   // quello di «Raddrizza»
+  step: Float = 1f,                                          // il valore fra due tacche
+  majorEvery: Int = 10,                                      // una principale ogni 10, dal neutro
+  neutralValue: Float? = 0f,
+  enabled: Boolean = true,
+  onValueChangeFinished: (() -> Unit)? = null,
+  valueText: ((Float) -> String)? = …,                       // di serie «−12», «2,5»
+  contentDescription: String? = null,
+)
+```
+
+**Comportamento.**
+
+- **Le misure** (Foto, iOS 26): una tacca ogni 9 dp, alte 14 dp, spesse 1,8 dp; le altre al 49% dell'inchiostro, le
+  principali all'80%; l'indice alto 28 dp nell'accento (il giallo di Foto); le tacche spariscono negli ultimi 30 dp a
+  ogni lato. Un pallino sopra il valore neutro (come in iOS 18).
+- **Il gesto**: il righello segue il dito 1:1 e oltre le estremità cede con l'elastico; lanciato continua con l'inerzia
+  di una lista di iOS e si ferma su una tacca, **sulla principale** se ci finisce entro un quarto dell'intervallo fra due
+  principali. Un dito sulla ghiera che scorre la ferma; il **doppio tocco** torna al neutro. Presa a mezzo slop di lato
+  prima che in verticale: in un pager scorre la ghiera.
+- **Il neutro attira**: trascinando, entro mezza tacca il valore è il neutro, con un `Threshold` all'arrivo.
+- **La sfocatura del moto**: lanciata veloce (oltre 30 tacche al secondo) le tacche sfocano di lato, fino a 3 dp; l'indice
+  resta nitido. Mai sotto il dito né col movimento ridotto.
+- **L'aptica**: `DragTick` per tacca a dito veloce, `Tick` per tacca lenta e per ogni principale, `Threshold` sul neutro e
+  alle estremità, con la rete dei 55 ms.
+- **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
+  quando si ferma (un tocco da solo non lo chiama). Il valore scritto si ricompone solo quando cambia la scritta.
+- **Il movimento ridotto** toglie l'inerzia lunga; lo scatto resta.
+- **TalkBack**: un nodo regolabile con la scritta come valore, «Aumenta» e «Diminuisci» di un passo.
+
+**Trappole.**
+
+- `step` è anche la precisione: i valori che arrivano sono multipli del passo dall'inizio dell'intervallo. Per un valore
+  più fine, un passo più piccolo (0,1 dB) e principali più rade.
+- La ghiera non è vetro: sta su una barra o su una pagina, come in Foto. Sopra una foto mettila in un pannello di vetro.
+
+**Non usarlo quando.** Un valore con un inizio e una fine che si vogliono vedere (`FluidSlider`); una scelta fra voci
+(`FluidWheelPicker`).
+
+---
+
 ## Licenze dei port
 
 | pezzo | origine | licenza |
@@ -419,6 +645,7 @@ toccabili e `onStartLabelClick` / `onEndLabelClick`: 3.0.1.
 | `FluidSwitch` (pomello, copia schiacciata della pista, molle, stiramento) | `LiquidToggle` del catalogo di **Kyant0** (`AndroidLiquidGlass`, commit `b18eb0f…`) | Apache-2.0, Copyright 2025 Kyant |
 | `FluidSlider` (pillola bianca/lente, pista registrata, copia che si dispiega) | `LiquidSlider` del catalogo di Kyant0, arrivato passando dal port già fatto in **Pampa notes** | Apache-2.0, Copyright 2025 Kyant |
 | `FluidScrubber`, la goccia di `FluidSegmentedControl` | `glassDrop` (`glass/interaction/GlassDrop.kt`, la ricetta estratta dai due controlli) e la copia della pista dello slider | Apache-2.0, Kyant |
+| le due maniglie di `FluidRangeSlider` | la maniglia di `FluidSlider` (`FluidSliderThumb`, 4.0, F8.2), cioè il pomello del `LiquidSlider` | Apache-2.0, Kyant |
 | tasti: `FluidButton`, `FluidGlassButton`, `FluidGlassIconButton`, `FluidBarAction`, `FluidChip`, `FluidColorDot` (pressione, gesto, aptica, bagliore) | **LibrePods** (`StyledButton`, `StyledIconButton`, `DragUtils`; ramo `android/rewrite`, `3d4d270`) | **GPL-3.0** |
 
 Il materiale di base di Kyant include le lenti, la pista registrata e le misure dei pomelli. Fluid Engine
@@ -440,6 +667,7 @@ L'app deve riportare *AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant
 
 **`FluidScrubberDefaults`**: `ContentDescription` = «Posizione», `StepBackLabel` = «Indietro», `StepForwardLabel` = «Avanti», `MaxStepDots` = 32.
 **`FluidScrubbing`**: `clock`, `Elapsed`, `Remaining`, `Total`, `Spoken` (pubblici); il resto (`snap`, `nudge`, `caughtUp`, `shownValue`…) è `internal` e provato.
+**`FluidWheelDefaults`**: `Height` = 216 dp, `RowHeight` = 32 dp. **`FluidRangeSliderDefaults`**: `StartDescription` = «Minimo», `EndDescription` = «Massimo».
 **`FluidSwitchWidth`** = `64.dp`. **`FluidMotion.ScrubberHoldMillis`** = 3000 ms (token di attesa dello scrubber). **Pomelli**: `GlassDropLens.Slider` (10/14 dp), `GlassDropLens.Switch` (5/10 dp).
 **Salita nel vetro** (`GlassDropRise`, interno, `glass/interaction/GlassDrop.kt`): crescita ×1,5 (×1,25 con le animazioni ridotte), stiramento 0,0008 per dp/s
 con la velocità lenta a 14,3 rad/s e il tetto a 0,18, tocco dell'interruttore 100 ms e 60 ms all'arrivo; alone (`GlassDropGlow`) al 10%, centro 0,16 altezze sotto la lente.
@@ -466,6 +694,21 @@ Costanti non pubbliche che conviene sapere (per dimensionare attorno):
 
 ## Cosa è verificato dai test
 
+- **`F8p2WheelsTest`** (`engine-ui`, F8.2): l'inerzia a scatti (la proiezione di UIKit, il lancio che finisce esatto sulla
+  voce senza superarla e parte con la velocità del dito, lo stesso moto a 60 e 120 Hz, l'assestamento a molla, nessuna
+  allocazione per fotogramma, il movimento ridotto); la ruota contro le schermate di iOS 27 (le voci 1–3 entro 2 pt, tre
+  voci piene e una schiacciata, l'inchiostro fuori dalla fascia, il tocco che porta al centro la voce giusta, le voci
+  spente); le ruote pronte (il minimo della durata, AM e PM che girano fra 11 e 12); la ghiera contro Foto (90 tacche, le
+  principali dallo zero, lo scatto sulle principali); le due maniglie (niente scavalchi, distanza minima, chi prende il
+  dito, i passi per TalkBack).
+- **`F8p2GesturesUiTest`** (`sample`, Robolectric, col dito vero e il vetro vero): la ruota trascinata di tre voci si posa
+  sulla terza con un tic per voce; lanciata si ferma esatta molto più in là; un dito la ferma; un tocco porta al centro
+  la voce toccata; col movimento ridotto al più una voce oltre il dito; TalkBack (valore, «Aumenta», «Diminuisci»,
+  «imposta», la ruota che torna alla prima); in una lista il gesto verticale è della ruota. La ghiera: dieci tacche e la
+  principale, il lancio su una tacca intera, il doppio tocco allo zero con il colpo, TalkBack. Le due maniglie: niente
+  scavalco con la distanza minima e il colpo, la separazione dal verso, i due nodi per TalkBack. Ogni scena di F8.2 a
+  riposo non scrive niente.
+
 - **`FluidSliderSnapTest`, `FluidSliderClaimTest`** (`engine-ui`): tacche (entro la soglia, la soglia è una frazione, `1f` è un passo, intervallo vuoto, tacca che suona solo all'atterraggio, rete dei 55 ms, afferrare fermo non suona); il test dei mezzi slop; l'isteresi dell'interruttore e dove si posa il pomello lasciato.
 - **`GlassDropRiseTest`** (`engine-ui`, F6.3): la crescita mai oltre ×1,5 e mai sotto il riposo, dentro la finestra dei tempi di Apple; lo stiramento
   con il segno dell'accelerazione, che torna a zero a velocità costante e da fermo, con il tetto, uguale a 60 e a 120 Hz, ad area costante, nullo senza
@@ -486,6 +729,11 @@ Radice: `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`.
 | `FluidSwitch.kt` | `FluidSwitch`, `FluidSwitchControl` (interno: `ownsSemantics`), `FluidGlassSwitch` (deprecato), `FluidSwitchWidth`, `fluidSwitchSide`, `fluidSwitchLanding`, `fluidSwitchHaptic` |
 | `FluidSlider.kt` | `FluidSlider` e tutta la matematica interna (`fluidSliderFraction`, `fluidSliderValue`, `fluidSliderThumbCentre`, `fluidSliderStopIndex`, `fluidSliderSnap`, `fluidSliderClaim`, `FluidSliderNotchGate`) |
 | `FluidScrubber.kt` | `FluidScrubber` (due overload), `FluidScrubberFormat`, `FluidScrubberDefaults`, `FluidScrubbing` (formati pubblici; conti interni), `FluidScrubberHold` e `FluidScrubberPhase` (i tre tempi) |
+| `FluidRangeSlider.kt` | `FluidRangeSlider`, `FluidRangeSliderDefaults`; i conti delle due maniglie |
+| `FluidWheelPicker.kt` | `FluidWheelPicker` (due forme), `FluidWheelColumn`, `FluidWheelDefaults`; l'aspetto con le fonti, il cilindro, lo stato vivo di una colonna |
+| `FluidWheelPresets.kt` | `FluidDurationWheel`, `FluidDurationUnits`, `FluidTimeWheel` e i loro conti |
+| `FluidRulerDial.kt` | `FluidRulerDial`; l'aspetto, la scala, lo stato vivo |
+| `FluidDetentInertia.kt` | l'inerzia a scatti di UIKit condivisa da ruota e ghiera |
 | `FluidSettingRows.kt` | `FluidToggleRow` e `FluidSliderRow` — vedi [contenuto.md](contenuto.md) |
 | `glass/interaction/GlassDrop.kt` | `glassDrop`, `GlassDropLens`, `GlassDropRecipe`, `GlassDropFaces` |
 | `LICENSES/AndroidLiquidGlass.md`, `LICENSES/LibrePods.md` | le attribuzioni e l'elenco delle modifiche |

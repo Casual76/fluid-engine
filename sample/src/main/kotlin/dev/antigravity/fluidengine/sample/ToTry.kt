@@ -871,6 +871,28 @@ private val VisoriItems = listOf(
 )
 
 /** La 2.0.0 stabile: gli ultimi ritocchi dopo la beta 5 (engine 3.0.4). */
+/** F8.2 · Gesti e ruote (piano dell'ecosistema): la ruota, la ghiera e le due maniglie, in «Elementi nuovi». */
+private val F8p2Items: List<TryItem> = listOf(
+  TryItem(
+    "f8-2-ruota", TryArea.FieldsEditors, "La ruota del timer",
+    "Apri «Il timer di Orologio», gira i minuti piano e poi lanciali, e tocca una voce sopra la fascia: giudica se si " +
+      "ferma sulla voce come in iOS, senza rimbalzo, e se i tic si sentono uno per voce.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Il timer di Orologio"),
+  ),
+  TryItem(
+    "f8-2-ghiera", TryArea.FieldsEditors, "La ghiera di Raddrizza",
+    "Apri «Raddrizza una foto», trascina e lancia il righello, poi tocca due volte: giudica se lo zero attira e se il " +
+      "lancio si ferma sulle tacche principali.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Raddrizza una foto"),
+  ),
+  TryItem(
+    "f8-2-intervallo", TryArea.FieldsEditors, "Le due maniglie",
+    "Apri «Durata e peso», porta una maniglia contro l'altra e prova a scavalcarla: giudica se si ferma con un colpo " +
+      "e se la lente di vetro e' quella dello slider.",
+    TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Durata e peso"),
+  ),
+)
+
 private val Stable = TryRound(
   id = "stabile",
   title = "Stabile",
@@ -937,8 +959,9 @@ private val Stable = TryRound(
         "giudica se la barra si trasforma senza salti e segue la tastiera.",
       TryTarget.Page(GalleryPage.DynamicElements, "Elementi dinamici › La barra sopra la tastiera"),
     ),
-  ) + VisoriItems,
+  ) + VisoriItems + F8p2Items,
 )
+
 
 /** Tutti i giri, dal piu' vecchio al piu' nuovo. Una beta nuova aggiunge qui il suo e basta. */
 internal val TryRounds: List<TryRound> = listOf(Beta1, Beta2, Beta3, Beta4, Beta5, Stable)

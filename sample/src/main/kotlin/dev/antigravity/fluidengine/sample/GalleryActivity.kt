@@ -348,6 +348,8 @@ internal fun Gallery(
               GalleryPage.ButtonStyles -> dev.antigravity.fluidengine.sample.buttons.ButtonStylesPage(bottomInset) { nav.back() }
               // Gli elementi dinamici (F6B.12): `dynamic.scene` apre una scena. A finestra intera, come i visori.
               GalleryPage.DynamicElements -> dev.antigravity.fluidengine.sample.dynamic.DynamicElementsPage(onBack = { nav.back() })
+              // Gli elementi nuovi (F8): `novita.scene` apre una scena. A finestra intera, come gli elementi dinamici.
+              GalleryPage.NewElements -> dev.antigravity.fluidengine.sample.novita.NewElementsPage(onBack = { nav.back() })
               // I componenti nuovi della fase 1: una pagina per demo, tutte dentro la matrice degli stati.
               GalleryPage.LongLists,
               GalleryPage.Identity,
@@ -619,4 +621,5 @@ private fun GalleryFloatingControls(
 
 /** Le pagine a finestra intera non hanno la tab bar della galleria (e quindi nemmeno il suo spazio): F6B.15. */
 internal fun galleryShowsTabBar(page: GalleryPage?): Boolean =
-  page != GalleryPage.TabletNavigation && page != GalleryPage.Visori && page != GalleryPage.DynamicElements
+  page != GalleryPage.TabletNavigation && page != GalleryPage.Visori && page != GalleryPage.DynamicElements &&
+    page != GalleryPage.NewElements

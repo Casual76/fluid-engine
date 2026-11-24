@@ -78,6 +78,8 @@ UI_FLUID_FILES = {
         "FluidTextField", "FluidTextEdit", "FluidTokenField", "FluidStepper",
         # F6B.8: la fila di filtri a pillole, i suggerimenti e i loro preset
         "FluidFilterChips",
+        # F8.2: la ruota, le ruote pronte, la ghiera a righello, il cursore a intervallo e la loro inerzia a scatti
+        "FluidWheelPicker", "FluidWheelPresets", "FluidRulerDial", "FluidRangeSlider", "FluidDetentInertia",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [

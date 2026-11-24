@@ -153,6 +153,13 @@ internal enum class GalleryPage(val title: String, val group: GalleryGroup? = nu
    */
   DynamicElements("Elementi dinamici"),
 
+  /**
+   * Gli elementi nuovi (piano dell'ecosistema, F8): una sezione per pacchetto, una scena per caso d'app. Come gli
+   * elementi dinamici vuole la finestra intera. Vedi `novita/`. Si apre con `--es gallery.page NewElements`, una scena con
+   * `--es novita.scene …`.
+   */
+  NewElements("Elementi nuovi"),
+
   // --- Componenti nuovi della fase 1 (F1.2 – F1.5), una pagina per demo, raggruppate da [group] ---
   LongLists("Liste lunghe e righe", GalleryGroup.Lists),
   Identity("Identità e selezione", GalleryGroup.Identity),

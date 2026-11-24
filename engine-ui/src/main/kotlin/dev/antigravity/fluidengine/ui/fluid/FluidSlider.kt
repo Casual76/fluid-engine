@@ -87,6 +87,7 @@ import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
@@ -94,6 +95,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBack
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDragAnimation
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropLens
+import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropMotion
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassDropRecipe
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.glass.interaction.glassDropGlow
@@ -102,6 +104,7 @@ import dev.antigravity.fluidengine.ui.haptics.FluidDetent
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticDetents
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.max
@@ -209,21 +212,7 @@ fun FluidSlider(
   val fraction = fluidSliderFraction(value, valueRange)
   val currentFraction by rememberUpdatedState(fraction)
 
-  // La molla vive nello spazio 0..1, non in quello del chiamante: la velocita' che ne esce e' in
-  // "intervalli al secondo" per qualunque intervallo, e l'intervallo puo' cambiare sotto la molla
-  // senza che questa debba rinascere.
-  val dragAnimation = remember(scope) {
-    GlassDragAnimation(
-      animationScope = scope,
-      initialValue = fraction,
-      valueRange = 0f..1f,
-      visibilityThreshold = 0.001f,
-      initialScale = 1f,
-      // A uno (F6.3): la taglia della lente la decide la salita nel vetro (`rememberGlassDropRiseMotion`), dalla
-      // pressione; le molle della scala di Kyant arrivavano a ×1,5 con un superamento che Apple non ha.
-      pressedScale = 1f,
-    )
-  }
+  val dragAnimation = rememberFluidSliderDrag(scope, fraction)
 
   // La maniglia segue il valore del chiamante, sempre: dito, tocco, ripristino di una preferenza.
   // Cosi' un chiamante che il valore lo arrotonda, lo rifiuta o lo salva in ritardo vede la maniglia
@@ -244,19 +233,7 @@ fun FluidSlider(
   val notches = remember { FluidSliderNotchGate() }
 
   val trackBackdrop = rememberLayerBackdrop()
-  // La pista, aperta: schiacciata a due terzi in orizzontale e a niente in verticale a riposo, e
-  // intera sotto il dito. Quello che la lente mostra non e' un'immagine della pista ma la pista
-  // che si *dispiega*.
-  val unfoldedTrack: DrawScope.(DrawScope.() -> Unit) -> Unit = remember(dragAnimation) {
-    { drawTrack ->
-      val progress = dragAnimation.pressProgress
-      scale(lerp(2f / 3f, 1f, progress), lerp(0f, 1f, progress)) { drawTrack() }
-    }
-  }
-  val thumbBackdrop: Backdrop = rememberCombinedBackdrop(
-    backdrop.backdrop,
-    rememberBackdrop(trackBackdrop, unfoldedTrack),
-  )
+  val thumbBackdrop: Backdrop = rememberFluidSliderThumbBackdrop(backdrop, trackBackdrop, dragAnimation)
 
   val gestures = if (!enabled) {
     Modifier
@@ -510,49 +487,140 @@ fun FluidSlider(
     }
 
     // 3. La maniglia.
-    Box(
-      Modifier
-        .graphicsLayer {
-          // Nel layer, non nel layout: spostarla invalida un disegno e basta, e il renderer inverte
-          // questa traslazione quando campiona, quindi in ogni punto della corsa la lente ha in
-          // mano l'immagine che la pista ha davvero dietro.
-          val centre = fluidSliderThumbCentre(dragAnimation.progress, trackPx, thumbPx)
-          translationX = (centre - thumbPx / 2f) * if (isLtr) 1f else -1f
-        }
-        .then(
-          if (isRenderEffectSupported()) {
-            // La goccia (`glass/interaction/GlassDrop.kt`) che sale nel vetro (F6.3): bianca a riposo,
-            // lente sotto il dito (10/14 dp dove il materiale nuovo non c'e'), con dietro l'alone
-            // dell'accento. Taglia e stiramento li da' `riseMotion`, con la velocita' a zero: lo squash
-            // dal modulo della velocita' non agisce piu'. La lente di Apple si stringe partendo verso
-            // sinistra e si allunga partendo verso destra; a velocita' costante torna la sua.
-            Modifier
-              .glassDropGlow(riseMotion) { accentColor }
-              .glassDrop(
-                backdrop = thumbBackdrop,
-                motion = riseMotion,
-                lensSize = GlassDropLens.Slider,
-                squashDivisor = GlassDropRecipe.SquashDivisor,
-                squashSigned = false,
-                reducedMotion = { currentReducedMotion },
-                // Sotto la lente tenuta Apple non ha un'ombra scura: ha l'alone dell'accento qui sopra.
-                shadowFade = 1f,
-              )
-          } else {
-            Modifier
-              .graphicsLayer {
-                val swell = 1f + FallbackSwell * dragAnimation.pressProgress
-                scaleX = swell
-                scaleY = swell
-              }
-              .shadow(2.dp, FluidCapsuleShape)
-              .clip(FluidCapsuleShape)
-              .drawBehind { drawRect(Color.White) }
-          },
-        )
-        .size(ThumbWidth, ThumbHeight),
+    FluidSliderThumb(
+      drag = dragAnimation,
+      rise = riseMotion,
+      backdrop = thumbBackdrop,
+      accentColor = accentColor,
+      centre = { fluidSliderThumbCentre(dragAnimation.progress, trackPx, thumbPx) },
+      isLtr = isLtr,
+      reducedMotion = { currentReducedMotion },
     )
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// La maniglia, condivisa (F8.2)
+// ---------------------------------------------------------------------------------------------
+//
+// Fuori da `FluidSlider` dal 4.0 (F8.2) perche' il cursore a due maniglie (`FluidRangeSlider`) ha la stessa
+// maniglia e la stessa fisica, e la regola e' che non le rifaccia: questa e' l'unica. Il disegno di `FluidSlider`
+// non cambia di un bit, la catena dei modificatori e' quella di prima nello stesso ordine.
+
+/**
+ * La molla della maniglia, che vive nello spazio 0..1 e non in quello del chiamante: la velocita' che ne esce e' in
+ * "intervalli al secondo" per qualunque intervallo, e l'intervallo puo' cambiare sotto la molla senza che questa debba
+ * rinascere. [fraction] e' solo il punto di partenza.
+ */
+@Composable
+internal fun rememberFluidSliderDrag(scope: CoroutineScope, fraction: Float): GlassDragAnimation = remember(scope) {
+  GlassDragAnimation(
+    animationScope = scope,
+    initialValue = fraction,
+    valueRange = 0f..1f,
+    visibilityThreshold = 0.001f,
+    initialScale = 1f,
+    // A uno (F6.3): la taglia della lente la decide la salita nel vetro (`rememberGlassDropRiseMotion`), dalla
+    // pressione; le molle della scala di Kyant arrivavano a ×1,5 con un superamento che Apple non ha.
+    pressedScale = 1f,
+  )
+}
+
+/**
+ * Cio' che la lente di una maniglia rifrange: [page] e, sopra, la pista registrata in [track] che si dispiega con la
+ * pressione di [drag] (schiacciata a due terzi in orizzontale e a niente in verticale a riposo, intera sotto il dito).
+ * Quello che la lente mostra non e' un'immagine della pista ma la pista che si *dispiega*. Una per maniglia: due
+ * maniglie sulla stessa pista si aprono ognuna con la sua pressione.
+ */
+@Composable
+internal fun rememberFluidSliderThumbBackdrop(
+  page: GlassBackdropState,
+  track: LayerBackdrop,
+  drag: GlassDragAnimation,
+): Backdrop {
+  val unfoldedTrack: DrawScope.(DrawScope.() -> Unit) -> Unit = remember(drag) {
+    { drawTrack ->
+      val progress = drag.pressProgress
+      scale(lerp(2f / 3f, 1f, progress), lerp(0f, 1f, progress)) { drawTrack() }
+    }
+  }
+  return rememberCombinedBackdrop(page.backdrop, rememberBackdrop(track, unfoldedTrack))
+}
+
+/**
+ * La maniglia di vetro di uno slider: la goccia bianca a riposo che sale nel vetro sotto il dito (F6.3), con l'alone
+ * dell'accento; senza RenderEffect una pillola bianca con l'ombra. [centre] e' il centro della maniglia dall'inizio
+ * della pista, in pixel, letto nel layer: spostarla invalida un disegno e basta.
+ */
+@Composable
+internal fun FluidSliderThumb(
+  drag: GlassDragAnimation,
+  rise: GlassDropMotion,
+  backdrop: Backdrop,
+  accentColor: Color,
+  centre: () -> Float,
+  isLtr: Boolean,
+  reducedMotion: () -> Boolean,
+  modifier: Modifier = Modifier,
+) {
+  val density = LocalDensity.current
+  val thumbPx = with(density) { ThumbWidth.toPx() }
+  Box(
+    modifier
+      .graphicsLayer {
+        // Nel layer, non nel layout: spostarla invalida un disegno e basta, e il renderer inverte
+        // questa traslazione quando campiona, quindi in ogni punto della corsa la lente ha in
+        // mano l'immagine che la pista ha davvero dietro.
+        translationX = (centre() - thumbPx / 2f) * if (isLtr) 1f else -1f
+      }
+      .then(
+        if (isRenderEffectSupported()) {
+          // La goccia (`glass/interaction/GlassDrop.kt`) che sale nel vetro (F6.3): bianca a riposo,
+          // lente sotto il dito (10/14 dp dove il materiale nuovo non c'e'), con dietro l'alone
+          // dell'accento. Taglia e stiramento li da' `rise`, con la velocita' a zero: lo squash
+          // dal modulo della velocita' non agisce piu'. La lente di Apple si stringe partendo verso
+          // sinistra e si allunga partendo verso destra; a velocita' costante torna la sua.
+          Modifier
+            .glassDropGlow(rise) { accentColor }
+            .glassDrop(
+              backdrop = backdrop,
+              motion = rise,
+              lensSize = GlassDropLens.Slider,
+              squashDivisor = GlassDropRecipe.SquashDivisor,
+              squashSigned = false,
+              reducedMotion = reducedMotion,
+              // Sotto la lente tenuta Apple non ha un'ombra scura: ha l'alone dell'accento qui sopra.
+              shadowFade = 1f,
+            )
+        } else {
+          Modifier
+            .graphicsLayer {
+              val swell = 1f + FallbackSwell * drag.pressProgress
+              scaleX = swell
+              scaleY = swell
+            }
+            .shadow(2.dp, FluidCapsuleShape)
+            .clip(FluidCapsuleShape)
+            .drawBehind { drawRect(Color.White) }
+        },
+      )
+      .size(ThumbWidth, ThumbHeight),
+  )
+}
+
+/** Le misure dello slider che un controllo della stessa famiglia (`FluidRangeSlider`) deve condividere. */
+internal object FluidSliderMetrics {
+  val Track: Dp get() = TrackHeight
+  val ThumbW: Dp get() = ThumbWidth
+  val Edge: Dp get() = SliderEdge
+  val Height: Dp get() = SliderHeight
+  val GrabMargin: Dp get() = SliderGrabMargin
+  val Stop: Dp get() = StopSize
+  val StopOffset: Dp get() = StopGap
+  const val TickSteps: Int = SliderTickSteps
+  const val Sync: Float = SyncEpsilon
+  const val TrackAlphaOnLight: Float = TrackAlphaLight
+  const val TrackAlphaOnDark: Float = TrackAlphaDark
 }
 
 // ---------------------------------------------------------------------------------------------

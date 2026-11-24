@@ -20,6 +20,10 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -57,7 +61,11 @@ import kotlin.math.roundToInt
  * [FluidTextMotion.DigitMinIntervalMillis] fra due cambi il numero cambia di colpo, e torna a scorrere quando rallenta (F8.1b).
  *
  * **Le cifre scorrono solo se le muove l'app** (regola di Alessio del 24 novembre 2026: ciò che muove il dito resta nitido).
- * Un numero che segue il dito (il valore sotto il dito di un grafico, una ruota) usa un `Text`, non questo.
+ * Mentre il dito trascina un controllo dell'engine che cambia un valore (`FluidSlider`, `FluidRangeSlider`, `FluidRulerDial`,
+ * `FluidWheelPicker`) il numero cambia di colpo, nitido: il quadrante guidato da un cursore non si sfoca sotto il dito.
+ * Una ruota o un righello lanciati restano del dito per tutta l'inerzia, posa compresa: i minuti scelti con una ruota
+ * cambiano di colpo anche se la ruota li dice a dito già alzato. Torna a scorrere ciò che cambia l'app da sola. Un numero
+ * che segue il dito di un gesto tuo (il valore sotto il dito di un grafico) usa un `Text`, non questo.
  *
  * @param text il numero già scritto, con i suoi separatori e la sua unità («1.234,5 kg»).
  * @param value il valore del numero, per il verso: cresce, le cifre salgono.
@@ -176,6 +184,82 @@ fun FluidNumericText(
 
 private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
+/**
+ * Il dito sta muovendo un valore (F8.1b, regola di Alessio del 24 novembre 2026: **ciò che muove il dito resta nitido, si
+ * sfoca solo ciò che muove l'app da sola**, e niente blur neanche nell'inerzia di un lancio partito dal dito). I controlli
+ * dell'engine che cambiano un valore trascinando (il cursore, l'intervallo, il righello, la ruota) lo dicono con
+ * [fluidFingerDrivesValue] finché il dito è giù, e la ruota e il righello con [fluidFingerMotion] finché la loro corsa
+ * partita dal dito (lancio, assestamento, tocco, posa) non si ferma; intanto un [FluidNumericText] che cambia (il numero di
+ * un quadrante guidato da un cursore, i minuti scelti con una ruota) cambia di colpo, senza scorrere e senza sfocarsi.
+ * Solo sul thread principale: un contatore semplice, non uno stato.
+ */
+internal object FluidFingerDrive {
+  /**
+   * Per quanto, dopo l'ultimo rilascio, un cambio conta ancora come del dito. Il valore scritto all'ultimo evento (o
+   * all'ultimo passo di una corsa) si ricompone nel fotogramma dopo, e lo slider dice il valore di un tocco sulla pista
+   * proprio al sollevamento, dopo che l'osservatore ha già chiuso. 50 ms: tre fotogrammi a 60 Hz, sei a 120 (a occhio,
+   * 24 novembre 2026). Un cambio dell'app che cade lì dentro cambia di colpo: un difetto che non si vede.
+   */
+  const val LingerMillis = 50L
+
+  var active: Int = 0
+    private set
+
+  /** L'istante (`SystemClock.uptimeMillis`) in cui il conto è tornato a zero. */
+  private var releasedAtMillis = Long.MIN_VALUE / 2
+
+  fun begin() {
+    active++
+  }
+
+  fun end() {
+    if (active > 0) active--
+    if (active == 0) releasedAtMillis = SystemClock.uptimeMillis()
+  }
+
+  /** Vero mentre il dito muove un valore, o una corsa partita dal dito non si è fermata, e per [LingerMillis] dopo. */
+  fun driving(nowMillis: Long): Boolean {
+    if (active > 0) return true
+    if (nowMillis == Long.MIN_VALUE) return false
+    // Solo in avanti: un orologio che riparte (una prova nuova in Robolectric) non vede il rilascio di un'altra.
+    val since = nowMillis - releasedAtMillis
+    return since in 0 until LingerMillis
+  }
+}
+
+/**
+ * La corsa di un controllo partita dal dito (il lancio, l'assestamento, il tocco che porta una voce al centro, la posa che
+ * dice il valore al chiamante): conta come il dito giù finché [block] non finisce, anche se il dito si è già alzato. Un
+ * dito che riprende il controllo annulla la corsa: il conto scende qui e risale col suo osservatore.
+ */
+internal suspend fun fluidFingerMotion(block: suspend () -> Unit) {
+  FluidFingerDrive.begin()
+  try {
+    block()
+  } finally {
+    FluidFingerDrive.end()
+  }
+}
+
+/**
+ * Dice a [FluidFingerDrive] che il dito è giù su questo controllo, dal primo contatto all'ultimo sollevamento. Guarda gli
+ * eventi nel passaggio iniziale e **non consuma niente**: il gesto del controllo resta com'è.
+ */
+internal fun Modifier.fluidFingerDrivesValue(): Modifier = pointerInput(Unit) {
+  awaitEachGesture {
+    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+    FluidFingerDrive.begin()
+    try {
+      while (true) {
+        val event = awaitPointerEvent(PointerEventPass.Initial)
+        if (event.changes.none { it.pressed }) break
+      }
+    } finally {
+      FluidFingerDrive.end()
+    }
+  }
+}
+
 /** Dove si ferma la molla delle cifre: a 0,004 del viaggio (0,2 px su una riga da 50). */
 private const val DigitSettle = 0.004f
 
@@ -247,8 +331,11 @@ internal class NumericRollState {
       direction = FluidNumericRoll.direction(oldValue, newValue, oldText, newText),
       slots = FluidNumericRoll.plan(oldText, newText),
     )
-    rapid = nowMillis != Long.MIN_VALUE && lastChangeMillis != Long.MIN_VALUE &&
-      nowMillis - lastChangeMillis < FluidTextMotion.DigitMinIntervalMillis
+    // Troppo presto dopo il cambio di prima, o mosso dal dito (un cursore, una ruota): cambia di colpo, nitido.
+    rapid = FluidFingerDrive.driving(nowMillis) || (
+      nowMillis != Long.MIN_VALUE && lastChangeMillis != Long.MIN_VALUE &&
+        nowMillis - lastChangeMillis < FluidTextMotion.DigitMinIntervalMillis
+      )
     if (nowMillis != Long.MIN_VALUE) lastChangeMillis = nowMillis
     started = false
     generation++

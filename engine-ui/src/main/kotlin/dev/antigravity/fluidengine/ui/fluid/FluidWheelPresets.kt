@@ -137,8 +137,9 @@ fun FluidDurationWheel(
  * per prendere il posto dei tasti «−» e «+» di `FluidDateTimeSheet` (F8.8).
  *
  * **Le colonne sono collegate**, come in iOS: in 12 ore la ruota delle ore che passa da 11 a 12 (o torna da 12 a 11)
- * gira anche AM e PM. Le ore e i minuti girano all'infinito; i minuti non portano le ore (59 → 00 resta nella stessa
- * ora, come in iOS).
+ * gira anche AM e PM. Il verso e' quello del moto vero della colonna, contato in voci (F8.2d): 8 AM portate avanti di
+ * 6 voci fanno le 2 PM, indietro di 6 le 2 AM, e un lancio lungo gira AM e PM a ogni passaggio fra 11 e 12. Le ore e i
+ * minuti girano all'infinito; i minuti non portano le ore (59 → 00 resta nella stessa ora, come in iOS).
  *
  * @param time l'ora scelta; i secondi si ignorano.
  * @param onTimeChange la ruota si e' fermata su un'altra ora.
@@ -202,7 +203,7 @@ fun FluidTimeWheel(
       cyclic = true,
       contentDescription = hourDescription,
       textAlign = TextAlign.End,
-    )
+    ).withTravel { index, rows -> propose(fluidTimeWheelHour12(current, index, rows)) }
     val periodColumn = FluidWheelColumn(
       count = 2,
       selected = if (shown.hour < 12) 0 else 1,
@@ -250,19 +251,22 @@ internal fun fluidDurationClamp(
 }
 
 /**
- * L'ora di 24 che viene dalla ruota delle ore in 12 ore che si ferma su [index] (0 = «12»), partendo da [from]: la ruota
- * che passa da 11 a 12, o da 12 a 11, gira AM e PM, come in iOS. Il verso e' la strada corta fra le due voci.
+ * L'ora di 24 che viene dalla ruota delle ore in 12 ore che si ferma su [index] (0 = «12»), partendo da [from], dopo
+ * [rows] voci di moto col segno: ogni passaggio fra 11 e 12 gira AM e PM, come in iOS, quindi l'ora e' semplicemente
+ * `from + rows` sulle 24 ore. 8 AM avanti di 6 fanno le 2 PM, indietro di 6 le 2 AM; avanti di 18 le 2 AM del giorno
+ * dopo; un giro intero (12) gira solo AM e PM.
+ *
+ * Di serie [rows] e' la strada corta fra le due voci (un'azione senza moto, come «imposta» di TalkBack): era l'unica
+ * regola fino a F8.2c, e su 6 voci esatte sceglie l'indietro. Se [rows] non porta a [index] vale la strada corta.
  */
-internal fun fluidTimeWheelHour12(from: LocalTime, index: Int): LocalTime {
-  val oldIndex = from.hour % 12
-  val pm = from.hour >= 12
-  var delta = index - oldIndex
-  if (delta > 6) delta -= 12
-  if (delta < -6) delta += 12
-  // Avanti oltre l'11 (verso il 12, cioe' la voce 0) o indietro oltre il 12 (verso l'11): si gira.
-  val crossed = (delta > 0 && oldIndex + delta >= 12) || (delta < 0 && oldIndex + delta < 0)
-  val nextPm = if (crossed) !pm else pm
-  return from.withHour(index + if (nextPm) 12 else 0)
+internal fun fluidTimeWheelHour12(
+  from: LocalTime,
+  index: Int,
+  rows: Int = fluidWheelShortestRows(from.hour % 12, index, 12, cyclic = true),
+): LocalTime {
+  val hour = Math.floorMod(from.hour + rows, 24)
+  if (hour % 12 == index) return from.withHour(hour)
+  return from.withHour(Math.floorMod(from.hour + fluidWheelShortestRows(from.hour % 12, index, 12, cyclic = true), 24))
 }
 
 /** Vero se nella lingua [locale] AM e PM vengono prima dell'ora («오전 9:41»). */

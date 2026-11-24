@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -88,6 +89,8 @@ import dev.antigravity.fluidengine.viewer.FluidFileThumbnailImage
 import dev.antigravity.fluidengine.viewer.FluidViewerFile
 import dev.antigravity.fluidengine.viewer.rememberFluidFileThumbnail
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -364,6 +367,8 @@ private fun PhotoGridScene(onBack: () -> Unit) {
     ).map { BitmapPainter(ImageBitmap.imageResource(context.resources, it)) }
   }
   val total = remember(sections) { sections.sumOf { it.items.size } }
+  // La lingua dell'app, per la data media (come Foto).
+  val locale = LocalConfiguration.current.locales[0]
   var selecting by rememberSaveable { mutableStateOf(false) }
   val mode = selecting || selection.isActive
   FluidSelectionBackHandler(selection, onExit = { selecting = false })
@@ -380,8 +385,8 @@ private fun PhotoGridScene(onBack: () -> Unit) {
       inSelectionMode = mode,
       contentPadding = WindowInsets.navigationBars.asPaddingValues(),
       title = if (mode) "${selection.countIn(total)} selezionate" else "Libreria",
-      dateLabel = { photo -> F8p4Dates.long(photo.date) },
-      fastScrollLabel = { photo -> F8p4Dates.short(photo.date) },
+      dateLabel = { photo -> F8p4Dates.medium(photo.date, locale) },
+      fastScrollLabel = { photo -> F8p4Dates.medium(photo.date, locale) },
       navigation = { FluidGlassIconButton(onClick = onBack) { FluidIcon(FluidIcons.ArrowBack, "Indietro") } },
       actions = {
         FluidGlassButton(
@@ -404,11 +409,19 @@ private fun PhotoGridScene(onBack: () -> Unit) {
   }
 }
 
-/** Le date della libreria: «24 novembre 2026» in testata, «24 nov 2026» nello scorrimento rapido. */
+/**
+ * Le date della libreria, come Foto: la data **media della lingua** (`FormatStyle.MEDIUM`), «13 lug 2025» in italiano e
+ * «Jul 13, 2025» in inglese, col mese abbreviato come lo scrive la lingua. Stessa data in testata e nello scorrimento
+ * rapido. Il formatore si tiene per lingua: cambiare data non ne crea uno nuovo.
+ */
 internal object F8p4Dates {
-  fun long(date: LocalDate): String = "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.ITALY)} ${date.year}"
+  private var cached: Pair<Locale, DateTimeFormatter>? = null
 
-  fun short(date: LocalDate): String = "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.SHORT, Locale.ITALY)} ${date.year}"
+  fun medium(date: LocalDate, locale: Locale): String {
+    val formatter = cached?.takeIf { it.first == locale }?.second
+      ?: DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).also { cached = locale to it }
+    return formatter.format(date)
+  }
 }
 
 /** Una cella di foto: niente alloca disegnando (la tinta della scelta e' un velo letto dal layer). */
@@ -473,6 +486,8 @@ private fun FileGridScene(onBack: () -> Unit) {
         selection = selection,
         inSelectionMode = mode,
         header = { section -> FluidPreviewGridHeader(section.title ?: "") },
+        // Sotto la testata ci sono nomi di file su una pagina chiara, non foto: inchiostro del tema e velo del fondo.
+        titleOnPhotos = false,
         title = if (mode) "${selection.countIn(entries.size)} selezionati" else "File",
         navigation = { FluidGlassIconButton(onClick = onBack) { FluidIcon(FluidIcons.ArrowBack, "Indietro") } },
         actions = {

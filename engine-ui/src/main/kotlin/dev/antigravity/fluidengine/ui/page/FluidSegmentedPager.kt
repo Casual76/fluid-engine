@@ -4,6 +4,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -94,7 +97,11 @@ object FluidSegmentedPagerDefaults {
   /** Lo spazio fra il bordo alto (sotto la barra di stato) e la capsula: 8 dp. */
   val TopMargin: Dp = 8.dp
 
-  /** Quanto le pagine devono lasciare libero in alto perche' il loro contenuto parta sotto la capsula: 64 dp. */
+  /**
+   * Quanto le pagine devono lasciare libero in alto **sotto la barra di stato** perche' il loro contenuto parta sotto la
+   * capsula: 64 dp. Il margine che [FluidSegmentedPager] da' alle pagine aggiunge la barra di stato (visto sul tablet il
+   * 24 novembre: senza, la foto in cima alla pagina finiva sotto la capsula).
+   */
   val ContentInset: Dp = Height + TopMargin + 8.dp
 }
 
@@ -122,7 +129,8 @@ object FluidSegmentedPagerDefaults {
  * @param segments i titoli dei segmenti, uno per pagina.
  * @param state il pager e la pillola ([rememberFluidSegmentedPagerState]).
  * @param backdrop cio' che la capsula rifrange; null: le pagine stesse (di serie).
- * @param page il contenuto della pagina [index]; `contentPadding` e' il margine in alto da lasciare alla capsula.
+ * @param page il contenuto della pagina [index]; `contentPadding` e' il margine in alto da lasciare alla capsula,
+ *   barra di stato compresa.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -149,6 +157,8 @@ fun FluidSegmentedPager(
     snapshotFlow { pager.isScrollInProgress }.collect { moving -> if (!moving) state.userDriven = false }
   }
   val driver = state.driver
+  // La capsula sta sotto la barra di stato: il margine delle pagine la conta.
+  val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   driver.position = { pager.currentPage + pager.currentPageOffsetFraction }
   driver.active = { state.userDriven }
 
@@ -158,7 +168,7 @@ fun FluidSegmentedPager(
       beyondViewportPageCount = beyondViewportPageCount,
       modifier = Modifier.fillMaxSize().then(if (backdrop == null) Modifier.glassBackdropSource(pagesBackdrop) else Modifier),
     ) { index ->
-      page(index, PaddingValues(top = FluidSegmentedPagerDefaults.ContentInset))
+      page(index, PaddingValues(top = statusTop + FluidSegmentedPagerDefaults.ContentInset))
     }
     val connection = rememberFluidFloatingTabBarScrollConnection(inlineBehavior = FluidFloatingTabBarInlineBehavior.Never)
     val count = segments.size

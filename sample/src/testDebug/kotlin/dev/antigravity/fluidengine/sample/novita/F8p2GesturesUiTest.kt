@@ -369,7 +369,7 @@ class F8p2GesturesUiTest {
   /** La posizione di [track] all'istante [time] (l'ultimo campione fino a li'). */
   private fun at(track: List<Pair<Long, Float>>, time: Long): Float = track.last { it.first <= time }.second
 
-  // Dalle 9: un viaggio di 6 voci (9 → 3) e' ambiguo per la strada corta di `fluidTimeWheelHour12`, qui si resta sotto.
+  // Dalle 9 (F8.2c). Dalla F8.2d il verso viene dal moto vero, e anche 6 voci esatte vanno bene: vedi le prove sotto.
   private var lesson by mutableStateOf(LocalTime.of(9, 0))
 
   @Test
@@ -456,6 +456,81 @@ class F8p2GesturesUiTest {
     assertEquals("una tacca intera", degrees.roundToInt().toFloat(), degrees, 1e-4f)
     assertTrue("e' finita", finishedAt > 0L)
     assertTrue("la fine arriva entro 0,3 s dalla posa: ${finishedAt - pose} ms", finishedAt - pose in 0L..300L)
+  }
+
+  private fun showLesson() = show {
+    FluidTimeWheel(
+      time = lesson,
+      onTimeChange = { lesson = it },
+      use24Hour = false,
+      locale = Locale.US,
+      hourDescription = "Ore",
+      minuteDescription = "Minuti",
+    )
+  }
+
+  private fun resetLesson(to: LocalTime) {
+    lesson = to
+    Snapshot.sendApplyNotifications()
+    advance(1500)
+  }
+
+  @Test
+  fun `in 12 ore il verso di AM e PM viene dal moto vero, 8 AM avanti di 6 voci fa le 2 PM, indietro le 2 AM`() {
+    lesson = LocalTime.of(8, 0)
+    showLesson()
+    val hours = node("Ore").boundsInRoot
+    // Mezzo slop (16 px) per prendersi il dito, poi sei voci da 64 px: 400 px a passi di 8, e fermo prima di alzare.
+    drag(Offset(hours.center.x, hours.center.y + 200f), 0f, -8f, steps = 50, hold = 160)
+    advance(900)
+    assertEquals("avanti di 6", LocalTime.of(14, 0), lesson)
+    compose.onNode(hasStateDescription("PM"), useUnmergedTree = true).assertExists()
+    resetLesson(LocalTime.of(8, 0))
+    drag(Offset(hours.center.x, hours.center.y - 200f), 0f, 8f, steps = 50, hold = 160)
+    advance(900)
+    assertEquals("indietro di 6", LocalTime.of(2, 0), lesson)
+    compose.onNode(hasStateDescription("AM"), useUnmergedTree = true).assertExists()
+    // TalkBack, un passo: da 11 AM a 12 PM e ritorno.
+    resetLesson(LocalTime.of(11, 0))
+    node("Ore").custom("Aumenta")
+    assertEquals(LocalTime.of(12, 0), lesson)
+    advance(800)
+    node("Ore").custom("Diminuisci")
+    assertEquals(LocalTime.of(11, 0), lesson)
+  }
+
+  @Test
+  fun `in 12 ore un lancio lungo delle ore gira AM e PM a ogni passaggio fra 11 e 12`() {
+    lesson = LocalTime.of(2, 0)
+    showLesson()
+    val hours = node("Ore").boundsInRoot
+    val tracks = Tracks()
+    var followEnd = 0L
+    tracking(tracks) {
+      // Da 2 AM la ruota va alle 8 AM (sei voci avanti, la strada che sceglie il valore da fuori): la posa e' il punto
+      // da cui si contano le voci del lancio.
+      lesson = LocalTime.of(8, 0)
+      Snapshot.sendApplyNotifications()
+      repeat(90) { trackedFrame(tracks) }
+      followEnd = compose.mainClock.currentTime
+      finger.down(Offset(hours.center.x, hours.center.y + 150f))
+      var at = Offset(hours.center.x, hours.center.y + 150f)
+      repeat(6) {
+        trackedFrame(tracks)
+        at = Offset(at.x, at.y - 60f)
+        finger.move(at)
+      }
+      finger.up(at)
+      // Un lancio di decine di voci decade per qualche secondo.
+      repeat(500) { trackedFrame(tracks) }
+    }
+    val hourTrack = tracks.samples.values.maxBy { it.size }
+    val start = hourTrack.last { it.first <= followEnd }.second
+    val rows = (hourTrack.last().second - start).roundToInt()
+    val expected = LocalTime.of(Math.floorMod(8 + rows, 24), 0)
+    println("F8p2d lancio delle ore: da $start a ${hourTrack.last().second}, $rows voci: $lesson (atteso $expected)")
+    assertTrue("un lancio lungo: $rows voci", rows > 6)
+    assertEquals("8 AM piu' $rows ore", expected, lesson)
   }
 
   private var timer by mutableLongStateOf(119L)

@@ -53,6 +53,35 @@ class GlassQualityPolicyTest {
     }
   }
 
+  @Test fun dopoRifiutiRapidiLaRisalitaAspettaSessantaPoiCentoventiSecondi() {
+    val run = Run(conditions = cool.copy(lowMemory = true))
+    run.signal(cool)
+    fun healthyPose() {
+      run.window()
+      run.recoveryFrames()
+      run.window(false)
+    }
+    fun rejectedPromotion() {
+      assertEquals(Reduced, run.state.optics)
+      run.now += 488_000_000L
+      run.policy.setVisibleBudgetDenied(run.now, true)
+      assertEquals(Protected, run.state.optics)
+      run.policy.setVisibleBudgetDenied(run.now, false)
+    }
+    healthyPose()
+    rejectedPromotion()
+    healthyPose()
+    assertEquals(Protected, run.state.optics)
+    healthyPose()
+    rejectedPromotion()
+    repeat(3) {
+      healthyPose()
+      assertEquals(Protected, run.state.optics)
+    }
+    healthyPose()
+    assertEquals(Reduced, run.state.optics)
+  }
+
   @Test fun coldStartAndTenWindowsOnCapable120Hz() {
     val r = Run(period = 8_333_333)
     assertEquals(Full, r.state.optics)

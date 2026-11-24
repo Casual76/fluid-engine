@@ -465,8 +465,17 @@ fonometro, otto volte al secondo) **non scorre**: cambia di colpo, come un `Text
 tremolio, e niente da limitare nell'app.
 
 **Solo ciò che muove l'app** (regola di Alessio del 24 novembre 2026: ciò che muove il dito resta nitido, si sfoca solo ciò
-che muove l'app da sola). Un numero che segue il dito (il valore sotto il dito di un grafico, una ruota, un cursore) è un
-`Text`, non un `FluidNumericText`. Lo usano `FluidBadge` e il numero di `FluidGauge`, che cambiano per conto dell'app.
+che muove l'app da sola). **Mentre il dito trascina un controllo dell'engine che cambia un valore** (`FluidSlider`,
+`FluidRangeSlider`, `FluidRulerDial`, `FluidWheelPicker`) ogni `FluidNumericText` cambia di colpo, nitido: un quadrante o
+un'etichetta guidati da un cursore non si sfocano sotto il dito, anche trascinando piano. **Niente blur neanche
+nell'inerzia di un lancio partito dal dito**: ruota e righello restano del dito finché non si posano, posa compresa (la
+ruota dice la voce scelta solo da ferma, a dito già alzato: anche quel cambio è nitido); il tocco che porta una voce al
+centro e il doppio tocco che riporta la ghiera al neutro pure. I controlli lo dicono con un osservatore che guarda il
+passaggio `Initial` e non consuma niente (`fluidFingerDrivesValue`) e con la corsa partita dal dito (`fluidFingerMotion`),
+interni; il conto vale ancora 50 ms dopo l'ultimo rilascio, perché l'ultimo valore si ricompone un fotogramma più tardi e
+lo slider dice il valore di un tocco sulla pista proprio al sollevamento. Ciò che l'app cambia da sola (un `selected` nuovo
+che la ruota segue con la molla) torna a scorrere. Un numero che segue il dito di un gesto tuo (il valore sotto il dito di
+un grafico) è un `Text`, non un `FluidNumericText`. Lo usano `FluidBadge` e il numero di `FluidGauge`.
 
 **Trappole.** Le cifre decimali fisse le dà il formato (`FluidFormat.number(fractionDigits = 2)`): con un numero di
 decimali che cambia il corpo si allinea comunque da destra.

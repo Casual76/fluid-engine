@@ -241,7 +241,8 @@ fun FluidSlider(
     // Chiavi: nessuna. Una chiave che cambia a meta' gesto (la larghezza, che cambia se la riga si
     // ridimensiona mentre la si trascina) rimette a zero il gesto sotto il dito. Tutto quello che
     // puo' cambiare si legge dal gesto stesso, ad ogni evento.
-    Modifier.pointerInput(Unit) {
+    // F8.1b: il dito muove un valore (un numero che lo mostra resta nitido, `FluidFingerDrive`).
+    Modifier.fluidFingerDrivesValue().pointerInput(Unit) {
       val edge = SliderEdge.toPx()
       val thumbPx = ThumbWidth.toPx()
       val grabReach = thumbPx / 2f + SliderGrabMargin.toPx()

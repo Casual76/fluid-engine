@@ -562,7 +562,9 @@ FluidWheelPicker(
   ogni voce. Un chiamante che rifiuta vede la ruota tornare. Un `selected` cambiato da fuori la porta con la molla (0,38 s).
 - **Le voci spente** (`isEnabled`) sono al 35%; una ruota che si ferma su una di loro scivola alla più vicina.
 - **Sempre nitida** (F8.2b, scelta di Alessio): la ruota la muove il dito, e ciò che muove l'utente resta nitido anche
-  durante l'inerzia. Si sfoca solo ciò che l'app muove da sola, come in iOS.
+  durante l'inerzia. Si sfoca solo ciò che l'app muove da sola, come in iOS. Vale anche fuori dalla ruota (F8.1b): un
+  `FluidNumericText` che mostra la voce scelta cambia di colpo, perché la corsa partita dal dito (lancio, assestamento,
+  tocco) conta come il dito fino alla posa compresa; la molla che segue un `selected` dell'app no.
 - **L'aptica**: un tic per voce che passa sotto la fascia, con la rete dei 55 ms; sopra 8 voci al secondo il `DragTick`
   leggero, sotto il `Tick` di un aggancio.
 - **Il movimento ridotto**: niente inerzia lunga (un lancio porta al più una voce oltre il dito, assestamento di 0,20 s);
@@ -582,7 +584,10 @@ girano, come la ruota di `countDownTimer` fino a iOS 13 (F8.2c).
 
 **FluidTimeWheel**: l'ora di `UIDatePicker`, in 24 o 12 ore (di serie quello del sistema), le colonne nell'ordine della
 lingua (AM e PM prima dell'ora in coreano e giapponese). In 12 ore la ruota delle ore che passa da 11 a 12 **gira AM e
-PM**, come in iOS; i minuti non portano le ore. È fatta per prendere il posto dei tasti «−» e «+» di
+PM**, come in iOS; i minuti non portano le ore. **Il verso viene dal moto vero della colonna** (F8.2d): la ruota conta
+le voci fatte col segno, quindi 8 AM portate avanti di 6 voci fanno le 2 PM e indietro di 6 le 2 AM, un lancio lungo
+gira AM e PM a ogni passaggio fra 11 e 12, e un giro intero gira solo AM e PM. Fino a F8.2c il verso era la strada corta
+fra due voci, ambigua su 6 voci e sbagliata oltre. È fatta per prendere il posto dei tasti «−» e «+» di
 `FluidDateTimeSheet` (F8.8).
 
 **Trappole.**
@@ -631,7 +636,8 @@ FluidRulerDial(
   principali. Un dito sulla ghiera che scorre la ferma; il **doppio tocco** torna al neutro. Presa a mezzo slop di lato
   prima che in verticale: in un pager scorre la ghiera.
 - **Il neutro attira**: trascinando, entro mezza tacca il valore è il neutro, con un `Threshold` all'arrivo.
-- **Sempre nitida** (F8.2b): anche lanciata, le tacche non si sfocano; la ghiera la muove il dito.
+- **Sempre nitida** (F8.2b): anche lanciata, le tacche non si sfocano; la ghiera la muove il dito. E i numeri che
+  mostrano il valore (`FluidNumericText`) cambiano di colpo per tutta l'inerzia e col doppio tocco (F8.1b).
 - **L'aptica**: `DragTick` per tacca a dito veloce, `Tick` per tacca lenta e per ogni principale, `Threshold` sul neutro e
   alle estremità, con la rete dei 55 ms.
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
@@ -725,6 +731,10 @@ Costanti non pubbliche che conviene sapere (per dimensionare attorno):
   393 dp a 420 dpi, in chiaro e in scuro, a riposo e a metà lancio; le colonne cominciano e finiscono a 45 dp dal bordo,
   dove comincia e finisce la fascia. I fermi vanno in `sample/build/reports/f8-2b/fermi/` (la tavola contro iOS 27).
   In `F8p2WheelsTest`: la fascia contro le misure di iOS 27, e nessun effetto di sfocatura nei file di ruota e ghiera.
+- **F8.2d.** In `F8p2WheelsTest`: l'ora in 12 ore dal moto (6 voci avanti e indietro, 17 e 18 voci, un giro e due), e
+  la strada corta di TalkBack. In `F8p2GesturesUiTest`, col dito vero: 8 AM avanti di 6 voci fa le 2 PM e indietro le
+  2 AM; un lancio lungo delle ore (più di 6 voci) dà 8 AM più le voci fatte; «Aumenta» e «Diminuisci» fra 11 AM e
+  12 PM.
 - **F8.2c.** In `F8p2WheelsTest`: un lancio lento (il dito alzato a ~2,9 voci al secondo) si ferma entro 0,3 s dalla posa
   che si vede (1 px), senza scavalcare né tornare indietro; il grigio della fascia contro le schermate (sullo scuro e sul
   chiaro) e niente vetro nella ruota; le voci in peso normale e l'unità semibold. In `F8p2GesturesUiTest`, col dito vero:

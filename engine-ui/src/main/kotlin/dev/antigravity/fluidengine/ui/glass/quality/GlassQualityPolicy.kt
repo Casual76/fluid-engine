@@ -28,6 +28,14 @@ internal class GlassQualityPolicy(
   private var motionStart = 0L
   private var clock = -1L
   private var lastChange = -1L
+  private var promotedAt = -1L
+  private var rollbackAt = -1L
+  private var retryDelayNs = 0L
+
+  internal fun budgetRollbackAt(now: Long) = now >= 0 && rollbackAt == now
+  private fun recentlyPromoted(now: Long) = promotedAt >= 0 && now - promotedAt in 0..5_000_000_000L
+  internal val nextOptics get() = minOf(decision.optics.higher(), technicalLimit ?: GlassOptics.Full, appLimit)
+  internal val nextMemoryProfile get() = memoryFor(nextOptics)
 
   private val validMemoryReading get() = signals.pressureThresholdBytes > 0 && signals.availableBytes >= 0 &&
     (device.totalRamBytes <= 0 || maxOf(signals.pressureThresholdBytes, signals.availableBytes) <= device.totalRamBytes)
@@ -83,6 +91,8 @@ internal class GlassQualityPolicy(
       frames.newEpoch()
       motionStart = nowNs
       lastChange = nowNs
+      promotedAt = -1L
+      if (rollbackAt >= 0) rollbackAt = nowNs
     }
     clock = nowNs
     return true
@@ -94,6 +104,21 @@ internal class GlassQualityPolicy(
     if (level == decision.optics && memory == decision.memoryProfile &&
       heap == decision.heapReferenceBytes && prefetch == decision.allowPrefetch
     ) return null
+    if (level > decision.optics) {
+      // Una promozione precedente che ha retto chiude la sua serie di ricadute.
+      if (promotedAt >= 0 && !recentlyPromoted(clock)) retryDelayNs = 0L
+      promotedAt = clock
+      rollbackAt = -1L
+    } else if (level < decision.optics) {
+      if (reason == GlassQualityReason.VisibleBudgetDenied && recentlyPromoted(clock)) {
+        rollbackAt = clock
+        retryDelayNs = if (retryDelayNs == 0L) 60_000_000_000L else minOf(240_000_000_000L, retryDelayNs * 2)
+      } else {
+        rollbackAt = -1L
+        retryDelayNs = 0L
+      }
+      promotedAt = -1L
+    }
     decision = GlassQualityDecision(level, memory, heap, prefetch)
     lastChange = clock
     frames.resetVotes()
@@ -163,7 +188,13 @@ internal class GlassQualityPolicy(
   }
 
   /** Cambiare refresh effettivo o display apre una nuova serie. Uscire dal moto offre la posa una volta sola. */
-  fun onWindow(nowNs: Long, isVisible: Boolean, inMotion: Boolean, displayId: Int, periodNs: Long): GlassQualityReason? {
+  fun onWindow(nowNs: Long, isVisible: Boolean, inMotion: Boolean, displayId: Int, periodNs: Long) =
+    onWindow(nowNs, isVisible, inMotion, displayId, periodNs, retryFits = true)
+
+  internal fun onWindow(
+    nowNs: Long, isVisible: Boolean, inMotion: Boolean, displayId: Int, periodNs: Long,
+    retryFits: Boolean,
+  ): GlassQualityReason? {
     if (!observeClock(nowNs)) return null
     val changed = visible != isVisible || display != displayId || period != periodNs
     val wasMoving = moving
@@ -176,10 +207,10 @@ internal class GlassQualityPolicy(
       frames.breakSequence()
       motionStart = nowNs
     }
-    if (!changed && wasMoving && !moving && canRecover && frames.recoveryReady && cooldownOver()) {
+    if (!changed && wasMoving && !moving && canRecover && frames.recoveryReady && cooldownOver() &&
+      retryFits && (rollbackAt < 0 || nowNs - rollbackAt >= retryDelayNs)) {
       prefetch = true
-      val up = minOf(decision.optics.higher(), technicalLimit ?: GlassOptics.Full, appLimit)
-      return publish(up, GlassQualityReason.SettledRecovery)
+      return publish(nextOptics, GlassQualityReason.SettledRecovery)
     }
     return null
   }

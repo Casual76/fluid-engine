@@ -626,6 +626,7 @@ FluidSegmentedPager(segments = listOf("Voti", "Note", "Assenze"), state = pager)
 | `state.animateScrollToPage(i)` | porta pager e pillola |
 | `backdrop` | ciò che la capsula rifrange; di serie le pagine stesse |
 | `beyondViewportPageCount` | le pagine vicine restano composte (di serie 1): la pillola non aspetta una pagina che si costruisce |
+| `contentPadding` (di `page`) | il margine in alto da lasciare alla capsula, **barra di stato compresa** (F8.4b) |
 
 - Guidata dal pager, la barra **non** è la navigazione: le azioni della selezione (`selection(…)`) non la sostituiscono.
 - **TalkBack**: ogni segmento è un tasto col suo titolo, e quello scelto dice «selezionato». **Movimento ridotto**: la goccia arriva senza

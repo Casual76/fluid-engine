@@ -125,7 +125,19 @@ class FluidWheelColumn(
   val weight: Float = 1f,
   val textAlign: TextAlign = if (unit != null) TextAlign.End else TextAlign.Center,
   val isEnabled: ((Int) -> Boolean)? = null,
-)
+) {
+  /**
+   * Interno (F8.2d): chi vuole sapere anche **quante voci ha fatto la ruota**, col segno, per arrivare alla voce dove si e'
+   * fermata. E' l'ora in 12 ore di [FluidTimeWheel]: AM e PM girano dal moto vero della colonna, non dalla strada corta
+   * fra due voci (che su 6 voci e' ambigua, e oltre sbaglia). Se c'e', la ruota chiama questa e non [onSelectedChange],
+   * anche quando un giro intero torna sulla stessa voce. Si mette una volta, appena creata la colonna ([withTravel]).
+   */
+  internal var onTravel: ((index: Int, rows: Int) -> Unit)? = null
+    private set
+
+  /** La stessa colonna, che dice anche le voci fatte a [onTravel]. Solo appena creata: poi la colonna non cambia. */
+  internal fun withTravel(onTravel: (index: Int, rows: Int) -> Unit): FluidWheelColumn = apply { this.onTravel = onTravel }
+}
 
 /** Le misure di serie della ruota, per chi le deve riservare. */
 object FluidWheelDefaults {
@@ -667,7 +679,15 @@ internal class FluidWheelDriver(
     private set
   private var selected: Int = column.selected
   private var onSelectedChange: (Int) -> Unit = column.onSelectedChange
+  private var onTravel: ((Int, Int) -> Unit)? = column.onTravel
   private var isEnabled: ((Int) -> Boolean)? = column.isEnabled
+
+  /**
+   * La posizione (in voci, senza modulo) della voce scelta, da cui si contano le voci fatte (F8.2d): la ruota che si
+   * ferma dice a [onTravel] `posa − ancora`, col segno. Si sposta quando la scelta cambia: alla posa, e quando la ruota
+   * segue un valore da fuori.
+   */
+  private var anchorRow: Float = column.selected.toFloat()
   private var reducedMotion = false
   private var haptics: FluidHaptics? = null
   private var enabled = true
@@ -693,6 +713,7 @@ internal class FluidWheelDriver(
     this.cyclic = column.cyclic
     this.selected = column.selected
     this.onSelectedChange = column.onSelectedChange
+    this.onTravel = column.onTravel
     this.isEnabled = column.isEnabled
     this.reducedMotion = reducedMotion
     this.haptics = haptics
@@ -782,8 +803,13 @@ internal class FluidWheelDriver(
   fun follow(index: Int) {
     if (dragging || moving || count <= 0) return
     val wanted = index.coerceIn(0, count - 1)
-    if (centred == wanted && position == fluidDetentRound(position)) return
+    if (centred == wanted && position == fluidDetentRound(position)) {
+      anchorRow = position
+      return
+    }
     val target = fluidDetentNearest(position, wanted, count, cyclic)
+    // La scelta e' gia' quella nuova: le voci del prossimo gesto si contano da li', anche se il dito la prende a meta'.
+    anchorRow = target
     if (reducedMotion || rowPx <= 0f) {
       inertia.snapTo(target)
       position = target
@@ -793,13 +819,22 @@ internal class FluidWheelDriver(
     run(target, 0f, settle = true, response = FluidDetentMotion.FollowResponseSeconds, report = false)
   }
 
-  /** TalkBack, un'azione: la voce [index] e' chiesta subito al chiamante; la ruota la segue quando arriva. */
-  fun select(index: Int): Boolean {
+  /**
+   * TalkBack, un'azione: la voce [index] e' chiesta subito al chiamante; la ruota la segue quando arriva. [rows] sono le
+   * voci fatte per arrivarci (un passo: ±1); di serie la strada corta.
+   */
+  fun select(index: Int, rows: Int? = null): Boolean {
     if (!enabled || count <= 0) return false
     val wanted = if (cyclic) fluidDetentWrap(index, count) else index.coerceIn(0, count - 1)
     val allowed = isEnabled
     if (allowed != null && !allowed(wanted)) return false
-    if (wanted != selected) onSelectedChange(wanted)
+    val travel = onTravel
+    if (travel != null) {
+      val moved = rows ?: fluidWheelShortestRows(selected, wanted, count, cyclic)
+      if (moved != 0) travel(wanted, moved)
+    } else if (wanted != selected) {
+      onSelectedChange(wanted)
+    }
     return true
   }
 
@@ -807,7 +842,7 @@ internal class FluidWheelDriver(
     if (count <= 0) return false
     val next = selected + delta
     if (!cyclic && (next < 0 || next >= count)) return false
-    return select(next)
+    return select(next, rows = delta)
   }
 
   // --- Il motore --------------------------------------------------------------------------------
@@ -822,18 +857,23 @@ internal class FluidWheelDriver(
     job?.cancel()
     if (settle) inertia.springTo(position, speed, target, rowPx, response) else inertia.flingTo(position, speed, target, rowPx)
     job = scope.launch {
-      var last = -1L
-      while (inertia.moving) {
-        val now = withFrameNanos(frame)
-        val dt = if (last < 0L) 0f else (now - last) / 1e9f
-        last = now
-        inertia.step(dt)
+      val glide: suspend () -> Unit = {
+        var last = -1L
+        while (inertia.moving) {
+          val now = withFrameNanos(frame)
+          val dt = if (last < 0L) 0f else (now - last) / 1e9f
+          last = now
+          inertia.step(dt)
+          position = inertia.position
+          // Un valore cambiato da fuori (l'app, TalkBack) non vibra: il dito non ha fatto niente, come nello scrubber.
+          if (report) tick(now / 1_000_000L, inertia.velocity)
+        }
         position = inertia.position
-        // Un valore cambiato da fuori (l'app, TalkBack) non vibra: il dito non ha fatto niente, come nello scrubber.
-        if (report) tick(now / 1_000_000L, inertia.velocity)
+        if (report) land() else notches.restart(centred)
       }
-      position = inertia.position
-      if (report) land() else notches.restart(centred)
+      // F8.1b: la corsa partita dal dito (lancio, assestamento, tocco), posa compresa, conta come il dito: il numero che
+      // mostra la voce scelta cambia di colpo, nitido. Quella che segue un valore dell'app no.
+      if (report) fluidFingerMotion(glide) else glide()
     }
   }
 
@@ -859,8 +899,14 @@ internal class FluidWheelDriver(
       }
     }
     val landed = centred
-    if (landed != selected) {
-      onSelectedChange(landed)
+    val landedRow = fluidDetentRound(position)
+    // Le voci fatte davvero dalla scelta di prima, col segno (F8.2d): un lancio di 6 ore, o di 18, o un giro intero.
+    val rows = (landedRow - anchorRow).roundToInt()
+    val travel = onTravel
+    val asked = if (travel != null) rows != 0 else landed != selected
+    anchorRow = landedRow
+    if (asked) {
+      if (travel != null) travel(landed, rows) else onSelectedChange(landed)
       // Il chiamante puo' rifiutare: due fotogrammi dopo (la ricomposizione e' passata) la ruota torna alla sua voce.
       withFrameNanos(frame)
       withFrameNanos(frame)
@@ -879,6 +925,20 @@ internal class FluidWheelDriver(
       haptics?.play(event)
     }
   }
+}
+
+/**
+ * Le voci da [from] a [to] per la strada corta, col segno: su una ruota che gira all'infinito al piu' mezzo giro (a
+ * meta' esatta, nel verso della differenza), su una che non gira la differenza. E' il moto di un'azione di TalkBack
+ * senza passi («imposta»).
+ */
+internal fun fluidWheelShortestRows(from: Int, to: Int, count: Int, cyclic: Boolean): Int {
+  var delta = to - from
+  if (!cyclic || count <= 0) return delta
+  val half = count / 2
+  if (delta > half) delta -= count
+  if (delta < -half) delta += count
+  return delta
 }
 
 /** La voce piu' vicina a [index] che si puo' scegliere, o −1 se nessuna. A pari distanza vince quella prima. */
@@ -900,7 +960,8 @@ internal fun fluidWheelNearestEnabled(index: Int, count: Int, cyclic: Boolean, a
 // Il gesto e TalkBack
 // ---------------------------------------------------------------------------------------------
 
-private fun Modifier.wheelGesture(driver: FluidWheelDriver): Modifier = pointerInput(driver) {
+// F8.1b: il dito muove un valore (un numero che lo mostra resta nitido, `FluidFingerDrive`).
+private fun Modifier.wheelGesture(driver: FluidWheelDriver): Modifier = fluidFingerDrivesValue().pointerInput(driver) {
   val tracker = VelocityTracker()
   awaitEachGesture {
     val down = awaitFirstDown(requireUnconsumed = false)

@@ -19,6 +19,7 @@ import androidx.annotation.MainThread
 import androidx.annotation.RestrictTo
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
 import dev.antigravity.fluidengine.ui.glass.quality.GlassMemoryProfile
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
 import dev.antigravity.fluidengine.ui.glass.quality.GlassQualityDecision
@@ -35,7 +36,11 @@ internal class GlassRenderState(optics: GlassOptics) {
   var scrolling by mutableStateOf(false)
   var windowMotion by mutableStateOf(false)
   var deniedCaptures = 0
+  @Volatile var rejectedUpgrade: RejectedGlassUpgrade? = null
 }
+
+/** Picco realmente rifiutato dopo la promozione, fino al cambio della spesa o all’uscita del lettore. */
+internal class RejectedGlassUpgrade(val reader: Any, val bytes: Long, val optics: GlassOptics)
 
 /** Limiti condivisi dai moduli Fluid nello stesso processo. Accessibile anche prima del primo Composable. */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -185,15 +190,44 @@ class FluidGlassResources private constructor(private val app: Application) {
 
   /** Ogni lettore segnala una coppia rifiuto/ammissione. Il visore usa il suo segnale indipendente. */
   @Synchronized
-  internal fun visibleCaptureDenied(window: Window?, denied: Boolean) {
-    val state = renderState(window)
+  internal fun visibleCaptureDenied(
+    window: Window?, denied: Boolean, reader: Any? = null, bytes: Long = 0L, now: Long = System.nanoTime(),
+  ) {
+    val owner = windows[window]
+    val state = owner?.render ?: initialRender
+    val previous = owner?.policy?.decision?.optics
     state.deniedCaptures += if (denied) 1 else -1
     check(state.deniedCaptures >= 0)
-    publishDenials()
+    publishDenials(now)
+    if (denied && reader != null && bytes > 0 && owner != null && previous != null &&
+      previous > owner.policy.decision.optics && owner.policy.budgetRollbackAt(now)) {
+      state.rejectedUpgrade = RejectedGlassUpgrade(reader, bytes, previous)
+    }
   }
 
-  private fun publishDenials() {
-    val now = System.nanoTime()
+  @Synchronized
+  internal fun forgetRejectedCapture(window: Window?, reader: Any) {
+    val state = windows[window]?.render ?: return
+    if (state.rejectedUpgrade?.reader === reader) state.rejectedUpgrade = null
+  }
+
+  /** Alla posa, preventivo sul profilo candidato: le altre finestre e i byte già in volo contano ancora. */
+  internal fun retryFits(policy: GlassQualityPolicy, state: GlassRenderState?): Boolean {
+    val demand = state?.rejectedUpgrade ?: return true
+    if (policy.nextOptics < demand.optics || policy.nextOptics <= policy.decision.optics) return true
+    var profile = policy.nextMemoryProfile
+    var heapBytes = policy.decision.heapReferenceBytes
+    for (other in windows.values) if (other.visible && other.policy !== policy) {
+      profile = minOf(profile, other.policy.decision.memoryProfile)
+      heapBytes = minOf(heapBytes, other.policy.decision.heapReferenceBytes)
+    }
+    val candidate = profile.limits().forHeap(heapBytes)
+    // Preventivo soltanto. La prenotazione effettiva resta atomica sul registro di processo.
+    return demand.bytes <= candidate.glassBytes - budget.usage(FluidMemoryCategory.GLASS).usedBytes &&
+      demand.bytes <= candidate.processBytes - budget.usage().usedBytes
+  }
+
+  private fun publishDenials(now: Long = System.nanoTime()) {
     val denied = processDenied || initialRender.deniedCaptures > 0
     initial.setVisibleBudgetDenied(now, denied)
     for (owner in windows.values) owner.policy.setVisibleBudgetDenied(now,

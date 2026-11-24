@@ -183,6 +183,82 @@ class AndroidGlassResourcesTest {
     }
   }
 
+  @Config(shadows = [RecoveryTestHeap::class])
+  @Test fun unaRisalitaRifiutataNonSiRipeteConLaStessaSpesaVisibile() {
+    prepare()
+    val resources = GlassStartup().create(app)
+    val activity = visibleActivity()
+    val window = activity.get().window
+    val owner = ReflectionHelpers.getField<Map<Window, GlassWindow>>(resources, "windows").getValue(window)
+    val budget = resources.budget
+    val glass = FluidMemoryCategory.GLASS
+    val period = 100_000_000L
+    var now = System.nanoTime()
+    val monitor = WindowFrames(resources, owner.policy, Handler(Looper.getMainLooper()), 0, period, owner.render) { now }
+    fun settleAfter(seconds: Int) {
+      monitor.scrolling(true)
+      repeat(seconds * 10) {
+        now += period
+        val frame = FrameMetricsBuilder().setMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP, now)
+          .setMetric(FrameMetrics.VSYNC_TIMESTAMP, now).setMetric(FrameMetrics.DEADLINE, period)
+          .setMetric(FrameMetrics.DRAW_DURATION, period / 4).build()
+        monitor.onFrameMetricsAvailable(window, frame, 0)
+      }
+      monitor.scrolling(false)
+    }
+
+    // Un fondale RGBA8 filtrato da 1080 x 2200: cattura + scratch, righe allineate a 64 byte.
+    fun bytes(width: Int, height: Int) = dev.antigravity.fluidengine.foundation.memory.fluidSurfaceBytes(
+      width.toLong(), height.toLong(), 4, 2, (width * 4L + 63L) / 64L * 64L)
+    val previous = checkNotNull(budget.tryReserve(glass, bytes(540, 1100))).use { checkNotNull(it.confirm()) }
+    val other = checkNotNull(budget.tryReserve(glass, 3L shl 20)).use { checkNotNull(it.confirm()) }
+    val reader = Any()
+    fun denial(denied: Boolean) = resources.visibleCaptureDenied(window, denied, reader, bytes(1080, 2200), now)
+    try {
+      denial(true)
+      denial(false)
+      var refusedUpgrades = 0
+      repeat(5) { attempt ->
+        settleAfter(40)
+        if (resources.decision(window).optics == GlassOptics.Reduced) {
+          now += 488_000_000L
+          assertNull(budget.tryReserve(glass, bytes(1080, 2200)))
+          refusedUpgrades++
+          println("F712C prova ${attempt + 1} rifiutata: usati=${budget.usage(glass).usedBytes}, " +
+            "richiesti=${bytes(1080, 2200)}, limite=${budget.usage(glass).limitBytes}")
+          denial(true)
+          denial(false) // Il piccolo campione residente è ancora ammesso.
+        }
+      }
+      assertEquals("stesso fondale, stessa occupazione, cinque pose sane", 1, refusedUpgrades)
+      other.close()
+      settleAfter(80)
+      assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+      checkNotNull(budget.tryReserve(glass, bytes(1080, 2200))).close()
+
+      // Il costo rifiutato a Pieno non deve impedire il gradino intermedio.
+      settleAfter(40)
+      assertEquals(GlassOptics.Full, resources.decision(window).optics)
+      val fullCost = budget.usage(glass).limitBytes
+      assertNull(budget.tryReserve(glass, fullCost))
+      now += 488_000_000L
+      resources.visibleCaptureDenied(window, true, reader, fullCost, now)
+      resources.visibleCaptureDenied(window, false, reader, fullCost, now)
+      settleAfter(80)
+      assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+      settleAfter(40)
+      assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+      resources.forgetRejectedCapture(window, reader)
+      settleAfter(40)
+      assertEquals(GlassOptics.Full, resources.decision(window).optics)
+    } finally {
+      previous.close()
+      other.close()
+      monitor.close()
+      activity.pause().stop().destroy()
+    }
+  }
+
   @Test fun severeThermalFromPowerManagerProtectsAllWindowsImmediately() {
     prepare()
     val resources = FluidGlassResources.get(app)

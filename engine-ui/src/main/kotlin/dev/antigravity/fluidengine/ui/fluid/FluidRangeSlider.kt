@@ -181,7 +181,8 @@ fun FluidRangeSlider(
   val gestures = if (!enabled) {
     Modifier
   } else {
-    Modifier.pointerInput(Unit) {
+    // F8.1b: il dito muove un valore (un numero che lo mostra resta nitido, `FluidFingerDrive`).
+    Modifier.fluidFingerDrivesValue().pointerInput(Unit) {
       val edge = FluidSliderMetrics.Edge.toPx()
       val thumbPx = FluidSliderMetrics.ThumbW.toPx()
       val grabReach = thumbPx / 2f + FluidSliderMetrics.GrabMargin.toPx()

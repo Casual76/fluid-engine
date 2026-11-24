@@ -177,7 +177,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val Height: Dp` — L'altezza della capsula: 48 dp. Il segmentato flottante di iOS 26 sopra le pagine (le schede di App Store, «Giorno / Settimana / Mese» di Salute) sta fra il `UISegmentedControl` grande (36 pt) e la tab bar (62,6 pt); 48 e' la riga del tocco dell'engine per un campo nella barra (F6B.8b). A occhio sulle schermate, 2026-11-24, fiducia media.
   - `val SegmentWidth: Dp` — La larghezza massima di un segmento: 112 dp (le schede si stringono uguali se lo schermo e' stretto). A occhio.
   - `val TopMargin: Dp` — Lo spazio fra il bordo alto (sotto la barra di stato) e la capsula: 8 dp.
-  - `val ContentInset: Dp` — Quanto le pagine devono lasciare libero in alto perche' il loro contenuto parta sotto la capsula: 64 dp.
+  - `val ContentInset: Dp` — Quanto le pagine devono lasciare libero in alto **sotto la barra di stato** perche' il loro contenuto parta sotto la capsula: 64 dp. Il margine che [FluidSegmentedPager] da' alle pagine aggiunge la barra di stato (visto sul tablet il 24 novembre: senza, la foto in cima alla pagina finiva sotto la capsula).
 - `@Composable fun FluidSegmentedPager(segments: List<String>, modifier: Modifier = Modifier, state: FluidSegmentedPagerState = rememberFluidSegmentedPagerState(pageCount = {…, backdrop: GlassBackdropState? = null, beyondViewportPageCount: Int = 1, page: @Composable (index: Int, contentPadding: PaddingValues) -> Unit)` — Un pager orizzontale con sopra un controllo segmentato flottante, sincronizzati (la scheda `pager-segmentato`).
 
 ## `engine-ui/ui/page/FluidSharedElement.kt`

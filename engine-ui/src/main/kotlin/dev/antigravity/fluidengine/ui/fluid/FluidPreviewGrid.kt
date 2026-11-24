@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -32,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -52,6 +55,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -70,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.theme.LocalFluidStatusBarSide
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -216,10 +221,16 @@ private class PreviewEntry<T>(val section: FluidPreviewGridSection<T>, val item:
  * @param title il titolo grande della testata come Foto («Libreria», «12 selezionate»); null: nessuna testata, la
  *   griglia e' solo la griglia (dentro una pagina che ha gia' la sua barra).
  * @param dateLabel la data (o l'etichetta) degli elementi in cima, sotto il titolo; null: il titolo del gruppo in cima.
+ *   Come Foto, la data media della lingua: `DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)` («13 lug 2025»,
+ *   «Jul 13, 2025»), non un formato scritto a mano.
  * @param navigation il tasto a sinistra della testata (indietro), di solito un `FluidGlassIconButton`: con lui la riga
  *   dei tasti sta sopra il titolo, come in una pagina figlia di iOS; senza, titolo e tasti stanno sulla stessa riga, come
  *   in Foto.
  * @param actions i tasti a destra della testata («Seleziona»), di solito `FluidGlassButton`: rifrangono le foto.
+ * @param titleOnPhotos vero (di serie) se sotto la testata ci sono foto: titolo e data bianchi su un velo scuro, come
+ *   Foto, e le icone della barra di stato chiare finché le foto le passano sotto. Falso per una griglia su una pagina chiara (file, allegati con il nome sotto): titolo e data
+ *   nell'inchiostro del tema su un velo del colore del fondo, come il bordo di scorrimento di una pagina (visto sul
+ *   tablet il 24 novembre: il bianco su una pagina chiara non si leggeva).
  * @param cell il contenuto di una cella: riempie la cella (`fillMaxSize`), che ritaglia e porta il segno.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -243,6 +254,7 @@ fun <T, K : Any> FluidPreviewGrid(
   dateLabel: ((T) -> String?)? = null,
   navigation: (@Composable () -> Unit)? = null,
   actions: (@Composable RowScope.() -> Unit)? = null,
+  titleOnPhotos: Boolean = true,
   cell: @Composable BoxScope.(item: T, selected: Boolean) -> Unit,
 ) {
   require(columns.isNotEmpty()) { "FluidPreviewGrid: servono delle colonne" }
@@ -409,6 +421,29 @@ fun <T, K : Any> FluidPreviewGrid(
     }
   }
   val chromeBackdrop = if (title != null) rememberGlassBackdrop() else null
+
+  // Le icone della barra di stato sopra le foto (F8.4b, dalla tavola contro Foto): chiare finché le foto passano sotto la
+  // barra di stato, come in Foto, e di nuovo quelle del tema quando le foto non ci sono piu', quando la testata non e'
+  // sulle foto ([titleOnPhotos] falso) o quando la griglia se ne va. La richiesta passa dal lato della barra di stato del
+  // tema ([LocalFluidStatusBarSide]): lo stesso punto della barra in alto di una schermata che scurisce sopra un
+  // contenuto scuro, cosi' una chiede e l'altra rende senza pestarsi i piedi.
+  val statusBarSide = LocalFluidStatusBarSide.current
+  if (statusBarSide != null && title != null && titleOnPhotos) {
+    val statusTopPx = WindowInsets.statusBars.getTop(LocalDensity.current)
+    val photosUnderStatusBar by remember(grid, statusTopPx) {
+      derivedStateOf {
+        val info = grid.layoutInfo
+        val first = info.visibleItemsInfo.firstOrNull() ?: return@derivedStateOf false
+        // In cima alla griglia, nelle coordinate del contenitore: sotto la barra di stato se parte sopra il suo bordo.
+        first.offset.y - info.viewportStartOffset < maxOf(statusTopPx, 1)
+      }
+    }
+    val owner = remember { Any() }
+    DisposableEffect(statusBarSide, owner, photosUnderStatusBar) {
+      if (photosUnderStatusBar) statusBarSide.claim(owner, darkUnder = true) else statusBarSide.release(owner)
+      onDispose { statusBarSide.release(owner) }
+    }
+  }
   Box(
     modifier
       .onSizeChanged { size = it }
@@ -515,6 +550,7 @@ fun <T, K : Any> FluidPreviewGrid(
         navigation = navigation,
         actions = actions,
         backdrop = chromeBackdrop,
+        onPhotos = titleOnPhotos,
         modifier = Modifier.align(Alignment.TopCenter),
       )
     }
@@ -524,12 +560,23 @@ fun <T, K : Any> FluidPreviewGrid(
 /** I numeri della testata come Foto ([FluidPreviewGrid] con `title`). */
 internal object FluidPreviewGridChromeLook {
   /**
-   * Il velo sotto la testata: nero al 50% sul bordo dello schermo, al 22% a meta', trasparente in fondo. A occhio, 24
-   * novembre 2026, sulla libreria di Foto di iOS 26 (guida dell'iPhone): le foto sotto la barra di stato e sotto
-   * «Library» sono scurite quanto basta perche' il bianco si legga su una foto chiara, e senza un bordo visibile.
+   * Il velo sotto la testata sulle foto: nero al 58% sul bordo dello schermo, al 34% a meta', trasparente in fondo. A
+   * occhio, 24 novembre 2026, sulla libreria di Foto di iOS 26 (guida dell'iPhone) e sul tablet: col 50/22 della prima
+   * versione «Libreria» bianca non si leggeva su una foto chiara (la pagina di un quaderno).
    */
-  const val VeilTop: Float = 0.5f
-  const val VeilMiddle: Float = 0.22f
+  const val VeilTop: Float = 0.58f
+  const val VeilMiddle: Float = 0.34f
+
+  /** L'ombra del titolo e della data sulle foto: nera al 35%, sfocata 6 dp. Aiuta il bianco dove il velo sfuma. */
+  const val InkShadowAlpha: Float = 0.35f
+  val InkShadowBlur: Dp = 6.dp
+
+  /**
+   * Il velo sotto la testata su una pagina chiara: il colore del fondo al 92% sul bordo, al 72% a meta', trasparente in
+   * fondo (come il velo del bordo di scorrimento delle pagine). A occhio, 24 novembre 2026.
+   */
+  const val PageVeilTop: Float = 0.92f
+  const val PageVeilMiddle: Float = 0.72f
 
   /** Lo spazio sotto la data prima che il velo finisca: 28 dp, a occhio sulla stessa schermata. */
   val VeilTail: Dp = 28.dp
@@ -559,19 +606,25 @@ private fun FluidPreviewGridChrome(
   navigation: (@Composable () -> Unit)?,
   actions: (@Composable RowScope.() -> Unit)?,
   backdrop: GlassBackdropState,
+  onPhotos: Boolean,
   modifier: Modifier = Modifier,
 ) {
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val blurs = previewGridDateBlurs(fingerDown, reducedMotion)
+  val page = MaterialTheme.colorScheme.background
+  val veil = if (onPhotos) Color.Black else page
+  val top = if (onPhotos) FluidPreviewGridChromeLook.VeilTop else FluidPreviewGridChromeLook.PageVeilTop
+  val middle = if (onPhotos) FluidPreviewGridChromeLook.VeilMiddle else FluidPreviewGridChromeLook.PageVeilMiddle
+  val ink = if (onPhotos) Color.White else MaterialTheme.colorScheme.onSurface
   Box(
     modifier
       .fillMaxWidth()
       .drawBehind {
         drawRect(
           Brush.verticalGradient(
-            0f to Color.Black.copy(alpha = FluidPreviewGridChromeLook.VeilTop),
-            0.55f to Color.Black.copy(alpha = FluidPreviewGridChromeLook.VeilMiddle),
-            1f to Color.Transparent,
+            0f to veil.copy(alpha = top),
+            0.55f to veil.copy(alpha = middle),
+            1f to veil.copy(alpha = 0f),
           ),
         )
       },
@@ -597,10 +650,10 @@ private fun FluidPreviewGridChrome(
             if (actions != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = actions)
           }
           Spacer(Modifier.height(8.dp))
-          PreviewGridTitle(title, date, blurs)
+          PreviewGridTitle(title, date, blurs, ink, onPhotos)
         } else {
           Row(verticalAlignment = Alignment.Top) {
-            PreviewGridTitle(title, date, blurs, Modifier.weight(1f))
+            PreviewGridTitle(title, date, blurs, ink, onPhotos, Modifier.weight(1f))
             if (actions != null) {
               Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -616,18 +669,30 @@ private fun FluidPreviewGridChrome(
 }
 
 @Composable
-private fun PreviewGridTitle(title: String, date: String?, blurs: Boolean, modifier: Modifier = Modifier) {
-  val ink = Color.White
+private fun PreviewGridTitle(
+  title: String,
+  date: String?,
+  blurs: Boolean,
+  ink: Color,
+  onPhotos: Boolean,
+  modifier: Modifier = Modifier,
+) {
+  val shadow = if (onPhotos) {
+    val blur = with(LocalDensity.current) { FluidPreviewGridChromeLook.InkShadowBlur.toPx() }
+    Shadow(Color.Black.copy(alpha = FluidPreviewGridChromeLook.InkShadowAlpha), Offset.Zero, blur)
+  } else {
+    null
+  }
   Column(modifier) {
     Text(
       text = title,
-      style = MaterialTheme.typography.displaySmall,
+      style = MaterialTheme.typography.displaySmall.copy(shadow = shadow),
       color = ink,
       maxLines = 1,
       modifier = Modifier.semantics { heading() },
     )
     if (date != null) {
-      val style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+      val style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, shadow = shadow)
       if (blurs) {
         // La griglia corre da sola: la data nuova entra sfocata (R7), come ogni contenuto che cambia identita'.
         FluidGlassContentTransition(

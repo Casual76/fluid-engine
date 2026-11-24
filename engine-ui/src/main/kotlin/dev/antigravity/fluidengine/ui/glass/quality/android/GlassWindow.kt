@@ -238,7 +238,10 @@ internal class WindowFrames(
     render?.windowMotion = false
     // Un dito può restare fermo a lungo prima del rilascio: la posa usa condizioni ancora recenti.
     process.refreshForRecovery(policy, now)
-    if (policy.onWindow(now, true, false, displayId, period) != null) process.publish()
+    if (policy.onWindow(now, true, false, displayId, period, process.retryFits(policy, render)) != null) {
+      render?.rejectedUpgrade?.let { if (policy.decision.optics >= it.optics) render.rejectedUpgrade = null }
+      process.publish()
+    }
   }
 }
 

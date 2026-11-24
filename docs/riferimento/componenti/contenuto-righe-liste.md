@@ -469,6 +469,7 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 | `header` | l'intestazione di un gruppo, **in linea** (scorre con la griglia); di serie nessuna; `FluidPreviewGridHeader` è quella pronta |
 | `title`, `dateLabel` | la testata come Foto: il titolo grande e la data degli elementi in cima, sopra le foto (F8.4b); null: nessuna testata |
 | `navigation`, `actions` | i tasti di vetro della testata: a sinistra (indietro) e a destra («Seleziona»); rifrangono le foto |
+| `titleOnPhotos` | vero (di serie): titolo e data bianchi su un velo scuro e le icone della barra di stato chiare finché le foto ci passano sotto, come Foto; falso per una griglia su una pagina chiara (file col nome): inchiostro del tema su un velo del colore del fondo |
 | `cell` | il contenuto: riempie la cella, che ritaglia e porta il segno |
 
 - **Il pizzico**: la griglia segue le dita attorno al punto fra di esse; a metà strada (geometrica) verso la densità
@@ -486,6 +487,14 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
   scorrimento rapido, selezione) la data nuova arriva di colpo, nitida; quando la griglia corre da sola (inerzia, uno
   scorrimento chiesto dall'app) entra sfocata con `FluidGlassContentTransition`. Pizzico, selezione e scorrimento non
   sfocano mai niente.
+- **Il velo** sulle foto è nero al 58% in cima e al 34% a metà, con un'ombra leggera sul titolo (sul tablet, col 50/22 di
+  prima, «Libreria» non si leggeva su una foto chiara). Su una pagina chiara (`titleOnPhotos = false`) il velo è il
+  colore del fondo e l'inchiostro quello del tema.
+- **Le icone della barra di stato** sopra le foto diventano chiare finché le foto ci passano sotto, e tornano quelle del
+  tema quando la griglia se ne va o la testata non è sulle foto. La griglia le chiede al lato della barra di stato del
+  tema, lo stesso punto della barra in alto di una schermata che scurisce: niente `WindowInsetsController` a mano.
+- **La data** come Foto è la data media della lingua: `DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)` («13 lug
+  2025», «Jul 13, 2025»), anche per lo scorrimento rapido.
 - **Trappola**: con la testata la prima riga sta sotto il titolo. Per una griglia di file col nome sotto la miniatura
   si dà un `contentPadding` in alto (barra di stato + ~150 dp): la prima riga parte sotto la testata e poi ci scorre
   sotto.

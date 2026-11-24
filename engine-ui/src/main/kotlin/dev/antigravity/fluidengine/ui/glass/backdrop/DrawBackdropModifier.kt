@@ -495,6 +495,7 @@ private class DrawBackdropElement(
 
     override fun update(node: DrawBackdropNode) {
         val backdropChanged = node.backdrop != backdrop
+        if (backdropChanged || node.backdropScale != backdropScale) node.forgetRejectedUpgrade()
         if (backdropChanged) {
             // A record is a picture of one particular backdrop. Swapping the backdrop out — which
             // is what a tab change does, every screen bringing its own recording for the shared
@@ -1125,6 +1126,7 @@ private class DrawBackdropNode(
         readsSuspended = suspend
         surfaceDirty = true
         if (suspend) {
+            forgetRejectedUpgrade()
             unregisterReads()
             leaveContainer()
             bindMotionLight(null)
@@ -1215,12 +1217,19 @@ private class DrawBackdropNode(
         if (!budgetDenied) {
             budgetDenied = true
             desiredBytes = nextBytes
-            resources.visibleCaptureDenied(window, true)
+            resources.visibleCaptureDenied(window, true, this, nextBytes)
         }
         return CaptureAdmission.Denied
     }
 
+    fun forgetRejectedUpgrade() {
+        if (::renderState.isInitialized && renderState.rejectedUpgrade?.reader === this) resources.forgetRejectedCapture(window, this)
+    }
+
     private fun recorded(record: IntSize) {
+        if (sampled && effectiveScale == recordedScale &&
+            (record.width.toLong() * record.height < recordedSize.width.toLong() * recordedSize.height ||
+                residentFiltered && effectScope.renderEffect == null)) forgetRejectedUpgrade()
         if (waitForBytes > 0L) {
             MainHandler.removeCallbacks(awaitBudget)
             waitForBytes = 0L
@@ -1589,6 +1598,7 @@ private class DrawBackdropNode(
         if (containerDirty) resolveContainer()
         val target = captureScale(size.width, size.height, commit = true)
         if (target != budgetTarget || size != budgetExtent) {
+            if (size != budgetExtent) forgetRejectedUpgrade()
             budgetTarget = target
             budgetExtent = size
             budgetScale = 1f
@@ -1872,6 +1882,7 @@ private class DrawBackdropNode(
      * glass stopped updating", and sometimes like "this tile has no glass at all".
      */
     override fun onReset() {
+        forgetRejectedUpgrade()
         bindMotionLight(null)
         if (residentBytes > 0L) discardRecording()
         if (budgetDenied) resources.visibleCaptureDenied(window, false)
@@ -1892,6 +1903,7 @@ private class DrawBackdropNode(
     }
 
     override fun onDetach() {
+        forgetRejectedUpgrade()
         bindMotionLight(null)
         if (recoveryPending) MainHandler.removeCallbacks(recoverResolution)
         recoveryPending = false

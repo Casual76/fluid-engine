@@ -522,22 +522,27 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
     job?.cancel()
     if (settle) inertia.springTo(position, speed, target, spacingPx, response) else inertia.flingTo(position, speed, target, spacingPx)
     job = scope.launch {
-      var last = -1L
-      while (inertia.moving) {
-        val now = withFrameNanos(frame)
-        val dt = if (last < 0L) 0f else (now - last) / 1e9f
-        last = now
-        inertia.step(dt)
+      val glide: suspend () -> Unit = {
+        var last = -1L
+        while (inertia.moving) {
+          val now = withFrameNanos(frame)
+          val dt = if (last < 0L) 0f else (now - last) / 1e9f
+          last = now
+          inertia.step(dt)
+          position = inertia.position
+          if (live) report(now / 1_000_000L, inertia.velocity) else restartHaptics()
+        }
         position = inertia.position
-        if (live) report(now / 1_000_000L, inertia.velocity) else restartHaptics()
+        if (live) {
+          report(lastMillis, 0f)
+          finish()
+        } else {
+          restartHaptics()
+        }
       }
-      position = inertia.position
-      if (live) {
-        report(lastMillis, 0f)
-        finish()
-      } else {
-        restartHaptics()
-      }
+      // F8.1b: l'inerzia di un lancio (e il ritorno al neutro col doppio tocco) conta come il dito: i numeri che mostrano
+      // il valore cambiano di colpo, nitidi, fino alla posa. Quella che segue un valore dell'app no.
+      if (live) fluidFingerMotion(glide) else glide()
     }
   }
 
@@ -570,7 +575,8 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
   }
 }
 
-private fun Modifier.rulerGesture(driver: FluidRulerDriver): Modifier = pointerInput(driver) {
+// F8.1b: il dito muove un valore (un numero che lo mostra resta nitido, `FluidFingerDrive`).
+private fun Modifier.rulerGesture(driver: FluidRulerDriver): Modifier = fluidFingerDrivesValue().pointerInput(driver) {
   val tracker = VelocityTracker()
   var lastTapUp = Long.MIN_VALUE / 2
   var lastTapX = 0f

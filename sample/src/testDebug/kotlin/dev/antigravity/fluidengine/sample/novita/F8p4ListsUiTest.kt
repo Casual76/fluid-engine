@@ -538,6 +538,57 @@ class F8p4ListsUiTest {
     assertTrue("non resta ferma in alto: ${primo.map { it.boundsInRoot }}", primo.all { it.boundsInRoot.bottom <= 0f })
   }
 
+  // --- La barra di stato sopra le foto e la data media (F8.4b, dalla tavola contro Foto) -------------------------------
+
+  private var photosShown by androidx.compose.runtime.mutableStateOf(true)
+  private var onPhotos by androidx.compose.runtime.mutableStateOf(true)
+
+  private fun lightStatusIcons(): Boolean {
+    val window = (view.context as android.app.Activity).window
+    return androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars
+  }
+
+  @Test
+  fun `sopra le foto la griglia chiede le icone chiare della barra di stato e poi le rende al tema`() {
+    show {
+      if (photosShown) {
+        val sections = remember { listOf(FluidPreviewGridSection(key = "tutte", title = null, items = (0 until 120).toList())) }
+        FluidPreviewGrid(
+          sections = sections,
+          itemKey = { it },
+          state = gridState,
+          title = "Libreria",
+          titleOnPhotos = onPhotos,
+          modifier = Modifier.fillMaxSize(),
+        ) { id, _ ->
+          Box(Modifier.fillMaxSize().background(Color(0xFF406080)))
+        }
+      } else {
+        Box(Modifier.fillMaxSize())
+      }
+    }
+    // Il tema e' chiaro: senza foto le icone sono quelle del tema (scure, `isAppearanceLightStatusBars` vero).
+    assertFalse("sopra le foto: icone chiare", lightStatusIcons())
+    // La testata non e' piu' sulle foto (una pagina chiara): le icone tornano quelle del tema.
+    onPhotos = false
+    advance(100)
+    assertTrue("su una pagina chiara: le icone del tema", lightStatusIcons())
+    onPhotos = true
+    advance(100)
+    assertFalse("di nuovo sulle foto", lightStatusIcons())
+    // La griglia se ne va: le icone tornano al tema.
+    photosShown = false
+    advance(100)
+    assertTrue("senza la griglia: le icone del tema", lightStatusIcons())
+  }
+
+  @Test
+  fun `la data della libreria e' la data media della lingua, come Foto`() {
+    val day = java.time.LocalDate.of(2025, 7, 13)
+    assertEquals("13 lug 2025", F8p4Dates.medium(day, java.util.Locale.ITALIAN))
+    assertEquals("Jul 13, 2025", F8p4Dates.medium(day, java.util.Locale.US))
+  }
+
   // --- La selezione trascinando su una lista -------------------------------------------------------------------------
 
   private val rowSelection = FluidSelectionState<Int>()

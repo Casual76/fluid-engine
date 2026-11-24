@@ -350,6 +350,31 @@ class F8p2WheelsTest {
     assertEquals(LocalTime.of(15, 0), fluidTimeWheelHour12(LocalTime.of(14, 0), 3))
   }
 
+  @Test
+  fun `in 12 ore AM e PM vengono dal moto vero della colonna, anche su 6 voci e sui lanci lunghi`() {
+    val eight = LocalTime.of(8, 0)
+    // Sei voci esatte: la strada corta e' ambigua, il moto no.
+    assertEquals(LocalTime.of(14, 0), fluidTimeWheelHour12(eight, 2, rows = 6))
+    assertEquals(LocalTime.of(2, 0), fluidTimeWheelHour12(eight, 2, rows = -6))
+    // Un lancio lungo passa il confine fra 11 e 12 piu' volte.
+    assertEquals(LocalTime.of(2, 0), fluidTimeWheelHour12(eight, 2, rows = 18))
+    assertEquals(LocalTime.of(14, 0), fluidTimeWheelHour12(eight, 2, rows = -18))
+    assertEquals(LocalTime.of(1, 0), fluidTimeWheelHour12(eight, 1, rows = 17))
+    // Un giro intero torna sulla stessa voce e gira solo AM e PM; due giri, niente.
+    assertEquals(LocalTime.of(20, 0), fluidTimeWheelHour12(eight, 8, rows = 12))
+    assertEquals(eight, fluidTimeWheelHour12(eight, 8, rows = 24))
+    // Mezzanotte e mezzogiorno, avanti e indietro di una voce; i minuti restano.
+    assertEquals(LocalTime.of(12, 0), fluidTimeWheelHour12(LocalTime.of(11, 0), 0, rows = 1))
+    assertEquals(LocalTime.of(23, 30), fluidTimeWheelHour12(LocalTime.of(0, 30), 11, rows = -1))
+    // Un moto che non porta alla voce (non dovrebbe succedere) vale come la strada corta.
+    assertEquals(LocalTime.of(2, 0), fluidTimeWheelHour12(eight, 2, rows = 5))
+    // La strada corta: al piu' mezzo giro, e a meta' esatta nel verso della differenza.
+    assertEquals(-6, fluidWheelShortestRows(8, 2, 12, cyclic = true))
+    assertEquals(6, fluidWheelShortestRows(2, 8, 12, cyclic = true))
+    assertEquals(1, fluidWheelShortestRows(11, 0, 12, cyclic = true))
+    assertEquals(-11, fluidWheelShortestRows(11, 0, 12, cyclic = false))
+  }
+
   // --- La ghiera contro Foto ---------------------------------------------------------------------------------------
 
   @Test

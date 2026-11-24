@@ -78,6 +78,9 @@ class VisoriMiniatureTest {
   private val archive = FluidViewerRegistry.families.first { it.id == "archive" }
 
   @Before fun clean() {
+    org.robolectric.Shadows.shadowOf(context.getSystemService(android.app.ActivityManager::class.java)).setMemoryClass(512)
+    dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(context).budget
+      .updateLimits(dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits.Full)
     FluidFileThumbnails.clear()
   }
 
@@ -102,34 +105,41 @@ class VisoriMiniatureTest {
     }.filter { (file, _) -> file.cover == null && file.tipo != VisoreTipo.Animata }
   }
 
+  private data class Saved(val file: File, val fillsFrame: Boolean, val isPlaceholder: Boolean)
+  private fun saved(file: File, thumbnail: FluidFileThumbnail): Saved {
+    save(file, thumbnail.image.asAndroidBitmap())
+    return Saved(file, thumbnail.fillsFrame, thumbnail.isPlaceholder)
+  }
+
   @Test fun ogniFileDelCorpoHaUnaMiniaturaVera() {
     for (look in listOf(FluidThumbnailLook.Light, FluidThumbnailLook.Dark)) {
-      val shown = ArrayList<Triple<VisoreFile, FluidFileThumbnail, Long>>()
+      val shown = ArrayList<Triple<VisoreFile, Saved, Long>>()
       for ((file, prepared) in corpus()) {
         val started = System.nanoTime()
-        val thumbnail = runBlocking { FluidFileThumbnails.load(context, prepared, 480, look, timeoutMillis = 30_000) }
-        val millis = (System.nanoTime() - started) / 1_000_000
-        shown += Triple(file, thumbnail, millis)
-        val name = if (look.dark) "${file.id}-scuro" else file.id
-        save(File(thumbnails, "$name.png"), thumbnail.image.asAndroidBitmap())
-        println("miniatura ${file.id} (${if (look.dark) "scuro" else "chiaro"}): ${thumbnail.image.width}×${thumbnail.image.height}, " +
-          "${if (thumbnail.isPlaceholder) "segnaposto" else "contenuto"}, ${if (thumbnail.fillsFrame) "riempie" else "intera"}, $millis ms")
-        assertTrue("${file.id}: la miniatura non è vuota né uniforme", hasInk(thumbnail.image.asAndroidBitmap()))
-        if (file.id !in nativeOnly && file.id !in symbols) {
-          assertFalse("${file.id}: mostra il contenuto, non l'icona", thumbnail.isPlaceholder)
-        }
-        val pixels = thumbnail.image.asAndroidBitmap()
-        if (file.id == "dati-html") {
-          assertTrue("La pagina mantiene il suo sfondo CSS", pixels.getPixel(0, 0) == 0xFFF6F3EB.toInt())
-          assertTrue("La pagina contiene l'immagine insieme al testo", colored(pixels) > 200)
-        }
-        if (file.id == "modello-glb") {
-          assertTrue("Anelli con e senza texture nella stessa scena",
-            count(pixels) { Color.blue(it) > 1.35f * Color.red(it) && Color.blue(it) > 34 } > 400 &&
-              count(pixels) { Color.red(it) > 1.45f * Color.blue(it) && Color.red(it) > 70 } > 400)
-        }
-        if (file.id.startsWith("archivio-")) {
-          assertTrue("${file.id}: l'archivio non è una tessera grigia", colored(thumbnail.image.asAndroidBitmap()) > 40)
+        dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead().use { reader ->
+          val thumbnail = runBlocking(reader) { FluidFileThumbnails.load(context, prepared, 480, look, timeoutMillis = 30_000) }
+          val millis = (System.nanoTime() - started) / 1_000_000
+          val name = if (look.dark) "${file.id}-scuro" else file.id
+          shown += Triple(file, saved(File(thumbnails, "$name.png"), thumbnail), millis)
+          println("miniatura ${file.id} (${if (look.dark) "scuro" else "chiaro"}): ${thumbnail.image.width}×${thumbnail.image.height}, " +
+            "${if (thumbnail.isPlaceholder) "segnaposto" else "contenuto"}, ${if (thumbnail.fillsFrame) "riempie" else "intera"}, $millis ms")
+          assertTrue("${file.id}: la miniatura non è vuota né uniforme", hasInk(thumbnail.image.asAndroidBitmap()))
+          if (file.id !in nativeOnly && file.id !in symbols) {
+            assertFalse("${file.id}: mostra il contenuto, non l'icona", thumbnail.isPlaceholder)
+          }
+          val pixels = thumbnail.image.asAndroidBitmap()
+          if (file.id == "dati-html") {
+            assertTrue("La pagina mantiene il suo sfondo CSS", pixels.getPixel(0, 0) == 0xFFF6F3EB.toInt())
+            assertTrue("La pagina contiene l'immagine insieme al testo", colored(pixels) > 200)
+          }
+          if (file.id == "modello-glb") {
+            assertTrue("Anelli con e senza texture nella stessa scena",
+              count(pixels) { Color.blue(it) > 1.35f * Color.red(it) && Color.blue(it) > 34 } > 400 &&
+                count(pixels) { Color.red(it) > 1.45f * Color.blue(it) && Color.red(it) > 70 } > 400)
+          }
+          if (file.id.startsWith("archivio-")) {
+            assertTrue("${file.id}: l'archivio non è una tessera grigia", colored(thumbnail.image.asAndroidBitmap()) > 40)
+          }
         }
       }
       sheet(shown, look.dark)
@@ -140,18 +150,19 @@ class VisoriMiniatureTest {
     val files = corpus().filter { it.first.family != VisoriFamiglia.Serie }
     VisoriSenzaModuli.enter()
     assertTrue(FluidViewerRegistry.families.isEmpty())
-    val shown = ArrayList<Triple<VisoreFile, FluidFileThumbnail, Long>>()
+    val shown = ArrayList<Triple<VisoreFile, Saved, Long>>()
     for ((file, prepared) in files) {
-      val thumbnail = runBlocking { FluidFileThumbnails.load(context, prepared, 240, timeoutMillis = 30_000) }
-      shown += Triple(file, thumbnail, 0L)
-      save(File(thumbnails, "senza-${file.id}.png"), thumbnail.image.asAndroidBitmap())
-      assertTrue("${file.id}: mai vuota", hasInk(thumbnail.image.asAndroidBitmap()))
-      val type = FluidViewerType.of(file.mime, file.name)
-      if (type.preset == FluidViewerPreset.Text) {
-        assertFalse("${file.id}: il testo di serie ha le sue prime righe", thumbnail.isPlaceholder)
-      }
-      if (type.preset == FluidViewerPreset.Unknown) {
-        assertTrue("${file.id}: senza il modulo, l'icona del documento", thumbnail.isPlaceholder)
+      dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead().use { reader ->
+        val thumbnail = runBlocking(reader) { FluidFileThumbnails.load(context, prepared, 240, timeoutMillis = 30_000) }
+        shown += Triple(file, saved(File(thumbnails, "senza-${file.id}.png"), thumbnail), 0L)
+        assertTrue("${file.id}: mai vuota", hasInk(thumbnail.image.asAndroidBitmap()))
+        val type = FluidViewerType.of(file.mime, file.name)
+        if (type.preset == FluidViewerPreset.Text) {
+          assertFalse("${file.id}: il testo di serie ha le sue prime righe", thumbnail.isPlaceholder)
+        }
+        if (type.preset == FluidViewerPreset.Unknown) {
+          assertTrue("${file.id}: senza il modulo, l'icona del documento", thumbnail.isPlaceholder)
+        }
       }
     }
     VisoriSenzaModuli.leave()
@@ -302,7 +313,7 @@ class VisoriMiniatureTest {
    * Il foglio delle miniature come tessere della galleria (1,5:1, il fondo della tessera del tema), con il nome e il
    * tempo: `build/visori-miniature/<name>-chiaro.png` e `-scuro.png`.
    */
-  private fun sheet(items: List<Triple<VisoreFile, FluidFileThumbnail, Long>>, dark: Boolean, name: String = "corpo") {
+  private fun sheet(items: List<Triple<VisoreFile, Saved, Long>>, dark: Boolean, name: String = "corpo") {
     val columns = 6
     val tileW = 300
     val tileH = 200
@@ -324,13 +335,14 @@ class VisoriMiniatureTest {
       val path = android.graphics.Path().apply { addRoundRect(tile, 22f, 22f, android.graphics.Path.Direction.CW) }
       canvas.clipPath(path)
       canvas.drawRect(tile, Paint().apply { color = tileColor })
-      val image = thumbnail.image.asAndroidBitmap()
+      val image = android.graphics.BitmapFactory.decodeFile(thumbnail.file.path)
       val scale = if (thumbnail.fillsFrame) max(tileW.toFloat() / image.width, tileH.toFloat() / image.height)
         else minOf(tileW.toFloat() / image.width, tileH.toFloat() / image.height)
       val w = image.width * scale
       val h = image.height * scale
       canvas.drawBitmap(image, null, RectF(tile.centerX() - w / 2, tile.centerY() - h / 2, tile.centerX() + w / 2, tile.centerY() + h / 2),
         Paint(Paint.FILTER_BITMAP_FLAG))
+      image.recycle()
       canvas.restore()
       canvas.drawText(file.name, x.toFloat(), (y + tileH + 24).toFloat(), text)
       canvas.drawText((if (thumbnail.isPlaceholder) "icona" else "contenuto") + if (millis > 0) " · $millis ms" else "",

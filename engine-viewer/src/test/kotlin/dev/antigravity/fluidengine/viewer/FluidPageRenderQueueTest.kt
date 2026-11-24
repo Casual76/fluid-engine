@@ -1,6 +1,10 @@
 package dev.antigravity.fluidengine.viewer
 
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -24,6 +28,20 @@ import java.util.concurrent.atomic.AtomicInteger
  * l'annullamento e la chiusura delle risorse. Il `PdfRenderer` vero sta dietro la stessa interfaccia.
  */
 class FluidPageRenderQueueTest {
+  private val policy = TestViewerPolicy()
+  private val memory = ViewerMemory(policy)
+
+
+  private class TestViewerPolicy : ViewerPolicy {
+    override val budget = dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget(
+      dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits.Full)
+    override val uiVisible = kotlinx.coroutines.flow.MutableStateFlow(true)
+    override val prefetchAllowed = kotlinx.coroutines.flow.MutableStateFlow(true)
+    override var trimGeneration = 0L
+    override val thumbnailParallelism = 3
+    override fun refreshBeforeAllocation() = Unit
+    override fun visibleBudgetDenied(denied: Boolean) = Unit
+  }
 
   private class Page(val index: Int, val size: IntSize)
 
@@ -39,6 +57,7 @@ class FluidPageRenderQueueTest {
     val sizeReads = AtomicInteger(0)
     @Volatile var closed = false
 
+    var onRender: (IntSize) -> Unit = {}
     override val pageCount: Int get() = sizes.size
 
     private fun <R> page(block: () -> R): R {
@@ -60,6 +79,7 @@ class FluidPageRenderQueueTest {
     }
 
     override fun render(index: Int, target: IntSize): Page = page {
+      onRender(target)
       entered.countDown()
       gate?.await(5, TimeUnit.SECONDS)
       rendered += index
@@ -73,7 +93,8 @@ class FluidPageRenderQueueTest {
 
   private fun queue(document: FakeDocument, released: AtomicInteger = AtomicInteger(), maxPages: Int = 4, maxBytes: Long = Long.MAX_VALUE) =
     FluidPageRenderQueue(
-      open = { document },
+      memory = memory,
+      open = { document.apply { closed = false } },
       bytesOf = { it.size.width.toLong() * it.size.height * 4 },
       maxPages = maxPages,
       maxBytes = maxBytes,
@@ -195,7 +216,7 @@ class FluidPageRenderQueueTest {
   }
 
   @Test
-  fun `a render cancelled midway closes its page and is cached`() = runBlocking {
+  fun `a render cancelled midway closes its page and is discarded`() = runBlocking {
     val gate = CountDownLatch(1)
     val document = FakeDocument(gate = gate)
     val queue = queue(document).apply { start() }
@@ -210,10 +231,10 @@ class FluidPageRenderQueueTest {
     }
     queue.size(0)
     assertEquals(0, document.open.get())
-    assertEquals(1 to 0, queue.cached())
+    assertEquals(0 to 0, queue.cached())
     document.gate = null
     queue.render(0, IntSize(400, 566))
-    assertEquals(1, queue.renders)
+    assertEquals(2, queue.renders)
     queue.close()
   }
 
@@ -229,7 +250,7 @@ class FluidPageRenderQueueTest {
     queue.close()
     assertFalse(document.closed)
     gate.countDown()
-    running.await() // la resa cominciata finisce
+    assertTrue(runCatching { running.await() }.exceptionOrNull() is CancellationException)
     awaitReleased(released)
     assertTrue(document.closed)
     assertEquals(1, released.get())
@@ -253,16 +274,149 @@ class FluidPageRenderQueueTest {
     Thread.sleep(50)
     queue.close()
     gate.countDown()
-    first.await()
+    assertTrue(runCatching { first.await() }.exceptionOrNull() is CancellationException)
     assertTrue(queued.await().exceptionOrNull() is CancellationException)
     awaitReleased(released)
     assertEquals(listOf(0), document.rendered.toList())
   }
 
   @Test
+  fun `evicting a cache-only page admits the visible page at full size`() = runBlocking {
+    policy.budget.updateLimits(FluidMemoryLimits.Full.copy(viewerBytes = 2_300_000))
+    val queue = queue(FakeDocument()).apply { start() }
+    val target = IntSize(512, 512)
+    try {
+      repeat(2) { i -> FluidPageRead().use { reader ->
+        assertEquals(target, withContext(reader) { queue.render(i, target) }.size)
+      } }
+      assertEquals(0L, policy.budget.usage().refusals)
+      assertEquals(1 to 0, queue.cached())
+    } finally { queue.close() }
+    assertEquals(0L, policy.budget.usage().usedBytes)
+  }
+
+  @Test
+  fun `three two or one thumbnail slots and visible ahead of queued prefetch`() = runBlocking {
+    for (limit in 1..3) {
+      val gate = ViewerDecodeGate { limit }
+      val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+      val active = AtomicInteger()
+      val entered = CountDownLatch(limit)
+      val order = Collections.synchronizedList(mutableListOf<String>())
+      val running = (1..limit).map {
+        launch(Dispatchers.Default) {
+          gate.run(false) {
+            active.incrementAndGet()
+            entered.countDown()
+            release.await()
+            active.decrementAndGet()
+          }
+        }
+      }
+      assertTrue(entered.await(5, TimeUnit.SECONDS))
+      assertEquals(limit, active.get())
+      val optional = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { gate.run(true) { order += "optional" } }
+      val visible = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { gate.run(false) { order += "visible" } }
+      assertTrue(order.isEmpty())
+      release.complete(Unit)
+      running.forEach { it.join() }
+      visible.join(); optional.join()
+      assertEquals(listOf("visible", "optional"), order)
+    }
+  }
+
+  @Test
+  fun `full page range survives eviction and a new render accounts for the old visible page`() = runBlocking {
+    val target = IntSize(512, 512)
+    val firstBytes = 512L * 512 * 4
+    policy.budget.updateLimits(FluidMemoryLimits.Full.copy(viewerBytes = 2_300_000))
+    val document = FakeDocument(sizes = List(12_000) { IntSize(595, 842) })
+    val queue = queue(document)
+    val visible = FluidPageRead()
+    val next = FluidPageRead()
+    try {
+      assertEquals(12_000, queue.start())
+      document.onRender = { size ->
+        val usage = policy.budget.usage(FluidMemoryCategory.VIEWER)
+        assertTrue(usage.inFlightBytes >= pixelPeak(size, 8))
+      }
+      withContext(visible) { queue.render(0, target) }
+      document.onRender = { size ->
+        assertEquals(firstBytes, policy.budget.usage(FluidMemoryCategory.VIEWER).residentBytes)
+        assertEquals(IntSize(256, 256), size)
+      }
+      withContext(next) { queue.render(11_999, target) }
+      assertEquals(2 to 0, queue.cached())
+      visible.close()
+      next.close()
+      memory.trim(40)
+      assertEquals(0L, policy.budget.usage().usedBytes)
+      assertEquals(12_000, queue.pageCount)
+      assertEquals(IntSize(595, 842), queue.size(11_999))
+    } finally { visible.close(); next.close(); queue.close() }
+  }
+
+  @Test
+  fun `optional native render holds credit until it really stops and never fills cache`() = runBlocking {
+    val gate = CountDownLatch(1)
+    val document = FakeDocument(gate = gate)
+    val queue = queue(document).apply { start() }
+    try {
+      val prefetch = async(Dispatchers.Default) { queue.prefetch(2) }
+      assertTrue(document.entered.await(5, TimeUnit.SECONDS))
+      policy.prefetchAllowed.value = false
+      assertTrue(policy.budget.usage().inFlightBytes > 0)
+      gate.countDown()
+      assertTrue(runCatching { prefetch.await() }.exceptionOrNull() is CancellationException)
+      assertEquals(0 to 0, queue.cached())
+      assertEquals(0L, policy.budget.usage().usedBytes)
+      queue.prefetch(3)
+      assertEquals(listOf(2), document.rendered.toList())
+    } finally { gate.countDown(); queue.close() }
+  }
+
+  @Test
+  fun `after hidden the first rebuilt page is visible even if prefetch resumes first`() = runBlocking {
+    val document = FakeDocument()
+    val queue = queue(document).apply { start() }
+    try {
+      queue.prefetch(1)
+      policy.trimGeneration++
+      memory.trim(20)
+      assertEquals(0 to 0, queue.cached())
+      queue.prefetch(2)
+      assertEquals(listOf(1), document.rendered.toList())
+      FluidPageRead().use { reader -> withContext(reader) { queue.render(7, IntSize(400, 600)) } }
+      queue.prefetch(8)
+      assertEquals(listOf(1, 7, 8), document.rendered.toList())
+    } finally { queue.close() }
+  }
+
+  @Test
+  fun `trim drops late native render and renderer failure returns its reservation`() = runBlocking {
+    val gate = CountDownLatch(1)
+    val document = FakeDocument(gate = gate)
+    val queue = queue(document).apply { start() }
+    try {
+      val render = async(Dispatchers.Default) { queue.render(0, IntSize(200, 300)) }
+      assertTrue(document.entered.await(5, TimeUnit.SECONDS))
+      policy.trimGeneration++
+      memory.trim(40)
+      gate.countDown()
+      assertTrue(runCatching { render.await() }.exceptionOrNull() is CancellationException)
+      assertEquals(0L, policy.budget.usage().usedBytes)
+      assertEquals(0 to 0, queue.cached())
+      document.onRender = { throw IOException("page") }
+      assertTrue(runCatching { queue.render(1, IntSize(200, 300)) }.exceptionOrNull() is IOException)
+      assertEquals(0L, policy.budget.usage().usedBytes)
+    } finally { gate.countDown(); queue.close() }
+  }
+
+  @Test
   fun `a document that fails to open releases its resources`() = runBlocking {
     val released = AtomicInteger()
     val queue = FluidPageRenderQueue<Page>(
+      memory = memory,
       open = { throw IOException("non è un PDF") },
       bytesOf = { 0 },
       release = { released.incrementAndGet() },
@@ -288,6 +442,7 @@ class FluidPageRenderQueueTest {
     val released = AtomicInteger()
     val gate = CountDownLatch(1)
     val queue = FluidPageRenderQueue<Page>(
+      memory = memory,
       open = { gate.await(5, TimeUnit.SECONDS); FakeDocument() },
       bytesOf = { 0 },
       release = { released.incrementAndGet() },

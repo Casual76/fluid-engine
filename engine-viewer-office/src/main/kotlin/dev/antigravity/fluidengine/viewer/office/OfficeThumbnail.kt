@@ -69,7 +69,7 @@ internal suspend fun officeThumbnail(
         val pkg = OfficePackage(zip)
         if (ext.startsWith("od") && pkg.xml("META-INF/manifest.xml")?.first("encryption-data") != null)
           return@use null
-        savedThumbnail(zip, pkg, target)?.let { return@use it.asImageBitmap() }
+        savedThumbnail(zip, pkg, target, dev.antigravity.fluidengine.viewer.FluidViewerRaster.thumbnailScratch(0))?.let { return@use it.asImageBitmap() }
         withTimeoutOrNull(budgetMillis) {
           val fonts = OfficeFonts(request.context)
           val info = OfficeInfo()
@@ -97,11 +97,11 @@ internal suspend fun officeThumbnail(
  * The thumbnail saved in the package (`Thumbnails/thumbnail.png` of ODF, `docProps/thumbnail.*` of OOXML), at most
  * [target] on its longer side, or `null` when it is missing, broken, tiny or nearly one colour.
  */
-internal fun savedThumbnail(zip: ZipFile, pkg: OfficePackage, target: Int): Bitmap? {
+internal fun savedThumbnail(zip: ZipFile, pkg: OfficePackage, target: Int, reserve: (Long) -> Boolean = { true }): Bitmap? {
   val entry =
     listOf("Thumbnails/thumbnail.png", "docProps/thumbnail.jpeg", "docProps/thumbnail.jpg", "docProps/thumbnail.png")
       .firstNotNullOfOrNull(zip::getEntry) ?: return null
-  if (entry.size !in 1..4_000_000L) return null
+  if (entry.size !in 1..4_000_000L || !reserve(3L * entry.size)) return null
   val bytes = try { pkg.bytes(entry.name) } catch (_: Exception) { null } ?: return null
   val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
   BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)

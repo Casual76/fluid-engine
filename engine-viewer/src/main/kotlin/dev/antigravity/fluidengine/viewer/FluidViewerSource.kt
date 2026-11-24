@@ -120,7 +120,13 @@ internal class FluidSeekableCopy(
   suspend fun file(): File = lock.withLock {
     if (closed) throw FluidViewerException(FluidViewerFailure.Unreadable, "Sorgente chiusa: $label")
     copy?.let { return@withLock it }
-    val made = withContext(Dispatchers.IO) { copyNow() }
+    var created: File? = null
+    val made = try {
+      withContext(Dispatchers.IO) { copyNow().also { created = it } }
+    } catch (error: Throwable) {
+      created?.delete()
+      throw error
+    }
     if (closed) {
       made.delete()
       throw FluidViewerException(FluidViewerFailure.Unreadable, "Sorgente chiusa: $label")

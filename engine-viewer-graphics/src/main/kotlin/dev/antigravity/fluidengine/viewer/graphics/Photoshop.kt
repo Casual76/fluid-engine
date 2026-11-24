@@ -32,6 +32,9 @@ internal class Photoshop(bytes: ByteArray) {
 
   private fun lengthAt(offset: Int): Long = if (large) data.i64(offset) else data.u32(offset)
 
+  // Gli indici delle scanline e i canali di una riga restano della misura originale anche con l'output ridotto.
+  val scratchBytes: Long get() = 65536L + height * 5L * 8 + width * 16L
+
   fun image(maxPixels: Long, edge: Int? = null): Pair<Bitmap, Boolean> {
     return try {
       renderComposite(maxPixels, edge) to false

@@ -354,7 +354,7 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
    * copertina se non è cifrata), il sistema e il motivo, e «Apri con…» e «Condividi» dell'app. Come un archivio
    * cifrato, il file c'è e si riconosce; solo il testo non si legge qui.
    */
-  private fun protectedEpub(zip: DataZip, drm: DataEpubDrm): FluidViewerOpened {
+  private suspend fun protectedEpub(zip: DataZip, drm: DataEpubDrm): FluidViewerOpened {
     val book = try {
       DataEpub.metadata(zip)
     } catch (_: Exception) {

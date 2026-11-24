@@ -436,6 +436,13 @@ class VisoriGalleryTest {
     for ((index, file) in files.withIndex()) {
       val id = file.id
       scrollTo("senza-$id")
+      // La riga è già composta durante la copia degli asset. Accetta il tocco quando mostra il tipo risolto.
+      val outcome = dev.antigravity.fluidengine.sample.visoriOutcome(
+        dev.antigravity.fluidengine.viewer.FluidViewerType.of(file.mime, file.name))
+      waitFor("$id pronto nella lista") {
+        compose.onAllNodes(hasText("Qui: $outcome") and hasAnyAncestor(hasTestTag("senza-$id")),
+          useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+      }
       compose.onNodeWithTag("senza-$id").performClick()
       compose.waitForIdle()
       waitFor("$id aperto senza moduli") { seen[id] != null }

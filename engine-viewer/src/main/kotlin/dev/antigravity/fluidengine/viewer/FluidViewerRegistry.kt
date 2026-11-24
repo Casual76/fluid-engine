@@ -85,6 +85,7 @@ object FluidViewerRegistry {
     media: ((FluidViewerType) -> FluidViewerContent?)? = null,
   ): FluidViewerDocument {
     val app = context.applicationContext ?: context
+    ViewerMemory.get(app)
     val uri = (source as? FluidViewerUriSource)?.uri ?: (source as? FluidViewerFileSource)?.file?.let(Uri::fromFile) ?: Uri.EMPTY
     val modified = uri.path?.takeIf { uri.scheme == "file" }?.let { path ->
       withContext(Dispatchers.IO) { File(path).lastModified().takeIf { it > 0 } }
@@ -103,7 +104,7 @@ object FluidViewerRegistry {
    * dà sempre un'immagine (l'icona del documento con l'estensione, come File, se non c'è altro).
    */
   suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap? =
-    fluidThumbnailOf(context, source, sizePx, options, everything = false)?.takeUnless { it.isPlaceholder }?.image
+    FluidFileThumbnails.readSource(context, source, sizePx, FluidThumbnailLook.current(), options, everything = false)?.image
 
   private fun discover(): List<FluidViewerFamily> {
     discovered?.let { return it }
@@ -160,7 +161,9 @@ internal class FluidViewerProbe(val header: ByteArray?, val entries: Set<String>
       val header = readHeader(source) ?: return Empty
       val entries = if (signatures.any { it.needsEntries } && FluidZipDirectory.looksLikeZip(header)) {
         try {
-          withContext(Dispatchers.IO) { source.channel().use { FluidZipDirectory.names(it) } }
+          val reserve = if (kotlinx.coroutines.currentCoroutineContext()[ThumbnailAllocation] != null)
+            FluidViewerRaster.thumbnailScratch(0) else { _: Long -> true }
+          withContext(Dispatchers.IO) { source.channel().use { FluidZipDirectory.names(it, reserve) } }
         } catch (e: CancellationException) {
           throw e
         } catch (_: Exception) {
@@ -366,7 +369,9 @@ internal suspend fun fluidOpenWithRegistry(
     if (start.executable) {
       val icon = if (fluidIsApk(source)) {
         try {
-          fluidApkIcon(context, source, 416)?.asImageBitmap()
+          FluidViewerRaster.render(context, androidx.compose.ui.unit.IntSize(416, 416)) { size ->
+            fluidApkIcon(context, source, size.width)?.asImageBitmap()
+          }
         } catch (e: kotlinx.coroutines.CancellationException) {
           throw e
         } catch (_: Exception) {

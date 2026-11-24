@@ -169,6 +169,7 @@ class GlassCostScenarioTest {
   }
 
   private fun measure(scene: MeasureScenario, phase: String) {
+    val memory = prepareGlassBenchMemory(compose.activity)
     val diagnostics = FluidGlassDiagnostics
     val enabled = diagnostics.enabled
     val warm = diagnostics.warmUpEnabled
@@ -278,6 +279,7 @@ class GlassCostScenarioTest {
       diagnostics.enabled = enabled
       diagnostics.warmUpEnabled = warm
       diagnostics.resetForTesting()
+      memory.close()
     }
   }
 }

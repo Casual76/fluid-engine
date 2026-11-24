@@ -367,10 +367,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/glass/quality/android/FluidGlassResources.kt`
 
 - `class FluidGlassResources private constructor(private val app: Application)` — Limiti condivisi dai moduli Fluid nello stesso processo. Accessibile anche prima del primo Composable.
+  - `val uiVisible: StateFlow<Boolean>` — Il trim UI_HIDDEN sospende i lettori fino al prossimo ingresso in primo piano.
+  - `val thumbnailParallelism: Int @Synchronized get()` — Posti condivisi dalle miniature secondo il profilo effettivo del processo.
   - `val budget` — Un solo registro per tutti i layer e i decoder, comprese finestre simultanee.
   - `val prefetchAllowed: StateFlow<Boolean>` — Controllare il valore prima di accodare. I produttori in vita possono osservare anche lo stop.
   - `fun observeTrim(onTrim: (Int) -> Unit): Closeable` — Registrarsi mentre il modulo possiede cache o lavoro. Chiudere sul main thread alla disattivazione.
   - `fun refreshBeforeAllocation()` — Ricontrolla disponibilità e heap prima di una richiesta grande se l'ultima lettura è vecchia. Fuori dal draw.
   - `fun visibleBudgetDenied(window: Window?, denied: Boolean)` — Segnale del produttore visibile. Un rifiuto restringe le quote prima del tentativo successivo.
   - `companion object`
+    - `fun current(): FluidGlassResources` — Registro inizializzato da Startup o da get(context), anche per gli adattatori che ricevono solo un File.
     - `fun get(context: Context): FluidGlassResources` — Inizializzazione sincrona, idempotente anche nei processi secondari senza AndroidX Startup.

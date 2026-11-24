@@ -19,6 +19,9 @@
 package dev.antigravity.fluidengine.ui.glass.field
 
 import dev.antigravity.fluidengine.ui.fluid.GlassTint
+import dev.antigravity.fluidengine.ui.fluid.GlassRenderQuality
+import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics as ResourceOptics
+import dev.antigravity.fluidengine.foundation.memory.fluidSurfaceBytes
 import dev.antigravity.fluidengine.ui.fluid.GlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.fluid.GlassTintMode
 import dev.antigravity.fluidengine.ui.fluid.glassTintLiquidMode
@@ -76,6 +79,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassNestingScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShaderCacheImpl
+import dev.antigravity.fluidengine.ui.glass.backdrop.asAndroidRuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.asComposeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.fitToTexture
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffect
@@ -812,15 +816,59 @@ internal object GlassCostLevers {
 }
 
 /**
- * In viaggio il campione e il filtro a monte lavorano a metà lato. Il nodo padre usa il campione già
- * filtrato per rifrangere e comporre luce, filo, antialias e ombra in pixel reali. Una sola lettura
- * delle sorgenti, anche con un materiale esportato. A riposo torna la catena originale a un layer.
+ * Il corpo di Fluid-physics contiene anche il filo. Questa identità lo distingue da un fondale riducibile.
  */
+internal val NativeGlassFinish: DrawScope.() -> Unit = {}
+
+/** Ultimo ripiego se anche il campione minimo viene rifiutato al primo disegno. Lo stesso
+ * programma disegna la tinta, la sagoma e il filo su un ingresso trasparente, senza texture. */
+internal interface GlassBodyFallbackScope {
+  val fallbackBody: GlassBodyFallback?
+}
+
+internal class GlassBodyFallback {
+  var shader: RuntimeShader? = null
+  var inputs: GlassDrawInputs? = null
+  var films: List<GlassTint>? = null
+  private var brushShader: RuntimeShader? = null
+  private var brush: ShaderBrush? = null
+
+  @RequiresApi(33)
+  fun draw(scope: DrawScope, scale: Float, padding: Float) {
+    val program = shader ?: return
+    val material = inputs ?: return
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassSolid", this)
+    program.setGlassBodyUniforms(material, films)
+    program.asAndroidRuntimeShader().setInputShader("content", transparentInput)
+    if (brushShader !== program) {
+      brush = ShaderBrush(program.asComposeShader())
+      brushShader = program
+    }
+    val area = Size(scope.size.width * scale + padding * 2, scope.size.height * scale + padding * 2)
+    scope.scale(1f / scale, Offset.Zero) {
+      translate(-padding, -padding) { drawRect(checkNotNull(brush), size = area) }
+    }
+  }
+
+  private companion object {
+    val transparentInput by lazy {
+      android.graphics.LinearGradient(0f, 0f, 1f, 0f, 0, 0, Shader.TileMode.CLAMP)
+    }
+  }
+}
+
+/** Il campione e il filtro a monte lavorano alla scala ammessa. La finitura del padre, inclusi filo,
+ * sagoma e ombra, resta sulla griglia di uscita. Il viaggio usa già metà lato da F7.3. */
 internal class GlassTravelCapture(
   private val sample: GraphicsLayer,
-  private val screenDensity: Float,
+  val screenDensity: Float,
   private val material: BackdropEffectScope.() -> Unit,
-) : BackdropEffectScopeImpl(), GlassNestingScope {
+  val travelling: Boolean,
+  val ordinaryScale: Float,
+) : BackdropEffectScopeImpl(), GlassNestingScope, GlassRenderQuality, GlassBodyFallbackScope, (DrawScope, DrawScope.() -> Unit) -> Unit {
+  constructor(sample: GraphicsLayer, screenDensity: Float, material: BackdropEffectScope.() -> Unit) :
+    this(sample, screenDensity, material, travelling = true, ordinaryScale = 0.5f)
+
   init { sample.compositingStrategy = CompositingStrategy.Offscreen }
 
   private lateinit var parent: BackdropEffectScope
@@ -828,6 +876,33 @@ internal class GlassTravelCapture(
 
   override val shape: Shape get() = parent.shape
   override val standsOnGlass: Boolean get() = (parent as? GlassNestingScope)?.standsOnGlass == true
+
+  override val fallbackBody get() = (parent as? GlassBodyFallbackScope)?.fallbackBody
+  override val optics get() = (parent as? GlassRenderQuality)?.optics ?: ResourceOptics.Full
+  override val inMotion get() = travelling || (parent as? GlassRenderQuality)?.inMotion == true
+
+  var sampleScale = ordinaryScale
+    private set
+
+  fun setBudgetScale(ceiling: Float): Boolean {
+    val next = minOf(ordinaryScale, ceiling)
+    if (sampleScale == next) return false
+    sampleScale = next
+    return true
+  }
+
+  fun discard(density: Density, direction: LayoutDirection) {
+    sample.record(density, direction, IntSize(1, 1)) {}
+  }
+
+  fun sharesStorage(other: GlassTravelCapture?) = other != null && other.sample === sample
+
+  fun sampleBytes(size: IntSize, bytesPerPixel: Int): Long {
+    val width = ceil(size.width * sampleScale).toLong().coerceAtLeast(1L)
+    val height = ceil(size.height * sampleScale).toLong().coerceAtLeast(1L)
+    val stride = (width * bytesPerPixel + 63L) / 64L * 64L
+    return fluidSurfaceBytes(width, height, bytesPerPixel, 2, stride)
+  }
 
   val effects: BackdropEffectScope.() -> Unit = {
     parent = this
@@ -843,29 +918,31 @@ internal class GlassTravelCapture(
 
   @RequiresApi(Build.VERSION_CODES.S)
   fun filter(chain: GlassBodyChain, inputs: GlassDrawInputs) {
-    val filter = chain.upstream(inputs.saturation, inputs.blurPx * SampleScale, inputs.mix)
+    val filter = chain.upstream(inputs.saturation, inputs.blurPx * sampleScale, inputs.mix)
     if (filter !== lastFilter) {
       sample.renderEffect = filter?.asComposeRenderEffect()
       lastFilter = filter
     }
   }
 
-  val capture: DrawScope.(DrawScope.() -> Unit) -> Unit = { source ->
+  val capture: DrawScope.(DrawScope.() -> Unit) -> Unit get() = this
+
+  override fun invoke(scope: DrawScope, source: DrawScope.() -> Unit): Unit = with(scope) {
     // Lo scope è il rettangolo intero della registrazione (margine compreso). La sua matrice
     // corrente ha già traslato il margine e scalato per il limite delle texture del dispositivo.
     val extent = size
     val inset = this@GlassTravelCapture.padding
     val outputScale = this@GlassTravelCapture.density / screenDensity
-    val resolution = SampleScale * outputScale
+    val resolution = sampleScale * outputScale
     val small = IntSize(
-      ceil(extent.width * SampleScale).toInt().coerceAtLeast(1),
-      ceil(extent.height * SampleScale).toInt().coerceAtLeast(1),
+      ceil(extent.width * sampleScale).toInt().coerceAtLeast(1),
+      ceil(extent.height * sampleScale).toInt().coerceAtLeast(1),
     )
-    GlassCostLevers.onCapture?.invoke(small, extent)
+    if (travelling) GlassCostLevers.onCapture?.invoke(small, extent)
     sample.record(small) {
       // Anche un fondale vuoto deve produrre il materiale.
       drawRect(Color.Transparent, blendMode = BlendMode.Clear)
-      translate(inset * SampleScale, inset * SampleScale) {
+      translate(inset * sampleScale, inset * sampleScale) {
         scale(resolution, Offset.Zero) {
           val previous = drawContext.size
           drawContext.size = extent
@@ -875,12 +952,11 @@ internal class GlassTravelCapture(
     }
     scale(1f / outputScale, Offset.Zero) {
       translate(-inset, -inset) {
-        scale(1f / SampleScale, Offset.Zero) { drawLayer(sample) }
+        scale(1f / sampleScale, Offset.Zero) { drawLayer(sample) }
       }
     }
   }
 
-  private companion object { const val SampleScale = 0.5f }
 }
 
 /** Gli uniform della geometria ad anello ([GlassFieldKernelRing]). */
@@ -948,6 +1024,14 @@ internal var glassBodyProbe: ((scope: BackdropEffectScope, inputs: GlassDrawInpu
 
 internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: GlassBodyChain) {
   dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("bodyEffect", this) { "veil=${inputs.veilColor} shade=${inputs.bodyShade} dim=${inputs.dim}" }
+  val quality = this as? GlassRenderQuality
+  if (quality?.limitDecorations == true) {
+    // Gli ingressi sono riempiti dalla ricetta a ogni installazione. Tinta, inchiostro e filo
+    // conservano i propri numeri. Il fondale sfocato usa il solo ramo morbido.
+    inputs.dispersion = 0f
+    if (inputs.blurPx > 0f && inputs.mix < 1f) inputs.mix = 0f
+    if (quality.optics == ResourceOptics.Protected) inputs.shadowAmbientAlpha = 0f
+  }
   glassBodyProbe?.invoke(this, inputs)
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
@@ -962,7 +1046,13 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
     GlassBodyKernel.Eight -> obtainEngineShader("GlassBody8", GlassShaderSources.Body8)
     GlassBodyKernel.Ring -> obtainEngineShader("GlassBodyRing", GlassShaderSources.BodyRing)
   }
-  val body = shader?.let { chain.body(it, size, inputs, if (filmShader == null) null else films) }
+  val bodyFilms = if (filmShader == null) null else films
+  (this as? GlassBodyFallbackScope)?.fallbackBody?.let {
+    it.shader = shader
+    it.inputs = inputs
+    it.films = bodyFilms
+  }
+  val body = shader?.let { chain.body(it, size, inputs, bodyFilms) }
   renderEffect = chain.install(body, upstream)
 }
 

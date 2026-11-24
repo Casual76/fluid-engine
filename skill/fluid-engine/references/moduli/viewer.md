@@ -246,3 +246,11 @@ implementation "androidx.media3:media3-exoplayer:1.11.1"
 ```
 
 Porta `engine-ui` (e con lui `engine-foundation`). Nessun permesso: i file arrivano dall'app. `minSdk` 26; le animazioni da 28.
+
+## Memoria di miniature e pagine
+
+Il processo condivide le quote `THUMBNAILS` e `VIEWER` con gli altri moduli Fluid. Il lato richiesto è un massimo. Quando una resa non entra, il visore prova a liberare le voci ricostruibili e riduce il lato. La pagina già mostrata conserva il suo credito durante la nuova resa. Il conteggio delle pagine e la posizione nel documento restano disponibili anche quando escono le immagini.
+
+Per una tessera visibile usare `rememberFluidFileThumbnail`. Per scaldare la cache fuori schermo usare `FluidFileThumbnails.prefetch(context, file, sizePx, look)`. Per una pagina vicina usare `FluidPdfPageSource.prefetch(index)`. Le due preparazioni sono sospendibili e seguono il permesso di prefetch del processo. Il PDF ha un solo render simultaneo per processo. Le miniature hanno da uno a tre posti. La vecchia chiamata `load` continua a consegnare la miniatura. Se il processo ha esaurito anche il margine per l'icona, può segnalare `FluidViewerException(TooLarge)`. Il Composable lascia libera la tessera.
+
+Il lettore Compose rilascia la propria quota all'uscita. Per le API che espongono direttamente una bitmap o un drawable senza un metodo di chiusura il credito segue la raggiungibilità dell'oggetto Android. Una collezione che conserva ogni immagine conserva anche quella memoria. Nei processi secondari che aprono esclusivamente file o descrittori e non inizializzano AndroidX Startup, chiamare prima `FluidGlassResources.get(context)`.

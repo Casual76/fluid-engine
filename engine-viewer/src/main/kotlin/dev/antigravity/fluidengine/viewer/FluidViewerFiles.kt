@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.viewer
 
+import androidx.compose.runtime.collectAsState
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.Composable
@@ -129,6 +131,7 @@ suspend fun FluidViewerFile.open(
   media: ((FluidViewerType) -> FluidViewerContent?)? = null,
 ): FluidViewerDocument {
   val app = context.applicationContext
+  ViewerMemory.get(app)
   val families = FluidViewerRegistry.families
   if (families.isNotEmpty() || type.executable) {
     val source = FluidViewerSource.of(app, uri, name, mimeType, sizeBytes, options.sourceMaxCopyBytes)
@@ -258,13 +261,26 @@ internal fun fluidBuiltinAccess(
 
     override suspend fun image(): FluidDecodedImage {
       val copy = FluidSeekableCopy(File(context.cacheDir, "fluid-viewer"), options.sourceMaxCopyBytes, source.name) { source.open() }
-      return copy.use { FluidDecodedImage.decode(it.file(), options.imageMaxPixels, options.animateImages) }
+      return copy.use {
+        val file = withViewerCopyCredit(context) { it.file() }
+        FluidDecodedImage.decode(file, options.imageMaxPixels, options.animateImages)
+      }
     }
 
-    override suspend fun pages(): FluidPdfPageSource = FluidPdfPageSource.open(source.seekable())
+    override suspend fun pages(): FluidPdfPageSource {
+      val descriptor = withViewerCopyCredit(context) { source.seekable() }
+      return FluidPdfPageSource.open(descriptor)
+    }
 
     override suspend fun text() = source.readText(options)
   }
+}
+
+private suspend fun <T> withViewerCopyCredit(context: Context, copy: suspend () -> T): T {
+  val memory = ViewerMemory.get(context)
+  val reservation = memory.reserve(dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.VIEWER,
+    65536L, false) ?: noViewerMemory()
+  return reservation.use { copy() }
 }
 
 private suspend fun FluidViewerSource.readText(options: FluidViewerOptions): FluidTextDocument? = withContext(Dispatchers.IO) {
@@ -313,6 +329,7 @@ class FluidViewerFiles internal constructor(
   private val scope: CoroutineScope,
 ) {
   internal var files: List<FluidViewerFile> by mutableStateOf(emptyList())
+  internal var shown by mutableStateOf(true)
   internal var options: FluidViewerOptions = FluidViewerOptions()
   internal var window: Int = 1
   internal var openWith: ((FluidViewerFile) -> Unit)? = null
@@ -343,6 +360,7 @@ class FluidViewerFiles internal constructor(
     version
     val file = files[index]
     val entry = entries[index]
+    if (!shown) return entry?.document?.content ?: entry?.pending?.content ?: pendingContent(file).content
     if (entry != null && entry.file == file) return entry.document?.content ?: entry.pending.content
     entry?.let { release(index, it) }
     val created = Entry(file, pendingContent(file))
@@ -358,7 +376,7 @@ class FluidViewerFiles internal constructor(
         share = share?.let { callback -> { callback(file) } },
         media = media?.let { callback -> { type: FluidViewerType -> callback(file, type) } },
       )
-      if (entries[index] !== created) {
+      if (entries[index] !== created || files.getOrNull(index) != file || !shown) {
         document.close()
         return@launch
       }
@@ -385,6 +403,14 @@ class FluidViewerFiles internal constructor(
     entry.job?.cancel()
     entry.document?.close()
     if (entries[index] === entry) entries.remove(index)
+  }
+
+  internal fun trim() {
+    for ((key, entry) in entries.toList()) {
+      // Il PDF tiene posizione e conteggio; la coda sa sganciare bitmap e renderer.
+      if ((entry.document?.content as? FluidViewerContent.Pages)?.source !is PendingPages) release(key, entry)
+    }
+    version++
   }
 
   internal fun closeAll() {
@@ -485,6 +511,13 @@ fun rememberFluidViewerFiles(
   state.openWith = openWith?.let { { file: FluidViewerFile -> currentOpenWith?.invoke(file) } }
   state.share = share?.let { { file: FluidViewerFile -> currentShare?.invoke(file) } }
   state.media = media?.let { { file: FluidViewerFile, type: FluidViewerType -> currentMedia?.invoke(file, type) } }
-  DisposableEffect(state) { onDispose { state.closeAll() } }
+  val resources = remember(context) { FluidGlassResources.get(context) }
+  state.shown = resources.uiVisible.collectAsState().value
+  DisposableEffect(state) {
+    val trim = resources.observeTrim { level ->
+      if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) state.trim()
+    }
+    onDispose { trim.close(); state.closeAll() }
+  }
   return state
 }

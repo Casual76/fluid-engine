@@ -18,7 +18,11 @@ internal class TiffPages(bytes: ByteArray, private val maxPixels: Long) : FluidP
   override suspend fun size(index: Int): IntSize = pages[index].let { IntSize(it.width, it.height) }
 
   override suspend fun render(index: Int, target: IntSize) = withContext(Dispatchers.Default) {
-    pages[index].render(target).asImageBitmap()
+    val page = pages[index]
+    val size = IntSize(target.width.coerceIn(1, page.width), target.height.coerceIn(1, page.height))
+    dev.antigravity.fluidengine.viewer.FluidViewerRaster.render(null, size, bytesPerPixel = 16, scratch = page.scratchBytes) {
+      page.render(it).asImageBitmap()
+    } ?: tooLarge("Memoria insufficiente per la pagina TIFF")
   }
 
   private inner class Page(ifd: TiffDirectory.Directory) {
@@ -60,6 +64,10 @@ internal class TiffPages(bytes: ByteArray, private val maxPixels: Long) : FluidP
       offsets.indices.forEach { file.data.offset(offsets[it], lengths[it]) }
     }
 
+    // Un'intera fila di tasselli decodificati più il blocco compresso corrente e il dizionario LZW.
+    val scratchBytes: Long get() = blockWidth.toLong() * blockHeight * samples * (bits / 8) * across +
+      (lengths.maxOrNull() ?: 0L) + 65536L
+
     suspend fun render(target: IntSize): Bitmap {
       val outputWidth = target.width.coerceIn(1, width)
       val outputHeight = target.height.coerceIn(1, height)
@@ -75,6 +83,7 @@ internal class TiffPages(bytes: ByteArray, private val maxPixels: Long) : FluidP
           val index = sourceY / blockHeight
           if (index != strip) {
             strip = index
+            blocks = emptyList() // rilascia la striscia precedente prima della successiva
             blocks = List(across) { x -> List(planeCount) { plane -> block(index, x, plane) } }
           }
           for (x in row.indices) {

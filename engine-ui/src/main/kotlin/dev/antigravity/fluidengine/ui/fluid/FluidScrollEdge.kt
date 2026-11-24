@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.BottomEdgeBackdropEffects
+import dev.antigravity.fluidengine.ui.glass.backdrop.ScrollEdgeBackdropEffects
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
@@ -320,9 +321,9 @@ internal fun FluidScrollEdgeStrip(
               val u = state.uniforms
               // Oltre la fine della dissolvenza il filtro è trasparente. Due pixel coprono il bordo campionato.
               floor(u.edgeLine[0] - u.edgeLine[2] * u.fadeRamp[1]) - 2f
-            }, effects = effects)
+            }, effects = effects, fromEdgeProfile = true)
           }
-        } else effects,
+        } else remember(effects) { ScrollEdgeBackdropEffects(effects) },
         exportedBackdrop = exports?.layerBackdrop,
         backdropScale = scale,
       ),
@@ -545,7 +546,10 @@ internal fun BackdropEffectScope.glassScrollEdge(
   // F7.4: senza niente da mostrare (intensità zero, da una parte e dall'altra del taglio) la striscia esce trasparente
   // comunque; qui lo fa un filtro di colore invece di due passate da 41 letture. Conta per il materiale esportato, che i
   // tasti della barra continuano a campionare anche quando il cancello non disegna il nodo.
-  if (lean && glassScrollEdgePasses(amount, split, profile.blurShare) == 0) {
+  val quality = this as? GlassRenderQuality
+  val singleAxis = quality?.limitDecorations == true
+  val passes = if (lean || singleAxis) glassScrollEdgePasses(amount, split, profile.blurShare, singleAxis) else 2
+  if (passes == 0) {
     renderEffect = scrollEdgeSilentEffect ?: android.graphics.RenderEffect.createColorFilterEffect(
       android.graphics.PorterDuffColorFilter(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.SRC),
     ).asComposeRenderEffect().also { scrollEdgeSilentEffect = it }
@@ -567,7 +571,8 @@ internal fun BackdropEffectScope.glassScrollEdge(
     split = split,
   )
   val shader = obtainEngineShader("GlassEdgeBlur", GlassEdgeBlurSource) ?: return
-  if (lean && glassScrollEdgePasses(amount, split, state.uniforms.blurShare) == 1) {
+  if (passes == 1) {
+    // Durante il moto a costo ridotto la verticale conserva sfocatura, velo e dissolvenza.
     // F7.4: un profilo che non sfoca (il bordo in basso, `FadeOnly`) fa la sola seconda passata. La prima, con
     // `blurShare` zero, rende ogni pixel com'era (legge il centro e basta): toglierla non cambia un bit, e risparmia una
     // superficie offscreen larga quanto lo schermo a ogni fotogramma.
@@ -595,10 +600,12 @@ internal fun BackdropEffectScope.glassScrollEdge(
  * Zero è «esattamente zero»: sotto la soglia del cancello ([GlassScrollEdgeOffBelow]) e sopra lo zero la striscia esportata
  * porta ancora un velo dello 0,4% al più, e un cambio al bit non si fa per un risparmio che lì non c'è.
  */
-internal fun glassScrollEdgePasses(amount: Float, split: GlassScrollEdgeSplit?, blurShare: Float): Int {
+internal fun glassScrollEdgePasses(
+  amount: Float, split: GlassScrollEdgeSplit?, blurShare: Float, singleAxis: Boolean = false,
+): Int {
   val strongest = if (split != null && split.to >= split.from) max(split.outside, split.inside) else amount
   if (!(strongest.coerceIn(0f, 1f) > 0f)) return 0
-  return if (blurShare > 0f) 2 else 1
+  return if (blurShare > 0f && !singleAxis) 2 else 1
 }
 
 /**

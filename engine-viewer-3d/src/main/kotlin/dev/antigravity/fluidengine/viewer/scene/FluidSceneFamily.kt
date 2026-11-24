@@ -75,7 +75,7 @@ class FluidSceneFamily : FluidViewerFamily {
   }
 
   /** F6C.17 · Il modello disegnato a tre quarti con l'ombra a terra ([sceneThumbnail]); se non si legge, il simbolo del 3D. */
-  override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int) = sceneThumbnail(request, sizePx)
+  override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int) = dev.antigravity.fluidengine.viewer.FluidViewerRaster.thumbnail(request.context, sizePx) { sceneThumbnail(request, it) }
 
   private fun type(id: String, label: String, mimes: Set<String>, signature: FluidViewerSignature? = null) =
     FluidViewerFamilyType(id, label, setOf(id), mimes, signature, FluidFileKind.Other, priority = 20)

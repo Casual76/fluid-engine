@@ -10,7 +10,9 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
 import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageSource
 import kotlinx.coroutines.CancellationException
@@ -49,6 +51,12 @@ class FluidPdfPageSource private constructor(
   /** L'anteprima della pagina [index], a lato lungo 256 px: quella da mostrare mentre si scorre. */
   suspend fun preview(index: Int): ImageBitmap = queue.preview(index)
 
+  /** Preriscalda una pagina vicina a bassa risoluzione finché la finestra ha margine. */
+  suspend fun prefetch(index: Int) {
+    try { queue.prefetch(index) }
+    catch (_: CancellationException) { kotlinx.coroutines.currentCoroutineContext().ensureActive() }
+  }
+
   override fun close() = queue.close()
 
   companion object {
@@ -67,14 +75,14 @@ class FluidPdfPageSource private constructor(
 
     /** Apre un PDF da un file dell'app. */
     suspend fun open(file: File): FluidPdfPageSource {
-      val descriptor = withContext(Dispatchers.IO) {
+      val descriptor = acquireDescriptor {
         try {
           ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         } catch (e: FileNotFoundException) {
           throw FluidViewerException(FluidViewerFailure.Unreadable, "PDF non leggibile: ${file.name}", e)
         }
       }
-      return open(descriptor, temporary = null)
+      return open(checkNotNull(descriptor), temporary = null)
     }
 
     /**
@@ -83,8 +91,9 @@ class FluidPdfPageSource private constructor(
      * è annullato, e non lascia file a metà.
      */
     suspend fun open(context: Context, uri: Uri, maxCopyBytes: Long = DefaultMaxCopyBytes): FluidPdfPageSource {
+      ViewerMemory.get(context)
       val resolver = context.applicationContext.contentResolver
-      val descriptor = withContext(Dispatchers.IO) {
+      val descriptor = acquireDescriptor {
         try {
           resolver.openFileDescriptor(uri, "r")
         } catch (e: FileNotFoundException) {
@@ -106,9 +115,20 @@ class FluidPdfPageSource private constructor(
     }
 
     private suspend fun open(descriptor: ParcelFileDescriptor, temporary: File?): FluidPdfPageSource {
+      val memory = try { ViewerMemory.get() } catch (error: Throwable) {
+        descriptor.closeQuietly()
+        temporary?.delete()
+        throw error
+      }
       val queue = FluidPageRenderQueue<ImageBitmap>(
-        open = { PdfRendererBackend(descriptor) },
-        bytesOf = { it.width.toLong() * it.height * 4 },
+        memory = memory,
+        physical = { it.physical },
+        discard = { it.asAndroidBitmap().recycle() },
+        open = {
+          val duplicate = ParcelFileDescriptor.dup(descriptor.fileDescriptor)
+          try { PdfRendererBackend(duplicate) } catch (error: Throwable) { duplicate.closeQuietly(); throw error }
+        },
+        bytesOf = { it.pixelBytes },
         release = {
           descriptor.closeQuietly()
           temporary?.delete()
@@ -129,6 +149,17 @@ class FluidPdfPageSource private constructor(
       return FluidPdfPageSource(queue)
     }
 
+    private suspend fun acquireDescriptor(open: () -> ParcelFileDescriptor?): ParcelFileDescriptor? {
+      var opened: ParcelFileDescriptor? = null
+      try {
+        withContext(Dispatchers.IO) { opened = open() }
+        return opened
+      } catch (error: Throwable) {
+        opened?.closeQuietly()
+        throw error
+      }
+    }
+
     private fun ParcelFileDescriptor.seekable(): Boolean = try {
       Os.lseek(fileDescriptor, 0, OsConstants.SEEK_CUR)
       true
@@ -143,44 +174,47 @@ class FluidPdfPageSource private constructor(
       }
     }
 
-    private suspend fun copyToCache(context: Context, uri: Uri, maxBytes: Long): File = withContext(Dispatchers.IO) {
-      val dir = File(context.cacheDir, "fluid-viewer").apply { mkdirs() }
-      val file = File.createTempFile("pdf-", ".pdf", dir)
+    private suspend fun copyToCache(context: Context, uri: Uri, maxBytes: Long): File {
+      var copy: File? = null
       try {
-        val input = try {
-          context.contentResolver.openInputStream(uri)
-        } catch (e: FileNotFoundException) {
-          throw FluidViewerException(FluidViewerFailure.Unreadable, "PDF non leggibile: $uri", e)
-        } catch (e: SecurityException) {
-          throw FluidViewerException(FluidViewerFailure.Unreadable, "Permesso negato: $uri", e)
-        } ?: throw FluidViewerException(FluidViewerFailure.Unreadable, "PDF non leggibile: $uri")
-        input.use { source ->
-          file.outputStream().use { sink ->
-            val buffer = ByteArray(64 * 1024)
-            var total = 0L
-            while (true) {
-              coroutineContext.ensureActive()
-              val read = source.read(buffer)
-              if (read < 0) break
-              total += read
-              if (total > maxBytes) {
-                throw FluidViewerException(FluidViewerFailure.TooLarge, "PDF oltre $maxBytes byte da un flusso")
+        withContext(Dispatchers.IO) {
+          val memory = ViewerMemory.get(context)
+          val pending = memory.reserve(FluidMemoryCategory.VIEWER, 65536, false) ?: noViewerMemory()
+          pending.use {
+            val dir = File(context.cacheDir, "fluid-viewer").apply { mkdirs() }
+            val file = File.createTempFile("pdf-", ".pdf", dir).also { copy = it }
+            val input = try { context.contentResolver.openInputStream(uri) }
+            catch (error: SecurityException) { throw FluidViewerException(FluidViewerFailure.Unreadable, "Permesso negato: $uri", error) }
+            catch (error: FileNotFoundException) { throw FluidViewerException(FluidViewerFailure.Unreadable, "PDF non leggibile: $uri", error) }
+            if (input == null) throw FluidViewerException(FluidViewerFailure.Unreadable, "PDF non leggibile: $uri")
+            input.use { source ->
+              file.outputStream().use { sink ->
+                val buffer = ByteArray(65536)
+                var total = 0L
+                while (true) {
+                  coroutineContext.ensureActive()
+                  val read = source.read(buffer)
+                  if (read < 0) break
+                  total += read
+                  if (total > maxBytes) throw FluidViewerException(FluidViewerFailure.TooLarge, "PDF oltre $maxBytes byte da un flusso")
+                  sink.write(buffer, 0, read)
+                }
               }
-              sink.write(buffer, 0, read)
             }
           }
         }
-        file
-      } catch (t: Throwable) {
-        file.delete()
-        throw t
+        return checkNotNull(copy)
+      } catch (error: Throwable) {
+        copy?.delete()
+        throw error
       }
     }
+
   }
 }
 
 /** `PdfRenderer` dietro [FluidPageBackend]. Lo usa un thread solo; ogni pagina si apre e si chiude con `use`. */
-private class PdfRendererBackend(descriptor: ParcelFileDescriptor) : FluidPageBackend<ImageBitmap> {
+internal class PdfRendererBackend(descriptor: ParcelFileDescriptor) : FluidPageBackend<ImageBitmap> {
   private val renderer = PdfRenderer(descriptor)
 
   override val pageCount: Int = renderer.pageCount
@@ -189,13 +223,18 @@ private class PdfRendererBackend(descriptor: ParcelFileDescriptor) : FluidPageBa
 
   override fun render(index: Int, target: IntSize): ImageBitmap = renderer.openPage(index).use { page ->
     val bitmap = Bitmap.createBitmap(target.width, target.height, Bitmap.Config.ARGB_8888)
-    // La carta del PDF: una pagina è trasparente dove non ha inchiostro, e nel tema scuro sparirebbe.
-    bitmap.eraseColor(android.graphics.Color.WHITE)
-    val matrix = Matrix().apply {
-      setScale(target.width / page.width.coerceAtLeast(1).toFloat(), target.height / page.height.coerceAtLeast(1).toFloat())
+    try {
+      // La carta del PDF: una pagina è trasparente dove non ha inchiostro, e nel tema scuro sparirebbe.
+      bitmap.eraseColor(android.graphics.Color.WHITE)
+      val matrix = Matrix().apply {
+        setScale(target.width / page.width.coerceAtLeast(1).toFloat(), target.height / page.height.coerceAtLeast(1).toFloat())
+      }
+      page.render(bitmap, null, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+      bitmap.asImageBitmap()
+    } catch (error: Throwable) {
+      bitmap.recycle()
+      throw error
     }
-    page.render(bitmap, null, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-    bitmap.asImageBitmap()
   }
 
   override fun close() = renderer.close()

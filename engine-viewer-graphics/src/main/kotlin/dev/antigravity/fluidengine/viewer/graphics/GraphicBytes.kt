@@ -17,17 +17,8 @@ internal fun corrupt(message: String): Nothing = throw FluidViewerException(Flui
 internal fun unsupported(message: String): Nothing = throw FluidViewerException(FluidViewerFailure.Unsupported, message)
 internal fun tooLarge(message: String): Nothing = throw FluidViewerException(FluidViewerFailure.TooLarge, message)
 
-internal suspend fun InputStream.readGraphic(limit: Int = MaxGraphicBytes): ByteArray {
-  val output = ByteArrayOutputStream()
-  val buffer = ByteArray(32 * 1024)
-  while (true) {
-    currentCoroutineContext().ensureActive()
-    val count = read(buffer)
-    if (count < 0) return output.toByteArray()
-    if (count > limit - output.size()) tooLarge("Il file supera il limite di lettura")
-    output.write(buffer, 0, count)
-  }
-}
+internal suspend fun InputStream.readGraphic(limit: Int = MaxGraphicBytes): ByteArray =
+  dev.antigravity.fluidengine.viewer.FluidViewerRaster.readBytes(this, limit)
 
 internal class GraphicBytes(val bytes: ByteArray, order: ByteOrder = ByteOrder.BIG_ENDIAN) {
   private val buffer = ByteBuffer.wrap(bytes).order(order)

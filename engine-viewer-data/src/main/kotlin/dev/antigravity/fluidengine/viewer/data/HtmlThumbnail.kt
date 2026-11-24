@@ -55,9 +55,9 @@ internal object HtmlThumbnail {
     "h3", "h4", "h5", "h6", "i", "li", "ol", "p", "s", "small", "span", "strike", "strong", "sub", "sup", "tt", "u", "ul")
   private val rasterTypes = setOf("png", "jpeg", "gif", "webp", "bmp", "avif", "heic", "heif")
 
-  suspend fun render(html: String, sizePx: Int, openLocal: (String) -> InputStream?): ImageBitmap {
+  suspend fun render(html: String, sizePx: Int, reserve: (Long) -> Boolean = { true }, openLocal: (String) -> InputStream?): ImageBitmap {
     val job = currentCoroutineContext()
-    val resources = Resources(openLocal)
+    val resources = Resources(openLocal, reserve)
     val rules = mutableListOf<CssRule>()
     val staticHtml = ignored.replace(html, "")
     for (tag in stylesAndLinks.findAll(staticHtml).take(32)) {
@@ -309,7 +309,7 @@ internal object HtmlThumbnail {
     override fun getOpacity() = PixelFormat.TRANSLUCENT
   }
 
-  private class Resources(private val openLocal: (String) -> InputStream?) {
+  private class Resources(private val openLocal: (String) -> InputStream?, private val reserve: (Long) -> Boolean) {
     private var attempts = 0
 
     fun local(reference: String, limit: Int): ByteArray? {
@@ -325,7 +325,7 @@ internal object HtmlThumbnail {
           while (true) {
             val count = stream.read(buffer)
             if (count < 0) break
-            if (count > limit - output.size()) return null
+            if (count > limit - output.size() || !reserve(4L * count)) return null
             output.write(buffer, 0, count)
           }
           output.toByteArray()
@@ -344,6 +344,7 @@ internal object HtmlThumbnail {
           header.substringAfter('/').substringBefore(';') !in rasterTypes ||
           reference.length > MaxImageBytes * 4 / 3 || attempts++ >= 16) return null
         try {
+          if (!reserve(reference.length * 2L)) return null
           Base64.decode(reference.substringAfter(',', ""), Base64.DEFAULT)
         } catch (_: IllegalArgumentException) {
           return null
@@ -356,6 +357,11 @@ internal object HtmlThumbnail {
       if (edge <= 0) return null
       var sample = 1
       while (edge / sample > 768) sample *= 2
+      while (!reserve(((bounds.outWidth.toLong() + sample - 1) / sample * 16 + 63) / 64 * 64 *
+          ((bounds.outHeight.toLong() + sample - 1) / sample))) {
+        if (edge / sample <= 1) return null
+        sample *= 2
+      }
       return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
     }
   }

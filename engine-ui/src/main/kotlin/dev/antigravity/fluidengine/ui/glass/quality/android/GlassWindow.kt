@@ -19,6 +19,7 @@ internal class GlassWindow(
   private val window: Window,
   val policy: GlassQualityPolicy,
 ) : DisplayManager.DisplayListener {
+  val render = GlassRenderState(policy.decision.optics)
   var owners = 0
   var visibleDenied = false
   var scrollSources = 0
@@ -103,13 +104,16 @@ internal class GlassWindow(
 
   private fun startFrames() {
     if (!decor.isHardwareAccelerated || period == 0L) return
-    val listener = WindowFrames(process, policy, process.metricsHandler(), displayId, period)
+    val listener = WindowFrames(process, policy, process.metricsHandler(), displayId, period, render)
     epoch = listener
     window.addOnFrameMetricsAvailableListener(listener, listener.handler)
     scrollChanged()
   }
 
-  fun scrollChanged() { epoch?.scrolling(scrollSources > 0) }
+  fun scrollChanged() {
+    render.scrolling = scrollSources > 0
+    epoch?.scrolling(render.scrolling)
+  }
 
   private fun stopFrames() {
     val listener = epoch ?: return
@@ -129,6 +133,7 @@ internal class WindowFrames(
   val handler: Handler,
   private val displayId: Int,
   private val period: Long,
+  private val render: GlassRenderState? = null,
 ) : Window.OnFrameMetricsAvailableListener, Runnable {
   private val quietNs = 4 * period
   private val born = System.nanoTime()
@@ -141,6 +146,7 @@ internal class WindowFrames(
 
   fun close() {
     closed = true
+    render?.windowMotion = false
     handler.removeCallbacks(this)
   }
 
@@ -151,6 +157,7 @@ internal class WindowFrames(
     val now = System.nanoTime()
     if (value) {
       moving = true
+      render?.windowMotion = true
       policy.onWindow(now, true, true, displayId, period)
     } else {
       lastVsync = -1
@@ -169,6 +176,7 @@ internal class WindowFrames(
       lastDelivery = now
       if (!moving && continuous) {
         moving = true
+        render?.windowMotion = true
         policy.onWindow(now, true, true, displayId, period)
         schedulePose(quietNs)
       } else if (moving && !scrolling && !continuous) {
@@ -224,6 +232,7 @@ internal class WindowFrames(
 
   private fun pose(now: Long) {
     moving = false
+    render?.windowMotion = false
     if (policy.onWindow(now, true, false, displayId, period) != null) process.publish()
   }
 }

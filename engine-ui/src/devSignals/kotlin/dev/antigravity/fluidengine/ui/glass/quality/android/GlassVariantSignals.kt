@@ -13,7 +13,11 @@ internal object GlassVariantSignals {
     real.copy(totalRamBytes = 4L shl 30, heapClassMiB = 192, lowRamDevice = true) else real
   fun conditions(real: GlassConditions) = real.copy(
     availableBytes = if (enabled("FluidF7LowRam")) minOf(real.availableBytes, 4L shl 30) else real.availableBytes,
-    thermal = if (enabled("FluidF7Hot")) GlassThermal.SevereOrWorse else real.thermal,
+    thermal = when {
+      enabled("FluidF7Hot") -> GlassThermal.SevereOrWorse
+      enabled("FluidF7Warm") -> maxOf(real.thermal, GlassThermal.Moderate)
+      else -> real.thermal
+    },
   )
   fun lateFrames() = enabled("FluidF7Late")
   fun logExit(cause: String) {

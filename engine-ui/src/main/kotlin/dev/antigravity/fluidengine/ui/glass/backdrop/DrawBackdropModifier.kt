@@ -26,6 +26,22 @@
  */
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.foundation.memory.fluidSurfaceBytes
+import dev.antigravity.fluidengine.ui.fluid.GlassRenderQuality
+import dev.antigravity.fluidengine.ui.fluid.LocalCoveredGlassView
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
+import dev.antigravity.fluidengine.ui.fluid.glassBackgroundScale
+import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
+import dev.antigravity.fluidengine.ui.glass.quality.android.GlassRenderState
+import dev.antigravity.fluidengine.ui.glass.quality.android.glassWindowFor
+import dev.antigravity.fluidengine.ui.glass.field.GlassBodyFallback
+import dev.antigravity.fluidengine.ui.glass.field.GlassBodyFallbackScope
+import dev.antigravity.fluidengine.ui.glass.field.NativeGlassFinish
+import dev.antigravity.fluidengine.ui.glass.field.GlassTravelCapture
+import dev.antigravity.fluidengine.ui.page.LocalFluidPageTransition
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.glass.field.GlassLightDraw
 import dev.antigravity.fluidengine.ui.glass.field.GlassLightEnvironment
@@ -368,10 +384,18 @@ fun Modifier.drawBackdrop(
 }
 
 /** Primo pixel utile della striscia inferiore esportata, letto dopo l'aggiornamento degli uniform. */
+internal open class ScrollEdgeBackdropEffects(
+    effects: BackdropEffectScope.() -> Unit,
+    val preservesRoleScale: Boolean = true,
+) : (BackdropEffectScope) -> Unit by effects
+
 internal class BottomEdgeBackdropEffects(
     val top: () -> Float,
     effects: BackdropEffectScope.() -> Unit,
-) : (BackdropEffectScope) -> Unit by effects
+    val fromEdgeProfile: Boolean,
+) : ScrollEdgeBackdropEffects(effects, preservesRoleScale = fromEdgeProfile) {
+    constructor(top: () -> Float, effects: BackdropEffectScope.() -> Unit) : this(top, effects, false)
+}
 
 /** La fisica e gli shader continuano a lavorare nel sistema di coordinate dell'intera finestra. */
 internal class WindowedBackdropEffects(
@@ -674,6 +698,8 @@ internal class BackdropCaptureResolution {
 }
 
 internal const val ReducedScaleFactor = 0.5f
+internal const val LargeCapturePixels = 262_144f
+private enum class CaptureAdmission { Ready, AwaitReading, Denied }
 
 /** Pixels. Half of the 8192 that has been the floor of the Android hardware requirement for years. */
 internal const val MaxBackdropTextureDimension = 4096f
@@ -758,7 +784,10 @@ private class DrawBackdropNode(
     GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, Modifier.Node() {
 
     private val effectScope =
-        object : BackdropEffectScopeImpl(), GlassNestingScope {
+        object : BackdropEffectScopeImpl(), GlassNestingScope, GlassRenderQuality, GlassBodyFallbackScope {
+            override val fallbackBody = GlassBodyFallback()
+            override val optics get() = renderState.optics
+            override val inMotion get() = glassMoving()
 
             override val shape: Shape get() = shapeProvider.innerShape
 
@@ -850,24 +879,26 @@ private class DrawBackdropNode(
     var surfaceDirty = true
 
     private var recordedSize: IntSize = IntSize.Zero
-    private var recordedSelfOffset: Offset? = null
-    private var recordedSourceOffsets: List<SamplePosition>? = null
+    private var recordedSourceOffsets = SamplePositions()
+    private var currentOffsets = SamplePositions()
 
     /** Vero dopo una cattura **valida**: e' questo, non "abbiamo provato", che spegne `sampleOnce`. */
     private var sampled = false
-    private var borrowed: List<Pair<LayerBackdrop, LayerBackdrop>> = emptyList()
+    private val borrowedSources = ArrayList<LayerBackdrop>(0)
+    private val borrowedShells = ArrayList<LayerBackdrop>(0)
 
-    private fun borrowedSources(): List<Pair<LayerBackdrop, LayerBackdrop>> {
-        val reader = layoutCoordinates ?: return emptyList()
-        var result: MutableList<Pair<LayerBackdrop, LayerBackdrop>>? = null
-        for (source in sampledBackdrop.layerSources) {
-            if (source !is LayerBackdrop) continue
+    private fun rememberLoans() {
+        borrowedSources.clear()
+        borrowedShells.clear()
+        val reader = layoutCoordinates ?: return
+        val layers = sampledBackdrop.layerSources
+        for (i in layers.indices) {
+            val source = layers[i] as? LayerBackdrop ?: continue
             val shell = source.chromeFallback ?: continue
             if (source.sourceFor(reader) !== shell) continue
-            if (result == null) result = ArrayList()
-            result.add(source to shell)
+            borrowedSources.add(source)
+            borrowedShells.add(shell)
         }
-        return result ?: emptyList()
     }
 
     /** Quando e' stata presa l'ultima cattura valida, per [resampleIntervalMillis]. */
@@ -950,31 +981,35 @@ private class DrawBackdropNode(
      * Null means at least one source has not been positioned yet, or the backdrop cannot say what it
      * is made of — either way the answer is to record, which is what every backdrop did before.
      */
-    private data class SamplePosition(val source: LayerBackdrop, val offset: Offset)
+    private class SamplePositions {
+        var sources = arrayOfNulls<LayerBackdrop>(0)
+        var offsets = LongArray(0)
+        var valid = false
 
-    private fun movedAgainstRecordedSources(current: List<SamplePosition>?): Boolean {
-        val old = recordedSourceOffsets ?: return false
-        if (current == null || current == old || current.size != old.size) return false
-        return current.indices.all { current[it].source === old[it].source }
-    }
-
-    private fun currentSourceOffsets(): List<SamplePosition>? {
-        val sources = sampledBackdrop.layerSources
-        if (sources.isEmpty()) return null
-        val self = layoutCoordinates ?: return null
-        if (!self.isAttached) return null
-        val offsets = ArrayList<SamplePosition>(sources.size)
-        for (source in sources) {
-            val layer = (source as? LayerBackdrop)?.sourceFor(self) ?: return null
-            val sourceCoordinates = layer.layerCoordinates ?: return null
-            if (!sourceCoordinates.isAttached) return null
-            offsets += try {
-                SamplePosition(layer, sourceCoordinates.localPositionOf(self))
-            } catch (_: Exception) {
-                return null
-            }
+        fun clear() {
+            valid = false
+            sources.fill(null)
         }
-        return offsets
+
+        fun read(backdrop: Backdrop, reader: LayoutCoordinates?) {
+            valid = false
+            val layers = backdrop.layerSources
+            if (layers.isEmpty() || reader == null || !reader.isAttached) return
+            if (layers.size != sources.size) {
+                sources = arrayOfNulls(layers.size)
+                offsets = LongArray(layers.size)
+            }
+            for (i in layers.indices) {
+                val source = (layers[i] as? LayerBackdrop)?.sourceFor(reader) ?: return
+                val at = source.layerCoordinates ?: return
+                if (!at.isAttached) return
+                sources[i] = source
+                offsets[i] = try { at.localPositionOf(reader).packedValue } catch (_: Exception) { return }
+            }
+            valid = true
+        }
+
+        fun sameSources(other: SamplePositions) = valid && other.valid && sources.contentEquals(other.sources)
     }
 
     /**
@@ -992,6 +1027,221 @@ private class DrawBackdropNode(
      * the resolution can lose.
      */
     private var effectiveScale: Float = 1f
+    private lateinit var resources: FluidGlassResources
+    private lateinit var renderState: GlassRenderState
+    private var window: android.view.Window? = null
+    private var windowLease: java.io.Closeable? = null
+    private var bytesPerPixel = 4
+    private var allocationPrepared = false
+    private var refreshPosted = false
+    private val refreshAllocationReading = Runnable {
+        refreshPosted = false
+        if (isAttached) {
+            readBeforeAllocation()
+            invalidateDraw()
+        }
+    }
+    private fun releaseNativeSample() {
+        nativeSampleLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
+        nativeSampleLayer = null
+        nativeSample = null
+    }
+
+    private fun readBeforeAllocation() {
+        resources.refreshBeforeAllocation()
+        allocationPrepared = true
+    }
+
+    private fun glassMoving() = renderState.scrolling || backdropScaleFactor() < 1f ||
+        currentValueOf(LocalFluidGlassQuality)?.let { it.scrolling || it.level < 1f } == true ||
+        currentValueOf(LocalFluidPageTransition)?.isMoving == true || frozen() ||
+        (onDrawBackdrop as? GlassTravelCapture)?.travelling == true
+
+    private var resident: FluidMemoryBudget.Resident? = null
+    private var residentSize = IntSize.Zero
+    private var residentBytes = 0L
+    private var residentFiltered = false
+    private var filterNeedsCredit = false
+    private var residentSampleScale = 0f
+    private var residentSample: GlassTravelCapture? = null
+    private var pending: FluidMemoryBudget.Reservation? = null
+    private var nextBytes = 0L
+    private var budgetDenied = false
+    private var budgetScale = 1f
+    private var waitForBytes = 0L
+    private var desiredBytes = 0L
+    // Dopo un rifiuto si risveglia il nodo solo quando la nuova cattura entra davvero.
+    // Un campione già visibile può risalire solo alla posa.
+    private val awaitBudget = object : Runnable {
+        override fun run() {
+            val required = if (waitForBytes > 0L) waitForBytes else desiredBytes
+            if (!isAttached || required == 0L) return
+            val glass = resources.budget.usage(FluidMemoryCategory.GLASS)
+            val process = resources.budget.usage()
+            val available = minOf(glass.limitBytes - glass.usedBytes, process.limitBytes - process.usedBytes)
+            if (available >= required && (waitForBytes > 0L || !glassMoving())) {
+                if (waitForBytes == 0L) {
+                    budgetScale = 1f
+                    desiredBytes = 0L
+                }
+                waitForBytes = 0L
+                readBeforeAllocation()
+                invalidateDraw()
+            } else MainHandler.postDelayed(this, 1000L)
+        }
+    }
+    private var budgetTarget = Float.NaN
+    private var budgetExtent = Size.Zero
+    private var replay = true
+    private var readsSuspended = false
+
+    private fun discardRecording() {
+        // Gli export senza lettori conservano la shell. Svuotare le registrazioni stacca
+        // anche il campione dal display list prima di restituire i byte al lettore davanti.
+        val density = requireDensity()
+        val direction = requireLayoutDirection()
+        graphicsLayer?.record(density, direction, IntSize(1, 1)) {}
+        recordedPipeline?.discard(density, direction)
+        activeSample = null
+        recordedPipeline = null
+        releaseNativeSample()
+        sampled = false
+        resident?.close()
+        resident = null
+        residentSize = IntSize.Zero
+        residentBytes = 0L
+        residentSample = null
+        surfaceDirty = true
+        exportDirty = true
+        MainHandler.removeCallbacks(awaitBudget)
+        waitForBytes = 0L
+    }
+
+    private fun updateReaderVisibility() {
+        val suspend = renderState.optics == GlassOptics.Protected &&
+            currentValueOf(LocalCoveredGlassView) === requireView() &&
+            publishedMaterial?.wantsRecording != true
+        if (suspend == readsSuspended) return
+        readsSuspended = suspend
+        surfaceDirty = true
+        if (suspend) {
+            unregisterReads()
+            leaveContainer()
+            bindMotionLight(null)
+            desiredBytes = 0L
+            discardRecording()
+            budgetTarget = Float.NaN
+            if (budgetDenied) resources.visibleCaptureDenied(window, false)
+            budgetDenied = false
+        } else {
+            registerReads()
+            containerDirty = true
+            exportDirty = true
+        }
+    }
+    private var nativeSampleLayer: GraphicsLayer? = null
+    private var nativeSample: GlassTravelCapture? = null
+    private var activeSample: GlassTravelCapture? = null
+    private var recordedPipeline: GlassTravelCapture? = null
+    private var recordedSampleScale = 0f
+    private var nativeRoleCeiling = 1f
+    private val nativeEffects: BackdropEffectScope.() -> Unit = { effects(this) }
+
+    private fun sampleFor(size: Size, scale: Float): GlassTravelCapture? {
+        (onDrawBackdrop as? GlassTravelCapture)?.let { return it }
+        if (onDrawLight !== NativeGlassFinish || !large(size.width, size.height)) return null
+        // Il palco della finestra può contenere solo una piccola pillola. Vale il campo ritagliato.
+        val region = (effects as? WindowedBackdropEffects)?.region
+        if (region != null && !large(region.width / scale, region.height / scale) &&
+            nativeRoleCeiling == 1f && budgetScale >= scale) return null
+        val level = renderState.optics
+        val moving = glassMoving()
+        if (sampled && budgetScale == 1f && recordedLogicalSize == size &&
+            (moving || recordedOptics != level && renderState.windowMotion)) return nativeSample
+        val ordinary = minOf(scale * nativeRoleCeiling, glassBackgroundScale(scale, level, moving, 0f))
+        if (ordinary >= scale && budgetScale >= scale) return null
+        val wanted = minOf(ordinary / scale, 1f)
+        val held = nativeSample
+        val density = requireDensity().density
+        if (held != null && held.ordinaryScale == wanted && held.screenDensity == density) return held
+        val sample = nativeSampleLayer ?: requireGraphicsContext().createGraphicsLayer().also { nativeSampleLayer = it }
+        return GlassTravelCapture(sample, density, nativeEffects, travelling = false, ordinaryScale = wanted)
+            .also { nativeSample = it }
+    }
+
+    // Un MiB RGBA8: il confine F7.12 si misura prima dei tetti, per contare anche il ripiego.
+    private fun large(width: Float, height: Float) = width * height >= LargeCapturePixels
+
+    private fun reserveCapture(record: IntSize, travel: GlassTravelCapture?): CaptureAdmission {
+        val filtered = effectScope.renderEffect != null
+        val sampleScale = travel?.sampleScale ?: 0f
+        val sameStorage = travel?.sharesStorage(residentSample) ?: (residentSample == null)
+        if (sameStorage && record == residentSize && filtered == residentFiltered && sampleScale == residentSampleScale) {
+            nextBytes = residentBytes
+            return CaptureAdmission.Ready
+        }
+        val width = record.width.toLong()
+        val height = record.height.toLong()
+        val stride = (width * bytesPerPixel + 63L) / 64L * 64L
+        nextBytes = try {
+            val output = fluidSurfaceBytes(width, height, bytesPerPixel, if (filtered) 2 else 1, stride)
+            val estimate = Math.addExact(output, travel?.sampleBytes(record, bytesPerPixel) ?: 0L)
+            if (estimate < LargeCapturePixels.toLong() * 4 && !budgetDenied &&
+                !large(record.width / effectiveScale, record.height / effectiveScale)) 0L else estimate
+        } catch (_: ArithmeticException) {
+            Long.MAX_VALUE
+        }
+        if (sameStorage && record == residentSize && nextBytes in 1..residentBytes) {
+            nextBytes = residentBytes
+            return CaptureAdmission.Ready
+        }
+        if (nextBytes == 0L) return CaptureAdmission.Ready
+        if (waitForBytes > 0L && nextBytes >= waitForBytes) return CaptureAdmission.Denied
+        if (!allocationPrepared || !resources.allocationReadingFresh) {
+            if (!refreshPosted) {
+                refreshPosted = true
+                MainHandler.post(refreshAllocationReading)
+            }
+            return CaptureAdmission.AwaitReading
+        }
+        pending = resources.budget.tryReserve(FluidMemoryCategory.GLASS, nextBytes)
+        if (pending != null) {
+            GlassFrameDiagnostics.event("glassBudgetReserve", this) { "size=$record bytes=$nextBytes" }
+            return CaptureAdmission.Ready
+        }
+        GlassFrameDiagnostics.event("glassBudgetDenied", this) {
+            "size=$record bytes=$nextBytes held=$residentBytes limit=${resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes}"
+        }
+        if (!budgetDenied) {
+            budgetDenied = true
+            desiredBytes = nextBytes
+            resources.visibleCaptureDenied(window, true)
+        }
+        return CaptureAdmission.Denied
+    }
+
+    private fun recorded(record: IntSize) {
+        if (waitForBytes > 0L) {
+            MainHandler.removeCallbacks(awaitBudget)
+            waitForBytes = 0L
+        }
+        residentFiltered = effectScope.renderEffect != null
+        residentSampleScale = activeSample?.sampleScale ?: 0f
+        residentSample = activeSample
+        if (pending != null || nextBytes == 0L) {
+            val owner = pending?.confirm()
+            resident?.close()
+            resident = owner
+            residentBytes = nextBytes
+            residentSize = record
+        }
+        if (budgetDenied) {
+            budgetDenied = false
+            resources.visibleCaptureDenied(window, false)
+            MainHandler.removeCallbacks(awaitBudget)
+            if (desiredBytes > nextBytes) MainHandler.postDelayed(awaitBudget, 1000L) else desiredBytes = 0L
+        }
+    }
 
     private val resolution = BackdropCaptureResolution()
     private var recoveryPending = false
@@ -1009,6 +1259,31 @@ private class DrawBackdropNode(
     }
 
     private fun captureScale(width: Float, height: Float, commit: Boolean): Float {
+        val local = roleScale(width, height, commit)
+        // Il palco fisico include il filo nel corpo. Il campione separato riceve il tetto.
+        if (onDrawBackdrop is GlassTravelCapture || onDrawLight === NativeGlassFinish) {
+            val level = renderState.optics
+            val output = fitToTexture(backdropScale, width, height)
+            if (commit) nativeRoleCeiling = if (level == GlassOptics.Full) 1f else minOf(1f, local / output)
+            if (sampled && recordedLogicalSize.width == width && recordedLogicalSize.height == height &&
+                recordedOptics != level && (glassMoving() || renderState.windowMotion)) return recordedScale
+            return if (level == GlassOptics.Full) local else output
+        }
+        if (commit) nativeRoleCeiling = 1f
+        // Il bordo di scroll mantiene la risoluzione scelta da F7.4. Si alleggerisce la passata.
+        if ((effects as? ScrollEdgeBackdropEffects)?.preservesRoleScale == true || !large(width, height)) return local
+        val level = renderState.optics
+        if (level == GlassOptics.Full && recordedOptics == level) return local
+        val moving = glassMoving()
+        val reusable = sampled && recordedLogicalSize.width == width && recordedLogicalSize.height == height
+        if (reusable && recordedOptics != level && (moving || renderState.windowMotion)) return recordedScale
+        val next = glassBackgroundScale(local, level, moving, if (reusable) recordedScale else 0f)
+        return if (sampled && next != recordedScale && !sampledBackdrop.isReadyToSample()) recordedScale else next
+    }
+
+    private var recordedOptics = GlassOptics.Full
+
+    private fun roleScale(width: Float, height: Float, commit: Boolean): Float {
         val full = fitToTexture(backdropScale, width, height)
         val quality = backdropScaleFactor()
         // A full-quality draw is the common case (including callers that never opt in).
@@ -1052,7 +1327,8 @@ private class DrawBackdropNode(
         if (scale != 1f) {
             canvas.scale(scale, scale)
         }
-        onDrawBackdrop {
+        val drawSample = activeSample?.capture ?: onDrawBackdrop
+        drawSample {
             val origin = recordedRegion?.topLeft ?: IntOffset.Zero
             val extent = drawContext.size
             val sourceCanvas = drawContext.canvas
@@ -1082,7 +1358,7 @@ private class DrawBackdropNode(
      * (sullo schermo e nel materiale esportato), ma si decide e si rifa' una volta sola per
      * fotogramma: prima la decisione stava dentro il disegno, e l'export la ripeteva.
      */
-    private val refreshCapture: DrawScope.() -> Unit = {
+    private fun DrawScope.refreshCapture(): CaptureAdmission {
         val layer = graphicsLayer
         if (layer != null) {
             val padding = padding
@@ -1092,18 +1368,20 @@ private class DrawBackdropNode(
             val region = (effects as? WindowedBackdropEffects)?.region
             val fullWidth = (size.width * contentScale).toInt()
             val fullHeight = (size.height * contentScale).toInt()
-            val border = padding.toInt() * 2
+            val border = padding.toInt().toLong() * 2
             val recordSize = if (region == IntRect.Zero) IntSize(1, 1) else IntSize(
-                ((region?.width ?: fullWidth) + border).coerceAtLeast(1),
-                ((region?.height ?: fullHeight) + border).coerceAtLeast(1),
+                ((region?.width ?: fullWidth) + border).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt(),
+                ((region?.height ?: fullHeight) + border).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt(),
             )
             // Una posa può spostare la cattura dentro le pagine. Una cattura della vecchia
             // riserva va sostituita anche se il vetro è congelato o campiona una volta sola.
             val reader = layoutCoordinates
-            val lostLoan = borrowed.any { (source, shell) -> reader == null || source.sourceFor(reader) !== shell }
+            val lostLoan = borrowedSources.indices.any { i ->
+                reader == null || borrowedSources[i].sourceFor(reader) !== borrowedShells[i]
+            }
             if (lostLoan) sampled = false
-            val sourceOffsets = currentSourceOffsets()
-            val selfOffset = layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()
+            currentOffsets.read(sampledBackdrop, layoutCoordinates)
+            val sameSources = currentOffsets.sameSources(recordedSourceOffsets)
 
             // Re-record only when this capture can no longer be the right one. A `RenderNode`
             // display list holds its children by reference, so a source that re-records is picked up
@@ -1124,8 +1402,7 @@ private class DrawBackdropNode(
             // replay the whole screen on every frame of every swipe, for a picture that came out
             // identical. A layer transform on the surface (the lean of a pressed control) still
             // counts: it moves the surface relative to its source, and `localPositionOf` sees it.
-            val moved = sourceOffsets == null ||
-                recordedSourceOffsets != sourceOffsets
+            val moved = !sameSources || !currentOffsets.offsets.contentEquals(recordedSourceOffsets.offsets)
             val wanted = surfaceDirty ||
                 recordedSize != recordSize ||
                 if (sampleOnce) !sampled else moved
@@ -1176,22 +1453,44 @@ private class DrawBackdropNode(
                 region != recordedRegion -> true
                 lostLoan -> true
                 sourceGone -> false
-                sampled && recordedScale != contentScale -> true
+                sampled && (recordedScale != contentScale || recordedPipeline !== activeSample ||
+                    recordedSampleScale != (activeSample?.sampleScale ?: 0f)) -> true
+                renderState.optics == GlassOptics.Protected && !sampleOnce && moved && ready -> true
                 holding -> false
                 refreshAfterHold -> true
                 else -> wanted && !tooSoon
             }
 
+            if (filterNeedsCredit && !needsRecord) {
+                val admission = reserveCapture(recordSize, activeSample)
+                if (admission != CaptureAdmission.Ready) return admission
+                try {
+                    layer.renderEffect = effectScope.renderEffect
+                    filterNeedsCredit = false
+                    recorded(recordSize)
+                } finally {
+                    pending?.close()
+                    pending = null
+                }
+            }
+
             if (needsRecord) {
+                val admission = reserveCapture(recordSize, activeSample)
+                if (admission != CaptureAdmission.Ready) return admission
                 recordedRegion = region
                 originalExtent = Size((fullWidth + border).toFloat(), (fullHeight + border).toFloat())
-                recordLayer(
-                    this@DrawBackdropNode,
-                    layer,
-                    size = recordSize,
-                    block = recordBackdropBlock
-                )
-                borrowed = borrowedSources()
+                try {
+                    if (filterNeedsCredit) {
+                        layer.renderEffect = effectScope.renderEffect
+                        filterNeedsCredit = false
+                    }
+                    recordLayer(this@DrawBackdropNode, layer, size = recordSize, block = recordBackdropBlock)
+                    recorded(recordSize)
+                } finally {
+                    pending?.close()
+                    pending = null
+                }
+                rememberLoans()
                 // Fluid Engine addition: a capture only *counts* if the backdrop had something to
                 // give. `LayerBackdrop.drawBackdrop` returns silently when its coordinates are not
                 // attached yet, and with `sampleOnce` that empty capture used to be kept for the
@@ -1201,18 +1500,23 @@ private class DrawBackdropNode(
                     // Compare logical geometry, never the size of the texture we chose ourselves.
                     // An unknown offset or a change of source is not evidence of motion.
                     if (sampled && onDrawLight != null && layerBlock == null &&
-                        (size != recordedLogicalSize || movedAgainstRecordedSources(sourceOffsets))) {
+                        (size != recordedLogicalSize || sameSources && moved)) {
                         resolution.movedCapture(android.view.animation.AnimationUtils.currentAnimationTimeMillis())
                     }
                     recordedLogicalSize = size
                     GlassFrameDiagnostics.event("capture", this@DrawBackdropNode) {
                         // F6B.15: anche dove sta il vetro (nella radice), per riconoscerlo sul dispositivo.
-                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region at=$selfOffset"
+                        "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()}" +
+                            " optics=${renderState.optics} sample=${activeSample?.sampleScale ?: contentScale} bytes=$residentBytes"
                     }
+                    recordedPipeline = activeSample
+                    recordedSampleScale = activeSample?.sampleScale ?: 0f
+                    recordedOptics = renderState.optics
                     recordedScale = contentScale
                     recordedSize = recordSize
-                    recordedSourceOffsets = sourceOffsets
-                    recordedSelfOffset = selfOffset
+                    val previous = recordedSourceOffsets
+                    recordedSourceOffsets = currentOffsets
+                    currentOffsets = previous
                     surfaceDirty = false
                     sampled = true
                     lastRecordedAt = now
@@ -1220,10 +1524,12 @@ private class DrawBackdropNode(
                 }
             }
         }
+        return CaptureAdmission.Ready
     }
 
     private val drawBackdropLayer: DrawScope.() -> Unit = {
-        val layer = graphicsLayer
+        if (!replay && android.os.Build.VERSION.SDK_INT >= 33) effectScope.fallbackBody.draw(this, effectiveScale, padding)
+        val layer = if (replay) graphicsLayer else null
         if (layer != null) {
             val padding = padding
             // Not named `scale`: that shadows the DrawScope transform of the same name, which is
@@ -1256,9 +1562,11 @@ private class DrawBackdropNode(
         measurable: Measurable,
         constraints: Constraints
     ): MeasureResult {
+        updateReaderVisibility()
         val placeable = measurable.measure(constraints)
         val placed = IntSize(placeable.width, placeable.height)
         if (placed != placedLayerSize) {
+            if (large(placed.width.toFloat(), placed.height.toFloat())) readBeforeAllocation()
             placedLayerSize = placed
             sizedLayoutLayerBlock = { layoutLayerBlock() }
         }
@@ -1270,15 +1578,63 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
+        updateReaderVisibility()
+        if (readsSuspended) {
+            drawContent()
+            return
+        }
         // Fluid Engine addition (4.0.0, F2.3c): uno scrittore di riserva arrivato dopo l'attacco (la chrome rifatta).
         adoptFallbacks()
         if (containerDirty) resolveContainer()
-        effectiveScale = captureScale(size.width, size.height, commit = true)
-        // LOCAL CHANGE (F1B, voce 20): a monte `if (update) updateEffects()`, fuori dall'osservazione.
-        effectsUpdates.onDraw(scopeChanged = effectScope.update(this, effectiveScale))
+        val target = captureScale(size.width, size.height, commit = true)
+        if (target != budgetTarget || size != budgetExtent) {
+            budgetTarget = target
+            budgetExtent = size
+            budgetScale = 1f
+            desiredBytes = 0L
+            if (waitForBytes == 0L) MainHandler.removeCallbacks(awaitBudget)
+        }
+        val previouslyReplayed = replay
+        replay = true
         GlassFrameDiagnostics.event("draw", this@DrawBackdropNode)
-
-        refreshCapture()
+        while (true) {
+            val previous = effectiveScale
+            val travel = sampleFor(size, target)
+            val newPipeline = travel !== activeSample
+            activeSample = travel
+            effectiveScale = if (travel == null) minOf(target, budgetScale) else target
+            val sampleChanged = travel?.setBudgetScale(minOf(budgetScale, nativeRoleCeiling)) == true
+            val changed = effectScope.update(this, effectiveScale)
+            if (sampleChanged || newPipeline) surfaceDirty = true
+            effectsUpdates.onDraw(scopeChanged = changed || sampleChanged || newPipeline)
+            val admission = refreshCapture()
+            if (admission == CaptureAdmission.Ready) {
+                if (nativeSampleLayer != null && travel !== nativeSample && !surfaceDirty) releaseNativeSample()
+                break
+            }
+            val attempted = travel?.sampleScale ?: effectiveScale
+            if (admission == CaptureAdmission.Denied && attempted > MinBackdropScale) {
+                budgetScale = (attempted * 0.5f).coerceAtLeast(MinBackdropScale)
+                continue
+            }
+            if (admission == CaptureAdmission.Denied && residentBytes > 0L && !glassMoving() &&
+                sampledBackdrop.isReadyToSample()) {
+                // La vecchia cattura può occupare da sola tutta la nuova quota. Alla posa
+                // si svuota la sua registrazione e si ritenta nello stesso disegno.
+                discardRecording()
+                budgetScale = minOf(target, renderState.optics.backgroundScaleCeiling)
+                continue
+            }
+            if (admission == CaptureAdmission.Denied && (waitForBytes == 0L || nextBytes < waitForBytes)) {
+                if (waitForBytes == 0L) MainHandler.postDelayed(awaitBudget, 1000L)
+                waitForBytes = nextBytes
+            }
+            replay = sampled
+            effectiveScale = if (sampled) recordedScale else previous
+            effectsUpdates.onDraw(scopeChanged = effectScope.update(this, effectiveScale))
+            break
+        }
+        if (replay != previouslyReplayed) exportDirty = true
         onDrawBehind?.invoke(this)
         drawBackdropLayer()
         onDrawSurface?.invoke(this)
@@ -1287,6 +1643,7 @@ private class DrawBackdropNode(
         val light = onDrawLight
         if (light is GlassLightDraw) {
             val environment = currentValueOf(LocalGlassLightEnvironment)?.takeIf {
+                (renderState.optics == GlassOptics.Full || !glassMoving()) &&
                 currentValueOf(LocalFluidGlassMotionLight) && !currentValueOf(LocalFluidMotionPolicy).reducedMotion
             }
             // Una superficie entra in scena col suo primo draw, non durante il prefetch della lista.
@@ -1415,7 +1772,8 @@ private class DrawBackdropNode(
         val coordinates = lastCoordinates?.takeIf { it.isAttached } ?: return false
         val width = coordinates.size.width.toFloat()
         val height = coordinates.size.height.toFloat()
-        val contentScale = captureScale(width, height, commit = false)
+        val target = captureScale(width, height, commit = false)
+        val contentScale = if (activeSample != null) target else minOf(target, budgetScale)
         if (contentScale != effectiveScale) return false
         val density = requireDensity()
         val size = if (contentScale != 1f) Size(width * contentScale, height * contentScale) else Size(width, height)
@@ -1428,20 +1786,27 @@ private class DrawBackdropNode(
     private fun updateEffects() {
         if (!isRenderEffectSupported()) return
 
-        effectScope.apply(effects)
+        effectScope.fallbackBody.shader = null
+        effectScope.apply(activeSample?.takeIf { it === nativeSample }?.effects ?: effects)
         graphicsLayer?.let { layer ->
             val effect = effectScope.renderEffect
-            if (layer.renderEffect !== effect) layer.renderEffect = effect
+            // Un filtro può comparire su una registrazione già valida, anche dal pre-draw.
+            // Prima di installarlo il draw ammette lo scratch, senza ricatturare la sorgente ferma.
+            filterNeedsCredit = effect != null && layer.renderEffect == null && sampled && !residentFiltered &&
+                (residentBytes > 0L || residentSize.width.toLong() * residentSize.height >=
+                    LargeCapturePixels.toLong() * 4 / (2 * bytesPerPixel))
+            if (filterNeedsCredit) invalidateDraw()
+            else if (layer.renderEffect !== effect) layer.renderEffect = effect
             // Il clip delimita l'uscita del filtro HWUI, anche quando il layer viene rigiocato nel velo.
             // Senza questo limite Skia può allocare un intermedio grande quanto l'intera finestra.
             val size = effectScope.size
             val edge = (effects as? BottomEdgeBackdropEffects)?.takeIf {
-                effect != null && size.isSpecified && effectiveScale == 1f && effectScope.padding == 0f
+                effect != null && size.isSpecified && effectScope.padding == 0f
             }
             val window = effects as? WindowedBackdropEffects
             val crop = edge != null || (effect != null && window?.region != null) || window?.region == IntRect.Zero
             if (edge != null) {
-                val y = edge.top().coerceIn(0f, size.height)
+                val y = (edge.top() * if (edge.fromEdgeProfile) 1f else effectiveScale).coerceIn(0f, size.height)
                 layer.setRectOutline(Offset(0f, y), Size(size.width, size.height - y))
             } else if (window?.region == IntRect.Zero) {
                 layer.setRectOutline(Offset.Zero, Size.Zero)
@@ -1469,6 +1834,14 @@ private class DrawBackdropNode(
     }
 
     override fun onAttach() {
+        val view = requireView()
+        readsSuspended = false
+        filterNeedsCredit = false
+        window = glassWindowFor(view, true)
+        resources = FluidGlassResources.get(view.context)
+        windowLease = window?.let(resources::acquire)
+        renderState = resources.renderState(window)
+        bytesPerPixel = if (window?.isWideColorGamut == true) 8 else 4
         val graphicsContext = requireGraphicsContext()
         graphicsLayer = graphicsContext.createGraphicsLayer()
         // Fluid Engine addition (F1A.7): il nodo, la sua cattura e la superficie, nella diagnostica.
@@ -1477,8 +1850,8 @@ private class DrawBackdropNode(
         recountSurface()
         surfaceDirty = true
         recordedSize = IntSize.Zero
-        recordedSourceOffsets = null
-        recordedSelfOffset = null
+        recordedSourceOffsets.clear()
+        currentOffsets.clear()
 
         bindExport()
         registerReads()
@@ -1499,6 +1872,13 @@ private class DrawBackdropNode(
      */
     override fun onReset() {
         bindMotionLight(null)
+        if (residentBytes > 0L) discardRecording()
+        if (budgetDenied) resources.visibleCaptureDenied(window, false)
+        budgetDenied = false
+        budgetTarget = Float.NaN
+        desiredBytes = 0L
+        waitForBytes = 0L
+        MainHandler.removeCallbacks(awaitBudget)
         surfaceDirty = true
         containerDirty = true
         exportDirty = true
@@ -1506,8 +1886,8 @@ private class DrawBackdropNode(
         notReadySince = 0L
         lastRecordedAt = 0L
         recordedSize = IntSize.Zero
-        recordedSelfOffset = null
-        recordedSourceOffsets = null
+        recordedSourceOffsets.clear()
+        currentOffsets.clear()
     }
 
     override fun onDetach() {
@@ -1516,7 +1896,10 @@ private class DrawBackdropNode(
         recoveryPending = false
         resolution.reset()
         cancelBeforeFrame()
-        borrowed = emptyList()
+        borrowedSources.clear()
+        borrowedShells.clear()
+        recordedSourceOffsets.clear()
+        currentOffsets.clear()
         sampled = false
         val graphicsContext = requireGraphicsContext()
         graphicsLayer?.let { layer ->
@@ -1524,6 +1907,28 @@ private class DrawBackdropNode(
             graphicsLayer = null
         }
 
+        activeSample = null
+        recordedPipeline = null
+        releaseNativeSample()
+        resident?.close()
+        resident = null
+        residentSize = IntSize.Zero
+        residentBytes = 0L
+        residentSample = null
+        budgetScale = 1f
+        budgetTarget = Float.NaN
+        budgetExtent = Size.Zero
+        allocationPrepared = false
+        waitForBytes = 0L
+        desiredBytes = 0L
+        MainHandler.removeCallbacks(awaitBudget)
+        MainHandler.removeCallbacks(refreshAllocationReading)
+        refreshPosted = false
+        if (budgetDenied) resources.visibleCaptureDenied(window, false)
+        budgetDenied = false
+        windowLease?.close()
+        windowLease = null
+        window = null
         effectScope.reset()
         layoutCoordinates = null
         lastCoordinates = null
@@ -1589,7 +1994,7 @@ private class DrawBackdropNode(
 
     /** Conta questa superficie fra i lettori dei layer su richiesta che campiona. */
     fun registerReads() {
-        if (!isAttached || registeredReads.isNotEmpty()) return
+        if (!isAttached || readsSuspended || registeredReads.isNotEmpty()) return
         val reads = ArrayList<LayerBackdrop>(0)
         backdrop.forEachPart { part ->
             if (part is LayerBackdrop && part.onDemand && part !in reads) reads += part
@@ -1615,7 +2020,7 @@ private class DrawBackdropNode(
      * registrazione che contiene sé stesso. Vedi `LayerBackdrop.chromeFallback`.
      */
     fun adoptFallbacks() {
-        if (!isAttached) return
+        if (!isAttached || readsSuspended) return
         // Un vetro dentro le pagine non chiede mai la riserva: campionerebbe una registrazione che contiene sé stesso.
         // Dalla 4.0 G1 «dentro» vuol dire sotto il nodo scrittore (`Modifier.fluidChromePages`), non un CompositionLocal.
         val writer = if (findNearestAncestor(LayerFallbackWriterKey) == null)
@@ -1660,7 +2065,7 @@ private class DrawBackdropNode(
      */
     fun resolveContainer() {
         containerDirty = false
-        if (!isAttached) return
+        if (!isAttached || readsSuspended) return
         val found: GlassContainer? =
             if (nestInContainer && isRenderEffectSupported()) {
                 findNearestAncestor(GlassContainerKey) as? GlassContainer

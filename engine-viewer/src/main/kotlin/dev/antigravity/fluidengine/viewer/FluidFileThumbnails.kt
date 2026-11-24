@@ -24,8 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -51,11 +55,7 @@ class FluidFileThumbnail internal constructor(
   val contentScale: ContentScale get() = if (fillsFrame) ContentScale.Crop else ContentScale.Fit
 
   /** Quanto pesa in memoria: conta per il tetto della cache. */
-  internal val byteCount: Long = try {
-    image.asAndroidBitmap().allocationByteCount.toLong()
-  } catch (_: Exception) {
-    image.width.toLong() * image.height * 4
-  }
+  internal val byteCount: Long = image.pixelBytes
 
   internal companion object {
     fun of(image: ImageBitmap, fillsByKind: Boolean): FluidFileThumbnail {
@@ -151,12 +151,26 @@ object FluidFileThumbnails {
     sizePx: Int,
     look: FluidThumbnailLook = FluidThumbnailLook.Light,
     options: FluidViewerOptions = FluidViewerOptions(),
-  ): FluidFileThumbnail? = withContext(Dispatchers.IO + look) {
-    permits.withPermit {
-      fluidThumbnailOf(context, source, FluidThumbnailPainter.clampSize(sizePx), options, everything = true)
-        ?.takeUnless { it.isPlaceholder }
+  ): FluidFileThumbnail? = readSource(context, source, sizePx, look, options, everything = true)
+
+  internal suspend fun readSource(context: Context, source: FluidViewerSource, sizePx: Int, look: FluidThumbnailLook,
+    options: FluidViewerOptions, everything: Boolean): FluidFileThumbnail? {
+    val memory = memory(context)
+    val caller = currentCoroutineContext()
+    val optional = caller[OptionalViewerWork] != null
+    val side = FluidThumbnailPainter.clampSize(sizePx)
+    return withContext(Dispatchers.IO + look) {
+      memory.whileAllowed(optional) {
+        memory.resources.refreshBeforeAllocation()
+        memory.thumbnails.run(optional) {
+          decode(memory, side, optional, { edge ->
+            fluidThumbnailOf(context, source, edge, options, everything)?.takeUnless { it.isPlaceholder }
+          }) { pixels -> pixels.use { it.read(caller[FluidPageRead]) } }
+        }
+      }
     }
   }
+
   /**
    * Il tempo massimo di serie: 2,5 s. Office si dà 2 s per disegnare una pagina (F6C.15b) e un file grande deve
    * ancora copiarsi; oltre, l'icona è meglio di una tessera vuota. A occhio, 23 novembre 2026.
@@ -180,29 +194,58 @@ object FluidFileThumbnails {
       synchronized(lock) { trim() }
     }
 
-  private class Key(
+  private data class Key(
     val uri: String,
     val name: String,
     val mime: String?,
     val size: Long?,
+    val modified: Long?,
     val bucket: Int,
     val look: FluidThumbnailLook,
     val families: String,
   ) {
-    override fun equals(other: Any?): Boolean = other is Key && uri == other.uri && name == other.name &&
-      mime == other.mime && size == other.size && bucket == other.bucket && look == other.look && families == other.families
-
-    override fun hashCode(): Int = listOf(uri, name, mime, size, bucket, look, families).hashCode()
+    fun supersedes(old: Key) = uri == old.uri && (size != old.size || modified != old.modified)
   }
 
-  private class Entry(val thumbnail: FluidFileThumbnail, val expiresAt: Long)
+  private class Entry(val pixels: ViewerPixels<FluidFileThumbnail>, val expiresAt: Long)
+  private class Flight(val generation: Long, val optional: Boolean) {
+    lateinit var job: Deferred<Unit>
+    var waiters = 0
+    var result: ViewerPixels<FluidFileThumbnail>? = null
+    var retry = false
+    var timedOut = false
+  }
 
   private val lock = Any()
   private val entries = LinkedHashMap<Key, Entry>(64, 0.75f, true)
   private var bytes = 0L
-  private val inflight = HashMap<Key, Deferred<FluidFileThumbnail>>()
+  private var emergency: ViewerPixels<FluidFileThumbnail>? = null
+  private val inflight = HashMap<Key, Flight>()
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-  private val permits = Semaphore(Parallelism)
+  private var watched: ViewerMemory? = null
+  private var subscription: java.io.Closeable? = null
+
+  private fun memory(context: Context): ViewerMemory {
+    val memory = ViewerMemory.get(context)
+    synchronized(memory.lock) {
+      if (watched !== memory) {
+        subscription?.close()
+        clear()
+        subscription = memory.watch(FluidMemoryCategory.THUMBNAILS) { level ->
+          synchronized(lock) {
+            if (level != null) {
+              cancelFlights { true }
+              emergency?.close()
+              emergency = null
+              emptyEntries()
+            } else entries.filterValues { !it.pixels.visible }.keys.forEach(::remove)
+          }
+        }
+        watched = memory
+      }
+    }
+    return memory
+  }
 
   /** Quante miniature e quanti byte tiene la cache adesso: per i test e per chi misura. */
   val cachedCount: Int get() = synchronized(lock) { entries.size }
@@ -210,12 +253,13 @@ object FluidFileThumbnails {
 
   /** La miniatura già pronta, senza leggere niente: per la prima composizione di una tessera. `null` se non c'è. */
   fun cached(file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light): FluidFileThumbnail? =
-    synchronized(lock) { live(key(file, sizePx, look)) }
+    synchronized(lock) { live(key(file, sizePx, look))?.read(null) }
 
   /**
    * La miniatura di [file], larga al più [sizePx] sul lato lungo (fra 32 e 1024), con i colori [look]. Dalla cache se
-   * c'è; altrimenti letta e disegnata fuori dal filo principale, entro [timeoutMillis]. Non lancia: un file rotto, che
-   * manca o che supera il tempo dà l'icona del documento con l'estensione.
+   * c'è; altrimenti letta e disegnata fuori dal filo principale, entro [timeoutMillis]. Un file rotto, che
+   * manca o che supera il tempo dà l'icona del documento. Con quota già nulla alla prima chiamata,
+   * anche il simbolo minimo può essere rifiutato ([FluidViewerFailure.TooLarge]).
    */
   suspend fun load(
     context: Context,
@@ -224,25 +268,60 @@ object FluidFileThumbnails {
     look: FluidThumbnailLook = FluidThumbnailLook.Light,
     timeoutMillis: Long = DefaultTimeoutMillis,
     options: FluidViewerOptions = FluidViewerOptions(),
-  ): FluidFileThumbnail {
+  ): FluidFileThumbnail = fetch(context, file, sizePx, look, timeoutMillis, options, optional = false) ?: noViewerMemory()
+
+  /** Prepara una tessera fuori schermo solo finché il processo permette il prefetch. */
+  suspend fun prefetch(context: Context, file: FluidViewerFile, sizePx: Int,
+    look: FluidThumbnailLook = FluidThumbnailLook.Light) {
+    try { fetch(context, file, sizePx, look, DefaultTimeoutMillis, FluidViewerOptions(), optional = true) }
+    catch (_: CancellationException) { currentCoroutineContext().ensureActive() }
+  }
+
+  private suspend fun fetch(context: Context, file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook,
+    timeoutMillis: Long, options: FluidViewerOptions, optional: Boolean): FluidFileThumbnail? {
     require(timeoutMillis > 0) { "Il tempo massimo deve essere positivo" }
     val app = context.applicationContext ?: context
+    val memory = memory(app)
+    if (optional && !memory.mayPrefetch(FluidMemoryCategory.THUMBNAILS)) return null
     val key = key(file, sizePx, look)
-    val job = synchronized(lock) {
-      live(key)?.let { return it }
+    val reader = currentCoroutineContext()[FluidPageRead]
+    val flight = synchronized(lock) {
+      cancelFlights(key::supersedes)
+      entries.keys.filter(key::supersedes).forEach(::remove)
+      live(key)?.let { return if (optional) null else it.read(reader) }
+      if (!optional && inflight[key]?.optional == true) cancelFlights { it == key }
       inflight.getOrPut(key) {
-        scope.async { produce(app, file, key, timeoutMillis, options) }.also { deferred ->
-          deferred.invokeOnCompletion { synchronized(lock) { if (inflight[key] === deferred) inflight.remove(key) } }
+        Flight(memory.resources.trimGeneration, optional).apply {
+          job = scope.async(start = CoroutineStart.LAZY) { produce(memory, app, file, key, this@apply, timeoutMillis, options) }
+        }
+      }.also { it.waiters++ }
+    }
+    try {
+      flight.job.await()
+      return synchronized(lock) {
+        if (inflight[key] !== flight || flight.generation != memory.resources.trimGeneration)
+          throw CancellationException("Miniatura superata")
+        if (optional) null else flight.result?.read(reader)
+      }
+    } finally {
+      synchronized(lock) {
+        if (--flight.waiters == 0) {
+          if (inflight[key] === flight) inflight.remove(key)
+          flight.job.cancel()
+          flight.result?.close()
         }
       }
     }
-    return job.await()
   }
+
+  internal fun cachedForReader(file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook, reader: FluidPageRead) =
+    synchronized(lock) { live(key(file, sizePx, look))?.read(reader) }
 
   /** Toglie dalla cache le miniature di [file], a ogni misura e con ogni colore. */
   fun evict(file: FluidViewerFile) {
     val uri = file.uri.toString()
     synchronized(lock) {
+      cancelFlights { it.uri == uri }
       val gone = entries.keys.filter { it.uri == uri }
       for (key in gone) remove(key)
     }
@@ -251,80 +330,166 @@ object FluidFileThumbnails {
   /** Svuota la cache. */
   fun clear() {
     synchronized(lock) {
-      entries.clear()
-      bytes = 0
+      cancelFlights { true }
+      emergency?.close()
+      emergency = null
+      emptyEntries()
     }
+  }
+
+  private fun cancelFlights(matches: (Key) -> Boolean) {
+    val iterator = inflight.entries.iterator()
+    while (iterator.hasNext()) {
+      val entry = iterator.next()
+      if (matches(entry.key)) {
+        iterator.remove()
+        entry.value.job.cancel()
+      }
+    }
+  }
+
+  private fun emptyEntries() {
+    entries.values.forEach { it.pixels.close() }
+    entries.clear()
+    bytes = 0
   }
 
   private fun key(file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook): Key {
     val size = FluidThumbnailPainter.clampSize(sizePx)
     val bucket = (size + 31) / 32 * 32
     val families = FluidViewerRegistry.families.joinToString(",") { it.id }
-    return Key(file.uri.toString(), file.name, file.mimeType, file.sizeBytes, bucket.coerceAtMost(FluidThumbnailPainter.MaxSizePx),
+    return Key(file.uri.toString(), file.name, file.mimeType, file.sizeBytes, file.modifiedAtMillis, bucket.coerceAtMost(FluidThumbnailPainter.MaxSizePx),
       look, families)
   }
 
-  private fun live(key: Key): FluidFileThumbnail? {
+  private fun live(key: Key): ViewerPixels<FluidFileThumbnail>? {
     val entry = entries[key] ?: return null
     if (entry.expiresAt <= SystemClock.elapsedRealtime()) {
       remove(key)
       return null
     }
-    return entry.thumbnail
+    return entry.pixels
   }
 
-  private suspend fun produce(context: Context, file: FluidViewerFile, key: Key, timeoutMillis: Long,
-    options: FluidViewerOptions): FluidFileThumbnail {
-    // Il lavoro è un fratello: allo scadere del tempo si torna subito, anche se il decodificatore non si accorge
-    // dell'annullamento finché non finisce la sua lettura.
-    val work = scope.async {
-      permits.withPermit {
-        FluidViewerSource.of(context, file.uri, file.name, file.mimeType, file.sizeBytes, options.sourceMaxCopyBytes).use { source ->
-          withContext(key.look) { fluidThumbnailOf(context, source, key.bucket, options, everything = true) }
+  private suspend fun <R> decode(memory: ViewerMemory, side: Int, optional: Boolean,
+    make: suspend (Int) -> FluidFileThumbnail?, publish: (ViewerPixels<FluidFileThumbnail>) -> R): R? {
+    var retryEmpty = false
+    return memory.decode(FluidMemoryCategory.THUMBNAILS, IntSize(side, side), optional,
+      // Il campione FP16 può avere lati quasi doppi, più copia orientata/composta e I/O.
+      { pixelPeak(it, 40) }, { size ->
+        ThumbnailAllocation(size.width).use { allocation ->
+          val made = withContext(allocation) { make(size.width) }
+          retryEmpty = allocation.denied
+          made?.takeUnless { retryEmpty && it.isPlaceholder && size.width > FluidThumbnailPainter.MinSizePx }
+        }
+      }, { it.byteCount }, { it.image.physical }, minSide = FluidThumbnailPainter.MinSizePx,
+      retryEmpty = { retryEmpty }, publish = publish)
+  }
+
+  private suspend fun produce(memory: ViewerMemory, context: Context, file: FluidViewerFile, key: Key,
+    flight: Flight, timeoutMillis: Long, options: FluidViewerOptions) {
+    fun install(pixels: ViewerPixels<FluidFileThumbnail>, fallback: Boolean) = synchronized(lock) {
+      if (inflight[key] !== flight || flight.timedOut && !fallback ||
+        flight.optional && !memory.resources.prefetchAllowed.value ||
+        flight.generation != memory.resources.trimGeneration) throw CancellationException("Miniatura superata")
+      flight.result = pixels
+      val expires = if (flight.timedOut || flight.retry) SystemClock.elapsedRealtime() + RetryAfterTimeoutMillis else Long.MAX_VALUE
+      put(key, Entry(pixels.retain(), expires))
+      true
+    }
+    if (!flight.optional) seedFallback(memory, flight.generation)
+    // Il decoder nativo può ignorare l'annullo: possiede prenotazione e posto fino all'uscita reale.
+    val work = scope.async(if (flight.optional) OptionalViewerWork() else kotlin.coroutines.EmptyCoroutineContext) {
+      memory.whileAllowed(flight.optional) {
+        memory.resources.refreshBeforeAllocation()
+        memory.thumbnails.run(flight.optional) {
+          var attempted = false
+          val published = decode(memory, key.bucket, flight.optional, { edge ->
+            attempted = true
+            FluidViewerSource.of(context, file.uri, file.name, file.mimeType, file.sizeBytes, options.sourceMaxCopyBytes).use { source ->
+              withContext(key.look) { fluidThumbnailOf(context, source, edge, options, everything = true) }
+            }
+          }) { install(it, false) }
+          if (!attempted) synchronized(lock) { flight.retry = true }
+          published
         }
       }
     }
-    var timedOut = false
-    val made = try {
-      withTimeoutOrNull(timeoutMillis) { work.await() }.also { if (it == null) timedOut = true }
-    } catch (e: CancellationException) {
+    try {
+      if (withTimeoutOrNull(timeoutMillis) { work.await() ?: false } == true) return
+    } catch (cancelled: CancellationException) {
+      throw cancelled
+    } catch (_: Exception) {
+      // File mancante o decoder non disponibile: prova il simbolo entro la quota.
+    } finally {
+      synchronized(lock) { if (flight.result == null) flight.timedOut = !work.isCompleted }
       work.cancel()
-      // Annullato chi aspettava (la tessera è uscita): l'annullamento passa; il tempo scaduto invece no.
-      if (!currentCoroutineContext().isActiveSafe()) throw e
-      null
-    } catch (_: Throwable) {
-      null
     }
-    if (made == null) work.cancel()
-    val thumbnail = made ?: fluidPlaceholderThumbnail(file.name, key.bucket)
-    val expires = if (timedOut) SystemClock.elapsedRealtime() + RetryAfterTimeoutMillis else Long.MAX_VALUE
-    synchronized(lock) { put(key, Entry(thumbnail, expires)) }
-    return thumbnail
+    currentCoroutineContext().ensureActive()
+    if (flight.optional) return
+    synchronized(lock) { if (flight.result != null) return }
+    // Anche l'icona passa per il registro; non crea mai una bitmap fuori quota.
+    memory.decode(FluidMemoryCategory.THUMBNAILS, IntSize(key.bucket, key.bucket), false,
+      { pixelPeak(it, 40) }, { if (it.width >= FluidThumbnailPainter.MinSizePx) fluidPlaceholderThumbnail(file.name, it.width) else null },
+      { it.byteCount }, { it.image.physical }, minSide = FluidThumbnailPainter.MinSizePx) { install(it, true) } ?: run {
+        val minimum = FluidThumbnailPainter.MinSizePx
+        val small = memory.decode(FluidMemoryCategory.THUMBNAILS, IntSize(minimum, minimum), false,
+          { pixelPeak(it, 4, 0) }, { fluidPlaceholderThumbnail(file.name, minimum) }, { it.byteCount },
+          { it.image.physical }, minSide = minimum) { install(it, true) }
+        if (small == true) return
+        synchronized(lock) {
+          emergency?.retain()?.let { pixels ->
+            try { install(pixels, true) } catch (error: Throwable) { pixels.close(); throw error }
+            return
+          }
+        }
+        val usage = memory.resources.budget.usage(FluidMemoryCategory.THUMBNAILS)
+        throw FluidViewerException(FluidViewerFailure.TooLarge,
+          "Miniature: ${usage.usedBytes}/${usage.limitBytes} byte, ${usage.inFlightBytes} in decodifica")
+      }
+  }
+
+  // Conserva un solo simbolo piccolo prima di avviare il nativo. Un calo di quota durante quel lavoro
+  // può vietare persino una nuova bitmap da 32 px, senza invalidare i pixel già ammessi.
+  private fun seedFallback(memory: ViewerMemory, generation: Long) {
+    memory.resources.refreshBeforeAllocation()
+    synchronized(lock) {
+      if (emergency != null) return
+      memory.ensureCurrent(generation, false)
+      val edge = FluidThumbnailPainter.MinSizePx
+      memory.resources.budget.tryReserve(FluidMemoryCategory.THUMBNAILS, pixelPeak(IntSize(edge, edge), 4, 0))?.use {
+        val icon = fluidPlaceholderThumbnail("", edge)
+        val owner = it.confirm(icon.byteCount)
+        if (owner == null) icon.image.asAndroidBitmap().recycle()
+        else emergency = ViewerPixels(icon, icon.image.physical, owner)
+      }
+    }
   }
 
   private fun put(key: Key, entry: Entry) {
-    if (entry.thumbnail.byteCount > memoryLimitBytes) return
+    if (entry.pixels.value.byteCount > memoryLimitBytes) { entry.pixels.close(); return }
     remove(key)
     entries[key] = entry
-    bytes += entry.thumbnail.byteCount
+    bytes += entry.pixels.value.byteCount
     trim()
   }
 
   private fun remove(key: Key) {
-    entries.remove(key)?.let { bytes -= it.thumbnail.byteCount }
+    entries.remove(key)?.let { bytes -= it.pixels.value.byteCount; it.pixels.close() }
   }
 
   private fun trim() {
     val iterator = entries.entries.iterator()
     while (bytes > memoryLimitBytes && iterator.hasNext()) {
       val eldest = iterator.next()
-      bytes -= eldest.value.thumbnail.byteCount
+      bytes -= eldest.value.pixels.value.byteCount
+      eldest.value.pixels.close()
       iterator.remove()
     }
   }
 }
 
-private fun CoroutineContext.isActiveSafe(): Boolean = this[kotlinx.coroutines.Job]?.isActive != false
+
 
 /**
  * La miniatura di [file] in Compose: la cache alla prima composizione (la tessera che torna dal visore è già piena,
@@ -338,9 +503,15 @@ fun rememberFluidFileThumbnail(
   timeoutMillis: Long = FluidFileThumbnails.DefaultTimeoutMillis,
 ): FluidFileThumbnail? {
   val context = LocalContext.current
-  val state = remember(file, sizePx, look) { mutableStateOf(file?.let { FluidFileThumbnails.cached(it, sizePx, look) }) }
-  LaunchedEffect(state) {
-    if (file != null && state.value == null) state.value = FluidFileThumbnails.load(context, file, sizePx, look, timeoutMillis)
+  val memory = remember(context) { ViewerMemory.get(context) }
+  val visible = memory.resources.uiVisible.collectAsState().value
+  val reader = remember(file, sizePx, look, visible) { FluidPageRead() }
+  val state = remember(reader) { mutableStateOf(if (file != null && visible) FluidFileThumbnails.cachedForReader(file, sizePx, look, reader) else null) }
+  LaunchedEffect(reader) {
+    if (visible && file != null && state.value == null)
+      state.value = try {
+        withContext(reader) { FluidFileThumbnails.load(context, file, sizePx, look, timeoutMillis) }
+      } catch (_: FluidViewerException) { null }
   }
   return state.value
 }

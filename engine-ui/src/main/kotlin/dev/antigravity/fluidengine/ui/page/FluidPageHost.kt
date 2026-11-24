@@ -117,6 +117,7 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import dev.antigravity.fluidengine.ui.fluid.FluidRouteSignal
 import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassTraced
+import dev.antigravity.fluidengine.ui.fluid.LocalCoveredGlassView
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.theme.LocalFluidRouteFront
 import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
@@ -595,6 +596,7 @@ private fun <K : Any> PageLayer(
       }),
   ) {
     CompositionLocalProvider(
+      LocalCoveredGlassView provides (if (covered) LocalView.current else LocalCoveredGlassView.current),
       LocalSharedPage provides sharedSpace,
       LocalFluidPagePreparing provides (preparedOnly || LocalFluidPagePreparing.current),
       LocalFluidRouteFront provides front,

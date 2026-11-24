@@ -2,6 +2,11 @@ package dev.antigravity.fluidengine.viewer.graphics
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.viewer.FluidViewerRaster
 import androidx.exifinterface.media.ExifInterface
 import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerException
@@ -123,18 +128,26 @@ internal class CameraRaw(private val bytes: ByteArray, private val format: Strin
   }
 
   suspend fun preview(maxPixels: Long, edge: Int?): Bitmap? {
+    suspend fun decode(input: ByteArray, start: Int, length: Int): Bitmap? {
+      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+      BitmapFactory.decodeByteArray(input, start, length, bounds)
+      if (bounds.outWidth < 1 || bounds.outHeight < 1) return null
+      val (w, h) = fitRaster(bounds.outWidth, bounds.outHeight, edge)
+      return FluidViewerRaster.render(null, IntSize(w, h), bytesPerPixel = 48) { size ->
+        decodeRaster(input, start, length, maxPixels, maxOf(size.width, size.height))?.let { orient(it).asImageBitmap() }
+      }?.asAndroidBitmap()
+    }
     for (preview in previews.distinct().sortedByDescending { it.length }) {
-      val image = decodeRaster(bytes, preview.start, preview.length, maxPixels, edge)
-      if (image != null) return orient(image)
+      decode(bytes, preview.start, preview.length)?.let { return it }
     }
     // Some NEFs store the preview in a Nikon MakerNote instead of a standard TIFF preview IFD.
     // Scan JPEG markers only as a fallback and accept a complete 8-bit display image.
     for (preview in embeddedJpegs().sortedByDescending { it.length }) {
-      decodeRaster(bytes, preview.start, preview.length, maxPixels, edge)?.let { return orient(it) }
+      decode(bytes, preview.start, preview.length)?.let { return it }
     }
     for (exif in exifs) {
       val thumbnail = exif.thumbnailBytes ?: continue
-      decodeRaster(thumbnail, 0, thumbnail.size, maxPixels, edge)?.let { return orient(it) }
+      decode(thumbnail, 0, thumbnail.size)?.let { return it }
     }
     return null
   }

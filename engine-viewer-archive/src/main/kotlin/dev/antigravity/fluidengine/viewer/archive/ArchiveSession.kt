@@ -1,5 +1,8 @@
 package dev.antigravity.fluidengine.viewer.archive
 
+import dev.antigravity.fluidengine.viewer.FluidViewerRaster
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.webkit.MimeTypeMap
@@ -60,7 +63,16 @@ internal class ArchiveSession(
   var problem by mutableStateOf<ArchiveProblem?>(null)
     private set
   private val operations = Mutex()
-  private val rowPreviews = android.util.LruCache<ArchiveRowKey, ArchiveRowPreview>(64)
+  private val resources = FluidGlassResources.get(request.context)
+  val uiVisible get() = resources.uiVisible
+  private class Row(val value: ArchiveRowPreview, val credit: FluidPageRead)
+  private val rowLock = Any()
+  private val rowPreviews = object : android.util.LruCache<ArchiveRowKey, Row>(64) {
+    override fun entryRemoved(evicted: Boolean, key: ArchiveRowKey, oldValue: Row, newValue: Row?) = oldValue.credit.close()
+  }
+  private val pressure = FluidViewerRaster.observeCachePressure(request.context) {
+    synchronized(rowLock) { rowPreviews.evictAll() }
+  }
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
   private var password: CharArray? = null
   private var sharedArchive: File? = null
@@ -76,36 +88,50 @@ internal class ArchiveSession(
 
   fun canOpen(item: ArchiveItem): Boolean = canRead && item.kind == ArchiveKind.File && (item.bytes ?: 0) <= ArchiveEntryLimit
 
-  suspend fun rowPreview(item: ArchiveItem, sizePx: Int, look: FluidThumbnailLook): ArchiveRowPreview? {
+  suspend fun rowPreview(item: ArchiveItem, sizePx: Int, look: FluidThumbnailLook, readerCredit: FluidPageRead): ArchiveRowPreview? {
     val indexSnapshot = index
     val kind = FluidFileKind.from(null, item.name)
     if (!canRead || busy || closed || !canPreviewArchiveRow(indexSnapshot, item, kind)) return null
     val key = ArchiveRowKey(item.ordinal, sizePx, look)
-    rowPreviews.get(key)?.let { return it }
-    val result = withTimeoutOrNull(2_500) {
-      withContext(Dispatchers.IO) {
-        var temporary: File? = null
-        try {
-          val staged = createPreviewFile("thumbnail-").also { temporary = it }
-          operations.withLock {
-            if (index !== indexSnapshot || busy || closed) return@withContext null
-            if (readRowFile != null) readRowFile.invoke(item, staged)
-            else reader.extract(listOf(item), encoding, null) { _, write ->
-              staged.outputStream().use { write(ArchiveRowSink(it)) }
+    val generation = resources.trimGeneration
+    synchronized(rowLock) {
+      rowPreviews.get(key)?.let { it.credit.retainInto(readerCredit); return it.value }
+    }
+    val credit = FluidPageRead()
+    var cached = false
+    try {
+      val result = withTimeoutOrNull(2_500) {
+        withContext(Dispatchers.IO + credit) {
+          var temporary: File? = null
+          try {
+            val staged = createPreviewFile("thumbnail-").also { temporary = it }
+            operations.withLock {
+              if (index !== indexSnapshot || busy || closed) return@withContext null
+              if (readRowFile != null) readRowFile.invoke(item, staged)
+              else reader.extract(listOf(item), encoding, null) { _, write ->
+                staged.outputStream().use { write(ArchiveRowSink(it)) }
+              }
             }
+            readArchiveRowPreview(request.context, staged, item, kind, sizePx, look, request.options)
+          } catch (cancelled: CancellationException) {
+            throw cancelled
+          } catch (_: Exception) {
+            null
+          } finally {
+            temporary?.delete()
           }
-          readArchiveRowPreview(request.context, staged, item, kind, sizePx, look, request.options)
-        } catch (cancelled: CancellationException) {
-          throw cancelled
-        } catch (_: Exception) {
-          null
-        } finally {
-          temporary?.delete()
         }
       }
-    }
-    if (result != null && !closed && index === indexSnapshot) rowPreviews.put(key, result)
-    return result
+      return synchronized(rowLock) {
+        if (result == null || closed || index !== indexSnapshot || generation != resources.trimGeneration || !uiVisible.value) null
+        else {
+          credit.retainInto(readerCredit)
+          rowPreviews.put(key, Row(result, credit))
+          cached = true
+          result
+        }
+      }
+    } finally { if (!cached) credit.close() }
   }
 
   fun changeEncoding(value: ArchiveEncoding) {
@@ -346,6 +372,7 @@ internal class ArchiveSession(
 
   fun close() {
     closed = true
+    pressure.close()
     scope.cancel()
     rowPreviews.evictAll()
     dismissPreview()

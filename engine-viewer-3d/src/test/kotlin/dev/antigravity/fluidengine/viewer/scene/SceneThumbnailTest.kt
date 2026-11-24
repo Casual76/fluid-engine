@@ -20,6 +20,9 @@ import org.robolectric.annotation.GraphicsMode
 class SceneThumbnailTest {
   @Test fun uvTextureMakesBothClothColorsVisibleInTheThumbnail() = runBlocking {
     val context = RuntimeEnvironment.getApplication()
+    org.robolectric.Shadows.shadowOf(context.getSystemService(android.app.ActivityManager::class.java)).setMemoryClass(512)
+    dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(context).budget
+      .updateLimits(dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits.Full)
     val file = FluidViewerSource.of("tessuto.gltf", context.cacheDir, "model/gltf+json",
       read = { requireNotNull(javaClass.getResourceAsStream("/corpus/tessuto.gltf")) })
     val source = object : FluidSceneSource, FluidViewerSource by file {

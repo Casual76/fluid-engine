@@ -56,13 +56,20 @@ internal object DataThumbnail {
 
   suspend fun of(request: FluidViewerRequest, settings: FluidDataSettings, sizePx: Int): ImageBitmap? {
     val source = request.source
-    suspend fun bytes(limit: Int = TextBytes): DataBytes = source.open().use { DataText.read(it, limit, source.sizeBytes) }
+    val reserve = dev.antigravity.fluidengine.viewer.FluidViewerRaster.thumbnailScratch(0)
+    suspend fun bytes(limit: Int = TextBytes): DataBytes = source.open().use { input ->
+      DataText.read(input, limit, source.sizeBytes) { capacity ->
+        // Il buffer letto, le copie per il parser e il testo UTF-16 convivono nella stessa miniatura.
+        if (!reserve(capacity * 6L)) throw java.io.IOException("Memoria insufficiente per il testo della miniatura")
+      }
+    }
     suspend fun text(declared: (DataBytes) -> String? = { null }): String = bytes().let { DataText.decode(it, declared(it)).text }
     return when (request.type.id) {
       FluidDataFamily.Markdown -> markdown(text(), sizePx)
       FluidDataFamily.Html -> {
         val raw = bytes(HtmlThumbnail.MaxHtmlBytes)
-        HtmlThumbnail.render(DataText.decode(raw, DataText.htmlCharset(raw.bytes, raw.length)).text, sizePx) { path ->
+        HtmlThumbnail.render(DataText.decode(raw, DataText.htmlCharset(raw.bytes, raw.length)).text, sizePx,
+          reserve) { path ->
           settings.resources?.invoke(source, path)
         }
       }

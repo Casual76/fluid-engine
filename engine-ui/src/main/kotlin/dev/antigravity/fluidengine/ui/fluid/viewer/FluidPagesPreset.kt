@@ -1,5 +1,10 @@
 package dev.antigravity.fluidengine.ui.fluid.viewer
 
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.onPlaced
@@ -254,8 +259,11 @@ fun FluidPagesPreset(
             verticalArrangement = Arrangement.spacedBy(gap),
           ) {
             items(count) { index ->
+              val onScreen by remember(pages, index) { derivedStateOf {
+                pages.layoutInfo.visibleItemsInfo.any { it.index == index } || index == pages.firstVisibleItemIndex
+              } }
               ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count),
-                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex })
+                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex }, onScreen = onScreen)
             }
           }
         }
@@ -297,7 +305,10 @@ fun FluidPagesPreset(
                 }).semantics { contentDescription = strings.page(index + 1, count) },
                 horizontalAlignment = Alignment.CenterHorizontally,
               ) {
-                ViewerPage(cache, index, ThumbnailEdge, preview = true, thumbnail = true, strings = strings, description = null)
+                val onScreen by remember(grid, index) { derivedStateOf {
+                  grid.layoutInfo.visibleItemsInfo.any { it.index == index } || index == grid.firstVisibleItemIndex
+                } }
+                ViewerPage(cache, index, ThumbnailEdge, preview = true, thumbnail = true, strings = strings, description = null, onScreen = onScreen)
                 Text("${index + 1}", Modifier.clearAndSetSemantics { hideFromAccessibility() },
                   style = MaterialTheme.typography.labelMedium)
               }
@@ -323,7 +334,11 @@ private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: I
           val width = minOf(maxWidth, maxHeight * (size.width.toFloat() / size.height))
           Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Box(Modifier.width(width)) {
-              ViewerPage(cache, page, with(density) { width.roundToPx() }, false, false, strings, strings.page(page + 1, count))
+              val onScreen by remember(state, page) { derivedStateOf {
+                state.currentPage == page || state.layoutInfo.visiblePagesInfo.any { it.index == page }
+              } }
+              ViewerPage(cache, page, with(density) { width.roundToPx() }, false, false, strings, strings.page(page + 1, count),
+                onScreen = onScreen)
             }
           }
         }
@@ -357,24 +372,46 @@ private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable
   }
 }
 
+private class ViewerPageReaders { val reads = mutableSetOf<FluidPageRead>() }
+
 @Composable
 private fun ViewerPage(
   cache: ViewerPageRenderCache, index: Int, width: Int, preview: Boolean, thumbnail: Boolean,
   strings: FluidPagesPresetStrings, description: String?, match: FluidViewerPageMatch? = null,
-  entrance: ViewerEntranceClaim? = null,
+  entrance: ViewerEntranceClaim? = null, onScreen: Boolean = true,
 ) {
+  val process = rememberFluidViewerResources()
+  val visible = process.uiVisible.collectAsState().value && (onScreen || process.prefetchAllowed.collectAsState().value)
+  val owners = remember(cache, index, visible, onScreen) { ViewerPageReaders() }
+  DisposableEffect(owners) { onDispose { owners.reads.forEach { it.close() }; owners.reads.clear() } }
+  var currentRead by remember(owners) { mutableStateOf<FluidPageRead?>(null) }
+  DisposableEffect(currentRead) {
+    val used = currentRead
+    onDispose { used?.let { owners.reads.remove(it); it.close() } }
+  }
   var size by remember(cache, index) { mutableStateOf<IntSize?>(null) }
-  var bitmap by remember(cache, index) { mutableStateOf<ImageBitmap?>(null) }
+  var bitmap by remember(owners) { mutableStateOf<ImageBitmap?>(null) }
   var failed by remember(cache, index) { mutableStateOf(false) }
   var attempt by remember(cache, index) { mutableIntStateOf(0) }
-  LaunchedEffect(cache, index, width, preview, thumbnail, attempt) {
+  LaunchedEffect(owners, width, preview, thumbnail, attempt, onScreen) {
+    if (!visible) return@LaunchedEffect
     failed = false
     try {
       val natural = size ?: cache.measure(index).also { size = it }
       val target = viewerPageRenderSize(natural, width, preview, thumbnail)
       val previous = bitmap
       if (previous == null || previous.width < target.width || previous.height < target.height) {
-        bitmap = cache.render(index, target, thumbnail)
+        val reader = FluidPageRead(optional = !onScreen)
+        try {
+          val next = withContext(reader) { cache.render(index, target, thumbnail) }
+          if (onScreen) {
+            owners.reads.add(reader)
+            currentRead = reader
+            bitmap = next
+          }
+        } finally {
+          if (currentRead !== reader) reader.close()
+        }
       }
     } catch (cancelled: CancellationException) {
       throw cancelled
@@ -409,6 +446,12 @@ private fun ViewerPage(
       }
     }
   }
+}
+
+@Composable
+private fun rememberFluidViewerResources(): FluidGlassResources {
+  val context = LocalContext.current
+  return remember(context) { FluidGlassResources.get(context) }
 }
 
 internal fun visibleViewerPage(
@@ -470,6 +513,7 @@ internal class ViewerPageRenderCache(private val source: FluidPageSource) {
     if (old != null && old.target.width >= target.width && old.target.height >= target.height) return@withLock old.bitmap
     val bitmap = source.render(index, target)
     coroutineContext.ensureActive()
+    if (coroutineContext[FluidPageRead]?.managed == true) return@withLock bitmap
     val entry = Entry(target, bitmap)
     if (entry.bytes <= MaxBytes) {
       bytes += entry.bytes - (images.put(key, entry)?.bytes ?: 0)

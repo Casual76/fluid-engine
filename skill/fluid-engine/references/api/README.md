@@ -8,13 +8,13 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 18 | 268 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 49 | 429 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 50 | 433 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 70 |
 | [Controlli](controlli.md) | 21 | 174 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 17 | 116 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
-| [Vetro](vetro.md) | 33 | 256 |
+| [Vetro](vetro.md) | 33 | 258 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
 | [Tema, forma, tipo](tema.md) | 9 | 123 |
 | [Icone (FluidIcons)](icone.md) | 5 | 206 |
@@ -30,7 +30,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-widget](widget.md) | 4 | 41 |
 | [engine-wear](wear.md) | 17 | 87 |
 | [engine-richtext](richtext.md) | 9 | 104 |
-| [engine-viewer](viewer.md) | 29 | 204 |
+| [engine-viewer](viewer.md) | 30 | 212 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

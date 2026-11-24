@@ -1,6 +1,10 @@
 package dev.antigravity.fluidengine.viewer
 
+import android.content.ComponentCallbacks2
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -37,10 +41,13 @@ internal interface FluidPageBackend<T> : Closeable {
  * disegnarla): la libera il garbage collector.
  *
  * Annullare una chiamata in attesa la toglie dalla coda prima che apra la pagina; una resa già cominciata finisce (una
- * pagina di `PdfRenderer` non si interrompe a metà), si chiude e va in cache, e chi aspettava riceve l'annullamento.
+ * pagina di `PdfRenderer` non si interrompe a metà). Il risultato superato viene scartato prima della pubblicazione.
  * [close] chiude il documento sul suo thread dopo l'ultima resa in corso, e ferma il thread.
  */
 internal class FluidPageRenderQueue<T : Any>(
+  private val memory: ViewerMemory,
+  private val physical: (T) -> Any = { it },
+  private val discard: (T) -> Unit = {},
   private val open: () -> FluidPageBackend<T>,
   private val bytesOf: (T) -> Long,
   val maxPages: Int = DefaultMaxPages,
@@ -58,10 +65,40 @@ internal class FluidPageRenderQueue<T : Any>(
 
   // Tutto ciò che segue lo tocca solo il thread del documento.
   private var backend: FluidPageBackend<T>? = null
-  private var sizes: Array<IntSize?> = emptyArray()
-  private val pages = LinkedHashMap<Key, T>(16, 0.75f, true)
-  private val previews = LinkedHashMap<Key, T>(16, 0.75f, true)
+  private val sizes = LinkedHashMap<Int, IntSize>(16, 0.75f, true)
+  private val pages = LinkedHashMap<Key, ViewerPixels<T>>(16, 0.75f, true)
+  private val previews = LinkedHashMap<Key, ViewerPixels<T>>(16, 0.75f, true)
   private var pageBytes = 0L
+
+  private val subscription = memory.watch(FluidMemoryCategory.VIEWER) { level ->
+    if (level == null) {
+      previews.entries.removeAll { (_, pixels) ->
+        (!pixels.visible).also { if (it) pixels.close() }
+      }
+      pages.entries.removeAll { (_, pixels) ->
+        if (pixels.visible) false else {
+          pageBytes -= bytesOf(pixels.value)
+          pixels.close()
+          true
+        }
+      }
+    } else clearImages()
+    if (level != null && level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND && !closed) {
+      executor.execute {
+        backend?.close()
+        backend = null
+      }
+    }
+  }
+
+
+  private fun clearImages() {
+    pages.values.forEach { it.close() }
+    previews.values.forEach { it.close() }
+    pages.clear()
+    previews.clear()
+    pageBytes = 0
+  }
 
   @Volatile private var closed = false
   private val released = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -83,7 +120,6 @@ internal class FluidPageRenderQueue<T : Any>(
       throw t
     }
     backend = opened
-    sizes = arrayOfNulls(opened.pageCount)
     pageCount = opened.pageCount
     opened.pageCount
   }
@@ -93,9 +129,14 @@ internal class FluidPageRenderQueue<T : Any>(
     private set
 
   suspend fun size(index: Int): IntSize = onThread {
-    val document = document()
-    require(index in sizes.indices) { "Pagina $index fuori da 0 until ${sizes.size}" }
-    sizes[index] ?: document.pageSize(index).also { sizes[index] = it }
+    require(index in 0 until pageCount) { "Pagina $index fuori da 0 until $pageCount" }
+    sizes[index] ?: run {
+      memory.ensureCurrent(memory.resources.trimGeneration, false)
+      document().pageSize(index).also {
+        sizes[index] = it
+        if (sizes.size > 64) sizes.remove(sizes.keys.first())
+      }
+    }
   }
 
   /**
@@ -106,27 +147,41 @@ internal class FluidPageRenderQueue<T : Any>(
   suspend fun render(index: Int, target: IntSize): T {
     require(target.width > 0 && target.height > 0) { "La misura deve essere positiva: $target" }
     val size = capped(target)
-    return onThread {
-      val document = document()
-      require(index in sizes.indices) { "Pagina $index fuori da 0 until ${sizes.size}" }
-      val key = Key(index, size.width, size.height)
-      val preview = maxOf(size.width, size.height) <= previewLongSide
-      val cache = if (preview) previews else pages
-      cache[key]?.let { return@onThread it }
-      val image = document.render(index, size)
-      renders++
-      if (preview) {
-        previews[key] = image
-        while (previews.size > maxPreviews) previews.remove(previews.keys.first())
-      } else {
-        pages[key] = image
-        pageBytes += bytesOf(image)
-        while (pages.size > maxPages || pageBytes > maxBytes && pages.size > 1) {
-          val eldest = pages.keys.first()
-          pageBytes -= bytesOf(pages.remove(eldest)!!)
+    val caller = currentCoroutineContext()
+    val reader = caller[FluidPageRead]
+    val optional = caller[OptionalViewerWork] != null || reader?.optional == true
+    val generation = memory.resources.trimGeneration
+    val key = Key(index, size.width, size.height)
+    val preview = maxOf(size.width, size.height) <= previewLongSide
+    val cache = if (preview) previews else pages
+    fun ready(): T? = synchronized(memory.lock) {
+      if (closed) throw CancellationException("Il documento è chiuso")
+      memory.ensureCurrent(generation, optional)
+      cache[key]?.read(reader)
+    }
+    ready()?.let { return it }
+    return memory.whileAllowed(optional) {
+      memory.pdf.run(optional) {
+        ready() ?: onThread {
+          val document = document()
+          require(index in 0 until pageCount) { "Pagina $index fuori da 0 until $pageCount" }
+          memory.decode(FluidMemoryCategory.VIEWER, size, optional, { pixelPeak(it, 8) },
+            { admitted -> document.render(index, admitted).also { renders++ } }, bytesOf, physical, discard) { pixels ->
+              if (closed) throw CancellationException("Il documento è chiuso")
+              memory.ensureCurrent(generation, optional)
+              val result = pixels.read(reader)
+              cache[key] = pixels
+              if (!preview) pageBytes += bytesOf(result)
+              while (cache.isNotEmpty() && (cache.size > (if (preview) maxPreviews else maxPages) ||
+                  !preview && pageBytes > maxBytes && cache.size > 1)) {
+                val eldest = cache.remove(cache.keys.first())!!
+                if (!preview) pageBytes -= bytesOf(eldest.value)
+                eldest.close()
+              }
+              result
+            } ?: noViewerMemory()
         }
       }
-      image
     }
   }
 
@@ -137,22 +192,26 @@ internal class FluidPageRenderQueue<T : Any>(
     return render(index, IntSize((page.width * scale).roundToInt().coerceAtLeast(1), (page.height * scale).roundToInt().coerceAtLeast(1)))
   }
 
+  suspend fun prefetch(index: Int) {
+    if (!memory.mayPrefetch(FluidMemoryCategory.VIEWER)) return
+    // Il proprietario temporaneo viene chiuso anche in caso di annullo nella consegna con cambio dispatcher.
+    FluidPageRead().use { reader -> withContext(OptionalViewerWork() + reader) { preview(index) } }
+  }
+
   /** Le pagine intere e le anteprime in cache adesso. Per i test. */
-  internal suspend fun cached(): Pair<Int, Int> = onThread { pages.size to previews.size }
+  internal suspend fun cached(): Pair<Int, Int> = synchronized(memory.lock) { pages.size to previews.size }
 
   internal fun capped(target: IntSize): IntSize {
-    val pixels = target.width.toLong() * target.height
-    if (pixels <= maxPixels) return target
-    val scale = sqrt(maxPixels.toDouble() / pixels)
-    return IntSize((target.width * scale).toInt().coerceAtLeast(1), (target.height * scale).toInt().coerceAtLeast(1))
+    return viewerPixelSize(target.width, target.height, maxPixels)
   }
 
   private fun document(): FluidPageBackend<T> {
     if (closed) throw CancellationException("Il documento è chiuso")
-    return checkNotNull(backend) { "Il documento non è aperto: chiamare start()" }
+    check(pageCount > 0 || backend != null) { "Il documento non è aperto: chiamare start()" }
+    return backend ?: open().also { backend = it }
   }
 
-  private suspend fun <R> onThread(block: () -> R): R {
+  private suspend fun <R> onThread(block: suspend () -> R): R {
     if (closed) throw CancellationException("Il documento è chiuso")
     return try {
       withContext(thread) {
@@ -165,8 +224,12 @@ internal class FluidPageRenderQueue<T : Any>(
   }
 
   override fun close() {
-    if (closed) return
-    closed = true
+    synchronized(memory.lock) {
+      if (closed) return
+      closed = true
+      clearImages()
+      subscription.close()
+    }
     try {
       executor.execute { finish() }
     } catch (_: java.util.concurrent.RejectedExecutionException) {
@@ -183,9 +246,7 @@ internal class FluidPageRenderQueue<T : Any>(
       backend?.close()
     } finally {
       backend = null
-      pages.clear()
-      previews.clear()
-      pageBytes = 0
+      synchronized(memory.lock) { clearImages(); subscription.close() }
       if (released.compareAndSet(false, true)) release()
     }
   }
@@ -202,4 +263,16 @@ internal class FluidPageRenderQueue<T : Any>(
     /** La pagina più grande che si rende: 12 MP (48 MB), oltre si riduce. A occhio, 22 novembre 2026. */
     const val DefaultMaxPixels: Long = 12_000_000
   }
+}
+
+/** Anche un panorama largo un solo pixel resta nel numero ammesso dopo gli arrotondamenti. */
+internal fun viewerPixelSize(width: Int, height: Int, maxPixels: Long): IntSize {
+  require(width > 0 && height > 0 && maxPixels > 0)
+  val pixels = width.toLong() * height
+  if (pixels <= maxPixels) return IntSize(width, height)
+  val scale = sqrt(maxPixels.toDouble() / pixels)
+  val w = (width * scale).toInt().coerceAtLeast(1)
+  val h = (height * scale).toInt().coerceAtLeast(1)
+  return if (w >= h) IntSize(minOf(w.toLong(), maxPixels / h).toInt(), h)
+    else IntSize(w, minOf(h.toLong(), maxPixels / w).toInt())
 }

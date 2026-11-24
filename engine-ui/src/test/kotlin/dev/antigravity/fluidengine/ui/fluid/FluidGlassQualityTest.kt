@@ -7,6 +7,18 @@ import org.junit.Test
 
 class FluidGlassQualityTest {
 
+  @Test fun iTettiSiCombinanoPerMinimoSenzaRidurreDueVolteIlRuolo() {
+    val full = dev.antigravity.fluidengine.ui.glass.quality.GlassOptics.Full
+    val reduced = full.lower()
+    val protected = reduced.lower()
+    assertEquals(1f, glassBackgroundScale(1f, full, true, 0f), 0f)
+    assertEquals(0.75f, glassBackgroundScale(1f, reduced, true, 0f), 0f)
+    assertEquals(0.5f, glassBackgroundScale(0.5f, reduced, true, 0f), 0f)
+    assertEquals(0.4f, glassBackgroundScale(0.4f, protected, false, 0f), 0f)
+    assertEquals(0.75f, glassBackgroundScale(1f, protected, true, 0.75f), 0f)
+    assertEquals(0.5f, glassBackgroundScale(1f, protected, false, 0.75f), 0f)
+  }
+
   @Test
   fun aStillPageGetsTheWholeMaterial() {
     assertEquals(1f, FluidGlassQuality.targetLevel(0f), 0f)

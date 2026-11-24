@@ -103,6 +103,13 @@ class FluidScrollEdgeLeversTest {
   }
 
   @Test
+  fun duranteIlMotoRidottoIlBordoMantieneIlVeloConUnaPassata() {
+    assertEquals(2, glassScrollEdgePasses(1f, null, 1f))
+    assertEquals(1, glassScrollEdgePasses(1f, null, 1f, singleAxis = true))
+    assertEquals(0, glassScrollEdgePasses(0f, null, 1f, singleAxis = true))
+  }
+
+  @Test
   fun aStillEdgeNeverChangesItsCapture() {
     val hold = GlassScrollEdgeHold(slackPx = 72)
     var now = 0L

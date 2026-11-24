@@ -17,6 +17,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidLicense
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileInfo
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.ui.fluid.viewer.viewerTypeActions
+import dev.antigravity.fluidengine.viewer.FluidViewerRaster
 import dev.antigravity.fluidengine.viewer.FluidDecodedImage
 import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerException
@@ -100,8 +101,14 @@ class FluidGraphicsFamily : FluidViewerFamily {
       }
       "psd" -> {
         val image = Photoshop(request.source.open().use { it.readGraphic() })
-        val (bitmap, preview) = image.image(pixelLimit(request))
-        bitmapViewer(bitmap, request.source.name, image.details(preview))
+        var preview = false
+        val target = androidx.compose.ui.unit.IntSize(image.width, image.height)
+        val bitmap = FluidViewerRaster.render(request.context, target, 40, image.scratchBytes) { admitted ->
+          val result = image.image(pixelLimit(request), maxOf(admitted.width, admitted.height))
+          preview = result.second
+          result.first.asImageBitmap()
+        } ?: tooLarge("Memoria insufficiente per la pagina Photoshop")
+        bitmapViewer(bitmap.asAndroidBitmap(), request.source.name, image.details(preview))
       }
       "heif", "avif" -> {
         val image = decodePlatform(request, pixelLimit(request))
@@ -120,7 +127,10 @@ class FluidGraphicsFamily : FluidViewerFamily {
     }
   }
 
-  override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int) = withContext(Dispatchers.IO) {
+  override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int) =
+    FluidViewerRaster.thumbnail(request.context, sizePx) { makeThumbnail(request, it) }
+
+  private suspend fun makeThumbnail(request: FluidViewerRequest, sizePx: Int) = withContext(Dispatchers.IO) {
     if (sizePx <= 0) return@withContext null
     val format = request.type.id
     if (platformLimitation(format) != null) return@withContext null
@@ -133,7 +143,13 @@ class FluidGraphicsFamily : FluidViewerFamily {
         val (w, h) = fitRaster(size.width, size.height, edge)
         pages.render(0, androidx.compose.ui.unit.IntSize(w, h))
       }
-      "psd" -> Photoshop(request.source.open().use { it.readGraphic() }).image(limit, edge).first.asImageBitmap()
+      "psd" -> {
+        val image = Photoshop(request.source.open().use { it.readGraphic() })
+        val (w, h) = fitRaster(image.width, image.height, edge)
+        FluidViewerRaster.render(request.context, androidx.compose.ui.unit.IntSize(w, h), 40, image.scratchBytes) {
+          image.image(limit, maxOf(it.width, it.height)).first.asImageBitmap()
+        }
+      }
       "svg" -> readSvg(request).thumbnail(edge).asImageBitmap()
       "heif", "avif" -> decodePlatform(request, minOf(limit, edge.toLong() * edge)).still?.let {
         val (w, h) = fitRaster(it.width, it.height, edge)

@@ -1,5 +1,7 @@
 package dev.antigravity.fluidengine.viewer.archive
 
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
+import androidx.compose.runtime.collectAsState
 import android.database.ContentObserver
 import android.os.Build
 import android.os.Handler
@@ -313,8 +315,12 @@ private fun ArchiveFileRow(session: ArchiveSession, item: ArchiveItem, locale: L
   val look = rememberFluidThumbnailLook()
   val edge = with(LocalDensity.current) { 40.dp.roundToPx() }
   val index = session.index
-  val preview by produceState<ArchiveRowPreview?>(null, session, item, index, look, edge, active) {
-    if (active) value = session.rowPreview(item, edge, look)
+  val visible by session.uiVisible.collectAsState()
+  val reader = remember(session, item, index, look, edge, active, visible) { FluidPageRead() }
+  val preview by androidx.compose.runtime.key(reader) {
+    produceState<ArchiveRowPreview?>(null) {
+      if (active && visible) value = session.rowPreview(item, edge, look, reader)
+    }
   }
   val subtitle = listOfNotNull(archiveRowSubtitle(item, preview, locale, today), path).joinToString(" · ")
   val action = if (open == null) Modifier else Modifier.fluidPressable(onClick = open, role = Role.Button,

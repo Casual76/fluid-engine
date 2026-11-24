@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.util.fastCoerceAtMost
+import dev.antigravity.fluidengine.ui.fluid.GlassRenderQuality
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.RuntimeShaderEffect
 import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
@@ -52,8 +53,9 @@ fun BackdropEffectScope.lens(
     // padding untouched, blur and vibrancy kept — instead of throwing from inside the draw on every glass
     // screen. One process-wide compile the first time (the one the lens then draws with), one read after.
     // The two early returns swapped places so a surface without refraction never compiles a lens.
+    val disperse = chromaticAberration && (this as? GlassRenderQuality)?.limitDecorations != true
     val source =
-        if (!chromaticAberration) GlassShaderSources.RoundedRectRefraction
+        if (!disperse) GlassShaderSources.RoundedRectRefraction
         else GlassShaderSources.RoundedRectRefractionWithDispersion
     if (!GlassFieldHealth.usable(source)) return
 
@@ -66,7 +68,7 @@ fun BackdropEffectScope.lens(
         if (cornerRadii != null) {
             val shader =
                 obtainRuntimeShader(
-                    if (!chromaticAberration) "Refraction" else "RefractionWithDispersion",
+                    if (!disperse) "Refraction" else "RefractionWithDispersion",
                     source.text
                 )
             shader.apply {
@@ -76,7 +78,7 @@ fun BackdropEffectScope.lens(
                 setFloatUniform("refractionHeight", refractionHeight)
                 setFloatUniform("refractionAmount", -refractionAmount)
                 setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
-                if (chromaticAberration) {
+                if (disperse) {
                     setFloatUniform("chromaticAberration", 1f)
                 }
             }

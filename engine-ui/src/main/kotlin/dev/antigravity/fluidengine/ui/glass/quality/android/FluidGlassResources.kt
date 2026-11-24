@@ -12,6 +12,9 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.PowerManager
 import android.view.Window
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.annotation.MainThread
 import androidx.annotation.RestrictTo
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget
@@ -26,6 +29,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.Closeable
 import java.util.concurrent.CopyOnWriteArrayList
 
+/** Letto dal renderer. Una variazione invalida anche un vetro fermo. */
+internal class GlassRenderState(optics: GlassOptics) {
+  var optics by mutableStateOf(optics)
+  var scrolling by mutableStateOf(false)
+  var windowMotion by mutableStateOf(false)
+  var deniedCaptures = 0
+}
+
 /** Limiti condivisi dai moduli Fluid nello stesso processo. Accessibile anche prima del primo Composable. */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 class FluidGlassResources private constructor(private val app: Application) {
@@ -37,11 +48,24 @@ class FluidGlassResources private constructor(private val app: Application) {
     if (processDenied) it.setVisibleBudgetDenied(System.nanoTime(), true)
   }
   private val initial = newPolicy()
+  private val initialRender = GlassRenderState(initial.decision.optics)
   private val windows = LinkedHashMap<Window, GlassWindow>()
   private var row = initial.decision.memoryProfile
   private var heap = initial.decision.heapReferenceBytes
-  private var lastReadingNs = System.nanoTime()
+  @Volatile private var lastReadingNs = System.nanoTime()
   private var pressured = false
+  private val shown = MutableStateFlow(true)
+  /** Il trim UI_HIDDEN sospende i lettori fino al prossimo ingresso in primo piano. */
+  val uiVisible: StateFlow<Boolean> = shown.asStateFlow()
+  /** Cambia prima di ogni consegna ai clienti, anche mentre si iscrive un decoder. */
+  @Volatile var trimGeneration: Long = 0
+    private set
+  /** Posti condivisi dalle miniature secondo il profilo effettivo del processo. */
+  val thumbnailParallelism: Int @Synchronized get() = when (row) {
+    GlassMemoryProfile.Full -> 3
+    GlassMemoryProfile.Reduced -> 2
+    GlassMemoryProfile.Protected -> 1
+  }
   private var hidden = false
 
   /** Un solo registro per tutti i layer e i decoder, comprese finestre simultanee. */
@@ -94,9 +118,11 @@ class FluidGlassResources private constructor(private val app: Application) {
   @MainThread
   internal fun trim(level: Int) {
     synchronized(this) {
+      trimGeneration++
       when {
         level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
           hidden = true
+          shown.value = false
           windows.values.toList().forEach { it.setVisible(false) }
         }
         level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
@@ -109,11 +135,13 @@ class FluidGlassResources private constructor(private val app: Application) {
     trimClients.forEach { it(level) }
   }
 
+  internal val allocationReadingFresh: Boolean get() = System.nanoTime() - lastReadingNs < 1_000_000_000L
+
   /** Ricontrolla disponibilità e heap prima di una richiesta grande se l'ultima lettura è vecchia. Fuori dal draw. */
   @Synchronized
   fun refreshBeforeAllocation() {
     // Un secondo è la massima età scelta per il campione su richiesta (F7.11, 24 novembre 2026).
-    if (System.nanoTime() - lastReadingNs >= 1_000_000_000L) refresh()
+    if (!allocationReadingFresh) refresh()
   }
 
   @Synchronized
@@ -140,15 +168,25 @@ class FluidGlassResources private constructor(private val app: Application) {
   @Synchronized
   fun visibleBudgetDenied(window: Window?, denied: Boolean) {
     val owner = windows[window]
+    if (owner == null) processDenied = denied else owner.visibleDenied = denied
+    publishDenials()
+  }
+
+  /** Ogni lettore segnala una coppia rifiuto/ammissione. Il visore usa il suo segnale indipendente. */
+  @Synchronized
+  internal fun visibleCaptureDenied(window: Window?, denied: Boolean) {
+    val state = renderState(window)
+    state.deniedCaptures += if (denied) 1 else -1
+    check(state.deniedCaptures >= 0)
+    publishDenials()
+  }
+
+  private fun publishDenials() {
     val now = System.nanoTime()
-    if (owner == null) {
-      processDenied = denied
-      initial.setVisibleBudgetDenied(now, denied)
-      windows.values.forEach { it.policy.setVisibleBudgetDenied(now, denied || it.visibleDenied) }
-    } else {
-      owner.visibleDenied = denied
-      owner.policy.setVisibleBudgetDenied(now, denied || processDenied)
-    }
+    val denied = processDenied || initialRender.deniedCaptures > 0
+    initial.setVisibleBudgetDenied(now, denied)
+    for (owner in windows.values) owner.policy.setVisibleBudgetDenied(now,
+      denied || owner.visibleDenied || owner.render.deniedCaptures > 0)
     publish()
   }
 
@@ -172,10 +210,15 @@ class FluidGlassResources private constructor(private val app: Application) {
   @Synchronized
   internal fun decision(window: Window?): GlassQualityDecision = windows[window]?.policy?.decision ?: initial.decision
 
+  @Synchronized
+  internal fun renderState(window: Window?): GlassRenderState = windows[window]?.render ?: initialRender
+
   @MainThread
   @Synchronized
   internal fun acquire(window: Window): Closeable {
-    val watch = windows[window] ?: GlassWindow(this, window, newPolicy()).also {
+    val watch = windows[window] ?: GlassWindow(this, window, newPolicy().also {
+      if (initialRender.deniedCaptures > 0) it.setVisibleBudgetDenied(System.nanoTime(), true)
+    }).also {
       windows[window] = it
       it.install()
     }
@@ -197,6 +240,7 @@ class FluidGlassResources private constructor(private val app: Application) {
   @Synchronized
   internal fun foreground() {
     hidden = false
+    shown.value = true
     refresh()
     windows.values.toList().forEach { it.checkVisibility() }
   }
@@ -215,8 +259,11 @@ class FluidGlassResources private constructor(private val app: Application) {
     var nextRow = GlassMemoryProfile.Full
     var nextHeap = Long.MAX_VALUE
     var prefetch = sessionCeiling == GlassOptics.Full && !pressured && !hidden
-    for (window in windows.values) if (window.visible) {
+    initialRender.optics = initial.decision.optics
+    for (window in windows.values) {
       val decision = window.policy.decision
+      window.render.optics = decision.optics
+      if (!window.visible) continue
       nextRow = minOf(nextRow, decision.memoryProfile)
       nextHeap = minOf(nextHeap, decision.heapReferenceBytes)
       prefetch = prefetch && decision.allowPrefetch
@@ -240,6 +287,9 @@ class FluidGlassResources private constructor(private val app: Application) {
   companion object {
     @Volatile
     private var process: FluidGlassResources? = null
+
+    /** Registro inizializzato da Startup o da get(context), anche per gli adattatori che ricevono solo un File. */
+    fun current(): FluidGlassResources = checkNotNull(process) { "Inizializzare FluidGlassResources.get(context) in questo processo" }
 
     /** Inizializzazione sincrona, idempotente anche nei processi secondari senza AndroidX Startup. */
     fun get(context: Context): FluidGlassResources = process ?: synchronized(this) {

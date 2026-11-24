@@ -23,12 +23,19 @@ internal class DataDecoded(val text: String, val charset: FluidTextCharset, val 
 internal object DataText {
 
   /** Legge [input] fino a [limit] byte; il buffer cresce col file, non parte dal tetto. */
-  fun read(input: InputStream, limit: Int, sizeHint: Long? = null): DataBytes {
-    val known = sizeHint?.takeIf { it >= 0 }?.plus(1)?.coerceAtMost(limit.toLong())?.toInt()
-    var data = ByteArray((known ?: minOf(limit, 64 * 1024)).coerceAtLeast(1))
+  fun read(input: InputStream, limit: Int, sizeHint: Long? = null,
+    beforeBuffer: (Int) -> Unit = {}): DataBytes {
+    val known = sizeHint?.takeIf { it >= 0 }?.coerceAtMost(limit.toLong())?.plus(1)?.coerceAtMost(limit.toLong())?.toInt()
+    val initial = (known ?: minOf(limit, 64 * 1024)).coerceAtLeast(1)
+    beforeBuffer(initial)
+    var data = ByteArray(initial)
     var filled = 0
     while (filled < limit) {
-      if (filled == data.size) data = data.copyOf(minOf(limit, maxOf(data.size * 2, 8192)))
+      if (filled == data.size) {
+        val next = minOf(limit.toLong(), maxOf(data.size * 2L, 8192L)).toInt()
+        beforeBuffer(next)
+        data = data.copyOf(next)
+      }
       val n = input.read(data, filled, data.size - filled)
       if (n < 0) break
       filled += n

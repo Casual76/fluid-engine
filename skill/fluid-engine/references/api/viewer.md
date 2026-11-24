@@ -128,7 +128,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val cachedCount: Int get()` — Quante miniature e quanti byte tiene la cache adesso: per i test e per chi misura.
   - `val cachedBytes: Long get()`
   - `fun cached(file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light): FluidFileThumbnail?` — La miniatura già pronta, senza leggere niente: per la prima composizione di una tessera. `null` se non c'è.
-  - `suspend fun load(context: Context, file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light, timeoutMillis: Long = DefaultTimeoutMillis, options: FluidViewerOptions = FluidViewerOptions()): FluidFileThumbnail` — La miniatura di [file], larga al più [sizePx] sul lato lungo (fra 32 e 1024), con i colori [look]. Dalla cache se c'è; altrimenti letta e disegnata fuori dal filo principale, entro [timeoutMillis]. Non lancia: un file rotto, che manca o che supera il tempo dà l'icona del documento con l'estensione.
+  - `suspend fun load(context: Context, file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light, timeoutMillis: Long = DefaultTimeoutMillis, options: FluidViewerOptions = FluidViewerOptions()): FluidFileThumbnail` — La miniatura di [file], larga al più [sizePx] sul lato lungo (fra 32 e 1024), con i colori [look]. Dalla cache se c'è; altrimenti letta e disegnata fuori dal filo principale, entro [timeoutMillis]. Un file rotto, che manca o che supera il tempo dà l'icona del documento. Con quota già nulla alla prima chiamata, anche il simbolo minimo può essere rifiutato ([FluidViewerFailure.TooLarge]).
+  - `suspend fun prefetch(context: Context, file: FluidViewerFile, sizePx: Int, look: FluidThumbnailLook = FluidThumbnailLook.Light)` — Prepara una tessera fuori schermo solo finché il processo permette il prefetch.
   - `fun evict(file: FluidViewerFile)` — Toglie dalla cache le miniature di [file], a ogni misura e con ogni colore.
   - `fun clear()` — Svuota la cache.
 - `@Composable fun rememberFluidFileThumbnail(file: FluidViewerFile?, sizePx: Int, look: FluidThumbnailLook = rememberFluidThumbnailLook(), timeoutMillis: Long = FluidFileThumbnails.DefaultTimeoutMillis): FluidFileThumbnail?` — La miniatura di [file] in Compose: la cache alla prima composizione (la tessera che torna dal visore è già piena, e l'apertura dalla miniatura parte dalla stessa immagine), poi [FluidFileThumbnails.load]. `null` finché non c'è.
@@ -157,6 +158,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `class FluidPdfPageSource private constructor(private val queue: FluidPageRenderQueue<ImageBitmap>) : FluidPageSource, Closeable` — Un PDF per il preset delle pagine, con il `PdfRenderer` della piattaforma (`androidx.pdf` è in alfa e non si usa).
   - `suspend fun preview(index: Int): ImageBitmap` — L'anteprima della pagina [index], a lato lungo 256 px: quella da mostrare mentre si scorre.
+  - `suspend fun prefetch(index: Int)` — Preriscalda una pagina vicina a bassa risoluzione finché la finestra ha margine.
   - `companion object`
     - `const val DefaultMaxCopyBytes: Long` — Il tetto della copia di un PDF che arriva da un `Uri` non ricercabile (un flusso, una pipe): `PdfRenderer` vuole un descrittore su cui spostarsi, quindi il file si copia nella cache dell'app. 512 MB, a occhio, 22 novembre 2026: un PDF più grande da un flusso è un caso da «Apri con…».
     - `suspend fun open(descriptor: ParcelFileDescriptor): FluidPdfPageSource` — Apre un PDF da un descrittore, che passa al sorgente (lo chiude lui, anche se l'apertura fallisce). Il descrittore deve essere ricercabile: per un `Uri` qualunque usare l'altro [open], che copia quando serve.
@@ -313,6 +315,15 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun document(index: Int): FluidViewerDocument?` — Il file aperto alla pagina [index], `null` finché si apre.
   - `fun content(index: Int): FluidViewerContent` — Il contenuto della pagina [index]. La prima volta comincia ad aprire il file e chiude quelli lontani.
 - `@Composable fun rememberFluidViewerFiles(files: List<FluidViewerFile>, options: FluidViewerOptions = FluidViewerOptions(), window: Int = 1, openWith: ((FluidViewerFile) -> Unit)? = null, share: ((FluidViewerFile) -> Unit)? = null, media: ((FluidViewerFile, FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerFiles` — I file di [files] per il visore, aperti col modulo attorno alla pagina corrente e chiusi quando la composizione esce. [media] dà il contenuto di un video o di un audio col player dell'app (per esempio `{ _, type -> fluidMedia3Content(session, video = type.preset == FluidViewerPreset.Video) }`); senza, i video vanno allo sconosciuto. [openWith] e [share] diventano «Apri con…» e «Condividi» dello sconosciuto.
+
+## `engine-viewer/viewer/FluidViewerMemory.kt`
+
+- `object FluidViewerRaster` — Adattatore dei moduli di famiglia per una superficie a misura riducibile e il suo scratch simultaneo.
+  - `suspend fun thumbnail(context: Context, side: Int, draw: suspend (Int) -> ImageBitmap?): ImageBitmap?` — Anche le famiglie invocate direttamente usano gli stessi posti e la stessa quota delle tessere del registro.
+  - `suspend fun thumbnailScratch(bytes: Long): (Long) -> Boolean` — Prenota scratch aggiuntivo di una famiglia fino al ritorno dal decoder della miniatura.
+  - `fun observeCachePressure(context: Context, evict: () -> Unit): Closeable` — Invalida le cache di famiglia su trim o quando un decoder deve fare spazio al visibile.
+  - `suspend fun readBytes(input: InputStream, limit: Int): ByteArray` — Copia in RAM una sorgente a lunghezza incerta. Prenota blocchi e array finale mentre entrambi esistono.
+  - `suspend fun render(context: Context?, target: IntSize, bytesPerPixel: Int = 8, scratch: Long = 65536L, draw: suspend (IntSize) -> ImageBitmap?): ImageBitmap?` — Il sorgente riceve la misura ammessa prima di creare pixel. Lo scratch fisso include strisce o buffer del formato.
 
 ## `engine-viewer/viewer/FluidViewerRegistry.kt`
 

@@ -29,13 +29,15 @@ internal object FluidZipDirectory {
     return a == 3 && b == 4 || a == 5 && b == 6 || a == 7 && b == 8
   }
 
-  fun names(channel: FileChannel): Set<String>? = try {
-    read(channel)
+  fun names(channel: FileChannel, reserve: (Long) -> Boolean = { true }): Set<String>? = try {
+    read(channel, reserve)
+  } catch (cancelled: kotlinx.coroutines.CancellationException) {
+    throw cancelled
   } catch (_: Exception) {
     null
   }
 
-  private fun read(channel: FileChannel): Set<String>? {
+  private fun read(channel: FileChannel, reserve: (Long) -> Boolean): Set<String>? {
     val size = channel.size()
     if (size < EndLength) return null
     val tailLength = minOf(size, (EndLength + MaxCommentLength).toLong()).toInt()
@@ -66,6 +68,8 @@ internal object FluidZipDirectory {
     }
     if (entries < 0 || entries > MaxEntries || directorySize < 0 || directorySize > MaxDirectoryBytes) return null
     if (directoryOffset < 0 || directoryOffset + directorySize > size) return null
+    // Directory originale, nomi decodificati e nodi del set restano vivi insieme.
+    if (!reserve(directorySize * 4 + entries * 96)) return null
     val directory = readAt(channel, directoryOffset, directorySize.toInt()) ?: return null
     val names = LinkedHashSet<String>()
     var at = 0

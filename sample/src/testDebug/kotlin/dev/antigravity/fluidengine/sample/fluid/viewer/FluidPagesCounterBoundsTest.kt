@@ -39,6 +39,48 @@ class FluidPagesCounterBoundsTest {
   @Config(sdk = [35], qualifiers = "w753dp-h1205dp-mdpi")
   @Test fun tabS9() = checkReader("tablet")
 
+  @Test fun lastPageOfLongDocumentWithLimitedResidentBytes() {
+    val context = compose.activity
+    val count = 180
+    val process = dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(context)
+    val category = dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.VIEWER
+    val base = process.budget.usage(category).usedBytes
+    // La UI e le sue mani sul registro sono reali. Il renderer PDF nativo ha la prova Android a 300 pagine.
+    val source = object : FluidPageSource {
+      override val count = 180
+      override suspend fun size(index: Int) = IntSize(160, 240)
+      override suspend fun render(index: Int, target: IntSize) =
+        checkNotNull(dev.antigravity.fluidengine.viewer.FluidViewerRaster.render(context, target) { size ->
+          ImageBitmap(size.width, size.height)
+        })
+    }
+    var show by mutableStateOf(true)
+    try {
+      assertEquals(count, source.count)
+      compose.setContent { if (show) FluidTheme(EngineSettings()) {
+        val document = remember { FluidViewerContent.Pages(source) }
+        FluidFileViewer(1, content = { document }, renderContent = { _, visible -> FluidPagesPreset(document, visible) })
+      } }
+      val scroll = compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Zoom 100%"))
+      fun waitPage(number: Int) = compose.waitUntil(20_000) {
+        compose.onAllNodesWithContentDescription("Pagina $number di $count").fetchSemanticsNodes().isNotEmpty()
+      }
+      waitPage(1)
+      scroll.performScrollToIndex(count - 1)
+      waitPage(count)
+      compose.onNodeWithContentDescription("Miniature delle pagine").assert(
+        SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Pagina $count di $count"))
+      val usage = process.budget.usage(category)
+      assertTrue(usage.residentBytes > base && usage.usedBytes <= usage.limitBytes)
+      scroll.performScrollToIndex(0)
+      waitPage(1)
+    } finally {
+      compose.runOnIdle { show = false }
+      compose.waitForIdle()
+    }
+    compose.waitUntil(10_000) { process.budget.usage(category).usedBytes == base }
+  }
+
   private fun checkReader(device: String) {
     var size by mutableStateOf(IntSize(612, 792))
     var font by mutableFloatStateOf(1f)

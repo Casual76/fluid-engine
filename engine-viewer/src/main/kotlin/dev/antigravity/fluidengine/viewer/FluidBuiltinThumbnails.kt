@@ -12,6 +12,7 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import android.media.MediaMetadataRetriever
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.unit.IntSize
@@ -167,15 +168,18 @@ private suspend fun imageThumbnail(source: FluidViewerSource, size: Int): FluidF
 
 /** La prima pagina di un PDF, su carta bianca. */
 private suspend fun pdfThumbnail(source: FluidViewerSource, size: Int): FluidFileThumbnail? {
-  val pages = if (source is FluidViewerFileSource) FluidPdfPageSource.open(source.file) else FluidPdfPageSource.open(source.seekable())
-  return pages.use {
-    if (it.count <= 0) return@use null
-    val page = it.size(0)
-    if (page.width <= 0 || page.height <= 0) return@use null
-    val scale = size.toFloat() / max(page.width, page.height)
-    val target = IntSize(max(1, (page.width * scale).roundToInt()), max(1, (page.height * scale).roundToInt()))
-    val rendered = it.render(0, target).asAndroidBitmap()
-    FluidFileThumbnail.of(FluidThumbnailPainter.tag(rendered, fills = false, placeholder = false), fillsByKind = false)
+  val memory = ViewerMemory.get()
+  return memory.pdf.run(kotlinx.coroutines.currentCoroutineContext()[OptionalViewerWork] != null) {
+    source.seekable().use { descriptor ->
+      PdfRendererBackend(descriptor).use { document ->
+        if (document.pageCount <= 0) return@run null
+        val page = document.pageSize(0)
+        val scale = size.toFloat() / max(page.width, page.height).coerceAtLeast(1)
+        val target = IntSize(max(1, (page.width * scale).roundToInt()), max(1, (page.height * scale).roundToInt()))
+        val bitmap = document.render(0, target).asAndroidBitmap()
+        FluidFileThumbnail.of(FluidThumbnailPainter.tag(bitmap, fills = false, placeholder = false), fillsByKind = false)
+      }
+    }
   }
 }
 
@@ -185,8 +189,16 @@ private suspend fun videoThumbnail(source: FluidViewerSource, size: Int): FluidF
     val retriever = MediaMetadataRetriever()
     try {
       retriever.setDataSource(descriptor.fileDescriptor)
-      val frame = retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-        ?: retriever.frameAtTime ?: return@withContext null
+      val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: return@withContext null
+      val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: return@withContext null
+      if (w <= 0 || h <= 0) return@withContext null
+      val scale = minOf(1.0, size.toDouble() / max(w, h))
+      val frame = if (Build.VERSION.SDK_INT >= 27) {
+        retriever.getScaledFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+          (w * scale).roundToInt().coerceAtLeast(1), (h * scale).roundToInt().coerceAtLeast(1))
+      } else if (max(w, h) <= size) retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+      else null
+      if (frame == null) return@withContext null
       FluidFileThumbnail.of(FluidThumbnailPainter.picture(fit(frame, size, 0)), fillsByKind = true)
     } finally {
       retriever.release()
@@ -196,25 +208,26 @@ private suspend fun videoThumbnail(source: FluidViewerSource, size: Int): FluidF
 
 /** La copertina di un audio; senza, il simbolo dell'audio nella tinta dell'app (dice il tipo, non il contenuto). */
 private suspend fun audioThumbnail(source: FluidViewerSource, size: Int): FluidFileThumbnail? {
-  val cover = withContext(Dispatchers.IO) {
+  val memory = ViewerMemory.get()
+  val picture = withContext(Dispatchers.IO) {
     source.seekable().use { descriptor ->
-      val retriever = MediaMetadataRetriever()
-      try {
-        retriever.setDataSource(descriptor.fileDescriptor)
-        retriever.embeddedPicture
-      } catch (_: Exception) {
-        null
-      } finally {
-        retriever.release()
+      // embeddedPicture restituisce tutto il payload insieme. statSize è un limite superiore letto dal file aperto.
+      val length = descriptor.statSize.takeIf { it > 0 } ?: return@withContext null
+      val pending = memory.reserve(dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.THUMBNAILS, length, true)
+        ?: return@withContext null
+      pending.use {
+        val retriever = MediaMetadataRetriever()
+        val cover = try {
+          retriever.setDataSource(descriptor.fileDescriptor)
+          retriever.embeddedPicture
+        } finally { retriever.release() } ?: return@withContext null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(cover, 0, cover.size, bounds)
+        var sample = 1
+        while (max(bounds.outWidth, bounds.outHeight).toLong() / sample / 2 >= size) sample *= 2
+        BitmapFactory.decodeByteArray(cover, 0, cover.size, BitmapFactory.Options().apply { inSampleSize = sample })
       }
     }
-  }
-  val picture = cover?.let { bytes ->
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-    var sample = 1
-    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= size) sample *= 2
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
   }
   if (picture != null) return FluidFileThumbnail.of(FluidThumbnailPainter.picture(fit(picture, size, 0)), fillsByKind = true)
   val extension = source.name.substringAfterLast('.', "")
@@ -295,5 +308,7 @@ private fun fit(bitmap: Bitmap, size: Int, degrees: Int): Bitmap {
     postScale(scale, scale)
     if (degrees != 0) postRotate(degrees.toFloat())
   }
-  return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+  return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).also {
+    if (it !== bitmap) bitmap.recycle() // bitmap locale, ancora prima della pubblicazione
+  }
 }

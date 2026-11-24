@@ -174,7 +174,8 @@ internal fun imageMark(pic: Picture, x: Float, y: Float, w: Float, h: Float) = M
     opts.inJustDecodeBounds = false
     opts.inSampleSize = 1
     while (
-      opts.outWidth.toLong() * opts.outHeight / opts.inSampleSize / opts.inSampleSize > 3_000_000
+      opts.outWidth.toLong() * opts.outHeight / opts.inSampleSize / opts.inSampleSize >
+        minOf(3_000_000L, c.width.toLong() * c.height)
     ) opts.inSampleSize *= 2
     BitmapFactory.decodeByteArray(pic.bytes, 0, pic.bytes.size, opts)?.let { bitmap ->
       try {
@@ -268,7 +269,12 @@ internal class OfficePages(private val worker: CoroutineScope) :
     at(index).paper.let { IntSize(it.width.roundToInt(), it.height.roundToInt()) }
 
   override suspend fun render(index: Int, target: IntSize): ImageBitmap =
-    withContext(Dispatchers.Default) { drawOfficePage(at(index), target).asImageBitmap() }
+    withContext(Dispatchers.Default) {
+      val page = at(index)
+      dev.antigravity.fluidengine.viewer.FluidViewerRaster.render(null, target, bytesPerPixel = 16) {
+        drawOfficePage(page, it).asImageBitmap()
+      } ?: tooLarge("Memoria insufficiente per la pagina Office")
+    }
 
   suspend fun search(query: String): List<dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerPageMatch> {
     if (query.isBlank()) return emptyList()

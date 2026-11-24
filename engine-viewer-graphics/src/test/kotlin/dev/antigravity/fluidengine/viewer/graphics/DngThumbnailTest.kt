@@ -17,6 +17,15 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class DngThumbnailTest {
+  @org.junit.Before fun visualBudget() {
+    val app = RuntimeEnvironment.getApplication()
+    val am = app.getSystemService(android.app.ActivityManager::class.java)
+    org.robolectric.Shadows.shadowOf(am).setMemoryClass(512)
+    // Questi test verificano i pixel alla misura richiesta. La quota stretta ha prove dedicate.
+    dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(app).budget
+      .updateLimits(dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits.Full)
+  }
+
   @Test fun cameraOriginalRendersItsEmbeddedPreview() = runBlocking {
     val context = RuntimeEnvironment.getApplication()
     // Native Google Pixel 4 XL capture, raw.pixls.us sample 3502, CC0. See CORPUS.md.

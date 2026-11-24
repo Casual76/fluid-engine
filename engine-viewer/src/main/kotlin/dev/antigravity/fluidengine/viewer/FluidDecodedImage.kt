@@ -3,6 +3,10 @@ package dev.antigravity.fluidengine.viewer
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import kotlinx.coroutines.currentCoroutineContext
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -114,6 +118,7 @@ class FluidDecodedImage private constructor(
       maxPixels: Long = DefaultMaxPixels,
       animate: Boolean = true,
     ): FluidDecodedImage {
+      ViewerMemory.get(context)
       val resolver = context.applicationContext.contentResolver
       return decode(maxPixels, animate,
         source = { if (Build.VERSION.SDK_INT >= 28) ImageDecoder.createSource(resolver, uri) else null },
@@ -136,11 +141,33 @@ class FluidDecodedImage private constructor(
     ): FluidDecodedImage = withContext(Dispatchers.IO) {
       require(maxPixels > 0) { "maxPixels deve essere positivo" }
       try {
-        val platform = source()
-        if (Build.VERSION.SDK_INT >= 28 && platform != null) {
-          decodeWithImageDecoder(platform as ImageDecoder.Source, maxPixels, animate)
-        } else {
-          decodeWithBitmapFactory(stream, maxPixels)
+        val memory = ViewerMemory.get()
+        val optional = currentCoroutineContext()[OptionalViewerWork] != null
+        memory.whileAllowed(optional) {
+          val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+          if (currentCoroutineContext()[ThumbnailAllocation] != null) {
+            stream().use { BitmapFactory.decodeStream(it, null, bounds) }
+          } else {
+            val header = memory.reserve(FluidMemoryCategory.VIEWER, 65536, optional) ?: noViewerMemory()
+            header.use { stream().use { BitmapFactory.decodeStream(it, null, bounds) } }
+          }
+          val fallback = sqrt(maxPixels.toDouble()).toInt().coerceAtLeast(1)
+          val width = bounds.outWidth.takeIf { it > 0 } ?: fallback
+          val height = bounds.outHeight.takeIf { it > 0 } ?: fallback
+          val target = viewerPixelSize(width, height, maxPixels)
+          val multiFrame = animate && bounds.outMimeType !in setOf("image/jpeg", "image/png", "image/bmp")
+          fun platformDecode(admitted: IntSize): FluidDecodedImage {
+            val limit = minOf(maxPixels, admitted.width.toLong() * admitted.height)
+            val platform = source()
+            return if (Build.VERSION.SDK_INT >= 28 && platform != null)
+              decodeWithImageDecoder(platform as ImageDecoder.Source, limit, animate)
+            else decodeWithBitmapFactory(stream, limit)
+          }
+          if (currentCoroutineContext()[ThumbnailAllocation] != null) return@whileAllowed platformDecode(target)
+          memory.decode(FluidMemoryCategory.VIEWER, target, optional,
+            { pixelPeak(it, if (multiFrame) 32 else 16) }, { platformDecode(it) }, { it.still?.pixelBytes ?: pixelPeak(IntSize(it.width, it.height), 24) },
+            { it.still?.physical ?: checkNotNull(it.animation) },
+            { it.still?.asAndroidBitmap()?.recycle() }) { pixels -> pixels.use { it.read(null) } } ?: noViewerMemory()
         }
       } catch (e: FluidViewerException) {
         throw e
@@ -154,11 +181,6 @@ class FluidDecodedImage private constructor(
       }
     }
 
-    private fun scaleFor(width: Int, height: Int, maxPixels: Long): Double {
-      val pixels = width.toLong() * height
-      return if (pixels <= maxPixels || pixels <= 0) 1.0 else sqrt(maxPixels.toDouble() / pixels)
-    }
-
     @RequiresApi(28)
     private fun decodeWithImageDecoder(source: ImageDecoder.Source, maxPixels: Long, animate: Boolean): FluidDecodedImage {
       var sourceWidth = 0
@@ -166,13 +188,8 @@ class FluidDecodedImage private constructor(
       val listener = ImageDecoder.OnHeaderDecodedListener { decoder, info, _ ->
         sourceWidth = info.size.width
         sourceHeight = info.size.height
-        val scale = scaleFor(sourceWidth, sourceHeight, maxPixels)
-        if (scale < 1.0) {
-          decoder.setTargetSize(
-            (sourceWidth * scale).roundToInt().coerceAtLeast(1),
-            (sourceHeight * scale).roundToInt().coerceAtLeast(1),
-          )
-        }
+        val target = viewerPixelSize(sourceWidth, sourceHeight, maxPixels)
+        if (target.width != sourceWidth || target.height != sourceHeight) decoder.setTargetSize(target.width, target.height)
         // Un file troncato (un download a metà) mostra ciò che c'è invece di un errore.
         decoder.setOnPartialImageListener { true }
       }
@@ -205,7 +222,11 @@ class FluidDecodedImage private constructor(
         throw FluidViewerException(FluidViewerFailure.Unsupported, "Formato d'immagine non decodificabile qui")
       }
       var sample = 1
-      while (bounds.outWidth.toLong() / sample * (bounds.outHeight / sample) > maxPixels) sample *= 2
+      while ((bounds.outWidth + sample.toLong() - 1) / sample *
+        ((bounds.outHeight + sample.toLong() - 1) / sample) > maxPixels) {
+        if (sample == 1 shl 30) noViewerMemory()
+        sample *= 2
+      }
       val options = BitmapFactory.Options().apply { inSampleSize = sample }
       val bitmap = stream().use { BitmapFactory.decodeStream(it, null, options) }
         ?: throw FluidViewerException(FluidViewerFailure.Corrupt, "Immagine non decodificabile")

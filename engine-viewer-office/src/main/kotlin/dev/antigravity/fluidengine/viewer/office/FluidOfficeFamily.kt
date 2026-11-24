@@ -177,7 +177,7 @@ class FluidOfficeFamily : FluidViewerFamily {
    * ([officeThumbnail]): never a white tile. `null` (the app's icon) only when neither is possible in time.
    */
   override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap? =
-    officeThumbnail(request, sizePx)
+    dev.antigravity.fluidengine.viewer.FluidViewerRaster.thumbnail(request.context, sizePx) { officeThumbnail(request, it) }
 }
 
 private fun readMetadata(pkg: OfficePackage, info: OfficeInfo) {

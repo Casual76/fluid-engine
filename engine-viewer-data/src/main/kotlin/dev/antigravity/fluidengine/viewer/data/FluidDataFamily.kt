@@ -127,7 +127,7 @@ class FluidDataFamily(val settings: FluidDataSettings = FluidDataSettings()) : F
    * della data, la foto o le iniziali del contatto. `null` se il file non si legge: il registro passa al testo di serie.
    */
   override suspend fun thumbnail(request: FluidViewerRequest, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
-    DataThumbnail.of(request, settings, sizePx)
+    dev.antigravity.fluidengine.viewer.FluidViewerRaster.thumbnail(request.context, sizePx) { DataThumbnail.of(request, settings, it) }
   }
 
   companion object {
@@ -155,15 +155,17 @@ class FluidDataFamily(val settings: FluidDataSettings = FluidDataSettings()) : F
     private const val Priority = 10
 
     /** Un'immagine ridotta a [sizePx] sul lato lungo (al più [DataProfile.MaxPictureSide]). */
-    internal fun decodePicture(bytes: ByteArray, sizePx: Int = DataProfile.MaxPictureSide): ImageBitmap? {
+    internal suspend fun decodePicture(bytes: ByteArray, sizePx: Int = DataProfile.MaxPictureSide): ImageBitmap? {
       val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
       BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
       if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-      val target = sizePx.coerceIn(1, DataProfile.MaxPictureSide)
-      var sample = 1
-      while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
-      val options = BitmapFactory.Options().apply { inSampleSize = sample }
-      return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
+      val edge = minOf(sizePx.coerceIn(1, DataProfile.MaxPictureSide), maxOf(bounds.outWidth, bounds.outHeight))
+      return dev.antigravity.fluidengine.viewer.FluidViewerRaster.render(null, androidx.compose.ui.unit.IntSize(edge, edge), 32) { admitted ->
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight).toLong() / sample / 2 >= admitted.width) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
+      }
     }
   }
 }

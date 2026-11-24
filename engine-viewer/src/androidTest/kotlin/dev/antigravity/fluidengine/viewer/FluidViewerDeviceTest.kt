@@ -91,29 +91,41 @@ class FluidViewerDeviceTest {
   fun aLongPdfRendersPageByPageWithPreviews() = runBlocking {
     val file = longPdf(300)
     log("PDF di prova: 300 pagine, ${file.length()} byte")
+    val resources = dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(context)
+    val category = dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.VIEWER
+    val base = resources.budget.usage(category).usedBytes
     val source = FluidPdfPageSource.open(file)
     assertEquals(300, source.count)
     assertEquals(IntSize(595, 842), source.size(0))
     assertEquals(IntSize(595, 842), source.size(299))
 
-    // Venti pagine intere chieste insieme da più thread: il renderer le serve una alla volta.
     val start = SystemClock.elapsedRealtime()
-    val pages = (0 until 20).map { i -> async(Dispatchers.Default) { source.render(i, IntSize(1190, 1684)) } }.awaitAll()
-    val full = SystemClock.elapsedRealtime() - start
-    pages.forEach { assertEquals(1190, it.width); assertEquals(1684, it.height) }
-    val bitmap = pages[0].asAndroidBitmap()
-    assertEquals(Color.WHITE, bitmap.getPixel(10, 10)) // la carta
-    assertTrue("il bordo della pagina è inchiostro", Color.red(bitmap.getPixel(80, 842)) < 128)
-
-    // Le anteprime di tutto il documento, come le chiede il foglio delle miniature.
-    val previewStart = SystemClock.elapsedRealtime()
-    for (i in 0 until 300) {
-      val preview = source.preview(i)
-      assertEquals(256, maxOf(preview.width, preview.height))
-    }
-    val previews = SystemClock.elapsedRealtime() - previewStart
-    log("20 pagine 1190×1684 in $full ms (${full / 20} ms l'una); 300 anteprime in $previews ms (${previews / 300} ms l'una)")
-    source.close()
+    val visible = dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead()
+    try {
+      val first = kotlinx.coroutines.withContext(visible) { source.render(0, IntSize(1190, 1684)) }
+      val bitmap = first.asAndroidBitmap()
+      assertEquals(Color.WHITE, bitmap.getPixel(3, 3))
+      assertTrue("Inchiostro sul bordo", Color.red(bitmap.getPixel(40 * first.width / 595, first.height / 2)) < 128)
+      // La prima continua ad avere un lettore mentre venti richieste attraversano la stessa coda.
+      (1..20).map { i -> async(Dispatchers.Default) {
+        dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead().use { reader ->
+          val next = kotlinx.coroutines.withContext(reader) { source.render(i, IntSize(1190, 1684)) }
+          assertTrue(next.width in 1..1190 && next.height in 1..1684)
+          assertFalse(bitmap.isRecycled)
+        }
+      } }.awaitAll()
+      for (i in 0 until 300) {
+        dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead().use { reader ->
+          val preview = kotlinx.coroutines.withContext(reader) { source.preview(i) }
+          assertTrue(maxOf(preview.width, preview.height) in 1..256)
+        }
+      }
+      assertEquals(300, source.count)
+      val usage = resources.budget.usage(category)
+      assertTrue(usage.residentBytes >= bitmap.allocationByteCount && usage.usedBytes <= usage.limitBytes)
+      log("300 pagine, 20 rese e 300 anteprime in ${SystemClock.elapsedRealtime() - start} ms, picco registro ${usage.peakBytes} byte")
+    } finally { visible.close(); source.close(); file.delete() }
+    assertEquals(base, resources.budget.usage(category).usedBytes)
     try {
       source.render(0, IntSize(100, 141))
       fail("dopo la chiusura le chiamate sono annullate")

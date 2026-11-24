@@ -43,6 +43,13 @@ class FluidFileThumbnailsTest {
   private val dir: File = Files.createTempDirectory("f6c17").toFile()
 
   @Before fun clean() {
+    // Gli assert visivi e LRU di F6C.17 descrivono la griglia normale. La quota stretta si prova separatamente.
+    val manager = org.robolectric.Shadows.shadowOf(context.getSystemService(android.app.ActivityManager::class.java))
+    manager.setMemoryClass(512)
+    manager.setMemoryInfo(android.app.ActivityManager.MemoryInfo().apply { totalMem = 8L shl 30; availMem = 4L shl 30 })
+    // Robolectric ricrea l'Application utilizzando lo stesso classloader tra i casi.
+    org.robolectric.util.ReflectionHelpers.setStaticField(
+      dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources::class.java, "process", null)
     FluidFileThumbnails.clear()
   }
 
@@ -218,6 +225,50 @@ class FluidFileThumbnailsTest {
     assertTrue(thumbnail.isPlaceholder)
     // Il ripiego per tempo scaduto resta in cache (non si riprova a ogni scorrimento), per un po'.
     assertSame(thumbnail, FluidFileThumbnails.cached(f, 360))
+  }
+
+  @Test fun `background drops the cache while the drawing reader still owns exactly one bitmap`() = runBlocking {
+    val app = context
+    val memory = ViewerMemory.get(app)
+    val category = dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.THUMBNAILS
+    val reader = dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead()
+    try {
+      val result = kotlinx.coroutines.withContext(reader) { FluidFileThumbnails.load(app, file("trim.kt", "val x = 1"), 128) }
+      assertEquals(1, FluidFileThumbnails.cachedCount)
+      app.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+      assertFalse(memory.resources.prefetchAllowed.value)
+      assertEquals(0, FluidFileThumbnails.cachedCount)
+      assertFalse(result.image.asAndroidBitmap().isRecycled)
+      assertEquals(result.byteCount, memory.resources.budget.usage(category).residentBytes)
+    } finally { reader.close(); reader.close() }
+    assertEquals(0L, memory.resources.budget.usage(category).usedBytes)
+  }
+
+  @Test fun `annullo e cambio file non rimettono in cache la vecchia miniatura`() = runBlocking {
+    val begun = java.util.concurrent.CountDownLatch(1)
+    val done = java.util.concurrent.CountDownLatch(1)
+    val memory = ViewerMemory.get(context)
+    val category = dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory.THUMBNAILS
+    val family = Family("contata", "contata") { bitmap ->
+      assertTrue(memory.resources.budget.usage(category).inFlightBytes >= bitmap.width.toLong() * bitmap.height * 4)
+      begun.countDown()
+      done.await(5, java.util.concurrent.TimeUnit.SECONDS)
+      bitmap
+    }
+    FluidViewerRegistry.install(family)
+    val file = file("generation.contata", "x")
+    try {
+      val old = async(kotlinx.coroutines.Dispatchers.Default) { FluidFileThumbnails.load(context, file, 64) }
+      assertTrue(begun.await(5, java.util.concurrent.TimeUnit.SECONDS))
+      FluidFileThumbnails.evict(file)
+      assertTrue(memory.resources.budget.usage(category).inFlightBytes > 0)
+      done.countDown()
+      assertTrue(runCatching { old.await() }.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+      kotlinx.coroutines.withTimeout(5_000) {
+        while (memory.resources.budget.usage(category).inFlightBytes > 0) kotlinx.coroutines.delay(5)
+      }
+      assertNull(FluidFileThumbnails.cached(file, 64))
+    } finally { done.countDown() }
   }
 
   private fun colors(image: ImageBitmap): Int {

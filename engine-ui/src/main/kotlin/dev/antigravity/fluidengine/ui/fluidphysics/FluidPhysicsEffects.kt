@@ -1428,5 +1428,5 @@ internal class PhysicsLiquidSurface(
    * ([physicsLiquidInputs]). C'è perché è da lei che il nodo sa di portare il materiale nuovo (il censimento di
    * `FluidGlassDiagnostics` e l'osservazione degli effetti in disegno).
    */
-  val onDrawLight: DrawScope.() -> Unit = {}
+  val onDrawLight: DrawScope.() -> Unit = dev.antigravity.fluidengine.ui.glass.field.NativeGlassFinish
 }

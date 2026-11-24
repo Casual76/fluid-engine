@@ -12,6 +12,7 @@ import android.graphics.Shader
 import androidx.compose.ui.graphics.ImageBitmap
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Layers
+import dev.antigravity.fluidengine.viewer.FluidViewerRaster
 import dev.antigravity.fluidengine.viewer.FluidThumbnailLook
 import dev.antigravity.fluidengine.viewer.FluidThumbnailPainter
 import dev.antigravity.fluidengine.viewer.FluidViewerRequest
@@ -37,12 +38,13 @@ internal suspend fun sceneThumbnail(request: FluidViewerRequest, sizePx: Int): I
   val look = FluidThumbnailLook.current()
   val drawn = try {
     val source = request.source
-    val input = source.open().use { it.readSceneBytes(MaxModelBytes) }
+    val input = source.open().use { FluidViewerRaster.readBytes(it, MaxModelBytes) }
+    val reserve = FluidViewerRaster.thumbnailScratch(65536L)
     var remaining = MaxModelBytes - input.size
     val sidecars = mutableMapOf<String, ByteArray?>()
     suspend fun local(path: String): ByteArray? {
       if (path !in sidecars) {
-        val data = (source as? FluidSceneSource)?.openRelative(path)?.use { it.readSceneBytes(remaining) }
+        val data = (source as? FluidSceneSource)?.openRelative(path)?.use { FluidViewerRaster.readBytes(it, remaining) }
         sidecars[path] = data
         remaining -= data?.size ?: 0
       }
@@ -50,17 +52,19 @@ internal suspend fun sceneThumbnail(request: FluidViewerRequest, sizePx: Int): I
     }
     suspend fun resource(uri: String): ByteArray? = if (uri.startsWith("data:")) {
       val header = uri.substringBefore(',')
-      if (header.endsWith(";base64")) Base64.decode(uri.substringAfter(',', ""), Base64.DEFAULT) else null
+      if (header.endsWith(";base64") && reserve(uri.length * 2L)) Base64.decode(uri.substringAfter(',', ""), Base64.DEFAULT) else null
     } else local(localResource(uri, encoded = true))
 
     val binary = input.size >= 4 && input.le().getInt(0) == GlbMagic
-    val model = when (if (binary) "glb" else request.type.id) {
+    val kind = if (binary) "glb" else request.type.id
+    if (kind in setOf("obj", "stl") && !reserve(input.size * 12L)) throw java.io.IOException("Memoria per la conversione 3D")
+    val model = when (kind) {
       "stl" -> convertStl(input)
       "obj" -> convertObj(input, ::local)
       "glb", "gltf" -> input
       else -> null
     }
-    model?.let { SceneMesh.read(it, ::resource) }?.let { mesh ->
+    model?.let { SceneMesh.read(it, ::resource, reserve) }?.let { mesh ->
       try {
         if (mesh.triangles == 0) null else renderScene(mesh, sizePx, look)
       } finally {
@@ -94,7 +98,8 @@ internal class SceneMesh(
   val triangles: Int get() = colors.size
 
   companion object {
-    suspend fun read(input: ByteArray, resource: suspend (String) -> ByteArray? = { null }): SceneMesh? {
+    suspend fun read(input: ByteArray, resource: suspend (String) -> ByteArray? = { null },
+      reserve: (Long) -> Boolean = { true }): SceneMesh? {
       val bytes = input.le()
       val binary = input.size >= 4 && bytes.getInt(0) == GlbMagic
       val json: JSONObject
@@ -159,10 +164,10 @@ internal class SceneMesh(
           val encoded = if (uri.isNotEmpty()) resource(uri) else {
             val view = views.optJSONObject(image.optInt("bufferView", -1)) ?: continue
             val data = viewData(view) ?: continue
-            if (data.remaining() > MaxThumbnailTextureBytes) continue
+            if (data.remaining() > MaxThumbnailTextureBytes || !reserve(data.remaining().toLong())) continue
             ByteArray(data.remaining()).also { data.get(it) }
           }
-          val bitmap = encoded?.let(::decodeThumbnailTexture) ?: continue
+          val bitmap = encoded?.let { decodeThumbnailTexture(it, reserve) } ?: continue
           val sampler = samplers?.optJSONObject(texture.optInt("sampler", -1))
           textures[id] = SceneThumbnailTexture(bitmap, wrap(sampler?.optInt("wrapS")), wrap(sampler?.optInt("wrapT")))
         }
@@ -241,7 +246,11 @@ internal class SceneMesh(
             val budget = MaxThumbnailTriangles - colors.size
             val step = ((triangles.toLong() + budget - 1) / budget).toInt().coerceAtLeast(1)
             for (t in 0 until triangles step step) {
-              if (colors.size and 1023 == 0) cancellation.ensureActive()
+              if (colors.size and 255 == 0) {
+                cancellation.ensureActive()
+                // Posizioni, UV e crescita dei vettori, poi proiezione, ordine e colori del raster.
+                if (!reserve(256L * 320)) break
+              }
               val i0 = index(t * 3); val i1 = index(t * 3 + 1); val i2 = index(t * 3 + 2)
               if (i0 !in 0 until count || i1 !in 0 until count || i2 !in 0 until count) continue
               vertex(i0, a); vertex(i1, b); vertex(i2, c)
@@ -315,7 +324,7 @@ internal class SceneThumbnailTexture(val bitmap: Bitmap, wrapS: Shader.TileMode,
 private const val MaxThumbnailTextureBytes = 8 * 1024 * 1024
 private const val MaxThumbnailTextureEdge = 512
 
-private fun decodeThumbnailTexture(bytes: ByteArray): Bitmap? {
+private fun decodeThumbnailTexture(bytes: ByteArray, reserve: (Long) -> Boolean): Bitmap? {
   if (bytes.size > MaxThumbnailTextureBytes) return null
   val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
   BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -323,6 +332,9 @@ private fun decodeThumbnailTexture(bytes: ByteArray): Bitmap? {
   if (edge <= 0) return null
   var sample = 1
   while (edge / sample > MaxThumbnailTextureEdge) sample *= 2
+  val rows = (bounds.outHeight.toLong() + sample - 1) / sample
+  val columns = (bounds.outWidth.toLong() + sample - 1) / sample
+  if (!reserve(((columns * 16 + 63) / 64 * 64) * rows)) return null
   return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
 }
 

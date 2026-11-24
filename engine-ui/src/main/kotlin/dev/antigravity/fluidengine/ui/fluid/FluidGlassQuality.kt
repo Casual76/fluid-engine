@@ -5,13 +5,35 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
+import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics as ResourceOptics
 import kotlin.math.abs
+
+/** Solo il fondale. Il filo e la finitura del materiale hanno la griglia dello schermo. */
+internal fun glassBackgroundScale(
+  local: Float, optics: ResourceOptics, moving: Boolean, recorded: Float,
+): Float {
+  // Pieno mantiene l'isteresi locale F7.2. Un nuovo tetto si applica alla prima cattura o alla posa.
+  if (moving && recorded > 0f && optics != ResourceOptics.Full) return recorded
+  val ceiling = if (optics == ResourceOptics.Reduced && !moving) 1f else optics.backgroundScaleCeiling
+  return minOf(local, ceiling)
+}
+
+/** Identifica la vista di una pagina interamente coperta. Una Dialog ha una vista propria. */
+internal val LocalCoveredGlassView = compositionLocalOf<android.view.View?> { null }
+
+/** Segnali condivisi fra la finitura e il filtro che campiona lo sfondo, incluso il palco di viaggio. */
+internal interface GlassRenderQuality {
+  val optics: ResourceOptics
+  val inMotion: Boolean
+  val limitDecorations: Boolean get() = optics != ResourceOptics.Full && inMotion
+}
 
 /**
  * Quanta ottica il vetro riceve **adesso**, fra 0 e 1.
@@ -57,6 +79,8 @@ class FluidGlassQuality internal constructor(
 ) {
 
   private var _level by mutableFloatStateOf(1f)
+  internal var scrolling by mutableStateOf(false)
+    private set
 
   /** 1 = materiale pieno, [ScrollingFloor] = quanto ne resta durante uno scorrimento veloce. */
   val level: Float get() = minOf(_level, ceiling())
@@ -69,7 +93,10 @@ class FluidGlassQuality internal constructor(
    * già perdendo fotogrammi quella distanza cresce da sola — cioè la difesa si stringe proprio
    * quando serve, senza doverlo scrivere da nessuna parte.
    */
-  internal fun onScrollDelta(deltaPx: Float) {
+  internal fun onScrollDelta(deltaPx: Float) = onScrollDelta(deltaPx, 0f)
+
+  internal fun onScrollDelta(deltaPx: Float, horizontalPx: Float) {
+    if (deltaPx.isFinite() && deltaPx != 0f || horizontalPx.isFinite() && horizontalPx != 0f) scrolling = true
     val speed = abs(deltaPx)
     val target = targetLevel(speed)
     _level = if (target < _level) {
@@ -83,6 +110,7 @@ class FluidGlassQuality internal constructor(
 
   /** Il gesto è finito e non c'è più inerzia: il materiale torna pieno. */
   internal fun onSettled() {
+    scrolling = false
     _level = 1f
   }
 
@@ -140,7 +168,7 @@ fun fluidGlassQualityScrollConnection(quality: FluidGlassQuality): NestedScrollC
   object : NestedScrollConnection {
 
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-      quality.onScrollDelta(available.y)
+      quality.onScrollDelta(available.y, available.x)
       return Offset.Zero
     }
 

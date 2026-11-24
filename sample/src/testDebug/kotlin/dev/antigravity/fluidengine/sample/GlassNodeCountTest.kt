@@ -3,6 +3,18 @@
 package dev.antigravity.fluidengine.sample
 
 import android.graphics.RenderNode
+import android.app.ActivityManager
+import android.os.PowerManager
+import android.util.Log
+import androidx.compose.runtime.mutableIntStateOf
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.glass.quality.GlassConditions
+import dev.antigravity.fluidengine.ui.glass.quality.GlassDeviceCapacity
+import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
+import dev.antigravity.fluidengine.ui.glass.quality.GlassQualityPolicy
+import dev.antigravity.fluidengine.ui.glass.quality.GlassThermal
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
+import dev.antigravity.fluidengine.ui.glass.quality.android.GlassWindow
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.ScrollState
@@ -29,6 +41,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -77,6 +90,8 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidContextMenu
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.drawPlainBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassLayerKind
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassNodeKind
@@ -109,6 +124,32 @@ import org.robolectric.util.ReflectionHelpers
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import dev.antigravity.fluidengine.sample.dynamic.ActivityPillScene
+
+/** Il banco da 800 x 1280 rappresenta una macchina con memoria per la ricetta di controllo.
+ * Robolectric offre 16 MiB di heap Android di serie, cioè solo 1,5 MiB per il vetro. */
+internal fun prepareGlassBenchMemory(activity: ComponentActivity): java.io.Closeable {
+  val resources = FluidGlassResources.get(activity)
+  val app = ReflectionHelpers.getField<android.app.Application>(resources, "app")
+  val am = app.getSystemService(ActivityManager::class.java)!!
+  val heapClass = am.memoryClass
+  val low = am.isLowRamDevice
+  val memory = ActivityManager.MemoryInfo().also(am::getMemoryInfo)
+  val manager = shadowOf(am)
+  manager.setIsLowRamDevice(false)
+  manager.setMemoryClass(1024)
+  manager.setMemoryInfo(ActivityManager.MemoryInfo().apply {
+    totalMem = 8L shl 30
+    availMem = 4L shl 30
+    threshold = 128L shl 20
+  })
+  resources.refresh()
+  return java.io.Closeable {
+    manager.setIsLowRamDevice(low)
+    manager.setMemoryClass(heapClass)
+    manager.setMemoryInfo(memory)
+    resources.refresh()
+  }
+}
 
 /**
  * Quanti nodi e quanti layer costa una lastra ferma (piano «iOS in Android», 3.3, 4.4, F1A-f), contati in due modi
@@ -162,6 +203,335 @@ class GlassNodeCountTest {
     FluidGlassDiagnostics.enabled = diagnosticsWere
     FluidGlassDiagnostics.resetForTesting()
     FluidGlassDiagnostics.warmUpEnabled = warmUpWas
+  }
+
+  @Test fun livelloProtettoCatturaIlGrandeFondaleUnaVoltaAMetaLato() {
+    ShadowLog.setLoggable("FluidF7Hot", android.util.Log.VERBOSE)
+    val resources = dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources.get(compose.activity)
+    try {
+      resources.refresh()
+      val before = ShadowLog.getLogsForTag(FrameTag).size
+      compose.setContent {
+        val backdrop = rememberGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Blue))
+          Box(Modifier.size(640.dp, 512.dp).drawPlainBackdrop(backdrop.backdrop, { FluidCapsuleShape }, {}))
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val frames = ShadowLog.getLogsForTag(FrameTag).drop(before).map { it.msg }.filter { " kind=capture " in it }
+      assertTrue("cattura grande in Protetto: $frames", frames.any { "scale=0.5 " in it && "size=320 x 256" in it })
+      val atRest = FluidGlassDiagnostics.totalCaptures
+      repeat(4) { compose.mainClock.advanceTimeByFrame() }
+      compose.waitForIdle()
+      assertEquals("catture nuove alla posa", atRest, FluidGlassDiagnostics.totalCaptures)
+    } finally {
+      ShadowLog.setLoggable("FluidF7Hot", android.util.Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  @Test fun livelliCattureDuranteGestoEAllaPosa() {
+    val resources = FluidGlassResources.get(compose.activity)
+    val window = compose.activity.window
+    val lease = resources.acquire(window)
+    val watch = ReflectionHelpers.getField<Map<android.view.Window, GlassWindow>>(resources, "windows").getValue(window)
+    val original = watch.policy
+    val pm = compose.activity.getSystemService(PowerManager::class.java)!!
+    val memory = prepareGlassBenchMemory(compose.activity)
+    val healthy = GlassConditions(4L shl 30, 128L shl 20, false, 0.2, GlassThermal.None, false)
+    val full = GlassQualityPolicy(
+      GlassDeviceCapacity(8L shl 30, 2L shl 30, 2048, false, 35, true),
+      healthy, GlassOptics.Full,
+    )
+    val tick = mutableIntStateOf(0)
+    val mount = mutableStateOf(true)
+    var draws = 0
+    var cursor = ShadowLog.getLogsForTag(FrameTag).size
+    fun forcedThermal() = synchronized(resources) {
+      val signals = dev.antigravity.fluidengine.ui.glass.quality.android.GlassVariantSignals.conditions(healthy)
+      full.updateConditions(System.nanoTime(), signals)
+      resources.publish()
+    }
+    fun captures(): List<Float> {
+      compose.runOnUiThread { tick.intValue++; Snapshot.sendApplyNotifications() }
+      drawHardwareFrame()
+      val logs = ShadowLog.getLogsForTag(FrameTag)
+      val scales = logs.drop(cursor).filter { " kind=capture " in it.msg }.map {
+        it.msg.substringAfter(" scale=").substringBefore(' ').toFloat()
+      }
+      cursor = logs.size
+      return scales
+    }
+
+    try {
+      shadowOf(pm).setCurrentThermalStatus(PowerManager.THERMAL_STATUS_NONE)
+      resources.refresh()
+      synchronized(resources) {
+        ReflectionHelpers.setField(watch, "policy", full)
+        // La prova inietta campioni di memoria deterministici anche quando la JVM del lotto è piena.
+        ReflectionHelpers.setField(resources, "lastReadingNs", Long.MAX_VALUE / 2)
+        resources.publish()
+      }
+      compose.setContent {
+        val backdrop = rememberGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Blue))
+          if (mount.value) Box(Modifier.size(640.dp, 512.dp).drawPlainBackdrop(
+            backdrop.backdrop, { FluidCapsuleShape }, {}, onDrawBehind = { tick.intValue; draws++ },
+          ))
+        }
+      }
+      compose.waitForIdle()
+      assertEquals(GlassOptics.Full, resources.decision(window).optics)
+      assertEquals(listOf(1f), captures())
+      val scroll = resources.scrollStarted(window)
+      try {
+        ShadowLog.setLoggable("FluidF7Warm", Log.VERBOSE)
+        forcedThermal()
+        assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+        assertEquals(emptyList<Float>(), captures())
+        // Un nuovo lettore entra mentre la finestra scorre. Quello che era visibile ha tenuto la cattura.
+        compose.runOnIdle { mount.value = false }
+        compose.waitForIdle()
+        compose.runOnIdle { mount.value = true }
+        compose.waitForIdle()
+        assertEquals(listOf(0.75f), captures())
+        ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+        forcedThermal()
+        assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+        assertEquals(emptyList<Float>(), captures())
+      } finally { scroll.close() }
+      assertEquals(listOf(0.5f), captures())
+      val start = draws
+      val allocations = ShadowLog.getLogsForTag(FrameTag).size
+      val peak = resources.budget.usage(FluidMemoryCategory.GLASS).peakBytes
+      repeat(12) { assertEquals(emptyList<Float>(), captures()) }
+      assertTrue("il nodo ha davvero ridisegnato", draws >= start + 12)
+      assertTrue("una prenotazione nuova per frame", ShadowLog.getLogsForTag(FrameTag).drop(allocations)
+        .none { " kind=glassBudgetReserve " in it.msg })
+      assertEquals(peak, resources.budget.usage(FluidMemoryCategory.GLASS).peakBytes)
+    } finally {
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      ShadowLog.setLoggable("FluidF7Warm", Log.INFO)
+      synchronized(resources) { ReflectionHelpers.setField(watch, "policy", original); resources.refresh() }
+      lease.close()
+      memory.close()
+    }
+  }
+
+  @Test fun rifiutoVisibileRegistraSoloIlRipiegoERestituisceIByte() {
+    ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+    val resources = FluidGlassResources.get(compose.activity)
+    val budget = resources.budget
+    resources.refresh()
+    val category = FluidMemoryCategory.GLASS
+    val before = budget.usage(category)
+    val held = checkNotNull(budget.tryReserve(category, before.limitBytes - before.usedBytes - 100_000L))
+    val shown = mutableStateOf(true)
+    val cursor = ShadowLog.getLogsForTag(FrameTag).size
+    try {
+      compose.setContent {
+        val backdrop = rememberGlassBackdrop()
+        Box(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Blue))
+          if (shown.value) Box(Modifier.size(640.dp, 512.dp).drawPlainBackdrop(backdrop.backdrop, { FluidCapsuleShape }, {}))
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val records = ShadowLog.getLogsForTag(FrameTag).drop(cursor).filter { " kind=capture " in it.msg }
+      assertEquals("il rifiuto precede la prima texture", 1, records.size)
+      assertTrue(records.single().msg, "scale=0.25 " in records.single().msg)
+      val admitted = budget.usage(category)
+      assertTrue(admitted.refusals > before.refusals)
+      assertEquals(160L * 128 * 4, admitted.residentBytes - before.residentBytes)
+      held.close()
+      shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1100))
+      drawHardwareFrame()
+      assertEquals("credito tornato alla posa", 320L * 256 * 4,
+        budget.usage(category).residentBytes - before.residentBytes)
+      compose.runOnIdle { shown.value = false }
+      compose.waitForIdle()
+      assertEquals(before.residentBytes, budget.usage(category).residentBytes)
+    } finally {
+      held.close()
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  @Test fun protettoSospendeIlLettoreCopertoERiprendeConUnaCatturaFresca() {
+    ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    val covered = mutableStateOf(false)
+    val color = mutableStateOf(Color.Red)
+    lateinit var backdrop: GlassBackdropState
+    try {
+      compose.setContent {
+        backdrop = rememberGlassBackdrop()
+        val view = androidx.compose.ui.platform.LocalView.current
+        Box(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).drawBehind { drawRect(color.value) })
+          CompositionLocalProvider(dev.antigravity.fluidengine.ui.fluid.LocalCoveredGlassView provides
+            if (covered.value) view else null) {
+            Box(Modifier.size(640.dp, 512.dp).drawPlainBackdrop(backdrop.backdrop, { FluidCapsuleShape }, {}))
+          }
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val used = resources.budget.usage(FluidMemoryCategory.GLASS).residentBytes
+      assertTrue(used >= 320L * 256 * 4)
+      compose.runOnIdle { covered.value = true }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      assertEquals(0, backdrop.layerBackdrop!!.readerCount)
+      assertTrue(resources.budget.usage(FluidMemoryCategory.GLASS).residentBytes < used)
+      val paused = FluidGlassDiagnostics.totalCaptures
+      compose.runOnIdle { color.value = Color.Blue }
+      drawHardwareFrame()
+      assertEquals(paused, FluidGlassDiagnostics.totalCaptures)
+      compose.runOnIdle { covered.value = false }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      assertEquals(1, backdrop.layerBackdrop!!.readerCount)
+      assertEquals(paused + 1, FluidGlassDiagnostics.totalCaptures)
+    } finally {
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  @Test fun senzaCreditoIlCorpoDisegnaLaSagomaSenzaUnaGrandeTexture() {
+    ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    val budget = resources.budget
+    val category = FluidMemoryCategory.GLASS
+    val before = budget.usage(category)
+    val all = checkNotNull(budget.tryReserve(category, before.limitBytes - before.usedBytes))
+    val cursor = ShadowLog.getLogsForTag(FrameTag).size
+    try {
+      compose.setContent {
+        FluidTheme(settings = remember { EngineSettings() }) {
+          val backdrop = rememberGlassBackdrop()
+          Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Blue))
+            Box(Modifier.size(640.dp, 512.dp).glassSurface(
+              state = backdrop, tint = GlassDefaults.floatingTint(), shape = FluidCapsuleShape,
+              role = GlassRole.Content, optics = GlassDefaults.optics(GlassRole.Content),
+            )) { Text("42") }
+          }
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val records = ShadowLog.getLogsForTag(FrameTag).drop(cursor)
+      assertTrue(records.any { " kind=glassSolid " in it.msg })
+      assertTrue(records.none { " kind=capture " in it.msg })
+      assertEquals(before.residentBytes, budget.usage(category).residentBytes)
+      compose.onNodeWithText("42").assertExists()
+    } finally {
+      all.close()
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  @Test fun ilMezzoLatoLocaleNonDimezzaLaFinituraDelViaggioProtetto() {
+    ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+    val am = compose.activity.application.getSystemService(ActivityManager::class.java)!!
+    val originalHeapClass = am.memoryClass
+    shadowOf(am).setMemoryClass(512)
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    val tick = mutableIntStateOf(0)
+    val extents = mutableListOf<Pair<IntSize, IntSize>>()
+    val previous = GlassCostLevers.onCapture
+    GlassCostLevers.onCapture = { sample, finish ->
+      extents.add(sample to IntSize(finish.width.toInt(), finish.height.toInt()))
+    }
+    try {
+      compose.setContent {
+        val source = dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCanvasBackdrop { drawRect(Color.Blue) }
+        val layer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+        val density = androidx.compose.ui.platform.LocalDensity.current.density
+        val travel = remember(layer, density) {
+          dev.antigravity.fluidengine.ui.glass.field.GlassTravelCapture(layer, density, {})
+        }
+        Box(Modifier.size(512.dp).drawBackdrop(
+          backdrop = source, shape = { FluidCapsuleShape }, effects = travel.effects,
+          onDrawBackdrop = travel.capture, backdropScaleFactor = { 0.25f },
+          highlight = null, shadow = null, innerShadow = null,
+          onDrawBehind = { tick.intValue },
+        ))
+      }
+      compose.waitForIdle()
+      repeat(6) {
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(16))
+        compose.runOnUiThread { tick.intValue++; Snapshot.sendApplyNotifications() }
+        drawHardwareFrame()
+      }
+      assertTrue("almeno quattro campioni distinti", extents.size >= 4)
+      extents.forEach { (sample, finish) ->
+        assertEquals("il filo viaggia alla risoluzione di uscita", IntSize(512, 512), finish)
+        assertEquals("il campione resta a metà lato", IntSize(256, 256), sample)
+      }
+    } finally {
+      GlassCostLevers.onCapture = previous
+      shadowOf(am).setMemoryClass(originalHeapClass)
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  @Test fun unFiltroAggiuntoAllaPosaPrenotaLoScratchSenzaRicatturare() {
+    ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    val filtered = mutableStateOf(false)
+    val category = FluidMemoryCategory.GLASS
+    val base = resources.budget.usage(category).residentBytes
+    try {
+      compose.setContent {
+        val backdrop = rememberGlassBackdrop()
+        val effect = remember { android.graphics.RenderEffect.createOffsetEffect(0f, 0f).asComposeRenderEffect() }
+        Box(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Red))
+          Box(Modifier.size(640.dp, 512.dp).drawPlainBackdrop(backdrop.backdrop, { FluidCapsuleShape },
+            effects = { renderEffect = if (filtered.value) effect else null }))
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      assertEquals(320L * 256 * 4, resources.budget.usage(category).residentBytes - base)
+      val captures = FluidGlassDiagnostics.totalCaptures
+      compose.runOnUiThread { filtered.value = true; Snapshot.sendApplyNotifications() }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      assertEquals("cattura e scratch", 2 * 320L * 256 * 4, resources.budget.usage(category).residentBytes - base)
+      assertEquals(captures, FluidGlassDiagnostics.totalCaptures)
+    } finally {
+      ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  private fun drawHardwareFrame() {
+    compose.runOnUiThread {
+      val view = compose.activity.window.decorView
+      val display = RenderNode("F7.12")
+      display.setPosition(0, 0, view.width, view.height)
+      val canvas = display.beginRecording()
+      try { view.draw(canvas) } finally {
+        display.endRecording()
+        display.discardDisplayList()
+      }
+    }
   }
 
   private val shown = mutableStateOf(true)
@@ -551,6 +921,7 @@ class GlassNodeCountTest {
     expectedLiftMillis: Long? = null,
     content: @Composable (ScenarioActions, GlassBackdropState) -> Unit,
   ) {
+    val memory = prepareGlassBenchMemory(compose.activity)
     val actions = ScenarioActions()
     val display = RenderNode("F7.6 • finestra")
     val previousObserver = GlassCostLevers.onCapture
@@ -668,7 +1039,9 @@ class GlassNodeCountTest {
           if (phase == "apre") compose.onNodeWithText(menuText).assertExists()
           if (phase == "chiude") compose.onNodeWithText(menuText).assertDoesNotExist()
           val menuCaptures = if (label == MeasureScenario.MenuButton.key) travel.windowedCaptures else travel.menuCaptures
-          assertTrue("$label/$phase: nessuna finitura osservata nel viaggio", travel.finishes > 0 && menuCaptures > 0)
+          assertTrue("$label/$phase: finiture=${travel.finishes} catture=$menuCaptures, " +
+            "rifiuti=${ShadowLog.getLogsForTag(FrameTag).filter { "kind=glassBudgetDenied" in it.msg }.takeLast(4).map { it.msg }}",
+            travel.finishes > 0 && menuCaptures > 0)
           assertEquals(
             "$label/$phase: finitura del menu a piena finestra o senza ritaglio; ripristinare la finestra F7.3b",
             0, if (label == MeasureScenario.MenuButton.key) travel.fullFinishes else travel.unboundedMenuCaptures,
@@ -680,6 +1053,7 @@ class GlassNodeCountTest {
       GlassCostLevers.onCapture = previousObserver
       substitutes.forEach(shaderCache::remove)
       display.discardDisplayList()
+      memory.close()
     }
   }
 

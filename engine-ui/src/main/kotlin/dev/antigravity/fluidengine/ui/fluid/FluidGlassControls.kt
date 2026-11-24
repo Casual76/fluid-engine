@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -960,7 +961,7 @@ internal fun FluidGlassIconButtonCore(
         .then(lensModifier)
       Box(
         modifier = if (look.glassless) {
-          lensChain
+          lensChain.filledButtonFill(look, shape)
         } else {
           lensChain.glassButtonSurface(
             look = look,
@@ -1004,6 +1005,8 @@ internal fun FluidGlassIconButtonCore(
  * @property tintedAccent (F6B.16) per il tasto in evidenza col materiale nuovo, l'accento del suo vetro tinto: il vetro
  *   gira col fondo come gli altri tasti e l'etichetta prende l'inchiostro adattivo del vetro tinto
  *   ([rememberFluidTintedGlassInk]). [Color.Unspecified] altrimenti.
+ * @property fill (F8.7b) il colore pieno del tasto [FluidGlassButtonStyle.Filled], senza vetro; [Color.Unspecified]
+ *   altrimenti.
  */
 @Immutable
 internal class FluidGlassButtonLook(
@@ -1012,6 +1015,7 @@ internal class FluidGlassButtonLook(
   val glassless: Boolean,
   val ink: Color,
   val tintedAccent: Color = Color.Unspecified,
+  val fill: Color = Color.Unspecified,
 ) {
   /** Il tasto in evidenza: niente stato scelto, la sua tinta è il suo vetro. */
   val prominent: Boolean get() = ink.isSpecified || tintedAccent.isSpecified
@@ -1033,6 +1037,9 @@ internal fun resolveFluidGlassButtonLook(
   tinted: Boolean = false,
 ): FluidGlassButtonLook =
   when {
+    // F8.7b: il tasto pieno, senza vetro, con l'inchiostro chiesto se ci si legge.
+    style.fill.isSpecified -> FluidGlassButtonLook(base, GlassLiquidVariant.Regular, glassless = true,
+      fluidFilledInk(style.fill, style.fillInk), fill = style.fill.copy(alpha = 1f))
     style.glass.isIdentity -> FluidGlassButtonLook(base, GlassLiquidVariant.Regular, glassless = true, Color.Unspecified)
     style.isProminent && tinted -> {
       val tint = if (style.tint.isSpecified) style.tint else accent
@@ -1045,6 +1052,22 @@ internal fun resolveFluidGlassButtonLook(
     }
     else -> FluidGlassButtonLook(fluidGlassTint(style.glass, base), style.glass.liquidVariant, glassless = false, Color.Unspecified)
   }
+
+/**
+ * L'inchiostro dell'etichetta di un tasto pieno ([FluidGlassButtonStyle.Filled]): [requested] se sul pieno [fill] fa
+ * almeno [FluidProminentLabelContrast], altrimenti quello di [fluidProminentInk]. Pura.
+ */
+internal fun fluidFilledInk(fill: Color, requested: Color): Color {
+  val opaque = fill.copy(alpha = 1f)
+  if (requested.isSpecified && fluidContrastRatio(requested.copy(alpha = 1f), opaque) >= FluidProminentLabelContrast) {
+    return requested.copy(alpha = 1f)
+  }
+  return fluidProminentInk(opaque)
+}
+
+/** Il pieno di un tasto [FluidGlassButtonStyle.Filled] nella sua forma, o niente per gli altri stili. */
+private fun Modifier.filledButtonFill(look: FluidGlassButtonLook, shape: Shape): Modifier =
+  if (look.fill.isSpecified) this.background(look.fill, shape) else this
 
 @Composable
 private fun rememberFluidGlassButtonLook(style: FluidGlassButtonStyle): FluidGlassButtonLook {
@@ -1202,7 +1225,7 @@ fun FluidGlassButton(
     )
     .fluidTouchTarget(press)
   val glassed = if (look.glassless) {
-    pressed
+    pressed.filledButtonFill(look, shape)
   } else {
     pressed.glassButtonSurface(
       look = look,

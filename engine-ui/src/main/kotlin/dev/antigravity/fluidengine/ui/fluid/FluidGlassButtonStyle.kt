@@ -30,6 +30,9 @@ import dev.antigravity.fluidengine.ui.theme.highestContrastContent
  * - [Clear] e' il vetro limpido ([FluidGlass.Clear]): da usare sopra contenuto ricco, con contenuto chiaro e marcato.
  * - [Glass] con un argomento prende un [FluidGlass] qualunque: una tinta di Apple (`FluidGlass.Regular.tint(c)`, la
  *   tonalita' resta e la luminosita' segue lo sfondo) o [FluidGlass.Identity], il tasto senza vetro.
+ * - [Filled] (4.0, F8.7b) e' il tasto **pieno**, senza vetro: una capsula di un colore pieno con l'etichetta di un
+ *   inchiostro che ci si legge, come «Play» nella pagina dell'album di Apple Music in iOS 26.4 (la capsula bianca col
+ *   testo del colore della pagina, fra due tasti tondi di vetro).
  * - [Prominent] e' l'azione principale: il vetro tinto dell'accento (o della tinta passata) **abbastanza pieno da
  *   reggere l'etichetta**. La tinta resta quella scelta dall'app; cresce solo quanto copre, fino a dove l'etichetta sta
  *   ad almeno [FluidProminentLabelContrast] sul fondo peggiore, nero o bianco ([fluidProminentCoverage]). L'etichetta
@@ -58,22 +61,30 @@ class FluidGlassButtonStyle private constructor(
    * vetro ([FluidGlass.tint]).
    */
   val tint: Color,
+  /** Per [Filled] il colore pieno della capsula; [Color.Unspecified] per gli altri stili. */
+  val fill: Color = Color.Unspecified,
+  /** Per [Filled] l'inchiostro chiesto per l'etichetta (l'engine lo tiene se fa 4,5:1 sul pieno); altrimenti non conta. */
+  val fillInk: Color = Color.Unspecified,
 ) {
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other !is FluidGlassButtonStyle) return false
-    return glass == other.glass && isProminent == other.isProminent && tint == other.tint
+    return glass == other.glass && isProminent == other.isProminent && tint == other.tint && fill == other.fill &&
+      fillInk == other.fillInk
   }
 
   override fun hashCode(): Int {
     var result = glass.hashCode()
     result = 31 * result + isProminent.hashCode()
     result = 31 * result + tint.hashCode()
+    result = 31 * result + fill.hashCode()
+    result = 31 * result + fillInk.hashCode()
     return result
   }
 
   override fun toString(): String = when {
+    fill.isSpecified -> "FluidGlassButtonStyle.Filled($fill, $fillInk)"
     isProminent && tint.isSpecified -> "FluidGlassButtonStyle.Prominent($tint)"
     isProminent -> "FluidGlassButtonStyle.Prominent"
     this == Glass -> "FluidGlassButtonStyle.Glass"
@@ -107,6 +118,18 @@ class FluidGlassButtonStyle private constructor(
      */
     fun Prominent(tint: Color): FluidGlassButtonStyle =
       if (!tint.isSpecified) Prominent else FluidGlassButtonStyle(FluidGlass.Regular, isProminent = true, tint)
+
+    /**
+     * Il tasto pieno (4.0, F8.7b): una capsula di [fill] pieno, senza vetro, come il «Play» bianco della pagina
+     * dell'album di Apple Music (iOS 26.4) fra i due tasti tondi di vetro. L'etichetta e l'icona prendono [ink] se ci fa
+     * almeno [FluidProminentLabelContrast] (4,5:1), altrimenti l'inchiostro che sul pieno si legge meglio (il quasi nero
+     * o il quasi bianco, come [Prominent]): il colore della pagina va bene come [ink], e se non si leggesse l'engine lo
+     * cambia. La pressione e' quella del gesto, che cede, come per [FluidGlass.Identity].
+     *
+     * Come tutti gli stili in evidenza: uno per schermata, per l'azione principale.
+     */
+    fun Filled(fill: Color = Color.White, ink: Color = Color.Unspecified): FluidGlassButtonStyle =
+      FluidGlassButtonStyle(FluidGlass.Identity, isProminent = false, Color.Unspecified, fill = fill, fillInk = ink)
   }
 }
 

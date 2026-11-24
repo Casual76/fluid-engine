@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import dev.antigravity.fluidengine.sample.GalleryActivity
+import dev.antigravity.fluidengine.ui.fluid.fluidFirstFrame
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -54,6 +55,37 @@ class F8p11FirstFrameTest {
   private fun themeBeforeCompose(dark: Boolean) {
     val activity = Robolectric.buildActivity(GalleryActivity::class.java).create().get()
     assertEquals(if (dark) 0xFF0D0D0F.toInt() else 0xFFF2F2F7.toInt(), (activity.window.decorView.background as ColorDrawable).color)
+  }
+
+  /**
+   * La via di ritorno per la schermata d'avvio: `Theme.Fluid.SystemSplash` non dà alla finestra il fondo della pagina (la
+   * schermata d'avvio di Android resta quella del tema di piattaforma), `Theme.Fluid` sì; e con tutti e due
+   * `fluidFirstFrame()` dà al primo fotogramma il fondo della pagina dal lato del sistema.
+   */
+  @Test fun laSchermataDAvvioPuoRestareDiSistema() = splashThemes(dark = false)
+
+  @Config(qualifiers = "w360dp-h780dp-night-xhdpi")
+  @Test fun laSchermataDAvvioPuoRestareDiSistemaScuro() = splashThemes(dark = true)
+
+  private fun splashThemes(dark: Boolean) {
+    val page = if (dark) 0xFF0D0D0F.toInt() else 0xFFF2F2F7.toInt()
+    fun windowBackground(theme: Int): Int? {
+      val context = android.view.ContextThemeWrapper(ApplicationProvider.getApplicationContext<Context>(), theme)
+      val values = context.obtainStyledAttributes(intArrayOf(android.R.attr.windowBackground))
+      return try {
+        (values.getDrawable(0) as? ColorDrawable)?.color
+      } finally {
+        values.recycle()
+      }
+    }
+    assertEquals(page, windowBackground(dev.antigravity.fluidengine.ui.R.style.Theme_Fluid))
+    assertTrue("SystemSplash non colora la finestra", windowBackground(dev.antigravity.fluidengine.ui.R.style.Theme_Fluid_SystemSplash) != page)
+    val controller = Robolectric.buildActivity(androidx.activity.ComponentActivity::class.java)
+    controller.get().setTheme(dev.antigravity.fluidengine.ui.R.style.Theme_Fluid_SystemSplash)
+    val activity = controller.create().get()
+    assertTrue("prima: il fondo del tema di piattaforma", (activity.window.decorView.background as? ColorDrawable)?.color != page)
+    activity.fluidFirstFrame()
+    assertEquals("il primo fotogramma ha il fondo della pagina", page, (activity.window.decorView.background as ColorDrawable).color)
   }
 
   /** Il fondo dell'avvio di prima arriva alla finestra già in `onCreate`, prima che Compose componga. */

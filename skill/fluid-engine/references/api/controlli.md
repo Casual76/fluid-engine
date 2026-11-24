@@ -229,13 +229,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/FluidGlassButtonStyle.kt`
 
-- `class FluidGlassButtonStyle private constructor(val glass: FluidGlass, val isProminent: Boolean, val tint: Color)` — Lo stile di un tasto di vetro ([FluidGlassButton], [FluidGlassIconButton]): `buttonStyle(.glass)`, `.glassProminent` e `.glass(_:)` di SwiftUI.
+- `class FluidGlassButtonStyle private constructor(val glass: FluidGlass, val isProminent: Boolean, val tint: Color, val fill: Color = Color.Unspecified, val fillInk: Color = Color.Unspecified)` — Lo stile di un tasto di vetro ([FluidGlassButton], [FluidGlassIconButton]): `buttonStyle(.glass)`, `.glassProminent` e `.glass(_:)` di SwiftUI.
   - `companion object`
     - `val Glass: FluidGlassButtonStyle` — Il vetro di serie dei tasti (`.glass`).
     - `val Clear: FluidGlassButtonStyle` — Il vetro limpido (`.glass(.clear)`): sopra foto e video, con contenuto chiaro e marcato.
     - `val Prominent: FluidGlassButtonStyle` — L'azione principale (`.glassProminent`), tinta dell'accento del tema.
     - `fun Glass(glass: FluidGlass): FluidGlassButtonStyle` — Un vetro qualunque (`.glass(_:)`): `FluidGlass.Regular.tint(c)` per una tinta di Apple, [FluidGlass.Identity] per un tasto senza vetro. L'interattivita' del vetro non conta: un tasto reagisce sempre al dito.
     - `fun Prominent(tint: Color): FluidGlassButtonStyle` — L'azione principale con una tinta sua (`.glassProminent` con `.tint(_:)`). [Color.Unspecified] vale l'accento. Conta il colore, non la sua alfa: quanto copre lo decide l'etichetta ([fluidProminentCoverage]).
+    - `fun Filled(fill: Color = Color.White, ink: Color = Color.Unspecified): FluidGlassButtonStyle` — Il tasto pieno (4.0, F8.7b): una capsula di [fill] pieno, senza vetro, come il «Play» bianco della pagina dell'album di Apple Music (iOS 26.4) fra i due tasti tondi di vetro. L'etichetta e l'icona prendono [ink] se ci fa almeno [FluidProminentLabelContrast] (4,5:1), altrimenti l'inchiostro che sul pieno si legge meglio (il quasi nero o il quasi bianco, come [Prominent]): il colore della pagina va bene come [ink], e s…
 - `enum class FluidButtonSizing` — Quanto un tasto di vetro e' largo (`buttonSizing` di SwiftUI).
 - `val LocalFluidGlassSize: ProvidableCompositionLocal<FluidGlassSize>` — La taglia dei tasti di vetro di questo punto dell'albero (`controlSize` di SwiftUI): un [FluidGlassIconButton] o un [FluidGlassButton] senza `size` prende questa. Di serie [FluidGlassSize.Regular].
 - `val LocalFluidGlassButtonStyle: ProvidableCompositionLocal<FluidGlassButtonStyle>` — Lo stile dei tasti di vetro di questo punto dell'albero: un tasto senza `style` prende questo. Di serie [FluidGlassButtonStyle.Glass]. Fogli e popover dell'host lo riportano al valore di serie (vedi [LocalFluidGlassSize]).

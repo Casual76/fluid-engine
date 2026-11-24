@@ -280,6 +280,79 @@ class F8p7ContentColorTest {
     assertTrue(wild.red in 0f..1f && wild.green in 0f..1f && wild.blue in 0f..1f)
   }
 
+  // --- F8.7b: il colore vivo per il lato della copertina ---------------------------------------------------------
+
+  /** Una copertina di 96 x 96 fatta di blocchi: ogni colore per la sua quota dei pixel, nell'ordine. */
+  private fun cover(vararg parts: Pair<Long, Float>): IntArray {
+    val px = IntArray(96 * 96)
+    var i = 0
+    for ((argb, share) in parts) repeat((share * px.size).toInt()) { if (i < px.size) px[i++] = Color(argb).toArgb() }
+    while (i < px.size) px[i++] = Color(parts.last().first).toArgb()
+    return px
+  }
+
+  private fun degrees(c: Color): Float = ((Math.toDegrees(Oklch.of(c).h.toDouble()) + 360.0) % 360.0).toFloat()
+
+  private fun assertLegible(r: FluidContentRoles, name: String) {
+    assertTrue("testo $name", contrastRatio(r.onPage, r.pageTint) >= 4.5f)
+    assertTrue("secondario $name", contrastRatio(r.onPageVariant, r.pageTint) >= 4.5f)
+    assertTrue("accento $name", contrastRatio(r.accent, r.pageTint) >= 4.5f)
+    assertTrue("sul tasto $name", contrastRatio(r.onAccent, r.accent) >= 4.5f)
+    assertTrue("barra $name", contrastRatio(r.onBar, r.barGlass) >= 4.5f)
+  }
+
+  @Test
+  fun `una copertina colorata da' una pagina viva, come Apple Music`() {
+    // Il fiore della galleria: foglie oliva, verdi e bruno-rosse, un poco di rosa. La media delle tre tinte vicine era un
+    // oliva spento (croma 0,068); ora vince il verde delle foglie, piu' vivo.
+    val flower = fluidContentColorsOf(
+      cover(0xFF6E5D26 to 0.43f, 0xFF667428 to 0.32f, 0xFF84412D to 0.20f, 0xFFAB678F to 0.05f), 96, 96,
+    )!!
+    assertTrue("il colore vivo non e' la media: ${flower.vivid} / ${flower.vibrant}", flower.vivid != flower.vibrant)
+    val green = fluidContentRoles(flower, isDark = false, side = FluidContentSide.Content)
+    val greenHue = degrees(green.pageTint)
+    assertTrue("pagina verde: $greenHue°", abs(greenHue - 119f) < 20f)
+    assertTrue("pagina viva: croma ${Oklch.of(green.pageTint).c}", Oklch.of(green.pageTint).c >= 0.08f)
+    assertTrue("non quasi nera: ${Oklch.of(green.pageTint).l}", Oklch.of(green.pageTint).l >= 0.40f)
+    assertLegible(green, "fiore")
+
+    // Una copertina rosa con un fondo scuro: la pagina e' rosa, piena.
+    val pink = fluidContentColorsOf(cover(0xFFE0457B to 0.6f, 0xFF3A2E35 to 0.4f), 96, 96)!!
+    val rose = fluidContentRoles(pink, isDark = false, side = FluidContentSide.Content)
+    val roseHue = degrees(rose.pageTint)
+    assertTrue("pagina rosa: $roseHue°", roseHue < 20f || roseHue > 345f)
+    assertTrue("pagina viva: croma ${Oklch.of(rose.pageTint).c}", Oklch.of(rose.pageTint).c >= 0.10f)
+    assertLegible(rose, "rosa")
+
+    // La tuta arancione dell'astronauta: la pagina e' arancio bruciato.
+    val suit = fluidContentColorsOf(
+      cover(0xFFBE5534 to 0.55f, 0xFF73111B to 0.12f, 0xFF604A22 to 0.10f, 0xFF1A1A1E to 0.23f), 96, 96,
+    )!!
+    val orange = fluidContentRoles(suit, isDark = true, side = FluidContentSide.Content)
+    val orangeHue = degrees(orange.pageTint)
+    assertTrue("pagina arancio: $orangeHue°", orangeHue in 20f..55f)
+    assertTrue("pagina viva: croma ${Oklch.of(orange.pageTint).c}", Oklch.of(orange.pageTint).c >= 0.10f)
+    assertLegible(orange, "tuta")
+  }
+
+  @Test
+  fun `le copertine scure e chiare non cambiano`() {
+    // Il razzo di notte (blu notte con le luci) e la copertina chiara color pesca: il colore vivo e' quello di prima.
+    val night = fluidContentColorsOf(cover(0xFF273553 to 0.95f, 0xFFAB8451 to 0.05f), 96, 96)!!
+    assertEquals(night.vibrant, night.vivid)
+    val peach = fluidContentColorsOf(cover(0xFFAE7854 to 0.93f, 0xFFD7AFB9 to 0.04f, 0xFFCDA6C1 to 0.03f), 96, 96)!!
+    assertEquals(peach.vibrant, peach.vivid)
+    // E i ruoli sono quelli del seme di prima.
+    val before = FluidContentColors(peach.seed, peach.dominant, peach.vibrant, peach.swatches, peach.monochrome)
+    assertEquals(
+      fluidContentRoles(before, isDark = false, side = FluidContentSide.Content),
+      fluidContentRoles(peach, isDark = false, side = FluidContentSide.Content),
+    )
+    // Una macchia viva piccola (sotto il 15 %) non prende il posto della massa.
+    val spot = fluidContentColorsOf(cover(0xFF6E5D26 to 0.94f, 0xFF2EAA4A to 0.06f), 96, 96)!!
+    assertEquals(spot.vibrant, spot.vivid)
+  }
+
   @Test
   fun `la cache tiene le ultime 64 chiavi`() {
     FluidContentColorCache.clear()

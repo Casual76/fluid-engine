@@ -32,11 +32,17 @@ import dev.antigravity.fluidengine.ui.R
  *   manifest) dà già il chiaro o lo scuro del sistema; ma un'app col tema scelto dall'utente (scuro su un telefono chiaro,
  *   AMOLED, un accento) lo sa solo dopo aver letto le impostazioni. Qui si rilegge, da un file piccolo e sincrono, il
  *   fondo e il lato che [dev.antigravity.fluidengine.ui.theme.FluidTheme] ha usato l'ultima volta col sistema dalla stessa
- *   parte, e la finestra lo prende subito: niente lampo bianco su un'app scura, niente lampo nero su una chiara.
+ *   parte, e la finestra lo prende subito: niente lampo bianco su un'app scura, niente lampo nero su una chiara. Al primo
+ *   avvio in assoluto prende il fondo di serie della pagina Fluid dal lato del sistema.
  * - **Le icone delle barre dalla parte giusta**, dallo stesso lato.
  * - **Tiene il segno**: da qui in poi `FluidTheme` tiene il fondo della finestra uguale a quello della pagina (anche quando
  *   l'utente cambia tema) e aggiorna il file per il prossimo avvio. Un'Activity che non chiama questa funzione non cambia
  *   niente (una finestra trasparente resta trasparente).
+ *
+ * **La schermata d'avvio di Android.** Con `Theme.Fluid` Android la colora col fondo della finestra, cioè della pagina (lo fa
+ * per ogni app). Per lasciarla com'è di sistema si usa `Theme.Fluid.SystemSplash` (lo stesso tema senza il fondo della
+ * finestra): l'avvio resta quello del tema Material di piattaforma, e il primo fotogramma dell'app ha comunque il colore
+ * della pagina, perché lo mette questa funzione.
  *
  * La struttura della pagina al primo disegno (barra, titolo, scheletri) la dà `FluidScreen` con `FluidContentState`, e il
  * contenuto entra quando c'è; la misura dell'avvio (tempo al primo fotogramma, `reportFullyDrawn`) sta in F7.
@@ -44,7 +50,13 @@ import dev.antigravity.fluidengine.ui.R
 fun Activity.fluidFirstFrame() {
   val decor = window.decorView
   decor.setTag(R.id.fluid_first_frame, true)
-  val hint = FluidFirstFrameHints.read(this) ?: return
+  // Senza un avvio di prima: il fondo di serie della pagina Fluid dal lato del sistema (la risorsa ha la sua variante
+  // `values-night`). Così anche col tema `Theme.Fluid.SystemSplash`, che non colora la finestra, il primo fotogramma ha il
+  // fondo giusto.
+  val hint = FluidFirstFrameHints.read(this) ?: FluidFirstFrameHint(
+    background = getColor(R.color.fluid_page_background),
+    dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
+  )
   window.setBackgroundDrawable(ColorDrawable(hint.background))
   WindowCompat.getInsetsController(window, decor).apply {
     isAppearanceLightStatusBars = !hint.dark

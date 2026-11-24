@@ -12,7 +12,8 @@
   <!--
     F8.11 · La galleria parte dal tema dell'engine per il primo fotogramma pronto: la finestra ha gia' il colore della pagina
     (chiaro o scuro, dal sistema) e le icone delle barre stanno dalla parte giusta. Solo GalleryActivity: le altre Activity e
-    quella vuota delle prove restano su Theme.FluidSample.
+    quella vuota delle prove restano su Theme.FluidSample. Per lasciare la schermata d'avvio di Android com'era di sistema
+    basta il parent Theme.Fluid.SystemSplash: il primo fotogramma resta del colore della pagina (fluidFirstFrame).
   -->
   <style name="Theme.FluidSample.Gallery" parent="Theme.Fluid" />
 </resources>

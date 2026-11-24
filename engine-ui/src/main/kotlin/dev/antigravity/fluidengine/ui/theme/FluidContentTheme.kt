@@ -208,6 +208,34 @@ internal object FluidContentApple {
 
   /** Una copertina monocroma da' una pagina chiara sopra **0,80** di luminosita' della sua media. */
   const val MonoLightL = 0.80f
+
+  /**
+   * Il peso della saturazione nella scelta del seme (F8.7b): ogni fascia di tinta conta per il suo peso per la croma
+   * OKLCH della sua media alla **2**. Con la media della finestra piu' pesante il fiore della galleria (foglie gialle,
+   * verdi e bruno-rosse, croma 0,08–0,10) dava un oliva spento; cosi' vince il verde delle foglie, come Apple Music
+   * prende il colore vivo di una copertina. Sulle copertine di una tinta sola vince la stessa fascia di prima e il seme
+   * non cambia. A occhio, 24 novembre 2026, sulla tavola contro Apple Music 26.4.
+   */
+  const val SeedChromaPower = 2f
+
+  /** Una fascia diversa dalla piu' pesante vince solo se pesa almeno il **15 %** della massa colorata (una macchia no). */
+  const val VividMinShare = 0.15
+
+  /**
+   * ...e solo se e' un altro colore: almeno **20°** di tinta OKLCH di distanza dal colore vivo di prima, e almeno il
+   * **15 %** di croma in piu'. Sulla copertina «Sabbia e luna» la fascia vincente e' la stessa tinta (1° di distanza) e il
+   * seme resta al livello; sul fiore la tinta si sposta di 27° e la croma cresce del 32 %. A occhio, 24 novembre 2026.
+   */
+  const val VividHueGap = 20.0
+  const val VividChromaGain = 1.15f
+
+  /**
+   * La pagina presa dal colore vivo ([FluidContentColors.vivid] diverso da [FluidContentColors.vibrant]) parte da
+   * **0,46** di luminosita' invece che dal seme meno [PageDrop]: scesa di 0,18 la foglia verde del fiore diventava un
+   * verde quasi nero (0,36). Poi scende quanto serve al testo, come ogni pagina. Le copertine di una tinta sola non
+   * passano di qui. A occhio, 24 novembre 2026, sulla tavola contro Apple Music 26.4 (l'album blu e' un blu medio).
+   */
+  const val VividPageL = 0.46f
 }
 
 /**
@@ -224,7 +252,8 @@ fun fluidContentRoles(colors: FluidContentColors, isDark: Boolean, side: FluidCo
 private fun contentSideRoles(colors: FluidContentColors): FluidContentRoles {
   val a = FluidContentApple
   val min = FluidContentRecipe.MinContrast
-  val seed = Oklch.of(colors.seed)
+  // Il seme del lato della copertina e' il colore piu' vivo che pesa davvero (F8.7b), non la media della tinta piu' pesante.
+  val seed = Oklch.of(if (colors.monochrome) colors.seed else colors.vivid)
   val hue = seed.h
   val degrees = ((Math.toDegrees(hue.toDouble()) + 360.0) % 360.0).toFloat()
   val lightPage = if (colors.monochrome) {
@@ -249,8 +278,10 @@ private fun contentSideRoles(colors: FluidContentColors): FluidContentRoles {
   }
   val pageC = minOf(chroma * a.PageChromaShare, a.PageMaxC)
   val variantStart = tone(0.86f, minOf(chroma, 0.04f))
+  val vividSeed = !colors.monochrome && colors.vivid != colors.vibrant
+  val startL = (seed.l - a.PageDrop).let { if (vividSeed) maxOf(it, a.VividPageL) else it }.coerceIn(a.PageMinL, a.PageMaxL)
   // La pagina scende quanto serve perche' anche il testo secondario faccia 4,5:1 (e il bianco di piu').
-  val page = legibleTone(tone((seed.l - a.PageDrop).coerceIn(a.PageMinL, a.PageMaxL), pageC), towardLight = false) { c ->
+  val page = legibleTone(tone(startL, pageC), towardLight = false) { c ->
     contrastRatio(variantStart, c) >= min
   }
   val pageL = Oklch.of(page).l

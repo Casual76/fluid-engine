@@ -43,6 +43,7 @@ tutti questo campo di testo, senza un aspetto loro.
 | Un tasto tondo di una misura che non è 40/46/54 dp (disco di un player, hero) | `FluidGlassIconButton(onClick, size = 76.dp)` (l'overload con `Dp`) |
 | L'azione principale sopra una foto, una mappa, una barra (Fatto, Invia) | `FluidGlassButton(…, style = FluidGlassButtonStyle.Prominent)`: l'accento pieno quanto serve all'etichetta. Uno per schermata |
 | Un tasto di vetro sopra una foto o un video, con contenuto chiaro e marcato | `style = FluidGlassButtonStyle.Clear` |
+| Il tasto **pieno**, senza vetro, fra due tasti tondi di vetro («Play» bianco della pagina dell'album di Apple Music, iOS 26.4) | `style = FluidGlassButtonStyle.Filled(Color.White, ink = colorePagina)`: l'etichetta prende `ink` se ci fa 4,5:1, se no quella che si legge. Uno per schermata |
 | Una riga di tasti tutti `Compact` (o `Large`), o tutti limpidi | la taglia o lo stile **d'ambiente**: `CompositionLocalProvider(LocalFluidGlassSize provides FluidGlassSize.Compact) { … }`, `LocalFluidGlassButtonStyle` |
 | Due tasti che si dividono una riga (Annulla / Conferma) | `FluidGlassButton(…, Modifier.weight(1f), sizing = FluidButtonSizing.Flexible)` |
 | Un'azione nella barra superiore di una schermata | `FluidBarAction`; con `actions = { … }` il tasto diventa il proprio menu |
@@ -275,7 +276,7 @@ FluidGlassIconButton(
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   longClickHaptic: FluidHapticEvent? = FluidHapticEvent.GestureStart,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
-  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,   // Glass | Clear | Prominent | Glass(glass)
+  style: FluidGlassButtonStyle = LocalFluidGlassButtonStyle.current,   // Glass | Clear | Prominent | Glass(glass) | Filled(fill, ink)
   content: @Composable BoxScope.() -> Unit,
 )
 
@@ -369,6 +370,10 @@ fun BarraConferma(onShare: () -> Unit, onCancel: () -> Unit, onConfirm: () -> Un
   meglio (il quasi nero o il quasi bianco del tema; il nero o il bianco pieni sulle tinte di mezzo tono) e **non gira**
   col fondo: il tasto pieno è lui il fondo. Sopra una foto la tinta a metà opacità scritta a mano stava a 3,90:1 e
   3,20:1 (chiusura di F2); `Prominent` sta sopra 4,5 su ogni accento della palette (`FluidGlassButtonStyleTest`).
+  `Filled(fill, ink)` (4.0, F8.7b) è il tasto **pieno**: una capsula di `fill`, senza vetro (la pressione la disegna il
+  gesto, che cede, come per `FluidGlass.Identity`), come il «Play» bianco col testo del colore della pagina nell'album di
+  Apple Music di iOS 26.4. L'etichetta e l'icona prendono `ink` se ci fa almeno 4,5:1 (`FluidProminentLabelContrast`),
+  altrimenti l'inchiostro che sul pieno si legge meglio, come `Prominent` (`fluidFilledInk`, `F8p7bFilledButtonTest`).
 - **Taglia, stile e larghezza d'ambiente.** Senza `size`, `style` e `sizing` il tasto prende `LocalFluidGlassSize`,
   `LocalFluidGlassButtonStyle` e `LocalFluidButtonSizing` (di serie `Regular`, `Glass`, `Fitted`: senza un fornitore
   niente cambia). L'icona discende dalla taglia: il tasto dà a una `FluidIcon` senza `size` 0,6 del suo vetro.

@@ -3,7 +3,7 @@
 Generato da `tools/icons/gen_fluid_icons.py`: non modificare a mano. Stesse righe, in forma da script, in
 `corrispondenza.csv` (`origine;nome;symbols;fluid;nota`).
 
-Il set ha **167 icone** al tratto e **31** varianti piene. Delle icone Material del
+Il set ha **168 icone** al tratto e **31** varianti piene. Delle icone Material del
 censimento (`censimento-app.txt`) **182 su 361** hanno un equivalente nel set (1694 usi su 2117); **179** restano fuori (423 usi). Per ognuna
 c'e' il nome di Material Symbols: per portarla nel set basta la riga nell'elenco.
 
@@ -391,8 +391,8 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 ## Fluidify (Phosphor)
 
 Fluidify usa Phosphor (`com.adamglin.phosphoricons`), non Material: le sue icone non entrano come tali.
-Qui l'equivalente Material Symbols di ognuna, per nome e stile (98 righe, 84 nomi): 49 righe sono gia' nel set,
-47 hanno un equivalente fuori dal set, 2 non ne hanno. «Vicina» vuol dire
+Qui l'equivalente Material Symbols di ognuna, per nome e stile (98 righe, 84 nomi): 50 righe sono gia' nel set,
+46 hanno un equivalente fuori dal set, 2 non ne hanno. «Vicina» vuol dire
 stessa idea, sagoma diversa; lo stile `Fill` va sulla variante piena.
 
 | Phosphor | Material Symbols | FluidIcons | nota |
@@ -464,7 +464,7 @@ stessa idea, sagoma diversa; lo stile `Fill` va sulla variante piena.
 | `Regular.Radio` | `radio` |  | fuori dal set: per averla, la riga `radio` in fluid-icons.txt |
 | `Regular.Repeat` | `repeat` |  | fuori dal set: per averla, la riga `repeat` in fluid-icons.txt |
 | `Regular.RepeatOnce` | `repeat_one` |  | fuori dal set: per averla, la riga `repeat_one` in fluid-icons.txt |
-| `Regular.Shuffle` | `shuffle` |  | fuori dal set: per averla, la riga `shuffle` in fluid-icons.txt |
+| `Regular.Shuffle` | `shuffle` | `FluidIcons.Shuffle` |  |
 | `Fill.SkipBack` | `skip_previous` |  | fuori dal set: per averla, la riga `skip_previous` in fluid-icons.txt |
 | `Fill.SkipForward` | `skip_next` | `FluidIcons.Filled.SkipNext` |  |
 | `Regular.SpeakerHifi` | `speaker` |  | fuori dal set: per averla, la riga `speaker` in fluid-icons.txt |

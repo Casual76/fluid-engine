@@ -98,7 +98,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/theme/FluidContentColor.kt`
 
-- `data class FluidContentColors(val seed: Color, val dominant: Color, val vibrant: Color, val swatches: List<Color>, val monochrome: Boolean)` — I colori letti da un'immagine: il seme per il tema della pagina e due o tre colori distinti per chi si muove fra piu' tinte (un'aura, un fondo animato), tutti dalla stessa immagine.
+- `data class FluidContentColors(val seed: Color, val dominant: Color, val vibrant: Color, val swatches: List<Color>, val monochrome: Boolean, val vivid: Color = vibrant)` — I colori letti da un'immagine: il seme per il tema della pagina e due o tre colori distinti per chi si muove fra piu' tinte (un'aura, un fondo animato), tutti dalla stessa immagine.
 - `object FluidContentColorDefaults` — Le misure dell'estrattore e della transizione del tema della pagina.
   - `const val SampleSize: Int` — Il lato massimo dell'immagine campionata: **96 px**, come Pampa Widgets e Fluidify (decodificano a 96).
   - `const val SampleStep: Int` — Un pixel ogni **2** su entrambi i lati, come Pampa Widgets: 48 x 48 campioni bastano per le proporzioni.

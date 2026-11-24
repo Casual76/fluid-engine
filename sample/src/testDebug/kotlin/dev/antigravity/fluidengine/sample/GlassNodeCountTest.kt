@@ -664,6 +664,36 @@ class GlassNodeCountTest {
 
   @Test fun menuDalTasto() = checkScenario(MeasureScenario.MenuButton, menuText = "Condividi")
   @Test fun menuDalGruppo() = checkScenario(MeasureScenario.MenuGroup, menuText = "Aggiungi ai preferiti")
+
+  /**
+   * F8.5d · Il menu dal gruppo con la lettura della memoria vecchia di due secondi prima di ogni fase: come sul
+   * telefono quando il menu resta aperto piu' di un secondo, e come nel lotto con la JVM lenta (l'orologio della prova
+   * e' finto, l'eta' della lettura si misura in tempo vero). Senza la rilettura al cambio di campione la chiusura non
+   * aveva la finitura del viaggio («chiude: finiture=0 catture=1»): la cattura rimandata aspettava un ridisegno che
+   * non arrivava.
+   */
+  /**
+   * F8.5d · L'eta' della lettura della memoria si misura sull'orologio di sistema: sul telefono e' il tempo vero, sulle
+   * prove e' quello dei fotogrammi. Un PC carico che rallenta la JVM non deve invecchiarla (le prove del vetro cadevano
+   * solo nei lotti lenti); un secondo di fotogrammi si'.
+   */
+  @Test fun laLetturaDellaMemoriaInvecchiaConLOrologioDiSistema() {
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    assertTrue(resources.allocationReadingFresh)
+    Thread.sleep(1_500)
+    assertTrue("il tempo vero da solo non invecchia la lettura", resources.allocationReadingFresh)
+    shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
+    assertTrue("un secondo e mezzo di fotogrammi la invecchia", !resources.allocationReadingFresh)
+    resources.refreshBeforeAllocation()
+    assertTrue(resources.allocationReadingFresh)
+  }
+
+  @Test fun menuDalGruppoConLaLetturaDellaMemoriaVecchia() {
+    val scenario = MeasureScenario.MenuGroup
+    checkComponent(scenario.key, scenario.phases.map { it.name to it.journeyMillis }, "Aggiungi ai preferiti",
+      staleReadingBeforePhases = true) { actions, _ -> ScenarioScene(scenario, actions, 0.dp) }
+  }
   @Test fun menuContestuale() = checkScenario(MeasureScenario.ContextMenu, menuText = "Condividi")
 
   @Test fun menuContestualeConPressioneDa555Ms() {
@@ -899,6 +929,7 @@ class GlassNodeCountTest {
     journeys: List<Pair<String, Long>> = emptyList(),
     menuText: String? = null,
     expectedLiftMillis: Long? = null,
+    staleReadingBeforePhases: Boolean = false,
     content: @Composable (ScenarioActions, GlassBackdropState) -> Unit,
   ) {
     val actions = ScenarioActions()
@@ -996,6 +1027,12 @@ class GlassNodeCountTest {
       checkPeak("$label/monta", mount)
       checkPeak("$label/fermo", frames(RestFrames))
       for ((phase, millis) in journeys) {
+        if (staleReadingBeforePhases) {
+          // L'ultima lettura della memoria ha due secondi: la prossima cattura grande deve rileggerla.
+          val resources = FluidGlassResources.get(compose.activity)
+          val now = android.os.SystemClock.elapsedRealtimeNanos()
+          ReflectionHelpers.setField(resources, "allocationReadingAtNs", now - 2_000_000_000L)
+        }
         compose.runOnUiThread { scope.launch { checkNotNull(actions.action(phase)) { "$label/$phase" }.invoke() } }
         val preview = if (label == MeasureScenario.ContextMenu.key) mutableListOf<Int>() else null
         // Allineiamo l'inizio dei venti frame di riposo al distacco effettivo, anche a 555 ms.

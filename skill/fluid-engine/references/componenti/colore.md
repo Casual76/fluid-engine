@@ -113,6 +113,14 @@ fascia di tinta più pesante e sulle due vicine, perché su una copertina a tre 
 fangoso. Un'immagine tutta trasparente dà null (il tema resta normale); una con meno del 4 % di pixel colorati è
 monocroma, e i ruoli restano neutri.
 
+**Il colore vivo** (`vivid`, F8.7b). Accanto a `vibrant` l'estrattore tiene la fascia di tinta più viva che pesa davvero:
+quella col peso per la croma OKLCH al quadrato più alto (`FluidContentApple.SeedChromaPower`), se pesa almeno il 15 %
+della massa colorata, è un altro colore (almeno 20° di tinta) ed è più viva (almeno il 15 % di croma in più). È il seme
+del lato della copertina. Il fiore della galleria, con foglie oliva, verdi e bruno-rosse, dava la media delle tre, un
+oliva spento; ora dà il verde delle foglie, e la pagina parte da 0,46 di luminosità invece di scendere fino a un verde
+quasi nero (`VividPageL`). Le copertine di una tinta sola (il razzo, la copertina chiara, la tuta arancione) non
+cambiano di un livello: lo provano le copertine vere della galleria (`F8p7ColorUiTest`).
+
 `rememberFluidContentColors(key) { … }` la fa una volta per chiave su `Dispatchers.Default`, con una cache di 64 voci
 (`FluidContentColorCache`, come Fluidify): la stessa copertina la chiedono il mini player, la pagina e il widget. Mentre
 i colori di una chiave nuova si leggono restano quelli di prima, così fra un brano e l'altro la pagina non torna bianca.

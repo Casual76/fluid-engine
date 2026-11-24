@@ -55,12 +55,13 @@ import dev.antigravity.fluidengine.sample.TryArea
 import dev.antigravity.fluidengine.sample.TryItem
 import dev.antigravity.fluidengine.sample.TryTarget
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
-import dev.antigravity.fluidengine.ui.fluid.FluidButton
-import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidColorRow
 import dev.antigravity.fluidengine.ui.fluid.FluidColorSwatches
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidIcon
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
@@ -73,8 +74,10 @@ import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidColorName
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassPanel
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
+import dev.antigravity.fluidengine.ui.fluid.icons.Add
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.PlayArrow
+import dev.antigravity.fluidengine.ui.fluid.icons.Shuffle
 import dev.antigravity.fluidengine.ui.fluid.icons.SkipNext
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidRecentColors
 import dev.antigravity.fluidengine.ui.theme.FluidContentSide
@@ -139,6 +142,9 @@ internal object F8p7Tags {
   const val Roles = "f8p7:ruoli"
   const val MiniPlayer = "f8p7:mini-player"
   const val Side = "f8p7:lato"
+  const val Play = "f8p7:riproduci"
+  const val Shuffle = "f8p7:casuale"
+  const val Add = "f8p7:aggiungi"
 
   fun cover(index: Int): String = "f8p7:copertina-$index"
 
@@ -358,7 +364,7 @@ private fun decodeSmall(context: Context, res: Int): Bitmap? {
 }
 
 /**
- * La pagina del brano: la copertina in grande, il titolo, Riproduci e Casuale, i brani; la pagina e l'accento presi dalla
+ * La pagina del brano: la copertina in grande, il titolo, la fila dei tasti (casuale, Riproduci, aggiungi), i brani; la pagina e l'accento presi dalla
  * copertina con `FluidContentTheme`, il mini player in basso con il vetro della barra dei ruoli. Sotto la copertina le
  * altre copertine (la tinta passa dall'una all'altra) e l'interruttore che la spegne (la pagina torna al tema normale).
  */
@@ -444,10 +450,7 @@ private fun TrackPageScene(onBack: () -> Unit) {
             }
           }
           Spacer(Modifier.height(16.dp))
-          Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FluidButton(text = "Riproduci", onClick = {}, modifier = Modifier.width(150.dp))
-            FluidButton(text = "Casuale", onClick = {}, style = FluidButtonStyle.Tinted, modifier = Modifier.width(150.dp))
-          }
+          PlayRow()
         }
       }
       item(key = "copertine") {
@@ -509,6 +512,39 @@ private fun TrackPageScene(onBack: () -> Unit) {
         }
       }
       item(key = "ruoli") { RolesCaption() }
+    }
+  }
+}
+
+/**
+ * La fila dei tasti della pagina dell'album di Apple Music (iOS 26.4, F8.7b): al centro la capsula piena «Riproduci» col
+ * testo del colore della pagina ([FluidGlassButtonStyle.Filled]), ai lati due tasti tondi di vetro, casuale a sinistra e
+ * «aggiungi alla libreria» a destra. Su una pagina scura la capsula e' bianca; su una chiara (dalla parte del tema) e'
+ * l'accento; senza tinta e' l'accento del tema.
+ */
+@Composable
+private fun PlayRow() {
+  val roles = LocalFluidContentRoles.current
+  val scheme = MaterialTheme.colorScheme
+  val fill = when {
+    roles == null -> scheme.primary
+    roles.isDark -> Color.White
+    else -> roles.accent
+  }
+  val ink = roles?.pageTint ?: scheme.onPrimary
+  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag(F8p7Tags.Shuffle)) {
+      FluidIcon(FluidIcons.Shuffle, "Casuale")
+    }
+    FluidGlassButton(
+      text = "Riproduci",
+      onClick = {},
+      modifier = Modifier.width(168.dp).testTag(F8p7Tags.Play),
+      style = FluidGlassButtonStyle.Filled(fill, ink = ink),
+      leading = { FluidIcon(FluidIcons.Filled.PlayArrow, null) },
+    )
+    FluidGlassIconButton(onClick = {}, modifier = Modifier.testTag(F8p7Tags.Add)) {
+      FluidIcon(FluidIcons.Add, "Aggiungi alla libreria")
     }
   }
 }

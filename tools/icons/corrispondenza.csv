@@ -427,7 +427,7 @@ phosphor;Regular.Queue;playlist_play;;fuori dal set: per averla, la riga `playli
 phosphor;Regular.Radio;radio;;fuori dal set: per averla, la riga `radio` in fluid-icons.txt
 phosphor;Regular.Repeat;repeat;;fuori dal set: per averla, la riga `repeat` in fluid-icons.txt
 phosphor;Regular.RepeatOnce;repeat_one;;fuori dal set: per averla, la riga `repeat_one` in fluid-icons.txt
-phosphor;Regular.Shuffle;shuffle;;fuori dal set: per averla, la riga `shuffle` in fluid-icons.txt
+phosphor;Regular.Shuffle;shuffle;FluidIcons.Shuffle;
 phosphor;Fill.SkipBack;skip_previous;;fuori dal set: per averla, la riga `skip_previous` in fluid-icons.txt
 phosphor;Fill.SkipForward;skip_next;FluidIcons.Filled.SkipNext;
 phosphor;Regular.SpeakerHifi;speaker;;fuori dal set: per averla, la riga `speaker` in fluid-icons.txt

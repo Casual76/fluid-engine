@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.sample.novita
 import android.app.Activity
 import android.content.ContextWrapper
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
@@ -26,6 +27,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.click
@@ -42,6 +44,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.R
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import dev.antigravity.fluidengine.ui.fluid.FluidColorEyedropper
 import dev.antigravity.fluidengine.ui.fluid.FluidColorGrid
@@ -62,6 +65,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidContentSide
 import dev.antigravity.fluidengine.ui.theme.FluidContentTheme
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import dev.antigravity.fluidengine.ui.theme.LocalFluidContentRoles
+import dev.antigravity.fluidengine.ui.theme.fluidContentColorsOf
 import dev.antigravity.fluidengine.ui.theme.fluidContentRoles
 import java.io.File
 import java.io.FileOutputStream
@@ -77,6 +81,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -365,6 +370,35 @@ class F8p7ColorUiTest {
     on = false
     advance(48)
     assertEquals(base, background)
+  }
+
+  // --- F8.7b: le copertine vere della galleria ------------------------------------------------------------------
+
+  @Test
+  fun `le copertine della galleria, il fiore diventa verde vivo e le altre non cambiano`() {
+    val res = RuntimeEnvironment.getApplication().resources
+    fun colorsOf(id: Int) = fluidContentColorsOf(BitmapFactory.decodeResource(res, id))!!
+    // La copertina chiara, il razzo di notte e la tuta arancione: il seme del lato della copertina e' quello di prima.
+    for (id in listOf(R.drawable.viewer_campanelle_cover, R.drawable.viewer_rocket, R.drawable.viewer_astronaut)) {
+      val c = colorsOf(id)
+      assertEquals("copertina $id", c.vibrant, c.vivid)
+    }
+    // Il fiore: non piu' l'oliva spento della media, ma il verde delle foglie.
+    val flower = colorsOf(R.drawable.viewer_flower)
+    assertNotEquals(flower.vibrant, flower.vivid)
+    val roles = fluidContentRoles(flower, isDark = false, side = FluidContentSide.Content)
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(roles.pageTint.toArgb(), hsv)
+    assertTrue("pagina verde: ${hsv[0]}°", hsv[0] in 55f..125f)
+    assertTrue("pagina viva: saturazione ${hsv[1]}, valore ${hsv[2]}", hsv[1] >= 0.5f && hsv[2] >= 0.3f)
+    fun ratio(a: Color, b: Color): Float {
+      val la = a.luminance()
+      val lb = b.luminance()
+      return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
+    }
+    assertTrue("testo", ratio(roles.onPage, roles.pageTint) >= 4.5f)
+    assertTrue("secondario", ratio(roles.onPageVariant, roles.pageTint) >= 4.5f)
+    assertTrue("tasto pieno", ratio(roles.pageTint, Color.White) >= 4.5f)
   }
 
   // --- I fotogrammi, per guardarli ------------------------------------------------------------------------------------

@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <!--
-    F8.11 · Il primo fotogramma pronto. Un tema di piattaforma per le Activity delle app Fluid: la finestra ha gia' il
-    colore della pagina (chiaro qui, scuro in values-night), cosi' fra la schermata d'avvio di Android e il primo disegno
-    di Compose non c'e' un lampo d'altro colore, e le icone delle barre stanno dalla parte giusta. La schermata d'avvio
-    resta quella di Android: prende il fondo dalla finestra, come fa per ogni app.
+    F8.11 · Il primo fotogramma pronto. Due temi di piattaforma per le Activity delle app Fluid, con le icone delle barre
+    dalla parte giusta (chiaro qui, scuro in values-night):
+
+    - Theme.Fluid: la finestra ha gia' il colore della pagina. Android colora con lo stesso fondo la sua schermata d'avvio
+      (lo fa per ogni app: prende il fondo della finestra), quindi avvio e prima pagina sono dello stesso colore. L'icona e
+      la sua animazione non cambiano.
+    - Theme.Fluid.SystemSplash: lo stesso tema senza il fondo della finestra. La schermata d'avvio resta quella che Android
+      da' al tema Material di piattaforma, come se l'engine non ci fosse. Il primo fotogramma dell'app ha comunque il
+      colore della pagina, perche' lo mette fluidFirstFrame() in onCreate, dopo l'avvio.
+
+    Per tornare indietro basta cambiare il parent del tema dell'Activity da Theme.Fluid a Theme.Fluid.SystemSplash.
   -->
   <item name="fluid_first_frame" type="id" />
   <color name="fluid_page_background">#FFF2F2F7</color>
@@ -12,6 +19,13 @@
   <style name="Fluid.Platform" parent="android:Theme.Material.Light.NoActionBar" />
   <style name="Theme.Fluid" parent="Fluid.Platform">
     <item name="android:windowBackground">@color/fluid_page_background</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowLightStatusBar">@bool/fluid_light_bars</item>
+    <item name="android:windowLightNavigationBar">@bool/fluid_light_bars</item>
+  </style>
+  <!-- Il parent esplicito: senza, il nome col punto lo farebbe figlio di Theme.Fluid, col suo fondo. -->
+  <style name="Theme.Fluid.SystemSplash" parent="Fluid.Platform">
     <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowLightStatusBar">@bool/fluid_light_bars</item>

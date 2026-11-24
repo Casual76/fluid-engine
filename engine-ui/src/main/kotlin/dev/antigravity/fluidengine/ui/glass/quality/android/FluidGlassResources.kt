@@ -58,6 +58,13 @@ class FluidGlassResources private constructor(private val app: Application) {
   private var row = initial.decision.memoryProfile
   private var heap = initial.decision.heapReferenceBytes
   @Volatile private var lastReadingNs = System.nanoTime()
+  /**
+   * La stessa lettura sull'orologio di sistema ([android.os.SystemClock.elapsedRealtimeNanos]): da qui si misura se
+   * e' abbastanza fresca per una cattura. Sul telefono e' lo stesso tempo monotono (conta anche il sonno, che invecchia
+   * davvero la lettura); sulle prove segue l'orologio dei fotogrammi invece del carico del PC (F8.5d: con `nanoTime`
+   * due prove del vetro cadevano solo nei lotti con la JVM lenta).
+   */
+  @Volatile private var allocationReadingAtNs = android.os.SystemClock.elapsedRealtimeNanos()
   private var pressured = false
   private val shown = MutableStateFlow(true)
   /** Il trim UI_HIDDEN sospende i lettori fino al prossimo ingresso in primo piano. */
@@ -140,7 +147,8 @@ class FluidGlassResources private constructor(private val app: Application) {
     trimClients.forEach { it(level) }
   }
 
-  internal val allocationReadingFresh: Boolean get() = System.nanoTime() - lastReadingNs < 1_000_000_000L
+  internal val allocationReadingFresh: Boolean
+    get() = android.os.SystemClock.elapsedRealtimeNanos() - allocationReadingAtNs < 1_000_000_000L
 
   /** Ricontrolla disponibilità e heap prima di una richiesta grande se l'ultima lettura è vecchia. Fuori dal draw. */
   @Synchronized
@@ -170,6 +178,7 @@ class FluidGlassResources private constructor(private val app: Application) {
 
   private fun applyReading(value: GlassReading, now: Long = System.nanoTime()) {
     lastReadingNs = now
+    allocationReadingAtNs = android.os.SystemClock.elapsedRealtimeNanos()
     reading = value
     fun update(policy: GlassQualityPolicy) {
       policy.updateCapacity(now, value.capacity)

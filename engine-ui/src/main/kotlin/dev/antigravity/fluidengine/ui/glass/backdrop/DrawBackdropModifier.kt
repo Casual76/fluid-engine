@@ -524,6 +524,7 @@ private class DrawBackdropElement(
         }
         if (backdropChanged || nestingChanged) node.resolveContainer()
         node.onDrawBehind = onDrawBehind
+        val pipelineChanged = node.onDrawBackdrop !== onDrawBackdrop
         node.onDrawBackdrop = onDrawBackdrop
         node.onDrawSurface = onDrawSurface
         node.onDrawFront = onDrawFront
@@ -539,6 +540,12 @@ private class DrawBackdropElement(
         node.frozen = frozen
         node.heldWhileMoving = heldWhileMoving
         node.backdropScaleFactor = backdropScaleFactor
+        // F8.5d: un campione nuovo (il viaggio che parte, la cattura ferma che torna alla posa) chiede memoria al primo
+        // disegno. La lettura si rinfresca qui, fuori dal disegno, se ha piu' di un secondo: altrimenti il disegno
+        // rimandava la cattura a una lettura sul looper e ne affidava il secondo tentativo a un ridisegno che, durante
+        // il viaggio, puo' non arrivare. Il menu dal gruppo si chiudeva allora sulla cattura ferma, senza la finitura
+        // del viaggio, ogni volta che era rimasto aperto piu' di un secondo (sul banco: con la JVM lenta).
+        if (pipelineChanged && node.isAttached) node.readBeforeAllocation()
         node.invalidateDrawCache()
     }
 
@@ -1048,7 +1055,8 @@ private class DrawBackdropNode(
         nativeSample = null
     }
 
-    private fun readBeforeAllocation() {
+    /** Rilegge la memoria se l'ultima lettura ha piu' di un secondo, prima di una cattura. Mai dentro il disegno. */
+    fun readBeforeAllocation() {
         resources.refreshBeforeAllocation()
         allocationPrepared = true
     }

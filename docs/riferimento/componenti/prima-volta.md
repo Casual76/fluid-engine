@@ -31,6 +31,7 @@ d'avvio di Android non si tocca.
 | le foto «solo alcune» di Android 14 | `FluidPermission.Photos`: lo stato `Partial` fa partire l'azione; `requestMore()` riapre la scelta |
 | uno sfondo animato dietro un onboarding, un traguardo, l'assistente vuoto | `FluidScreen(ambient = FluidAmbient(tono, motivo, live = FluidLiveBackground.Aurora))`, o `FluidLiveBackgroundCanvas` in un `Box` |
 | la finestra del colore giusto prima del primo disegno | `android:theme="@style/Theme.Fluid"` (o un tema figlio) e `fluidFirstFrame()` in `onCreate`, prima di `setContent` |
+| lo stesso, lasciando la schermata d'avvio di Android com'è di sistema | `android:theme="@style/Theme.Fluid.SystemSplash"` e `fluidFirstFrame()` |
 | la struttura della pagina subito e il contenuto quando arriva | `FluidScreen` + `FluidContentState(stato, loading = { FluidSkeletonList() })` ([contenuto-righe-liste.md](contenuto-righe-liste.md)) |
 | **non così**: una schermata d'avvio dell'engine che trattiene l'icona, un'uscita animata dall'avvio | la schermata d'avvio resta di Android (nota di Alessio, 24 novembre 2026) |
 | **non così**: uno sfondo vivo in una pagina di tutti i giorni | solo pagine speciali: distrae e consuma |
@@ -109,9 +110,14 @@ d'avvio di Android non si tocca.
 - **`Theme.Fluid`** (risorsa di `engine-ui`, chiaro in `values`, scuro in `values-night`): la finestra ha già il colore
   della pagina Fluid (#F2F2F7 e #0D0D0F) e le icone delle barre dalla parte giusta. Un'app lo mette nel manifest
   dell'Activity o ne fa un tema figlio.
+- **Lasciare la schermata d'avvio com'era: `Theme.Fluid.SystemSplash`.** È lo stesso tema senza il fondo della finestra:
+  Android disegna la sua schermata d'avvio col tema Material di piattaforma, come se l'engine non ci fosse, e il primo
+  fotogramma dell'app ha comunque il colore della pagina (lo mette `fluidFirstFrame()` in `onCreate`, dopo l'avvio). Si
+  passa dall'uno all'altro cambiando il parent del tema dell'Activity, una riga.
 - **`fluidFirstFrame()`**, in `onCreate` prima di `setContent`: rilegge da un file piccolo e sincrono il fondo e il lato che
   `FluidTheme` ha usato l'ultima volta col sistema dalla stessa parte (un'app scura su un telefono chiaro, AMOLED, un
-  accento) e la finestra li prende subito. Da lì `FluidTheme` tiene il fondo della finestra uguale alla pagina (anche
+  accento) e la finestra li prende subito; al primo avvio in assoluto prende il fondo di serie della pagina dal lato del
+  sistema. Da lì `FluidTheme` tiene il fondo della finestra uguale alla pagina (anche
   quando l'utente cambia tema) e aggiorna il file. Un'Activity che non la chiama non cambia niente.
 - **La struttura subito.** `FluidScreen` disegna barra e titolo al primo fotogramma; i dati che arrivano dopo passano da
   `FluidContentState` (scheletro, poi il contenuto che entra a fuoco). La misura dell'avvio (tempo al primo fotogramma,

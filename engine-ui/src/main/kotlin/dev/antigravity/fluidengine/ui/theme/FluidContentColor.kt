@@ -52,6 +52,11 @@ import kotlin.math.roundToInt
  *   note della stessa immagine (come l'aura di Fluidify).
  * @property monochrome vero per un'immagine senza un colore che conti (in bianco e nero, quasi grigia): i ruoli allora
  *   restano neutri invece di inventare una tinta.
+ * @property vivid (4.0, F8.7b) il colore piu' vivo che pesa davvero: la fascia di tinta col peso per la croma al
+ *   quadrato piu' alto ([FluidContentApple.SeedChromaPower]), se pesa almeno [FluidContentApple.VividMinShare] della
+ *   massa colorata. Su una copertina di una tinta sola e' [vibrant]; su una a piu' tinte vicine (le foglie verdi, gialle
+ *   e bruno-rosse del fiore) e' la piu' viva invece della loro media spenta. E' il seme del lato della copertina, come
+ *   Apple Music. Di serie [vibrant].
  */
 @Immutable
 data class FluidContentColors(
@@ -60,6 +65,7 @@ data class FluidContentColors(
   val vibrant: Color,
   val swatches: List<Color>,
   val monochrome: Boolean,
+  val vivid: Color = vibrant,
 )
 
 /** Le misure dell'estrattore e della transizione del tema della pagina. */
@@ -205,13 +211,62 @@ fun fluidContentColorsOf(pixels: IntArray, width: Int, height: Int): FluidConten
   }
   val monochrome = colored.toFloat() / count < FluidContentColorDefaults.MonochromeShare
   val seed = if (monochrome) dominant else vibrant
+  val vivid = when {
+    monochrome -> seed
+    accentWeight >= 1.0 -> vividHue(vibrant, bandWeight, bandR, bandG, bandB) ?: vibrant
+    else -> vibrant
+  }
   return FluidContentColors(
     seed = seed,
     dominant = dominant,
     vibrant = vibrant,
     swatches = if (monochrome) listOf(seed) else distinctSwatches(seed, bandWeight, bandR, bandG, bandB, accentWeight),
     monochrome = monochrome,
+    vivid = vivid,
   )
+}
+
+/**
+ * La fascia di tinta piu' viva che pesa davvero (F8.7b): quella col peso per la croma OKLCH della sua media alla
+ * [FluidContentApple.SeedChromaPower] piu' alto, fra quelle che pesano almeno [FluidContentApple.VividMinShare]. Null
+ * (cioe' [vibrant]) se vince la fascia al centro della finestra di [heaviestHue]: su una copertina di una tinta sola
+ * il seme non cambia di un livello.
+ */
+private fun vividHue(vibrant: Color, weight: DoubleArray, r: DoubleArray, g: DoubleArray, b: DoubleArray): Color? {
+  val n = weight.size
+  val total = weight.sum()
+  if (total <= 0.0) return null
+  var center = 0
+  var centerWeight = -1.0
+  for (i in 0 until n) {
+    val w = weight[(i + n - 1) % n] + weight[i] + weight[(i + 1) % n]
+    if (w > centerWeight) {
+      centerWeight = w
+      center = i
+    }
+  }
+  var best = -1
+  var bestScore = -1.0
+  for (i in 0 until n) {
+    val w = weight[i]
+    if (w <= 0.0 || w < total * FluidContentApple.VividMinShare) continue
+    val c = Oklch.of(rgb((r[i] / w).toInt(), (g[i] / w).toInt(), (b[i] / w).toInt())).c
+    val score = w * Math.pow(c.toDouble(), FluidContentApple.SeedChromaPower.toDouble())
+    if (score > bestScore) {
+      bestScore = score
+      best = i
+    }
+  }
+  if (best < 0 || best == center) return null
+  val w = weight[best]
+  val candidate = rgb((r[best] / w).toInt(), (g[best] / w).toInt(), (b[best] / w).toInt()).enrich(0.16f)
+  // Prende il posto del colore vivo solo se e' davvero un altro colore, e piu' vivo: altrimenti il seme resta quello di
+  // prima, al livello (una copertina di una tinta sola, la cui finestra piu' pesante e' spostata di una fascia).
+  val was = Oklch.of(vibrant)
+  val now = Oklch.of(candidate)
+  val turn = Math.toDegrees(kotlin.math.abs(now.h - was.h).toDouble()).let { if (it > 180.0) 360.0 - it else it }
+  if (turn < FluidContentApple.VividHueGap || now.c < was.c * FluidContentApple.VividChromaGain) return null
+  return candidate
 }
 
 /**

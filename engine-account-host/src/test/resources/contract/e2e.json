@@ -1,0 +1,146 @@
+{
+  "hpke": {
+    "mode": "base",
+    "kem": "DHKEM(X25519, HKDF-SHA256)",
+    "kdf": "HKDF-SHA256",
+    "aead": "AES-256-GCM",
+    "kemId": 32,
+    "kdfId": 1,
+    "aeadId": 2
+  },
+  "labels": {
+    "recoveryAuth": "pampa/v1/recovery-auth",
+    "doorSeed": "pampa/v1/door",
+    "doorSeal": "pampa/v1/door-seal|<doorId>|<epoch>",
+    "doorTag": "pampa/v1/doors",
+    "doorCheck": "pampa/v1/door-check",
+    "epochLink": "pampa/v1/epoch",
+    "appKey": "pampa/v1/app/<package>",
+    "backupKey": "pampa/v1/backup/<package>",
+    "sharedKey": "pampa/v1/shared/<name>",
+    "transferSeal": "pampa/v1/transfer|<transferId>",
+    "transferMac": "pampa/v1/transfer-mac",
+    "prfInput": "SHA-256(\"pampa/v1/prf\")"
+  },
+  "inputs": {
+    "tag": "HMAC(HKDF(CD_r, info = doorTag), utf8(\"<doorId>|<kind>|<pub>|<salt>|<r>\"))",
+    "check": "HMAC(HKDF(segreto, info = doorCheck), SHA-256(CD_radice))",
+    "link": "HMAC(HKDF(CD_{e-1}, info = epochLink), utf8(\"<e>|<kind>|\") || SHA-256(CD_e))",
+    "transferMac": "HMAC(HKDF(s, info = transferMac), utf8(\"<transferId>\") || N || sigillo)",
+    "recordAad": "utf8(\"<accountId>|<package>|<collection>|<recordId>|<version>\")",
+    "backupAad": "utf8(\"<accountId>|<package>|backup|<n>|<epoch>\")",
+    "appKeySalt": "utf8(accountId)"
+  },
+  "envelope": {
+    "v": 1,
+    "e": "<epoca>",
+    "alg": "A256GCM",
+    "n": "<nonce 12 byte, base64url>",
+    "c": "<testo cifrato con tag, base64url>"
+  },
+  "epochKinds": [
+    "first",
+    "normal",
+    "lost",
+    "reset"
+  ],
+  "doorKinds": [
+    "recovery",
+    "prf",
+    "device"
+  ],
+  "deviceDoor": {
+    "doorId": "device:<deviceId>",
+    "secret": "32 byte casuali, nati sul dispositivo; restano nella sua custodia (mai al server, mai in un backup, mai nel passaggio col QR)",
+    "seed": "HKDF(secret, salt, info = labels.doorSeed) → privata X25519; salt di 16 byte casuali, nella porta",
+    "seal": "HPKE base verso la pubblica della porta, info = labels.doorSeal con doorId e epoch, aad vuoto: la chiave dei dati di ogni epoca",
+    "tag": "inputs.tag (K8), con kind = \"device\"",
+    "check": "inputs.check (K9), col segreto del dispositivo",
+    "write": "PUT /v1/keys/doors/device:<deviceId>, solo dalla sessione piena di quel dispositivo, con il sigillo di ogni epoca della catena",
+    "remove": "DELETE /v1/keys/doors/device:<deviceId> dal dispositivo stesso; da sola quando il dispositivo esce o viene fatto uscire (uscita, «fai uscire», tutti gli altri, eliminazione, scadenza)",
+    "rotation": "chi crea un'epoca la sigilla per tutte le porte, anche quelle dei dispositivi, dopo averne controllato il tag (K8); dopo un «lost» ne rifà anche il tag",
+    "catchUp": "il dispositivo apre i sigilli nuovi della sua porta e controlla la sua pubblica, K9 (check sull'epoca radice), la catena (link) e i tag di tutte le porte",
+    "k2": "non conta per K2: serve sempre una porta fuori dai telefoni (il codice o una passkey col PRF)"
+  },
+  "formats": {
+    "backup": {
+      "magic": "PBK1",
+      "layout": "\"PBK1\" (4 byte) || epoca (u32, big-endian) || nonce (12 byte) || testo cifrato con tag (16 byte)",
+      "cipher": "AES-256-GCM con K_bak = HKDF(CD_epoca, sale = utf8(accountId), info = labels.backupKey), aad = inputs.backupAad",
+      "plaintext": "il pacchetto in CBOR deterministico: { v: 1, app, appVersion, schema, createdAt, files: [{ name, bytes }] }",
+      "header": "pampa-backup-epoch: la stessa epoca della testa",
+      "maxBytes": 5242880
+    },
+    "transferQr": {
+      "json": {
+        "v": 1,
+        "transferId": "<xfr_… dal server>",
+        "N": "<X25519 pubblica effimera del telefono nuovo, 32 byte, base64url>",
+        "s": "<segreto di 16 byte, base64url>"
+      },
+      "nBytes": 32,
+      "sBytes": 16,
+      "rule": "il QR passa solo dallo schermo alla fotocamera: N e s non vanno mai al server; il telefono nuovo li dimentica dopo il ritiro o dopo 10 minuti"
+    }
+  },
+  "people": {
+    "keys": {
+      "root": "Ed25519. Non cambia mai: da qui nascono il codice e la casella. Firma solo la scheda e le chiavi di lavoro.",
+      "work": "Per epoca: X25519 (enc) per cifrare ed Ed25519 (sign) per firmare, firmate dalla radice. Cambiano con un «perso o rubato»."
+    },
+    "labels": {
+      "code": "pampa/v1/codice|",
+      "mailbox": "pampa/v1/casella|",
+      "card": "pampa/v1/scheda|",
+      "workKeys": "pampa/v1/chiavi-di-lavoro|<epoch>|",
+      "deliveryPrint": "pampa/v1/gettone|",
+      "invitePrint": "pampa/v1/invito|",
+      "writePrint": "pampa/v1/scrittura|",
+      "blockedPrint": "pampa/v1/bloccato|",
+      "cdxbInfo": "pampa/v1/cdxb|<from>|<to>",
+      "cdxbSig": "pampa/v1/cdxb-firma|<from>|<to>|",
+      "pmx1Key": "pampa/v1/pmx1",
+      "pmx1Aad": "|<from>|<to>|<thread>",
+      "pair": "pampa/v1/coppia",
+      "gem": "pampa/v1/gemma",
+      "words": "pampa/v1/parole",
+      "spaceAad": "pampa/v1/spazio|<spaceId>|<epoch>|<recordId>|<version>",
+      "spaceSig": "pampa/v1/spazio-firma|<spaceId>|<epoch>|<recordId>|<version>|"
+    },
+    "formulas": {
+      "code": "\"PMP-\" + Crockford32(SHA-256(utf8(code) || rootPub)[0..5]), 8 caratteri in due gruppi da 4: PMP-XXXX-XXXX",
+      "crockford": "0123456789ABCDEFGHJKMNPQRSTVWXYZ; in lettura O→0, I e L→1, minuscole→maiuscole",
+      "mailbox": "base64url(SHA-256(utf8(mailbox) || rootPub)[0..16]), 22 caratteri",
+      "cardSig": "Ed25519(root, utf8(card) || byte della scheda)",
+      "workSig": "Ed25519(root, utf8(workKeys con epoch) || encPub(32) || signPub(32))",
+      "print": "base64url(SHA-256(utf8(etichetta) || gettone di 32 byte)); per i bloccati: SHA-256(utf8(blockedPrint) || utf8(casella))",
+      "cdxb": "\"CDXB\" || u32(epoca di lavoro del mittente) || u32(epoca di lavoro del destinatario) || enc(32) || testo cifrato || firma(64). HPKE base verso la enc del destinatario, con info = cdxbInfo e aad = i 12 byte di testa",
+      "cdxbSigInput": "Ed25519(sign del mittente, utf8(cdxbSig) || tutto ciò che precede la firma)",
+      "pmx1": "\"PMX1\" || u32(epoca della conversazione) || id del messaggio(16) || nonce(12) || AES-256-GCM",
+      "pmx1KeyInput": "HKDF-SHA256(ikm = chiave della conversazione all'epoca, salt = id del messaggio, info = pmx1Key)",
+      "pmx1AadInput": "i 36 byte di testa || utf8(pmx1Aad): la casella del mittente e quella del destinatario stanno nei dati associati",
+      "pairKey": "HKDF-SHA256(ikm = X25519(mia enc, sua enc), salt = SHA-256(min(rootA, rootB) || max(rootA, rootB)), info = pair)",
+      "gem": "HKDF-SHA256(ikm = chiave di coppia, salt = vuoto, info = gem, 16 byte): il seme del disegno, uguale sui due telefoni",
+      "words": "HKDF-SHA256(ikm = chiave di coppia, salt = vuoto, info = words, 6 byte): i primi 44 bit, 4 indici da 11 bit nell'elenco italiano di 2.048 parole",
+      "spaceRecord": "AES-256-GCM(K_spazio(epoca), nonce 12, aad = utf8(spaceAad)); dentro: {\"d\": dati, \"w\": radice di chi scrive, \"e\": sua epoca di lavoro, \"s\": Ed25519(sign, utf8(spaceSig) || utf8(d))}"
+    },
+    "envelope": {
+      "to": "<id della casella del destinatario>",
+      "token": "<gettone di consegna, 32 byte base64url> | assente per una richiesta",
+      "invite": "<gettone d'invito (QR, link o gruppo)> | facoltativo, solo per le richieste",
+      "data": "<CDXB o PMX1, base64url>",
+      "minStore": "<versione minima di Pampa Store per aprirla, es. 1.0.0> (critica M2)",
+      "priority": "high | normal (alta solo se diventa una notifica)"
+    },
+    "tokens": {
+      "bytes": 32,
+      "kinds": [
+        "delivery",
+        "blocked",
+        "invite.qr",
+        "invite.link",
+        "invite.group"
+      ]
+    }
+  }
+}

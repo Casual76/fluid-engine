@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application android:label="Pampa · prova custodia" android:allowBackup="false">
+    <activity android:name=".ProvaActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <!-- Il campanello finto: lo suona adb, a schermo bloccato. Esportato solo in questa app di prova. -->
+    <receiver android:name=".CampanelloReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="dev.antigravity.fluidengine.account.prova.CAMPANELLO" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- F10.4 · Da Android 11 un'app non vede le altre se non lo dichiara (package visibility): l'app vede Pampa Store,
+       il vero e quello di sviluppo. Quale usare lo decide StoreLocator (critica M9), e di quale fidarsi la firma (M1).
+       Nessun permesso: il controllo e' a ogni chiamata, nei due sensi. -->
+  <queries>
+    <package android:name="com.pampa.store" />
+    <package android:name="com.pampa.store.debug" />
+  </queries>
+
+  <application>
+    <!-- L'avviso dello Store quando cambia qualcosa (b\api.md par. 5.4). Esportato senza permesso: l'app non si fida
+         del contenuto e rilegge dal provider dello Store. -->
+    <receiver
+      android:name="dev.antigravity.fluidengine.account.PampaAccountChangedReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="dev.pampa.account.CHANGED" />
+      </intent-filter>
+    </receiver>
+  </application>
+
+</manifest>

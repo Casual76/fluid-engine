@@ -62,12 +62,20 @@ include ':engine-share-in'
 // F8.19 · Notifiche, promemoria e attività fuori dall'app (Live Update di Android 16). Opt-in, senza interfaccia: le pagine
 // e il ponte con la pillola di attività stanno in engine-ui.
 include ':engine-notify'
+// F10.4 · L'Account Pampa: quello che vede ogni app (mai rete), il motore dentro Pampa Store (custodia delle chiavi,
+// provider firmato) e la riga «Account Pampa». Opt-in tutti e tre.
+include ':engine-account'
+include ':engine-account-host'
+include ':engine-account-ui'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'
 project(':engine-viewer-prova').projectDir = file('engine-viewer/prova/famiglia')
 include ':engine-viewer-prova-app'
 project(':engine-viewer-prova-app').projectDir = file('engine-viewer/prova/app')
+// F10.4 · L'app di prova della custodia col Keystore vero, per la finestra sul tablet: solo nel build dell'engine.
+include ':engine-account-prova'
+project(':engine-account-prova').projectDir = file('engine-account-host/prova')
 
 // The gallery. Only exists in this build: a host app includes the engine-* modules by path and
 // never reads this file, so nothing an app compiles is affected by it.

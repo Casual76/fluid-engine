@@ -49,6 +49,11 @@ ext.engine = [
   // engine-sync (F8.21): l'invio in sottofondo. La 2.11 chiede compileSdk 35 all'app ospite (solo a chi include
   // engine-sync, che e' opt-in).
   work           : '2.11.2',
+  // engine-account ed engine-account-host (F10.4): una libreria sola per tutta la crittografia dell'account, la stessa
+  // di Codex e alla stessa versione (progetto dell'account, T9). Solo l'API leggera, mai il provider JCA.
+  bouncycastle   : '1.85.2',
+  // Solo per le prove di engine-account-host: il server finto dietro un vero client HTTP, mai in un'app.
+  mockwebserver  : '4.12.0',
 
   junit          : '4.13.2',
   coroutinesTest : '1.8.1',

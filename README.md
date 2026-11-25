@@ -36,6 +36,11 @@ engine-share-in     gli arrivi da altre app: le forme di Android lette in un mod
                     subito con tetto e avanzamento, il foglio sopra l'app di partenza (opt-in)
 engine-notify       le notifiche vere di Android: canali con parole comuni, notifiche raccolte, risposte rapide,
                     riepilogo programmato, Live Update di Android 16, promemoria che arrivano davvero (opt-in)
+engine-account      l'Account Pampa visto da un'app: chi sei, token, chiavi dell'app, backup, aspetto e luoghi
+                    comuni, sempre attraverso Pampa Store e mai la rete (opt-in)
+engine-account-host il motore dell'account in Pampa Store: provider firmato, sessione, custodia delle chiavi,
+                    codice di recupero, backup dello Store (opt-in, solo lo Store)
+engine-account-ui   la riga «Account Pampa» e l'avatar (opt-in)
 ```
 
 ## Partire in cinque minuti

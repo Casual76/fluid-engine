@@ -32,6 +32,9 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-viewer-3d` | `viewer.scene` | 6 / 1 406 | visori, modelli GLB, glTF, OBJ, STL con Filament — **opt-in** | **viewer** |
 | `engine-viewer-ar` | `viewer.ar` | 7 / 1 002 | visori, il modello posato nella stanza con ARCore (chiede la fotocamera) — **opt-in** | **viewer-3d** |
 | `engine-sync` | `sync` | 12 / 2 517 | la sincronizzazione: registro locale (SQLite della piattaforma), orologio logico ibrido, invio una volta sola con chiave d'idempotenza, unione per campo e dei testi lunghi, pietre tombali e compattazione, ripresa dopo mesi, l'adattatore del relay e il sigillo di chi chiama, WorkManager — **opt-in**, dalla 4.0 (F8.21, `moduli/sync.md`) | storage, foundation |
+| `engine-account` | `account` | 9 / 1 300 | l'Account Pampa visto da un'app: lo Store trovato e verificato nei due sensi, il protocollo del provider, token, chiavi dell'app, la busta delle righe e il formato del backup, l'aspetto e i luoghi; mai rete; Bouncy Castle — **opt-in**, dalla 4.0 (F10.4, `moduli/account.md`) | storage, foundation |
+| `engine-account-host` | `account.host` | 22 / 2 890 | il motore dell'account in Pampa Store: provider firmato, sessione e chiave del dispositivo, token, custodia delle chiavi (HPKE, porte, epoche, passaggio col QR, due classi), codice di recupero, luoghi, aspetto, backup dello Store con WorkManager — **opt-in**, solo lo Store (F10.4, `moduli/account-host.md`) | **account**, **auth**, **vault** |
+| `engine-account-ui` | `account.ui` | 1 / 130 | la riga «Account Pampa» e l'avatar — **opt-in** (F10.4, `moduli/account-ui.md`) | **account**, **ui** |
 | `engine-revisions` | `revisions` | 2 / 576 | il foglio di vetro della scelta tra versioni in conflitto, i passaggi diversi con il tetto di lavoro — **opt-in**, dalla 4.0 (F8.21, `moduli/revisions.md`) | foundation, **ui** |
 | `engine-notify` | `notify` | 13 / 2 652 | le notifiche vere di Android: canali, notifiche raccolte per filo, risposte rapide, riepilogo programmato, la porta del ritmo, i Live Update di Android 16 (e la notifica con l'avanzamento prima), i promemoria con `AlarmManager` e il loro ripristino, i controlli di «Le notifiche non arrivano?» — **opt-in**, dalla 4.0 (F8.19, `moduli/notify.md`) | foundation |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
@@ -60,6 +63,8 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         +-- engine-storage <- engine-sync  (opt-in; WorkManager, coroutines-android; niente Compose)
 engine-ui <- engine-revisions              (opt-in; il foglio della scelta; non conosce engine-sync)
 engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compose: pagine e ponte con la pillola in engine-ui)
+engine-storage <- engine-account <- engine-account-host   (opt-in; Bouncy Castle; l'host solo nello Store, con engine-auth, engine-vault e WorkManager)
+engine-ui + engine-account <- engine-account-ui           (opt-in; nessuna chiave)
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
@@ -88,6 +93,8 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | sincronizza i dati fra i dispositivi della persona, o uno spazio condiviso (liste, gruppi), anche senza rete | + `engine-sync` (**opt-in**: `-Modules …,engine-sync`; porta `engine-storage` e WorkManager; la cifratura la mette l'Account Pampa col suo sigillo) |
 | fa scegliere fra due versioni di un elemento in conflitto | + `engine-revisions` (**opt-in**; porta `engine-ui`; non richiede `engine-sync`) |
 | avvisa fuori dall'app (notifiche vere, un lavoro lungo che continua come Live Update, promemoria) | + `engine-notify` (**opt-in**: `-Modules …,engine-notify`; porta solo `engine-foundation` e `androidx.core`; le pagine sono già in `engine-ui`) |
+| usa l'Account Pampa (riga nelle impostazioni, token per il suo servizio, chiavi, backup) | + `engine-account-ui` (**opt-in**; porta `engine-account` ed `engine-ui`), o solo `engine-account` senza interfaccia |
+| e' Pampa Store, il custode dell'account | + `engine-account-host` (**opt-in**; porta `engine-account`, `engine-auth`, `engine-vault` e WorkManager) |
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
 | fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |

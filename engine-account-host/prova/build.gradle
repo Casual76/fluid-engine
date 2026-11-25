@@ -1,0 +1,53 @@
+// F10.4 · L'app di prova della custodia sul tablet (critica F2): i 15 minuti di fine F10.4 col Keystore vero. Esiste solo
+// nel build dell'engine e non entra mai in un'app. Si pilota da adb (la scaletta e' nel rapporto di F10.4):
+//   adb shell am start -n dev.antigravity.fluidengine.account.prova/.ProvaActivity --es passo prepara|velocita|stato
+//   adb shell am broadcast -a dev.antigravity.fluidengine.account.prova.CAMPANELLO -p dev.antigravity.fluidengine.account.prova
+// Ogni riga va in logcat (tag PampaProva) e in files/prova.log. La release passa da R8 con le regole di Bouncy Castle di
+// engine-account: se la cifratura si rompe solo in release, si vede qui. Firmata con la chiave di debug, mai pampa.jks.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.account.prova'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.account.prova'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1'
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  implementation project(':engine-account-host')
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+  implementation "androidx.work:work-runtime-ktx:${engine.work}"
+}

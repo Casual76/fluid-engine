@@ -1,0 +1,61 @@
+// F10.4 · L'Account Pampa visto da ogni app (`b\architettura.md` § 9.4). Opt-in e senza interfaccia: la riga «Account
+// Pampa» e l'avatar stanno in `engine-account-ui`, il motore dentro Pampa Store in `engine-account-host`.
+//
+//   implementation project(':engine-account')
+//
+// Cosa porta:
+//  - `PampaAccount`, l'API che parla solo con Pampa Store sul telefono, col provider firmato e il controllo nei due
+//    sensi (critica M1) e la precedenza fra lo Store vero e quello di sviluppo (M9). **Non usa mai la rete** (R9): la
+//    rete la fanno lo Store e, col token che lo Store le da', l'app verso il suo servizio;
+//  - il protocollo del provider, comune allo Store e alle app (`AccountProtocol`);
+//  - la busta delle righe cifrate e il formato del backup per app (`b\chiavi.md` § 7 e § 9), coi dati associati del
+//    contratto `Pampa-account\contract\v1\e2e.json`;
+//  - le primitive comuni (HKDF, HMAC, AES-256-GCM) con Bouncy Castle, la libreria sola dell'account (T9).
+//
+// Librerie: Bouncy Castle `bcprov-jdk18on` (licenza MIT, compatibile con la GPL-3.0), solo l'API leggera.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.account'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Il provider, il PackageManager con le firme finte e la cache locale si provano in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // La copia locale dello stato e dell'aspetto (per partire offline) sta in DataStore; da li' arriva anche foundation.
+  api project(':engine-storage')
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+  // Solo il runtime (JsonElement): il protocollo del provider si scrive e si legge a mano, come nel ponte dei tool.
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+  implementation "org.bouncycastle:bcprov-jdk18on:${engine.bouncycastle}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

@@ -78,6 +78,9 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-sync` | la sincronizzazione: registro locale, invio una volta sola, unione per campo e dei testi lunghi, pietre tombali, verso il relay cifrato dell'Account Pampa; WorkManager (**opt-in**, dalla 4.0) | `moduli/sync.md` |
 | `engine-revisions` | il foglio di vetro della scelta tra versioni in conflitto (**opt-in**, dalla 4.0) | `moduli/revisions.md` |
 | `engine-notify` | le notifiche vere di Android (canali con parole comuni, notifiche raccolte, risposte rapide, riepilogo programmato), le attività fuori dall'app (Live Update di Android 16, notifica con l'avanzamento prima), i promemoria che sopravvivono a riavvio e cambio d'ora; le pagine e il ponte con la pillola sono in `engine-ui` (**opt-in**, dalla 4.0) | `moduli/notify.md` |
+| `engine-account` | l'Account Pampa visto da un'app: chi sei, token per il suo servizio, chiavi dell'app, backup, aspetto e luoghi comuni, sempre attraverso Pampa Store e **mai la rete** (**opt-in**, dalla 4.0) | `moduli/account.md` |
+| `engine-account-host` | il motore dell'account dentro Pampa Store: provider firmato, sessione, custodia delle chiavi (epoche, porte, passaggio col QR, due classi), codice di recupero, backup dello Store (**opt-in**, solo lo Store) | `moduli/account-host.md` |
+| `engine-account-ui` | la riga «Account Pampa» e l'avatar, nei quattro stati, senza grafica finale (**opt-in**) | `moduli/account-ui.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
 | `engine-auth`, `engine-auth-google` | le passkey e il gestore delle password con Credential Manager, senza rete (il PRF lo scrive il modulo, gli errori come frasi pronte); «Continua con Google» e le concessioni Google, spente (**opt-in**, dalla 4.0; Google ha il permesso della GPL-3.0 § 7) | `moduli/auth.md` |
 
@@ -99,6 +102,8 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | sincronizzare i dati dell'app fra i dispositivi (anche senza rete), uno spazio condiviso, «3 modifiche in attesa», i conflitti | `moduli/sync.md` (opt-in) |
 | far scegliere fra due versioni di un elemento cambiate su dispositivi diversi (tieni questa, l'altra, tutte e due) | `moduli/revisions.md` (opt-in) |
 | condividere (il foglio di vetro con le app Pampa e le azioni, le opzioni prima dell'invio), fare di una vista un'immagine (un voto nei formati delle storie), un PDF impaginato con testo vero, la stampa; ricevere da un'altra app | `componenti/condivisione.md`; ricevere: `moduli/share-in.md`; il QR: `moduli/qr.md` |
+| l'Account Pampa in un'app: la riga nelle impostazioni, un token per il servizio, le chiavi per sincronizzare, il backup | `moduli/account.md`, `moduli/account-ui.md` (opt-in) |
+| custodire le chiavi dell'account in Pampa Store (porte, epoche, passaggio, codice di recupero) | `moduli/account-host.md` (opt-in, solo lo Store) |
 | il visore di un file a tutto schermo (foto, video, audio, PDF, testo, sconosciuto): rotta, ritorno nella miniatura, barre al tocco, pannello info, strumenti | `componenti/visori.md` |
 | aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |

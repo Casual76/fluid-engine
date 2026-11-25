@@ -1,0 +1,105 @@
+{
+ "_readme": "F10.4: vettori generati dal codice del server Pampa-account (F10.3/F10.5) con genera-vettori.ts. Non modificare a mano.",
+ "accountId": "acc_vettoriprova0000000000000",
+ "epochs": [
+  {
+   "epoch": 1,
+   "kind": "first",
+   "cd": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+   "link": null
+  },
+  {
+   "epoch": 2,
+   "kind": "normal",
+   "cd": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+   "link": null
+  },
+  {
+   "epoch": 3,
+   "kind": "lost",
+   "cd": "cHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo8",
+   "link": null
+  }
+ ],
+ "links": {
+  "2": "LPGBswpYqycYoEmgrKRxJa0XImmb99DtSc_zzoasOXU",
+  "3": "wOFFF_xTNmZtWQHkUiyQQRM9aPXfmSjvylTzKepJgfo"
+ },
+ "recovery": {
+  "code": "ABEiM0RVZneImaq7zN3u_w",
+  "auth": "jZt6f4HazUbrEtoy2D__NeoSdxxgfVEUwz4c7eIKKF8",
+  "door": {
+   "doorId": "recovery",
+   "kind": "recovery",
+   "pub": "BkqQ5wN8RLpB1kCa1oeorLWHmqg1Qro9z-04w0m6fkE",
+   "salt": "wMHCw8TFxsfIycrLzM3Ozw",
+   "seed": "m069mQfxjW1Q3Yw4eUWRdO05bWJdzv5J6QieSfB3PXU",
+   "tag1": "wuzV5gWmk5J8tPISh2WegQwgpNUzpgM3ww8Z4g0nYyc",
+   "tag3": "bJqKK2jbXKh8JeCWvoibZfbuVjH5pG4ykpTPIRvdZlM",
+   "check": "qePztLAUDjUJ9N22qnve-tRZ_jTFAXPW_AEAdEl7Deg",
+   "seals": [
+    {
+     "epoch": 1,
+     "sealed": "D4jnirzT93pWAqw7Ctcm8hNYN9_5Vv-SUSGpIY2__DN0J6JRlhG1FB-ofPsnMmb--j0pIsBc3alQdlsPCd_2Ik3atmAbC0yZOIUFn68pLZM"
+    },
+    {
+     "epoch": 2,
+     "sealed": "mqB8VRxeEKRxetRFyr3AqFO99nTG6bhVPbfB3ovIuQepumIJLSzo92wNLoLn5y6q3ZcRKgP6m2Ej01PlTfalw4CZcVWT4IfhQUraq-hVSYk"
+    },
+    {
+     "epoch": 3,
+     "sealed": "ESEIDwKumWtH2FFS-_hnE2KuBMvDrEqWFhp21hABiA49hnmH2LSwTI5UvwPdP_UfG8ofXdg61gcqR9-WNzZNR23IWTnSOdXR_ml0wraKrZc"
+    }
+   ]
+  }
+ },
+ "prf": {
+  "output": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+  "door": {
+   "doorId": "prf:cred-prova",
+   "kind": "prf",
+   "pub": "PyK4r8Rx8Oa7LY34yvGS_QPQ-6wdGsWbQ-nN_rerfkE",
+   "salt": "0NHS09TV1tfY2drb3N3e3w",
+   "seed": "kajZ5Pf-7YESS-cceqPBzDUoWqfBnHRQYc9VlCGzusg",
+   "tag1": "FZsbTI0q-YxH60k3jVwS5eTZf4jmikzU1HjpJ33Pfl8",
+   "tag3": "ah3_9Mtbm7jKJfl4V1UyYkQX3xIGyZba5KPB8kRQBGA",
+   "check": "14NPNdIlAdJ7oAqbC30-482M_UBObZfOqr4ZRGbc4P8",
+   "seals": [
+    {
+     "epoch": 1,
+     "sealed": "GNgkC3vVODq7NtJ9xTTBGL1WbCU_l0hn48tAqZP9LQn6GIg1VBaR01XCp2rX40Y-2IyADYKIn4bPVi1LSK6Stj8Fa5YjxAdRbv9IJq3DAiE"
+    },
+    {
+     "epoch": 2,
+     "sealed": "-5KapEFjTk4nrel_EvGAOQDG4IeSpo-xUeLBOAPkKSyKKmDWOlLKPgim11H2g7uj_pB29cV_DlJd4wJXRl8Q5Mm5Sw9nXPqbksTVKyauQ_o"
+    },
+    {
+     "epoch": 3,
+     "sealed": "jIUplNBZCVWop02r8gS4keEFOl5uoWgwBqf4dVQn4W8NcQpYSPtDNsfPVigqINYz_x6dX1tOhGOvkZNnmypwbJainJLAjABstf9yDeleBw8"
+    }
+   ]
+  }
+ },
+ "keys": {
+  "package": "dev.pampa.pampai",
+  "epoch": 2,
+  "app": "szuTaEcYW8Hr5SLM3QXm1Zb06sIdgtAGpGnzdyGLvHM",
+  "backup": "MS1O4my_U3gdBr9rzCzkJ5weZiVR6T7DJ-I3_5cGmEA",
+  "places": "wuqUMs7OM3FqhFgsCW48-UmC0FonbDIzLa_4IGMQzug"
+ },
+ "record": {
+  "collection": "memories",
+  "recordId": "riga-1",
+  "version": 3,
+  "ciphertext": "eyJ2IjoxLCJlIjoyLCJhbGciOiJBMjU2R0NNIiwibiI6IkR1TXRpM1pZSjFUbEEzVDAiLCJjIjoiUUtQaWpic0NQd05scUVtdE9DYW9FQ1ZLV01wVmJjcFhUVW9ObEFuVllBIn0",
+  "plain": "ciao dal server"
+ },
+ "transfer": {
+  "transferId": "xfr_vettoriprova000000000000",
+  "nSeed": "MzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk9QUVI",
+  "N": "wV0iZUWUVcn_FW5sHaa_t5ELuK9Q8rL5-FPqkyUlnU0",
+  "s": "VVZXWFlaW1xdXl9gYWJjZA",
+  "sealed": "1ffZyXRFhGf83ObPSgBBwcZ1u4G6G5NlW9bhYHBmT2cKo69qdEwI0cOaP_ZSuSY5vAGBjAcPRyRlqxhqsmcw4JaCjjD28uDF_LgdieP6F-0FjcJrbgZTSTt7O5ANunZqzK6qF9gbmVd2FRo1H5B7KdTV4q-VDiAzbfvOsOgbMRoy_XuGu4_cehc5ir4TRNVgxyMQhYOD4SOp7uU5pL40VgHLQOFthn98yjVGD7L40c4LpRAU9cXHB7Xy_pZmZg7ndNc2mqbrgLAXu9kFzfrCTXs0v7GoMOrP0ENbsq_A51bZ0araZ9Ond5RFY87-vvt5jxmqlaj89hX55xzE",
+  "mac": "urS30gGP5PMFS5OwB_FLd7p4fV5dEt66q2tFr6C3NDc"
+ }
+}

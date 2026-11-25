@@ -1,0 +1,97 @@
+/**
+ * F10.4 · I vettori d'interoperabilità fra il telefono finto del server (Pampa-account, F10.3) e la custodia
+ * dell'engine (Bouncy Castle). Usa il codice VERO del server: l'HPKE di test/fake/hpke.ts, l'HKDF e l'HMAC di
+ * src/crypto.ts, le etichette di src/e2e-contract.ts. Le tre formule tag/check/link sono copiate riga per riga da
+ * test/fake/phone.ts (che importa il banco di Miniflare e non si può caricare fuori da vitest).
+ *
+ * Gli ingressi sono fissi; i sigilli HPKE e le buste hanno un'effimera o un nonce casuale, e l'engine li deve APRIRE.
+ *
+ *   esbuild genera-vettori.ts --bundle --platform=node --format=esm --outfile=genera.mjs && node genera.mjs > vettori.json
+ */
+import { fromB64url, toB64url, utf8 } from "C:/VibeCoded Projects/Pampa-account/src/bytes";
+import { hkdf, sha256 } from "C:/VibeCoded Projects/Pampa-account/src/crypto";
+import { E2E, label } from "C:/VibeCoded Projects/Pampa-account/src/e2e-contract";
+import { concat, hmac, seal, x25519FromSeed } from "C:/VibeCoded Projects/Pampa-account/test/fake/hpke";
+
+const EMPTY = new Uint8Array(0);
+const b64 = (b: Uint8Array) => toB64url(b);
+const hex = (s: string) => Uint8Array.from(s.match(/../g)!.map((h) => parseInt(h, 16)));
+const fill = (n: number, start: number) => Uint8Array.from({ length: n }, (_, i) => (start + i) & 0xff);
+
+// --- copiate da test/fake/phone.ts ---
+async function tagFor(cdR: Uint8Array, d: { doorId: string; kind: string; pub: string; salt: string }, r: number): Promise<string> {
+  return b64(await hmac(await hkdf(cdR, EMPTY, E2E.labels.doorTag), utf8(`${d.doorId}|${d.kind}|${d.pub}|${d.salt}|${r}`)));
+}
+async function checkFor(secret: Uint8Array, cdRoot: Uint8Array): Promise<string> {
+  return b64(await hmac(await hkdf(secret, EMPTY, E2E.labels.doorCheck), await sha256(cdRoot)));
+}
+async function linkFor(cdPrev: Uint8Array, e: number, kind: string, cdE: Uint8Array): Promise<string> {
+  return b64(await hmac(await hkdf(cdPrev, EMPTY, E2E.labels.epochLink), concat(utf8(`${e}|${kind}|`), await sha256(cdE))));
+}
+const sealInfo = (doorId: string, epoch: number) => utf8(label(E2E.labels.doorSeal, { doorId, epoch }));
+const transferInfo = (id: string) => utf8(label(E2E.labels.transferSeal, { transferId: id }));
+async function transferMac(s: Uint8Array, id: string, N: Uint8Array, sealed: Uint8Array): Promise<string> {
+  return b64(await hmac(await hkdf(s, EMPTY, E2E.labels.transferMac), concat(utf8(id), N, sealed)));
+}
+// --- fine delle copie ---
+
+const accountId = "acc_vettoriprova0000000000000";
+const cds: Record<number, Uint8Array> = { 1: fill(32, 0x10), 2: fill(32, 0x40), 3: fill(32, 0x70) };
+const kinds: Record<number, string> = { 1: "first", 2: "normal", 3: "lost" };
+const code = hex("00112233445566778899aabbccddeeff");
+const prf = fill(32, 0xa0);
+const recSalt = fill(16, 0xc0);
+const prfSalt = fill(16, 0xd0);
+
+async function door(doorId: string, kind: string, secret: Uint8Array, salt: Uint8Array) {
+  const seed = await hkdf(secret, salt, E2E.labels.doorSeed);
+  const { pub } = await x25519FromSeed(seed);
+  const d = { doorId, kind, pub: b64(pub), salt: b64(salt) };
+  const seals = [];
+  for (const e of [1, 2, 3]) seals.push({ epoch: e, sealed: b64(await seal(pub, sealInfo(doorId, e), EMPTY, cds[e]!)) });
+  return {
+    ...d,
+    seed: b64(seed),
+    tag1: await tagFor(cds[1]!, d, 1),
+    tag3: await tagFor(cds[3]!, d, 3),
+    check: await checkFor(secret, cds[1]!),
+    seals,
+  };
+}
+
+const pkg = "dev.pampa.pampai";
+const kApp = await hkdf(cds[2]!, utf8(accountId), label(E2E.labels.appKey, { package: pkg }));
+const kBak = await hkdf(cds[2]!, utf8(accountId), label(E2E.labels.backupKey, { package: pkg }));
+const kPlaces = await hkdf(cds[2]!, utf8(accountId), label(E2E.labels.sharedKey, { name: "places" }));
+
+// Una riga cifrata come fa il telefono finto (PhoneKeys.encrypt).
+const nonce = crypto.getRandomValues(new Uint8Array(12));
+const ad = utf8(`${accountId}|${pkg}|memories|riga-1|3`);
+const k = await crypto.subtle.importKey("raw", kApp, "AES-GCM", false, ["encrypt"]);
+const c = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce, additionalData: ad }, k, utf8("ciao dal server")));
+const record = b64(utf8(JSON.stringify({ v: 1, e: 2, alg: "A256GCM", n: b64(nonce), c: b64(c) })));
+
+// Il passaggio col QR (sealTransfer): N da un seme fisso, s fisso.
+const nSeed = fill(32, 0x33);
+const { pub: N } = await x25519FromSeed(nSeed);
+const s = fill(16, 0x55);
+const transferId = "xfr_vettoriprova000000000000";
+const epochs = [1, 2, 3].map((epoch) => ({ epoch, key: b64(cds[epoch]!) }));
+const tSealed = await seal(N, transferInfo(transferId), EMPTY, utf8(JSON.stringify({ epochs })));
+
+const out = {
+  _readme: "F10.4: vettori generati dal codice del server Pampa-account (F10.3/F10.5) con genera-vettori.ts. Non modificare a mano.",
+  accountId,
+  epochs: [1, 2, 3].map((e) => ({ epoch: e, kind: kinds[e], cd: b64(cds[e]!), link: e === 1 ? null : null })),
+  links: { "2": await linkFor(cds[1]!, 2, "normal", cds[2]!), "3": await linkFor(cds[2]!, 3, "lost", cds[3]!) },
+  recovery: {
+    code: b64(code),
+    auth: b64(await hkdf(code, EMPTY, E2E.labels.recoveryAuth)),
+    door: await door("recovery", "recovery", code, recSalt),
+  },
+  prf: { output: b64(prf), door: await door("prf:cred-prova", "prf", prf, prfSalt) },
+  keys: { package: pkg, epoch: 2, app: b64(kApp), backup: b64(kBak), places: b64(kPlaces) },
+  record: { collection: "memories", recordId: "riga-1", version: 3, ciphertext: record, plain: "ciao dal server" },
+  transfer: { transferId, nSeed: b64(nSeed), N: b64(N), s: b64(s), sealed: b64(tSealed), mac: await transferMac(s, transferId, N, tSealed) },
+};
+console.log(JSON.stringify(out, null, 1));

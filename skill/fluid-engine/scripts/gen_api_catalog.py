@@ -194,6 +194,10 @@ DIR_FAMILY = {
     "auth/google": "auth-google",
     # notifiche, promemoria e attivita' fuori dall'app (F8.19)
     "notify": "notify",
+    # l'Account Pampa (F10.4)
+    "account": "account",
+    "account/host": "account-host",
+    "account/ui": "account-ui",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -244,6 +248,9 @@ FAMILY_TITLES = {
     "qr": "engine-qr",
     "share-in": "engine-share-in",
     "notify": "engine-notify",
+    "account": "engine-account",
+    "account-host": "engine-account-host",
+    "account-ui": "engine-account-ui",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

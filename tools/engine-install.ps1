@@ -89,6 +89,9 @@ $EngineModules = [ordered]@{
   "engine-qr"         = @("engine-foundation", "engine-ui")
   "engine-share-in"   = @("engine-foundation", "engine-ui")
   "engine-notify"     = @("engine-foundation")
+  "engine-account"    = @("engine-foundation", "engine-storage")
+  "engine-account-host" = @("engine-foundation", "engine-storage", "engine-account", "engine-auth", "engine-vault")
+  "engine-account-ui" = @("engine-foundation", "engine-ui", "engine-storage", "engine-account")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -120,9 +123,12 @@ $EngineModules = [ordered]@{
 # -Modules ...,engine-security.
 # engine-qr (F8.10: il QR di "Mostra come QR", con ZXing core) e engine-share-in (F8.10: gli arrivi da altre app) idem:
 # il foglio di condivisione sta gia' in engine-ui, e un'app che non vuole il QR o non riceve niente non li paga.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify")
 # engine-notify (F8.19: notifiche vere, Live Update, promemoria; nessuna libreria nuova) lo chiede un'app che avvisa fuori
 # dall'app: -Modules ...,engine-notify. Le pagine e il ponte con la pillola sono gia' in engine-ui.
+# engine-account, engine-account-host ed engine-account-ui (F10.4: l'Account Pampa) idem: engine-account per un'app che usa
+# l'account (porta Bouncy Castle), engine-account-ui per la riga nelle impostazioni, engine-account-host solo per Pampa
+# Store: -Modules ...,engine-account-ui.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -334,7 +340,10 @@ $notes = @(
   @("engine-auth-google", "Continua con Google e concessioni Google spente; librerie Google non libere (opt-in)"),
   @("engine-qr", "il QR di 'Mostra come QR' nel foglio di condivisione, ZXing core (opt-in)"),
   @("engine-share-in", "arrivi da altre app: lettura, copia con tetto, foglio sopra l'app di partenza (opt-in)"),
-  @("engine-notify", "notifiche vere, Live Update di Android 16, promemoria che arrivano davvero (opt-in)")
+  @("engine-notify", "notifiche vere, Live Update di Android 16, promemoria che arrivano davvero (opt-in)"),
+  @("engine-account", "l'Account Pampa visto da un'app, attraverso Pampa Store e mai la rete (opt-in)"),
+  @("engine-account-host", "il motore dell'account dentro Pampa Store: custodia delle chiavi, sessione (opt-in, solo lo Store)"),
+  @("engine-account-ui", "la riga Account Pampa e l'avatar (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

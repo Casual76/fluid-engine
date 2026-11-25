@@ -1,0 +1,16 @@
+<!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/api/account-ui.md.
+     Non modificare qui: si cambia la fonte e si rilancia lo script. -->
+
+# API · engine-account-ui
+
+_Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+
+## `engine-account-ui/account/ui/PampaAccountRow.kt`
+
+- `data class PampaAccountLabels(val title: String = "Account Pampa", val noStore: String = "L'Account Pampa si usa con Pampa Store", val storeTooOld: String = "Aggiorna Pampa Store per usare l'account", val signedOut: String = "Accedi con Pampa Store", val signedIn: String = "Account Pampa", val recoverySession: String = "Entrato col codice di recupero")` — Le parole della riga «Account Pampa» (`b\architettura.md` § 2.4). Di serie in italiano; un'app in un'altra lingua passa le sue. Sono di base: la grafica e le parole finali arrivano con F10.11.
+- `enum class PampaAccountAction` — Cosa fa un tocco sulla riga, secondo lo stato.
+- `data class PampaAccountRowModel(val title: String, val subtitle: String, val avatarName: String, val avatarKey: String, val action: PampaAccountAction)` — Quello che mostra la riga, ricavato dallo stato senza Compose: titolo, sottotitolo, nome per l'avatar, azione.
+- `fun pampaAccountRowModel(state: AccountState, labels: PampaAccountLabels = PampaAccountLabels()): PampaAccountRowModel` — La riga per [state]. Una funzione pura: le prove la controllano stato per stato.
+- `@Composable fun PampaAccountAvatar(state: AccountState, modifier: Modifier = Modifier, size: Dp = FluidAvatarDefaults.Size)` — L'avatar dell'account: le iniziali del nome su un colore che viene dall'id dell'account (lo stesso in ogni app), o il glifo di una persona quando nessuno è entrato. È [FluidAvatar] dell'engine: nessuna crittografia, nessuna chiave (progetto, T10).
+- `@Composable fun PampaAccountRow(state: AccountState, onAction: (PampaAccountAction) -> Unit, modifier: Modifier = Modifier, labels: PampaAccountLabels = PampaAccountLabels())` — La riga «Account Pampa» per le impostazioni di un'app, nei quattro stati di [AccountState]: - `NoStore`: «L'Account Pampa si usa con Pampa Store», il tocco porta alla pagina di rilascio dello Store; - `StoreTooOld`: «Aggiorna Pampa Store per usare l'account»; - `SignedOut`: «Accedi con Pampa Store», che apre lo Store sulla pagina giusta; - `SignedIn`: «Alessio · Account Pampa», con l'avatar.
+- `@Composable fun PampaAccountRow(onDownloadStore: () -> Unit, modifier: Modifier = Modifier, labels: PampaAccountLabels = PampaAccountLabels())` — La riga già collegata a [PampaAccount]: legge lo stato, lo rilegge quando la riga compare, e al tocco apre lo Store sulla pagina giusta. Senza Store chiama [onDownloadStore] (l'indirizzo della pagina di rilascio lo sa l'app, R8).

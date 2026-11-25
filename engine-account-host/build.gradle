@@ -1,0 +1,64 @@
+// F10.4 · Il motore dell'Account Pampa dentro Pampa Store (`b\architettura.md` § 9.5; `b\chiavi.md`). Opt-in, e lo usa
+// solo lo Store: le altre app hanno `engine-account`, che chiede a lui.
+//
+//   implementation project(':engine-account-host')
+//
+// Cosa porta:
+//  - il provider firmato (`AccountHostProvider`): controllo della firma di chi chiama a ogni chiamata, pacchetto dal
+//    sistema, tabella delle app (`AppPolicy`), un'app riceve solo cio' che e' suo (K3, M9 di minacce.md);
+//  - la custodia (`KeyCustody`): la chiave dei dati a epoche, le porte (codice di recupero, passkey col PRF), il
+//    passaggio col QR, le verifiche K8 e K9, le due classi di chiavi «consegna» e «madre» (Q7, raccomandazione A);
+//  - il codice di recupero generato sul telefono, con `auth` e il seme della porta separati (critica S1);
+//  - la sessione (`SessionStore`, fuori dal backup), la chiave del dispositivo (`DeviceKey`), i token in memoria
+//    (`TokenCache`), i luoghi, l'aspetto comune e il backup dello Store (WorkManager).
+//
+// Il Keystore passa dalla cassaforte dell'engine (`engine-vault`, F8.23): `CustodyVault` e' l'adattatore sopra
+// `VaultKeystore`. Il PRF delle passkey (l'ingresso fisso e i risultati tolti dalle risposte) e' quello di `engine-auth`
+// (F10.2). Librerie: Bouncy Castle (HPKE, X25519), WorkManager.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.account.host'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  api project(':engine-account')
+  // `api`: CustodyVault prende un VaultKeystore, e DoorSecret.fromPasskey un FluidPasskeyResult.
+  api project(':engine-vault')
+  api project(':engine-auth')
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+  implementation "org.bouncycastle:bcprov-jdk18on:${engine.bouncycastle}"
+  implementation "androidx.work:work-runtime-ktx:${engine.work}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation "androidx.work:work-testing:${engine.work}"
+  testImplementation "com.squareup.okhttp3:mockwebserver:${engine.mockwebserver}"
+}

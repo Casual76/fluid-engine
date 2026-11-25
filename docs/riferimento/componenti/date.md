@@ -27,8 +27,8 @@ delle firme: [../api/controlli.md](../api/controlli.md) e [../api/foundation.md]
 | la striscia della settimana quando la lista sotto scorre | `LazyColumn(Modifier.nestedScroll(state.nestedScrollConnection))` sotto il calendario |
 | limiti, giorni spenti | `minDate`, `maxDate`, `isDateEnabled = { festivo(it).not() }` |
 | la data in una riga, che apre il calendario | `FluidDateCapsule(FluidDateSelection.Single(giorno), onSelectionChange = { … }, label = "Scadenza")` |
-| un periodo in una riga («23–30 nov 2026») | `FluidDateCapsule(FluidDateSelection.Range(a, b), …)`: il popover si chiude alla fine |
-| il popover che resta aperto dopo il giorno, come il `.compact` di iOS | `FluidDateCapsule(…, closeOnSelection = false)` |
+| un periodo in una riga («23–30 nov 2026») | `FluidDateCapsule(FluidDateSelection.Range(a, b), …)` |
+| il popover che si chiude appena il giorno è scelto (di serie resta aperto, come il `.compact` di iOS) | `FluidDateCapsule(…, closeOnSelection = true)` |
 | una durata in una riga («45 min»), con la ruota del timer | `FluidDurationCapsule(seconds, onSecondsChange = { … }, minuteInterval = 5)` |
 | far scegliere una ricorrenza | `FluidRecurrenceSheet(visible, onDismissRequest, onConfirm = { regola -> … }, start = giorno)` |
 | espandere una regola in date, o dirla in una frase | `regola.occurrences(inizio, limit = 5)`, `FluidRecurrenceText.describe(regola, inizio, locale)` |
@@ -121,9 +121,10 @@ capsula grigia (34 dp, 13 dp di margine, `tertiarySystemFill` al 12%, testo a 17
 calendario: è il popover dalla sorgente dell'engine (F5B.1), che prende in prestito la capsula per tutta la corsa e la
 restituisce al ritorno; anche sul telefono resta un popover (`FluidCompactAdaptation.Popover`).
 
-- Di serie `Single` chiude il popover al tocco e `Range` alla fine («23–30 nov 2026», «23 nov – 5 dic 2026»); `Multiple`
-  resta aperto finché si tocca fuori («3 giorni»). Con `closeOnSelection = false` resta aperto anche col giorno, come il
-  `.compact` di iOS con la sola data.
+- Di serie il popover **resta aperto finché si tocca fuori**, come `DatePicker(.compact)` di iOS (F8.8b, scelta di
+  Alessio): la capsula scrive subito il valore scelto, «23 nov 2026», «23–30 nov 2026», «23 nov – 5 dic 2026» o «3 giorni».
+  Con `closeOnSelection = true` si chiude appena la scelta è fatta: `Single` al tocco del giorno, `Range` alla fine;
+  `Multiple` resta aperto comunque.
 - `label` è quello che legge TalkBack prima del valore; `text` sostituisce il testo di serie.
 - `FluidDurationCapsule` è la stessa capsula per una durata («45 min», «1 h 30 min»): il popover ha la ruota del timer
   (`FluidDurationWheel`, la `UIDatePicker` in modo `countDownTimer`) con l'aptica a scatti, e si chiude toccando fuori.
@@ -174,10 +175,11 @@ provati una volta in `engine-foundation`. L'espansione lavora su date locali, ma
 - `engine-ui/…/F8p8CalendarTest`: i tocchi delle tre scelte, gli stili della fascia, dove si posa una pagina, la resistenza,
   il moto senza allocazioni per fotogramma, i segni che scrivono solo i giorni che cambiano, i testi della capsula.
 - In `F8p8DatesUiTest` anche le ruote del mese e dell'anno: il titolo toccato, il mese col dito, l'anno con TalkBack, il
-  ritorno alla griglia sul mese scelto, «Riduci movimento», e il popover che resta aperto con `closeOnSelection = false`.
+  ritorno alla griglia sul mese scelto, «Riduci movimento», e il popover che di serie resta aperto col giorno scelto e si
+  chiude al tocco fuori, e con `closeOnSelection = true` si chiude col giorno.
 - `sample/…/F8p8DatesUiTest` (Robolectric, dito vero): il mese trascinato e lanciato, nessun giorno ricomposto durante il
   gesto, le frecce, TalkBack sui giorni coi segni, i segni che ricompongono solo i giorni toccati, le tre scelte, la
-  striscia e il ritorno, «Riduci movimento», la capsula che apre e chiude il popover col valore, la ruota della durata, il
+  striscia e il ritorno, «Riduci movimento», la capsula che apre il popover e scrive subito il valore, la ruota della durata, il
   pannello «Ripeti» personalizzato.
 
 ## Dove guardare

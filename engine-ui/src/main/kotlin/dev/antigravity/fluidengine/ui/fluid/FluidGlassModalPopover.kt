@@ -237,7 +237,9 @@ internal fun FluidAnchoredPopover(
   // non una flottante propria: la finestra a riposo e' una lastra come il popover. E' **questa**
   // che si vede a modale aperto — `tintBlend` vale 0 con la presenza piena, cioe' sceglie `tintFrom`.
   val windowPanelTint = GlassDefaults.panelTint(paneTint)
-  val windowOptics = GlassDefaults.panelOptics()
+  // F8.8b: senza velo (un compito in parallelo) la pagina sotto resta nitida, e il pannello la deve smerigliare da solo,
+  // come la notifica e il callout: l'ottica dei pannelli sopra una pagina nitida.
+  val windowOptics = fluidPopoverWindowOptics(modal)
   val windowTintWithScrim = remember(windowPanelTint, windowDark) {
     windowPanelTint.copy(
       overlay = windowPanelTint.overlay.compositeOver(
@@ -312,6 +314,13 @@ internal fun FluidAnchoredPopover(
           role = GlassRole.Modal,
           optics = windowOptics,
           tier = if (backdrop == null) FluidPhysicsTier.Lite else null,
+          // F8.8b: con una sorgente, la cattura del fondale nella regione del viaggio e del pannello posato, come i menu,
+          // e non a schermo intero. Una cattura grande quanto lo schermo chiede alla memoria del vetro (F7.12) una texture
+          // che in viaggio non si riduce: sul Tab S9 (24 novembre 2026) il popover della capsula della data non disegnava
+          // il corpo per tutto il viaggio e poi restava fermo sulla goccia, con la pagina nitida sotto il velo. I pop-up
+          // senza sorgente (con `origin` o al centro) restano come prima.
+          menuSource = if (sourceJourney != null) sourceBounds else null,
+          limitMissingJourney = sourceJourney != null && FluidPopoverLimitsCapture,
           // La pellicola porta anche la quota di scrim che spetta alla finestra, alla forza a
           // cui lo scrim sta DAVVERO in questo fotogramma: piena a modale aperto, a scalare
           // lungo le dissolvenze. Cosi' il vetro non e' mai ne' piu' scuro ne' piu' chiaro
@@ -729,3 +738,12 @@ internal val FluidPopoverRadius = FluidRadius.Group
 
 private val FluidContextMenuMinWidth = 210.dp
 private val FluidContextMenuMaxWidth = 300.dp
+
+/**
+ * L'ottica della finestra di un pop-up (F8.8b): quella dei pannelli, e senza velo ([modal] falso, un compito in parallelo)
+ * quella dei pannelli sopra una pagina nitida, che smeriglia di piu' perche' sotto niente ha gia' sfocato la pagina.
+ */
+internal fun fluidPopoverWindowOptics(modal: Boolean): GlassOptics = GlassDefaults.panelOptics(overSharpPage = !modal)
+
+/** La finestra di un pop-up dalla sorgente cattura il fondale solo nella regione del viaggio e del pannello (F8.8b). */
+internal const val FluidPopoverLimitsCapture: Boolean = true

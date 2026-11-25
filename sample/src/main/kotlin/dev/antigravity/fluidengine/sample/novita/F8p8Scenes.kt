@@ -119,8 +119,8 @@ internal val F8p8TryItems: List<TryItem> = listOf(
   ),
   TryItem(
     "f8-8-capsula", TryArea.ContentData, "La capsula della data",
-    "Apri «La data in una riga» e tocca «23 nov 2026»: giudica se il calendario nasce dalla capsula, se scelto il giorno " +
-      "ci rientra col valore nuovo, e se la durata a ruota scatta come il timer.",
+    "Apri «La data in una riga» e tocca «23 nov 2026»: giudica se il calendario nasce dalla capsula, se la capsula scrive " +
+      "subito il giorno scelto, se toccando fuori il popover ci rientra, e se la durata a ruota scatta come il timer.",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › La data in una riga"),
   ),
   TryItem(
@@ -419,7 +419,7 @@ private fun CapsuleScene(onBack: () -> Unit) {
       "Scadenza ${LocalDate.ofEpochDay(due)}, vacanze ${from?.let(LocalDate::ofEpochDay) ?: "—"} → " +
         "${to?.let(LocalDate::ofEpochDay) ?: "—"}, spegnimento ${minutes / 60} min",
     )
-    Caption("La capsula diventa il calendario e ci rientra col valore; l'intervallo si chiude alla fine, la durata toccando fuori.")
+    Caption("La capsula diventa il calendario e scrive subito il giorno scelto; come in iOS il popover ci rientra quando tocchi fuori.")
   }
 }
 

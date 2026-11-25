@@ -493,8 +493,9 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 - **Le icone della barra di stato** sopra le foto diventano chiare finché le foto ci passano sotto, e tornano quelle del
   tema quando la griglia se ne va o la testata non è sulle foto. La griglia le chiede al lato della barra di stato del
   tema, lo stesso punto della barra in alto di una schermata che scurisce: niente `WindowInsetsController` a mano.
-- **La data** come Foto è la data media della lingua: `DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)` («13 lug
-  2025», «Jul 13, 2025»), anche per lo scorrimento rapido.
+- **La data** come Foto è la data media della lingua: `FluidFormat.date(giorno)` di engine-foundation («13 lug 2025»,
+  «Jul 13, 2025»), anche per lo scorrimento rapido. **Non `java.time`**: su Android `ofLocalizedDate(FormatStyle.MEDIUM)`
+  scrive il mese con la maiuscola («13 Lug 2025», visto sul tablet), mentre le prove sulla JVM lo danno minuscolo.
 - **Trappola**: con la testata la prima riga sta sotto il titolo. Per una griglia di file col nome sotto la miniatura
   si dà un `contentPadding` in alto (barra di stato + ~150 dp): la prima riga parte sotto la testata e poi ci scorre
   sotto.

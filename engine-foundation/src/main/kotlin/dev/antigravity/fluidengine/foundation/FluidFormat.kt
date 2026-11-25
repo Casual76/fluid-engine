@@ -12,8 +12,8 @@ import android.icu.util.MeasureUnit
 import android.icu.util.ULocale
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
@@ -67,13 +67,32 @@ object FluidFormat {
   // Date e ore
   // ------------------------------------------------------------------------------------------------------------------
 
-  /** La data nello stile della lingua: «23 nov 2026» (`MEDIUM`), «23/11/26» (`SHORT`), come `Date.FormatStyle(date:)`. */
+  /**
+   * La data nello stile della lingua: «23 nov 2026» (`MEDIUM`, come Foto e `Date.FormatStyle(date: .abbreviated)`; in
+   * inglese «Nov 23, 2026»), «23/11/26» (`SHORT`), «23 novembre 2026» (`LONG`), come `Date.FormatStyle(date:)`.
+   *
+   * **Dalle ICU di Android, non da `java.time`** (F8.4c). Su Android 16 `DateTimeFormatter.ofLocalizedDate` scrive il mese
+   * con la maiuscola («23 Nov 2026», visto sul Tab S9 il 24 novembre 2026), mentre la JVM delle prove lo scrive
+   * minuscolo: la stessa funzione dava due date diverse in prova e sul telefono. Qui `MEDIUM` è lo scheletro `yMMMd`
+   * (`DateFormat.getInstanceForSkeleton`, il formato «abbreviato» di Apple) e gli altri stili quelli della lingua, tutti
+   * nel contesto «in mezzo alla frase»: il mese minuscolo dove la lingua lo vuole minuscolo.
+   */
   fun date(
     instant: Instant,
     style: FormatStyle = FormatStyle.MEDIUM,
     locale: Locale = Locale.getDefault(),
     zone: ZoneId = ZoneId.systemDefault(),
-  ): String = DateTimeFormatter.ofLocalizedDate(style).withLocale(locale).format(instant.atZone(zone))
+  ): String = icuDate(style, locale, zone).format(Date.from(instant))
+
+  /**
+   * La data di un giorno del calendario, senza ora né fuso (una foto, una scadenza): come [date], «24 nov 2026». Il
+   * giorno non si sposta col fuso del telefono.
+   */
+  fun date(
+    day: LocalDate,
+    style: FormatStyle = FormatStyle.MEDIUM,
+    locale: Locale = Locale.getDefault(),
+  ): String = date(day.atStartOfDay(CalendarZone).toInstant(), style, locale, CalendarZone)
 
   /** L'ora nello stile della lingua: «09:04» in italiano, «9:04 AM» in inglese, come `Date.FormatStyle(time: .shortened)`. */
   fun time(
@@ -140,9 +159,10 @@ object FluidFormat {
     return when {
       day == today -> time(instant, locale, zone)
       day == today.minusDays(1) -> dayAndTime(instant, now, locale, zone, includeTime = false)
+      // Dalle ICU e non da `java.time`, come [date]: su Android il giorno e il mese uscivano con la maiuscola.
       day.isAfter(today.minusDays(7)) && !day.isAfter(today) ->
-        DateTimeFormatter.ofPattern("EEEE", locale).format(time)
-      day.year == today.year -> DateTimeFormatter.ofPattern(skeletonPattern("dMMM", locale), locale).format(time)
+        icuSkeleton("EEEE", locale, zone).format(Date.from(instant))
+      day.year == today.year -> icuSkeleton("dMMM", locale, zone).format(Date.from(instant))
       else -> date(instant, FormatStyle.SHORT, locale, zone)
     }
   }
@@ -391,8 +411,34 @@ object FluidFormat {
     return format
   }
 
-  private fun skeletonPattern(skeleton: String, locale: Locale): String =
-    android.icu.text.DateTimePatternGenerator.getInstance(locale).getBestPattern(skeleton)
+  /** Il fuso dei giorni del calendario ([date] con un `LocalDate`): il giorno resta quello, qualunque sia il telefono. */
+  private val CalendarZone: ZoneId = ZoneId.of("UTC")
+
+  /** Il formatore ICU della data in [style] ([date]): `MEDIUM` dallo scheletro `yMMMd`, gli altri dallo stile della lingua. */
+  private fun icuDate(style: FormatStyle, locale: Locale, zone: ZoneId): DateFormat = when (style) {
+    FormatStyle.MEDIUM -> icuSkeleton("yMMMd", locale, zone)
+    else -> DateFormat.getDateInstance(
+      when (style) {
+        FormatStyle.FULL -> DateFormat.FULL
+        FormatStyle.LONG -> DateFormat.LONG
+        else -> DateFormat.SHORT
+      },
+      locale,
+    ).also { format ->
+      format.timeZone = android.icu.util.TimeZone.getTimeZone(TimeZone.getTimeZone(zone).id)
+      format.setContext(DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE)
+    }
+  }
+
+  /**
+   * Il formatore ICU di uno scheletro (`yMMMd`, `dMMM`, `EEEE`): il modello migliore della lingua per quei campi, nel fuso
+   * [zone] e nel contesto «in mezzo alla frase» (il mese e il giorno minuscoli dove la lingua li vuole minuscoli).
+   */
+  private fun icuSkeleton(skeleton: String, locale: Locale, zone: ZoneId): DateFormat =
+    DateFormat.getInstanceForSkeleton(skeleton, locale).also { format ->
+      format.timeZone = android.icu.util.TimeZone.getTimeZone(TimeZone.getTimeZone(zone).id)
+      format.setContext(DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE)
+    }
 
   /** «altri 3», «3 others», «3 autres», «otros 3», «3 weitere», o «+3». */
   internal fun defaultOthers(count: Int, locale: Locale): String = when (locale.language) {

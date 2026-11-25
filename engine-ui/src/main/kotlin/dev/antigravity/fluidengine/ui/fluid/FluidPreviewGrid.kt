@@ -221,8 +221,8 @@ private class PreviewEntry<T>(val section: FluidPreviewGridSection<T>, val item:
  * @param title il titolo grande della testata come Foto («Libreria», «12 selezionate»); null: nessuna testata, la
  *   griglia e' solo la griglia (dentro una pagina che ha gia' la sua barra).
  * @param dateLabel la data (o l'etichetta) degli elementi in cima, sotto il titolo; null: il titolo del gruppo in cima.
- *   Come Foto, la data media della lingua: `DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)` («13 lug 2025»,
- *   «Jul 13, 2025»), non un formato scritto a mano.
+ *   Come Foto, la data media della lingua: `FluidFormat.date(giorno)` di engine-foundation («13 lug 2025», «Jul 13,
+ *   2025»), dalle ICU di Android. Non `java.time` (su Android scrive «13 Lug 2025») e non un formato scritto a mano.
  * @param navigation il tasto a sinistra della testata (indietro), di solito un `FluidGlassIconButton`: con lui la riga
  *   dei tasti sta sopra il titolo, come in una pagina figlia di iOS; senza, titolo e tasti stanno sulla stessa riga, come
  *   in Foto.

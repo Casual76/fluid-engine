@@ -587,6 +587,15 @@ class F8p4ListsUiTest {
     val day = java.time.LocalDate.of(2025, 7, 13)
     assertEquals("13 lug 2025", F8p4Dates.medium(day, java.util.Locale.ITALIAN))
     assertEquals("Jul 13, 2025", F8p4Dates.medium(day, java.util.Locale.US))
+    // F8.4c: la data viene dalle ICU di Android (`FluidFormat.date`), il mese minuscolo in italiano anche a inizio
+    // mese e per gli altri stili; il giorno del calendario non si sposta col fuso.
+    val nov = java.time.LocalDate.of(2026, 11, 24)
+    assertEquals("24 nov 2026", dev.antigravity.fluidengine.foundation.FluidFormat.date(nov, locale = java.util.Locale.ITALIAN))
+    assertEquals("Nov 24, 2026", dev.antigravity.fluidengine.foundation.FluidFormat.date(nov, locale = java.util.Locale.US))
+    assertEquals(
+      "24 novembre 2026",
+      dev.antigravity.fluidengine.foundation.FluidFormat.date(nov, java.time.format.FormatStyle.LONG, java.util.Locale.ITALIAN),
+    )
   }
 
   // --- La selezione trascinando su una lista -------------------------------------------------------------------------

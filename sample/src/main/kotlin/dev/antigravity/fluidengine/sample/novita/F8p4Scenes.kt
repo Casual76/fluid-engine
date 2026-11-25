@@ -52,6 +52,7 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.foundation.FluidFormat
 import dev.antigravity.fluidengine.sample.R
 import dev.antigravity.fluidengine.sample.viewer.VisoreTipo
 import dev.antigravity.fluidengine.sample.viewer.VisoriFiles
@@ -89,7 +90,6 @@ import dev.antigravity.fluidengine.viewer.FluidFileThumbnailImage
 import dev.antigravity.fluidengine.viewer.FluidViewerFile
 import dev.antigravity.fluidengine.viewer.rememberFluidFileThumbnail
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
@@ -410,18 +410,12 @@ private fun PhotoGridScene(onBack: () -> Unit) {
 }
 
 /**
- * Le date della libreria, come Foto: la data **media della lingua** (`FormatStyle.MEDIUM`), «13 lug 2025» in italiano e
- * «Jul 13, 2025» in inglese, col mese abbreviato come lo scrive la lingua. Stessa data in testata e nello scorrimento
- * rapido. Il formatore si tiene per lingua: cambiare data non ne crea uno nuovo.
+ * Le date della libreria, come Foto: la data **media della lingua**, «13 lug 2025» in italiano e «Jul 13, 2025» in
+ * inglese, col mese abbreviato come lo scrive la lingua. Stessa data in testata e nello scorrimento rapido. La fa
+ * `FluidFormat.date` dell'engine, dalle ICU di Android (F8.4c: con `java.time` il tablet scriveva «24 Nov 2026»).
  */
 internal object F8p4Dates {
-  private var cached: Pair<Locale, DateTimeFormatter>? = null
-
-  fun medium(date: LocalDate, locale: Locale): String {
-    val formatter = cached?.takeIf { it.first == locale }?.second
-      ?: DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).also { cached = locale to it }
-    return formatter.format(date)
-  }
+  fun medium(date: LocalDate, locale: Locale): String = FluidFormat.date(date, FormatStyle.MEDIUM, locale)
 }
 
 /** Una cella di foto: niente alloca disegnando (la tinta della scelta e' un velo letto dal layer). */

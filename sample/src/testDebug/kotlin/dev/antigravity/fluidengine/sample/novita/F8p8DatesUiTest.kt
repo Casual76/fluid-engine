@@ -478,7 +478,7 @@ class F8p8DatesUiTest {
 
   // --- La capsula e il popover --------------------------------------------------------------------------------------
 
-  @Test fun `la capsula apre il calendario in un popover e lo richiude col giorno scelto`() {
+  @Test fun `la capsula apre il calendario in un popover, scrive subito il giorno e il popover resta aperto fino al tocco fuori`() {
     var picked by mutableLongStateOf(LocalDate.of(2026, 11, 23).toEpochDay())
     show {
       Column(Modifier.padding(top = 120.dp, start = 24.dp)) {
@@ -500,12 +500,18 @@ class F8p8DatesUiTest {
     val target = day("26 novembre").boundsInRoot.center
     tap(target)
     advance(1200)
+    // Di serie (F8.8b, scelta di Alessio): come `DatePicker(.compact)` di iOS il popover resta aperto col giorno scelto.
     assertEquals(LocalDate.of(2026, 11, 26).toEpochDay(), picked)
-    assertFalse("il popover si e' chiuso", dayExists("27 novembre"))
+    assertTrue("il popover si e' chiuso col giorno", dayExists("27 novembre"))
+    // Un tocco fuori, in fondo alla pagina: il popover rientra nella capsula, che scrive il giorno nuovo.
+    tap(Offset(32f, 1760f))
+    advance(1200)
+    assertFalse("il popover e' ancora aperto dopo il tocco fuori", dayExists("27 novembre"))
+    assertEquals(LocalDate.of(2026, 11, 26).toEpochDay(), picked)
     assertTrue(compose.onAllNodes(hasText("26 nov 2026"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
   }
 
-  @Test fun `con closeOnSelection spento il popover resta aperto dopo il giorno, come il compact di iOS`() {
+  @Test fun `con closeOnSelection acceso il popover si chiude col giorno scelto`() {
     var picked by mutableLongStateOf(LocalDate.of(2026, 11, 23).toEpochDay())
     show {
       Column(Modifier.padding(top = 120.dp, start = 24.dp)) {
@@ -515,7 +521,7 @@ class F8p8DatesUiTest {
           modifier = Modifier.testTag("capsula"),
           today = today,
           locale = Locale.ITALY,
-          closeOnSelection = false,
+          closeOnSelection = true,
         )
       }
     }
@@ -524,7 +530,8 @@ class F8p8DatesUiTest {
     tap(day("26 novembre").boundsInRoot.center)
     advance(1200)
     assertEquals(LocalDate.of(2026, 11, 26).toEpochDay(), picked)
-    assertTrue("il popover e' ancora aperto", dayExists("27 novembre"))
+    assertFalse("il popover e' ancora aperto", dayExists("27 novembre"))
+    assertTrue(compose.onAllNodes(hasText("26 nov 2026"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
   }
 
   @Test fun `la durata a ruota nel popover scatta voce per voce`() {

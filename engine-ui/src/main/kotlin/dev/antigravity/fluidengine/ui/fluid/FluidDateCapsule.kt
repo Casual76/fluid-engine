@@ -65,18 +65,19 @@ object FluidDateCapsuleDefaults {
 
 /**
  * La capsula di una data in una riga, come `DatePicker` con lo stile `.compact`: «23 nov 2026» (la data media della
- * lingua) in un grigio leggero. Toccata, **diventa il popover del calendario** e, scelto il giorno, ci rientra col valore
- * nuovo: il popover dalla sorgente dell'engine (F5B.1), anche sul telefono (`FluidCompactAdaptation.Popover`).
+ * lingua) in un grigio leggero. Toccata, **diventa il popover del calendario**; la capsula scrive subito il giorno scelto,
+ * e il popover ci rientra quando si tocca fuori: il popover dalla sorgente dell'engine (F5B.1), anche sul telefono
+ * (`FluidCompactAdaptation.Popover`).
  *
  * La capsula sa le tre scelte del calendario:
- * - un giorno ([FluidDateSelection.Single]): di serie il popover si chiude al tocco;
- * - un intervallo ([FluidDateSelection.Range]): di serie si chiude quando c'e' la fine; la capsula scrive «23–30 nov 2026»;
- * - giorni sparsi ([FluidDateSelection.Multiple]): resta aperto finche' si tocca fuori; la capsula scrive «3 giorni».
+ * - un giorno ([FluidDateSelection.Single]): la capsula scrive «23 nov 2026»;
+ * - un intervallo ([FluidDateSelection.Range]): la capsula scrive «23–30 nov 2026»;
+ * - giorni sparsi ([FluidDateSelection.Multiple]): la capsula scrive «3 giorni».
  *
  * @param label cosa legge TalkBack prima del valore («Inizio», «Scadenza»).
- * @param closeOnSelection vero (di serie): il popover si chiude appena la scelta e' fatta (un giorno, o la fine
- *   dell'intervallo). Falso: resta aperto finche' si tocca fuori, come `DatePicker(.compact)` di iOS con la sola data. Una
- *   scelta aperta ad Alessio il 24 novembre 2026.
+ * @param closeOnSelection falso (di serie): il popover resta aperto finche' si tocca fuori, come `DatePicker(.compact)` di
+ *   iOS (scelta di Alessio del 24 novembre 2026, F8.8b). Vero: si chiude appena la scelta e' fatta (un giorno, o la fine
+ *   dell'intervallo; coi giorni sparsi resta aperto comunque).
  * @param text di serie la data media della lingua; un'app puo' scrivere la sua.
  */
 @Composable
@@ -93,7 +94,7 @@ fun FluidDateCapsule(
   locale: Locale = LocalConfiguration.current.locales[0],
   labels: FluidCalendarLabels = FluidCalendarLabels(),
   text: (FluidDateSelection) -> String = { fluidDateCapsuleText(it, locale, labels) },
-  closeOnSelection: Boolean = true,
+  closeOnSelection: Boolean = false,
 ) {
   var open by rememberSaveable { mutableStateOf(false) }
   val calendar = rememberFluidCalendarState(java.time.YearMonth.from(selection.anchorDate() ?: LocalDate.now()))

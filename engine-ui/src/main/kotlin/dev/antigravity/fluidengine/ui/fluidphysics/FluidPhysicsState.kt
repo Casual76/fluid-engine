@@ -29,6 +29,7 @@ import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.addContinuousRoundRect
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassSlabGeometry
 import dev.antigravity.fluidengine.ui.glass.field.glassSlabGeometry
@@ -860,6 +861,10 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
       while (true) {
         snapshotFlow { dropRestSlabNow() }.drop(1).first()
         liquid.forgetHistory()
+        // F8.8b: quando la goccia si sveglia e quando si posa, sotto `log.tag.FluidGlassFrame`. Una goccia sveglia e mai
+        // posata e' una sagoma ondulata ferma a riposo (il popover della capsula sul Tab S9).
+        GlassFrameDiagnostics.event("dropAwake", this) { "quiet=${liquid.quiet}" }
+        var steps = 0
         var alive = true
         while (alive) {
           val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
@@ -872,7 +877,9 @@ class FluidPhysicsState internal constructor(initial: FluidForm) {
               stepDrop(slab, if (scale == 1f) now else (now / scale.toDouble()).toLong())
             }
           }
+          steps++
         }
+        GlassFrameDiagnostics.event("dropQuiet", this) { "frames=$steps quiet=${liquid.quiet}" }
       }
     } finally {
       liquid.reset()

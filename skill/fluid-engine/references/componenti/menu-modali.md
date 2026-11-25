@@ -266,6 +266,19 @@ portali chiamati come prima (il pop-up con `origin` o al centro, il foglio del p
 sorgente, la pagina intera) tengono lo scrim di vetro di sempre, sfocato di 3,75 dp (sotto, «`FluidGlassModalPortal` e
 `FluidGlassModalHost`»). Un compito parallelo non ha velo.
 
+**Il vetro del popover** (F8.8b). La finestra del popover è una superficie di Fluid-physics grande quanto l'host, come
+quella dei menu, e con una sorgente, come i menu, **cattura il fondale solo nella regione del viaggio** (la sorgente, il pannello e il loro
+margine ottico) e, a pannello posato, su quella: mai lo schermo intero (i pop-up con `origin` o al centro restano come
+prima). Prima la cattura era a tutto schermo; in viaggio
+l'uscita di una cattura grande non si riduce, e la memoria del vetro (F7.12) può negarla (la causa più probabile del
+difetto, da confermare coi log sul tablet): sul Tab S9 il popover della
+capsula della data non disegnava il corpo per tutto il viaggio, poi compariva con la sagoma ondulata della goccia, ferma,
+e la pagina sotto si leggeva nitida dietro il velo. Senza velo (un compito parallelo, il caso di serie) il pannello ha
+l'ottica dei pannelli sopra una pagina nitida (`GlassDefaults.panelOptics(overSharpPage = true)`): sfoca di più, perché
+sotto niente ha già sfocato la pagina; il popover dichiarato modale tiene `panelOptics()`. Per una prova sul dispositivo,
+`adb shell setprop log.tag.FluidGlassFrame VERBOSE` prima di avviare l'app: `glassBudgetDenied` dice una cattura negata,
+`dropAwake` e `dropQuiet` quando la goccia di una superficie si sveglia e si posa.
+
 ### Il ripiego
 
 Senza sorgente, o con una sorgente che all'apertura non si trova (uscita dallo scorrimento, pagina cambiata), ognuno fa
@@ -1111,6 +1124,14 @@ I numeri del foglio di vetro (`FluidSheetDetentSpring` 0,8 / 290, `FluidSheetDet
   la più **recente**; una voce chiusa non è «presente»; `retire` chiude e mantiene la voce fino a `finishExit`.
 - `FluidGlassModalContentTest`: `Expand` con contenuto e senza azioni disegna il contenuto (non un pannello vuoto); un
   pop-up e un foglio disegnano sempre il contenuto; foglio e pagina intera arrivano dal basso, il resto nasce da un'ancora.
+- `FluidPopoverWindowCaptureTest` (engine-ui): la finestra del popover cattura la regione del viaggio e non lo schermo
+  intero (e senza capi resta sul pannello); senza velo ha l'ottica dei pannelli sopra una pagina nitida; la goccia del
+  viaggio dalla capsula, guidata come `FluidSourceJourney.drive`, si posa in meno di 1,5 s nel rettangolo arrotondato del
+  pannello, col suo raggio.
+- `F8p8bPopoverPixelsTest` (sample, Robolectric, pixel veri col vetro di ripiego: `GlassBody8` non compila sotto
+  Robolectric): il popover della capsula nella scena della galleria lascia sotto di sé un'escursione di luminanza sotto
+  40 su 255 dove la pagina nuda ne ha più di 150, le cifre del calendario restano a 4,5:1 e i lati del pannello a riposo
+  sono diritti al pixel; lo stesso per un popover qualunque nato da una sorgente.
 - `FluidPopoverKeyboardTest` (sample, Robolectric): il pop-up si posa sopra la tastiera; la conferma con la sorgente sta
   sopra il comando, un tocco fuori la chiude e arriva alla pagina, senza sorgente è al centro con Annulla.
 - `F5b1ModalTraceTest` (engine-ui): il popover si adatta a foglio solo se richiesto; la conferma sta sopra la sorgente e al

@@ -1,0 +1,89 @@
+{
+ "_readme": "F10.6: vettori generati dal codice del server Pampa-account (F10.5) con genera-vettori-persone.ts. Non modificare a mano.",
+ "people": [
+  {
+   "name": "Alessio",
+   "rootSeed": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+   "rootPub": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+   "encSeed": "ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A",
+   "encPub": "WGmv9FBUlzLLqu1eXfmzCm2jHLDldCutWtShp2jxpns",
+   "signSeed": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2A",
+   "signPub": "rcFAEfgtHFbZVqpPnXPYhYNhpgYEhSXg0Ixjjcdd2Mc",
+   "code": "PMP-4K3K-3RJD",
+   "mailbox": "WA9UI88IdFO5AlweUXvA0w",
+   "workSig": "ElfAD3Zt1UBMrub7F5vUpO4NKOJDW15h7VCauuxTVFdnyfPUZOTxKCNqg3vS9LyxPTdvWuEsFBctf5lKM9OfCA",
+   "mineral": "AQIDBAUGBwgJCgsMDQ4PEA",
+   "at": 1764000000000,
+   "cardRaw": "eyJ2IjoxLCJjb2RlIjoiUE1QLTRLM0stM1JKRCIsIm5hbWUiOiJBbGVzc2lvIiwibWluZXJhbCI6IkFRSURCQVVHQndnSkNnc01EUTRQRUEiLCJyb290IjoiZWJWV0xvX21WUGxBZUxFUzZLbUxwNUFmaFRybWxiN1g0T09SQzYwRWxtUSIsIm1haWxib3giOiJXQTlVSTg4SWRGTzVBbHdlVVh2QTB3Iiwid29yayI6eyJlcG9jaCI6MSwiZW5jIjoiV0dtdjlGQlVsekxMcXUxZVhmbXpDbTJqSExEbGRDdXRXdFNocDJqeHBucyIsInNpZ24iOiJyY0ZBRWZndEhGYlpWcXBQblhQWWhZTmhwZ1lFaFNYZzBJeGpqY2RkMk1jIiwic2lnIjoiRWxmQUQzWnQxVUJNcnViN0Y1dlVwTzROS09KRFcxNWg3VkNhdXV4VFZGZG55ZlBVWk9UeEtDTnFnM3ZTOUx5eFBUZHZXdUVzRkJjdGY1bEtNOU9mQ0EifSwiYXQiOjE3NjQwMDAwMDAwMDB9",
+   "cardSig": "wgmckejE7aIIwX7E_hkTCgZPEWvJeWVjLt6naXLP8I21Z6XDSsJ2UxwRc7mKbqvzBTMaeY0SJKEsqkUKuEhtDw"
+  },
+  {
+   "name": "Marco",
+   "rootSeed": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4A",
+   "rootPub": "iC0Oo7KGTnpYfz5pjOpEWZmDEuZV4F-l6LURnYuqyM0",
+   "encSeed": "gYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6A",
+   "encPub": "iDGGuAC0HVzwQpaV2ps8xPMo680YSm5IL6V4wQPwbHc",
+   "signSeed": "oaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2-v8A",
+   "signPub": "C0eCPnEJXdWb54rCccV27zifh7ZFYasHz5pOvNAtIEE",
+   "code": "PMP-36XX-CR3C",
+   "mailbox": "dmCsVYsJ7bZRZOOqYTAbTw",
+   "workSig": "eIDy4BM0o29ZtS0lI7nL7D4aQiw-T3KkIapzl1Isdb6C4cI5ZR3h26axZHsQuQnay5zfwzCbq8IPNgDBNk-MAQ",
+   "mineral": "YWJjZGVmZ2hpamtsbW5vcA",
+   "at": 1764000001000,
+   "cardRaw": "eyJ2IjoxLCJjb2RlIjoiUE1QLTM2WFgtQ1IzQyIsIm5hbWUiOiJNYXJjbyIsIm1pbmVyYWwiOiJZV0pqWkdWbVoyaHBhbXRzYlc1dmNBIiwicm9vdCI6ImlDME9vN0tHVG5wWWZ6NXBqT3BFV1ptREV1WlY0Ri1sNkxVUm5ZdXF5TTAiLCJtYWlsYm94IjoiZG1Dc1ZZc0o3YlpSWk9PcVlUQWJUdyIsIndvcmsiOnsiZXBvY2giOjEsImVuYyI6ImlER0d1QUMwSFZ6d1FwYVYycHM4eFBNbzY4MFlTbTVJTDZWNHdRUHdiSGMiLCJzaWduIjoiQzBlQ1BuRUpYZFdiNTRyQ2NjVjI3emlmaDdaRllhc0h6NXBPdk5BdElFRSIsInNpZyI6ImVJRHk0Qk0wbzI5WnRTMGxJN25MN0Q0YVFpdy1UM0trSWFwemwxSXNkYjZDNGNJNVpSM2gyNmF4WkhzUXVRbmF5NXpmd3pDYnE4SVBOZ0RCTmstTUFRIn0sImF0IjoxNzY0MDAwMDAxMDAwfQ",
+   "cardSig": "Ural4WMvIfRHGelyE9wlgeXiLaS44eqHmLIvyZ91AAIZcdJJNf2LUgSv2Yue_WPT7NHVpWhCTw_5OpAOGaYiBw"
+  }
+ ],
+ "normalize": {
+  "pmp-7k3p-2m9q": "PMP-7K3P-2M9Q",
+  " PMP-7K3P-2M9Q ": "PMP-7K3P-2M9Q",
+  "PMP-OK3P-ILLQ": "PMP-0K3P-111Q",
+  "PMP-7K3P2M9Q": null,
+  "CDX-7K3P-2M9Q": null,
+  "PMP-UUUU-0000": null
+ },
+ "prints": {
+  "token": "kZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7A",
+  "delivery": "mXLee3wy_r0HfPqL7fkP5Mf-HL8tbvgxgB1WdQ4GfIg",
+  "invite": "ttS5K3cBWH1r_tzKoHrCsVRxuOu6ZpDXyj1l-_bxGvk",
+  "write": "_d-fFDtWBCTxc8lBLg3PP471DxbR1ZqofYXS35ptS2o",
+  "blocked": "51mEEoFS-r6aLTC-HZc2wo3BYhDL-wADMPjaqRl_dOw"
+ },
+ "cdxb": {
+  "from": "WA9UI88IdFO5AlweUXvA0w",
+  "to": "dmCsVYsJ7bZRZOOqYTAbTw",
+  "data": "Q0RYQgAAAAEAAAABhSEIDQmxkKcfLJVvE3N1Lmk16by_qhUMCxgmJDK9oCwCM-GFXSPVVQ3X-xJeKlKEE8YcmV3n6Jf9GDFxAv_qFKSSJC9gv-M421NkcsMuk6NrvazJqa3ZC-Fz8Mfbmj64RLJvpAZfu6RVU6OQNVl75KjdCr8Px-ZlAyMgmtO5XLZSMH2FbPVsiHJnGaJQrkHXWfDCPQktXB8qPJWq56qtgJWKilL813WLyNfz1VEkD4TV3hwTcrha9jhP2KRGpvE4LcB2Y1lVF7eMkUoPEfc-YUv6bxaohTGjufaxysd0e5Z0GnT-Ftmw0lzdbfmavY8LjATxgwDqyBfNDYJpRCflds_fHD3dJzkRL88Gn-EPFtxzLCft0QGRWiLqaGckBFXBAUSQttomLYacapl6ujb3BoCHvQgzawh60QcIYIegocFb_-hLFtvheviHAiroNniiYFKiir33kinfjSswMcDE7b4VzqDbgeeoCvLZSUhHrjjwsurpNtfU807Blqf5SwDx9MkaC1LjxUMi1ZkIfGIkSTzf3cbfmioNyezQM6FN0Su7OvWtfFJ6PZXJFej9fKi5UMcglsEIV9Uq6z2NrH-LguYpbWgEFdShZOG_qdL1GY6dxQ12WXWnws1sJjZ495TsRYZVL6ImOqI1Sj9JrDwCAIbhDkHR3AzQuhwl86AJSWS-Pnd2ld5yTX0eFuiwGww7QqkO4GgHK7WDJ8XYwv3p_iHPP9nqFxtrFLCF4u5iyl9Du9m11YWA1-WxnxrY9wrfQEXUpIcE7XFSWLHlP52h3_3WiCTW6eaE0Hg8Qxr-TFwJkbtaCl4RSkAJWZpNeedK8Ma5dr5-cSNugcdi7hxI_5g4gEwELIDbnMorJQfc_QQkIK_0bzgCbDJvMN29DE7DcjC4TnwYz9ESGVBo-kZro_0LbPL2LL1mUlaUBaLqJFs0WAu79aJ-W6U8n2xf93yaUpfgJorY6SOI2fwE1wPybdtTY9ZlvSKOiZMTpN8grH2F9V_5tT03gqKK6QQYVf-Qj_BOpyZpROjfh0vh_UyRmkCKPo80dkYFttYA7MjmU9LzcFcHQIDrvvkMhMgk45jTU3piQp8asvKvXhgLKMH0FKHQn60D_pOs5eLotDN18sx9W2_ai1AGy-A4ynA79EZBTem4zZVMhsX9VvFQjVtZfVW3iH6GhhdYFhcuDhG4Lc91Y5KIv3lTnaKGLHP99IwNCVMim2Xt-_Cq2DBuq2warKpFCHrN5DJi0rgmXpTD3vym1sUmOd0E",
+  "greeting": "Ciao Marco!",
+  "token": "ERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzA"
+ },
+ "pmx1": {
+  "chatKey": "ExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTI",
+  "epoch": 2,
+  "thread": "EhMUFRYXGBkaGxwdHh8gIQ",
+  "messageId": "MTIzNDU2Nzg5Ojs8PT4_QA",
+  "nonce": "UVJTVFVWV1hZWltc",
+  "data": "UE1YMQAAAAIxMjM0NTY3ODk6Ozw9Pj9AUVJTVFVWV1hZWltc9cHSNYJrWs00FAtUCdY2RIZnFmC6Zn5bBkaxSJtKRWNoHxyihjL2rZc4sevj6Q",
+  "text": "ci vediamo alle sei"
+ },
+ "record": {
+  "spaceId": "cXJzdHV2d3h5ent8fX5_gA",
+  "key": "cnN0dXZ3eHl6e3x9fn-AgYKDhIWGh4iJiouMjY6PkJE",
+  "epoch": 2,
+  "recordId": "voce-1",
+  "version": 3,
+  "nonce": "c3R1dnd4eXp7fH1-",
+  "data": "{\"testo\":\"latte\",\"fatto\":false}",
+  "ciphertext": "c3R1dnd4eXp7fH1-HqGBlcTXDIbfX81QFPK9qhNNpyyLqJMzQ8Rx3wDk0RBCJhFKz1BgZNFRo0ZID0GFzyZ3efZLOf6a9ODyQLKFpU6FM-sEExWsxjvfvZR7BkO94n7W2GkLSuc-2BcI8GmEXsvBVexEF7eopEg_oNgPJQAqoySKB878FaqDcfD9z2zp68QZd7k2qH4uwzBDR2O7PLUx8sNmutuGYRbjhyV2qpa69sD0eRe4lkmKM8KGixb9MIJc"
+ },
+ "pair": {
+  "key": "xRWafavyoYRyANhy5m0ar6kRmNto3sbEXp0cTw8VGzY",
+  "keyBack": "xRWafavyoYRyANhy5m0ar6kRmNto3sbEXp0cTw8VGzY",
+  "gem": "Ggpqopi9ZV-t3TzRyuzx1w",
+  "words": [
+   1265,
+   1975,
+   858,
+   1979
+  ]
+ }
+}

@@ -45,9 +45,11 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-notify](notify.md) | 9 | 65 |
-| [engine-account](account.md) | 10 | 227 |
+| [engine-account](account.md) | 11 | 266 |
 | [engine-account-host](account-host.md) | 25 | 302 |
-| [engine-account-ui](account-ui.md) | 1 | 7 |
+| [engine-account-ui](account-ui.md) | 2 | 20 |
+| [engine-people](people.md) | 20 | 371 |
+| [engine-push-fcm](push-fcm.md) | 1 | 11 |
 | [engine-transfer](transfer.md) | 5 | 59 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |

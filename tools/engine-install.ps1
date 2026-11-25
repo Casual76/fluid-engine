@@ -92,6 +92,8 @@ $EngineModules = [ordered]@{
   "engine-account"    = @("engine-foundation", "engine-storage")
   "engine-account-host" = @("engine-foundation", "engine-storage", "engine-account", "engine-auth", "engine-vault", "engine-sync")
   "engine-account-ui" = @("engine-foundation", "engine-ui", "engine-storage", "engine-account")
+  "engine-people"     = @("engine-foundation", "engine-storage", "engine-account", "engine-sync")
+  "engine-push-fcm"   = @("engine-foundation")
   "engine-transfer"   = @("engine-foundation", "engine-net")
 }
 
@@ -131,10 +133,14 @@ $EngineModules = [ordered]@{
 # Store: -Modules ...,engine-account-ui. Con engine-account (F10.8) EngineSettingsStore prende da solo il tema comune
 # di Pampa Store (ServiceLoader), e l'icona segue la famiglia comune se l'app ha gli activity-alias col meta-data
 # dev.pampa.account.ICON_SET. engine-account-host porta anche engine-sync (i luoghi fra i dispositivi).
+# Store: -Modules ...,engine-account-ui.
+# engine-people (F10.6: le persone, la crittografia di Codex, la casella, gli spazi; porta Bouncy Castle ed engine-sync) lo
+# chiedono solo Pampa Store e Pampa Mail; engine-push-fcm (F10.6: il campanello, Firebase Messaging, permesso GPL-3.0 par. 7)
+# solo Pampa Store: -Modules ...,engine-people,engine-push-fcm.
 # engine-transfer (F8.20: la coda persistita degli scaricamenti e dei caricamenti lunghi; porta WorkManager e dichiara
 # il servizio in primo piano di tipo dataSync) idem: lo chiede solo un'app che trasferisce file grandi
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-transfer")
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -349,7 +355,9 @@ $notes = @(
   @("engine-notify", "notifiche vere, Live Update di Android 16, promemoria che arrivano davvero (opt-in)"),
   @("engine-account", "l'Account Pampa visto da un'app, attraverso Pampa Store e mai la rete (opt-in)"),
   @("engine-account-host", "il motore dell'account dentro Pampa Store: custodia delle chiavi, sessione (opt-in, solo lo Store)"),
-  @("engine-account-ui", "la riga Account Pampa e l'avatar (opt-in)"),
+  @("engine-account-ui", "la riga Account Pampa, l'avatar e i componenti delle persone (opt-in)"),
+  @("engine-people", "le persone: crittografia di Codex, persona, casella, coda in uscita, spazi (opt-in, Store e Pampa Mail)"),
+  @("engine-push-fcm", "il campanello di FCM, spento fino all'accesso (opt-in, solo lo Store)"),
   @("engine-transfer", "centro trasferimenti: coda persistita, pausa e ripresa con Range, WorkManager e dataSync (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {

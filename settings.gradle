@@ -67,6 +67,10 @@ include ':engine-notify'
 include ':engine-account'
 include ':engine-account-host'
 include ':engine-account-ui'
+// F10.6 · Le persone sul telefono (engine-people: la crittografia di Codex, la persona, la casella, gli spazi) e il campanello
+// di FCM solo per Pampa Store (engine-push-fcm). Opt-in tutti e due.
+include ':engine-people'
+include ':engine-push-fcm'
 // F8.20 · Il centro trasferimenti: la coda persistita degli scaricamenti e dei caricamenti lunghi, sopra engine-net e
 // WorkManager. Opt-in; la pagina «Trasferimenti» e la pillola stanno in engine-ui.
 include ':engine-transfer'
@@ -83,6 +87,9 @@ project(':engine-account-prova').projectDir = file('engine-account-host/prova')
 // solo nel build dell'engine.
 include ':engine-account-prova-tema'
 project(':engine-account-prova-tema').projectDir = file('engine-account-host/prova-tema')
+// F10.6 · Le due app di prova del campanello delle persone (lo «Store» e l'app che riceve), per il tablet: solo qui.
+include ':engine-people-prova'
+project(':engine-people-prova').projectDir = file('engine-people/prova')
 
 // The gallery. Only exists in this build: a host app includes the engine-* modules by path and
 // never reads this file, so nothing an app compiles is affected by it.

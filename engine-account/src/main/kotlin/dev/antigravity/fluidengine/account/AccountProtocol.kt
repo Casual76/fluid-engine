@@ -55,6 +55,21 @@ object AccountProtocol {
   /** Le capacità del protocollo 1 in F10.4. `people.*`, `share.*` e `devices.send` arrivano con F10.6. */
   val CAPABILITIES = listOf("state", "token", "google", "appearance", "appKey", "places", "backup", "open")
 
+  /**
+   * F10.6 · Le persone (`bpi.md` § 5.3): la fila delle persone, condividere, ricevere, rispondere e «I tuoi
+   * dispositivi». Le annuncia solo uno Store che ha `engine-people`; uno Store più vecchio non le ha, e l'app non mostra
+   * la fila (P1) invece di fallire.
+   */
+  const val METHOD_PEOPLE_ROW = "people.row"
+  const val METHOD_SHARE_SEND = "share.send"
+  const val METHOD_SHARE_RECEIVED = "share.received"
+  const val METHOD_SHARE_REPLY = "share.reply"
+  const val METHOD_SHARE_HIDE = "share.hide"
+  const val METHOD_DEVICES_SEND = "devices.send"
+
+  /** Le capacità che uno Store con `engine-people` aggiunge a [CAPABILITIES]. */
+  val PEOPLE_CAPABILITIES = listOf("people", "share", "devices")
+
   /** Cosa può cambiare (il contenuto di `what`). */
   object What {
     const val STATE = "state"
@@ -63,6 +78,10 @@ object AccountProtocol {
     const val PLACES = "places"
     const val KEYS = "keys"
     const val WIPED = "wiped"
+    /** F10.6 · È arrivato qualcosa per quest'app («Condivisi con te»): l'app rilegge `share.received`. */
+    const val SHARE = "share"
+    /** F10.6 · È cambiata la fila delle persone (un contatto nuovo, un nome, un blocco). */
+    const val PEOPLE = "people"
   }
 
   /** Il JSON di una richiesta o di una risposta, o `null` se non è un oggetto JSON. */

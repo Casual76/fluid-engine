@@ -256,6 +256,9 @@ object FluidShareSheetTags {
  * @param item l'oggetto da condividere; null chiude il foglio.
  * @param copyOptions le opzioni della copia ([FluidShareCopyOptions]); null per nessuna «Opzioni ›».
  * @param onShared cosa e' successo, dopo che e' successo.
+ * @param people F10.6 · la fila delle persone in cima, sopra le app («I tuoi dispositivi» per primi, scelta Q1): la
+ *   disegna `FluidPeopleRow` di `engine-account-ui` coi dati di Pampa Store. Riceve l'oggetto e il modo di chiudere il
+ *   foglio dopo l'invio. Null: niente fila, come prima e come senza account (P1).
  */
 @Composable
 fun FluidShareSheet(
@@ -269,6 +272,7 @@ fun FluidShareSheet(
   labels: FluidShareLabels = FluidShareLabels(),
   copyOptions: FluidShareCopyOptions? = null,
   onShared: (FluidShareOutcome) -> Unit = {},
+  people: (@Composable (item: FluidShareItem, dismiss: () -> Unit) -> Unit)? = null,
 ) {
   // Letto qui, dove il foglio e' dichiarato: il corpo lo disegna l'host dei modali, alla radice, che non vede i
   // CompositionLocal della pagina (un ProvideFluidQr intorno alla sola pagina deve bastare).
@@ -306,6 +310,7 @@ fun FluidShareSheet(
             onOptions = if (copyOptions != null) ({ pages = listOf(SharePage.Share, SharePage.Options) }) else null,
             copying = ready == null && result == null,
             failure = result as? FluidShareStaged.Failed,
+            people = people,
           )
         }
         SharePage.Options -> if (copyOptions != null) FluidShareOptionsPage(
@@ -346,6 +351,7 @@ private fun ColumnScope.ShareSheetBody(
   copying: Boolean = false,
   failure: FluidShareStaged.Failed? = null,
   header: FluidShareItem = item,
+  people: (@Composable (item: FluidShareItem, dismiss: () -> Unit) -> Unit)? = null,
 ) {
   val context = LocalContext.current
   val haptics = rememberFluidHaptics()
@@ -407,6 +413,10 @@ private fun ColumnScope.ShareSheetBody(
         SharePane.Problem -> if (failure != null) ShareProblem(failure, labels, onClose = onDismissRequest)
         SharePane.Qr -> if (qr != null) ShareQrPanel(qr, qrText.orEmpty(), labels) { finish(FluidShareOutcome.QrShown) }
         SharePane.Actions -> Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+          if (people != null) {
+            people(item) { dismiss() }
+            Spacer(Modifier.height(12.dp))
+          }
           val apps = targets
           if (options.apps && !apps.isNullOrEmpty()) {
             ShareAppsRow(

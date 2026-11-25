@@ -40,7 +40,10 @@ engine-account      l'Account Pampa visto da un'app: chi sei, token, chiavi dell
                     comuni, sempre attraverso Pampa Store e mai la rete (opt-in)
 engine-account-host il motore dell'account in Pampa Store: provider firmato, sessione, custodia delle chiavi,
                     codice di recupero, backup dello Store (opt-in, solo lo Store)
-engine-account-ui   la riga «Account Pampa» e l'avatar (opt-in)
+engine-account-ui   la riga «Account Pampa», l'avatar e i componenti delle persone (opt-in)
+engine-people       le persone dell'account: crittografia di Codex, persona, casella con la coda in uscita,
+                    gruppi, spazi condivisi, vicinanza con la runa (opt-in, Pampa Store e Pampa Mail)
+engine-push-fcm     il campanello di Pampa Store con FCM, spento fino all'accesso (opt-in, solo lo Store)
 engine-transfer     il centro trasferimenti: coda persistita di scaricamenti e caricamenti lunghi, pausa e
                     ripresa con Range, solo Wi-Fi e in carica, WorkManager col servizio dataSync (opt-in)
 ```

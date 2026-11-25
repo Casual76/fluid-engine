@@ -9,6 +9,7 @@ import android.os.Binder
 import android.os.Bundle
 import android.os.Process
 import dev.antigravity.fluidengine.account.AccountJson
+import dev.antigravity.fluidengine.account.AccountPeopleMethods
 import dev.antigravity.fluidengine.account.AccountProtocol
 import dev.antigravity.fluidengine.account.BackupInfo
 import dev.antigravity.fluidengine.account.PampaAccountClient
@@ -55,6 +56,11 @@ class AccountProtocolHandler(
   private val storeVersion: String,
   /** C'è il codice di recupero, o un'altra porta fuori dal telefono? Lo sa lo Store (`GET /v1/account`). */
   private val hasRecovery: () -> Boolean = { false },
+  /**
+   * F10.6 · I metodi delle persone (`people.row`, `share.*`, `devices.send`), dati da `engine-people`. Senza, lo Store
+   * non li annuncia e le app non mostrano la fila (P1). Rispondono solo alle app della tabella.
+   */
+  private val people: AccountPeopleMethods? = null,
 ) {
   suspend fun handle(caller: String, method: String, request: JsonObject?): JsonObject {
     val body: JsonObject = when (method) {
@@ -71,11 +77,13 @@ class AccountProtocolHandler(
       AccountProtocol.METHOD_PLACES_DELETE -> placesWrite(caller) { places.delete(caller, (request!!["id"] as JsonPrimitive).content) }
       AccountProtocol.METHOD_BACKUP_AVAILABLE -> backupAvailable(caller)
       AccountProtocol.METHOD_OPEN -> buildJsonObject { put("ok", true) }
+      in PEOPLE_METHODS -> peopleCall(caller, method, request)
       else -> buildJsonObject { put("error", "metodo sconosciuto: $method") }
     }
+    val capabilities = if (people != null) AccountProtocol.CAPABILITIES + AccountProtocol.PEOPLE_CAPABILITIES else AccountProtocol.CAPABILITIES
     return JsonObject(body + mapOf(
       "protocol" to JsonPrimitive(AccountProtocol.PROTOCOL),
-      "capabilities" to JsonArray(AccountProtocol.CAPABILITIES.map(::JsonPrimitive)),
+      "capabilities" to JsonArray(capabilities.map(::JsonPrimitive)),
     ))
   }
 
@@ -167,7 +175,26 @@ class AccountProtocolHandler(
     }
   }
 
+  /** Le persone: solo alle app della tabella (K3), e solo con qualcuno dentro. */
+  private suspend fun peopleCall(caller: String, method: String, request: JsonObject?): JsonObject {
+    val handler = people ?: return fail("no_people")
+    if (session.state.value is HostSession.SignedOut) return fail("signed_out")
+    if (policy.entryFor(caller) == null) return fail("not_allowed")
+    return handler.handle(caller, method, request)
+  }
+
   private fun fail(reason: String) = buildJsonObject { put("ok", false); put("reason", reason) }
+
+  private companion object {
+    val PEOPLE_METHODS = setOf(
+      AccountProtocol.METHOD_PEOPLE_ROW,
+      AccountProtocol.METHOD_SHARE_SEND,
+      AccountProtocol.METHOD_SHARE_RECEIVED,
+      AccountProtocol.METHOD_SHARE_REPLY,
+      AccountProtocol.METHOD_SHARE_HIDE,
+      AccountProtocol.METHOD_DEVICES_SEND,
+    )
+  }
 }
 
 /**

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!-- Lo Store avvisa l'app di prova: deve poterla vedere (package visibility). -->
+  <queries>
+    <package android:name="dev.antigravity.fluidengine.people.prova.app" />
+  </queries>
+
+  <application android:label="Pampa · prova Store persone" android:allowBackup="false">
+    <activity android:name=".NegozioActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+
+    <!-- Il campanello finto: lo suona adb, anche a schermo bloccato. Esportato solo in questa app di prova. -->
+    <receiver android:name=".CampanelloReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="dev.antigravity.fluidengine.people.prova.CAMPANELLO" />
+      </intent-filter>
+    </receiver>
+
+    <!-- Il provider firmato dello Store (b\api.md par. 5.1): autorita' <applicationId>.account, senza permesso. -->
+    <provider
+      android:name=".ProvaHostProvider"
+      android:authorities="${applicationId}.account"
+      android:exported="true">
+      <meta-data android:name="dev.pampa.account.HOST" android:value="1" />
+    </provider>
+  </application>
+</manifest>

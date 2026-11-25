@@ -202,6 +202,9 @@ DIR_FAMILY = {
     "account": "account",
     "account/host": "account-host",
     "account/ui": "account-ui",
+    # le persone e il campanello di FCM dello Store (F10.6)
+    "people": "people",
+    "push": "push-fcm",
     # il centro trasferimenti (F8.20)
     "transfer": "transfer",
     "ai/provider": "ai-provider",
@@ -257,6 +260,8 @@ FAMILY_TITLES = {
     "account": "engine-account",
     "account-host": "engine-account-host",
     "account-ui": "engine-account-ui",
+    "people": "engine-people",
+    "push-fcm": "engine-push-fcm",
     "transfer": "engine-transfer",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",

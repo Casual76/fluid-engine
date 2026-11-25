@@ -1,0 +1,57 @@
+// F10.6 · Il campanello delle persone e dell'account sul telefono: il ricevitore di Firebase Cloud Messaging, **solo per
+// Pampa Store** (`d\server-e-chiavi.md` § 6; `progetto.md` § 4.2). Opt-in: nessun'altra app lo include.
+//
+//   implementation project(':engine-push-fcm')     // solo nello Store
+//
+// Cosa porta:
+//  - `PampaFcmService`: riceve i messaggi data-only e vuoti (`k = posta` o `k = account`) e sveglia lo Store
+//    (`PampaPushHost`); un messaggio con una notifica dentro lo scarta, così chi rubasse la chiave di FCM non potrebbe
+//    mostrare una notifica falsa (critica S7);
+//  - `PampaPush`: accende FCM solo all'accesso e lo spegne all'uscita.
+//
+// **R9 e S7: niente rete prima dell'accesso.** Il manifest toglie `FirebaseInitProvider` (Firebase non parte da solo
+// all'avvio) e spegne l'avvio automatico di FCM, la raccolta di Analytics e la delega delle notifiche a Play services. Un
+// test di Robolectric lo controlla, rete compresa.
+//
+// Licenze: Firebase Messaging non è una libreria libera. È coperta dal permesso della GPL-3.0 § 7 in
+// `LICENSES/Permesso-librerie-Google.md` (scelta Q6), e sta solo in questo modulo, che usa solo lo Store.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.push'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // La prova di S7 legge il manifest unito, con quelli di Firebase.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  api "com.google.firebase:firebase-messaging:${engine.firebaseMessaging}"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

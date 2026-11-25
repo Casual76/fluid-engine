@@ -1,0 +1,72 @@
+// F10.6 · Le due app di prova del campanello sul tablet (critica F2; `fasi.md` F10.6, «alla fine, sul tablet, il
+// campanello finto»): esistono solo nel build dell'engine e non entrano mai in un'app.
+//  - `negozio` fa da Pampa Store: la persona della mamma nel Keystore vero (radice in classe madre, chiavi di lavoro in
+//    classe consegna), il provider firmato coi metodi delle persone, il campanello finto (da adb), e un server delle
+//    persone finto dentro il processo, che Alessio usa per mandarle una lista;
+//  - `app` fa da app Pampa (come Notes): riceve l'avviso esplicito dello Store, rilegge dal provider firmato e mostra la
+//    sua notifica «Alessio ti ha condiviso una lista».
+// Tutte e due firmate con la chiave di debug (la stessa): il controllo della firma nei due sensi è quello vero.
+//   adb shell am start -n dev.antigravity.fluidengine.people.prova.negozio/dev.antigravity.fluidengine.people.prova.NegozioActivity --es passo prepara
+//   adb shell am broadcast -a dev.antigravity.fluidengine.people.prova.CAMPANELLO -p dev.antigravity.fluidengine.people.prova.negozio
+// Ogni riga va in logcat (tag PampaPersoneProva) e in files/prova.log di ognuna delle due.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.people.prova'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.people.prova'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1'
+  }
+
+  flavorDimensions 'ruolo'
+  productFlavors {
+    negozio {
+      dimension 'ruolo'
+      applicationIdSuffix '.negozio'
+    }
+    app {
+      dimension 'ruolo'
+      applicationIdSuffix '.app'
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  negozioImplementation project(':engine-account-host')
+  negozioImplementation project(':engine-people')
+  negozioImplementation "androidx.work:work-runtime-ktx:${engine.work}"
+  appImplementation project(':engine-account')
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+}

@@ -106,6 +106,13 @@ class PampaAccountClient(
   /** F10.8 · Cresce a ogni avviso che può cambiare i luoghi (`places`, `state`, `wiped`): [placesFlow] rilegge. */
   private val placesVersion = MutableStateFlow(0L)
   private val wipeHandlers = CopyOnWriteArrayList<suspend () -> Unit>()
+  /** F10.6 · Chi ascolta gli avvisi `CHANGED` oltre allo stato (le persone: `share`, `people`). */
+  private val changeListeners = CopyOnWriteArrayList<suspend (List<String>) -> Unit>()
+
+  /** F10.6 · Un lavoro da fare a ogni avviso `CHANGED`, con i suoi `what` (lo usa [PampaPeople] per `share`). */
+  fun addChangeListener(listener: suspend (List<String>) -> Unit) {
+    changeListeners += listener
+  }
 
   @Volatile private var wipedHandled: Long = 0
   @Volatile private var host: StoreHost? = null
@@ -179,6 +186,19 @@ class PampaAccountClient(
     if (what.isEmpty() || what.any { it == AccountProtocol.What.PLACES || it == AccountProtocol.What.STATE || it == AccountProtocol.What.WIPED }) {
       placesVersion.value = placesVersion.value + 1
     }
+    for (l in changeListeners) runCatching { l(what) }
+  }
+
+  /** Le capacità che lo Store ha annunciato all'ultima lettura. */
+  val storeCapabilities: Set<String> get() = capabilities
+
+  /**
+   * F10.6 · Una chiamata al provider dello Store per i metodi delle persone (`PampaPeople`): `null` senza Store o se lo
+   * Store non risponde. Come ogni chiamata, passa dal controllo della firma nei due sensi.
+   */
+  internal suspend fun callPeople(method: String, request: JsonObject): JsonObject? = withContext(Dispatchers.IO) {
+    if (host == null && refresh() is AccountState.NoStore) return@withContext null
+    call(method, request)
   }
 
   /**

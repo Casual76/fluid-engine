@@ -1,0 +1,144 @@
+/**
+ * F10.6 · I vettori d'interoperabilità fra il server delle persone (Pampa-account, F10.5) e `engine-people`.
+ *
+ * Usa il codice VERO del server: `deriveCode`, `deriveMailbox`, `normalizeCode`, `tokenPrint`, `blockedPrint` e
+ * `verifyCard` di src/persone/card.ts; HKDF e SHA-256 di src/crypto.ts; l'HPKE di test/fake/hpke.ts; le etichette di
+ * src/e2e-contract.ts. Le formule della scheda, della CDXB, della PMX1, del record e della coppia sono copiate riga
+ * per riga da test/fake/person.ts (che importa il banco di Miniflare e non si carica fuori da vitest).
+ *
+ * Gli ingressi sono fissi. Le firme Ed25519 sono deterministiche (RFC 8032), la PMX1 e il record hanno nonce fissi:
+ * quei byte l'engine li deve RIFARE uguali. La CDXB ha un'effimera HPKE casuale: l'engine la deve APRIRE.
+ *
+ *   esbuild genera-vettori-persone.ts --bundle --platform=node --format=esm --outfile=genera.mjs
+ *   node genera.mjs > persone-server.json
+ */
+import { fromB64url, toB64url, utf8 } from "C:/VibeCoded Projects/Pampa-account/src/bytes";
+import { hkdf, sha256 } from "C:/VibeCoded Projects/Pampa-account/src/crypto";
+import { E2E, label } from "C:/VibeCoded Projects/Pampa-account/src/e2e-contract";
+import { blockedPrint, deriveCode, deriveMailbox, normalizeCode, tokenPrint, verifyCard } from "C:/VibeCoded Projects/Pampa-account/src/persone/card";
+import { concat, seal, x25519FromSeed } from "C:/VibeCoded Projects/Pampa-account/test/fake/hpke";
+
+const L = E2E.people.labels;
+const EMPTY = new Uint8Array(0);
+const b64 = (b: Uint8Array) => toB64url(b);
+const fill = (n: number, start: number) => Uint8Array.from({ length: n }, (_, i) => (start + i) & 0xff);
+const u32 = (n: number) => new Uint8Array([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
+
+/** Una chiave Ed25519 dal suo seme di 32 byte (PKCS#8 di RFC 8410). */
+async function edFromSeed(seed: Uint8Array) {
+  const pkcs8 = concat(Uint8Array.from([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20]), seed);
+  const priv = await crypto.subtle.importKey("pkcs8", pkcs8, { name: "Ed25519" }, true, ["sign"]);
+  const jwk = (await crypto.subtle.exportKey("jwk", priv)) as JsonWebKey;
+  return { priv, pub: fromB64url(jwk.x!) };
+}
+const sign = async (k: { priv: CryptoKey }, data: Uint8Array) => new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, k.priv, data));
+async function x25519(priv: CryptoKey, pub: Uint8Array): Promise<Uint8Array> {
+  const k = await crypto.subtle.importKey("raw", pub, { name: "X25519" }, true, []);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "X25519", public: k } as unknown as SubtleCryptoDeriveKeyAlgorithm, priv, 256));
+}
+async function aesEncrypt(key: Uint8Array, nonce: Uint8Array, aad: Uint8Array, plain: Uint8Array) {
+  const k = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+  return new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce, additionalData: aad }, k, plain));
+}
+
+/** Una persona dai suoi semi, come Person.create + newWorkKeys + card() del telefono finto. */
+async function person(name: string, rootSeed: Uint8Array, encSeed: Uint8Array, signSeed: Uint8Array, at: number) {
+  const root = await edFromSeed(rootSeed);
+  const code = await deriveCode(root.pub);
+  const mailbox = await deriveMailbox(root.pub);
+  const enc = await x25519FromSeed(encSeed);
+  const signKey = await edFromSeed(signSeed);
+  const epoch = 1;
+  const workSig = await sign(root, concat(utf8(label(L.workKeys, { epoch })), enc.pub, signKey.pub));
+  const mineral = fill(16, rootSeed[0]!);
+  const json = { v: 1, code, name, mineral: b64(mineral), root: b64(root.pub), mailbox, work: { epoch, enc: b64(enc.pub), sign: b64(signKey.pub), sig: b64(workSig) }, at };
+  const raw = b64(utf8(JSON.stringify(json)));
+  const sig = b64(await sign(root, concat(utf8(L.card), fromB64url(raw))));
+  await verifyCard(raw, sig); // il server la accetta
+  return { name, rootSeed, encSeed, signSeed, root, enc, signKey, code, mailbox, workSig, mineral, at, raw, sig, epoch };
+}
+
+const alessio = await person("Alessio", fill(32, 0x01), fill(32, 0x21), fill(32, 0x41), 1764000000000);
+const marco = await person("Marco", fill(32, 0x61), fill(32, 0x81), fill(32, 0xa1), 1764000001000);
+
+// La CDXB di Alessio per Marco (Person.cdxb), una richiesta col saluto.
+const head = concat(utf8("CDXB"), u32(alessio.epoch), u32(marco.epoch));
+const cdxbBody = { t: "richiesta", greeting: "Ciao Marco!", token: b64(fill(32, 0x11)), chatId: b64(fill(16, 0x12)), chatKey: b64(fill(32, 0x13)), card: alessio.raw, cardSig: alessio.sig };
+const sealed = await seal(marco.enc.pub, utf8(label(L.cdxbInfo, { from: alessio.mailbox, to: marco.mailbox })), head, utf8(JSON.stringify(cdxbBody)));
+const signed = concat(head, sealed);
+const cdxbSig = await sign(alessio.signKey, concat(utf8(label(L.cdxbSig, { from: alessio.mailbox, to: marco.mailbox })), signed));
+const cdxb = b64(concat(signed, cdxbSig));
+
+// La PMX1 (Person.pmx1) con id e nonce fissi.
+const chatKey = fill(32, 0x13);
+const thread = b64(fill(16, 0x12));
+const msgId = fill(16, 0x31);
+const nonce = fill(12, 0x51);
+const pHead = concat(utf8("PMX1"), u32(2), msgId, nonce);
+const msgKey = await hkdf(chatKey, msgId, L.pmx1Key);
+const pAad = concat(pHead, utf8(label(L.pmx1Aad, { from: alessio.mailbox, to: marco.mailbox, thread })));
+const pmx1 = b64(concat(pHead, await aesEncrypt(msgKey, nonce, pAad, utf8(JSON.stringify({ text: "ci vediamo alle sei" })))));
+
+// Un record di uno spazio (Person.sealRecord) col nonce fisso.
+const spaceId = b64(fill(16, 0x71));
+const spaceKey = fill(32, 0x72);
+const recordId = "voce-1";
+const version = 3;
+const sEpoch = 2;
+const data = JSON.stringify({ testo: "latte", fatto: false });
+const rSig = await sign(alessio.signKey, concat(utf8(label(L.spaceSig, { spaceId, epoch: sEpoch, recordId, version })), utf8(data)));
+const rPlain = utf8(JSON.stringify({ d: data, w: alessio.code, e: alessio.epoch, s: b64(rSig) }));
+const rNonce = fill(12, 0x73);
+const rAad = utf8(label(L.spaceAad, { spaceId, epoch: sEpoch, recordId, version }));
+const record = b64(concat(rNonce, await aesEncrypt(spaceKey, rNonce, rAad, rPlain)));
+
+// La chiave di coppia, la gemma e le parole (Person.pairKey, gem, words), dai due lati.
+async function pairKey(me: typeof alessio, peer: typeof alessio) {
+  const dh = await x25519(me.enc.priv, peer.enc.pub);
+  const a = me.root.pub;
+  const b = peer.root.pub;
+  const [lo, hi] = b64(a) < b64(b) ? [a, b] : [b, a];
+  return hkdf(dh, await sha256(concat(lo, hi)), L.pair);
+}
+const pk = await pairKey(alessio, marco);
+const pkBack = await pairKey(marco, alessio);
+const gem = b64(await hkdf(pk, EMPTY, L.gem, 16));
+const wordBytes = await hkdf(pk, EMPTY, L.words, 6);
+let wv = 0n;
+for (const x of wordBytes) wv = (wv << 8n) | BigInt(x);
+wv >>= 4n;
+const words = [3, 2, 1, 0].map((i) => Number((wv >> BigInt(i * 11)) & 2047n));
+
+const token = fill(32, 0x91);
+const out = {
+  _readme: "F10.6: vettori generati dal codice del server Pampa-account (F10.5) con genera-vettori-persone.ts. Non modificare a mano.",
+  people: [alessio, marco].map((p) => ({
+    name: p.name,
+    rootSeed: b64(p.rootSeed),
+    rootPub: b64(p.root.pub),
+    encSeed: b64(p.encSeed),
+    encPub: b64(p.enc.pub),
+    signSeed: b64(p.signSeed),
+    signPub: b64(p.signKey.pub),
+    code: p.code,
+    mailbox: p.mailbox,
+    workSig: b64(p.workSig),
+    mineral: b64(p.mineral),
+    at: p.at,
+    cardRaw: p.raw,
+    cardSig: p.sig,
+  })),
+  normalize: Object.fromEntries(["pmp-7k3p-2m9q", " PMP-7K3P-2M9Q ", "PMP-OK3P-ILLQ", "PMP-7K3P2M9Q", "CDX-7K3P-2M9Q", "PMP-UUUU-0000"].map((s) => [s, normalizeCode(s)])),
+  prints: {
+    token: b64(token),
+    delivery: await tokenPrint("delivery", token),
+    invite: await tokenPrint("invite", token),
+    write: await tokenPrint("write", token),
+    blocked: await blockedPrint(marco.mailbox),
+  },
+  cdxb: { from: alessio.mailbox, to: marco.mailbox, data: cdxb, greeting: cdxbBody.greeting, token: cdxbBody.token },
+  pmx1: { chatKey: b64(chatKey), epoch: 2, thread, messageId: b64(msgId), nonce: b64(nonce), data: pmx1, text: "ci vediamo alle sei" },
+  record: { spaceId, key: b64(spaceKey), epoch: sEpoch, recordId, version, nonce: b64(rNonce), data, ciphertext: record },
+  pair: { key: b64(pk), keyBack: b64(pkBack), gem, words },
+};
+console.log(JSON.stringify(out, null, 1));

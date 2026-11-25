@@ -209,7 +209,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val Problem` — Il messaggio di un file che non parte.
   - `fun app(packageName: String): String`
   - `fun action(id: String): String`
-- `@Composable fun FluidShareSheet(item: FluidShareItem?, onDismissRequest: () -> Unit, source: FluidTransitionSource? = null, actions: List<FluidShareAction> = emptyList(), options: FluidShareOptions = FluidShareOptions(), trust: FluidShareTrust = FluidShareTrust.SameSigner, chooserActions: List<FluidShareChooserAction> = emptyList(), labels: FluidShareLabels = FluidShareLabels(), copyOptions: FluidShareCopyOptions? = null, onShared: (FluidShareOutcome) -> Unit = {})` — Il foglio di condivisione (4.0, F8.10, `foglio-condividi`): il foglio di vetro di iOS 26 (`ShareLink`, `UIActivityViewController`) con la consegna di Android.
+- `@Composable fun FluidShareSheet(item: FluidShareItem?, onDismissRequest: () -> Unit, source: FluidTransitionSource? = null, actions: List<FluidShareAction> = emptyList(), options: FluidShareOptions = FluidShareOptions(), trust: FluidShareTrust = FluidShareTrust.SameSigner, chooserActions: List<FluidShareChooserAction> = emptyList(), labels: FluidShareLabels = FluidShareLabels(), copyOptions: FluidShareCopyOptions? = null, onShared: (FluidShareOutcome) -> Unit = {}, people: (@Composable (item: FluidShareItem, dismiss: () -> Unit) -> Unit)? = null)` — Il foglio di condivisione (4.0, F8.10, `foglio-condividi`): il foglio di vetro di iOS 26 (`ShareLink`, `UIActivityViewController`) con la consegna di Android.
 
 ## `engine-ui/ui/fluid/share/FluidShareTargets.kt`
 

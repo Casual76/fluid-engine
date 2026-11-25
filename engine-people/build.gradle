@@ -1,0 +1,68 @@
+// F10.6 · Le persone dell'Account Pampa sul telefono (`d\server-e-chiavi.md` § 10; `progetto.md` § 3.5–3.12). Opt-in:
+// lo usano Pampa Store e Pampa Mail. Le altre app vedono solo la fila delle persone, «Condivisi con te», «Da X» e
+// «Rispondi», attraverso lo Store (`engine-account`) e i componenti di `engine-account-ui`.
+//
+//   implementation project(':engine-people')
+//
+// Cosa porta:
+//  - la crittografia di `core/crypto` di Codex portata nell'engine: le buste `PMX1`, `CDXB` e `CDXM`, la scheda firmata,
+//    il codice Pampa, le epoche dei gruppi e degli spazi, la gemma e le quattro parole (con l'impegno contro il
+//    «compleanno», rapporto F10.6), la vicinanza con la runa;
+//  - la persona divisa in radice e chiavi di lavoro (`b\chiavi.md` § 12), dentro la custodia dello Store;
+//  - `PeopleClient`: scheda, richieste, gettoni, blocchi, casella, canale aperto e la coda in uscita con le buste gia'
+//    firmate (critica M3);
+//  - `SharedSpace<T>`, gli spazi condivisi sopra `engine-sync` (F8.21);
+//  - il gestore dei metodi `people.*`, `share.*` e `devices.send` del provider dello Store.
+//
+// Librerie: Bouncy Castle `bcprov-jdk18on` (MIT), la stessa di `engine-account` e di Codex; nessuna libreria di Google.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.people'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+      all {
+        // Il banco delle persone apre molte chiavi: un po' di memoria in piu' del minimo di Gradle.
+        maxHeapSize = '1g'
+      }
+    }
+  }
+}
+
+dependencies {
+  api project(':engine-account')
+  api project(':engine-sync')
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
+  implementation "org.bouncycastle:bcprov-jdk18on:${engine.bouncycastle}"
+  // La coda in uscita in sottofondo (PeopleWork): la stessa WorkManager di engine-sync.
+  implementation "androidx.work:work-runtime-ktx:${engine.work}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation "com.squareup.okhttp3:mockwebserver:${engine.mockwebserver}"
+  testImplementation "androidx.work:work-testing:${engine.work}"
+}

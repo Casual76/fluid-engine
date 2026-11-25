@@ -19,6 +19,7 @@ Catalogo completo delle firme: [`../api/account-host.md`](../api/account-host.md
 | ho bisogno di… | uso |
 |---|---|
 | esporre l'account alle app | una sottoclasse di `AccountHostProvider` che da' un `AccountProtocolHandler` |
+| esporre le persone alle app (F10.6) | `AccountProtocolHandler(…, people = PeopleProviderMethods(peopleClient))` di [persone](persone.md): solo alle app della tabella, solo con qualcuno dentro |
 | entrare, rinnovare, uscire | `AccountSession`: `adopt(risposta d'ingresso)`, `storeToken()`, `appToken(…)`, `signOut()`, `onRevoked(motivo)` |
 | la prima cifratura, il codice di recupero, una porta | `CustodyService.startEncryption(codice)`, `createRecoveryCode()`, `addPrfDoor(…)` |
 | ruotare la chiave dopo un «perso o rubato» | `CustodyService.rotate(EpochKind.LOST)` |

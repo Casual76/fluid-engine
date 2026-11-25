@@ -30,6 +30,10 @@ Catalogo completo delle firme: [`../api/account.md`](../api/account.md).
 | aprire lo Store sulla pagina giusta | `PampaAccount.storeIntent(context, AccountSections.SIGN_IN)` |
 | cancellare le copie dopo un'uscita da remoto | `PampaAccount.onWiped(context) { … }` |
 | le primitive (HKDF, HMAC, AES-256-GCM) | `PampaCrypto`, con le etichette del contratto in `PampaLabels` |
+| la fila delle persone (F10.6) | `PampaPeople.row(context)` → `List<PeopleRowEntry>`: «I tuoi dispositivi», poi persone e gruppi; vuota senza Store o senza contatti (P1) |
+| mandare a una persona, a un gruppo o ai miei dispositivi | `PampaPeople.send(context, id, ShareKind.COPY, titolo, json)` → `ShareResult.Queued`; `PampaPeople.sendToMyDevices(context, indirizzo)` |
+| «Condivisi con te» e la notifica dell'app | `PampaPeople.received(context)`; `PampaPeople.onReceived(context) { items -> … }` in `Application.onCreate` |
+| «Rispondi», «Togli dai condivisi», «Non mostrare più da X» | `PampaPeople.reply(context, item, testo)`, `PampaPeople.hide(context, item, muteSender)` |
 
 ## Come funziona
 
@@ -104,6 +108,16 @@ nel campo `ciphertext`; i dati associati `accountId|pacchetto|raccolta|idRiga|ve
 **Il backup** (`PampaBackupFormat`, `b/chiavi.md` § 7). Il pacchetto `{ v, app, appVersion, schema, createdAt, files }`
 in CBOR deterministico, chiuso con `K_bak(app, epoca)`, legato a `accountId|app|backup|n|epoca`, con la testa
 `"PBK1" || epoca || nonce`. Al massimo 5 MB. `fingerprint` ignora la data: un backup uguale non riparte.
+
+## Le persone (F10.6)
+
+`PampaPeople` passa dai metodi `people.row`, `share.send`, `share.received`, `share.reply`, `share.hide` e
+`devices.send` del provider (`bpi.md` § 5.3), che lo Store annuncia con le capacità `people`, `share`, `devices`
+(`AccountProtocol.PEOPLE_CAPABILITIES`). L'app non vede codici, caselle o chiavi: gli id della fila valgono solo per
+lei. Quando arriva qualcosa lo Store manda l'avviso esplicito `CHANGED` con `what = share`; `PampaPeople` rilegge
+`share.received` dal provider (non si fida del broadcast) e chiama i lavori registrati con `onReceived`, che mostrano
+la notifica **dell'app** («Alessio ti ha condiviso una lista»). Uno Store senza le persone risponde `NoPeople` e la fila
+non c'è. Il gestore nello Store è `AccountPeopleMethods`, dato da `engine-people`.
 
 ## Usarlo in un'app
 

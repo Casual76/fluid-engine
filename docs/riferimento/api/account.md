@@ -32,6 +32,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val METHOD_BACKUP_AVAILABLE`
   - `const val METHOD_OPEN`
   - `val CAPABILITIES` — Le capacità del protocollo 1 in F10.4. `people.*`, `share.*` e `devices.send` arrivano con F10.6.
+  - `const val METHOD_PEOPLE_ROW` — F10.6 · Le persone (`bpi.md` § 5.3): la fila delle persone, condividere, ricevere, rispondere e «I tuoi dispositivi». Le annuncia solo uno Store che ha `engine-people`; uno Store più vecchio non le ha, e l'app non mostra la fila (P1) invece di fallire.
+  - `const val METHOD_SHARE_SEND`
+  - `const val METHOD_SHARE_RECEIVED`
+  - `const val METHOD_SHARE_REPLY`
+  - `const val METHOD_SHARE_HIDE`
+  - `const val METHOD_DEVICES_SEND`
+  - `val PEOPLE_CAPABILITIES` — Le capacità che uno Store con `engine-people` aggiunge a [CAPABILITIES].
   - `object What` — Cosa può cambiare (il contenuto di `what`).
     - `const val STATE`
     - `const val APPEARANCE`
@@ -39,6 +46,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val PLACES`
     - `const val KEYS`
     - `const val WIPED`
+    - `const val SHARE` — F10.6 · È arrivato qualcosa per quest'app («Condivisi con te»): l'app rilegge `share.received`.
+    - `const val PEOPLE` — F10.6 · È cambiata la fila delle persone (un contatto nuovo, un nome, un blocco).
   - `fun parse(text: String?): JsonObject?` — Il JSON di una richiesta o di una risposta, o `null` se non è un oggetto JSON.
 - `sealed interface AccountState` — Quello che vede un'app dell'account (`b\architettura.md` § 2.4 e § 9.4).
   - `data object NoStore : AccountState` — Lo Store non c'è, oppure c'è un pacchetto con quel nome ma firmato da altri (M1).
@@ -139,6 +148,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data object SignedOut : GoogleTokenResult`
   - `data object NoStore : GoogleTokenResult`
 - `class PampaAccountClient(private val locate: () -> StoreHost?, private val transport: AccountTransport, private val cache: AccountCache? = null, private val clientVersion: String = "engine-account/4.0.0", private val elapsed: () -> Long = { SystemClock.elapsedRealtime() })` — Il cliente dell'account dentro un'app: trova lo Store ([StoreLocator]), negozia, e chiede. **Non usa mai la rete** (R9): tutto passa dal provider dello Store sul telefono. Non si fida del contenuto dei broadcast: a ogni avviso rilegge dal provider (`b\api.md` § 5.4).
+  - `fun addChangeListener(listener: suspend (List<String>) -> Unit)` — F10.6 · Un lavoro da fare a ogni avviso `CHANGED`, con i suoi `what` (lo usa [PampaPeople] per `share`).
   - `val state: StateFlow<AccountState>`
   - `val appearance: StateFlow<SharedAppearance>`
   - `val grants: StateFlow<Set<String>>`
@@ -148,6 +158,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun restoreCache()` — Rimette la copia locale (all'avvio, prima che lo Store risponda).
   - `suspend fun refresh(): AccountState` — Rilegge tutto dallo Store: lo trova, controlla la firma, negozia, legge stato e aspetto. Lo chiama [PampaAccount] all'avvio, quando l'app torna in primo piano, e a ogni avviso `CHANGED`.
   - `suspend fun onChanged(what: List<String>)` — Un avviso `CHANGED` dello Store: non ci si fida del contenuto, si rilegge. `wiped` si conferma con lo Store.
+  - `val storeCapabilities: Set<String> get()` — Le capacità che lo Store ha annunciato all'ultima lettura.
   - `fun onWiped(handler: suspend () -> Unit)` — Un lavoro da fare quando lo Store conferma l'uscita da remoto: di solito cancellare le copie di `engine-sync`.
   - `suspend fun token(audience: String, scopes: Set<String>): TokenResult` — Un token per il servizio di quest'app (`audience`) con gli ambiti dati. Sta solo in memoria.
   - `suspend fun appKey(purpose: KeyPurpose): AppKeyResult` — Le chiavi di quest'app per [purpose], una per epoca (per `engine-sync` e per il backup). Mai di un'altra app.
@@ -204,6 +215,39 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun glassLevel(value: String): Float?` — Il cursore del vetro per un valore di `appearance.glass`, o `null`.
   - `fun exceptionValues(layer: EngineAppearanceLayer): Map<String, String>` — I campi di un'eccezione dell'app scritti nelle chiavi del contratto, per `setAppearance`. Solo le chiavi che un'app può tenere diverse ([APP_KEYS]); il vetro va sul livello più vicino.
 - `class PampaSharedAppearance : EngineSharedAppearance` — F10.8 · La sorgente dell'aspetto comune per `EngineSettingsStore`: la trova `ServiceLoader` (`META-INF/services` di questo modulo), quindi un'app con `engine-account` ha il tema dello Store senza scrivere niente. Legge e scrive dallo Store con [PampaAccount]: nessuna rete (R9).
+
+## `engine-account/account/PampaPeople.kt`
+
+- `enum class PeopleRowKind(val wire: String)` — Che cosa c'è nella fila delle persone: «I tuoi dispositivi» per primi (scelta Q1), poi persone e gruppi.
+- `data class PeopleRowEntry(val id: String, val kind: PeopleRowKind, val name: String, val initials: String, val mineral: String?, val verified: Boolean)` — Una voce della fila delle persone (`people.row`, `b\api.md` § 5.3): nome, iniziali, il seme del minerale (l'avatar) e un [id] **valido solo per l'app che chiama**. Niente chiavi, niente codice Pampa, niente casella (progetto, T10).
+- `enum class ShareKind(val wire: String)` — Cosa si manda (`progetto.md` § 3.7): l'indirizzo di una pagina, una copia, o l'oggetto vivo che cambia per tutti.
+- `data class SharedReply(val from: String, val text: String, val at: Long, val mine: Boolean)` — Una risposta attaccata a una cosa condivisa, quando non c'è Pampa Mail («Mamma: brava!»).
+- `data class SharedItem(val id: String, val from: PeopleRowEntry, val kind: ShareKind, val title: String, val payload: String, val receivedAt: Long, val replies: List<SharedReply> = emptyList(), val inReplyTo: String? = null)` — Una cosa arrivata per quest'app («Condivisi con te», `share.received`): già aperta dallo Store, con chi la manda ([from], per il segno «Da X»), quando, e il contenuto che l'app mittente ha preparato ([payload], JSON dell'app).
+- `sealed interface ShareResult` — Com'è andato un invio. [Queued]: lo Store l'ha chiuso e firmato, e se la rete manca riprova da solo (M3).
+  - `data class Queued(val id: String) : ShareResult`
+  - `data object NotAllowed : ShareResult` — L'app non è nella tabella dello Store, o la persona non accetta da quest'app.
+  - `data object NoPeople : ShareResult` — Lo Store non c'è, o è troppo vecchio per le persone: la fila non si mostra (P1).
+  - `data object SignedOut : ShareResult`
+  - `data object UnknownPerson : ShareResult`
+- `object PampaPeople` — Le persone viste da un'app (`progetto.md` § 3.7; `b\api.md` § 5.3). Tutto passa da Pampa Store sul telefono, col provider firmato: l'app non tocca mai la rubrica né una chiave, e non va mai in rete (R9).
+  - `suspend fun row(context: Context): List<PeopleRowEntry>` — La fila: «I tuoi dispositivi» e fino a otto persone e gruppi recenti. Vuota senza Store o senza contatti.
+  - `suspend fun send(context: Context, to: String, kind: ShareKind, title: String, payload: String): ShareResult` — Manda a [to] (un id della fila). Lo Store cifra, firma e consegna; la coda in uscita riprova se manca la rete.
+  - `suspend fun received(context: Context, since: Long = 0): List<SharedItem>` — Le cose arrivate per quest'app dopo [since], già aperte. Rispetta blocchi e interruttori.
+  - `suspend fun reply(context: Context, item: String, text: String): ShareResult` — «Rispondi» (`FluidQuickReply`): va nella conversazione in Pampa Mail, o resta attaccata alla cosa.
+  - `suspend fun hide(context: Context, item: String, muteSender: Boolean = false): Boolean` — «Togli dai condivisi» ([muteSender] = falso) o «Non mostrare più da X in questa app» (vero).
+  - `suspend fun sendToMyDevices(context: Context, address: String, title: String = ""): ShareResult` — «I tuoi dispositivi» (scelta Q1): manda l'indirizzo F8.12 di una pagina agli altri tuoi dispositivi.
+  - `fun onReceived(context: Context, handler: suspend (List<SharedItem>) -> Unit)` — Chiamato quando lo Store dice che è arrivato qualcosa (`CHANGED` con `share`): qui l'app mostra **la sua** notifica («Alessio ti ha condiviso una lista»). Si registra all'avvio dell'app (`Application.onCreate`): l'avviso esplicito dello Store fa partire il processo anche con l'app chiusa.
+- `object PeopleCalls` — Le chiamate delle persone sul cliente dell'account, senza `Context`: le usa [PampaPeople] e le prove.
+  - `suspend fun row(c: PampaAccountClient): List<PeopleRowEntry>`
+  - `suspend fun send(c: PampaAccountClient, to: String, kind: ShareKind, title: String, payload: String): ShareResult`
+  - `suspend fun received(c: PampaAccountClient, since: Long): List<SharedItem>`
+  - `suspend fun reply(c: PampaAccountClient, item: String, text: String): ShareResult`
+  - `suspend fun hide(c: PampaAccountClient, item: String, muteSender: Boolean): Boolean`
+  - `suspend fun devices(c: PampaAccountClient, address: String, title: String): ShareResult`
+  - `fun entry(o: JsonObject)`
+  - `fun item(o: JsonObject)`
+- `fun interface AccountPeopleMethods` — Il gestore dei metodi delle persone dentro lo Store: lo dà `engine-people` (`PeopleProviderMethods`) al provider di `engine-account-host`. Sta qui, nel protocollo comune, così i due moduli non dipendono l'uno dall'altro. [caller] è il pacchetto di chi chiama, preso dal sistema e già controllato (firma, tabella delle app).
+  - `suspend fun handle(caller: String, method: String, request: JsonObject?): JsonObject`
 
 ## `engine-account/account/StoreLocator.kt`
 

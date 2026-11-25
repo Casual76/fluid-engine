@@ -77,4 +77,7 @@ ext.engine = [
   playServicesAuth: '22.0.0',
   // engine-qr (F8.10): il codificatore dei QR del foglio di condivisione. Solo `core`, senza le parti Android.
   zxing          : '3.5.4',
+  // engine-push-fcm (F10.6): il campanello dello Store. Firebase Messaging non è libera: solo in quel modulo, che usa solo
+  // lo Store, col permesso della GPL-3.0 § 7 (LICENSES/Permesso-librerie-Google.md). Versione della BoM 34.x di Codex.
+  firebaseMessaging: '25.1.2',
 ]

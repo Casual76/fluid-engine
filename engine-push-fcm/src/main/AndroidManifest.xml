@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <application>
+    <!-- F10.6 · R9 e critica S7: niente Firebase e niente rete verso Google finché non entri nell'account. La guida di FCM
+         chiede di spegnere sia l'avvio automatico di FCM sia la raccolta di Analytics («you must disable both»). In piu':
+         Firebase non si inizializza da solo all'avvio (via FirebaseInitProvider: lo accende PampaPush.enable all'accesso),
+         e Play services non mostra notifiche al posto dello Store (delega spenta). -->
+    <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+    <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+    <meta-data android:name="firebase_messaging_notification_delegation_enabled" android:value="false" />
+    <provider
+      android:name="com.google.firebase.provider.FirebaseInitProvider"
+      android:authorities="${applicationId}.firebaseinitprovider"
+      tools:node="remove" />
+
+    <!-- Il campanello: riceve i messaggi data-only, e sveglia lo Store (PampaPushHost). Non esportato: lo chiama solo il
+         ricevitore di Firebase nel processo dello Store. Precede quello di Firebase (priorita' -500). -->
+    <service
+      android:name="dev.antigravity.fluidengine.push.PampaFcmService"
+      android:directBootAware="false"
+      android:exported="false">
+      <intent-filter>
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+      </intent-filter>
+    </service>
+  </application>
+
+</manifest>

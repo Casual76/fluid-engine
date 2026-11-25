@@ -64,4 +64,7 @@ dependencies {
   testImplementation "androidx.test:core:1.7.0"
   testImplementation "androidx.work:work-testing:${engine.work}"
   testImplementation "com.squareup.okhttp3:mockwebserver:${engine.mockwebserver}"
+  // F10.6 · Il passaggio Store → app delle persone, col provider vero (PeopleBridgeTest). Solo nelle prove: lo Store
+  // collega engine-people al provider da sé, e i due moduli non dipendono l'uno dall'altro.
+  testImplementation project(':engine-people')
 }

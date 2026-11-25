@@ -59,6 +59,10 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | dire perché un lavoro aspetta | `FluidConditionPhrases().reason(motivo)`, `.waitingFor(motivi)` («Aspetto il Wi-Fi») |
 | il modello di un trasferimento per la pagina e la pillola (F8.20) | `FluidTransferItem`, `FluidTransferOverview`, `FluidTransferState`, `FluidTransferFailure`; i comandi `FluidTransferControls` (li implementa `FluidTransfers` di [transfer](transfer.md)) |
 | quante modifiche aspettano la rete | `SyncStatus.pending` (F8.20; lo riempie `FluidSync.status`) |
+| l'onda di un audio come dato: un valore ogni 20 ms, il picco fra due tempi, salvata e riletta (F8.13) | `FluidAudioEnvelope.of(livelli)`, `envelope.peak(da, a)`, `envelope.write(out)`, `FluidAudioEnvelope.read(in)`; quella che cresce mentre si registra `FluidGrowingAudioEnvelope` |
+| da un campione PCM a un'altezza che non satura | `FluidAudioLevel.fromRms(rms)`, `FluidAudioLevel.fromDb(db)`, `FluidAudioLevel.isClipping(picco)` |
+| i silenzi di un audio, o dove tagliare testa e coda | `FluidAudioSilence.ranges(envelope)`, `FluidAudioSilence.trimBounds(envelope)` |
+| le quattro qualità di registrazione e lo spazio di un'ora (F8.13b) | `FluidRecordingQuality.Voice`, `Standard` (di serie), `High`, `Lossless`; `quality.bytesPerHour`, `FluidRecordingQuality.byId(id)` |
 
 ## Versioni: `EngineBuild`, `compareVersions`, `isStableVersionNewer`, `EngineCompatibility`
 
@@ -569,6 +573,26 @@ implementation project(':engine-foundation')   // solo se non c'e' gia' un altro
 **Configurazione minima.** Nessuna: sono tipi. Per mettere in piedi **config remota e aggiornamento** il collegamento e' nei template
 `templates/EngineModule.kt.txt` (Hilt: `EngineHttp`, `EngineRemoteConfig`, `EngineAppUpdater`) e `templates/EngineBootstrap.kt.txt`
 (`Application`: refresh, compatibilita', kill switch, widget). Vedi le schede [config](config.md) e [update](update.md).
+
+## L'audio come dato (F8.13): `FluidAudioEnvelope`, `FluidAudioLevel`, `FluidAudioSilence`
+
+Il pacchetto `foundation.audio` è il contratto fra chi registra o decodifica (`engine-audio`) e chi disegna l'onda
+(`FluidAudioWaveform`, `FluidAudioTimeline` di `engine-ui`): niente Android, niente Compose.
+
+- **`FluidAudioEnvelope`**: un valore fra 0 e 1 ogni `bucketMillis` (di serie 20 ms), **già nella scala da disegnare**. Fermo
+  (`of`, `read`), il picco di un tratto lungo va su una piramide di massimi costruita alla prima domanda (un'onda di due ore
+  mostrata intera non scorre 360 000 valori a fotogramma). Che cresce (`FluidGrowingAudioEnvelope`), un solo scrittore e
+  lettori su altri thread: blocchi che non si spostano mai e `size` pubblicato per ultimo. Il formato di `write` è una firma,
+  il passo, il numero e un byte per valore.
+- **`FluidAudioLevel`**: la scala in decibel da -54 dBFS a 0, piegata sopra il ginocchio (0,72) con una tangente iperbolica:
+  una voce normale sta a metà altezza, una forte ancora sotto il soffitto, il fondo scala a ~0,93. Il soffitto vero resta un
+  segnale a parte, `isClipping` sul picco dei campioni.
+- **`FluidAudioSilence`**: la soglia segue la stanza (il decimo percentile più un margine, mai sotto -44 dBFS); i tratti muti
+  di almeno 700 ms (`ranges`); dove tagliare testa e coda tenendo 300 ms per lato (`trimBounds`).
+
+Prove: `FluidAudioEnvelopeTest` (la piramide contro una scansione, i valori tenuti fra 0 e 1, la scrittura e la rilettura,
+i blocchi che crescono con un lettore su un altro thread, la scala monotona che non tocca il soffitto, i silenzi e il taglio,
+la soglia in una stanza rumorosa).
 
 ## Il confronto dei testi: `FluidTextDiff` (F8.21, 4.0)
 

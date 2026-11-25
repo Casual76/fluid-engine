@@ -3,6 +3,11 @@ package dev.antigravity.fluidengine.sample.playground
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import java.io.File
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -72,5 +77,32 @@ internal class ShapeStore(context: Context) {
       }
       file.writeText(array.toString())
     }
+  }
+}
+
+/**
+ * F7.21 · I salvataggi delle forme. [save] si chiama dal thread principale, quello che cambia la lista: la copia si
+ * prende lì, subito, e un filo solo la scrive dopo con [write], fuori dal principale. Due salvataggi vicini non si
+ * scavalcano: se il disco è lento, si scrive l'ultima lista e quelle in mezzo si saltano.
+ *
+ * Prima la copia si prendeva dentro `launch(Dispatchers.IO)`: scorrere una lista di stato da un filo mentre il
+ * principale la cambia dà liste a metà o una `ConcurrentModificationException` (vedi `regole.md`, «Uno stato di
+ * Compose si scrive dal thread principale»), e due salvataggi su due fili potevano arrivare al disco in ordine
+ * inverso, perdendo l'ultima forma.
+ */
+internal class ShapeSaves(
+  scope: CoroutineScope,
+  private val write: (List<SavedShape>) -> Unit,
+  dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+  private val pending = Channel<List<SavedShape>>(Channel.CONFLATED)
+
+  init {
+    scope.launch(dispatcher) { for (shapes in pending) write(shapes) }
+  }
+
+  /** Salva [shapes] com'è adesso. Dal thread che la cambia. */
+  fun save(shapes: List<SavedShape>) {
+    pending.trySend(shapes.toList())
   }
 }

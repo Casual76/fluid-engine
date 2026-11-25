@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Il nome del canale della notifica di riproduzione, come lo vede l'utente nelle impostazioni delle notifiche. -->
+  <string name="fluid_playback_channel">In riproduzione</string>
+  <string name="fluid_playback_skip_back">Indietro di 15 secondi</string>
+  <string name="fluid_playback_skip_forward">Avanti di 15 secondi</string>
+</resources>

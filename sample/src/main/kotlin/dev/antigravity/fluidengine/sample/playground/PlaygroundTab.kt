@@ -70,6 +70,8 @@ internal fun PlaygroundTab(bottomInset: Dp) {
 
   val store = remember { ShapeStore(context) }
   val savedShapes = remember { mutableStateListOf<SavedShape>() }
+  // F7.21: la copia per il disco si prende qui, sul thread principale che cambia la lista.
+  val saves = remember(store, scope) { ShapeSaves(scope, store::persist) }
   LaunchedEffect(Unit) {
     val loaded = withContext(Dispatchers.IO) { store.load() }
     savedShapes.clear()
@@ -288,7 +290,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
                 rounding = form.rounding,
                 vertices = form.vertices,
               )
-              scope.launch(Dispatchers.IO) { store.persist(savedShapes.toList()) }
+              saves.save(savedShapes)
             },
             fillWidth = true,
           )
@@ -315,7 +317,7 @@ internal fun PlaygroundTab(bottomInset: Dp) {
                   listOf(
                     FluidContextAction("Elimina", FluidIcons.Delete, destructive = true) {
                       savedShapes.remove(shape)
-                      scope.launch(Dispatchers.IO) { store.persist(savedShapes.toList()) }
+                      saves.save(savedShapes)
                     },
                   )
                 },

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
   <!--
     F8.11 · La scena «Permesso nel punto giusto» chiede le foto (anche «solo alcune» da Android 14), le notifiche e la
     posizione approssimativa, come MyCloud Gallery, Pampa Mail e Fluid Transit. Solo nella build di debug: Fluid Glass
-    pubblicata non chiede niente di tutto questo. Niente CAMERA (checkArViewerManifests) e niente RECORD_AUDIO (vedi il
-    manifest principale).
+    pubblicata non chiede niente di tutto questo. Niente CAMERA (checkArViewerManifests); RECORD_AUDIO solo per il registratore di F8.13 (sotto).
   -->
   <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
   <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
@@ -17,5 +17,12 @@
     è concesso di serie, la scena porta nel punto giusto delle impostazioni. Solo nella build di debug, come le notifiche.
   -->
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+  <!--
+    F8.13 · Il registratore della scena «I memo vocali» registra col microfono vero (engine-audio). Solo nella build di
+    debug: il manifest principale toglie RECORD_AUDIO perche' Fluid Glass pubblicata non ascolta mai; qui torna, e lo si
+    chiede solo al tasto rosso.
+  -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace" />
 
 </manifest>

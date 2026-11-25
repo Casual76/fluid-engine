@@ -1227,3 +1227,65 @@ il vetro. Nel log `FluidGlassFrame` ogni richiesta è un `redrawRequest` con il 
 `grep -n "invalidateDraw()" engine-ui/…/DrawBackdropModifier.kt` trova solo `requestFrame` e i commenti. **Se la violi.** Il vetro resta col disegno di prima finché qualcos'altro non lo
 sporca: il materiale non si registra per il lettore nuovo, la cattura non si rifà col credito tornato, il
 filtro non si installa, la sfocatura cambiata non allarga la cornice.
+
+## Uno stato di Compose si scrive dal thread principale, o è un valore immutabile intero (4.0, F7.20 e F7.21)
+
+Compose 1.10.5 non isola davvero chi legge uno stato da un filo che lo sta scrivendo. Due difetti, tutti e due
+misurati con le classi vere di Compose:
+
+- **La doppia lettura** (F7.20). Quando cerca il valore da dare, `readable()` legge due volte l'id dello stesso
+  record, senza lucchetti. Se in mezzo un altro filo ricicla quel record, chi legge riceve il record che lo
+  scrittore sta ancora riempiendo. Succede anche dentro `Snapshot.takeSnapshot()`.
+- **La scrittura nello stato globale** (F7.21). Uno stato scritto da un filo in sottofondo fuori da un'istantanea
+  (`stato = x` dentro `withContext(Dispatchers.IO)`, in un callback di sistema, su un `HandlerThread`) ricicla un
+  record vecchio e gli dà l'id buono **prima** di metterci il valore nuovo. Chi legge senza istantanea in
+  quell'attimo (la misura, il disegno, un altro filo) trova il valore vecchio di quel record.
+
+Che cosa vuol dire, in pratica:
+
+- **Una lista o una mappa di stato** (`mutableStateListOf`, `mutableStateMapOf`) si legge un pezzo alla volta: la
+  struttura, `size`, ogni `get`. Cambiata da un filo mentre un altro la legge o la scorre, dà
+  `ConcurrentModificationException`, liste vuote a metà, righe di due scritture diverse, indici fuori misura. Il
+  pannello info dei CSV e di Office (F7.20) cadeva così: 20 volte su 20 giri della prova di corsa.
+- **Un valore intero** (un `Int`, un `Boolean`, un enum, una data class di soli `val`, una lista immutabile che
+  sostituisce l'altra) si legge in un colpo: non arriva mai a metà. Ma chi lo legge può vedere per un attimo un
+  valore di prima, anche molto vecchio. Un contatore che cresce, scritto da un filo e letto da altri quattro per 3
+  secondi: chi legge senza istantanea lo vede tornare indietro da 7 934 a 102 318 volte, con salti fino a 508 856
+  passi; scritto dentro `Snapshot.withMutableSnapshot` da 1 130 a 23 558 volte, salti di solito sotto i 10 ma fino
+  a 331 col computer carico. Chi legge dentro un'istantanea, come la composizione, quasi mai: 2 volte di un passo
+  in decine di milioni di letture.
+
+Quindi:
+
+1. **Il lavoro in sottofondo, la scrittura sul principale.** Si calcola su `Dispatchers.IO` o `Default` e si scrive
+   fuori dal `withContext`: `stato = withContext(Dispatchers.IO) { leggi() }` in un `LaunchedEffect` o in un
+   `produceState`, oppure `withContext(Dispatchers.Main) { stato = x }` da un lavoro lungo. Un `Flow` arriva con
+   `collectAsState`. Sul principale chi scrive e chi legge non si incontrano mai a metà.
+2. **Se deve scrivere un filo in sottofondo** (un conto che avanza, un callback di sistema, il filo delle metriche):
+   un valore immutabile intero, che prende il posto di quello di prima, scritto possibilmente dentro
+   `Snapshot.withMutableSnapshot { }` (la composizione lo sa subito, e chi legge trova valori meno vecchi). Lo si
+   legge in composizione; fuori (misura, disegno, un altro filo) solo dove un valore di prima per un fotogramma non
+   lascia traccia: niente decisioni che restano prese su una lettura sola.
+3. **Mai `clear()` più `addAll()`, `add` o `remove` su una lista di stato da un filo in sottofondo**, nemmeno
+   dentro `withMutableSnapshot`. Per righe che cambiano da un filo c'è la lista viva dei visori di F7.20
+   (FluidViewerLiveDetails, in `engine-viewer`), o uno `mutableStateOf` con una lista immutabile sostituita intera.
+4. **Mai scorrere una lista di stato da un filo in sottofondo.** La copia si prende sul principale, prima del
+   `launch(Dispatchers.IO)`. Nel Playground della galleria
+   `scope.launch(Dispatchers.IO) { store.persist(savedShapes.toList()) }` è diventato `ShapeSaves` (F7.21), che
+   copia subito e scrive in fila.
+5. **Immutabile vuol dire che nessuno la cambia dopo**: `listOf`, una data class di `val`,
+   `Collections.unmodifiableList(ArrayList(x))`. Non un `ArrayList` che si continua a riempire: un filo che lo
+   trova in corsa può vederlo a metà.
+
+Nell'engine scrivono da un filo solo valori interi letti dove il valore di prima non lascia traccia: il conto delle
+pagine di Office e il foglio dei CSV mentre si contano (letti in composizione), l'avanzamento della copia del foglio
+degli arrivi, la qualità e il moto della finestra che il vetro legge nel disegno (scritti dal filo delle metriche,
+`WindowFrames`: la stessa scrittura ridisegna il vetro al fotogramma dopo).
+
+**Come si verifica.** `DataDetailsReplaceTest` (`engine-viewer-data`, F7.20) e `F7p21ShapeSavesRaceTest`
+(`sample`): un filo che scrive, altri che leggono per qualche secondo, e ogni lettura controllata; col codice di
+prima cadono a ogni giro. Per cercare i punti: `grep -rn "withMutableSnapshot\|mutableStateListOf\|mutableStateMapOf"`
+e i blocchi `withContext(Dispatchers.IO)` o `launch(Dispatchers.…)` che assegnano uno stato o scorrono una lista di
+stato. **Se la violi.** Una prova che cade solo sotto carico con una `ConcurrentModificationException` da
+`StateListIterator`, un pannello con le righe a metà, un numero che torna indietro per un fotogramma, un salvataggio
+che perde l'ultima modifica.

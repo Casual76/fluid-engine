@@ -80,6 +80,11 @@ include ':engine-files'
 // F8.14 · Foto e allegati: il selettore di foto e video di vetro (con il contratto delle sorgenti: il telefono, MyCloud
 // Gallery in F12, un archivio futuro) e il pannello degli allegati. Opt-in.
 include ':engine-media'
+// F8.13 · Audio: la cattura del registratore (engine-audio), la riproduzione di sistema con Media3 (engine-playback) e
+// l'ascolto dal paragrafo (engine-transcript). Opt-in tutti e tre; l'onda e il pannello del registratore stanno in engine-ui.
+include ':engine-audio'
+include ':engine-playback'
+include ':engine-transcript'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

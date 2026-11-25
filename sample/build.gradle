@@ -197,6 +197,13 @@ dependencies {
   implementation project(':engine-files')
   // F8.14 · Foto e allegati: il selettore di foto e video e il pannello degli allegati, con sorgenti finte.
   implementation project(':engine-media')
+  // F8.13 · Audio: il registratore (engine-audio, col microfono vero), la riproduzione di sistema (engine-playback, con
+  // Media3 della galleria: la stessa versione dei visori) e l'ascolto dal paragrafo (engine-transcript). Il servizio di
+  // riproduzione parte solo quando si apre una scena audio: il primo fotogramma non cambia.
+  implementation project(':engine-audio')
+  implementation project(':engine-playback')
+  implementation project(':engine-transcript')
+  implementation "androidx.media3:media3-session:${viewerMedia3}"
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

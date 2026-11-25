@@ -244,7 +244,9 @@ FluidSearchSpec.message(text, { text = it }, onSend = invia, composer = FluidCom
   corso, perché sul Tab S9 un `Window.setSoftInputMode` chiamato mentre Compose compone il primo fotogramma restava nella
   `Window` (`dumpsys window` dava ancora `adjust=pan`). Un'app che dichiara `adjustResize` o `adjustNothing` non cambia;
   due schermate col campo non si rubano il modo, e un modo cambiato da altri nel frattempo (il visore di testo durante
-  «trova») non si tocca all'uscita.
+  «trova») non si tocca all'uscita. **Un campo fuori dalla barra** che sale con la tastiera da solo (`imePadding()`, come la
+  ricerca in fondo al selettore di foto di `engine-media`) chiama `FluidFieldKeepsWindow()` mentre c'è (pubblica dalla
+  F8.14): senza, in `adjustPan` la finestra si sposta **e** il campo aggiunge la tastiera, e il campo sale il doppio.
 - **La fila dei gettoni suggeriti ha il suo posto** (F6B.15): sul tablet, col campo in alto, la lista lascia libera la fila
   sotto il campo (prima copriva l'intestazione «Tutta la posta»); in basso le lascia il posto sopra il campo. La fila entra
   ed esce col campo, sfocata (R7), sulla curva del campo che si apre: non compare più in un fotogramma.

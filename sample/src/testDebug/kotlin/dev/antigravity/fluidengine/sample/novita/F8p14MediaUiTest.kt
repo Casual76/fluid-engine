@@ -381,6 +381,9 @@ class F8p14MediaUiTest {
     picker(phone, cloud)
     tapTag(FluidMediaPickerTags.SearchButton)
     advance(600)
+    // Il campo sale con la tastiera da solo: la finestra non si sposta anche lei (niente adjustPan, visto sul Tab S9).
+    val adjust = compose.activity.window.attributes.softInputMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST
+    assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING, adjust)
     compose.onNode(hasSetTextAction()).performTextInput("mare d'estate")
     advance(1200)
     // Cerca prima nella sorgente che sa cercare per significato, e dice cosa ha capito.

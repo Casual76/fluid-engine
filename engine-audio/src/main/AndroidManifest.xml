@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- F8.13: il registratore ascolta solo quando l'utente tocca il tasto rosso. Il permesso lo chiede l'app nel punto
+       giusto (FluidPermission di engine-ui), mai all'avvio. -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+</manifest>

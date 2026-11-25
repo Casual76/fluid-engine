@@ -60,6 +60,7 @@ Il tema che queste righe modificano e' descritto in [tema.md](tema.md); il modul
 | un aggiornamento con un updater che **non** e' `EngineAppUpdater` | implementare `AppUpdater` (foundation) e passarlo al controllore; il disegno e' lo stesso |
 | i conti dell'aggiornamento (peso, percentuale, note senza Markdown, «controllato N min fa») | `FluidUpdate.sizeLabel` / `percent` / `plainNotes` / `notesSummary` / `lastCheckLabel` / `progressText` |
 | un'app in inglese | `FluidLabels.english()` alla radice, `FluidUpdateStrings.english()`, e `FluidAppearanceStrings(...)` scritto a mano |
+| la qualità di registrazione scelta dall'utente (voce per l'IA, standard, alta, senza perdita, con lo spazio di un'ora) | `FluidRecordingQualityRow(selected, onSelected)` in un `FluidListGroup(glass = true)` ([controlli-gesto](controlli-gesto.md), «L'audio») |
 | i crediti nella pagina «Informazioni» | `fluidLicensesSection()` (obbligatorio dalla 3.0) |
 | i crediti in una pagina fatta di `Column` | `FluidLicenseGroup()` o `FluidLicenseDetails()` |
 | controllare le versioni dell'engine fuori dall'interfaccia | non qui: `engine-update` (`../moduli/update.md`) |

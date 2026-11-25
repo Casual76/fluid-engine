@@ -109,6 +109,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Warning
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPermission
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidPreviewGridState
+import dev.antigravity.fluidengine.ui.fluid.toolbar.FluidFieldKeepsWindow
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileViewer
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerThumbnail
@@ -854,6 +855,9 @@ private fun PickerSearch(env: PickerEnv) {
   var headerPx by remember { mutableIntStateOf(0) }
   val headerDp = with(LocalDensity.current) { headerPx.toDp() }
   val listing = source.access.allowsListing()
+  // Il campo sale con la tastiera da solo (imePadding): la finestra non deve spostarsi anche lei (adjustPan), o il campo
+  // sale il doppio e copre la testata (visto sul Tab S9).
+  FluidFieldKeepsWindow()
   Box(Modifier.fillMaxSize()) {
     if (!listing) {
       PickerAccessMessage(env, source, Modifier.align(Alignment.Center).padding(top = headerDp))

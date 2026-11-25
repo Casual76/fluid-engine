@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- F8.13: il servizio di riproduzione, in primo piano di tipo mediaPlayback mentre suona (Android 14 vuole il tipo e il
+       suo permesso). Il blocco della CPU tiene viva la riproduzione a schermo spento. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+  <application>
+    <!-- Esportato perche' lo trovino il sistema (notifica, schermata di blocco, ripresa), l'orologio e l'auto: e' la
+         sessione di Media3, che decide chi si collega. -->
+    <service
+      android:name="dev.antigravity.fluidengine.playback.FluidPlaybackService"
+      android:exported="true"
+      android:foregroundServiceType="mediaPlayback">
+      <intent-filter>
+        <action android:name="androidx.media3.session.MediaSessionService" />
+        <action android:name="android.media.browse.MediaBrowserService" />
+      </intent-filter>
+    </service>
+    <!-- I tasti delle cuffie e della ripresa di sistema con l'app chiusa: Media3 riapre il servizio, che riprende la coda
+         ricordata. -->
+    <receiver
+      android:name="androidx.media3.session.MediaButtonReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

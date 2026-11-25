@@ -1,0 +1,53 @@
+// F8.13 · Audio: la cattura del registratore (idea `registratore-vocale`). Opt-in e senza interfaccia Compose: il tasto
+// rosso, il pannello della registrazione e l'onda stanno in engine-ui (`FluidVoiceRecorder`, `FluidAudioTimeline`,
+// `FluidAudioWaveform`), e i due moduli si parlano con l'inviluppo puro di engine-foundation (`foundation.audio`).
+//
+//   implementation project(':engine-audio')
+//
+// Dentro: il microfono con le interruzioni (una chiamata, un'altra app che suona o registra), la registrazione con pausa e
+// ripresa in un file solo, AAC in M4A (MediaCodec e MediaMuxer di Android) o WAV, l'onda viva mentre registra, il livello
+// che non satura e quello che taglia, il taglio dei silenzi in testa e in coda, l'onda letta da un file (WAV subito,
+// gli altri decodificati) e salvata accanto alla registrazione.
+//
+// Librerie: nessuna. Il permesso RECORD_AUDIO e' dichiarato qui (lo chiede l'app, al tasto: `FluidPermission`); il
+// servizio in primo piano per registrare a schermo spento resta dell'app, come dove salvare.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.audio'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Il registratore si prova con un microfono finto e il WAV; i tipi di Android delle firme (Context) con Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano l'inviluppo di engine-foundation.
+  api project(':engine-foundation')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+}

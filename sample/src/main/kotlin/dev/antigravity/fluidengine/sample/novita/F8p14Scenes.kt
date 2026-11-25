@@ -313,7 +313,8 @@ private fun F8p14Tray(picked: List<FluidPickedMedia>, sources: F8p14Sources, onR
 // --- I regimi dell'accesso -------------------------------------------------------------------------------------------
 
 private enum class F8p14Regime(val label: String) {
-  Full("Tutte"), Limited("Solo alcune"), Denied("Nessun permesso"), Locked("Bloccata"), Unreachable("NAS spento")
+  // Etichette corte: nel formato telefono cinque segmenti stanno in ~78 dp l'uno (sul tablet «Solo alcune» si tagliava).
+  Full("Tutte"), Limited("Alcune"), Denied("Negate"), Locked("Bloccata"), Unreachable("Senza NAS")
 }
 
 @Composable
@@ -552,7 +553,7 @@ internal val F8p14TryItems: List<TryItem> = listOf(
   ),
   TryItem(
     "f8-14-accesso", TryArea.ContentData, "Solo alcune foto",
-    "Apri «Accesso alle foto», prova «Solo alcune», «Bloccata» e «NAS spento»: giudica se la fascia, lo sblocco e " +
+    "Apri «Accesso alle foto», prova «Alcune», «Bloccata» e «Senza NAS»: giudica se la fascia, lo sblocco e " +
       "l'avviso dicono la cosa giusta con parole semplici.",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Accesso alle foto"),
   ),

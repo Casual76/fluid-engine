@@ -84,6 +84,9 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-people` | le persone dell'account: la crittografia di Codex (PMX1, CDXB, CDXM, schede, quattro parole con l'impegno), la persona in radice e chiavi di lavoro, la casella con la coda in uscita, gli spazi condivisi sopra `engine-sync`, la vicinanza con la runa (**opt-in**, Pampa Store e Pampa Mail) | `moduli/persone.md` |
 | `engine-push-fcm` | il campanello di Pampa Store con Firebase Messaging, spento (FCM e Analytics) fino all'accesso (**opt-in**, solo lo Store) | `moduli/push-fcm.md` |
 | `engine-media` | foto e allegati: il selettore di foto e video di vetro (scelta in ordine, album, ricerca anche per significato, anteprima dalla miniatura, «solo alcune foto»), il contratto delle sorgenti fra app (MyCloud Gallery in F12), il Photo Picker di Android dove basta, il pannello degli allegati del «+» (**opt-in**, dalla 4.0) | `moduli/media.md` |
+| `engine-audio` | la cattura del registratore: il microfono con le interruzioni, pausa e ripresa in un file solo (AAC o WAV), l'onda dal vivo, il suono che taglia, il taglio dei silenzi, l'onda di un file (**opt-in**, dalla 4.0) | `moduli/audio.md` |
+| `engine-playback` | la riproduzione di sistema con Media3 dell'app: notifica e schermata di blocco con ±15 s, cuffie e chiamate, velocità, salta i silenzi, timer, coda ricordata, lo stato per Compose (**opt-in**, dalla 4.0) | `moduli/playback.md` |
+| `engine-transcript` | l'ascolto dal paragrafo: i tempi per paragrafo, frase e parola, il salto alla parola toccata, la pagina che segue la voce senza saltare (**opt-in**, dalla 4.0) | `moduli/transcript.md` |
 | `engine-transfer` | il centro trasferimenti: coda persistita di scaricamenti e caricamenti lunghi, pausa e ripresa con `Range`, solo Wi-Fi e in carica, WorkManager col servizio `dataSync` (**opt-in**, dalla 4.0) | `moduli/transfer.md` |
 | `engine-files` | lo sfoglia-file di vetro come File di iOS: Sfoglia con le posizioni (la cartella dell'app, le cartelle concesse e le app con un `DocumentsProvider`) e Recenti, griglia con le miniature vere o elenco, ordine, ricerca, selezione e scelta, apertura nei visori dalla miniatura (**opt-in**, dalla 4.0) | `moduli/files.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
@@ -121,6 +124,9 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |
 | tasti, segmentato, chip, campo di testo, campo a gettoni (destinatari, etichette), avatar come azione della barra | `componenti/controlli.md` |
 | interruttore, cursore, scrubber, cursore a due maniglie, ruota di iOS (anche durata e ora), ghiera a righello (i controlli a gesto) | `componenti/controlli-gesto.md` |
+| l'onda di un audio da scorrere col dito (il messaggio audio, Memo Vocali col pizzico), il registratore col tasto rosso | `componenti/controlli-gesto.md`, «L'audio»; la cattura `moduli/audio.md` (opt-in) |
+| un audio che continua fuori dall'app (notifica, schermata di blocco, cuffie, timer, salta i silenzi) | `moduli/playback.md` (opt-in) |
+| una trascrizione che si tocca per ascoltare, per parola e per paragrafo, che segue la voce | `moduli/transcript.md` (opt-in) |
 | un numero con l'unità (importi, misure), il codice a caselle, la password con le regole, un valore riservato, la copia che si cancella, il tasto incolla per i dati concordati | `componenti/campi-speciali.md` |
 | scegliere un colore (il pozzetto, il foglio con griglia, spettro e cursori, il contagocce, la fila corta di campioni), o tingere la pagina coi colori di una copertina come Apple Music | `componenti/colore.md` |
 | un calendario nella pagina coi segni sotto i giorni, giorni sparsi o un intervallo, la striscia della settimana; la data o la durata in una riga che apre un popover; il pannello «Ripeti» e la regola di una ricorrenza | `componenti/date.md` |
@@ -180,6 +186,11 @@ window.isNavigationBarContrastEnforced = false`: altrimenti, con la navigazione 
 a ogni foglio), e **le pagine delle schede di una tab bar restano vive o precomposte** (se ogni cambio di scheda
 compone la pagina da zero, la pillola si ferma a metà viaggio). Per vedere le strade del vetro una accanto all'altra:
 la pagina «Parità» della galleria (`--es gallery.page parity`).
+
+Una regola per il codice, dell'engine e delle app (F7.21): **uno stato di Compose si scrive dal thread principale, o è
+un valore immutabile intero**. Una lista o una mappa di stato cambiata da un filo in sottofondo mentre un altro la legge
+dà `ConcurrentModificationException` e liste a metà, anche dentro un'istantanea (Compose 1.10.5); il lavoro va su
+`Dispatchers.IO`, la scrittura fuori dal `withContext`. Il perché e i numeri sono in `references/regole.md`.
 
 ## Compiti frequenti
 

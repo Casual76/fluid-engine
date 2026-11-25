@@ -913,9 +913,15 @@ internal object FluidFieldWindowLease {
  * La finestra che non si sposta mentre la schermata ha un campo nella barra (F6B.15): vedi [fluidFieldSoftInputMode] e
  * [FluidFieldWindowLease]. Un'app che dichiara già `adjustResize` (o `adjustNothing`) non cambia; una che mette
  * `imePadding()` attorno alla schermata resta sopra la tastiera come prima, e la tastiera non si conta due volte (F6B.13).
+ *
+ * Pubblica dalla F8.14: la chiama anche un campo che sta **fuori dalla barra** e sale con la tastiera da solo
+ * (`imePadding()`), come la ricerca in fondo al selettore di foto di `engine-media`. Senza, in una finestra `adjustPan` (il
+ * modo di serie di un'Activity Compose) Android sposta in su la finestra **e** il campo aggiunge la tastiera: il campo sale
+ * il doppio e copre la testata (visto sul Tab S9 il 25 novembre 2026). Si compone mentre il campo c'e'; piu' campi insieme
+ * tengono la finestra una volta sola, e l'ultimo che esce rimette il modo di prima.
  */
 @Composable
-internal fun FluidFieldKeepsWindow() {
+fun FluidFieldKeepsWindow() {
   // La finestra dalla vista di Compose, non da `LocalActivity`: chi sostituisce `LocalContext` (la galleria, per la densità
   // e il testo della matrice) la nasconderebbe, e il modo non cambierebbe (sul Tab S9 restava `adjust=pan`).
   val view = LocalView.current

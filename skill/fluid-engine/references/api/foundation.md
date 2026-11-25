@@ -355,6 +355,66 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class SyncState` — What the last attempt to refresh the app's data did.
 - `data class SyncStatus(val state: SyncState = SyncState.IDLE, val lastSuccessfulSyncEpochMillis: Long? = null, val message: String? = null, val failedSections: List<String> = emptyList(), val notice: String? = null, val pending: Int = 0)` — The result of the app's last refresh, in the shape the design system's status components read.
 
+## `engine-foundation/foundation/audio/FluidAudioEnvelope.kt`
+
+- `abstract class FluidAudioEnvelope internal constructor(val bucketMillis: Int)` — L'**inviluppo** di un audio (F8.13): quanto è forte, un valore ogni [bucketMillis] millisecondi, da 0 (silenzio) a 1. È quello che disegnano l'onda da scorrere (`FluidAudioWaveform`) e l'onda della registrazione (`FluidAudioTimeline`) di `engine-ui`, e quello che scrive il registratore di `engine-audio` mentre registra.
+  - `abstract val size: Int` — Quanti valori ci sono adesso. Per un inviluppo che cresce, è l'ultima cosa pubblicata dallo scrittore.
+  - `abstract operator fun get(index: Int): Float` — Il valore [index], fra 0 e 1. Fuori da `0 until size` è 0.
+  - `val durationMillis: Long get()` — Quanto dura l'audio descritto: [size] valori di [bucketMillis] ms.
+  - `open fun peak(fromMillis: Long, toMillis: Long): Float` — Il picco fra [fromMillis] (compreso) e [toMillis] (escluso): il massimo dei valori che toccano l'intervallo. Fuori dall'audio è 0. È la domanda di una barra dell'onda, che copre di solito più valori.
+  - `fun toFloatArray(): FloatArray` — Una copia dei valori di adesso.
+  - `fun write(output: OutputStream)` — Scrive l'inviluppo in [output], nel formato che [read] rilegge: quattro byte di firma, il passo, il numero dei valori e un byte per valore (256 livelli: più di quanti pixel abbia una barra). Due ore di registrazione sono 360 KB: il registratore lo salva accanto al file, e l'onda si mostra subito senza decodificare l'audio.
+  - `companion object`
+    - `const val DefaultBucketMillis: Int` — Il passo di serie: 20 ms. Vedi l'intestazione.
+    - `val Empty: FluidAudioEnvelope` — L'inviluppo vuoto.
+    - `fun of(levels: FloatArray, bucketMillis: Int = DefaultBucketMillis): FluidAudioEnvelope` — Un inviluppo fermo con i [levels] dati, già fra 0 e 1 (quelli fuori si tengono dentro, un NaN è 0). L'array si copia: l'app può riusare il suo.
+    - `fun read(input: InputStream): FluidAudioEnvelope` — Rilegge un inviluppo scritto con [write]. Un file d'altro tipo o troncato è un'[IOException].
+- `class FluidGrowingAudioEnvelope(bucketMillis: Int = FluidAudioEnvelope.DefaultBucketMillis) : FluidAudioEnvelope(bucketMillis)` — L'inviluppo che cresce mentre si registra: [append] dal thread della cattura, [get], [size] e [peak] da qualunque thread. I valori stanno in blocchi da [ChunkSize] che non si spostano mai (niente array che si rialloca sotto un lettore), e un secondo livello tiene il massimo di ogni [CoarseSpan] valori, così il picco di un tratto lungo non scorre tutto.
+  - `fun append(level: Float)` — Aggiunge un valore, tenuto fra 0 e 1 (un NaN è 0). Un solo scrittore alla volta.
+  - `fun clear()` — Riparte da zero (una registrazione scartata). I blocchi restano allocati per la prossima.
+  - `fun snapshot(): FluidAudioEnvelope` — Una copia ferma di adesso, per salvarla o per mostrarla quando la registrazione è finita.
+  - `companion object`
+    - `const val ChunkSize: Int` — Valori per blocco: 4096, cioè 82 secondi a 20 ms.
+    - `const val CoarseSpan: Int` — Quanti valori riassume un massimo del secondo livello.
+    - `const val MaxChunks: Int` — Il tetto dei blocchi: 2048, cioè più di 46 ore a 20 ms.
+
+## `engine-foundation/foundation/audio/FluidAudioLevel.kt`
+
+- `object FluidAudioLevel` — La scala del livello audio (F8.13): da un campione PCM a un'altezza da disegnare fra 0 e 1, **che non satura**.
+  - `const val FloorDb: Float` — Il pavimento: sotto -54 dBFS di RMS il valore è 0 (respiro, ventole, il fruscio del microfono).
+  - `const val Knee: Float` — Il ginocchio: fino qui il valore segue i decibel, sopra si piega senza toccare il soffitto.
+  - `const val ClipPeak: Float` — Un picco da qui in su (in frazione del fondo scala) è un campione tagliato: [isClipping].
+  - `fun fromRms(rms: Float): Float` — L'altezza per un RMS [rms] in frazione del fondo scala (0..1). Monotona: un suono più forte non è mai più basso.
+  - `fun fromDb(db: Float): Float` — L'altezza per un livello in dBFS (0 o meno).
+  - `fun rms(samples: ShortArray, from: Int = 0, to: Int = samples.size): Float` — L'RMS dei campioni PCM 16 bit `samples[from until to]`, in frazione del fondo scala. Niente allocazioni.
+  - `fun peak(samples: ShortArray, from: Int = 0, to: Int = samples.size): Float` — Il picco dei campioni `samples[from until to]`, in frazione del fondo scala.
+  - `fun isClipping(peak: Float): Boolean` — Vero se un picco [peak] (da [peak]) è un campione tagliato.
+
+## `engine-foundation/foundation/audio/FluidAudioSilence.kt`
+
+- `object FluidAudioSilence` — I silenzi di un audio, dal suo inviluppo (F8.13): il **taglio dei silenzi** del registratore (quanto tenere in testa e in coda) e i tratti muti che l'onda disegna come puntini, come Memo Vocali.
+  - `val MinThreshold: Float` — La soglia più bassa: -44 dBFS nella scala di [FluidAudioLevel].
+  - `const val AboveFloor: Float` — Quanto sopra il rumore di fondo deve stare un valore per non essere silenzio.
+  - `const val MinSilenceMillis: Long` — Un tratto muto più corto di così non è un silenzio: è la pausa fra due parole.
+  - `const val KeepMillis: Long` — Quanto si tiene prima della prima parola e dopo l'ultima quando si taglia: una frase non deve partire mozzata.
+  - `fun threshold(envelope: FluidAudioEnvelope): Float` — La soglia per [envelope]: vedi l'intestazione. Un inviluppo vuoto ha [MinThreshold].
+  - `fun ranges(envelope: FluidAudioEnvelope, threshold: Float = threshold(envelope), minMillis: Long = MinSilenceMillis): List<LongRange>` — I tratti muti lunghi almeno [minMillis], in millisecondi, in ordine. Un audio tutto muto è un tratto solo.
+  - `fun trimBounds(envelope: FluidAudioEnvelope, threshold: Float = threshold(envelope), keepMillis: Long = KeepMillis): LongRange?` — Dove tagliare la testa e la coda mute: dall'inizio della prima parte sonora meno [keepMillis] alla fine dell'ultima più [keepMillis], dentro l'audio. Null se l'audio è tutto muto (non c'è niente da tenere).
+
+## `engine-foundation/foundation/audio/FluidRecordingQuality.kt`
+
+- `class FluidRecordingQuality private constructor(val id: String, val bitRate: Int, val sampleRate: Int)` — La **qualità di una registrazione** (F8.13b): quattro preimpostazioni chiare, che il registratore di `engine-audio` usa (`FluidRecorderConfig.with(quality)`) e che la riga delle impostazioni di `engine-ui` (`FluidRecordingQualityRow`) mostra all'utente con lo spazio che occupa un'ora.
+  - `val lossless: Boolean get()` — Vero per la registrazione senza perdita (WAV PCM 16 bit).
+  - `val bytesPerHour: Long` — Quanti byte occupa un'ora: l'AAC col suo contenitore MP4 (circa l'1% in più dei soli dati, misurato sui file del codificatore di Android), il WAV coi suoi campioni a 16 bit.
+  - `companion object`
+    - `val Voice: FluidRecordingQuality` — **Voce per l'IA**: AAC a 64 kbit/s, 48 kHz mono. I riconoscitori lavorano sul parlato a 16 kHz, e 64 kbit/s di AAC a 48 kHz tengono tutta la banda della voce con margine (a occhio, 25 novembre 2026; è la qualità che Alessio ha indicato per l'IA). Un'ora: circa 29 MB.
+    - `val Standard: FluidRecordingQuality` — **Standard**, di serie: AAC a 96 kbit/s, 48 kHz mono, la via di mezzo scelta da Alessio. Un'ora: circa 44 MB.
+    - `val High: FluidRecordingQuality` — **Alta**: AAC a 128 kbit/s, 48 kHz mono, cioè quanto un canale di iTunes Plus (AAC a 256 kbit/s stereo, la qualità della musica di Apple): fiducia media come soglia oltre la quale l'AAC mono non si distingue dall'originale. Un'ora: circa 58 MB.
+    - `val Lossless: FluidRecordingQuality` — **Senza perdita**: WAV PCM a 16 bit, 48 kHz mono, come la qualità «Senza perdita» di Memo Vocali (che usa ALAC; Android non ha un codificatore ALAC, e il WAV si legge ovunque). Un'ora: circa 346 MB.
+    - `val All: List<FluidRecordingQuality>` — Le quattro, dalla più leggera alla più pesante: l'ordine in cui la riga le propone.
+    - `fun byId(id: String?): FluidRecordingQuality?` — La preimpostazione con [id], o null (un valore salvato da una versione che ne aveva un'altra).
+    - `fun of(lossless: Boolean, bitRate: Int, sampleRate: Int): FluidRecordingQuality?` — La preimpostazione con questo formato, o null se non è una delle quattro.
+
 ## `engine-foundation/foundation/live/FluidLiveUpdate.kt`
 
 - `class FluidLiveKind private constructor(val name: String, val promotable: Boolean)` — Il genere di un'attività viva: decide l'icona di serie, la categoria della notifica e se può diventare un Live Update.

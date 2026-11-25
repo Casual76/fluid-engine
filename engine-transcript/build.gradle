@@ -1,0 +1,54 @@
+// F8.13 · L'ascolto dal paragrafo (idea `ascolto-dal-paragrafo`): una registrazione lunga si legge per paragrafi, e il
+// testo si tocca per ascoltarlo. Opt-in, sopra engine-ui (`FluidSpokenText`), senza librerie.
+//
+//   implementation project(':engine-transcript')
+//
+// Dentro: il contratto dei tempi (paragrafi, frasi e parole con il loro inizio e la loro fine) e del salto (un tocco su una
+// parola salta a quella parola, uno sull'ora del paragrafo al suo inizio), la costruzione dei paragrafi dai segmenti di un
+// riconoscitore, e la vista: i paragrafi caricati a vista, la parola che si sente accesa nel testo, la pagina che segue la
+// voce senza saltare e smette appena l'utente scorre da solo, il tasto «Torna alla voce».
+//
+// L'app da' il testo, i tempi e il lettore (di serie `engine-playback`), e decide dove conservare la trascrizione.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.transcript'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Il modello e il salto sono logica pura; i tipi di Compose nelle firme non toccano Android.
+      returnDefaultValues = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano `FluidSpokenWord` di engine-ui.
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+}

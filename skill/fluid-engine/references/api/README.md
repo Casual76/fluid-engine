@@ -7,12 +7,12 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 20 | 291 |
+| [Barre di navigazione e di azione](barre.md) | 21 | 292 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 54 | 474 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
-| [Controlli](controlli.md) | 26 | 290 |
+| [Controlli](controlli.md) | 28 | 341 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
@@ -24,7 +24,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 23 | 351 |
+| [engine-foundation](foundation.md) | 27 | 385 |
 | [engine-storage](storage.md) | 4 | 30 |
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
@@ -50,6 +50,9 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-push-fcm](push-fcm.md) | 1 | 11 |
 | [engine-transfer](transfer.md) | 5 | 59 |
 | [engine-files](files.md) | 6 | 81 |
+| [engine-audio](audio.md) | 4 | 43 |
+| [engine-playback](playback.md) | 3 | 42 |
+| [engine-transcript](transcript.md) | 2 | 27 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

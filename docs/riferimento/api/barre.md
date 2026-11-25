@@ -403,6 +403,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class FluidToolbarSpacing` — Il fisso separa due vetri, il flessibile distribuisce i comandi agli estremi (R1 B2).
 - `enum class FluidButtonRole` — Il ruolo mantiene riconoscibili conferma, uscita e azioni distruttive senza imporre icone all'app.
 
+## `engine-ui/ui/fluid/toolbar/FluidToolbarSearch.kt`
+
+- `@Composable fun FluidFieldKeepsWindow()` — La finestra che non si sposta mentre la schermata ha un campo nella barra (F6B.15): vedi [fluidFieldSoftInputMode] e [FluidFieldWindowLease]. Un'app che dichiara già `adjustResize` (o `adjustNothing`) non cambia; una che mette `imePadding()` attorno alla schermata resta sopra la tastiera come prima, e la tastiera non si conta due volte (F6B.13).
+
 ## `engine-ui/ui/fluid/toolbar/FluidToolbarTitleSelector.kt`
 
 - `class FluidTitlePanelScope internal constructor(column: ColumnScope, private val close: () -> Unit) : ColumnScope by column` — Lo scope del pannello che nasce dal titolo (F6B.11, `title(…, panel = { … })`): la colonna del pannello e la sua chiusura. Chiudendolo, il pannello rientra nel titolo da cui è nato. Sotto i 600 dp il pannello è un foglio dal titolo.

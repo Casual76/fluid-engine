@@ -20,6 +20,9 @@ Le righe con titolo e valore sono in [contenuto.md](contenuto.md). Le firme comp
 | Un cursore con titolo e valore in parole | `FluidSliderRow` ([contenuto.md](contenuto.md)) |
 | Dove andare in un brano / registrazione / cronologia | `FluidScrubber` (la posizione è di un lettore che avanza da solo) |
 | Una cronologia a passi con un «adesso» | `FluidScrubber(step = 1f, marks = …)` |
+| Un audio da scorrere col dito, con l'onda (il messaggio audio di Messaggi) | `FluidAudioWaveform` (F8.13) |
+| L'onda che scorre sotto la testina, col pizzico per lo zoom (Memo Vocali) | `FluidAudioTimeline` (F8.13) |
+| Il registratore di Memo Vocali (il tasto rosso che diventa il pannello) | `FluidVoiceRecorder`, con `FluidAudioRecorder` di [engine-audio](../moduli/audio.md) |
 | Un avanzamento che non si tocca | `FluidProgressBar` |
 | Un minimo e un massimo (un filtro per durata, per peso) | `FluidRangeSlider` |
 | Una voce fra tante, che gira col dito (la ruota di iOS) | `FluidWheelPicker` (una o più colonne) |
@@ -654,6 +657,71 @@ FluidRulerDial(
 
 ---
 
+## L'audio: l'onda e il registratore (F8.13)
+
+Tre pezzi di `engine-ui` vicini a Memo Vocali e a Messaggi di iOS 26, misurati sulla guida dell'iPhone (1,13 px per punto,
+immagini ufficiali in `artifacts/liquid-glass/sessioni/f8-13/riferimenti/`). Disegnano l'**inviluppo** puro di
+`engine-foundation` (`FluidAudioEnvelope`: un valore ogni 20 ms, già nella scala che non satura di `FluidAudioLevel`); la
+cattura è di [engine-audio](../moduli/audio.md), la riproduzione di [engine-playback](../moduli/playback.md). Tutti e tre li
+muove il dito, quindi sono **nitidi** (regola di Alessio del 24 novembre: niente sfocatura nel trascinamento, nel lancio, né
+quando l'onda scorre da sola durante l'ascolto).
+
+**`FluidAudioWaveform`, l'onda della riga** (il messaggio audio di Messaggi). Barre tonde ogni 4 dp (il passo misurato), larghe
+2 dp; quelle già ascoltate nell'accento, le altre velate; un silenzio è un puntino. Il dito fa come lo scrubber, in tre tempi:
+prendere l'onda non la sposta, il dito la sposta **di quanto si muove** (relativo, come «scorri a destra e a sinistra sul
+messaggio»), al rilascio **un** `onSeek`, e il punto lasciato resta finché il lettore non l'ha raggiunto
+(`FluidMotion.ScrubberHoldMillis`); un tocco salta dove si tocca. Aptica: solo le estremità (`Threshold`), come lo scrubber
+continuo. Le altezze si calcolano quando cambia la larghezza o l'inviluppo, in un array riusato.
+
+**`FluidAudioTimeline`, l'onda che scorre** (la registrazione e il taglio di Memo Vocali). La testina sta **ferma al centro**
+(1 dp, un pallino da 7 dp sopra e sotto la fascia), l'onda scorre sotto di lei a **100 dp al secondo** (il righello di Memo
+Vocali: 113 px fra due secondi), una barra da 1 dp ogni 4 dp; sotto, il **righello** con le scritte dei tempi (ogni 1, 2, 5,
+10… secondi secondo lo zoom) e le tacche ai quarti, misurate una volta per scritta. Il dito **trascina l'onda 1:1** e la
+**lancia** (un decadimento della velocità del dito; con le animazioni ridotte niente lancio); al rilascio o a fine lancio un
+`onSeek`. Il **pizzico** cambia lo zoom attorno alla testina (`FluidAudioTimelineState.dpPerSecond`), fra l'audio intero nella
+larghezza e 400 dp al secondo; TalkBack ha anche «Ingrandisci» e «Riduci». **Mentre si registra** (`recording = true`) la
+testina è rossa (`systemRed`), a destra c'è la linea a puntini di ciò che deve venire, l'onda non si tocca, e con
+`advancing = true` si ridisegna a ogni fotogramma (la posizione è un orologio, non uno stato).
+
+**`FluidVoiceRecorder`, il registratore.** A riposo il **tasto rosso** (`FluidRecordButton`: un disco di vetro tinto di
+`systemRed` da 52 dp, misurato sull'elenco di Memo Vocali); registrando, il suo vetro **diventa il pannello**
+(`FluidRecorderPanel`, nel piano flottante: un vetro solo con la stessa identità che cambia forma con Fluid-physics, e ci
+torna alla fine). Nel pannello: «Fine» in alto a destra, il titolo con l'ora, l'onda che scorre (rossa mentre registra), il
+**tempo grande** «00:07.00» (`FluidRecorderClock`: 34 sp in grassetto a cifre tabulari, ridisegnato dalle cifre misurate una
+volta, senza ricomporre né allocare; per TalkBack la durata ai secondi), i tasti dell'ascolto (meno e più 15 secondi e Play,
+grigi mentre registra, come Memo Vocali) e la **capsula della pausa** (147 × 58 dp, due barre rosse; in pausa «Riprendi» in
+rosso). In pausa, con un lettore di quel che si è registrato (`playback`), l'onda si scorre e si riascolta prima di
+riprendere. Una riga dice quando il suono **taglia** (`clipping`) e quando la pausa l'ha decisa il telefono (`interrupted`).
+Lo stato è dell'app: `FluidRecorderPhase` (`Idle`, `Recording`, `Paused`).
+
+**`FluidRecordingQualityRow`, la qualità per l'utente** (F8.13b). La riga delle impostazioni «Qualità di registrazione»,
+da mettere in un `FluidListGroup(glass = true)`: la qualità di adesso a destra, e al tocco la riga diventa il pop-up di
+vetro di `FluidPickerRow` con le preimpostazioni di `FluidRecordingQuality` (voce per l'IA, standard, alta, senza
+perdita), ognuna col formato e con lo spazio di un'ora («AAC 96 kbit/s · circa 43,6 MB all'ora», con `FluidFormat.bytes`).
+I testi sono in `FluidRecordingQualityStrings`. La qualità scelta va a `FluidAudioRecorder.start(file, quality)` di
+[engine-audio](../moduli/audio.md).
+
+```kotlin
+val recorder = remember { FluidAudioRecorder(context) }                       // engine-audio
+val status by recorder.status.collectAsState()
+FluidVoiceRecorder(
+  phase = when (status) { is FluidRecorderStatus.Recording -> FluidRecorderPhase.Recording
+                          is FluidRecorderStatus.Paused -> FluidRecorderPhase.Paused
+                          else -> FluidRecorderPhase.Idle },
+  onRecord = { microfono.request { recorder.start(File(cartella, "memo.m4a")) } },
+  onPause = recorder::pause, onResume = { recorder.resume() },
+  onDone = { scope.launch { recorder.stop()?.let(::salva) } },
+  envelope = recorder.envelope, elapsedMillis = recorder::elapsedMillis,
+  backdrop = pageGlass,                                                       // nell'overlay di FluidScreen
+)
+```
+
+**In galleria**: «Elementi nuovi» › F8.13 (`--es novita.scene memo-vocali`, `onda-audio`, `riproduzione-sistema`,
+`ascolto-paragrafo`). **Le prove**: `F8p13AudioUiTest` (`sample`, Robolectric, il dito vero): l'onda della riga relativa con un
+solo salto e il tocco; TalkBack (lo stato a voce, le due azioni, `setProgress`); l'onda che scorre col dito, il lancio che va
+oltre il dito, il pizzico, niente lancio con le animazioni ridotte, niente tocco mentre registra; il pannello nelle sue fasi;
+il registratore vero di engine-audio dietro il pannello, con un microfono finto.
+
 ## Licenze dei port
 
 | pezzo | origine | licenza |
@@ -765,6 +833,8 @@ Radice: `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`.
 | `FluidWheelPresets.kt` | `FluidDurationWheel`, `FluidDurationUnits`, `FluidTimeWheel` e i loro conti |
 | `FluidRulerDial.kt` | `FluidRulerDial`; l'aspetto, la scala, lo stato vivo |
 | `FluidDetentInertia.kt` | l'inerzia a scatti di UIKit condivisa da ruota e ghiera |
+| `FluidAudioWaveform.kt` | `FluidAudioWaveform`, `FluidAudioTimeline`, `FluidAudioTimelineState`, `FluidAudioWaveformDefaults`, `FluidAudioTimelineDefaults`; il dito in tre tempi dell'onda |
+| `FluidVoiceRecorder.kt` | `FluidVoiceRecorder`, `FluidRecorderPanel`, `FluidRecordButton`, `FluidRecorderClock`, `FluidRecorderPhase`, `FluidRecorderStrings`, `FluidRecorderDefaults`; la riga della qualità `FluidRecordingQualityRow` e `FluidRecordingQualityStrings` |
 | `FluidSettingRows.kt` | `FluidToggleRow` e `FluidSliderRow` — vedi [contenuto.md](contenuto.md) |
 | `glass/interaction/GlassDrop.kt` | `glassDrop`, `GlassDropLens`, `GlassDropRecipe`, `GlassDropFaces` |
 | `LICENSES/AndroidLiquidGlass.md`, `LICENSES/LibrePods.md` | le attribuzioni e l'elenco delle modifiche |

@@ -95,6 +95,8 @@ UI_FLUID_FILES = {
         "FluidColorPicker",
         # F8.8: il calendario in pagina, la capsula della data e della durata, il pannello «Ripeti»
         "FluidCalendar", "FluidCalendarModel", "FluidDateCapsule", "FluidRecurrenceSheet",
+        # F8.13: l'onda da scorrere (la riga e quella che scorre sotto la testina) e il registratore di Memo Vocali
+        "FluidAudioWaveform", "FluidVoiceRecorder",
     ],
     # pop-up, fogli, menu, avvisi, notifiche
     "menu-modali": [
@@ -209,6 +211,10 @@ DIR_FAMILY = {
     "transfer": "transfer",
     # lo sfoglia-file (F8.18)
     "files": "files",
+    # l'audio (F8.13): la cattura del registratore, la riproduzione di sistema, l'ascolto dal paragrafo
+    "audio": "audio",
+    "playback": "playback",
+    "transcript": "transcript",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -269,6 +275,9 @@ FAMILY_TITLES = {
     "push-fcm": "engine-push-fcm",
     "transfer": "engine-transfer",
     "files": "engine-files",
+    "audio": "engine-audio",
+    "playback": "engine-playback",
+    "transcript": "engine-transcript",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

@@ -1,0 +1,69 @@
+// F8.13 · La riproduzione di sistema (idea `riproduzione-di-sistema`): tutto quello che serve perche' un audio continui
+// bene fuori dall'app, scritto una volta. Opt-in.
+//
+//   implementation project(':engine-playback')
+//   implementation "androidx.media3:media3-session:<la versione dell'app>"   // almeno la 1.5.1
+//   implementation "androidx.media3:media3-exoplayer:<la stessa>"
+//
+// Dentro: il servizio di riproduzione (MediaSessionService di Media3) con la sessione che il sistema, l'orologio e l'auto
+// capiscono, i comandi nella notifica e sulla schermata di blocco (con meno e piu' 15 secondi), la pausa quando la cuffia
+// si stacca o arriva una chiamata (il fuoco audio), la velocita', il salto dei silenzi, il timer di spegnimento, la coda
+// ricordata dopo un riavvio (e la ripresa dai tasti delle cuffie), e lo stato per l'interfaccia di Compose
+// (`FluidPlaybackController`, che e' anche la `FluidMediaSession` dei visori e dell'onda di engine-ui).
+//
+// **Media3 e' dell'app**, come in engine-viewer: il modulo lo compila contro la 1.5.1 (`compileOnly`, la piu' vecchia dei
+// consumer di riferimento) e i suoi test girano sulla 1.11.1. A runtime c'e' solo la versione dell'app: due app con
+// versioni diverse usano lo stesso modulo. Licenza di Media3: Apache-2.0 (`FluidPlaybackLicenses`).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+def media3Test = project.findProperty('viewer.media3Test') ?: engine.media3Test
+
+android {
+  namespace = 'dev.antigravity.fluidengine.playback'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // La sessione, il lettore e il servizio si provano in Robolectric, con la versione di Media3 dei test.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano `FluidMediaSession` e `FluidAudioSpeed` di engine-ui.
+  api project(':engine-ui')
+  // Solo per compilare: la sessione e il lettore arrivano dall'app, con la sua versione.
+  compileOnly "androidx.media3:media3-session:${engine.media3}"
+  compileOnly "androidx.media3:media3-exoplayer:${engine.media3}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.media3:media3-session:${media3Test}"
+  testImplementation "androidx.media3:media3-exoplayer:${media3Test}"
+}

@@ -26,8 +26,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 18 | 222 |
-| [engine-storage](storage.md) | 2 | 15 |
+| [engine-foundation](foundation.md) | 19 | 235 |
+| [engine-storage](storage.md) | 3 | 19 |
 | [engine-net](net.md) | 2 | 10 |
 | [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
@@ -35,6 +35,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-wear](wear.md) | 17 | 87 |
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-viewer](viewer.md) | 30 | 212 |
+| [engine-sync](sync.md) | 12 | 160 |
+| [engine-revisions](revisions.md) | 2 | 18 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

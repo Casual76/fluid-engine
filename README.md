@@ -20,6 +20,9 @@ engine-ai-bridge    tool federati: un'app espone i suoi tool a un assistente est
                     firma (ContentProvider a permesso signature), o li chiama
 engine-richtext     l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la
                     tastiera) con HTML ristretto, Markdown e testo semplice (opt-in: solo se serve)
+engine-sync         la sincronizzazione: registro locale, invio una volta sola, unione, pietre tombali, verso
+                    il relay cifrato dell'Account Pampa, con WorkManager (opt-in)
+engine-revisions    il foglio di vetro della scelta tra versioni in conflitto (opt-in)
 ```
 
 ## Partire in cinque minuti

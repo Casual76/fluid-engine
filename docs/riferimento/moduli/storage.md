@@ -26,6 +26,7 @@ Catalogo completo delle firme: [`../api/storage.md`](../api/storage.md).
 | salvare **altre** preferenze dell'app | il tuo DataStore, con un **nome diverso** da `fluid_engine` |
 | un database, un file, una cache d'immagini | non e' compito di questo modulo |
 | ricordare il benvenuto visto e i permessi gia' chiesti (F8.11) | `EngineFirstUseStore(context)`, passata a `engine-ui` con `LocalFluidFirstUseMemory` |
+| un nome stabile per questa installazione (il dispositivo nell'orologio della sincronizzazione, F8.21) | `EngineInstallId.get(context)` |
 
 ## `EngineFirstUseStore` (F8.11, 4.0)
 
@@ -41,6 +42,14 @@ CompositionLocalProvider(LocalFluidFirstUseMemory provides firstUse) { … }
 
 Provata da `EngineFirstUseStoreTest` (un DataStore riaperto sullo stesso file rilegge i valori). La parte visibile:
 [../componenti/prima-volta.md](../componenti/prima-volta.md).
+
+## `EngineInstallId` (F8.21, 4.0)
+
+L'identita' di questa installazione: sedici caratteri casuali (`a`–`z`, `2`–`7`), nati al primo uso e mai cambiati finche'
+l'app resta installata. `engine-sync` la usa come nome del dispositivo nel suo orologio logico ([sync](sync.md)). Sta in un
+file in `noBackupFilesDir`, **fuori dal backup automatico**: copiata su un telefono nuovo, due dispositivi avrebbero lo stesso
+nome. La scrittura passa da un file temporaneo rinominato; un file rovinato si rifa'. Non e' un identificativo della persona.
+`get` legge un file piccolo: meglio fuori dal thread principale. Provata da `EngineInstallIdTest`.
 
 ## `EngineSettingsStore`
 
@@ -142,6 +151,7 @@ particolare la tolleranza ai nomi di enum sconosciuti e l'atomicita' di `update`
 - `engine-storage/src/main/kotlin/dev/antigravity/fluidengine/storage/EngineStore.kt` — tutto: il DataStore condiviso, `EngineSettingsStore` con le sue chiavi
   e la lettura tollerante, `CachedManifest`, `EngineConfigCache`.
 - `engine-storage/src/main/kotlin/dev/antigravity/fluidengine/storage/EngineFirstUseStore.kt` — la memoria della prima volta (F8.11).
+- `engine-storage/src/main/kotlin/dev/antigravity/fluidengine/storage/EngineInstallId.kt` — l'identita' dell'installazione (F8.21).
 
 ## Dipendenze e configurazione minima
 

@@ -175,6 +175,10 @@ dependencies {
     exclude module: 'engine-viewer-ar'
   }
   implementation "androidx.activity:activity-compose:${engine.activityCompose}"
+  // F8.21 · La sincronizzazione (engine-sync) e la scelta tra versioni (engine-revisions): la pagina «Elementi nuovi» li
+  // mostra con dispositivi finti in memoria, senza rete e senza lavoro in sottofondo.
+  implementation project(':engine-sync')
+  implementation project(':engine-revisions')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

@@ -1,0 +1,57 @@
+// F8.21 · La sincronizzazione (`sincronizzazione-offline`): il registro locale, l'invio una volta sola, l'unione per
+// campo e dei testi lunghi, le pietre tombali, la ripresa dopo mesi. Opt-in e senza interfaccia: il foglio della scelta
+// tra versioni sta in `engine-revisions`. La destinazione principale e' il relay cifrato dell'Account Pampa (F10.3): qui
+// c'e' solo l'adattatore (`SyncRelay`), con una destinazione in memoria e una finta per le prove. La cifratura la mette chi
+// chiama (`SyncSealer`): il modulo non ha chiavi e non fa crittografia.
+//
+//   implementation project(':engine-sync')
+//
+// Librerie: WorkManager (Apache-2.0) per l'invio in sottofondo. Niente Room: il registro sta in SQLite della piattaforma,
+// cosi' ne' l'engine ne' l'app ospite hanno bisogno del processore di annotazioni (KSP) che Room richiede. Niente
+// kotlinx.serialization: il formato dei documenti e' binario e scritto a mano, deterministico (stessi dati, stessi byte).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.sync'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Il registro su SQLite e il lavoro di WorkManager si provano in Robolectric (SQLite nativo anche su Windows).
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // Sopra engine-storage: l'identita' dell'installazione (`EngineInstallId`) e' il nodo dell'orologio logico; da lì arriva
+  // anche foundation, con `SyncStatus` e il confronto dei testi.
+  api project(':engine-storage')
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+  implementation "androidx.work:work-runtime-ktx:${engine.work}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove del registro su SQLite e del lavoro in sottofondo, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.work:work-testing:${engine.work}"
+  testImplementation "androidx.test:core:1.7.0"
+}

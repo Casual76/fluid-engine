@@ -37,7 +37,8 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | sapere cosa vale per **questa** app dal manifest | `resolveEngineConfig(manifest, applicationId, fetchedAt)` (lo chiama `EngineRemoteConfig`, di solito non a mano) |
 | dire al design system tema, accento, aptica | `EngineSettings` (mappa i tuoi settings con un `map { }`, non adottare il modello) |
 | salvare quelle impostazioni | `EngineSettingsStore` in `engine-storage` ([storage](storage.md)); foundation non salva niente |
-| mostrare «aggiornato 5 min fa / offline / errore» | `SyncStatus` + `SyncState`; la riga la disegna `engine-ui` (`FluidSync*`) |
+| mostrare «aggiornato 5 min fa / offline / errore» | `SyncStatus` + `SyncState`; la riga la disegna `engine-ui` (`FluidSync*`); la sincronizzazione vera lo riempie da sola (`FluidSync.status` di [sync](sync.md)) |
+| confrontare due testi a pezzi (parole o righe) con un tetto di lavoro (F8.21) | `FluidTextDiff.words(t)`, `FluidTextDiff.lines(t)`, `FluidTextDiff.diff(a, b, maxEdits)` → `FluidDiff` (`matchInB`, `hunks`) o null oltre il tetto |
 | un'altra implementazione dell'aggiornamento in-app (non GitHub) | implementare `AppUpdater`; l'UI parla solo questo contratto |
 | un campo di configurazione **senza** default sicuro | non e' un flag: va nella build (vedi `EngineFlag`) |
 | un numero con la sua unità, convertito senza `Double` (F8.3) | `FluidQuantity(valore, FluidUnits.Kilometer).to(FluidUnits.Mile)`, `FluidUnits.convert(…)` |
@@ -489,3 +490,13 @@ implementation project(':engine-foundation')   // solo se non c'e' gia' un altro
 **Configurazione minima.** Nessuna: sono tipi. Per mettere in piedi **config remota e aggiornamento** il collegamento e' nei template
 `templates/EngineModule.kt.txt` (Hilt: `EngineHttp`, `EngineRemoteConfig`, `EngineAppUpdater`) e `templates/EngineBootstrap.kt.txt`
 (`Application`: refresh, compatibilita', kill switch, widget). Vedi le schede [config](config.md) e [update](update.md).
+
+## Il confronto dei testi: `FluidTextDiff` (F8.21, 4.0)
+
+Pacchetto `dev.antigravity.fluidengine.foundation.text`. L'algoritmo di Myers (1986) su liste di pezzi: `words` divide in
+parole, spazi, a capo e punteggiatura, `lines` in righe col loro a capo; messi in fila ridanno il testo esatto. `diff`
+allinea due liste e risponde un `FluidDiff` (per ogni pezzo il suo corrispondente, o -1, e i tratti diversi `hunks`), oppure
+**null oltre `maxEdits`** (di serie `FluidTextDiff.DefaultMaxEdits`, mille): il costo cresce con il numero di modifiche, e chi
+chiama ripiega (la sincronizzazione chiede la scelta, il foglio delle versioni mostra due estratti). L'inizio e la fine comuni
+non costano niente. Sta qui perche' lo usano due moduli che non si conoscono: `engine-sync` per fondere un testo lungo,
+`engine-revisions` per segnare i passaggi diversi. Per testi lunghi si chiama fuori dal thread principale.

@@ -20,6 +20,18 @@
     <provider android:name=".viewer.VisoriPackageProvider"
         android:authorities="${applicationId}.visori" android:exported="false" android:grantUriPermissions="true" />
     <!--
+      F8.21 · engine-sync porta WorkManager, che di serie si avvia con l'app (androidx.startup). La galleria mostra la
+      sincronizzazione con dispositivi finti in memoria e non manda mai lavori in sottofondo: niente avvio, cosi' il primo
+      fotogramma resta quello di prima.
+    -->
+    <provider
+        android:name="androidx.startup.InitializationProvider"
+        android:authorities="${applicationId}.androidx-startup"
+        android:exported="false"
+        tools:node="merge">
+      <meta-data android:name="androidx.work.WorkManagerInitializer" tools:node="remove" />
+    </provider>
+    <!--
       configChanges: la galleria e' una pagina di prova con uno stato che non si vuole perdere (il
       registro aptico, la grana tarata, dove si era arrivati): passare al tema scuro di sistema, ruotare
       o cambiare la dimensione del testo non deve ricreare l'attivita' e azzerare tutto. Compose segue

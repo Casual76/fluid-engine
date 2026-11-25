@@ -31,6 +31,7 @@ Catalogo delle firme: [api/menu-modali.md](../api/menu-modali.md) (e [api/fluid-
 
 | ho bisogno di… | uso |
 |---|---|
+| far scegliere fra due versioni di un elemento cambiate su dispositivi diversi («Risolvi conflitto»: tieni questa, l'altra, tutte e due) | `FluidVersionChoiceSheet` del modulo opt-in `engine-revisions` → [../moduli/revisions.md](../moduli/revisions.md) |
 | un menu di voci da un tasto il cui **unico** mestiere è il menu («Ordina», «Altro») | `FluidMorphMenuButton(opensOnTap = true)` o `FluidBarAction(actions, opensOn = FluidMenuOpensOn.Tap)` → [menu-liquidi.md](menu-liquidi.md) |
 | un tasto con un'azione sua *e* un menu nascosto | gli stessi, di serie: il tocco è l'azione, il **tenuto premuto** apre il menu |
 | un menu che usa il vetro di **tutto il gruppo** di una barra dichiarata | `toolbar { group(…) { action(id, icon, label) { voci } } }` → [menu-liquidi.md](menu-liquidi.md) |

@@ -80,6 +80,8 @@ $EngineModules = [ordered]@{
   "engine-wear"       = @("engine-foundation", "engine-ui")
   "engine-richtext"   = @("engine-foundation", "engine-ui")
   "engine-viewer"     = @("engine-foundation", "engine-ui")
+  "engine-sync"       = @("engine-foundation", "engine-storage")
+  "engine-revisions"  = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -96,7 +98,10 @@ $EngineModules = [ordered]@{
 # decodifica niente; il modulo lo chiede solo un'app che apre file dal disco. Porta con se' engine-ui e
 # engine-foundation, e non porta Media3: chi usa video e audio aggiunge il suo media3-exoplayer alla sua
 # versione (il modulo lo compila come compileOnly): -Modules ...,engine-viewer.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer")
+# engine-sync (F8.21: il registro locale, l'invio una volta sola, l'unione, le pietre tombali; porta WorkManager) e
+# engine-revisions (il foglio della scelta tra versioni) idem: li chiede solo un'app che sincronizza o che mostra
+# versioni in conflitto, e sono indipendenti fra loro: -Modules ...,engine-sync,engine-revisions.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -299,7 +304,9 @@ $notes = @(
   @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
   @("engine-wear", "design system su Wear OS (solo nel modulo dell'orologio)"),
   @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),
-  @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)")
+  @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)"),
+  @("engine-sync", "sincronizzazione: registro locale, invio una volta sola, unione, verso il relay dell'account (opt-in)"),
+  @("engine-revisions", "il foglio della scelta tra versioni in conflitto (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

@@ -176,6 +176,9 @@ DIR_FAMILY = {
     "richtext": "richtext",
     # il modulo facoltativo dei visori (F6C.4)
     "viewer": "viewer",
+    # la sincronizzazione e la scelta tra versioni (F8.21)
+    "sync": "sync",
+    "revisions": "revisions",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -213,6 +216,8 @@ FAMILY_TITLES = {
     "wear": "engine-wear",
     "richtext": "engine-richtext",
     "viewer": "engine-viewer",
+    "sync": "engine-sync",
+    "revisions": "engine-revisions",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

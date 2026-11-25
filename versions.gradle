@@ -46,6 +46,9 @@ ext.engine = [
   wear           : '1.4.0',
   coroutines     : '1.8.1',
   serialization  : '1.6.3',
+  // engine-sync (F8.21): l'invio in sottofondo. La 2.11 chiede compileSdk 35 all'app ospite (solo a chi include
+  // engine-sync, che e' opt-in).
+  work           : '2.11.2',
 
   junit          : '4.13.2',
   coroutinesTest : '1.8.1',

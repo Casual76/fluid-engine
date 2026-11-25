@@ -42,6 +42,10 @@ include ':engine-viewer-all'
 include ':engine-viewer-graphics', ':engine-viewer-3d'
 include ':engine-viewer-ar'
 include ':engine-viewer-data' // F6C.13 · testi ricchi e dati
+// F8.21 · Sincronizzazione: il motore (registro, unione, invio una volta sola) e il foglio della scelta tra versioni.
+// Opt-in tutti e due, e indipendenti: Notes usa il foglio con la sua sincronizzazione.
+include ':engine-sync'
+include ':engine-revisions'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

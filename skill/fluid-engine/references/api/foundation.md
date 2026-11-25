@@ -312,3 +312,19 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-foundation/foundation/memory/FluidSurfaceBytes.kt`
 
 - `fun fluidSurfaceBytes(width: Long, height: Long, bytesPerPixel: Int, copies: Int = 1, rowStrideBytes: Long? = null): Long` — Byte per una o più superfici vive contemporaneamente. Passare le dimensioni fisiche, comprensive del padding del filtro, e il formato effettivo (per esempio 4 byte/pixel per RGBA8 o 8 per RGBA FP16). [rowStrideBytes] comprende l'eventuale allineamento di riga. La dimensione del file su disco è indipendente.
+
+## `engine-foundation/foundation/text/FluidTextDiff.kt`
+
+- `object FluidTextDiff` — Il confronto di due liste di pezzi di testo con l'algoritmo di Myers (E. W. Myers, «An O(ND) Difference Algorithm and Its Variations», Algorithmica 1986): trova la sottosequenza comune piu' lunga facendo al massimo `maxEdits` modifiche.
+  - `const val DefaultMaxEdits: Int` — Il tetto di serie: mille pezzi tolti o aggiunti. Nel caso peggiore sono circa 4 MB di lavoro temporaneo e qualche decina di millisecondi su un telefono di fascia bassa; per questo chi lo usa lo chiama fuori dal thread principale. A occhio, 24/11/2026: due versioni di una nota con piu' di mille parole diverse non si fondono comunque in modo utile.
+  - `fun words(text: String): List<String>` — I pezzi per parola: ogni parola (lettere e cifre), ogni corsa di spazi, ogni a capo e ogni segno di punteggiatura e' un pezzo. Messi in fila ridanno il testo esatto.
+  - `fun lines(text: String): List<String>` — I pezzi per riga: ogni riga con il suo a capo (l'ultima anche senza). Messi in fila ridanno il testo esatto.
+  - `fun diff(a: List<String>, b: List<String>, maxEdits: Int = DefaultMaxEdits): FluidDiff?` — Allinea [a] e [b]: per ogni pezzo dice a quale pezzo dell'altra lista corrisponde, se corrisponde. Risponde `null` se servono piu' di [maxEdits] pezzi tolti o aggiunti.
+- `class FluidDiff internal constructor(private val aToB: IntArray, private val bToA: IntArray)` — Il risultato di [FluidTextDiff.diff]: per ogni pezzo di `a` il pezzo di `b` che gli corrisponde (o -1), e viceversa. Le corrispondenze vanno sempre avanti: se il pezzo `i` corrisponde a `j`, ogni pezzo dopo `i` corrisponde a un pezzo dopo `j`.
+  - `val sizeA: Int get()` — Quanti pezzi ha `a`.
+  - `val sizeB: Int get()` — Quanti pezzi ha `b`.
+  - `fun matchInB(indexA: Int): Int` — Il pezzo di `b` che corrisponde al pezzo [indexA] di `a`, o -1 se in `b` non c'e'.
+  - `fun matchInA(indexB: Int): Int` — Il pezzo di `a` che corrisponde al pezzo [indexB] di `b`, o -1 se in `a` non c'e'.
+  - `val edits: Int by lazy` — Quanti pezzi sono stati tolti da `a` o aggiunti in `b`.
+  - `val hunks: List<FluidDiffHunk> by lazy` — I tratti diversi, in ordine: fra due tratti tutto e' uguale.
+- `data class FluidDiffHunk(val aStart: Int, val aEnd: Int, val bStart: Int, val bEnd: Int)` — Un tratto diverso: i pezzi [aStart]..[aEnd) di `a` (tolti) sono diventati [bStart]..[bEnd) di `b` (aggiunti). Uno dei due intervalli puo' essere vuoto: un'aggiunta pura o una cancellazione pura.

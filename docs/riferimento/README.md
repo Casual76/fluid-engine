@@ -70,6 +70,8 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
 | `engine-richtext` | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera), HTML ristretto, Markdown, testo (**opt-in**, dalla 3.1.0) | `moduli/richtext.md` |
 | `engine-viewer` | i decodificatori dei visori di file: PDF, testo con charset e colori di sintassi, GIF e WebP animate, il `Player` di Media3, il risolutore dal MIME al preset e il registro delle famiglie (**opt-in**, dalla 4.0) | `moduli/viewer.md` |
+| `engine-sync` | la sincronizzazione: registro locale, invio una volta sola, unione per campo e dei testi lunghi, pietre tombali, verso il relay cifrato dell'Account Pampa; WorkManager (**opt-in**, dalla 4.0) | `moduli/sync.md` |
+| `engine-revisions` | il foglio di vetro della scelta tra versioni in conflitto (**opt-in**, dalla 4.0) | `moduli/revisions.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
 
 ## Che componente uso per…
@@ -87,6 +89,8 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | mostrare un HTML ricevuto (mail, newsletter) in una vista chiusa | `componenti/contenuto-web.md` |
 | una ciambella, barre o un andamento con legenda | `componenti/grafici.md` |
 | scrivere testo formattato (elenchi, link, citazioni, HTML/Markdown) | `moduli/richtext.md` (opt-in) |
+| sincronizzare i dati dell'app fra i dispositivi (anche senza rete), uno spazio condiviso, «3 modifiche in attesa», i conflitti | `moduli/sync.md` (opt-in) |
+| far scegliere fra due versioni di un elemento cambiate su dispositivi diversi (tieni questa, l'altra, tutte e due) | `moduli/revisions.md` (opt-in) |
 | il visore di un file a tutto schermo (foto, video, audio, PDF, testo, sconosciuto): rotta, ritorno nella miniatura, barre al tocco, pannello info, strumenti | `componenti/visori.md` |
 | aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |

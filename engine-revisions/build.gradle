@@ -1,0 +1,43 @@
+// F8.21 · La scelta tra versioni (`scelta-tra-versioni`): il foglio di vetro che mette a confronto due (o piu') versioni di
+// un elemento cambiato su dispositivi diversi, con i passaggi diversi segnati, e restituisce la scelta con gli id delle
+// revisioni. Opt-in, sopra engine-ui, come dice la scheda: non dipende da engine-sync, perche' Pampa Notes (che ha la sua
+// sincronizzazione) e Pampa Mail (le bozze) lo usano senza. Il ponte con engine-sync sono gli id delle revisioni, stringhe.
+//
+//   implementation project(':engine-revisions')
+//
+// Nessuna libreria: il confronto dei testi e' `FluidTextDiff` di engine-foundation, con il suo tetto di lavoro.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.revisions'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+}

@@ -123,6 +123,16 @@ internal class GlassRecipe {
   var grain: Float = 0f
   var aa: Float = GlassLiquidAa
 
+  /**
+   * F7.18: il materiale pieno che prende il posto del fondale quando la cattura è negata dal tetto della memoria del
+   * vetro ([GlassBodyFallback]). È il velo della trasparenza ridotta (iOS «Riduci trasparenza», One UI «Riduci effetti
+   * di trasparenza»), quello di [glassAccessibleFilm] a pieno: sul lato chiaro il velo neutro opaco, sul lato scuro lo
+   * stesso velo avvicinato al nero come per la leggibilità, e per una pellicola fissa la pellicola piena. Opaco, perché
+   * un vetro senza cattura sopra un testo leggibile è vetro limpido: il difetto del popover della capsula della data
+   * sul Tab S9 (24 novembre 2026). Non specificato = nessun pieno calcolato (lo deduce [glassDeniedSolid]).
+   */
+  var deniedSolid: Color = Color.Unspecified
+
   // ---- La luce (GlassLightBlock) -----------------------------------------------------------------------------
 
   var rimWidthDp: Float = 0f
@@ -771,6 +781,7 @@ private fun glassRecipeSide(
     shadowColor = lerpSrgb(shadowColor, tint.copy(alpha = shadowColor.alpha), clampGlassUnit(adapt.tintHalo))
   }
   out.shadowColor = shadowColor
+  out.deniedSolid = glassReducedTransparencySolid(veilColor, darkSide, if (fixedFilm) filmColor else null)
   out.applyMaterialAccessibility(accessibility, darkSide, veilColor, fixedFilm)
   return out
 }
@@ -783,6 +794,23 @@ private const val HighContrastOpacity = 0.92f
 private const val AccessibleDarkVeilBlackShare = 0.55f
 private const val ContrastRimFloor = 0.28f
 private const val ContrastRimWidthDp = 0.85f
+
+/**
+ * Il pieno della trasparenza ridotta per una ricetta (F7.18): vedi [GlassRecipe.deniedSolid]. Pura.
+ *
+ * @param neutralVeil il velo neutro della ricetta prima che una pellicola fissa o il limpido lo spengano: se ne usa
+ *   il colore, a opacità piena.
+ * @param darkSide il lato della ricetta: sul lato scuro il velo va verso il nero di [AccessibleDarkVeilBlackShare], come
+ *   quando l'utente chiede la trasparenza ridotta (il grigio luminoso dei piccoli sul lato scuro, pieno, si leggerebbe
+ *   male sotto un inchiostro chiaro).
+ * @param fixedFilm la pellicola di una tinta fissa, che prende il posto del velo; nulla se non c'è.
+ */
+internal fun glassReducedTransparencySolid(neutralVeil: Color, darkSide: Boolean, fixedFilm: Color?): Color {
+  if (fixedFilm != null && fixedFilm.isSpecified && fixedFilm.alpha > 0f) return fixedFilm.copy(alpha = 1f)
+  if (!neutralVeil.isSpecified) return Color.Unspecified
+  val opaque = neutralVeil.copy(alpha = 1f)
+  return if (darkSide) lerpSrgb(opaque, Color.Black, AccessibleDarkVeilBlackShare) else opaque
+}
 
 /** La stessa densità vale per una pellicola singola e per quelle dei pezzi del campo. */
 internal fun Color.glassAccessibleFilm(accessibility: GlassMaterialAccessibility): Color {
@@ -1245,6 +1273,12 @@ internal fun lerpGlassRecipe(a: GlassRecipe, b: GlassRecipe, t: Float, out: Glas
   out.tintColor = mix(a.tintColor, b.tintColor)
   out.tintMode = mix(a.tintMode, b.tintMode)
   out.tintFollow = mix(a.tintFollow, b.tintFollow)
+  // F7.18: il pieno di ripiego segue il lato come il velo; se un capo non lo ha, vale l'altro.
+  out.deniedSolid = when {
+    !a.deniedSolid.isSpecified -> b.deniedSolid
+    !b.deniedSolid.isSpecified -> a.deniedSolid
+    else -> mix(a.deniedSolid, b.deniedSolid)
+  }
   out.bodyShade = mix(a.bodyShade, b.bodyShade)
   out.bodyShadeDepthDp = mix(a.bodyShadeDepthDp, b.bodyShadeDepthDp)
   out.bodyShadeLeanX = mix(a.bodyShadeLeanX, b.bodyShadeLeanX)

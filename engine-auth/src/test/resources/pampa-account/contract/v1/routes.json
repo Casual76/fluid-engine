@@ -1,0 +1,559 @@
+{
+  "version": 1,
+  "headers": {
+    "storeVersion": "pampa-store-version",
+    "deviceProof": "pampa-device-proof",
+    "idempotencyKey": "idempotency-key"
+  },
+  "limits": {
+    "accessTokenSeconds": 900,
+    "refreshIdleDays": 180,
+    "strongAuthSeconds": 300,
+    "challengeSeconds": 300,
+    "maxJsonBody": 65536
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/register/options",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/register/verify",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/login/options",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        20,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/login/verify",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        20,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/google/nonce",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        20,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/google/login",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        20,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/recovery/redeem",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        5,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/session/refresh",
+      "auth": "anon",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        120,
+        "ip"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/session/logout",
+      "auth": "session",
+      "recovery": true,
+      "strong": false,
+      "whileDeleting": true,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reauth/options",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": true,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reauth/verify",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": true,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/account",
+      "auth": "session",
+      "recovery": true,
+      "strong": false,
+      "whileDeleting": true,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/account",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/account/export",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": true,
+      "perMinute": null,
+      "perDay": 2,
+      "idempotent": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/account",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": null,
+      "perDay": 2,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/account/restore",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": true,
+      "perMinute": null,
+      "perDay": 2,
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/security-events",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        30,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/methods",
+      "auth": "session",
+      "recovery": true,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/add/options",
+      "auth": "session",
+      "recovery": true,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/passkeys/add/verify",
+      "auth": "session",
+      "recovery": true,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/passkeys/{id}",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/passkeys/{id}",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/recovery",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": null,
+      "perDay": 3,
+      "idempotent": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/recovery",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": null,
+      "perDay": 3,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/google/link",
+      "auth": "session",
+      "recovery": true,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/google/link",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/devices",
+      "auth": "session",
+      "recovery": true,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/devices/{id}",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/devices/{id}",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/devices/sign-out-others",
+      "auth": "session",
+      "recovery": true,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": null,
+      "perDay": 3,
+      "idempotent": true
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/devices/{id}/push",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/pending/{id}",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/apps",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/apps/{package}/token",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/apps/{package}",
+      "auth": "session",
+      "recovery": false,
+      "strong": true,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/apps/{package}/connect",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/grants",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/grants",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        30,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/prefs",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        60,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false
+    },
+    {
+      "method": "POST",
+      "path": "/v1/prefs",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        30,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": true
+    }
+  ]
+}

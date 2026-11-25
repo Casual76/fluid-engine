@@ -86,6 +86,12 @@ interface SyncStoreTransaction {
   /** Quante voci ha il registro di [space]. */
   fun journalSize(space: String): Int
 
+  /**
+   * Quanti elementi diversi hanno voci nel registro di [space]: sono le «modifiche in attesa» che vede chi usa l'app. Una
+   * voce nuova con tre campi e' una modifica, non tre. Di serie conta da [journal]; i depositi possono farlo meglio.
+   */
+  fun journalRecordCount(space: String): Int = journal(space).mapTo(HashSet()) { it.recordId }.size
+
   /** Il numero d'ordine piu' alto fra le voci di [recordId], o 0. */
   fun lastJournalSeq(space: String, recordId: String): Long
 
@@ -151,6 +157,9 @@ class InMemorySyncStore : SyncStore {
     override fun journal(space: String): List<SyncJournalEntry> = d.journal[space]?.values?.toList().orEmpty()
 
     override fun journalSize(space: String): Int = d.journal[space]?.size ?: 0
+
+    override fun journalRecordCount(space: String): Int =
+      d.journal[space]?.values?.mapTo(HashSet()) { it.recordId }?.size ?: 0
 
     override fun lastJournalSeq(space: String, recordId: String): Long =
       d.journal[space]?.values?.lastOrNull { it.recordId == recordId }?.seq ?: 0L

@@ -198,6 +198,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun appendJournal(space: String, entry: SyncJournalEntry)`
   - `fun journal(space: String): List<SyncJournalEntry>` — Le voci del registro di [space], in ordine di [SyncJournalEntry.seq].
   - `fun journalSize(space: String): Int` — Quante voci ha il registro di [space].
+  - `fun journalRecordCount(space: String): Int` — Quanti elementi diversi hanno voci nel registro di [space]: sono le «modifiche in attesa» che vede chi usa l'app. Una voce nuova con tre campi e' una modifica, non tre. Di serie conta da [journal]; i depositi possono farlo meglio.
   - `fun lastJournalSeq(space: String, recordId: String): Long` — Il numero d'ordine piu' alto fra le voci di [recordId], o 0.
   - `fun removeJournal(space: String, recordId: String, throughSeq: Long): Int` — Toglie le voci di [recordId] fino a [throughSeq] compreso; risponde quante ne ha tolte.
   - `fun meta(space: String, key: String): ByteArray?`

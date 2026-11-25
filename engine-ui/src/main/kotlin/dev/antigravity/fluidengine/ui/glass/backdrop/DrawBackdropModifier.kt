@@ -31,6 +31,7 @@ import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
 import dev.antigravity.fluidengine.foundation.memory.fluidSurfaceBytes
 import dev.antigravity.fluidengine.ui.fluid.GlassRenderQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalCoveredGlassView
+import dev.antigravity.fluidengine.ui.fluid.LocalGlassFrontLayer
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.glassBackgroundScale
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
@@ -55,6 +56,7 @@ import android.view.ViewTreeObserver
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
@@ -74,6 +76,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 // Fluid Engine addition (F1A, voce 18): lo scope degli effetti dice se la superficie sta su un vetro.
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -715,6 +719,53 @@ internal const val MaxBackdropTextureDimension = 4096f
 /** Below this the capture is too coarse to be worth running the chain over at all. */
 internal const val MinBackdropScale = 0.05f
 
+/**
+ * F7.18: la sfocatura minima del campione separato (viaggio, finitura nativa di Fluid-physics), in sigma e in pixel del
+ * campione, sotto la quale la sfocatura di un pannello smerigliato non nasconde più la risoluzione ridotta. Il campione
+ * scende fin lì prima che scenda l'uscita ([frostedSampleFloor]).
+ *
+ * Misura del 25 novembre 2026 (`sessioni/f7-18/scala-minima`, `scala_minima.py`) su due fotogrammi veri della pagina
+ * della capsula (Tab S9 in formato telefono, chiaro e scuro): sfocatura piena contro campione ridotto, sfocato e riportato
+ * su bilineare. Con sigma del campione 2,5 px o più lo scarto resta entro 2,5 livelli su 255 al 99,9° percentile (lo
+ * stesso ordine del campione a metà lato di serie, 1,2–1,6); a 1,7 px sale a 4,7–5,7 e a 1,25 px a 7,8–8,7, dove si
+ * vedono i gradini. Fiducia media: una pagina, due temi, tre sfocature (sigma 7, 10 e 13,8 px d'uscita).
+ */
+internal const val FrostedSampleSigmaPx = 2.5f
+
+/** F7.18: il minimo del campione quando la sfocatura non è nota (il pannello flottante, sigma 10 px: un quarto di lato). */
+internal const val FrostedSampleFloor = 0.25f
+
+/**
+ * F7.18: la scala minima del campione rispetto all'uscita per una sfocatura di raggio [blurPx] (pixel dell'uscita, come
+ * `GlassDrawInputs.blurPx`). Android converte il raggio in sigma con 0,57735 r + 0,5 (Skia, `ConvertRadiusToSigma`).
+ * Pura.
+ */
+internal fun frostedSampleFloor(blurPx: Float?): Float {
+    if (blurPx == null || !(blurPx > 0f)) return FrostedSampleFloor
+    val sigma = 0.57735f * blurPx + 0.5f
+    return (FrostedSampleSigmaPx / sigma).coerceIn(MinBackdropScale, 0.5f)
+}
+
+/**
+ * F7.18: l'uscita di un nodo col campione separato scende fin qui, a metà per volta, quando il campione è già al suo
+ * minimo ([frostedSampleFloor]) e il tetto non basta ancora. Prima di F7.18 l'uscita restava alla griglia dello schermo
+ * e una cattura grande in viaggio non entrava mai (il popover della capsula, 19,8 MB contro 12 MiB). Un quarto di lato
+ * ammorbidisce il filo, ma è vetro e non trasparenza. A occhio, 25 novembre 2026.
+ */
+internal const val MinTravelOutputScale = 0.25f
+
+/**
+ * F7.18: la scala a cui la pagina sotto un pannello davanti rifà le sue catture grandi quando il pannello chiede spazio
+ * (`FluidGlassResources.frontDemand`): metà lato, un quarto dei byte. La pagina è velata o coperta, e sotto la
+ * sfocatura del suo vetro metà lato non si distingue; rilasciarla del tutto la farebbe diventare piena. A occhio,
+ * 25 novembre 2026.
+ */
+internal const val GlassYieldScale = 0.5f
+
+/** F7.18: le prime riprove di un pannello davanti negato, prima del ritmo di un secondo. */
+private const val FrontRetryMillis = 100L
+private const val FrontFastRetries = 8
+
 /** Never held. The default for `frozen` and `heldWhileMoving` in [drawBackdrop]. */
 private val NeverFrozen: () -> Boolean = { false }
 
@@ -1046,7 +1097,7 @@ private class DrawBackdropNode(
         refreshPosted = false
         if (isAttached) {
             readBeforeAllocation()
-            invalidateDraw()
+            wake()
         }
     }
     private fun releaseNativeSample() {
@@ -1077,6 +1128,42 @@ private class DrawBackdropNode(
     private var nextBytes = 0L
     private var budgetDenied = false
     private var budgetScale = 1f
+    /** F7.18: il tetto della scala d'uscita quando c'è un campione separato. Vedi [MinTravelOutputScale]. */
+    private var outputBudget = 1f
+    /** F7.18: il vetro sta davanti alla pagina ([LocalGlassFrontLayer]), letto a ogni disegno. */
+    private var front = false
+    /** F7.18: questo pannello davanti ha chiesto alla pagina di cedere (`FluidGlassResources.frontDemand`). */
+    private var frontRequested = false
+    private var fastRetries = 0
+
+    /**
+     * F7.18: la sveglia del nodo quando il credito torna (o arriva la lettura della memoria). Letta in [draw], scritta dai
+     * `Runnable` qui sotto: è lo stato osservato a rimettere il nodo nel prossimo fotogramma. Il solo `invalidateDraw()`
+     * chiamato da un `Runnable` non bastava: sul Tab S9 (fascia bassa simulata, 25 novembre 2026) il popover della capsula,
+     * ammesso a un quarto d'uscita, trovava lo spazio alla posa ma non si ridisegnava più, e restava a un quarto.
+     */
+    private val budgetWake = mutableIntStateOf(0)
+
+    private fun wake() {
+        budgetWake.intValue++
+        invalidateDraw()
+    }
+
+    /** F7.18: la pagina cede ([GlassYieldScale]) se il vetro è grande, non sta davanti e un pannello davanti chiede spazio. */
+    private fun yieldCap(width: Float, height: Float): Float =
+        if (!front && large(width, height) && resources.frontDemand.intValue > 0) GlassYieldScale else 1f
+
+    /**
+     * F7.18: la scala d'uscita di questo fotogramma, la stessa nel disegno e in [effectScopeIsCurrent]: col campione separato
+     * il tetto d'uscita ([outputBudget]), senza il tetto del registro ([budgetScale]); in entrambi i casi la cessione alla
+     * pagina davanti. Quando le due strade la calcolavano diversa, a uscita ridotta lo scope non era mai «corrente», il
+     * pre-draw non aggiornava la catena e la sagoma restava quella del viaggio (ondulata e ferma).
+     */
+    private fun budgetedScale(target: Float, separateSample: Boolean, yieldCap: Float): Float =
+        if (separateSample) minOf(target, outputBudget, target * yieldCap) else minOf(target, budgetScale, target * yieldCap)
+
+    private fun retryDelayMillis(): Long =
+        if (front && fastRetries < FrontFastRetries) { fastRetries++; FrontRetryMillis } else 1000L
     private var waitForBytes = 0L
     private var desiredBytes = 0L
     // Dopo un rifiuto si risveglia il nodo solo quando la nuova cattura entra davvero.
@@ -1088,15 +1175,19 @@ private class DrawBackdropNode(
             val glass = resources.budget.usage(FluidMemoryCategory.GLASS)
             val process = resources.budget.usage()
             val available = minOf(glass.limitBytes - glass.usedBytes, process.limitBytes - process.usedBytes)
+            GlassFrameDiagnostics.event("glassBudgetRetry", this@DrawBackdropNode) {
+                "required=$required available=$available waiting=$waitForBytes moving=${glassMoving()} front=$front"
+            }
             if (available >= required && (waitForBytes > 0L || !glassMoving())) {
                 if (waitForBytes == 0L) {
                     budgetScale = 1f
+                    outputBudget = 1f
                     desiredBytes = 0L
                 }
                 waitForBytes = 0L
                 readBeforeAllocation()
-                invalidateDraw()
-            } else MainHandler.postDelayed(this, 1000L)
+                wake()
+            } else MainHandler.postDelayed(this, retryDelayMillis())
         }
     }
     private var budgetTarget = Float.NaN
@@ -1105,6 +1196,7 @@ private class DrawBackdropNode(
     private var readsSuspended = false
 
     private fun discardRecording() {
+        if (residentBytes > 0L) GlassFrameDiagnostics.event("glassRelease", this) { "bytes=$residentBytes discard=true" }
         // Gli export senza lettori conservano la shell. Svuotare le registrazioni stacca
         // anche il campione dal display list prima di restituire i byte al lettore davanti.
         val density = requireDensity()
@@ -1220,7 +1312,9 @@ private class DrawBackdropNode(
             return CaptureAdmission.Ready
         }
         GlassFrameDiagnostics.event("glassBudgetDenied", this) {
-            "size=$record bytes=$nextBytes held=$residentBytes limit=${resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes}"
+            "size=$record bytes=$nextBytes held=$residentBytes limit=${resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes}" +
+                " used=${resources.budget.usage(FluidMemoryCategory.GLASS).usedBytes} out=$effectiveScale sample=${travel?.sampleScale}" +
+                " front=$front optics=${renderState.optics}"
         }
         if (!budgetDenied) {
             budgetDenied = true
@@ -1228,6 +1322,14 @@ private class DrawBackdropNode(
             resources.visibleCaptureDenied(window, true, this, nextBytes)
         }
         return CaptureAdmission.Denied
+    }
+
+    /** F7.18: il pannello davanti lascia la pagina tornare alla sua scala. */
+    private fun releaseFrontDemand() {
+        if (!frontRequested) return
+        frontRequested = false
+        fastRetries = 0
+        if (::resources.isInitialized) resources.frontReleased(this)
     }
 
     fun forgetRejectedUpgrade() {
@@ -1256,7 +1358,7 @@ private class DrawBackdropNode(
             budgetDenied = false
             resources.visibleCaptureDenied(window, false)
             MainHandler.removeCallbacks(awaitBudget)
-            if (desiredBytes > nextBytes) MainHandler.postDelayed(awaitBudget, 1000L) else desiredBytes = 0L
+            if (desiredBytes > nextBytes) MainHandler.postDelayed(awaitBudget, retryDelayMillis()) else desiredBytes = 0L
         }
     }
 
@@ -1545,8 +1647,30 @@ private class DrawBackdropNode(
         return CaptureAdmission.Ready
     }
 
+    /**
+     * Senza una cattura da rigiocare. Prima di F7.18 il corpo si disegnava su un ingresso trasparente: tinta, sagoma e
+     * filo sopra il niente, cioè vetro limpido sopra una pagina leggibile parola per parola (il popover della capsula
+     * della data sul Tab S9, 24 novembre 2026). Ora, quando la cattura è **negata** dal tetto, il materiale è pieno: il
+     * corpo su un ingresso pieno (la trasparenza ridotta della ricetta, `GlassBodyFallback`), oppure, dove il corpo non
+     * c'è, il pieno del materiale ([BackdropEffectScopeImpl.deniedFill]) dentro la sagoma. Un'attesa breve della lettura
+     * ([CaptureAdmission.AwaitReading], un fotogramma) resta com'era.
+     */
+    private fun DrawScope.drawWithoutCapture() {
+        val body = effectScope.fallbackBody
+        if (android.os.Build.VERSION.SDK_INT >= 33 && body.draw(this, effectiveScale, padding, solid = budgetDenied)) return
+        if (!budgetDenied) return
+        val solid = body.solid()
+        val color = if (solid.isSpecified && solid.alpha > 0f) solid else effectScope.deniedFill
+        if (!color.isSpecified || color.alpha <= 0f) return
+        val shape = shapeProvider.innerShape
+        // Una sagoma che la scolpisce lo shader (Fluid-physics) non ha un contorno da riempire qui.
+        if (shape === dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape) return
+        GlassFrameDiagnostics.event("glassDeniedFill", this@DrawBackdropNode) { "color=$color" }
+        drawOutline(shape.createOutline(size, layoutDirection, this), color)
+    }
+
     private val drawBackdropLayer: DrawScope.() -> Unit = {
-        if (!replay && android.os.Build.VERSION.SDK_INT >= 33) effectScope.fallbackBody.draw(this, effectiveScale, padding)
+        if (!replay) drawWithoutCapture()
         val layer = if (replay) graphicsLayer else null
         if (layer != null) {
             val padding = padding
@@ -1610,9 +1734,19 @@ private class DrawBackdropNode(
             budgetTarget = target
             budgetExtent = size
             budgetScale = 1f
+            outputBudget = 1f
             desiredBytes = 0L
             if (waitForBytes == 0L) MainHandler.removeCallbacks(awaitBudget)
         }
+        // F7.18: la precedenza al pannello davanti. Un vetro grande della pagina, mentre un pannello davanti negato chiede
+        // spazio, si rifà una volta a [GlassYieldScale]; torna alla sua scala quando il pannello se ne va. La lettura dello
+        // stato è osservata dal disegno: un cambio ridisegna questi vetri e nessun altro.
+        front = currentValueOf(LocalGlassFrontLayer)
+        budgetWake.intValue
+        val yieldCap = yieldCap(size.width, size.height)
+        // La pagina che cede restituisce subito la cattura grande, prima di prenotare quella piccola: tenere le due insieme
+        // chiederebbe proprio lo spazio che il pannello davanti non trova.
+        if (yieldCap < 1f && sampled && residentBytes > 0L && recordedScale > target * yieldCap) discardRecording()
         val previouslyReplayed = replay
         replay = true
         GlassFrameDiagnostics.event("draw", this@DrawBackdropNode)
@@ -1621,8 +1755,9 @@ private class DrawBackdropNode(
             val travel = sampleFor(size, target)
             val newPipeline = travel !== activeSample
             activeSample = travel
-            effectiveScale = if (travel == null) minOf(target, budgetScale) else target
-            val sampleChanged = travel?.setBudgetScale(minOf(budgetScale, nativeRoleCeiling)) == true
+            // F7.18: col campione separato il tetto scende anche sull'uscita ([outputBudget]), non solo sul campione.
+            effectiveScale = budgetedScale(target, travel != null, yieldCap)
+            val sampleChanged = travel?.setBudgetScale(minOf(budgetScale, nativeRoleCeiling, yieldCap)) == true
             val changed = effectScope.update(this, effectiveScale)
             if (sampleChanged || newPipeline) surfaceDirty = true
             effectsUpdates.onDraw(scopeChanged = changed || sampleChanged || newPipeline)
@@ -1631,7 +1766,19 @@ private class DrawBackdropNode(
                 if (nativeSampleLayer != null && travel !== nativeSample && !surfaceDirty) releaseNativeSample()
                 break
             }
+            if (admission == CaptureAdmission.Denied && front && !frontRequested) {
+                frontRequested = true
+                fastRetries = 0
+                resources.frontDenied(this@DrawBackdropNode)
+            }
             val attempted = travel?.sampleScale ?: effectiveScale
+            // F7.18: il campione arriva al suo minimo uguale a vista, poi scende l'uscita, poi di nuovo il campione.
+            if (admission == CaptureAdmission.Denied && travel != null &&
+                attempted * 0.5f < frostedSampleFloor(effectScope.fallbackBody.inputs?.blurPx) &&
+                effectiveScale > MinTravelOutputScale * target) {
+                outputBudget = (effectiveScale * 0.5f).coerceAtLeast(MinTravelOutputScale * target)
+                continue
+            }
             if (admission == CaptureAdmission.Denied && attempted > MinBackdropScale) {
                 budgetScale = (attempted * 0.5f).coerceAtLeast(MinBackdropScale)
                 continue
@@ -1642,10 +1789,11 @@ private class DrawBackdropNode(
                 // si svuota la sua registrazione e si ritenta nello stesso disegno.
                 discardRecording()
                 budgetScale = minOf(target, renderState.optics.backgroundScaleCeiling)
+                outputBudget = 1f
                 continue
             }
             if (admission == CaptureAdmission.Denied && (waitForBytes == 0L || nextBytes < waitForBytes)) {
-                if (waitForBytes == 0L) MainHandler.postDelayed(awaitBudget, 1000L)
+                if (waitForBytes == 0L) MainHandler.postDelayed(awaitBudget, retryDelayMillis())
                 waitForBytes = nextBytes
             }
             replay = sampled
@@ -1792,7 +1940,7 @@ private class DrawBackdropNode(
         val width = coordinates.size.width.toFloat()
         val height = coordinates.size.height.toFloat()
         val target = captureScale(width, height, commit = false)
-        val contentScale = if (activeSample != null) target else minOf(target, budgetScale)
+        val contentScale = budgetedScale(target, activeSample != null, yieldCap(width, height))
         if (contentScale != effectiveScale) return false
         val density = requireDensity()
         val size = if (contentScale != 1f) Size(width * contentScale, height * contentScale) else Size(width, height)
@@ -1891,6 +2039,8 @@ private class DrawBackdropNode(
      */
     override fun onReset() {
         forgetRejectedUpgrade()
+        releaseFrontDemand()
+        outputBudget = 1f
         bindMotionLight(null)
         if (residentBytes > 0L) discardRecording()
         if (budgetDenied) resources.visibleCaptureDenied(window, false)
@@ -1912,6 +2062,8 @@ private class DrawBackdropNode(
 
     override fun onDetach() {
         forgetRejectedUpgrade()
+        releaseFrontDemand()
+        if (residentBytes > 0L) GlassFrameDiagnostics.event("glassRelease", this) { "bytes=$residentBytes detach=true" }
         bindMotionLight(null)
         if (recoveryPending) MainHandler.removeCallbacks(recoverResolution)
         recoveryPending = false
@@ -1937,6 +2089,7 @@ private class DrawBackdropNode(
         residentBytes = 0L
         residentSample = null
         budgetScale = 1f
+        outputBudget = 1f
         budgetTarget = Float.NaN
         budgetExtent = Size.Zero
         allocationPrepared = false

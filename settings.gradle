@@ -46,6 +46,13 @@ include ':engine-viewer-data' // F6C.13 · testi ricchi e dati
 // Opt-in tutti e due, e indipendenti: Notes usa il foglio con la sua sincronizzazione.
 include ':engine-sync'
 include ':engine-revisions'
+// F10.2 · Le passkey e il gestore delle password (engine-auth), e Google a parte (engine-auth-google): opt-in.
+include ':engine-auth'
+include ':engine-auth-google'
+// F10.2 · «Pampa · prova passkey»: l'app che prova il PRF sul telefono, firmata con una chiave di prova (non pampa.jks).
+// Solo nel build dell'engine, fuori dal lotto standard: tools/prf-probe/README.md.
+include ':prf-probe'
+project(':prf-probe').projectDir = file('tools/prf-probe')
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

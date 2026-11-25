@@ -4,6 +4,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberGelGeometry
 import dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import dev.antigravity.fluidengine.ui.glass.backdrop.deniedFill
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.WindowedBackdropEffects
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
@@ -482,6 +483,8 @@ internal fun Modifier.fluidPhysicsSurfaceInked(
       {
         val amount = clampGlassUnit(currentIntensity())
         if (amount > 0.001f) {
+          // F7.18: il ripiego pieno della tinta e' anche il materiale di una cattura negata dal tetto del vetro.
+          deniedFill(tint.fallback.copy(alpha = tint.fallback.alpha * amount))
           val q = qualityFactor()
           val full = resolvedTier == FluidPhysicsTier.Full
           // La lente in moto (3.0): mentre la sagoma viaggia il vetro si fa goccia — piu' rifrazione

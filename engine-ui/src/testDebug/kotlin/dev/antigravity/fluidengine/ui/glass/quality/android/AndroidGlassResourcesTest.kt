@@ -175,7 +175,12 @@ class AndroidGlassResourcesTest {
       assertEquals(GlassOptics.Protected, resources.decision(window).optics)
       frames.scrolling(false)
       assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
-      assertEquals(24L shl 20, resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes)
+      // F7.18: tolta la pressione il tetto torna quello della fascia (8 GiB, classe 512 MiB: Pieno), anche con
+      // l'ottica ancora Ridotta. Fino a F7.17 seguiva l'ottica e restava a 24 MiB.
+      val decided = resources.decision(window)
+      assertEquals(dev.antigravity.fluidengine.ui.glass.quality.GlassMemoryProfile.Full, decided.memoryProfile)
+      assertEquals(dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits.Full.forHeap(decided.heapReferenceBytes).glassBytes,
+        resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes)
       assertTrue(resources.prefetchAllowed.value)
     } finally {
       frames.close()
@@ -211,7 +216,11 @@ class AndroidGlassResourcesTest {
     fun bytes(width: Int, height: Int) = dev.antigravity.fluidengine.foundation.memory.fluidSurfaceBytes(
       width.toLong(), height.toLong(), 4, 2, (width * 4L + 63L) / 64L * 64L)
     val previous = checkNotNull(budget.tryReserve(glass, bytes(540, 1100))).use { checkNotNull(it.confirm()) }
-    val other = checkNotNull(budget.tryReserve(glass, 3L shl 20)).use { checkNotNull(it.confirm()) }
+    // F7.18: il tetto non segue più l'ottica, quindi l'altra occupazione visibile riempie il tetto della fascia fino a
+    // lasciare fuori la stessa eccedenza del tablet (1.915.904 B) invece dei 3 MiB sotto il tetto Ridotto di allora.
+    val excess = 27_081_728L - 25_165_824L
+    val others = budget.usage(glass).limitBytes - budget.usage(glass).usedBytes - bytes(1080, 2200) + excess
+    val other = checkNotNull(budget.tryReserve(glass, others)).use { checkNotNull(it.confirm()) }
     val reader = Any()
     fun denial(denied: Boolean) = resources.visibleCaptureDenied(window, denied, reader, bytes(1080, 2200), now)
     try {
@@ -414,14 +423,17 @@ class AndroidGlassResourcesTest {
     prepare()
     val resources = FluidGlassResources.get(app)
     val budget = resources.budget
+    // F7.18: il rifiuto abbassa l'ottica e ferma il prefetch, ma non il tetto del registro: il tetto è della fascia.
+    val tier = budget.usage().limitBytes
     resources.visibleBudgetDenied(null, true)
-    assertEquals(32L shl 20, budget.usage().limitBytes)
+    assertEquals(GlassOptics.Protected, resources.decision(null).optics)
+    assertEquals(tier, budget.usage().limitBytes)
     val first = visibleActivity()
     assertFalse(resources.prefetchAllowed.value)
     resources.visibleBudgetDenied(null, false)
     val second = visibleActivity()
     resources.visibleBudgetDenied(second.get().window, true)
-    assertEquals(32L shl 20, budget.usage().limitBytes)
+    assertEquals(tier, budget.usage().limitBytes)
     assertSame(budget, FluidGlassResources.get(first.get()).budget)
     assertFalse(resources.prefetchAllowed.value)
     second.pause().stop().destroy()

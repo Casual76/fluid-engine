@@ -13,6 +13,7 @@ import android.os.HandlerThread
 import android.os.PowerManager
 import android.view.Window
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.annotation.MainThread
@@ -83,6 +84,45 @@ class FluidGlassResources private constructor(private val app: Application) {
   /** Un solo registro per tutti i layer e i decoder, comprese finestre simultanee. */
   val budget = FluidMemoryBudget(row.limits().forHeap(heap))
 
+  /**
+   * F7.18: quanti pannelli **davanti** (un modale, un popover, un menu, un foglio, un avviso: il contenuto di
+   * `FluidGlassModalHost`) hanno avuto una cattura negata e sono ancora attaccati. Finché è positivo le catture della
+   * pagina sotto, velata o coperta, cedono il credito: si rifanno una volta a scala bassa ([GlassYieldScale]) invece di
+   * tenere la texture intera. Il pannello davanti ha il tetto prima della pagina che copre. Letto nel disegno dei soli
+   * vetri della pagina: un cambio li ridisegna, nessun timer.
+   */
+  internal val frontDemand = mutableIntStateOf(0)
+  private val frontOwners = HashSet<Any>()
+
+  /** Un pannello davanti negato chiede spazio. Idempotente per proprietario. Sul main thread. */
+  @MainThread
+  internal fun frontDenied(owner: Any) {
+    if (frontOwners.add(owner)) {
+      frontDemand.intValue = frontOwners.size
+      dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassFrontDemand", owner) {
+        "owners=${frontOwners.size} ${usageLine()}"
+      }
+    }
+  }
+
+  /** Il pannello davanti se ne va (distacco o riuso del nodo): la pagina torna alla sua scala. */
+  @MainThread
+  internal fun frontReleased(owner: Any) {
+    if (frontOwners.remove(owner)) {
+      frontDemand.intValue = frontOwners.size
+      dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassFrontReleased", owner) {
+        "owners=${frontOwners.size} ${usageLine()}"
+      }
+    }
+  }
+
+  /** Per la diagnostica: il vetro e il processo nel registro, in byte. */
+  internal fun usageLine(): String {
+    val glass = budget.usage(FluidMemoryCategory.GLASS)
+    val process = budget.usage()
+    return "glassUsed=${glass.usedBytes} glassLimit=${glass.limitBytes} processUsed=${process.usedBytes} processLimit=${process.limitBytes}"
+  }
+
   private val prefetchState = MutableStateFlow(false)
   /** Controllare il valore prima di accodare. I produttori in vita possono osservare anche lo stop. */
   val prefetchAllowed: StateFlow<Boolean> = prefetchState.asStateFlow()
@@ -92,6 +132,15 @@ class FluidGlassResources private constructor(private val app: Application) {
   private var handler: Handler? = null
 
   init {
+    // F7.18: la lettura e la scelta del primo avvio, per misurare la fascia sul dispositivo (`log.tag.FluidGlassFrame`).
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassBudgetStart", this) {
+      val c = reading.capacity
+      val m = reading.conditions
+      "totalRam=${c.totalRamBytes} maxHeap=${c.maxHeapBytes} memoryClassMiB=${c.heapClassMiB} lowRam=${c.lowRamDevice} " +
+        "mediaClass=${c.mediaPerformanceClass} avail=${m.availableBytes} threshold=${m.pressureThresholdBytes} " +
+        "heapFraction=${m.heapFraction} thermal=${m.thermal} powerSave=${m.powerSave} previousExit=${signals.previousExit} " +
+        "tier=${c.memoryCeiling} row=$row heapRef=$heap optics=${initial.decision.optics} ${usageLine()}"
+    }
     app.registerComponentCallbacks(object : ComponentCallbacks2 {
       override fun onTrimMemory(level: Int) = trim(level)
       override fun onLowMemory() = trim(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
@@ -334,6 +383,10 @@ class FluidGlassResources private constructor(private val app: Application) {
       budget.updateLimits(nextRow.limits().forHeap(nextHeap))
       row = nextRow
       heap = nextHeap
+      // F7.18: la riga e l'heap scelti, per leggere il tetto sul dispositivo senza dedurlo dai rifiuti.
+      dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassBudgetLimits", this) {
+        "row=$row heap=$heap optics=${initial.decision.optics} ${usageLine()}"
+      }
     }
     prefetchState.value = active && prefetch
   }

@@ -35,7 +35,8 @@ internal class GlassQualityPolicy(
   internal fun budgetRollbackAt(now: Long) = now >= 0 && rollbackAt == now
   private fun recentlyPromoted(now: Long) = promotedAt >= 0 && now - promotedAt in 0..5_000_000_000L
   internal val nextOptics get() = minOf(decision.optics.higher(), technicalLimit ?: GlassOptics.Full, appLimit)
-  internal val nextMemoryProfile get() = memoryFor(nextOptics)
+  /** Alla posa di recupero la pressione passata si toglie, se non ce n'è una nuova (vedi [publish]). */
+  internal val nextMemoryProfile get() = memoryRow(memoryPressured && criticalReason() != null)
 
   private val validMemoryReading get() = signals.pressureThresholdBytes > 0 && signals.availableBytes >= 0 &&
     (device.totalRamBytes <= 0 || maxOf(signals.pressureThresholdBytes, signals.availableBytes) <= device.totalRamBytes)
@@ -58,11 +59,41 @@ internal class GlassQualityPolicy(
   private var canRecover = healthy()
   private var prefetch = completeMemory && criticalReason() == null
   private fun physicalProfile() = if (lowRamSeen) GlassMemoryProfile.Protected else device.memoryCeiling
-  private fun memoryFor(level: GlassOptics) = minOf(physicalProfile(), when (level) {
+
+  /**
+   * La riga dei tetti di memoria (F7.18). Dipende dalla **fascia del dispositivo** ([GlassDeviceCapacity.memoryCeiling]),
+   * dalla pressione vera e dal tetto della sessione, **non** dal livello ottico.
+   *
+   * Fino a F7.17 la riga seguiva l'ottica ([level]): una cattura visibile negata portava l'ottica a Protetto, e con lei il
+   * tetto del vetro da 24 o 48 MiB a 12. Il rifiuto si alimentava da solo: sul Tab S9 (8 GB, `memoryClass` 512 MiB, fascia
+   * Pieno) il popover della capsula della data chiedeva 19,8 MB contro un tetto ormai di 12 MiB e non entrava mai, e il
+   * pannello restava trasparente (24 novembre 2026, `limit=12582912`). Anche l'avvio Ridotto per la sola classe
+   * multimediale assente o per un driver non riconosciuto dimezzava il tetto, e così un gesto con tre fotogrammi in
+   * ritardo. Quelle sono ragioni per catture **più piccole** (la scala del livello, [GlassOptics.backgroundScaleCeiling]),
+   * non per un tetto più basso: il tetto protegge dalla memoria che manca, e la memoria non manca.
+   *
+   * Restano: la fascia fisica (la RAM, l'heap e `isLowRamDevice`); la pressione critica del sistema (lowMemory,
+   * disponibile sotto la soglia, heap all'85%) e la termica severa, come in F7.10, che tengono la riga Protetta fino alla
+   * prossima posa di recupero ([memoryPressured]), come l'ottica; e il tetto della sessione dopo un'uscita per memoria
+   * (F7.11), che arriva come [appLimit] e vale per tutta la vita della politica ([sessionMemory]).
+   */
+  @Suppress("UNUSED_PARAMETER")
+  private fun memoryFor(level: GlassOptics): GlassMemoryProfile = memoryRow(memoryPressured)
+
+  private fun memoryRow(pressured: Boolean): GlassMemoryProfile =
+    minOf(physicalProfile(), if (pressured) GlassMemoryProfile.Protected else GlassMemoryProfile.Full, sessionMemory)
+
+  private fun GlassOptics.memoryCeiling() = when (this) {
     GlassOptics.Full -> GlassMemoryProfile.Full
     GlassOptics.Reduced -> GlassMemoryProfile.Reduced
     GlassOptics.Protected -> GlassMemoryProfile.Protected
-  })
+  }
+
+  /** F7.18: il tetto più basso chiesto dalla sessione (l'uscita per memoria di F7.11). Scende soltanto. */
+  private var sessionMemory = appCeiling.memoryCeiling()
+
+  /** F7.18: una pressione vera (non un rifiuto visibile) ha portato la riga a Protetto; si toglie alla posa di recupero. */
+  private var memoryPressured = criticalReason().let { it != null && it != GlassQualityReason.VisibleBudgetDenied }
 
   private fun initialOptics(): GlassOptics {
     val cold = when {
@@ -99,6 +130,7 @@ internal class GlassQualityPolicy(
   }
 
   private fun publish(level: GlassOptics, reason: GlassQualityReason): GlassQualityReason? {
+    if (reason == GlassQualityReason.SettledRecovery && criticalReason() == null) memoryPressured = false
     val memory = memoryFor(level)
     val heap = device.heapReferenceBytes
     if (level == decision.optics && memory == decision.memoryProfile &&
@@ -150,6 +182,7 @@ internal class GlassQualityPolicy(
     // Un campione assente non cancella un verdetto già ottenuto per questa ricetta.
     if (shader != null) technicalLimit = shader
     appLimit = app
+    sessionMemory = minOf(sessionMemory, app.memoryCeiling())
     return applyLimits(GlassQualityReason.TechnicalCeiling)
   }
 
@@ -157,6 +190,7 @@ internal class GlassQualityPolicy(
     canRecover = healthy()
     if (!canRecover) frames.invalidateRecovery()
     val critical = criticalReason()
+    if (critical != null && critical != GlassQualityReason.VisibleBudgetDenied) memoryPressured = true
     if (critical != null || !completeMemory) prefetch = false
     if (critical != null) return publish(GlassOptics.Protected, critical)
 

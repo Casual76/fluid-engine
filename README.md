@@ -23,6 +23,10 @@ engine-richtext     l'editor di testo con formattazione (elenchi e citazioni ann
 engine-sync         la sincronizzazione: registro locale, invio una volta sola, unione, pietre tombali, verso
                     il relay cifrato dell'Account Pampa, con WorkManager (opt-in)
 engine-revisions    il foglio di vetro della scelta tra versioni in conflitto (opt-in)
+engine-auth         le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione
+                    PRF la scrive il modulo, gli errori arrivano come frasi pronte (opt-in, dalla 4.0)
+engine-auth-google  «Continua con Google» e le concessioni Google (spente finché non servono): l'unico modulo
+                    con librerie Google non libere, col permesso della GPL-3.0 § 7 (opt-in, dalla 4.0)
 ```
 
 ## Partire in cinque minuti
@@ -158,6 +162,12 @@ l'elenco nella schermata "informazioni" di ogni app senza doverlo riscrivere cin
 | [AndroidLiquidGlass (`backdrop`)](https://github.com/Kyant0/AndroidLiquidGlass) | Kyant, Copyright 2025 | Apache-2.0 — [`LICENSES/AndroidLiquidGlass.md`](LICENSES/AndroidLiquidGlass.md) |
 | [LibrePods](https://github.com/librepods-org/librepods) | LibrePods contributors, Copyright 2025 | **GPL-3.0** — [`LICENSES/LibrePods.md`](LICENSES/LibrePods.md) |
 | [Inter](https://github.com/rsms/inter) | Rasmus Andersson | SIL OFL 1.1 — [`LICENSES/Inter.md`](LICENSES/Inter.md) |
+
+**Il permesso per le librerie di Google (dalla 4.0).** `engine-auth-google` si collega a librerie di Google non
+libere (Play services, `googleid`; più avanti Firebase Cloud Messaging). L'engine aggiunge per queste il permesso della
+GPL-3.0, sezione 7, col testo della FSF: [`LICENSES/Permesso-librerie-Google.md`](LICENSES/Permesso-librerie-Google.md).
+Vale per il codice di Alessio, non per quello di LibrePods (lì il permesso lo possono dare solo i suoi autori): il file
+dice cosa vuol dire per un'app che unisce `engine-ui` e Play services.
 
 **Dalla 3.0 l'engine contiene codice GPL-3.0, e un'app che lo distribuisce è distribuita sotto
 GPL-3.0.** È il codice dei pulsanti di LibrePods — la pressione che parte al contatto, la deriva

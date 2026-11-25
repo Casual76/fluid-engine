@@ -255,6 +255,14 @@ Le modifiche fatte finora:
     lo lasciava fuori). Marcato `Fluid Engine addition (4.0.0, F2.3)`; nessuna firma pubblica cambia; con la pagina
     ferma non produce ne' export ne' letture (`GlassProbeQuietTest`).
 
+23. **Una cattura negata dal tetto della memoria non lascia vetro limpido** (4.0.0, `DrawBackdropModifier.kt`,
+    `BackdropEffectScope.kt`, F7.18). Lo scope degli effetti ha un campo interno `deniedFill`, il pieno che il materiale
+    disegna nella sagoma quando la sua cattura è negata e non c'è un corpo che lo faccia; `DrawBackdropNode` lo usa al
+    posto del niente. Nello stesso nodo: un vetro dentro `FluidGlassModalHost` che si vede negare una cattura chiede
+    spazio (`FluidGlassResources.frontDemand`) e i vetri grandi della pagina si rifanno a metà lato finché resta; col
+    campione separato scende anche la scala d'uscita, dopo il campione. Marcato `Fluid Engine addition (F7.18)`; nessuna
+    firma pubblica cambia; finché le catture entrano il disegno è lo stesso di prima.
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

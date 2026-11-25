@@ -1,0 +1,63 @@
+{
+  "_readme": "Esempi del contratto v1: cosa manda uno Store e cosa legge. I valori sono finti; contano i campi e i tipi. Un valore null vuol dire «può mancare o essere null». test/compat.test.ts controlla che il server di oggi risponda con almeno questi campi, degli stessi tipi (un server nuovo può aggiungere campi, mai toglierli o cambiarli).",
+  "POST /v1/passkeys/register/options": {
+    "request": { "displayName": "Persona", "ageConfirmed": true },
+    "response": {
+      "challengeId": "chl_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expiresIn": 300,
+      "options": { "challenge": "b64url", "rp": { "id": "pampa-apps.com", "name": "Account Pampa" }, "user": { "id": "b64url", "name": "Persona", "displayName": "Persona" }, "pubKeyCredParams": [{ "alg": -8, "type": "public-key" }] }
+    }
+  },
+  "POST /v1/passkeys/register/verify": {
+    "request": { "challengeId": "chl_…", "credential": { "id": "…", "rawId": "…", "type": "public-key", "response": {}, "clientExtensionResults": { "prf": { "enabled": true } } }, "device": { "name": "Galaxy S25", "deviceKey": { "kty": "EC", "crv": "P-256", "x": "…", "y": "…" } } },
+    "response": { "accountId": "acc_aaaaaaaaaaaaaaaaaaaaaaaaaa", "deviceId": "dev_aaaaaaaaaaaaaaaaaaaaaaaaaa", "accessToken": "jwt", "expiresIn": 900, "refreshToken": "b64url", "backedUp": true }
+  },
+  "POST /v1/passkeys/login/verify": {
+    "request": { "challengeId": "chl_…", "credential": { "id": "…", "type": "public-key", "response": {} }, "device": { "name": "Galaxy S25", "deviceKey": {} } },
+    "response": { "accountId": "acc_…", "deviceId": "dev_…", "accessToken": "jwt", "expiresIn": 900, "refreshToken": "b64url", "status": "active", "prfDoor": false }
+  },
+  "POST /v1/google/nonce": {
+    "request": {},
+    "response": { "nonceId": "chl_…", "nonce": "b64url", "expiresIn": 300 }
+  },
+  "POST /v1/recovery/redeem": {
+    "request": { "auth": "43 caratteri base64url: HKDF(codice, \"pampa/v1/recovery-auth\")", "device": { "name": "Telefono nuovo", "deviceKey": {} } },
+    "response": { "accountId": "acc_…", "deviceId": "dev_…", "accessToken": "jwt", "expiresIn": 900, "refreshToken": "b64url", "kind": "recovery", "otherDevices": 1 }
+  },
+  "POST /v1/session/refresh": {
+    "request": { "refreshToken": "b64url" },
+    "response": { "accessToken": "jwt", "expiresIn": 900, "kind": "full", "status": "active" }
+  },
+  "GET /v1/account": {
+    "response": {
+      "id": "acc_…",
+      "displayName": "Persona",
+      "createdAt": 1795000000000,
+      "status": "active",
+      "methods": { "passkeys": 1, "syncedPasskeys": 1, "google": false, "recovery": false },
+      "e2e": { "enabled": false, "keyVersion": 0 },
+      "session": { "deviceId": "dev_…", "kind": "full" },
+      "pending": []
+    }
+  },
+  "GET /v1/devices": {
+    "response": { "devices": [{ "id": "dev_…", "name": "Galaxy S25", "platform": "android", "osApi": null, "storeVersion": null, "devStore": false, "kind": "full", "createdAt": 1795000000000, "lastSeenDay": 20788, "current": true, "pending": null }] }
+  },
+  "POST /v1/apps/{package}/token": {
+    "request": { "audience": "notes", "scopes": ["notes.sync"] },
+    "response": { "token": "jwt", "expiresIn": 900, "scopes": ["notes.sync"] }
+  },
+  "POST /v1/grants": {
+    "request": { "changes": [{ "package": "dev.pampa.pampai", "service": "calendar.events", "state": "granted", "hlc": "1795000000000-00001-a1" }] },
+    "response": { "seq": 1, "grants": [{ "package": "dev.pampa.pampai", "service": "calendar.events", "state": "granted", "hlc": "1795000000000-00001-a1", "seq": 1 }], "rejected": [] }
+  },
+  "GET /v1/prefs": {
+    "response": { "seq": 0, "accepted": [{ "key": "appearance.mode", "scopes": "global+app", "value": { "type": "enum", "values": ["system", "light", "dark"] }, "since": 1 }], "prefs": [] }
+  },
+  "error": {
+    "response": { "error": "unauthorized", "message": "Accesso scaduto. Riprova." }
+  },
+  "error 429": {
+    "response": { "error": "rate_limited", "message": "Troppi tentativi. Riprova fra poco.", "retryAfter": 60 }
+  }
+}

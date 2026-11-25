@@ -62,4 +62,12 @@ ext.engine = [
   // -Pviewer.media3Test=1.5.1.
   media3         : '1.5.1',
   media3Test     : '1.11.1',
+
+  // engine-auth ed engine-auth-google (F10.2). Credential Manager 1.6.0 chiede compileSdk 35 e AGP 8.6 (metadati
+  // dell'AAR, letti il 25/11/2026); googleid e play-services-auth sono solo di engine-auth-google, perché non sono
+  // librerie libere (licenza dell'engine, permesso aggiuntivo della GPL-3.0 § 7). La coroutine di Play services
+  // trasforma un `Task` in una sospensione (`await()`), alla stessa versione delle coroutine dell'engine.
+  credentials    : '1.6.0',
+  googleId       : '1.2.0',
+  playServicesAuth: '22.0.0',
 ]

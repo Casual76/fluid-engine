@@ -308,7 +308,12 @@ fun FluidGlassModalHost(
   // `onSurface` e' il testo sul vetro dei pannelli e sulla pagina intera, che e' `surface`.
   // Taglia, stile e larghezza dei tasti tornano quelli di serie (F6.4): in iOS 27 un foglio o un popover non eredita
   // `controlSize` e `buttonSizing` di chi lo apre, e un host messo dentro una barra di tasti `Compact` non li passa.
-  CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, *fluidGlassButtonDefaults()) {
+  // F7.18: tutto quello che sta qui è davanti alla pagina, e ha la precedenza sul tetto del vetro (vedi [LocalGlassFrontLayer]).
+  CompositionLocalProvider(
+    LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+    LocalGlassFrontLayer provides true,
+    *fluidGlassButtonDefaults(),
+  ) {
     val parallel = state.topEntry()?.takeIf { !it.blocksPage && !fluidModalSlidesUp(it.presentation) }
     val sharedTap = if (parallel != null) {
       val slop = androidx.compose.ui.platform.LocalViewConfiguration.current.touchSlop

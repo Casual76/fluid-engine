@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -75,7 +78,7 @@ data class FluidVersionLabels(
   val chooseFirst: String = "Scegli una versione",
   val later: String = "Decidi dopo",
   val current: String = "Attuale",
-  val updated: String = "È arrivata una versione nuova: guardale di nuovo prima di scegliere.",
+  val updated: String = "Guardale di nuovo prima di scegliere.",
   val excerptsOnly: String = "Le versioni sono troppo diverse per segnare i passaggi: ecco l'inizio di ciascuna.",
   val selected: String = "Scelta",
   val notSelected: String = "Non scelta",
@@ -83,6 +86,8 @@ data class FluidVersionLabels(
   val today: (String) -> String = { "Oggi, $it" },
   val yesterday: (String) -> String = { "Ieri, $it" },
   val onDay: (String, String) -> String = { day, time -> "$day, $time" },
+  /** Il titolo della riga che dice che e' arrivata una versione nuova a foglio aperto. */
+  val updatedTitle: String = "È arrivata una versione nuova",
 ) {
   companion object {
     fun english() = FluidVersionLabels(
@@ -94,7 +99,7 @@ data class FluidVersionLabels(
       chooseFirst = "Choose a Version",
       later = "Decide Later",
       current = "Current",
-      updated = "A newer version just arrived: look again before choosing.",
+      updated = "Look again before choosing.",
       excerptsOnly = "The versions are too different to mark the changes: here is how each one starts.",
       selected = "Selected",
       notSelected = "Not selected",
@@ -102,6 +107,7 @@ data class FluidVersionLabels(
       today = { "Today, $it" },
       yesterday = { "Yesterday, $it" },
       onDay = { day, time -> "$day, $time" },
+      updatedTitle = "A newer version arrived",
     )
   }
 }
@@ -189,8 +195,10 @@ fun FluidVersionChoicePane(
   excerpts?.let(seenExcerpts::putAll)
   val today = remember(zone) { LocalDate.now(zone) }
 
+  // Il foglio scorre quando le versioni non ci stanno (tre versioni, il testo grande): i tasti in fondo restano raggiungibili.
   Column(
     modifier = modifier
+      .verticalScroll(rememberScrollState())
       .navigationBarsPadding()
       .padding(horizontal = 20.dp)
       .padding(bottom = 20.dp)
@@ -213,6 +221,7 @@ fun FluidVersionChoicePane(
     if (updated) {
       FluidInlineMessage(
         message = labels.updated,
+        title = labels.updatedTitle,
         tone = FluidTone.Info,
         modifier = Modifier
           .testTag(FluidVersionChoiceTags.Updated)
@@ -276,6 +285,7 @@ private fun VersionCard(
 ) {
   val scheme = MaterialTheme.colorScheme
   val shape = ContinuousCornerShape(FluidRadius.Card)
+  val cardFill = scheme.surfaceContainerHigh.copy(alpha = 0.92f)
   Row(
     modifier = Modifier
       .fillMaxWidth()
@@ -293,7 +303,9 @@ private fun VersionCard(
         stateDescription = if (selected) labels.selected else labels.notSelected
       }
       .clip(shape)
-      .background(if (selected) scheme.primary.copy(alpha = 0.10f) else scheme.onSurface.copy(alpha = 0.05f))
+      // Piena quanto basta per leggere sopra il vetro del foglio (come i gruppi di un foglio di iOS); la scelta ha la tinta
+      // dell'accento sopra.
+      .background(if (selected) scheme.primary.copy(alpha = 0.16f).compositeOver(cardFill) else cardFill)
       .padding(horizontal = 14.dp, vertical = 12.dp),
     horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.Top,

@@ -32,8 +32,10 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-wear](wear.md) | 17 | 87 |
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-viewer](viewer.md) | 30 | 212 |
-| [engine-sync](sync.md) | 12 | 160 |
+| [engine-sync](sync.md) | 12 | 161 |
 | [engine-revisions](revisions.md) | 2 | 18 |
+| [engine-auth](auth.md) | 9 | 52 |
+| [engine-auth-google](auth-google.md) | 2 | 17 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

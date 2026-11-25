@@ -73,6 +73,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-sync` | la sincronizzazione: registro locale, invio una volta sola, unione per campo e dei testi lunghi, pietre tombali, verso il relay cifrato dell'Account Pampa; WorkManager (**opt-in**, dalla 4.0) | `moduli/sync.md` |
 | `engine-revisions` | il foglio di vetro della scelta tra versioni in conflitto (**opt-in**, dalla 4.0) | `moduli/revisions.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
+| `engine-auth`, `engine-auth-google` | le passkey e il gestore delle password con Credential Manager, senza rete (il PRF lo scrive il modulo, gli errori come frasi pronte); «Continua con Google» e le concessioni Google, spente (**opt-in**, dalla 4.0; Google ha il permesso della GPL-3.0 § 7) | `moduli/auth.md` |
 
 ## Che componente uso per…
 
@@ -116,6 +117,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | sezione aspetto, aggiornamento in-app, parole traducibili, licenze | `componenti/impostazioni.md` |
 | suggerimenti al primo uso | `componenti/tutorial.md` |
 | il foglio «Benvenuto in…» e «Novità di…» una volta per versione, un permesso chiesto dal tasto che ne ha bisogno (anche le foto «solo alcune»), uno sfondo vivo per un onboarding o un traguardo, la finestra del colore giusto al primo fotogramma | `componenti/prima-volta.md` |
+| entrare con una passkey, salvare un codice nel gestore delle password, «Continua con Google» | `moduli/auth.md` (opt-in) |
 | un orologio | `moduli/wear.md` |
 | un assistente IA | `ai.md`, `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md`, e l'interfaccia in `moduli/ai-ui.md` (+ `ai-ui-overlay`, `-chat`, `-impostazioni`, `-stringhe`) |
 

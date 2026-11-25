@@ -179,6 +179,9 @@ DIR_FAMILY = {
     # la sincronizzazione e la scelta tra versioni (F8.21)
     "sync": "sync",
     "revisions": "revisions",
+    # le passkey e Google (F10.2), due moduli facoltativi
+    "auth": "auth",
+    "auth/google": "auth-google",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -218,6 +221,8 @@ FAMILY_TITLES = {
     "viewer": "engine-viewer",
     "sync": "engine-sync",
     "revisions": "engine-revisions",
+    "auth": "engine-auth",
+    "auth-google": "engine-auth-google",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

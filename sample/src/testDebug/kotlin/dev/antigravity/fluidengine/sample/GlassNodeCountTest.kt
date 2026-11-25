@@ -190,8 +190,8 @@ class GlassNodeCountTest {
       assertEquals(1024L shl 20, first.heapReferenceBytes)
       val before = resources.budget.usage(FluidMemoryCategory.GLASS)
       assertEquals(0L, before.usedBytes)
-      val limits = if (first.optics == GlassOptics.Full) FluidMemoryLimits.Full else FluidMemoryLimits.Reduced
-      assertEquals(limits.glassBytes, before.limitBytes)
+      // F7.18: il tetto è quello della fascia del banco (8 GiB, heap 1024 MiB: Pieno) qualunque sia l'ottica d'avvio.
+      assertEquals(FluidMemoryLimits.Full.forHeap(first.heapReferenceBytes).glassBytes, before.limitBytes)
       resources.refresh()
       assertEquals(first, resources.decision(window))
       assertEquals(before.limitBytes, resources.budget.usage(FluidMemoryCategory.GLASS).limitBytes)

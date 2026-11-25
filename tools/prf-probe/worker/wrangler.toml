@@ -1,0 +1,23 @@
+# F10.2 · Il Worker della prova del PRF delle passkey. Serve solo assetlinks.json su prova.pampa-apps.com.
+#
+# Non lo pubblica un agente: lo pubblica Alessio nella mini-seduta, e alla fine lo cancella
+# (artifacts\ecosistema\account\f10-2\guida-mini-seduta.md). Opzioni controllate sullo schema di Wrangler 4.168.0
+# (config-schema.json) il 25/11/2026.
+
+name = "pampa-prova-passkey"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+# Niente telemetria di Wrangler.
+send_metrics = false
+
+# Solo il dominio di prova, come dominio personalizzato: il deploy crea da solo il record DNS e il certificato, e la
+# cancellazione del Worker li toglie. Niente indirizzo *.workers.dev e niente anteprime.
+workers_dev = false
+preview_urls = false
+routes = [
+  { pattern = "prova.pampa-apps.com", custom_domain = true },
+]
+
+# Nessun registro: né i nostri (il codice non scrive niente) né quelli automatici di Cloudflare per ogni richiesta.
+[observability]
+enabled = false

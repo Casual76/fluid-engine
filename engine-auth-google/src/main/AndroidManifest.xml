@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Nessun permesso nostro. Play services porta i suoi (accesso alla rete per parlare con Google): per questo il
+       modulo lo usa solo Pampa Store, e solo dopo che l'utente ha scelto «Continua con Google» (regola R9). -->
+</manifest>

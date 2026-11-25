@@ -64,7 +64,8 @@ class SyncAndroidTest {
     val state = back.state.value
     assertEquals("Latte", state.records[id]?.text("voce"))
     assertEquals(true, state.records[id]?.bool("presa"))
-    assertEquals("tre modifiche nel registro", 3, state.pending)
+    assertEquals("tre voci nel registro, un elemento solo: una modifica in attesa", 1, state.pending)
+    assertEquals(3, reopened.transaction { journalSize("spesa") })
     assertTrue("l'orologio riprende da dove era", again.clock.now() > sync.clock.current)
     assertNull(back.sync().failure)
     assertEquals(0, back.state.value.pending)
@@ -94,6 +95,7 @@ class SyncAndroidTest {
       store.transaction { journal("s") }.map { it.change },
     )
     assertEquals(2L, store.transaction { lastJournalSeq("s", "r") })
+    assertEquals("due voci dello stesso elemento: uno", 1, store.transaction { journalRecordCount("s") })
     assertEquals(1, store.transaction { removeJournal("s", "r", 1) })
     assertEquals(listOf("s"), store.transaction { spaces() })
     store.close()

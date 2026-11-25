@@ -107,7 +107,10 @@ data class SyncSpaceState(
   /** Gli elementi non cancellati, per identificativo. */
   val records: Map<String, SyncDocument>,
   val conflicts: List<SyncConflict>,
-  /** Le voci del registro non ancora confermate dal relay: «3 modifiche in attesa». */
+  /**
+   * Gli elementi con modifiche non ancora confermate dal relay: «3 modifiche in attesa». Un elemento conta una volta,
+   * quanti che siano i campi cambiati; «tieni tutte e due» ne conta due, l'elemento e la sua copia.
+   */
   val pending: Int,
   val syncing: Boolean,
   /** L'ora corretta dell'ultima sincronizzazione riuscita, o null. */
@@ -236,7 +239,7 @@ class SyncSpace internal constructor(
           putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
           val next = (rec ?: SyncStoredRecord(recordId, local, null, 0, false)).copy(local = doc, dirty = true)
           putRecord(key, next)
-          next to journalSize(key)
+          next to journalRecordCount(key)
         } ?: return@withLock false
         updateMirrorLocked(listOf(result.first), result.second)
         true
@@ -304,7 +307,7 @@ class SyncSpace internal constructor(
           }
           putMeta(key, MetaSeq, SyncStoreCodec.encodeLong(seq - 1))
           putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
-          SyncResolution.Resolved(copies) to (touched to journalSize(key))
+          SyncResolution.Resolved(copies) to (touched to journalRecordCount(key))
         }
         result.second?.let { (touched, size) -> updateMirrorLocked(touched, size) }
         result.first
@@ -401,7 +404,7 @@ class SyncSpace internal constructor(
               for ((row, doc) in opened) applyRemoteRow(row, doc, report)?.let(out::add)
               if (!full) putMeta(key, MetaCursor, SyncStoreCodec.encodeLong(next))
               putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
-              out to journalSize(key)
+              out to journalRecordCount(key)
             }
             updateMirrorLocked(touched.first, touched.second)
           }
@@ -429,7 +432,7 @@ class SyncSpace internal constructor(
             }
           }
           putMeta(key, MetaCursor, SyncStoreCodec.encodeLong(cursor))
-          out to journalSize(key)
+          out to journalRecordCount(key)
         }
         updateMirrorLocked(touched.first, touched.second)
       }
@@ -454,7 +457,7 @@ class SyncSpace internal constructor(
             }
             out += rec to lastJournalSeq(key, rec.recordId)
           }
-          Triple(out.sortedBy { it.second }.take(config.pushBatchSize), dropped, journalSize(key))
+          Triple(out.sortedBy { it.second }.take(config.pushBatchSize), dropped, journalRecordCount(key))
         }
         if (picked.second.isNotEmpty()) {
           picked.second.forEach { mirror.remove(it.recordId) }
@@ -526,7 +529,7 @@ class SyncSpace internal constructor(
         }
         putMeta(key, MetaInflight, null)
         putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
-        out to journalSize(key)
+        out to journalRecordCount(key)
       }
       updateMirrorLocked(touched.first, touched.second)
     }
@@ -601,7 +604,7 @@ class SyncSpace internal constructor(
             gone += rec.recordId
           }
         }
-        gone to journalSize(key)
+        gone to journalRecordCount(key)
       }
       report.purged += removed.first.size
       removed.first.forEach { mirror.remove(it) }
@@ -616,7 +619,7 @@ class SyncSpace internal constructor(
     if (loaded) return
     engine.restoreClock()
     val (records, size, last) = store.transaction {
-      Triple(records(key), journalSize(key), SyncStoreCodec.decodeLong(meta(key, MetaLastSuccess)))
+      Triple(records(key), journalRecordCount(key), SyncStoreCodec.decodeLong(meta(key, MetaLastSuccess)))
     }
     mirror.clear()
     for (rec in records) mirror[rec.recordId] = rec.local
@@ -626,9 +629,9 @@ class SyncSpace internal constructor(
     publishLocked()
   }
 
-  private fun updateMirrorLocked(touched: List<SyncStoredRecord>, journalSize: Int) {
+  private fun updateMirrorLocked(touched: List<SyncStoredRecord>, pendingRecords: Int) {
     for (rec in touched) mirror[rec.recordId] = rec.local
-    pending = journalSize
+    pending = pendingRecords
     publishLocked()
   }
 

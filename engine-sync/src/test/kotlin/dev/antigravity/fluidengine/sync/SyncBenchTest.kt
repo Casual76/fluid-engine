@@ -39,7 +39,7 @@ class SyncBenchTest {
     val tablet = world.device("tablet")
     val id = phone.create { text("voce", "Latte"); bool("presa", false) }
     assertEquals("subito nel registro e nello stato, senza rete", "Latte", phone.records()[id]?.text("voce"))
-    assertEquals(2, phone.state().pending)
+    assertEquals("un elemento nuovo, anche con due campi, e' una modifica", 1, phone.state().pending)
     phone.syncNow()
     assertEquals(0, phone.state().pending)
     tablet.syncNow()
@@ -334,6 +334,46 @@ class SyncBenchTest {
     assertEquals("Oggi c'era il sole.\n", b.records()[copies.single()]?.text("testo"))
     assertEquals("Diario", b.records()[copies.single()]?.text("titolo"))
     assertConverged(a, b)
+  }
+
+  // Visto sul tablet (25/11/2026): una voce sola diceva «3 modifiche in attesa», una per campo.
+  @Test fun `le modifiche in attesa si contano per elemento, non per campo`() {
+    val phone = world.device("telefono")
+    val tablet = world.device("tablet")
+    phone.goOffline()
+    val id = phone.create { text("voce", "Crema solare"); bool("presa", false); longText("nota", "Quella del mare.\n") }
+    assertEquals("una voce nuova con tre campi e' una modifica", 1, phone.state().pending)
+    assertEquals("nel registro restano tre voci", 3, phone.disk.transaction { journalSize("spesa") })
+    phone.edit(id) { bool("presa", true) }
+    assertEquals("un'altra modifica allo stesso elemento non si somma", 1, phone.state().pending)
+    phone.create { text("voce", "Cappello") }
+    assertEquals(2, phone.state().pending)
+    phone.syncNow()
+    assertEquals("2 modifiche in attesa: partono quando torna la rete.", phone.sync.status.value.message)
+    assertEquals(2, phone.sync.overview.value.pending)
+    phone.goOnline()
+    world.settle(phone, tablet)
+    assertEquals(0, phone.state().pending)
+
+    // «Tieni tutte e due»: l'elemento con la scelta e la copia nuova, due modifiche.
+    phone.goOffline()
+    phone.edit(id) { longText("nota", "Quella con protezione 50.\n") }
+    world.advance(1_000)
+    tablet.edit(id) { longText("nota", "Quella nel bagno, accanto al doposole.\n") }
+    tablet.syncNow()
+    phone.goOnline()
+    world.settle(phone, tablet)
+    val conflict = phone.state().conflicts.single()
+    phone.goOffline()
+    val result = runBlocking { phone.space().resolve(id, "nota", conflict.revisions, conflict.revisions) }
+    assertEquals(1, (result as SyncResolution.Resolved).copies.size)
+    assertEquals("l'elemento e la sua copia", 2, phone.state().pending)
+    assertTrue("le voci nel registro sono di piu'", phone.disk.transaction { journalSize("spesa") } > 2)
+    phone.goOnline()
+    world.settle(phone, tablet)
+    assertEquals(0, phone.state().pending)
+    assertEquals(0, tablet.state().pending)
+    assertConverged(phone, tablet)
   }
 
   @Test fun `il relay vede solo byte sigillati, e un contenuto spostato non si apre`() {

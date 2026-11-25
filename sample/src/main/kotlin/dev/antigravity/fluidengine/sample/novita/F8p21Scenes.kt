@@ -215,9 +215,12 @@ internal class DemoWorld(private val scope: CoroutineScope) {
     return device
   }
 
-  /** Un invio fra poco, come il lavoro unico di WorkManager: piu' richieste ravvicinate diventano un invio solo. */
+  /**
+   * Un invio fra poco, come il lavoro unico di WorkManager: piu' richieste ravvicinate diventano un invio solo. Anche senza
+   * rete si tenta: fallisce subito e lo stato dice «offline» con le modifiche in attesa (in un'app lo dira' l'osservatore
+   * della rete di F8.20).
+   */
   fun request(device: DemoDevice, after: Long = Debounce) {
-    if (!device.online) return
     scope.launch {
       synchronized(pending) { pending[device.node]?.cancel() }
       val job = scope.launch {
@@ -314,7 +317,7 @@ private fun DeviceHeader(device: DemoDevice, world: DemoWorld, state: SyncSpaceS
       checked = online,
       onCheckedChange = { on ->
         device.online = on
-        if (on) world.request(device, 0)
+        world.request(device, 0)
       },
       modifier = Modifier.testTag(F8p21Tags.network(device.node)),
     )
@@ -440,7 +443,7 @@ private fun TwoDevicesScene(onBack: () -> Unit) {
         TripList(tablet, world, glass, initial.value)
       }
     }
-    item(key = "relay") { RelayRow(world, phoneState.records, tabletState.records) }
+    item(key = "relay") { RelayRow(world, phoneState, tabletState) }
     item(key = "nota") {
       FluidSectionFootnote(
         text = "Ogni modifica va subito nel registro del dispositivo e si vede, anche senza rete. Poi parte una volta " +
@@ -575,7 +578,7 @@ private fun ConflictScene(onBack: () -> Unit) {
         }
       }
     }
-    item(key = "relay") { RelayRow(world, phoneState.records, tabletState.records) }
+    item(key = "relay") { RelayRow(world, phoneState, tabletState) }
   }
 
   FluidVersionChoiceSheet(
@@ -726,7 +729,7 @@ private fun SleeperScene(onBack: () -> Unit) {
         TripList(old, world, glass, initial.value)
       }
     }
-    item(key = "relay") { RelayRow(world, phoneState.records, oldState.records) }
+    item(key = "relay") { RelayRow(world, phoneState, oldState) }
     item(key = "spazio") { Spacer(Modifier.padding(8.dp)) }
   }
 }

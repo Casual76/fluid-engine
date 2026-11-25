@@ -1,0 +1,70 @@
+{
+  "waiting": {
+    "status": 202,
+    "message": "Per sicurezza questa azione avverrà fra 24 ore. Dagli altri dispositivi puoi annullarla."
+  },
+  "bad_request": {
+    "status": 400,
+    "message": "La richiesta non è valida."
+  },
+  "unauthorized": {
+    "status": 401,
+    "message": "Accesso scaduto. Riprova."
+  },
+  "session_revoked": {
+    "status": 401,
+    "message": "Questo dispositivo è uscito dall'Account Pampa."
+  },
+  "reauth_required": {
+    "status": 403,
+    "message": "Conferma che sei tu per continuare."
+  },
+  "forbidden": {
+    "status": 403,
+    "message": "Questa azione non è permessa."
+  },
+  "app_disconnected": {
+    "status": 403,
+    "message": "Quest'app è scollegata dall'Account Pampa."
+  },
+  "not_found": {
+    "status": 404,
+    "message": "Non trovato."
+  },
+  "conflict": {
+    "status": 409,
+    "message": "C'è un conflitto con lo stato attuale. Riprova."
+  },
+  "google_in_use": {
+    "status": 409,
+    "message": "Questo account Google è già collegato a un altro Account Pampa."
+  },
+  "too_large": {
+    "status": 413,
+    "message": "La richiesta è troppo grande."
+  },
+  "store_outdated": {
+    "status": 426,
+    "message": "Aggiorna Pampa Store per continuare."
+  },
+  "rate_limited": {
+    "status": 429,
+    "message": "Troppi tentativi. Riprova fra poco."
+  },
+  "internal": {
+    "status": 500,
+    "message": "Qualcosa è andato storto. Riprova più tardi."
+  },
+  "unavailable": {
+    "status": 503,
+    "message": "Il servizio non è raggiungibile. Riprova più tardi."
+  },
+  "quota_exceeded": {
+    "status": 507,
+    "message": "Lo spazio di quest'app è finito."
+  },
+  "storage_full": {
+    "status": 507,
+    "message": "Lo spazio di Pampa è pieno, riprova più tardi."
+  }
+}

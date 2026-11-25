@@ -131,12 +131,12 @@ fun fluidVersionExcerpts(
       charRange(tokens, hunk.bStart, hunk.bEnd)?.let(mine::add)
       charRange(refTokens, hunk.aStart, hunk.aEnd)?.let(refChanged::add)
     }
-    out[v.id] = clip(v.text, mine, maxChars, compared = true)
+    out[v.id] = clip(v.text, joinAcrossSpaces(v.text, mine), maxChars, compared = true)
   }
   val ordered = LinkedHashMap<String, FluidVersionExcerpt>()
   for (v in versions) {
     ordered[v.id] = if (v === reference) {
-      clip(reference.text, mergeRanges(refChanged), maxChars, compared = allCompared)
+      clip(reference.text, joinAcrossSpaces(reference.text, mergeRanges(refChanged)), maxChars, compared = allCompared)
     } else {
       out.getValue(v.id)
     }
@@ -154,6 +154,26 @@ private fun charRange(tokens: List<String>, from: Int, to: Int): IntRange? {
   val text = tokens.subList(from, to).joinToString("")
   if (text.isBlank()) return null
   return start until end
+}
+
+/**
+ * Due tratti segnati separati solo da spazi diventano uno: «8:30 al parcheggio» si legge come un passaggio, non come tre
+ * macchie (sul tablet, 25/11/2026).
+ */
+private fun joinAcrossSpaces(text: String, ranges: List<IntRange>): List<IntRange> {
+  if (ranges.size < 2) return ranges
+  val sorted = mergeRanges(ranges)
+  val out = ArrayList<IntRange>()
+  var current = sorted.first()
+  for (r in sorted.drop(1)) {
+    val gap = text.substring(current.last + 1, r.first)
+    current = if (gap.isNotEmpty() && gap.all { it == ' ' }) current.first..r.last else {
+      out += current
+      r
+    }
+  }
+  out += current
+  return out
 }
 
 private fun mergeRanges(ranges: List<IntRange>): List<IntRange> {

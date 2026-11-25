@@ -1,0 +1,444 @@
+{
+  "_readme": "Generato da engine-auth/tools/webauthn-vectors.mjs con il server dell'Account Pampa (src/webauthn.ts e test/fake/authenticator.ts), in locale. «credentialManager» è la risposta come la dà Credential Manager, coi risultati del PRF; «forServer» è la stessa senza, ed è quella che il server ha verificato; «rawRejected» è il motivo per cui il server rifiuta quella col PRF dentro. Le chiavi sono finte.",
+  "source": {
+    "repo": "Pampa-account",
+    "commit": "f4f23b2",
+    "simplewebauthn": "14.1.0"
+  },
+  "rpId": "pampa-apps.com",
+  "origin": "android:apk-key-hash:glc4UAzpYFQp_7o8QBkij5kvLDfRtwoiMKfOLCVjfkM",
+  "cases": [
+    {
+      "name": "es256-sincronizzata",
+      "alg": -7,
+      "synced": true,
+      "registrationOptions": {
+        "challenge": "HyYtNDtCSVBXXmVsc3qBiI-WnaSrsrnAx87V3OPq8fg",
+        "rp": {
+          "name": "Account Pampa",
+          "id": "pampa-apps.com"
+        },
+        "user": {
+          "id": "PkVMU1phaG92fYSLkpmgpw",
+          "name": "Persona",
+          "displayName": "Persona"
+        },
+        "pubKeyCredParams": [
+          {
+            "alg": -8,
+            "type": "public-key"
+          },
+          {
+            "alg": -7,
+            "type": "public-key"
+          },
+          {
+            "alg": -257,
+            "type": "public-key"
+          }
+        ],
+        "timeout": 300000,
+        "attestation": "none",
+        "excludeCredentials": [],
+        "authenticatorSelection": {
+          "residentKey": "required",
+          "userVerification": "required",
+          "requireResidentKey": true
+        },
+        "extensions": {
+          "credProps": true
+        },
+        "hints": []
+      },
+      "creation": {
+        "credentialManager": {
+          "id": "K2l3J0Ek_kUuwXDlw89gYg",
+          "rawId": "K2l3J0Ek_kUuwXDlw89gYg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiSHlZdE5EdENTVkJYWG1Wc2MzcUJpSS1XbmFTcnNybkF4ODdWM09QcThmZyIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViUflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVdAAAAAOqbjWZNAR0hPOS2tIy1ddQAECtpdydBJP5FLsFw5cPPYGKlAQIDJiABIVggW6UsVERCwjRY56n_oSnPwTi6TsSTYXFcnouH2dE0894iWCAtxCSewXnTsyuIK6VDz_aSbcg8h07gy31YhwXeyIswRA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -7
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true,
+              "results": {
+                "first": "XWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "K2l3J0Ek_kUuwXDlw89gYg",
+          "rawId": "K2l3J0Ek_kUuwXDlw89gYg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiSHlZdE5EdENTVkJYWG1Wc2MzcUJpSS1XbmFTcnNybkF4ODdWM09QcThmZyIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViUflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVdAAAAAOqbjWZNAR0hPOS2tIy1ddQAECtpdydBJP5FLsFw5cPPYGKlAQIDJiABIVggW6UsVERCwjRY56n_oSnPwTi6TsSTYXFcnouH2dE0894iWCAtxCSewXnTsyuIK6VDz_aSbcg8h07gy31YhwXeyIswRA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -7
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true
+            }
+          }
+        },
+        "prfFirst": "XWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "credentialId": "K2l3J0Ek_kUuwXDlw89gYg",
+          "alg": -7,
+          "backupEligible": true,
+          "backedUp": true,
+          "aaguid": "ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4"
+        }
+      },
+      "authenticationOptions": {
+        "rpId": "pampa-apps.com",
+        "challenge": "fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlU",
+        "allowCredentials": [],
+        "timeout": 300000,
+        "userVerification": "required"
+      },
+      "assertion": {
+        "credentialManager": {
+          "id": "K2l3J0Ek_kUuwXDlw89gYg",
+          "rawId": "K2l3J0Ek_kUuwXDlw89gYg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZklPS2taaWZwcTIwdThMSjBOZmU1ZXp6LWdFSUR4WWRKQ3N5T1VCSFRsVSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUdAAAAAA",
+            "signature": "MEUCIQChKbko4eBTmJtFQ0y6h9qFBOKuUQIhhWaQ-6lNpWfuMAIgQn-weew8v9Q6wEyaquFMe6OwiD5tmL1QLNNW4tUjUYA",
+            "userHandle": "PkVMU1phaG92fYSLkpmgpw"
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "results": {
+                "first": "m6KpsLe-xczT2uHo7_b9BAsSGSAnLjU8Q0pRWF9mbXQ"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "K2l3J0Ek_kUuwXDlw89gYg",
+          "rawId": "K2l3J0Ek_kUuwXDlw89gYg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZklPS2taaWZwcTIwdThMSjBOZmU1ZXp6LWdFSUR4WWRKQ3N5T1VCSFRsVSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUdAAAAAA",
+            "signature": "MEUCIQChKbko4eBTmJtFQ0y6h9qFBOKuUQIhhWaQ-6lNpWfuMAIgQn-weew8v9Q6wEyaquFMe6OwiD5tmL1QLNNW4tUjUYA",
+            "userHandle": "PkVMU1phaG92fYSLkpmgpw"
+          },
+          "clientExtensionResults": {}
+        },
+        "prfFirst": "m6KpsLe-xczT2uHo7_b9BAsSGSAnLjU8Q0pRWF9mbXQ",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "newCounter": 0,
+          "backedUp": true
+        }
+      }
+    },
+    {
+      "name": "eddsa-sincronizzata",
+      "alg": -8,
+      "synced": true,
+      "registrationOptions": {
+        "challenge": "PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBc",
+        "rp": {
+          "name": "Account Pampa",
+          "id": "pampa-apps.com"
+        },
+        "user": {
+          "id": "XWRrcnmAh46VnKOqsbi_xg",
+          "name": "Persona",
+          "displayName": "Persona"
+        },
+        "pubKeyCredParams": [
+          {
+            "alg": -8,
+            "type": "public-key"
+          },
+          {
+            "alg": -7,
+            "type": "public-key"
+          },
+          {
+            "alg": -257,
+            "type": "public-key"
+          }
+        ],
+        "timeout": 300000,
+        "attestation": "none",
+        "excludeCredentials": [],
+        "authenticatorSelection": {
+          "residentKey": "required",
+          "userVerification": "required",
+          "requireResidentKey": true
+        },
+        "extensions": {
+          "credProps": true
+        },
+        "hints": []
+      },
+      "creation": {
+        "credentialManager": {
+          "id": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "rawId": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUGtWTVUxcGhhRzkyZllTTGtwbWdwNjYxdk1QSzBkamY1dTMwLXdJSkVCYyIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVhxflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVdAAAAAOqbjWZNAR0hPOS2tIy1ddQAEJLyX7EOFjVT_-nUI3YEVF-kAQEDJyAGIVggNEV05LbYhO4k4xdi_Lch8ZB_Y0QfJHW-foFuyFPFGeA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -8
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true,
+              "results": {
+                "first": "fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlU"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "rawId": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUGtWTVUxcGhhRzkyZllTTGtwbWdwNjYxdk1QSzBkamY1dTMwLXdJSkVCYyIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVhxflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVdAAAAAOqbjWZNAR0hPOS2tIy1ddQAEJLyX7EOFjVT_-nUI3YEVF-kAQEDJyAGIVggNEV05LbYhO4k4xdi_Lch8ZB_Y0QfJHW-foFuyFPFGeA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -8
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true
+            }
+          }
+        },
+        "prfFirst": "fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlU",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "credentialId": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "alg": -8,
+          "backupEligible": true,
+          "backedUp": true,
+          "aaguid": "ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4"
+        }
+      },
+      "authenticationOptions": {
+        "rpId": "pampa-apps.com",
+        "challenge": "m6KpsLe-xczT2uHo7_b9BAsSGSAnLjU8Q0pRWF9mbXQ",
+        "allowCredentials": [],
+        "timeout": 300000,
+        "userVerification": "required"
+      },
+      "assertion": {
+        "credentialManager": {
+          "id": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "rawId": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoibTZLcHNMZS14Y3pUMnVIbzdfYjlCQXNTR1NBbkxqVThRMHBSV0Y5bWJYUSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUdAAAAAA",
+            "signature": "Nor0nPyofqGIVdUlmzfjJ-kfDz7hxIDABpZbo3YC7YPbyWNdqgOTxlu1WEUWQXF5dEByygKBLZs6maRO_rpGDA",
+            "userHandle": "XWRrcnmAh46VnKOqsbi_xg"
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "results": {
+                "first": "usHIz9bd5Ovy-QAHDhUcIyoxOD9GTVRbYmlwd36FjJM"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "rawId": "kvJfsQ4WNVP_6dQjdgRUXw",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoibTZLcHNMZS14Y3pUMnVIbzdfYjlCQXNTR1NBbkxqVThRMHBSV0Y5bWJYUSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUdAAAAAA",
+            "signature": "Nor0nPyofqGIVdUlmzfjJ-kfDz7hxIDABpZbo3YC7YPbyWNdqgOTxlu1WEUWQXF5dEByygKBLZs6maRO_rpGDA",
+            "userHandle": "XWRrcnmAh46VnKOqsbi_xg"
+          },
+          "clientExtensionResults": {}
+        },
+        "prfFirst": "usHIz9bd5Ovy-QAHDhUcIyoxOD9GTVRbYmlwd36FjJM",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "newCounter": 0,
+          "backedUp": true
+        }
+      }
+    },
+    {
+      "name": "es256-solo-qui",
+      "alg": -7,
+      "synced": false,
+      "registrationOptions": {
+        "challenge": "XWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY",
+        "rp": {
+          "name": "Account Pampa",
+          "id": "pampa-apps.com"
+        },
+        "user": {
+          "id": "fIOKkZifpq20u8LJ0Nfe5Q",
+          "name": "Persona",
+          "displayName": "Persona"
+        },
+        "pubKeyCredParams": [
+          {
+            "alg": -8,
+            "type": "public-key"
+          },
+          {
+            "alg": -7,
+            "type": "public-key"
+          },
+          {
+            "alg": -257,
+            "type": "public-key"
+          }
+        ],
+        "timeout": 300000,
+        "attestation": "none",
+        "excludeCredentials": [],
+        "authenticatorSelection": {
+          "residentKey": "required",
+          "userVerification": "required",
+          "requireResidentKey": true
+        },
+        "extensions": {
+          "credProps": true
+        },
+        "hints": []
+      },
+      "creation": {
+        "credentialManager": {
+          "id": "5cw9COelMgUi2gN0xWtzyA",
+          "rawId": "5cw9COelMgUi2gN0xWtzyA",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiWFdScmNubUFoNDZWbktPcXNiaV94czNVMi1McDhQZi1CUXdUR2lFb0x6WSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViUflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVFAAAAAOqbjWZNAR0hPOS2tIy1ddQAEOXMPQjnpTIFItoDdMVrc8ilAQIDJiABIVgguZoQCCF6TuZiiY603KaM0nig5g3YqS-RxeOL3TWO098iWCCcf-Z7pGuvQkiT_mLHLEWoPHeZ1tWM9PmVrCOy9PD9SA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -7
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true,
+              "results": {
+                "first": "m6KpsLe-xczT2uHo7_b9BAsSGSAnLjU8Q0pRWF9mbXQ"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "5cw9COelMgUi2gN0xWtzyA",
+          "rawId": "5cw9COelMgUi2gN0xWtzyA",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiWFdScmNubUFoNDZWbktPcXNiaV94czNVMi1McDhQZi1CUXdUR2lFb0x6WSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViUflh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGVFAAAAAOqbjWZNAR0hPOS2tIy1ddQAEOXMPQjnpTIFItoDdMVrc8ilAQIDJiABIVgguZoQCCF6TuZiiY603KaM0nig5g3YqS-RxeOL3TWO098iWCCcf-Z7pGuvQkiT_mLHLEWoPHeZ1tWM9PmVrCOy9PD9SA",
+            "transports": [
+              "internal",
+              "hybrid"
+            ],
+            "publicKeyAlgorithm": -7
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "enabled": true
+            }
+          }
+        },
+        "prfFirst": "m6KpsLe-xczT2uHo7_b9BAsSGSAnLjU8Q0pRWF9mbXQ",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "credentialId": "5cw9COelMgUi2gN0xWtzyA",
+          "alg": -7,
+          "backupEligible": false,
+          "backedUp": false,
+          "aaguid": "ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4"
+        }
+      },
+      "authenticationOptions": {
+        "rpId": "pampa-apps.com",
+        "challenge": "usHIz9bd5Ovy-QAHDhUcIyoxOD9GTVRbYmlwd36FjJM",
+        "allowCredentials": [],
+        "timeout": 300000,
+        "userVerification": "required"
+      },
+      "assertion": {
+        "credentialManager": {
+          "id": "5cw9COelMgUi2gN0xWtzyA",
+          "rawId": "5cw9COelMgUi2gN0xWtzyA",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoidXNISXo5YmQ1T3Z5LVFBSERoVWNJeW94T0Q5R1RWUmJZbWx3ZDM2RmpKTSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUFAAAAAA",
+            "signature": "MEUCIQC-nmsSF_8x2-6_y6U0sEMIvvRPQT6Gu_Vq1k6iJOWtCQIgLtMWUFf3IDMRDG-vjKMPVM-V-u2TqwL6eeQPxZZhOGw",
+            "userHandle": "fIOKkZifpq20u8LJ0Nfe5Q"
+          },
+          "clientExtensionResults": {
+            "prf": {
+              "results": {
+                "first": "2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7I"
+              }
+            }
+          }
+        },
+        "forServer": {
+          "id": "5cw9COelMgUi2gN0xWtzyA",
+          "rawId": "5cw9COelMgUi2gN0xWtzyA",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "response": {
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoidXNISXo5YmQ1T3Z5LVFBSERoVWNJeW94T0Q5R1RWUmJZbWx3ZDM2RmpKTSIsIm9yaWdpbiI6ImFuZHJvaWQ6YXBrLWtleS1oYXNoOmdsYzRVQXpwWUZRcF83bzhRQmtpajVrdkxEZlJ0d29pTUtmT0xDVmpma00iLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20ucGFtcGEuc3RvcmUifQ",
+            "authenticatorData": "flh23qyxF7jIcFz8eCAqAWxwU7Bb4flkU6uhC7LafGUFAAAAAA",
+            "signature": "MEUCIQC-nmsSF_8x2-6_y6U0sEMIvvRPQT6Gu_Vq1k6iJOWtCQIgLtMWUFf3IDMRDG-vjKMPVM-V-u2TqwL6eeQPxZZhOGw",
+            "userHandle": "fIOKkZifpq20u8LJ0Nfe5Q"
+          },
+          "clientExtensionResults": {}
+        },
+        "prfFirst": "2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7I",
+        "rawRejected": "Questa richiesta contiene un segreto che non deve lasciare il telefono.",
+        "server": {
+          "newCounter": 0,
+          "backedUp": false
+        }
+      }
+    }
+  ]
+}

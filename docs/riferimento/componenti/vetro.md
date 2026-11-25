@@ -1657,6 +1657,37 @@ Il costo isolato sul Tab S9 è NV nel lotto integrato. Le misure con interruttor
 - «mettere il materiale **un livello troppo in basso**» è l'errore della regola 1 (vetro sulla riga invece che sul contenitore).
 Un terzo significato, `FluidGlassQuality.level`, è la qualità adattiva della sezione precedente: «livello» lì è sempre quel numero 0..1.
 
+**F7.18. Il tetto della memoria del vetro.** Ogni cattura grande prenota i suoi byte nella categoria `GLASS` del registro di
+processo (F7.9, F7.12) prima di esistere. Il tetto è della **fascia del dispositivo**, non del livello ottico:
+
+| Fascia | Come si riconosce (RAM totale, `memoryClass`, `isLowRamDevice`) | Riga | Vetro | Esempi |
+|---|---|---|---:|---|
+| Protetta | low-RAM, oppure RAM ≤ 4 GiB, oppure heap ≤ 192 MiB | Protetto (32 MiB) | 12 MiB, meno se l'heap/4 è sotto 32 MiB | Android Go, telefoni da 3–4 GB |
+| Media | RAM ≤ 6 GiB, oppure heap ≤ 256 MiB | Ridotto (64 MiB) | 24 MiB | Galaxy A52s (6 GB), molti telefoni da 8 GB con heap 256 MiB |
+| Alta | il resto | Pieno (128 MiB) | 48 MiB | Tab S9 (8 GB, heap 512 MiB), telefoni da 12 GB |
+
+Il totale non supera mai un quarto dell'heap (`FluidMemoryLimits.forHeap`). Abbassano la riga a Protetto solo la
+pressione vera (lowMemory, memoria disponibile sotto la soglia, heap all'85%), la termica severa e, per la sessione,
+un'uscita precedente per memoria. **Non** la abbassano un rifiuto visibile, i fotogrammi in ritardo, il risparmio
+energetico o l'avvio Ridotto per la classe multimediale assente: quelle chiedono catture più piccole (la scala del
+livello), non un tetto più basso. Fino a F7.17 la riga seguiva l'ottica, e un rifiuto la portava a 12 MiB: sul Tab S9 il
+popover della capsula della data (19,8 MB) non entrava mai. Quando il tetto è stretto:
+- **il pannello davanti ha la precedenza**: il contenuto di `FluidGlassModalHost` (modali, popover, menu, fogli, avvisi)
+  che si vede negare una cattura chiede spazio, e i vetri grandi della pagina sotto si rifanno una volta a metà lato
+  finché il pannello resta; tornano alla loro scala quando se ne va;
+- **scende anche l'uscita**: col campione separato (il viaggio, la finitura di Fluid-physics) prima scende il campione,
+  fino alla sfocatura minima uguale a vista (sigma 2,5 px del campione: un quarto di lato per i pannelli flottanti,
+  misura su due fotogrammi del tablet), poi l'uscita a metà per volta fino a un quarto, poi di nuovo il campione;
+- **mai trasparente**: una cattura negata non lascia mai vetro limpido sopra un testo leggibile. Il corpo `Liquid` si
+  disegna su un ingresso pieno, la trasparenza ridotta della ricetta (il velo neutro opaco, verso il nero sul lato
+  scuro, o la pellicola piena di una tinta fissa); il vetro di prima disegna nella sagoma il pieno della sua tinta
+  (`GlassTint.fallback`, quello sotto API 31).
+
+Per la prova sul dispositivo, `log.tag.FluidGlassFrame=VERBOSE`: `glassBudgetStart` (RAM, `memoryClass`, disponibile,
+fascia, riga e ottica all'avvio), `glassBudgetLimits` (ogni cambio di riga), `glassBudgetDenied` (con l'uscita, il
+campione e se il vetro sta davanti), `glassFrontDemand` / `glassFrontReleased`, `glassSolid` / `glassDeniedFill` (il
+ripiego pieno) e `glassRelease` (i byte restituiti).
+
 ### Bilanci F7
 
 I tetti strutturali vivono in `GlassNodeCountTest`. La finestra di prova è 800 × 1280 px a densità 1. Il

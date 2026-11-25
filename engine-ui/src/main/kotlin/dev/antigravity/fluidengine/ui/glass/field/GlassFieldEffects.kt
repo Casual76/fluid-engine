@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -163,6 +164,8 @@ internal class GlassDrawInputs(pieces: Int = 1) {
   var tintColor: Color = Color.Transparent
   var tintMode: Float = 0f
   var tintFollow: Float = 0f
+  /** F7.18: il pieno di ripiego della ricetta, vedi [GlassRecipe.deniedSolid]. Non entra negli uniform. */
+  var deniedSolid: Color = Color.Unspecified
   var slabFilms: List<GlassTint>? = null
   var materialAccessibility: GlassMaterialAccessibility = GlassMaterialAccessibility.Default
   val filmModes = FloatArray(GlassFieldMaxPieces)
@@ -332,6 +335,7 @@ internal class GlassDrawInputs(pieces: Int = 1) {
     tintColor = recipe.tintColor
     tintMode = recipe.tintMode
     tintFollow = recipe.tintFollow
+    deniedSolid = recipe.deniedSolid
     bodyShade = recipe.bodyShade
     bodyShadeDepth = recipe.bodyShadeDepthDp * d
     bodyShadeLeanX = recipe.bodyShadeLeanX
@@ -821,7 +825,14 @@ internal object GlassCostLevers {
 internal val NativeGlassFinish: DrawScope.() -> Unit = {}
 
 /** Ultimo ripiego se anche il campione minimo viene rifiutato al primo disegno. Lo stesso
- * programma disegna la tinta, la sagoma e il filo su un ingresso trasparente, senza texture. */
+ * programma disegna la tinta, la sagoma e il filo senza texture.
+ *
+ * F7.18: su un ingresso **pieno** ([GlassDrawInputs.deniedSolid], la trasparenza ridotta del materiale), non più
+ * trasparente. Sul Tab S9 (24 novembre 2026) il popover della capsula della data, senza cattura, era vetro limpido: la
+ * tinta e il filo su un ingresso vuoto lasciavano leggere la pagina sotto parola per parola. Con un ingresso pieno il
+ * corpo è opaco dentro la sagoma (lo shader dà zero fuori, `coverage`), con velo, pellicola, ombreggiatura e filo di
+ * sempre: il pannello resta un pannello e il testo sopra resta leggibile. Il pieno segue `materialize`, così a
+ * intensità zero non si vede niente, come prima. */
 internal interface GlassBodyFallbackScope {
   val fallbackBody: GlassBodyFallback?
 }
@@ -833,13 +844,29 @@ internal class GlassBodyFallback {
   private var brushShader: RuntimeShader? = null
   private var brush: ShaderBrush? = null
 
+  private var solidColor: Color = Color.Unspecified
+  private var solidInput: Shader? = null
+
+  /** Il pieno di adesso, già moltiplicato per l'intensità: vedi [glassDeniedSolid]. */
+  fun solid(): Color {
+    val material = inputs ?: return Color.Unspecified
+    val base = glassDeniedSolid(material)
+    if (!base.isSpecified) return base
+    return base.copy(alpha = clampGlassUnit(material.materialize))
+  }
+
+  /**
+   * Falso se il corpo non c'è (shader o ingressi assenti): allora il pieno lo disegna il nodo, nella sagoma.
+   * @param solid l'ingresso pieno (la cattura è negata); falso = l'ingresso trasparente di prima (un fotogramma d'attesa).
+   */
   @RequiresApi(33)
-  fun draw(scope: DrawScope, scale: Float, padding: Float) {
-    val program = shader ?: return
-    val material = inputs ?: return
-    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassSolid", this)
+  fun draw(scope: DrawScope, scale: Float, padding: Float, solid: Boolean = true): Boolean {
+    val program = shader ?: return false
+    val material = inputs ?: return false
+    val fill = if (solid) solid() else Color.Unspecified
+    dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics.event("glassSolid", this) { "solid=$fill" }
     program.setGlassBodyUniforms(material, films)
-    program.asAndroidRuntimeShader().setInputShader("content", transparentInput)
+    program.asAndroidRuntimeShader().setInputShader("content", solidShader(fill))
     if (brushShader !== program) {
       brush = ShaderBrush(program.asComposeShader())
       brushShader = program
@@ -848,6 +875,18 @@ internal class GlassBodyFallback {
     scope.scale(1f / scale, Offset.Zero) {
       translate(-padding, -padding) { drawRect(checkNotNull(brush), size = area) }
     }
+    return true
+  }
+
+  /** Un solo shader per colore: si rifà solo quando cambia il pieno (l'intensità in dissolvenza), mai per fotogramma fermo. */
+  private fun solidShader(color: Color): Shader {
+    if (!color.isSpecified || color.alpha <= 0f) return transparentInput
+    if (color != solidColor || solidInput == null) {
+      val argb = color.toArgb()
+      solidInput = android.graphics.LinearGradient(0f, 0f, 1f, 0f, argb, argb, Shader.TileMode.CLAMP)
+      solidColor = color
+    }
+    return checkNotNull(solidInput)
   }
 
   private companion object {
@@ -855,6 +894,19 @@ internal class GlassBodyFallback {
       android.graphics.LinearGradient(0f, 0f, 1f, 0f, 0, 0, Shader.TileMode.CLAMP)
     }
   }
+}
+
+/**
+ * Il pieno di ripiego di un corpo (F7.18), a opacità piena: quello della ricetta ([GlassDrawInputs.deniedSolid]) o, se la
+ * ricetta non l'ha dato, il colore del velo (o della pellicola, se è lei a fare il materiale) reso opaco. Mai trasparente:
+ * senza velo né pellicola resta il velo, che ha sempre un colore. Pura.
+ */
+internal fun glassDeniedSolid(inputs: GlassDrawInputs): Color {
+  if (inputs.deniedSolid.isSpecified) return inputs.deniedSolid
+  val veil = inputs.veilColor
+  val film = inputs.tintColor
+  val base = if (film.isSpecified && film.alpha > veil.alpha) film else veil
+  return if (base.isSpecified) base.copy(alpha = 1f) else Color.Unspecified
 }
 
 /** Il campione e il filtro a monte lavorano alla scala ammessa. La finitura del padre, inclusi filo,
@@ -914,6 +966,8 @@ internal class GlassTravelCapture(
     travel.apply(material)
     padding = travel.padding
     renderEffect = travel.renderEffect
+    // F7.18: il pieno di ripiego del materiale vale per il nodo che disegna il viaggio.
+    (this as? BackdropEffectScopeImpl)?.deniedFill = travel.deniedFill
   }
 
   @RequiresApi(Build.VERSION_CODES.S)

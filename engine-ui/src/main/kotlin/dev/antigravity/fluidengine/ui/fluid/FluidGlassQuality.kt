@@ -28,6 +28,13 @@ internal fun glassBackgroundScale(
 /** Identifica la vista di una pagina interamente coperta. Una Dialog ha una vista propria. */
 internal val LocalCoveredGlassView = compositionLocalOf<android.view.View?> { null }
 
+/**
+ * F7.18: vero dentro un pannello **davanti** alla pagina: il contenuto di [FluidGlassModalHost] (modali, popover, menu,
+ * fogli, avvisi). Quando il tetto della memoria del vetro nega la cattura a uno di questi, la pagina sotto cede il suo
+ * credito (`FluidGlassResources.frontDemand`): il pannello davanti ha la precedenza su ciò che copre.
+ */
+internal val LocalGlassFrontLayer = compositionLocalOf { false }
+
 /** Segnali condivisi fra la finitura e il filtro che campiona lo sfondo, incluso il palco di viaggio. */
 internal interface GlassRenderQuality {
   val optics: ResourceOptics

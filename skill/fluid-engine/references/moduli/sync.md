@@ -45,6 +45,8 @@ risposta, e l'orologio del dispositivo si corregge: due modifiche che non si son
 
 **Il registro.** Per ogni elemento: lo stato locale, la base (l'ultima versione confermata dal relay) e la sua versione,
 e le voci delle modifiche in attesa (`SyncJournalEntry`). Una modifica e la sua voce si scrivono in una transazione sola.
+Le voci sono una per campo, ma le «modifiche in attesa» che vede chi usa l'app (`pending`, «3 modifiche in attesa») si
+contano **per elemento**: una voce nuova con tre campi e' una modifica; «tieni tutte e due» ne fa due, l'elemento e la copia.
 `SqliteSyncStore` lo tiene in SQLite della piattaforma (niente Room: nessun processore di annotazioni), in
 `noBackupFilesDir`, fuori dal backup automatico.
 

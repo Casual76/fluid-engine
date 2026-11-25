@@ -1,0 +1,117 @@
+{
+  "apps": {
+    "com.pampa.store": {
+      "name": "Pampa Store",
+      "audiences": {
+        "sync": [
+          "sync.places",
+          "sync.backup"
+        ],
+        "persone": [
+          "persone"
+        ]
+      },
+      "googleServices": []
+    },
+    "dev.pampa.pampanotes": {
+      "name": "Pampa Notes",
+      "audiences": {
+        "notes": [
+          "notes.sync",
+          "notes.share",
+          "notes.relay",
+          "notes.computer"
+        ]
+      },
+      "googleServices": []
+    },
+    "dev.pampa.pampai": {
+      "name": "PampAI",
+      "audiences": {
+        "sync": [
+          "sync.data",
+          "sync.backup",
+          "sync.places"
+        ]
+      },
+      "googleServices": [
+        "calendar.events",
+        "calendar.readonly"
+      ]
+    },
+    "dev.antigravity.classevivaexpressive": {
+      "name": "ClasseViva Expressive",
+      "audiences": {
+        "sync": [
+          "sync.backup",
+          "sync.places"
+        ]
+      },
+      "googleServices": []
+    },
+    "dev.antigravity.fluidtransit": {
+      "name": "Fluid Transit",
+      "audiences": {
+        "sync": [
+          "sync.data",
+          "sync.backup",
+          "sync.places"
+        ]
+      },
+      "googleServices": []
+    },
+    "dev.pampa.fluidweather": {
+      "name": "Fluid Weather",
+      "audiences": {
+        "sync": [
+          "sync.backup",
+          "sync.places"
+        ]
+      },
+      "googleServices": []
+    },
+    "com.p2r3.convert": {
+      "name": "Universal Converter",
+      "audiences": {},
+      "googleServices": []
+    },
+    "dev.pampa.mycloudgallery": {
+      "name": "MyCloud Gallery",
+      "audiences": {},
+      "googleServices": []
+    },
+    "dev.pampa.fluidify": {
+      "name": "Fluidify",
+      "audiences": {
+        "sync": [
+          "sync.backup"
+        ]
+      },
+      "googleServices": []
+    },
+    "dev.pampa.mail": {
+      "name": "Pampa Mail",
+      "audiences": {
+        "persone": [
+          "persone"
+        ],
+        "sync": [
+          "sync.backup"
+        ]
+      },
+      "googleServices": []
+    }
+  },
+  "storePackages": [
+    "com.pampa.store",
+    "com.pampa.store.debug"
+  ],
+  "devSuffixes": [
+    ".debug",
+    ".dev"
+  ],
+  "assetlinksPackages": [
+    "com.pampa.store",
+    "com.pampa.store.debug"
+  ]
+}

@@ -42,6 +42,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedB
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.pageSourceOrSelf
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.deniedFill
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassContainerScope
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassMaterialRecording
@@ -1813,11 +1814,14 @@ internal fun Modifier.glassSurfaceFitted(
   val shapeBlock = remember(shape) { { shape } }
   val blurRadius = state.blurRadius
   val lensAvailable = isRuntimeShaderSupported()
+  // F7.18: il ripiego pieno della tinta (quello sotto API 31) e' anche il materiale di una cattura negata dal tetto.
+  val currentFallback by rememberUpdatedState(tint.fallback)
 
   val effects: BackdropEffectScope.() -> Unit = remember(resolved, blurRadius, quality, lensAvailable) {
     {
       val amount = clampGlassUnit(currentIntensity())
       if (amount > 0.001f) {
+        deniedFill(currentFallback.copy(alpha = currentFallback.alpha * amount))
         // Sfocatura e tinta non lo vedono mai: sono le due cose che tengono leggibile il testo
         // sopra il vetro. Quello che scala è la *forma* del materiale, che durante uno
         // scorrimento veloce nessuno guarda. Vedi [FluidGlassQuality].

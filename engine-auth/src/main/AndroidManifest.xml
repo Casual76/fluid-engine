@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Nessun permesso, e nessun INTERNET: il modulo parla solo con Credential Manager sul telefono. Le richieste al
+       server le fa l'app (regola R9 dell'Account Pampa: nessuna chiamata di rete finché non colleghi l'account). -->
+</manifest>

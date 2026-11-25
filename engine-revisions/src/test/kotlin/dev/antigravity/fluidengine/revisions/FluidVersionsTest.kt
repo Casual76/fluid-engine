@@ -29,6 +29,8 @@ class FluidVersionsTest {
     assertTrue("7:45" in marked(b).joinToString(""))
     assertTrue("stazione" in marked(b).joinToString(" "))
     assertFalse("le parole uguali non si segnano", marked(b).any { it.contains("Ritrovo") })
+    // Tratti separati solo da spazi sono un passaggio solo, non tre macchie (visto sul tablet).
+    assertEquals(listOf("7:45 in stazione"), marked(b))
   }
 
   @Test fun `un testo lungo si taglia attorno al primo passaggio diverso`() {

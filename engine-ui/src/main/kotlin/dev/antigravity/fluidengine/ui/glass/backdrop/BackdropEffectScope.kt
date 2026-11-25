@@ -27,6 +27,7 @@
 package dev.antigravity.fluidengine.ui.glass.backdrop
 
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -54,6 +55,14 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
     override var layoutDirection: LayoutDirection = LayoutDirection.Ltr
     override var padding: Float = 0f
     override var renderEffect: RenderEffect? = null
+
+    /**
+     * Fluid Engine addition (F7.18): il materiale pieno che il nodo disegna nella sagoma quando la sua cattura è negata
+     * dal tetto della memoria del vetro e non ha un corpo che lo faccia ([dev.antigravity.fluidengine.ui.glass.field.GlassBodyFallback]).
+     * Lo imposta il materiale a ogni giro degli effetti (di solito `GlassTint.fallback`, il ripiego pieno sotto API 31);
+     * non specificato = nessun pieno noto. Non cambia niente finché la cattura c'è.
+     */
+    var deniedFill: Color = Color.Unspecified
 
     private val runtimeShaderCache = RuntimeShaderCacheImpl()
 
@@ -95,6 +104,7 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
     fun apply(effects: BackdropEffectScope.() -> Unit) {
         padding = 0f
         renderEffect = null
+        deniedFill = Color.Unspecified
         effects()
     }
 
@@ -105,6 +115,12 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
         layoutDirection = LayoutDirection.Ltr
         padding = 0f
         renderEffect = null
+        deniedFill = Color.Unspecified
         runtimeShaderCache.clear()
     }
+}
+
+/** Fluid Engine addition (F7.18): vedi [BackdropEffectScopeImpl.deniedFill]. */
+internal fun BackdropEffectScope.deniedFill(color: Color) {
+    (this as? BackdropEffectScopeImpl)?.deniedFill = color
 }

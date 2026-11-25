@@ -1,0 +1,54 @@
+// F10.2 · Google, separato e facoltativo (architettura dell'Account Pampa, B § 9.3).
+//
+// Cosa porta: `FluidGoogleSignIn` (l'ID token di Google col nonce del server, per «Continua con Google») e
+// `FluidGoogleAccess` (le concessioni Google, cioè un token d'accesso per un ambito come il Calendario). Le concessioni
+// sono scritte ma SPENTE: si accendono al primo uso vero (scelta N6 di Alessio), e finché sono spente ogni chiamata
+// risponde `GoogleAccess.Off` senza toccare Google.
+//
+// Perché un modulo a parte: le librerie di Google Play services (`play-services-auth`, `googleid`) non sono libere.
+// Stanno solo qui, che lo usa solo Pampa Store, e l'engine ha il permesso aggiuntivo della GPL-3.0 § 7 per collegarle
+// (LICENSES/Permesso-librerie-Google.md). Porta anche `credentials-play-services-auth`, il ponte di Credential Manager
+// verso Play services: senza, da Android 9 a 13 le passkey di `engine-auth` non trovano il gestore.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.auth.google'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // Le firme pubbliche parlano `AuthResult` e `FluidAuthLabels` di engine-auth.
+  api project(':engine-auth')
+  implementation "androidx.credentials:credentials-play-services-auth:${engine.credentials}"
+  implementation "com.google.android.libraries.identity.googleid:googleid:${engine.googleId}"
+  implementation "com.google.android.gms:play-services-auth:${engine.playServicesAuth}"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:${engine.coroutines}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+}

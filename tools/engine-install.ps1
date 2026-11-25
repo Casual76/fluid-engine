@@ -82,6 +82,8 @@ $EngineModules = [ordered]@{
   "engine-viewer"     = @("engine-foundation", "engine-ui")
   "engine-sync"       = @("engine-foundation", "engine-storage")
   "engine-revisions"  = @("engine-foundation", "engine-ui")
+  "engine-auth"       = @("engine-foundation")
+  "engine-auth-google" = @("engine-foundation", "engine-auth")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -101,7 +103,13 @@ $EngineModules = [ordered]@{
 # engine-sync (F8.21: il registro locale, l'invio una volta sola, l'unione, le pietre tombali; porta WorkManager) e
 # engine-revisions (il foglio della scelta tra versioni) idem: li chiede solo un'app che sincronizza o che mostra
 # versioni in conflitto, e sono indipendenti fra loro: -Modules ...,engine-sync,engine-revisions.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions")
+# engine-auth (F10.2: passkey e gestore delle password con Credential Manager, senza rete) idem: lo chiede solo chi
+# entra con una passkey (Pampa Store). Porta engine-foundation e androidx.credentials, nient'altro.
+# engine-auth-google (F10.2: "Continua con Google" e le concessioni Google, spente finche' non servono) idem, e in piu'
+# porta le sole librerie Google non libere dell'engine (Play services, googleid): un'app che lo chiede lo fa sapendo
+# che l'engine le permette solo col permesso della GPL-3.0 sezione 7 (LICENSES/Permesso-librerie-Google.md). Porta
+# engine-auth ed engine-foundation: -Modules ...,engine-auth-google.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -306,7 +314,9 @@ $notes = @(
   @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),
   @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)"),
   @("engine-sync", "sincronizzazione: registro locale, invio una volta sola, unione, verso il relay dell'account (opt-in)"),
-  @("engine-revisions", "il foglio della scelta tra versioni in conflitto (opt-in)")
+  @("engine-revisions", "il foglio della scelta tra versioni in conflitto (opt-in)"),
+  @("engine-auth", "passkey e gestore delle password, senza rete; il PRF lo scrive il modulo (opt-in)"),
+  @("engine-auth-google", "Continua con Google e concessioni Google spente; librerie Google non libere (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

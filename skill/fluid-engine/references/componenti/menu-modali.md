@@ -278,7 +278,11 @@ e la pagina sotto si leggeva nitida dietro il velo. Senza velo (un compito paral
 l'ottica dei pannelli sopra una pagina nitida (`GlassDefaults.panelOptics(overSharpPage = true)`): sfoca di più, perché
 sotto niente ha già sfocato la pagina; il popover dichiarato modale tiene `panelOptics()`. Per una prova sul dispositivo,
 `adb shell setprop log.tag.FluidGlassFrame VERBOSE` prima di avviare l'app: `glassBudgetDenied` dice una cattura negata,
-`dropAwake` e `dropQuiet` quando la goccia di una superficie si sveglia e si posa.
+`dropAwake` e `dropQuiet` quando la goccia di una superficie si sveglia e si posa. **F7.18** ha confermato e corretto la
+causa: sul Tab S9 il tetto del vetro era sceso a 12 MiB perché seguiva l'ottica (un rifiuto lo dimezzava ancora), e
+l'uscita in viaggio non scendeva. Ora il tetto è della fascia del dispositivo (48 MiB sul tablet), il popover ha la
+precedenza sulla pagina sotto, l'uscita scende quando serve e una cattura negata dà un pannello pieno, mai trasparente
+(«Il costo», F7.18, nella scheda del vetro).
 
 ### Il ripiego
 

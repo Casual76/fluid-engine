@@ -45,7 +45,7 @@ fun interface SyncScheduler {
 
 /** Lo stato di tutti gli spazi insieme. */
 data class SyncOverview(
-  /** Le modifiche in attesa, in tutti gli spazi. */
+  /** Gli elementi con modifiche in attesa, in tutti gli spazi ([SyncSpaceState.pending]). */
   val pending: Int = 0,
   /** I conflitti che aspettano una scelta. */
   val conflicts: Int = 0,

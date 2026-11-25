@@ -1,0 +1,91 @@
+// F10.2 · «Pampa · prova passkey»: l'app che prova il PRF delle passkey sul telefono (scelta Q2 di Alessio).
+//
+// Misura e scrive a schermo, per il Gestore password di Google e per Samsung Pass: il PRF alla creazione e all'accesso,
+// i flag BE e BS, se il PRF resta uguale fra due accessi, e il gestore usato. Usa engine-auth come lo userà Pampa Store.
+// Il riassunto va anche negli appunti e in un file dell'app, per leggerlo con adb (README.md qui accanto).
+//
+// Esiste solo nel build dell'engine (settings.gradle) e fuori dal lotto standard: un'app ospite non la vede mai.
+//
+// Il dominio è prova.pampa-apps.com, non pampa-apps.com (critica S12): le passkey di prova non si mescolano con quelle
+// vere nel gestore di Alessio. Lì un Worker piccolissimo serve solo assetlinks.json (worker/).
+//
+// La firma è una chiave di prova creata apposta (keystore/prova-passkey.jks, fuori da git), NON pampa.jks: la sua
+// impronta è in worker/src/index.js. Senza la chiave la build usa la chiave di debug di Android Studio, e allora il
+// gestore rifiuta le passkey (l'impronta non è in assetlinks.json): l'app lo dice a schermo.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../../versions.gradle"
+
+def probeKeystore = file('keystore/prova-passkey.jks')
+def probeKeystoreProps = file('keystore/prova-passkey.properties')
+
+android {
+  namespace = 'dev.pampa.prova.passkey'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.pampa.prova.passkey'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1.0 (F10.2)'
+    // Il dominio di prova e la sua impronta attesa: in configurazione, non nel codice (regola R8).
+    buildConfigField 'String', 'RP_ID', '"prova.pampa-apps.com"'
+    buildConfigField 'String', 'EXPECTED_CERT_SHA256',
+      '"D3:DC:F3:C6:EF:11:DD:4C:09:D7:3E:5B:B3:FA:D5:DD:B0:55:E5:32:71:36:FB:94:41:2A:9C:3A:AF:E8:A6:0C"'
+  }
+
+  buildFeatures {
+    buildConfig = true
+  }
+
+  signingConfigs {
+    if (probeKeystore.isFile() && probeKeystoreProps.isFile()) {
+      prova {
+        def props = new Properties()
+        probeKeystoreProps.withInputStream { props.load(it) }
+        storeFile probeKeystore
+        storeType 'pkcs12'
+        storePassword props.getProperty('storePassword')
+        keyAlias props.getProperty('keyAlias')
+        keyPassword props.getProperty('keyPassword')
+      }
+    }
+  }
+
+  buildTypes {
+    debug {
+      // debuggable resta vero: `adb shell run-as dev.pampa.prova.passkey cat files/riassunto.txt` legge il riassunto.
+      if (probeKeystore.isFile() && probeKeystoreProps.isFile()) signingConfig signingConfigs.prova
+    }
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  implementation project(':engine-auth')
+  // Da Android 9 a 13 le passkey passano da Play services: il ponte di Credential Manager. Sul Tab S9 (Android 16)
+  // passa dal sistema, ma l'app resta uguale a quello che farà Pampa Store con engine-auth-google.
+  runtimeOnly "androidx.credentials:credentials-play-services-auth:${engine.credentials}"
+  implementation "androidx.activity:activity:${engine.activityCompose}"
+  implementation "androidx.lifecycle:lifecycle-runtime-ktx:${engine.lifecycle}"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+
+  testImplementation "junit:junit:${engine.junit}"
+}

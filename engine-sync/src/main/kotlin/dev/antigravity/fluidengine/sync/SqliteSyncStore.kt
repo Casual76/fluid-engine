@@ -124,6 +124,12 @@ class SqliteSyncStore(context: Context, name: String = "fluid_sync.db") : SyncSt
       arrayOf(space),
     ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
 
+    // L'indice journal_record (space, record, seq) copre il conto.
+    override fun journalRecordCount(space: String): Int = db.rawQuery(
+      "SELECT COUNT(DISTINCT record) FROM journal WHERE space = ?",
+      arrayOf(space),
+    ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+
     override fun lastJournalSeq(space: String, recordId: String): Long = db.rawQuery(
       "SELECT MAX(seq) FROM journal WHERE space = ? AND record = ?",
       arrayOf(space, recordId),

@@ -1,0 +1,55 @@
+// F10.2 · Le passkey e il gestore delle password, senza rete (architettura dell'Account Pampa, B § 9.2).
+//
+// Cosa porta: `FluidPasskeys` (creare e usare una passkey con Credential Manager, con l'estensione PRF scritta qui e mai
+// dal server, critica S9), `FluidPasswords` (salvare e rileggere un segreto nel gestore, per il codice di recupero),
+// `AuthResult` con le frasi pronte, e `FluidWebAuthnJson`, le conversioni JSON di WebAuthn provate sulla JVM contro il
+// contratto del server.
+//
+// Opt-in: lo chiede per nome solo chi entra con una passkey (oggi Pampa Store). Nessuna rete: il modulo parla col
+// telefono, il server lo chiama l'app. Una sola libreria, `androidx.credentials` (Apache-2.0). Le librerie di Google
+// Play services NON sono qui: stanno in `engine-auth-google`. Su Android 14 e oltre Credential Manager passa dal sistema
+// e basta questo modulo; da Android 9 a 13 le passkey passano da Play services, e l'app aggiunge `engine-auth-google`
+// (o la sola `androidx.credentials:credentials-play-services-auth`).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.auth'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  testOptions {
+    unitTests {
+      // Robolectric per gli errori (KeyguardManager, la versione di Android, un'Activity vera).
+      includeAndroidResources = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche non parlano tipi di Credential Manager, ma un'app che vuole i suoi tipi (per esempio
+  // `CredentialManager.createSettingsPendingIntent()`) li trova senza ridichiararli. `engine-foundation` porta il JSON
+  // (l'API JsonElement di kotlinx.serialization, senza plugin) e le coroutine.
+  api project(':engine-foundation')
+  api "androidx.credentials:credentials:${engine.credentials}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+}

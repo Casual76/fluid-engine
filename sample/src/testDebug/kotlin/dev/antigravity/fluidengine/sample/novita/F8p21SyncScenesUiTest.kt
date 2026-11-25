@@ -116,7 +116,8 @@ class F8p21SyncScenesUiTest {
     advance(2_000)
     // Senza rete il tablet scrive lo stesso: la sua voce (anche lui «Crema solare», perche' non sa del telefono) aspetta.
     assertEquals(1, compose.onAllNodes(hasTestTag(F8p21Tags.item("tablet", "Crema solare")), useUnmergedTree = true).fetchSemanticsNodes().size)
-    assertTrue(compose.onAllNodes(hasText("modifiche in attesa", substring = true)).fetchSemanticsNodes().isNotEmpty())
+    // Una voce sola, con tre campi: una modifica in attesa, non tre (visto sul tablet, 25/11/2026).
+    assertTrue(compose.onAllNodes(hasText("Senza rete · 1 modifica in attesa")).fetchSemanticsNodes().isNotEmpty())
     // La rete torna: due aggiunte fatte insieme restano tutte e due, su tutti e due i dispositivi.
     click(F8p21Tags.network("tablet"))
     waitFor("le due liste si allineano") {

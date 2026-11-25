@@ -257,21 +257,19 @@ internal data class GlassLiquidAdaptive(
 }
 
 /**
- * Il **cursore dell'utente** (F2.2, R5 M2): fra «quasi trasparente» (0) e «colorato» (1), di serie a metà, dove il
- * vetro è quello del profilo **al bit**. Muove insieme la diffusione (il raggio di sfocatura) e il velo (la sua alfa),
- * e soprattutto la diffusione: in R5 «il velo cambia poco fra gli estremi».
+ * Il **cursore dell'utente** (F2.2, R5 M2): da «trasparente» (0) a «di serie» (0,5), dove il vetro è quello del
+ * profilo **al bit**. Muove insieme la diffusione (il raggio di sfocatura) e il velo (la sua alfa), e soprattutto la
+ * diffusione: in R5 «il velo cambia poco fra gli estremi». La metà colorata (da 0,5 a 1) c'era fino alla F10.8c: ora
+ * quei valori si leggono di serie (`FluidGlassPreference.effective`).
  *
- * @param frostClear il raggio di sfocatura all'estremo trasparente, come multiplo di quello del profilo.
- * @param frostColored lo stesso all'estremo colorato.
+ * @param frostClear il raggio di sfocatura all'estremo trasparente delle **superfici grandi**, come multiplo di quello
+ *   del profilo. I pezzi piccoli a quell'estremo non sfocano affatto (F10.8b, `glassPreferenceFrost`).
  * @param veilClear l'alfa del velo all'estremo trasparente, come multiplo di quella del profilo.
- * @param veilColored lo stesso all'estremo colorato.
  */
 @Immutable
 internal data class GlassLiquidPreference(
   val frostClear: Float,
-  val frostColored: Float,
   val veilClear: Float,
-  val veilColored: Float,
 )
 
 // ------------------------------------------------------------------------------------------------------------
@@ -1466,16 +1464,15 @@ internal object GlassLiquidAdaptives {
 internal object GlassLiquidPreferences {
 
   /**
-   * **Di serie.** All'estremo colorato il raggio è 2,67 volte quello del profilo (la D da 4,5 dp diventa la A da 12 dp,
-   * che sul testo di R4 A5 lascia il 9,8% del contrasto: R5 M2, «del tutto colorato», 9%) e il velo 1,3 volte (0,46
-   * diventa 0,60; R5: 0,57–0,71); all'estremo trasparente il raggio è 0,3 volte (1,35 dp: il testo dietro si legge,
-   * piegato dalla lente; R5: 28%) e il velo 0,92 (R5: ≈0,5). Sul banco (`bench/f2-2/cursore.md`) resta, del contrasto
-   * sotto la barra, il 24% sul testo e il 56% sulla foto all'estremo trasparente (R5: 28–40%), il 2% e il 34%
-   * all'estremo colorato (R5: 9–12%): la misura dipende dalla grana del fondo più che dal vetro. R5 M2 ha fiducia
-   * **bassa** (gli stati non hanno lo stesso fondo): numeri da rivedere sul tablet. A occhio sul banco (2026-11-12).
+   * **Di serie.** All'estremo trasparente il velo è 0,92 di quello del profilo (R5: ≈0,5; R5 M2 ha fiducia **bassa**,
+   * gli stati non hanno lo stesso fondo; a occhio sul banco, 2026-11-12). I pezzi piccoli non sfocano (F10.8b, scelta
+   * di Alessio del 25/11/2026: prima il raggio scendeva a 0,3 volte per tutti, 1,35 dp), e le superfici grandi
+   * **restano sfocate**: `frostClear` è 1.
+   *
+   * **L'estremo colorato** (raggio 2,67 volte, velo 1,3 volte, tarati sul banco in `bench/f2-2/cursore.md`) l'ha tolto
+   * la F10.8c, con un cursore solo da «trasparente» a «di serie», uguale nello Store e nelle app.
    */
-  val Shipped: GlassLiquidPreference =
-    GlassLiquidPreference(frostClear = 0.3f, frostColored = 2.67f, veilClear = 0.92f, veilColored = 1.3f)
+  val Shipped: GlassLiquidPreference = GlassLiquidPreference(frostClear = 1f, veilClear = 0.92f)
 }
 
 // ------------------------------------------------------------------------------------------------------------

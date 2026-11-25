@@ -26,7 +26,8 @@ import kotlinx.serialization.json.putJsonObject
 object PrefsContract {
   sealed interface Type {
     data class Enum(val values: List<String>) : Type
-    data object Color : Type
+    /** Un colore `#rrggbb`, o una delle [keywords] (F10.8b: `app` e `system` per l'accento). */
+    data class Color(val keywords: List<String> = emptyList()) : Type
     data object Bool : Type
     data class Number(val min: Double, val max: Double, val step: Double) : Type
   }
@@ -36,8 +37,9 @@ object PrefsContract {
 
   val PREFS: Map<String, Spec> = mapOf(
     "appearance.mode" to Spec("global+app", Type.Enum(listOf("system", "light", "dark"))),
-    "appearance.accent" to Spec("global+app", Type.Color),
-    "appearance.glass" to Spec("global+app", Type.Enum(listOf("clear", "tinted", "reduced"))),
+    "appearance.accent" to Spec("global+app", Type.Color(listOf("app", "system"))),
+    // F10.8b: la chiarezza del vetro, da 0 «perfettamente trasparente» a 1 «più sfocato, come ora».
+    "appearance.glass" to Spec("global+app", Type.Number(0.0, 1.0, 0.01)),
     "appearance.textScale" to Spec("global", Type.Number(0.8, 1.6, 0.05)),
     "appearance.contrast" to Spec("global", Type.Enum(listOf("standard", "high"))),
     "icon.set" to Spec("global+app", Type.Enum(listOf("default", "tinted", "dark", "clear"))),
@@ -59,7 +61,7 @@ object PrefsContract {
     val p = value as? JsonPrimitive ?: return "bad_value"
     return when (val t = spec.type) {
       is Type.Enum -> if (p.isString && p.content in t.values) null else "bad_value"
-      Type.Color -> if (p.isString && HEX.matches(p.content)) null else "bad_value"
+      is Type.Color -> if (p.isString && (HEX.matches(p.content) || p.content in t.keywords)) null else "bad_value"
       Type.Bool -> if (!p.isString && p.booleanOrNull != null) null else "bad_value"
       is Type.Number -> {
         val v = if (p.isString) null else p.doubleOrNull

@@ -1244,9 +1244,9 @@ internal class PhysicsLiquidSurface(
 
   /**
    * Il margine della cattura per tutta la vita della superficie: vedi [glassTravelPaddingDp]. Il cursore dell'utente
-   * moltiplica il raggio di sfocatura ([glassPreferenceFrost]), e il margine con lui, perché resti un tetto: a cursore
-   * colorato la sfocatura passa il margine di serie, e il bordo della sagoma sfocherebbe pixel che la cattura non ha. A
-   * metà corsa il fattore è uno, e il margine quello di prima al bit.
+   * moltiplica il raggio di sfocatura ([glassPreferenceFrost]), e il margine con lui, perché resti un tetto. Il tetto del
+   * cursore (senza taglia) è uno a ogni valore: le superfici grandi a «trasparente» sfocano come di serie (F10.8b), e la
+   * metà colorata, che lo passava, non c'è più (F10.8c). Il margine è quello di serie al bit.
    */
   val paddingDp: Float = glassTravelPaddingDp(
     role, material.target, material.origin, profile, journey = if (planeJourney) profile.journey else null,

@@ -144,15 +144,26 @@ class F10p8SharedThemeTest {
     assertEquals(0.5f, a.glass)
     val brand = a.primary
 
-    // Lo Store cambia l'aspetto comune: scuro, vetro colorato, accento arancio.
-    phone.appearance.setGlobal(mapOf("appearance.mode" to "dark", "appearance.glass" to "tinted", "appearance.accent" to "#FF9500"))
+    // Lo Store cambia l'aspetto comune: scuro, vetro piu' limpido (chiarezza 0,4: il cursore dell'engine a 0,2), accento arancio.
+    phone.appearance.setGlobal(mapOf("appearance.mode" to "dark", "appearance.glass" to "0.4", "appearance.accent" to "#FF9500"))
     phone.deliver(weather, pampai)
     compose.waitUntil(5_000) { a.dark && b.dark }
     compose.waitForIdle()
-    assertEquals(0.8f, a.glass)
-    assertEquals(0.8f, b.glass)
+    assertEquals(0.2f, a.glass, 1e-6f)
+    assertEquals(0.2f, b.glass, 1e-6f)
     assertEquals(a.primary, b.primary)
     assertTrue(a.primary != brand)
+    val orange = a.primary
+
+    // F10.8b: l'accento «il colore di ogni app» passa dal contratto e ognuna torna al suo marchio; poi di nuovo l'arancio.
+    phone.appearance.setGlobal(mapOf("appearance.accent" to "app"))
+    phone.deliver(weather, pampai)
+    compose.waitUntil(5_000) { a.primary != orange && b.primary != orange }
+    compose.waitForIdle()
+    assertEquals(a.primary, b.primary)
+    phone.appearance.setGlobal(mapOf("appearance.accent" to "#FF9500"))
+    phone.deliver(weather, pampai)
+    compose.waitUntil(5_000) { a.primary == orange && b.primary == orange }
 
     // PampAI prende la sua eccezione (chiaro) dalla sua sezione Aspetto: la scrive lo Store, vale solo per PampAI.
     runBlocking { storePampai.setSharedException(followShared = false, exception = EngineAppearanceLayer(themeMode = ThemeMode.LIGHT)) }
@@ -160,11 +171,11 @@ class F10p8SharedThemeTest {
     compose.waitUntil(5_000) { !b.dark }
     compose.waitForIdle()
     assertTrue(a.dark)
-    // Il resto dell'eccezione segue il comune: il vetro resta colorato anche per PampAI.
-    assertEquals(0.8f, b.glass)
+    // Il resto dell'eccezione segue il comune: il vetro resta piu' limpido anche per PampAI.
+    assertEquals(0.2f, b.glass, 1e-6f)
 
     // Lo Store cambia ancora il comune: Weather segue, PampAI tiene il suo chiaro.
-    phone.appearance.setGlobal(mapOf("appearance.mode" to "light", "appearance.glass" to "clear"))
+    phone.appearance.setGlobal(mapOf("appearance.mode" to "light", "appearance.glass" to "1"))
     phone.deliver(weather, pampai)
     compose.waitUntil(5_000) { !a.dark && a.glass == 0.5f && b.glass == 0.5f }
     phone.appearance.setGlobal(mapOf("appearance.mode" to "dark"))
@@ -217,9 +228,9 @@ class F10p8SharedThemeTest {
     assertEquals(FluidSystemContrast.Standard, contrast)
     assertEquals(false, reduced)
 
-    settings = EngineSettings(glassPreference = 0.8f, textScale = 1.25f, highContrast = true, reducedMotion = true)
+    settings = EngineSettings(glassPreference = 0.2f, textScale = 1.25f, highContrast = true, reducedMotion = true)
     compose.waitForIdle()
-    assertEquals(0.8f, glass)
+    assertEquals(0.2f, glass)
     assertEquals(1.25f, fontScale)
     assertEquals(FluidSystemContrast.High, contrast)
     assertEquals(true, reduced)

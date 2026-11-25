@@ -152,8 +152,10 @@ class GlassSurfaceAdaptiveTest {
   @Test
   fun theCursorReachesTheSurface() {
     val middle = drawn(surface(dark = false))
-    val colored = surface(dark = false, preference = FluidGlassPreference.Colored).drawInputs(size, scale = 1f)
-    assertNotEquals(middle, fields(colored))
+    val clear = surface(dark = false, preference = FluidGlassPreference.Transparent).drawInputs(size, scale = 1f)
+    assertNotEquals(middle, fields(clear))
     assertEquals(middle, drawn(surface(dark = false, preference = FluidGlassPreference.Default)))
+    // F10.8c: un valore salvato nella metà colorata di prima disegna il vetro di serie.
+    assertEquals(middle, drawn(surface(dark = false, preference = 0.8f)))
   }
 }

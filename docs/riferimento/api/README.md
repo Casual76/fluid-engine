@@ -19,7 +19,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
-| [Vetro](vetro.md) | 33 | 260 |
+| [Vetro](vetro.md) | 33 | 263 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
 | [Tema, forma, tipo](tema.md) | 11 | 148 |
 | [Icone (FluidIcons)](icone.md) | 5 | 212 |
@@ -45,7 +45,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-notify](notify.md) | 9 | 65 |
-| [engine-account](account.md) | 11 | 266 |
+| [engine-account](account.md) | 11 | 267 |
 | [engine-account-host](account-host.md) | 25 | 302 |
 | [engine-account-ui](account-ui.md) | 2 | 20 |
 | [engine-people](people.md) | 20 | 371 |

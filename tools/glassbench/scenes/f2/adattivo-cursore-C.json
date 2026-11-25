@@ -1,5 +1,5 @@
 {
-  "_": "F2.2, scritta da artifacts/liquid-glass/bench/f2-2/adattivo.py (specchio di glassRecipe col materiale adattivo; GlassAdaptiveSceneTest la confronta con l'engine). Non si modifica a mano: si rigenera. Tavola 2, C: cursore dell'utente a 1.0.",
+  "_": "F2.2, scritta da artifacts/liquid-glass/bench/f2-2/adattivo.py (specchio di glassRecipe col materiale adattivo; GlassAdaptiveSceneTest la confronta con l'engine). Non si modifica a mano: si rigenera. Tavola 2, C: cursore dell'utente a 1.0. F10.8c: ritoccata a mano (cattura e velo uguali alla B), perché la metà colorata del cursore non c'è più e 1.0 si legge di serie; lo specchio è da portare alla regola nuova prima di rigenerare.",
   "width": 520,
   "height": 150,
   "density": 3,
@@ -62,9 +62,9 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12.015,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 0.0,
+        "paddingDp": 0,
         "scale": 0.73
       },
       "body": {
@@ -104,7 +104,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F798",
+          "veilColor": "#F5F5F775",
           "veilAdapt": 0.7,
           "tintColor": "#00000000",
           "tintMode": 0,
@@ -294,9 +294,9 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 12.015,
+        "blurDp": 4.5,
         "w": 0,
-        "paddingDp": 0.0,
+        "paddingDp": 0,
         "scale": 0.73
       },
       "body": {
@@ -336,7 +336,7 @@
           "dispersion": 0,
           "magnify": 0,
           "materialize": 1,
-          "veilColor": "#F5F5F798",
+          "veilColor": "#F5F5F775",
           "veilAdapt": 0.7,
           "tintColor": "#00000000",
           "tintMode": 0,

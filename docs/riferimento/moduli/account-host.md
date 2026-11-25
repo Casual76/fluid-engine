@@ -83,7 +83,8 @@ telefono sbloccato e le legge in sottofondo senza mai aprire la madre.
 **L'aspetto comune (F10.8)** (`AppearanceStore`). Risponde anche senza account. Scrive solo lo Store: il tema comune
 (`setGlobal`, dalla pagina Aspetto) e le eccezioni delle app (`setException`, dal metodo `setAppearance`). Le chiavi e i
 valori sono quelli del contratto (`PrefsContract`, confrontato con `prefs.json`): una scelta che il server
-rifiuterebbe non nasce. Ogni campo porta l'**orologio logico ibrido** di chi l'ha scritto (`SyncClock` di
+rifiuterebbe non nasce. Dal F10.8b `appearance.glass` è la chiarezza del vetro, un numero da 0 a 1 a passi di 0,01, e
+`appearance.accent` accetta, oltre a `#rrggbb`, le parole `app` e `system` (le `keywords` del tipo `color`). Ogni campo porta l'**orologio logico ibrido** di chi l'ha scritto (`SyncClock` di
 `engine-sync`, nel formato del server `ms-contatore-nodo`): fra i dispositivi vince, campo per campo, il più recente,
 anche con gli orologi sfasati; un'eccezione tolta è una lapide col suo orologio. `AppearanceSync` legge `GET
 /v1/prefs?since=`, fonde, poi manda solo le chiavi che il server annuncia (critica M1); una riga rifiutata per

@@ -587,16 +587,28 @@ nasce con il contenitore in F3.2, e nessun componente lo consuma ancora, quindi 
 `Classic` e sotto Android 13 `Clear` è `Regular`. Lo scurimento di `Clear` che segue lo sfondo, invece del 35% fisso, è una
 manopola di debug (`cleardim=follow`), non un comportamento.
 
-**Il cursore dell'utente.** `LocalFluidGlassPreference` va da `FluidGlassPreference.Transparent` (0) a `Colored` (1), di serie
-`Default` (0,5), e muove insieme la diffusione e il velo di ogni vetro nuovo, soprattutto la diffusione: all'estremo
-trasparente il vetro ha poca diffusione e il testo dietro si legge piegato dalla lente; all'estremo colorato è una lastra
-quasi opaca del colore dello sfondo, senza forma dietro. A metà è il vetro di serie, **al bit**. Non tocca `Clear`, il vetro
-di prima e il vetro sotto Android 13. **Il valore lo conserva l'app**: la riga facoltativa di `fluidAppearanceSection`
-(`glassPreference` e `onGlassPreferenceChange`, insieme) disegna il cursore con l'etichetta «Trasparente / Di serie /
-Colorato» e restituisce il valore; l'app lo fornisce poi attorno al suo contenuto,
-`CompositionLocalProvider(LocalFluidGlassPreference provides valore) { … }`, come fa col resto dell'aspetto. L'engine non ha
-un campo nuovo nelle impostazioni. Gli estremi sono provati sul banco, ma il giudizio di Apple sui suoi (ritoccati nella beta
-5 di iOS 27) è su una misura sola, di fiducia bassa.
+**Il cursore dell'utente.** `LocalFluidGlassPreference` va da `FluidGlassPreference.Transparent` (0) a `Default` (0,5), che
+è il vetro di serie, **al bit**, e la cima del cursore. Muove insieme la diffusione e il velo di ogni vetro nuovo,
+soprattutto la diffusione: all'estremo trasparente i pezzi piccoli non sfocano e il testo dietro si legge piegato dalla
+lente (sotto, «Trasparente secondo la grandezza»). Non tocca `Clear`, il vetro di prima e il vetro sotto Android 13.
+**Un cursore solo** (F10.8c, scelta di Alessio del 25/11/2026), uguale nello Store e nelle app: la metà colorata di prima
+(fino a `Colored`, 1, una lastra quasi opaca del colore dello sfondo) non c'è più. Un valore salvato lassù da un'app si
+legge di serie, senza sorprese: `FluidGlassPreference.effective` lo porta a 0,5 nella ricetta e nella riga, il vetro è
+quello di serie al bit, e il valore salvato non si riscrive finché l'utente non muove il cursore. `Colored` resta, con lo
+stesso valore, ma è deprecato. **Il valore lo conserva l'app**: la riga facoltativa di `fluidAppearanceSection`
+(`glassPreference` e `onGlassPreferenceChange`, insieme) disegna il cursore da «Trasparente» a «Di serie», con la
+percentuale della corsa in mezzo, e restituisce il valore; l'app lo fornisce poi attorno al suo contenuto,
+`CompositionLocalProvider(LocalFluidGlassPreference provides valore) { … }`, come fa col resto dell'aspetto, oppure lo mette
+in `EngineSettings.glassPreference` e lo fornisce `FluidTheme` (F10.8). Gli estremi sono provati sul banco, ma il giudizio
+di Apple sui suoi (ritoccati nella beta 5 di iOS 27) è su una misura sola, di fiducia bassa.
+
+**Trasparente secondo la grandezza** (F10.8b, scelta di Alessio del 25/11/2026). Nella metà trasparente la diffusione
+dipende dal lato corto del vetro, con la stessa scala di `glassSizeGain` (piccolo fino a 64 dp, grande da 320 dp): i
+**tasti e i pezzi piccoli** (tasti, capsule, barre) scendono in linea retta fino a **nessuna sfocatura** a «trasparente»;
+le **superfici grandi** (menu, pannelli, fogli) restano sfocate per la leggibilità, come il Clear di iOS 26.1 che tiene
+smerigliati menu e fogli. A «di serie» tutte le grandezze sono al bit di prima.
+`FluidGlassPreference.fromClarity` e `clarityOf` traducono la **chiarezza** del tema comune di Pampa (0 trasparente … 1 di
+serie) nel cursore e ritorno.
 
 **Con `Classic` e sotto Android 13.** Non c'è niente di tutto questo: nessuna sonda, nessun giro, nessun velo o ombra che
 segua lo sfondo, nessun inchiostro che cambi, il cursore non fa niente e `Clear` è `Regular`. Il vetro è quello di prima,

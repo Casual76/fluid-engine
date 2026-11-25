@@ -51,7 +51,10 @@ class AppearanceSyncTest {
           assertEquals(value["max"]!!.jsonPrimitive.doubleOrNull, t.max)
           assertEquals(value["step"]!!.jsonPrimitive.doubleOrNull, t.step)
         }
-        PrefsContract.Type.Color -> assertEquals("color", value["type"]!!.jsonPrimitive.content)
+        is PrefsContract.Type.Color -> {
+          assertEquals("color", value["type"]!!.jsonPrimitive.content)
+          assertEquals(name, (value["keywords"] as? JsonArray)?.map { it.jsonPrimitive.content }.orEmpty(), t.keywords)
+        }
         PrefsContract.Type.Bool -> assertEquals("bool", value["type"]!!.jsonPrimitive.content)
       }
     }
@@ -62,6 +65,13 @@ class AppearanceSyncTest {
     assertEquals("scope_not_allowed", PrefsContract.check("appearance.textScale", "dev.pampa.pampai", JsonPrimitive(1.2)))
     assertNull(PrefsContract.check("appearance.mode", "dev.pampa.pampai", null))
     assertEquals("bad_value", PrefsContract.check("appearance.mode", "global", null))
+    // F10.8b: l'accento «app» e «system», e il vetro come numero a passi di 0,01.
+    assertNull(PrefsContract.check("appearance.accent", "global", JsonPrimitive("app")))
+    assertNull(PrefsContract.check("appearance.accent", "dev.pampa.fluidify", JsonPrimitive("system")))
+    assertEquals("bad_value", PrefsContract.check("appearance.accent", "global", JsonPrimitive("arcobaleno")))
+    assertNull(PrefsContract.check("appearance.glass", "global", JsonPrimitive(0.35)))
+    assertEquals("bad_value", PrefsContract.check("appearance.glass", "global", JsonPrimitive(0.355)))
+    assertEquals("bad_value", PrefsContract.check("appearance.glass", "global", JsonPrimitive("tinted")))
   }
 
   @Test
@@ -77,14 +87,15 @@ class AppearanceSyncTest {
   fun `un cambio fatto su un dispositivo arriva sull'altro, e le app lo sanno`() = runBlocking {
     val server = FakeSharedServer()
     val (a, b) = pair(server)
-    a.appearance.setGlobal(mapOf("appearance.mode" to "dark", "appearance.glass" to "tinted", "appearance.textScale" to "1.25"))
+    a.appearance.setGlobal(mapOf("appearance.mode" to "dark", "appearance.glass" to "0.35", "appearance.textScale" to "1.25", "appearance.accent" to "app"))
     assertTrue(a.appearanceSync.sync() is StoreSyncResult.Ok)
     assertEquals("dark", server.pref("global", "appearance.mode"))
     b.notified.clear()
     val r = b.appearanceSync.sync() as StoreSyncResult.Ok
     assertTrue(r.changed)
     assertEquals("dark", b.appearance.snapshot().global["appearance.mode"])
-    assertEquals("tinted", b.appearance.snapshot().global["appearance.glass"])
+    assertEquals(0.35, b.appearance.snapshot().global["appearance.glass"]!!.toDouble(), 1e-9)
+    assertEquals("app", b.appearance.snapshot().global["appearance.accent"])
     assertEquals(1.25, b.appearance.snapshot().global["appearance.textScale"]!!.toDouble(), 1e-9)
     assertEquals(listOf(listOf("appearance")), b.notified)
     // Rileggere non cambia niente e non avvisa di nuovo.

@@ -17,7 +17,11 @@
       "key": "appearance.accent",
       "scopes": "global+app",
       "value": {
-        "type": "color"
+        "type": "color",
+        "keywords": [
+          "app",
+          "system"
+        ]
       },
       "since": 1
     },
@@ -25,12 +29,10 @@
       "key": "appearance.glass",
       "scopes": "global+app",
       "value": {
-        "type": "enum",
-        "values": [
-          "clear",
-          "tinted",
-          "reduced"
-        ]
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 0.01
       },
       "since": 1
     },

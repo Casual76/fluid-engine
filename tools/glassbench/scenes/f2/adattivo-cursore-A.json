@@ -1,5 +1,5 @@
 {
-  "_": "F2.2, scritta da artifacts/liquid-glass/bench/f2-2/adattivo.py (specchio di glassRecipe col materiale adattivo; GlassAdaptiveSceneTest la confronta con l'engine). Non si modifica a mano: si rigenera. Tavola 2, A: cursore dell'utente a 0.0.",
+  "_": "F2.2, scritta da artifacts/liquid-glass/bench/f2-2/adattivo.py (specchio di glassRecipe col materiale adattivo; GlassAdaptiveSceneTest la confronta con l'engine). Non si modifica a mano: si rigenera. Tavola 2, A: cursore dell'utente a 0.0. F10.8b: ritoccata a mano (le due barre, piccole, a cursore trasparente non sfocano); lo specchio è da portare alla regola nuova prima di rigenerare.",
   "width": 520,
   "height": 150,
   "density": 3,
@@ -62,7 +62,7 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 1.35,
+        "blurDp": 0.0,
         "w": 0,
         "paddingDp": 0.0,
         "scale": 0.73
@@ -294,7 +294,7 @@
       ],
       "capture": {
         "saturation": 1.5,
-        "blurDp": 1.35,
+        "blurDp": 0.0,
         "w": 0,
         "paddingDp": 0.0,
         "scale": 0.73

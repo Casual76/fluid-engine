@@ -1018,23 +1018,29 @@ class GlassRecipeTest {
     )
     val middle = at(FluidGlassPreference.Default)
     val clear = at(0f)
+    // F10.8c: la metà colorata di prima si legge di serie, al bit.
     val coloured = at(1f)
-    assertEquals(middle.blurDp * 0.3f, clear.blurDp, 1e-4f)
-    assertEquals(middle.blurDp * 2.67f, coloured.blurDp, 1e-3f)
+    // F10.8b: la barra (56 dp di lato corto) è un pezzo piccolo, e a cursore trasparente non sfoca; un foglio grande sì,
+    // come di serie.
+    assertEquals(0f, clear.blurDp, 0f)
+    fun sheetAt(preference: Float) = glassRecipe(
+      role = GlassRole.Modal, widthDp = 400f, heightDp = 640f, darkSide = false, preference = preference,
+    ).blurDp
+    assertEquals(sheetAt(FluidGlassPreference.Default), sheetAt(0f), 0f)
+    assertEquals(fields(middle), fields(coloured))
     assertEquals(middle.veilColor.alpha * 0.92f, clear.veilColor.alpha, ColourStep)
-    assertEquals(middle.veilColor.alpha * 1.3f, coloured.veilColor.alpha, ColourStep)
     // La risoluzione la fissa l'innesto in composizione: il cursore non la tocca.
     assertEquals(middle.captureScale, clear.captureScale, 0f)
-    assertEquals(middle.captureScale, coloured.captureScale, 0f)
-    // Il margine segue il raggio: con 12 dp su una banda di 13,4 dp ancora zero, su un tasto no.
-    val buttonColoured = glassRecipe(role = GlassRole.Interactive, widthDp = 44f, heightDp = 44f, darkSide = false,
-      optics = GlassDefaults.buttonOptics(), preference = 1f)
-    assertEquals(buttonColoured.blurDp - buttonColoured.thicknessDp, buttonColoured.paddingDp, 1e-4f)
-    // In mezzo, sale sempre.
-    var last = 0f
+    // Fino a «di serie» sale sempre (da zero, all'estremo trasparente); oltre resta il vetro di serie.
+    var last = -1f
     for (step in 0..10) {
-      val blur = at(step / 10f).blurDp
-      assertTrue("a ${step / 10f}: $blur dopo $last", blur > last)
+      val preference = step / 10f
+      val blur = at(preference).blurDp
+      if (preference <= FluidGlassPreference.Default) {
+        assertTrue("a $preference: $blur dopo $last", blur > last)
+      } else {
+        assertEquals("a $preference", middle.blurDp, blur, 0f)
+      }
       last = blur
     }
   }

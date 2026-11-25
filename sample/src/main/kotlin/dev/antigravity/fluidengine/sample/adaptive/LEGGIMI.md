@@ -24,7 +24,7 @@ adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene sc
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.share 0.6
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene grandi --es adaptive.auto true --es adaptive.large popup
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene cursore --es adaptive.cursor 0
-adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene cursore --es adaptive.cursor 1
+adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene cursore --es adaptive.cursor 0.25
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene varianti
 adb shell am start -S -W -n $A --es gallery.page adaptive --es adaptive.scene bianco-nero --es adaptive.model classic
 ```
@@ -43,7 +43,7 @@ quelli delle altre pagine: chiudere l'attività prima di un nuovo lancio con ext
 | `adaptive.auto` | `true` | la pagina si muove da sola (vedi ogni scena); senza, **non scrive niente** |
 | `adaptive.tone` | `bianco`, `grigio`, `nero` | il fondo da cui parte la prima scena |
 | `adaptive.share` | `0`–`1` | la quota di nero dal basso, per `soglia` e `grandi` |
-| `adaptive.cursor` | `0`–`1` | il cursore dell'utente (`LocalFluidGlassPreference`), di serie `0.5` |
+| `adaptive.cursor` | `0`–`0.5` | il cursore dell'utente (`LocalFluidGlassPreference`), di serie `0.5`, la cima; un valore più alto si legge `0.5` (F10.8c) |
 | `adaptive.dark` | `nero`, `scuro`, `grigio` | il tono dei riquadri scuri della scacchiera (nero puro, 25%, 40%) |
 | `adaptive.cell` | `8`–`96` | il lato di una casella della scacchiera, in dp (di serie 32) |
 | `adaptive.fullbar` | `true` | scorrimento: i riquadri scuri sono alti e riempiono la zona della barra |
@@ -101,13 +101,13 @@ Vetro, Automatico e quelli propri della scena) sono anche loro vetro, e anche lo
    parole non si incolonnino), una riga sottile da un pixel sotto ogni riga di testo, una griglia verticale da un pixel ogni
    24 dp e, ogni quattro righe, una striscia a contrasto di barre nere da 2 dp. Sopra, i vetri di serie (il tondo, il tasto
    tinto, la capsula, un pannello fatto a mano dall'app) e, sotto, la riga di `fluidAppearanceSection` («Aspetto del vetro»)
-   collegata a `LocalFluidGlassPreference`: il cursore va da trasparente (0) a colorato (1), a metà è il vetro di serie al
-   bit, e la riga si aggancia al centro. I due estremi e il centro sono anche tre tasti a portata di tocco in cima
-   («Trasparente», «Di serie», «Colorato»), e al lancio `adaptive.cursor`. **Cosa guardare**: a 0 il testo, la griglia e le
-   barre si leggono attraverso il vetro, piegati dalla lente verso il bordo; a 1 il dettaglio sparisce e il vetro è una
-   lastra del colore della carta. La carta è chiara apposta: con l'inchiostro la media sotto un vetro dovrebbe restare
-   lontana dalla soglia del giro (stima, da confermare con le righe `LETTURA`), così fra 0, 0,5 e 1 cambia solo il cursore
-   e non il lato. La carta è la stessa nei due temi e non dipende dalla scala del testo.
+   collegata a `LocalFluidGlassPreference`: dalla F10.8c il cursore va da trasparente (0) a di serie (0,5), la cima, dove
+   è il vetro di serie al bit e la riga si aggancia. I due estremi sono anche due tasti a portata di tocco in cima
+   («Trasparente», «Di serie»), e al lancio `adaptive.cursor`. **Cosa guardare**: a 0 il tondo e la capsula non sfocano
+   (F10.8b) e il testo, la griglia e le barre si leggono attraverso il vetro, piegati dalla lente verso il bordo; il
+   pannello, più grande, resta in parte sfocato. La carta è chiara apposta: con l'inchiostro la media sotto un vetro
+   dovrebbe restare lontana dalla soglia del giro (stima, da confermare con le righe `LETTURA`), così fra 0 e 0,5 cambia
+   solo il cursore e non il lato. La carta è la stessa nei due temi e non dipende dalla scala del testo.
 7. **`varianti` · `Clear` e tasto tinto.** Due righe uguali: il vetro di serie, il tasto tinto (`GlassTintMode.Colored`) e,
    accanto, il posto di `Clear`. La prima sta sopra una foto chiara (la foto con un velo bianco), la seconda sopra una scura
    (con un velo nero): il confine fra le due foto passa a metà dei 160 dp vuoti fra le righe, misurato dove le righe si

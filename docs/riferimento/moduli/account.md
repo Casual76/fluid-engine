@@ -66,8 +66,11 @@ ha il tema di Pampa Store **senza scrivere niente**. La regola di chi vince, cam
 (se l'utente gliel'ha data e l'app non segue il comune), **poi il tema comune**, **poi i valori dell'app**. I primi due
 gradini sono `PampaAppearance.layerOf`, il terzo `EngineAppearanceLayer.applyTo`. Le chiavi sono quelle del contratto
 (`prefs.json`): `appearance.mode` (chiaro, scuro, automatico; il nero vero resta dell'app), `appearance.accent` (un
-colore `#rrggbb`, che il tema porta sul preset con quel colore o sul più vicino), `appearance.glass` (`clear` = il vetro
-di oggi 0,5, `tinted` = 0,8, `reduced` = 1 sul cursore `LocalFluidGlassPreference`), `appearance.textScale`
+colore `#rrggbb`, che il tema porta sul preset con quel colore o sul più vicino, oppure `app` = il marchio di ogni app e
+`system` = i colori del sistema), `appearance.glass` (F10.8b: **la chiarezza del vetro**, un numero da 0
+«perfettamente trasparente» a 1 «più sfocato, come ora», di serie 1; sul cursore `LocalFluidGlassPreference` è la metà
+trasparente, `PampaAppearance.glassPreferenceOf` = chiarezza × 0,5, e a 1 il vetro è quello di serie al bit),
+`appearance.textScale`
 (moltiplica la grandezza del sistema), `appearance.contrast` (`high` vale come il contrasto alto di Android),
 `motion.reduced`, `icon.set`. Un valore che non si capisce vale «nessuna scelta» su quel campo. Senza Store
 (`NoStore`) lo strato è `null` e l'app ha il suo tema (R1). Il primo valore arriva dalla copia locale, così il tema non
@@ -146,11 +149,13 @@ val keys = PampaAccount.appKey(context, KeyPurpose.APP) as? AppKeyResult.Ok
 - **Gli adattatori delle app** che tengono il tema nelle loro preferenze (ClasseViva, Fluidify, Gallery, Converter, lo
   Store) sono di F10.9: chi non usa `EngineSettingsStore` mappa `PampaAccount.appearance` con `PampaAppearance.layerOf`
   e `EngineAppearanceLayer.applyTo`.
-- **L'accento comune** è un colore del contratto. Il telefono capisce già anche `app` («il colore di ogni app», cioè il
-  marchio) e `system` («i colori del sistema»), ma il server del contratto v1 accetta solo `#rrggbb`, quindi lo Store non
-  li scrive ancora: oggi una scelta comune d'accento resta finché l'utente non ne sceglie un'altra.
-- **Il cursore del vetro** viaggia fra i dispositivi come uno dei tre livelli del contratto (`clear`, `tinted`,
-  `reduced`); sul telefono un numero fra 0 e 1 passa già così com'è.
+- **L'accento comune** è un colore del contratto o una delle sue due parole (F10.8b): `app` («il colore di ogni app»,
+  cioè il marchio) e `system` («i colori del sistema»). Server, contratto v1 e Store le accettano; lo Store le scrive come
+  qualunque altro valore.
+- **Il cursore del vetro è uno solo** (F10.8b e F10.8c): nello Store e nelle app va da «perfettamente trasparente» al
+  vetro di serie. La metà colorata di prima (fra 0,5 e 1 sul cursore dell'engine) non c'è più: un valore salvato lassù
+  da un'app si legge di serie, e un'eccezione che lo porta ancora si scrive al server come chiarezza 1
+  (`PampaAppearance.exceptionValues`).
 - **Le persone** (`people.row`, `share.*`, «Da X») sono di F10.6, in `engine-people` e nei componenti di
   [account-ui](account-ui.md).
 - **Bouncy Castle** entra nell'app con le regole di R8 di Codex (`consumer-rules.pro`: tutto `org.bouncycastle`).

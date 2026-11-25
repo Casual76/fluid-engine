@@ -70,10 +70,36 @@ class FluidGlassTest {
     assertEquals(strings.glassPreferenceTransparent, FluidAppearance.glassPreferenceLabel(-3f, strings))
     assertEquals(strings.glassPreferenceDefault, FluidAppearance.glassPreferenceLabel(FluidGlassPreference.Default, strings))
     assertEquals(strings.glassPreferenceDefault, FluidAppearance.glassPreferenceLabel(Float.NaN, strings))
-    assertEquals(strings.glassPreferenceColored, FluidAppearance.glassPreferenceLabel(1f, strings))
-    assertEquals("30%", FluidAppearance.glassPreferenceLabel(0.3f, strings))
-    assertEquals("70%", FluidAppearance.glassPreferenceLabel(0.7f, strings))
+    // F10.8c: il cursore finisce a «Di serie»; la percentuale è della corsa (0,5 = 100%).
+    assertEquals(strings.glassPreferenceTransparent, FluidAppearance.glassPreferenceLabel(0.1f, strings))
+    assertEquals("30%", FluidAppearance.glassPreferenceLabel(0.15f, strings))
+    assertEquals("60%", FluidAppearance.glassPreferenceLabel(0.3f, strings))
+    assertEquals(strings.glassPreferenceDefault, FluidAppearance.glassPreferenceLabel(0.45f, strings))
+    // Un valore salvato nella metà colorata di prima si dice «Di serie», come si vede.
+    assertEquals(strings.glassPreferenceDefault, FluidAppearance.glassPreferenceLabel(0.7f, strings))
+    assertEquals(strings.glassPreferenceDefault, FluidAppearance.glassPreferenceLabel(1f, strings))
     assertEquals(0f, FluidGlassPreference.Transparent, 0f)
-    assertEquals(1f, FluidGlassPreference.Colored, 0f)
+  }
+
+  /**
+   * F10.8c, scelta di Alessio del 25/11/2026: un cursore solo, da trasparente a di serie. Un'app che aveva salvato un
+   * valore nella metà colorata (fra 0,5 e 1, e oltre) torna al vetro di serie senza sorprese: il valore si legge 0,5, la
+   * chiarezza è piena, e il valore che l'estremo colorato aveva resta lo stesso per chi l'ha salvato.
+   */
+  @Test
+  fun aValueSavedInTheOldColoredHalfReadsAsTheStockGlass() {
+    for (saved in listOf(0.5001f, 0.7f, 0.8f, 1f, 3f, Float.POSITIVE_INFINITY, Float.NaN)) {
+      assertEquals("salvato $saved", FluidGlassPreference.Default, FluidGlassPreference.effective(saved), 0f)
+      assertEquals("salvato $saved", 1f, FluidGlassPreference.clarityOf(saved), 0f)
+    }
+    assertEquals(FluidGlassPreference.Transparent, FluidGlassPreference.effective(-1f), 0f)
+    // Un valore non finito è di serie, anche meno infinito: non è una scelta dell'utente.
+    assertEquals(FluidGlassPreference.Default, FluidGlassPreference.effective(Float.NEGATIVE_INFINITY), 0f)
+    assertEquals(0.2f, FluidGlassPreference.effective(0.2f), 0f)
+    assertEquals(FluidGlassPreference.Default, FluidGlassPreference.effective(FluidGlassPreference.Default), 0f)
+    @Suppress("DEPRECATION")
+    val colored = FluidGlassPreference.Colored
+    assertEquals("il valore di prima non cambia", 1f, colored, 0f)
+    assertEquals(FluidGlassPreference.Default, FluidGlassPreference.effective(colored), 0f)
   }
 }

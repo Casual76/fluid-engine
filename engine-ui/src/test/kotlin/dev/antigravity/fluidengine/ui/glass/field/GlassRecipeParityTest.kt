@@ -16,6 +16,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassLiquidMinSdk
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
+import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
 import dev.antigravity.fluidengine.ui.fluid.GlassFalloff
 import dev.antigravity.fluidengine.ui.fluid.GlassOptics
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -426,21 +427,54 @@ class GlassRecipeParityTest {
         return material(physicsInputs(surface, w, h, density), density, density)
       }
       val middle = physicsAt(FluidGlassPreference.Default)
-      for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+      // F10.8c: l'altro estremo è il colorato di prima (1), che si legge di serie.
+      for (preference in listOf(FluidGlassPreference.Transparent, 1f)) {
         val where = "${piece.name}, ${if (dark) "scuro" else "chiaro"}, cursore $preference"
         val still = stillSurface(piece, dark, density, state, neutral, preference)
         val scale = still.effectiveCaptureScale(size)
         val g = material(still.drawInputs(size), density * scale, density)
         val p = physicsAt(preference)
         assertSameNumbers("$where, corpo e luce", g, p)
-        val blurMoved = abs(p.getValue("blurDp") - middle.getValue("blurDp"))
-        val veilMoved = abs(p.getValue("veilColor.a") - middle.getValue("veilColor.a"))
-        assertTrue("$where: la diffusione si muove ($blurMoved)", blurMoved > Tolerance)
-        assertTrue("$where: il velo si muove ($veilMoved)", veilMoved > Tolerance)
+        if (preference == FluidGlassPreference.Transparent) {
+          val blurMoved = abs(p.getValue("blurDp") - middle.getValue("blurDp"))
+          val veilMoved = abs(p.getValue("veilColor.a") - middle.getValue("veilColor.a"))
+          assertTrue("$where: la diffusione si muove ($blurMoved)", blurMoved > Tolerance)
+          assertTrue("$where: il velo si muove ($veilMoved)", veilMoved > Tolerance)
+        } else {
+          assertSameNumbers("$where: si legge di serie", middle, p)
+        }
         compared++
       }
     }
     assertEquals(pieces.size * 2 * 2, compared)
+  }
+
+  /**
+   * F10.8b, sul vetro vero (la `GlassLiquidSurface` che usano i composable, con la sua cattura): a cursore
+   * trasparente il tasto e la capsula non sfocano, il pannello di 320×240 tiene la parte che gli dà la regola della
+   * taglia, un foglio grande resta sfocato come di serie. Di serie (a metà corsa) niente cambia.
+   */
+  @Test
+  fun atTheTransparentEndButtonsAreClearAndLargeSurfacesStayFrosted() {
+    val density = 3f
+    val state = State("riposo", 1f, 1f) { n, _ -> n }
+    val sheet = Piece("foglio", GlassRole.Modal, GlassDefaults.panelOptics().sanitized(), 400f, 640f, 28f)
+    for (dark in listOf(false, true)) {
+      fun blurAt(piece: Piece, preference: Float): Float {
+        val size = Size(piece.widthDp * density, piece.heightDp * density)
+        val still = stillSurface(piece, dark, density, state, neutral, preference)
+        return material(still.drawInputs(size), density * still.effectiveCaptureScale(size), density).getValue("blurDp")
+      }
+      val (button, capsule, panel) = pieces
+      for (small in listOf(button, capsule)) {
+        assertTrue("${small.name}: di serie sfoca", blurAt(small, FluidGlassPreference.Default) > 0f)
+        assertEquals("${small.name}, scuro $dark: a trasparente niente sfocatura", 0f, blurAt(small, FluidGlassPreference.Transparent), 0f)
+      }
+      val panelDefault = blurAt(panel, FluidGlassPreference.Default)
+      val panelClear = blurAt(panel, FluidGlassPreference.Transparent)
+      assertEquals("pannello, scuro $dark", panelDefault * glassSizeGain(240f), panelClear, Tolerance + panelDefault * RelativeTolerance)
+      assertEquals("foglio, scuro $dark: resta sfocato", blurAt(sheet, FluidGlassPreference.Default), blurAt(sheet, FluidGlassPreference.Transparent), 0f)
+    }
   }
 
   // ------------------------------------------------------------------------------------------------------------
@@ -717,7 +751,16 @@ class GlassRecipeParityTest {
       assertEquals("corpo del foglio dipinto, $side", bodyBefore,
         glassPaintedPanelBody(page, dark, preference = FluidGlassPreference.Default))
 
-      for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+      // F10.8c: il colorato di prima (1) si legge di serie, quindi lì non si muove niente.
+      for (saved in listOf(0.8f, 1f)) {
+        assertEquals("goccia, $side, salvato $saved", fields(dropBefore),
+          fields(glassDropRecipe(24f, 24f, dark, pressure = 1f, preference = saved)))
+        assertEquals("dipinto, $side, salvato $saved", fields(paintedBefore),
+          fields(glassPaintedRecipe(360f, 300f, dark, largeVeil = 1f, preference = saved)))
+        assertEquals("corpo del foglio dipinto, $side, salvato $saved", bodyBefore,
+          glassPaintedPanelBody(page, dark, preference = saved))
+      }
+      for (preference in listOf(FluidGlassPreference.Transparent)) {
         val where = "$side, cursore $preference"
         // La goccia: limpida a ogni cursore, e il tono segue il cursore come il velo (con un livello su 255 di
         // arrotondamento).
@@ -747,11 +790,6 @@ class GlassRecipeParityTest {
           glassPaintedPanelBody(page, dark, preference = preference),
         )
       }
-      // All'estremo colorato il corpo del foglio cambia davvero (all'altro il passo può stare dentro un livello).
-      assertTrue(
-        "corpo del foglio dipinto, $side: il cursore colorato lo cambia",
-        glassPaintedPanelBody(page, dark, preference = FluidGlassPreference.Colored) != bodyBefore,
-      )
     }
   }
 

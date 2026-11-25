@@ -67,7 +67,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object PrefsContract` — Le chiavi delle preferenze come le accetta il server (`Pampa-account\src\prefs.ts`, copia in `contract\v1\ prefs.json`: una prova le confronta). Il telefono controlla come il server, così una scelta che il server rifiuterebbe non nasce nemmeno.
   - `sealed interface Type`
     - `data class Enum(val values: List<String>) : Type`
-    - `data object Color : Type`
+    - `data class Color(val keywords: List<String> = emptyList()) : Type` — Un colore `#rrggbb`, o una delle [keywords] (F10.8b: `app` e `system` per l'accento).
     - `data object Bool : Type`
     - `data class Number(val min: Double, val max: Double, val step: Double) : Type`
   - `data class Spec(val scopes: String, val type: Type)` — Dove vale una chiave: `global`, `app` (solo come eccezione di un'app) o tutte e due.

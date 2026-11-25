@@ -202,15 +202,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val MOTION_REDUCED`
     - `const val FOLLOW_GLOBAL`
   - `val MODES` — I valori di `appearance.mode`.
-  - `val GLASS_LEVELS` — Il vetro: «Trasparente» è il vetro di oggi, «Colorato» alza opacità e tinta (`idee-scelte.md`, `vetro-trasparente-o-colorato`; iOS 26.1, Impostazioni › Schermo e luminosità › Liquid Glass), «ridotto» è il più pieno. Sul cursore dell'engine (`LocalFluidGlassPreference`): 0,5 è il vetro di serie al bit, 0,8 è dove la riga del cursore comincia a dire «Colorato», 1 è la lastra quasi opaca.
+  - `const val GLASS_DEFAULT` — F10.8b · Il vetro dell'aspetto comune è la sua **chiarezza** (scelta di Alessio del 25/11/2026): un numero da 0 «perfettamente trasparente» a 1 «più sfocato, come ora», di serie 1, come il cursore Liquid Glass di iOS 27.
   - `val ICON_SETS` — Le famiglie d'icone.
   - `val APP_KEYS` — Le chiavi che un'app può tenere diverse dal comune (`scopes: global+app`).
   - `const val TEXT_SCALE_MIN` — I limiti di `appearance.textScale` nel contratto.
   - `const val TEXT_SCALE_MAX`
-  - `val SPECIAL_ACCENTS` — I due accenti che non sono un colore: «il colore di ogni app» e «i colori del sistema». Il telefono li capisce già; il server del contratto v1 accetta solo colori, quindi lo Store non li scrive finché il contratto non li aggiunge (domanda 2 di F10.8).
+  - `val SPECIAL_ACCENTS` — I due accenti che non sono un colore: «il colore di ogni app» e «i colori del sistema» (F10.8b, scelta di Alessio del 25/11/2026; nel contratto sono le `keywords` del tipo `color`).
   - `fun layerOf(shared: SharedAppearance): EngineAppearanceLayer` — Le scelte che valgono per quest'app: per ogni chiave l'eccezione (se l'app non segue il comune), poi il comune.
-  - `fun glassLevel(value: String): Float?` — Il cursore del vetro per un valore di `appearance.glass`, o `null`.
-  - `fun exceptionValues(layer: EngineAppearanceLayer): Map<String, String>` — I campi di un'eccezione dell'app scritti nelle chiavi del contratto, per `setAppearance`. Solo le chiavi che un'app può tenere diverse ([APP_KEYS]); il vetro va sul livello più vicino.
+  - `fun glassPreferenceOf(value: String): Float?` — Il cursore del vetro dell'engine per un valore di `appearance.glass` (la chiarezza, da 0 a 1), o `null`.
+  - `fun clarityOf(glassPreference: Float): Float` — La chiarezza per il contratto di un valore del cursore dell'engine. Un valore salvato oltre [GLASS_DEFAULT] (la metà colorata di prima, F10.8c) è 1, «come ora», come lo legge il vetro.
+  - `fun exceptionValues(layer: EngineAppearanceLayer): Map<String, String>` — I campi di un'eccezione dell'app scritti nelle chiavi del contratto, per `setAppearance`. Solo le chiavi che un'app può tenere diverse ([APP_KEYS]); il vetro diventa la sua chiarezza, a passi di 0,01 come nel contratto.
 - `class PampaSharedAppearance : EngineSharedAppearance` — F10.8 · La sorgente dell'aspetto comune per `EngineSettingsStore`: la trova `ServiceLoader` (`META-INF/services` di questo modulo), quindi un'app con `engine-account` ha il tema dello Store senza scrivere niente. Legge e scrive dallo Store con [PampaAccount]: nessuna rete (R9).
 
 ## `engine-account/account/PampaPeople.kt`

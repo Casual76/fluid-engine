@@ -407,34 +407,47 @@ internal const val GlassClearDimDarkBelow: Float = 0.15f
 internal const val GlassClearDimBrightAbove: Float = 0.6f
 
 /**
- * Il raggio di sfocatura col cursore dell'utente a [preference] (0..1), come multiplo di quello del profilo: **uno al
- * bit** a metà corsa (e per un valore non finito), [GlassLiquidPreference.frostClear] a zero,
- * [GlassLiquidPreference.frostColored] a uno, in mezzo per moltiplicazione (un raggio si percepisce in proporzione: da
- * 1,35 a 4,5 dp è lo stesso passo che da 4,5 a 15).
+ * Il raggio di sfocatura col cursore dell'utente a [preference], come multiplo di quello del profilo: **uno al bit** di
+ * serie, cioè a [FluidGlassPreference.Default], e per ogni valore che si legge di serie (oltre, o non finito: F10.8c,
+ * [FluidGlassPreference.effective]; la metà colorata di prima non c'è più).
+ *
+ * **La metà trasparente dipende dalla taglia** (F10.8b, scelta di Alessio del 25/11/2026: «a trasparente gli elementi
+ * piccoli come i tasti non hanno sfocatura; le superfici che prendono più spazio, come menu e fogli, restano sfocate
+ * per la leggibilità»). È la regola del vetro di Apple: il vetro limpido per i controlli che stanno sopra il contenuto,
+ * quello regolare, che sfoca, per le superfici grandi che portano testo (Apple HIG, Materials › Liquid Glass, varianti
+ * `regular` e `clear`, fiducia media), e in iOS 26.1 l'impostazione «Trasparente» lascia sfocati menu e fogli
+ * (Impostazioni › Schermo e luminosità › Liquid Glass; fiducia media, dalle riprese di R5). Con [shortDp], il lato corto
+ * in dp, e la regola della taglia dell'engine ([glassSizeGain], fra 64 e 320 dp, non una seconda soglia):
+ * - un pezzo **piccolo** (lato corto fino a 64 dp: tasti, capsule, barre) va **a zero** a cursore trasparente, in linea
+ *   (a occhio, 25/11/2026);
+ * - un pezzo **grande** (da 320 dp) segue [GlassLiquidPreference.frostClear], che di serie è 1: **resta sfocato**;
+ * - in mezzo, la mescola dei due con il guadagno della taglia (un menu di 250 dp a trasparente tiene l'82% del raggio).
+ *
+ * Di serie [shortDp] è infinito, cioè il multiplo più grande a ogni cursore: lo usa chi ne vuole un tetto (il margine
+ * della cattura di Fluid-physics). Non passa mai uno: il cursore non sfoca oltre il vetro di serie.
  */
-internal fun glassPreferenceFrost(preference: Float, profile: GlassLiquidPreference): Float {
-  if (!preference.isFinite()) return 1f
-  val p = clampGlassUnit(preference)
-  return when {
-    p == FluidGlassPreference.Default -> 1f
-    p < FluidGlassPreference.Default ->
-      max(profile.frostClear, 0f).pow(1f - p / FluidGlassPreference.Default)
-    else -> max(profile.frostColored, 0f).pow((p - FluidGlassPreference.Default) / (1f - FluidGlassPreference.Default))
-  }
+internal fun glassPreferenceFrost(
+  preference: Float,
+  profile: GlassLiquidPreference,
+  shortDp: Float = Float.POSITIVE_INFINITY,
+): Float {
+  val p = FluidGlassPreference.effective(preference)
+  if (p == FluidGlassPreference.Default) return 1f
+  val t = p / FluidGlassPreference.Default
+  val large = max(profile.frostClear, 0f).pow(1f - t)
+  val size = if (shortDp == Float.POSITIVE_INFINITY) 1f else glassSizeGain(shortDp)
+  return t + (large - t) * size
 }
 
 /**
- * L'alfa del velo col cursore dell'utente a [preference], come multiplo di quella del profilo: uno al bit a metà
- * corsa, in linea verso [GlassLiquidPreference.veilClear] e [GlassLiquidPreference.veilColored].
+ * L'alfa del velo col cursore dell'utente a [preference], come multiplo di quella del profilo: uno al bit di serie (e
+ * per ogni valore che si legge di serie, [FluidGlassPreference.effective]), in linea verso
+ * [GlassLiquidPreference.veilClear] a cursore trasparente.
  */
 internal fun glassPreferenceVeil(preference: Float, profile: GlassLiquidPreference): Float {
-  if (!preference.isFinite()) return 1f
-  val p = clampGlassUnit(preference)
-  return when {
-    p == FluidGlassPreference.Default -> 1f
-    p < FluidGlassPreference.Default -> profile.veilClear + (1f - profile.veilClear) * (p / FluidGlassPreference.Default)
-    else -> 1f + (profile.veilColored - 1f) * (p - FluidGlassPreference.Default) / (1f - FluidGlassPreference.Default)
-  }
+  val p = FluidGlassPreference.effective(preference)
+  if (p == FluidGlassPreference.Default) return 1f
+  return profile.veilClear + (1f - profile.veilClear) * (p / FluidGlassPreference.Default)
 }
 
 /**
@@ -605,7 +618,7 @@ private fun glassRecipeSide(
   // l'innesto in composizione dal ruolo, e la ricetta deve dire lo stesso numero.
   val roleBlur = frost.blur.value * glassOpticsFrost(optics.blurScale, glassLiquidRoleBlurScale(role))
   // A metà corsa il cursore vale uno, e per uno si moltiplica al bit.
-  val fullBlur = roleBlur * (1f + profile.growth.frost * gain) * glassPreferenceFrost(preference, profile.preference)
+  val fullBlur = roleBlur * (1f + profile.growth.frost * gain) * glassPreferenceFrost(preference, profile.preference, short)
   out.blurDp = fullBlur * (FluidGlassBlurFloor + (1f - FluidGlassBlurFloor) * q)
   out.mix = 1f - (1f - (if (clear) 1f else clampGlassUnit(frost.mix))) * amount
   // `vibrancy` 1 resta «nessun filtro»; quella di serie (1,6) dà la saturazione del profilo; in mezzo, in

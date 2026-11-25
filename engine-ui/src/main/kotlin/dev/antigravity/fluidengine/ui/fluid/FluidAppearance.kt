@@ -81,11 +81,12 @@ data class FluidAppearanceStrings(
   val glassDetail: String = "Superfici di vetro dove la schermata le prevede.",
   val haptics: String = "Aptica",
   val hapticsDetail: String = "Le vibrazioni che accompagnano i tocchi.",
-  /** Il cursore del vetro (4.0): il titolo, e le parole dei due estremi e del centro. */
+  /** Il cursore del vetro (4.0): il titolo, e le parole dei due estremi (F10.8c: «Trasparente» e «Di serie»). */
   val glassPreference: String = "Aspetto del vetro",
-  val glassPreferenceDetail: String = "Da trasparente, che lascia vedere ciò che c'è dietro, a colorato.",
+  val glassPreferenceDetail: String = "Da trasparente, che lascia vedere ciò che c'è dietro, al vetro di serie, più sfocato.",
   val glassPreferenceTransparent: String = "Trasparente",
   val glassPreferenceDefault: String = "Di serie",
+  /** Non si usa più dalla F10.8c (il cursore finisce a «Di serie»): resta per le app che lo passano già. */
   val glassPreferenceColored: String = "Colorato",
   val glassMotionLight: String = "Luce in movimento",
   val glassMotionLightDetail: String = "I riflessi del vetro seguono l'inclinazione del dispositivo.",
@@ -225,17 +226,17 @@ object FluidAppearance {
   }
 
   /**
-   * Il valore del cursore del vetro in parole, per la riga e per TalkBack: «Trasparente» nel primo quinto, «Colorato»
-   * nell'ultimo, «Di serie» attorno al centro, e altrimenti la percentuale (0% = trasparente). Un valore non finito
-   * è il centro.
+   * Il valore del cursore del vetro in parole, per la riga e per TalkBack: «Trasparente» nel primo quinto, «Di serie»
+   * nell'ultimo decimo (e per un valore salvato oltre, la metà colorata di prima: F10.8c,
+   * [FluidGlassPreference.effective]), e altrimenti la percentuale della corsa (0% = trasparente, 100% = di serie). Un
+   * valore non finito è di serie.
    */
   fun glassPreferenceLabel(value: Float, strings: FluidAppearanceStrings): String {
-    val v = if (value.isFinite()) value.coerceIn(0f, 1f) else FluidGlassPreference.Default
+    val clarity = FluidGlassPreference.clarityOf(FluidGlassPreference.effective(value))
     return when {
-      v <= 0.2f -> strings.glassPreferenceTransparent
-      v >= 0.8f -> strings.glassPreferenceColored
-      kotlin.math.abs(v - FluidGlassPreference.Default) < 0.05f -> strings.glassPreferenceDefault
-      else -> "${kotlin.math.round(v * 100f).toInt()}%"
+      clarity <= 0.2f -> strings.glassPreferenceTransparent
+      clarity >= 0.9f -> strings.glassPreferenceDefault
+      else -> "${kotlin.math.round(clarity * 100f).toInt()}%"
     }
   }
 }
@@ -385,11 +386,13 @@ fun FluidAccentPicker(
  * @param accent il gruppo dell'accento, con il suo selettore (3.0.4); falso per un'app con un colore solo.
  * @param haptics la riga dell'aptica (3.0.4); falso per un'app che l'ha gia' altrove. Se non resta nessuna riga
  *   nel gruppo (niente aptica e niente vetro) il gruppo non si disegna.
- * @param glassPreference il cursore del vetro (4.0), fra trasparente (0) e colorato (1), come quello di iOS 27 in
- *   Impostazioni › Aspetto: la riga compare solo se passi insieme questo e [onGlassPreferenceChange]. Come per
- *   [glassEnabled], **il valore lo conserva l'app** (nessun campo nuovo in [EngineSettings]) e lo fornisce con
- *   `LocalFluidGlassPreference` attorno al suo contenuto. Il centro ([FluidGlassPreference.Default]) e' il vetro di
- *   serie, e il cursore ci si aggancia.
+ * @param glassPreference il cursore del vetro (4.0), come quello di iOS 27 in Impostazioni › Aspetto: dalla F10.8c
+ *   **un cursore solo**, da trasparente (0) a di serie ([FluidGlassPreference.Default], 0,5), lo stesso dello Store.
+ *   La riga compare solo se passi insieme questo e [onGlassPreferenceChange]. Come per [glassEnabled], **il valore lo
+ *   conserva l'app** e lo fornisce con `LocalFluidGlassPreference` attorno al suo contenuto (o in
+ *   `EngineSettings.glassPreference`). Un valore salvato oltre il valore di serie (la metà colorata di prima) mette il
+ *   cursore in cima, «Di serie», e il vetro è quello di serie; la riga non lo riscrive finché l'utente non muove il
+ *   cursore. In cima il cursore si aggancia al valore di serie esatto.
  * @param glassMotionLight scelta dell'app per il riflesso che segue l'inclinazione. La riga compare se arriva anche
  *   [onGlassMotionLightChange]; l'app conserva la scelta e la fornisce con `LocalFluidGlassMotionLight` al tema.
  */
@@ -515,9 +518,10 @@ fun LazyListScope.fluidAppearanceSection(
       FluidSliderRow(
         title = strings.glassPreference,
         subtitle = strings.glassPreferenceDetail,
-        value = if (glassPreference.isFinite()) glassPreference.coerceIn(0f, 1f) else FluidGlassPreference.Default,
+        value = FluidGlassPreference.effective(glassPreference),
         onValueChange = onGlassPreferenceChange,
         valueLabel = FluidAppearance.glassPreferenceLabel(glassPreference, strings),
+        valueRange = FluidGlassPreference.Transparent..FluidGlassPreference.Default,
         snapValues = listOf(FluidGlassPreference.Default),
       )
     }

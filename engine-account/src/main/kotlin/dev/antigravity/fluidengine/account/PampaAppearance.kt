@@ -35,14 +35,14 @@ object PampaAppearance {
   val MODES = mapOf("system" to ThemeMode.SYSTEM, "light" to ThemeMode.LIGHT, "dark" to ThemeMode.DARK)
 
   /**
-   * Il vetro: «Trasparente» è il vetro di oggi, «Colorato» alza opacità e tinta (`idee-scelte.md`,
-   * `vetro-trasparente-o-colorato`; iOS 26.1, Impostazioni › Schermo e luminosità › Liquid Glass), «ridotto» è il
-   * più pieno. Sul cursore dell'engine (`LocalFluidGlassPreference`): 0,5 è il vetro di serie al bit, 0,8 è dove la
-   * riga del cursore comincia a dire «Colorato», 1 è la lastra quasi opaca. Numeri scelti il 25/11/2026 a occhio
-   * sulla scala del cursore, da guardare sul tablet. Un numero fra 0 e 1 (un contratto futuro col cursore intero) passa
-   * così com'è.
+   * F10.8b · Il vetro dell'aspetto comune è la sua **chiarezza** (scelta di Alessio del 25/11/2026): un numero da 0
+   * «perfettamente trasparente» a 1 «più sfocato, come ora», di serie 1, come il cursore Liquid Glass di iOS 27. Sul
+   * cursore dell'engine (`LocalFluidGlassPreference`) è lo stesso cursore misurato da 0 a 0,5: 0 → 0, 1 →
+   * [GLASS_DEFAULT], in linea (`FluidGlassPreference.fromClarity` in `engine-ui`, che questo modulo non porta: la prova
+   * `F10p8cGlassCursorTest` del `sample` controlla che i numeri siano gli stessi). Dalla F10.8c il cursore è uno solo,
+   * uguale nello Store e nelle app: la metà colorata di prima non c'è più.
    */
-  val GLASS_LEVELS = mapOf("clear" to 0.5f, "tinted" to 0.8f, "reduced" to 1f)
+  const val GLASS_DEFAULT = 0.5f
 
   /** Le famiglie d'icone. */
   val ICON_SETS = listOf("default", "tinted", "dark", "clear")
@@ -57,9 +57,8 @@ object PampaAppearance {
   private val HEX = Regex("^#[0-9a-fA-F]{6}$")
 
   /**
-   * I due accenti che non sono un colore: «il colore di ogni app» e «i colori del sistema». Il telefono li capisce già;
-   * il server del contratto v1 accetta solo colori, quindi lo Store non li scrive finché il contratto non li aggiunge
-   * (domanda 2 di F10.8).
+   * I due accenti che non sono un colore: «il colore di ogni app» e «i colori del sistema» (F10.8b, scelta di Alessio
+   * del 25/11/2026; nel contratto sono le `keywords` del tipo `color`).
    */
   val SPECIAL_ACCENTS = setOf(EngineAppearanceLayer.ACCENT_APP, EngineAppearanceLayer.ACCENT_SYSTEM)
 
@@ -75,7 +74,7 @@ object PampaAppearance {
     return EngineAppearanceLayer(
       themeMode = v(Keys.MODE)?.let(MODES::get),
       accent = v(Keys.ACCENT)?.let(::accentOf),
-      glassPreference = v(Keys.GLASS)?.let(::glassLevel),
+      glassPreference = v(Keys.GLASS)?.let(::glassPreferenceOf),
       textScale = v(Keys.TEXT_SCALE)?.toFloatOrNull()?.takeIf { it.isFinite() && it in TEXT_SCALE_MIN..TEXT_SCALE_MAX },
       highContrast = when (v(Keys.CONTRAST)) { "high" -> true; "standard" -> false; else -> null },
       reducedMotion = v(Keys.MOTION_REDUCED)?.toBooleanStrictOrNull(),
@@ -84,12 +83,20 @@ object PampaAppearance {
     )
   }
 
-  /** Il cursore del vetro per un valore di `appearance.glass`, o `null`. */
-  fun glassLevel(value: String): Float? = GLASS_LEVELS[value] ?: value.toFloatOrNull()?.takeIf { it.isFinite() && it in 0f..1f }
+  /** Il cursore del vetro dell'engine per un valore di `appearance.glass` (la chiarezza, da 0 a 1), o `null`. */
+  fun glassPreferenceOf(value: String): Float? =
+    value.toFloatOrNull()?.takeIf { it.isFinite() && it in 0f..1f }?.let { it * GLASS_DEFAULT }
+
+  /**
+   * La chiarezza per il contratto di un valore del cursore dell'engine. Un valore salvato oltre [GLASS_DEFAULT] (la metà
+   * colorata di prima, F10.8c) è 1, «come ora», come lo legge il vetro.
+   */
+  fun clarityOf(glassPreference: Float): Float =
+    if (glassPreference.isFinite()) (glassPreference / GLASS_DEFAULT).coerceIn(0f, 1f) else 1f
 
   /**
    * I campi di un'eccezione dell'app scritti nelle chiavi del contratto, per `setAppearance`. Solo le chiavi che un'app
-   * può tenere diverse ([APP_KEYS]); il vetro va sul livello più vicino.
+   * può tenere diverse ([APP_KEYS]); il vetro diventa la sua chiarezza, a passi di 0,01 come nel contratto.
    */
   fun exceptionValues(layer: EngineAppearanceLayer): Map<String, String> = buildMap {
     layer.themeMode?.let { mode ->
@@ -98,7 +105,9 @@ object PampaAppearance {
       if (wire != null) put(Keys.MODE, wire)
     }
     layer.accent?.let(::accentOf)?.let { put(Keys.ACCENT, it) }
-    layer.glassPreference?.let { g -> put(Keys.GLASS, GLASS_LEVELS.minBy { kotlin.math.abs(it.value - g) }.key) }
+    layer.glassPreference?.let { g ->
+      put(Keys.GLASS, java.math.BigDecimal(clarityOf(g).toDouble()).setScale(2, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString())
+    }
     layer.iconSet?.takeIf { it in ICON_SETS }?.let { put(Keys.ICON_SET, it) }
   }
 }

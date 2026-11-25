@@ -74,23 +74,60 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * I punti notevoli del cursore del vetro: in iOS 27 è in Impostazioni › Aspetto › Liquid Glass, e ha sostituito la
- * scelta a due della 26.1 (R5 M2). Il valore va da [Transparent] a [Colored]; [Default] è il vetro dell'engine così
- * com'è, al bit.
+ * scelta a due della 26.1 (R5 M2). Il valore va da [Transparent] a [Default], il vetro dell'engine così com'è, al bit.
+ *
+ * **Un cursore solo** (F10.8c, scelta di Alessio del 25/11/2026): lo stesso nello Store e nelle app, da «trasparente» a
+ * «di serie». La metà colorata di prima (da [Default] a [Colored]) non c'è più: un valore salvato lassù da un'app con la
+ * riga del cursore della 4.0 **si legge [Default]**, senza sorprese (vedi [effective]): il vetro torna quello di serie,
+ * e la riga di `fluidAppearanceSection` mette il cursore in cima, «Di serie». Il valore salvato non si riscrive da solo:
+ * lo cambia l'utente quando muove il cursore.
  */
 object FluidGlassPreference {
-  /** Ultra trasparente: poca diffusione, il testo dietro il vetro si legge piegato dalla lente. */
+  /**
+   * Trasparente. Dalla F10.8b (scelta di Alessio del 25/11/2026) i **tasti e i pezzi piccoli** non sfocano affatto, e le
+   * **superfici grandi** (menu, fogli) restano sfocate per la leggibilità, come i menu e i fogli di iOS 26.1 con
+   * «Trasparente»; in mezzo vale la regola della taglia dell'engine (64–320 dp di lato corto). Il velo scende come prima.
+   */
   const val Transparent: Float = 0f
 
-  /** Di serie: il vetro del profilo, senza ritocchi. */
+  /** Di serie: il vetro del profilo, senza ritocchi. È anche la cima del cursore. */
   const val Default: Float = 0.5f
 
-  /** Del tutto colorato: una lastra quasi opaca del colore dello sfondo, nessuna forma dietro. */
+  /**
+   * L'estremo colorato di prima. **Dalla F10.8c non c'è più** e si legge [Default] (vedi [effective]): resta, con lo
+   * stesso valore, per le app che lo nominano o l'hanno salvato.
+   */
+  @Deprecated("F10.8c: il vetro colorato non c'è più, e questo valore si legge Default", ReplaceWith("FluidGlassPreference.Default"))
   const val Colored: Float = 1f
+
+  /**
+   * F10.8b · Il cursore della **chiarezza** del vetro dell'aspetto comune (Pampa Store, `appearance.glass`): da 0
+   * «perfettamente trasparente» a 1 «più sfocato, come ora», **di serie 1**, come il cursore Liquid Glass di iOS 27
+   * (Impostazioni › Aspetto, R5 M2). È questo stesso cursore misurato da 0 a 1: 0 → [Transparent], 1 → [Default], in
+   * linea.
+   */
+  fun fromClarity(clarity: Float): Float = if (clarity.isFinite()) clarity.coerceIn(0f, 1f) * Default else Default
+
+  /**
+   * Il contrario di [fromClarity]: la chiarezza di un valore del cursore. 1 per [Default] e per un valore salvato oltre
+   * (la metà colorata di prima, vedi [effective]).
+   */
+  fun clarityOf(preference: Float): Float = if (preference.isFinite()) (preference / Default).coerceIn(0f, 1f) else 1f
+
+  /**
+   * F10.8c · Il valore che il vetro usa davvero per [preference]: fra [Transparent] e [Default]. Sotto lo zero si legge
+   * trasparente; **oltre [Default] si legge [Default]**, cioè un valore salvato nella metà colorata di prima (fino a
+   * [Colored], e oltre) torna al vetro di serie, al bit; un valore non finito è [Default]. Lo applicano la ricetta del
+   * vetro e la riga del cursore di `fluidAppearanceSection`: chi fornisce `LocalFluidGlassPreference` non deve
+   * correggere niente.
+   */
+  fun effective(preference: Float): Float = if (preference.isFinite()) preference.coerceIn(Transparent, Default) else Default
 }
 
 /**
  * Il cursore del vetro per questo sottoalbero, da [FluidGlassPreference.Transparent] (0) a
- * [FluidGlassPreference.Colored] (1); di serie [FluidGlassPreference.Default].
+ * [FluidGlassPreference.Default] (0,5), che è anche il valore di serie. Dalla F10.8c non va oltre: un valore più alto
+ * (la metà colorata di prima) si legge di serie ([FluidGlassPreference.effective]).
  *
  * Muove insieme la diffusione e il velo di ogni vetro del materiale nuovo, soprattutto la diffusione (in iOS 27 il velo
  * cambia poco fra gli estremi): le lastre ferme (`glassSurface`, `glassControlSurface`), le superfici di Fluid-physics
@@ -103,7 +140,7 @@ object FluidGlassPreference {
  *
  *     CompositionLocalProvider(LocalFluidGlassPreference provides settings.glassPreference) { content() }
  *
- * Un valore fuori da 0..1 si legge al bordo; uno non finito si legge [FluidGlassPreference.Default].
+ * Un valore sotto lo zero si legge trasparente, uno oltre [FluidGlassPreference.Default] o non finito si legge di serie.
  */
 val LocalFluidGlassPreference: ProvidableCompositionLocal<Float> = compositionLocalOf { FluidGlassPreference.Default }
 

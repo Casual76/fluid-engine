@@ -53,9 +53,10 @@ data class EngineSettings(
    */
   val hapticsEnabled: Boolean = true,
   /**
-   * F10.8 · Il cursore del vetro, da 0 (trasparente) a 1 (colorato), 0,5 il vetro di serie: lo stesso valore di
-   * `LocalFluidGlassPreference`. `null` (di serie): il tema non lo tocca, e vale quello che l'app fornisce da sé, come
-   * prima. Lo riempie l'aspetto comune di Pampa Store («Vetro: trasparente o colorato»).
+   * F10.8 · Il cursore del vetro, da 0 (trasparente) a 0,5 (il vetro di serie): lo stesso valore di
+   * `LocalFluidGlassPreference`. Dalla F10.8c non va oltre, e un valore più alto si legge di serie. `null` (di serie):
+   * il tema non lo tocca, e vale quello che l'app fornisce da sé, come prima. Lo riempie l'aspetto comune di Pampa Store
+   * (la chiarezza del vetro, da «perfettamente trasparente» a «più sfocato, come ora»).
    */
   val glassPreference: Float? = null,
   /**

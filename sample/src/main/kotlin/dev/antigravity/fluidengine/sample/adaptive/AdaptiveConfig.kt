@@ -15,7 +15,7 @@ internal enum class AdaptiveScene(val key: String, val title: String, val voice:
   Checker("scacchiera", "La scacchiera", "il vetro vicino alla soglia non deve girare avanti e indietro"),
   Scroll("scorrimento", "Scorrimento su foto e testo", "il bordo dello scorrimento e il giro mentre si scorre"),
   Large("grandi", "I grandi", "un pop-up, un foglio e un pannello sopra chiaro e nero: scuriscono in continuo con la quota di nero e il contenuto li segue; un vetro dell'app resta del tema"),
-  Cursor("cursore", "Il cursore dell'utente", "il vetro fra trasparente e colorato, coi due estremi a portata di tocco"),
+  Cursor("cursore", "Il cursore dell'utente", "il vetro fra trasparente e di serie, coi due estremi a portata di tocco"),
   Variants("varianti", "Clear e tasto tinto", "il vetro di serie, il tinto e Clear sopra una foto chiara e una scura"),
   ;
 

@@ -491,11 +491,21 @@ class PhysicsLiquidTest {
   /**
    * Ai due estremi del cursore il viaggio parte dalla ricetta del tasto fermo e si posa su quella del pannello fermo
    * **allo stesso cursore**: il menu non si apre diverso dal tasto e non cambia alla posa. E il margine della cattura
-   * segue il raggio: all'estremo colorato quello di serie non basterebbe più.
+   * resta un tetto. Dalla F10.8c l'altro estremo è «di serie»: un valore salvato nella metà colorata di prima (1) è il
+   * viaggio di serie, al bit.
    */
   @Test
   fun atBothEndsOfTheUserCursorTheJourneyStartsAndRestsOnTheSlabs() {
-    for (preference in listOf(FluidGlassPreference.Transparent, FluidGlassPreference.Colored)) {
+    for (dark in listOf(false, true)) {
+      for ((short, blend) in listOf(44f to 0f, 170f to 1f, 120f to 0.5f)) {
+        assertEquals(
+          "il colorato di prima, lato $short, miscela $blend",
+          numbers(travelRecipe(short, blend = blend, motion = 0f, dark = dark)),
+          numbers(travelRecipeAt(1f, short, blend = blend, motion = 0f, dark = dark)),
+        )
+      }
+    }
+    for (preference in listOf(FluidGlassPreference.Transparent, 1f)) {
       for (dark in listOf(false, true)) {
         val where = "cursore $preference, ${if (dark) "scuro" else "chiaro"}"
         val start = travelRecipeAt(preference, 44f, blend = 0f, motion = 0f, dark = dark)
@@ -504,10 +514,14 @@ class PhysicsLiquidTest {
         val end = travelRecipeAt(preference, 170f, blend = 1f, motion = 0f, dark = dark)
         val restPanel = glassRecipe(GlassRole.Modal, 170f, 192f, dark, optics = panelOptics, preference = preference)
         assertEquals("$where, posa", numbers(restPanel), numbers(end))
-        // Non è il vetro di serie: diffusione e velo si sono mossi.
+        // A trasparente non è il vetro di serie: diffusione e velo si sono mossi.
         val stock = travelRecipe(170f, blend = 1f, motion = 0f, dark = dark)
-        assertTrue("$where: la diffusione si muove", end.blurDp != stock.blurDp)
-        assertTrue("$where: il velo si muove", end.veilColor.alpha != stock.veilColor.alpha)
+        if (preference == FluidGlassPreference.Transparent) {
+          assertTrue("$where: la diffusione si muove", end.blurDp != stock.blurDp)
+          assertTrue("$where: il velo si muove", end.veilColor.alpha != stock.veilColor.alpha)
+        } else {
+          assertEquals("$where: si legge di serie", numbers(stock), numbers(end))
+        }
       }
       // Il margine resta un tetto: copre la sfocatura di ogni fotogramma del viaggio, a ogni taglia e a ogni miscela.
       val padding = surfaceAt(preference).paddingDp
@@ -522,13 +536,10 @@ class PhysicsLiquidTest {
         }
         short += 7f
       }
+      // F10.8b: a cursore trasparente le superfici grandi restano sfocate come di serie, e il tetto con loro; F10.8c: il
+      // colorato di prima è di serie. Il margine è sempre quello di serie.
       val stockPadding = surfaceAt(FluidGlassPreference.Default).paddingDp
-      if (preference == FluidGlassPreference.Colored) {
-        assertTrue("all'estremo colorato il margine di serie ($stockPadding) non copre $widest", widest > stockPadding)
-        assertTrue(padding > stockPadding)
-      } else {
-        assertTrue(padding < stockPadding)
-      }
+      assertEquals("cursore $preference", stockPadding, padding, 0f)
     }
   }
 

@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.ui.graphics.Color
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassPreference
+import dev.antigravity.fluidengine.ui.fluid.glassSizeGain
 import dev.antigravity.fluidengine.ui.fluid.GlassAdaptiveState
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.fluidGlassAppearance
@@ -144,28 +145,59 @@ class GlassAdaptiveTest {
   @Test
   fun theCursorIsOneToTheBitInTheMiddleAndMonotonic() {
     val p = GlassLiquidPreferences.Shipped
-    assertEquals(1f, glassPreferenceFrost(FluidGlassPreference.Default, p), 0f)
+    for (size in listOf(44f, 200f, Float.POSITIVE_INFINITY)) {
+      assertEquals(1f, glassPreferenceFrost(FluidGlassPreference.Default, p, size), 0f)
+      assertEquals(1f, glassPreferenceFrost(Float.NaN, p, size), 0f)
+      // F10.8c: la metà colorata di prima si legge di serie, al bit.
+      for (saved in listOf(0.6f, 0.8f, 1f, 3f)) assertEquals(1f, glassPreferenceFrost(saved, p, size), 0f)
+      // Fuori corsa si legge al bordo.
+      assertEquals(glassPreferenceFrost(0f, p, size), glassPreferenceFrost(-1f, p, size), 0f)
+      // Non scende mai salendo col cursore, a ogni taglia.
+      var lastFrost = -1f
+      for (step in 0..100) {
+        val frost = glassPreferenceFrost(step / 100f, p, size)
+        assertTrue("taglia $size, passo $step", frost >= lastFrost)
+        lastFrost = frost
+      }
+    }
     assertEquals(1f, glassPreferenceVeil(FluidGlassPreference.Default, p), 0f)
-    assertEquals(1f, glassPreferenceFrost(Float.NaN, p), 0f)
-    assertEquals(p.frostClear, glassPreferenceFrost(0f, p), 1e-6f)
-    assertEquals(p.frostColored, glassPreferenceFrost(1f, p), 1e-5f)
     assertEquals(p.veilClear, glassPreferenceVeil(0f, p), 1e-6f)
-    assertEquals(p.veilColored, glassPreferenceVeil(1f, p), 1e-6f)
-    // Fuori corsa si legge al bordo.
-    assertEquals(glassPreferenceFrost(1f, p), glassPreferenceFrost(3f, p), 0f)
-    assertEquals(glassPreferenceFrost(0f, p), glassPreferenceFrost(-1f, p), 0f)
-    var lastFrost = 0f
+    for (saved in listOf(0.6f, 0.8f, 1f, 3f, Float.NaN)) assertEquals(1f, glassPreferenceVeil(saved, p), 0f)
     var lastVeil = 0f
     for (step in 0..100) {
-      val frost = glassPreferenceFrost(step / 100f, p)
       val veil = glassPreferenceVeil(step / 100f, p)
-      assertTrue(frost > lastFrost)
       assertTrue(veil >= lastVeil)
-      lastFrost = frost
       lastVeil = veil
     }
-    // Il passo è per moltiplicazione: a un quarto il raggio è la media geometrica fra l'estremo e uno.
-    assertEquals(kotlin.math.sqrt(p.frostClear), glassPreferenceFrost(0.25f, p), 1e-5f)
+  }
+
+  /**
+   * F10.8b, la scelta di Alessio del 25/11: a cursore trasparente i pezzi piccoli (fino a 64 dp di lato corto) non
+   * sfocano, quelli grandi (da 320 dp) restano sfocati come di serie, in mezzo la regola della taglia. Il tetto (senza
+   * taglia) è sempre quello dei grandi.
+   */
+  @Test
+  fun atTheTransparentEndSmallPiecesAreClearAndLargeSurfacesStayFrosted() {
+    val p = GlassLiquidPreferences.Shipped
+    assertEquals(1f, p.frostClear, 0f)
+    for (small in listOf(0f, 24f, 44f, 64f)) {
+      assertEquals("lato corto $small dp", 0f, glassPreferenceFrost(FluidGlassPreference.Transparent, p, small), 0f)
+      // In linea fino alla metà: a un quarto della corsa, metà del raggio.
+      assertEquals("lato corto $small dp", 0.5f, glassPreferenceFrost(0.25f, p, small), 1e-6f)
+    }
+    for (large in listOf(320f, 480f, Float.POSITIVE_INFINITY)) {
+      for (step in 0..50) assertEquals("lato corto $large dp", 1f, glassPreferenceFrost(step / 100f, p, large), 1e-6f)
+    }
+    // Un menu di 250 dp: la regola della taglia, non una soglia nuova.
+    assertEquals(glassSizeGain(250f), glassPreferenceFrost(FluidGlassPreference.Transparent, p, 250f), 1e-6f)
+    assertEquals(0.8166f, glassPreferenceFrost(FluidGlassPreference.Transparent, p, 250f), 1e-3f)
+    // Più grande, più sfocato.
+    var last = -1f
+    for (side in 0..400 step 10) {
+      val frost = glassPreferenceFrost(FluidGlassPreference.Transparent, p, side.toFloat())
+      assertTrue("lato corto $side dp", frost >= last)
+      last = frost
+    }
   }
 
   // ---- Il contenitore e lo stato -----------------------------------------------------------------------------------

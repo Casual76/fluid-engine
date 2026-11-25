@@ -442,7 +442,7 @@ Verifica sempre nell'ordine: `engine-doctor.ps1`, poi `:app:assembleDebug :app:t
 | `dynamicColorEnabled: Boolean` | `true` | serve **insieme** ad `accentMode = DYNAMIC` |
 | `amoledEnabled: Boolean` | `false` | nero assoluto sotto il tema scuro (stessa tavolozza del modo `AMOLED`) |
 | `hapticsEnabled: Boolean` | `true` | accende il motore aptico di `LocalFluidHaptics` (default acceso: un'impostazione che compare non deve cambiare quello che un telefono faceva) |
-| `glassPreference: Float?` | `null` | F10.8: il cursore del vetro (`LocalFluidGlassPreference`, 0 trasparente … 1 colorato). `null`: il tema non lo tocca, e vale quello che l'app fornisce |
+| `glassPreference: Float?` | `null` | F10.8: il cursore del vetro (`LocalFluidGlassPreference`, 0 trasparente … 0,5 di serie; dalla F10.8c un valore più alto si legge di serie). `null`: il tema non lo tocca, e vale quello che l'app fornisce |
 | `textScale: Float` | `1` | F10.8: la grandezza del testo comune, **moltiplicata** per quella del sistema (`LocalDensity.fontScale`) |
 | `highContrast: Boolean` | `false` | F10.8: vale come il contrasto alto di Android (`LocalFluidSystemContrast`, vince il piu' alto) |
 | `reducedMotion: Boolean` | `false` | F10.8: vale come l'animazione spenta del sistema (`LocalFluidMotionPolicy`) |

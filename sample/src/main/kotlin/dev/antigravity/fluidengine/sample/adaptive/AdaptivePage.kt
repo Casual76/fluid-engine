@@ -266,7 +266,6 @@ private fun Controls(
       AdaptiveScene.Cursor -> {
         FluidGlassButton(text = "Trasparente", onClick = { live.cursor = FluidGlassPreference.Transparent }, modifier = Modifier.testTag("adaptive-cursor-0"))
         FluidGlassButton(text = "Di serie", onClick = { live.cursor = FluidGlassPreference.Default }, modifier = Modifier.testTag("adaptive-cursor-mid"))
-        FluidGlassButton(text = "Colorato", onClick = { live.cursor = FluidGlassPreference.Colored }, modifier = Modifier.testTag("adaptive-cursor-1"))
       }
       AdaptiveScene.Threshold, AdaptiveScene.Large -> Unit
       AdaptiveScene.Scroll, AdaptiveScene.Variants -> Unit
@@ -717,8 +716,9 @@ private fun LargePanel(stage: GlassBackdropState, drawer: FluidDrawerState) {
 /**
  * Il cursore dell'utente (`LocalFluidGlassPreference`): i vetri di serie sopra una carta con testo nitido, righe sottili
  * e barre a contrasto ([drawPaper], A-R7), e sotto la riga di `fluidAppearanceSection` collegata al cursore, coi due
- * estremi anche a portata di tocco nella riga dei comandi. Il dettaglio fine è ciò che il cursore muove: a 0 si legge
- * attraverso il vetro, piegato dalla lente; a 1 sparisce e resta il colore della carta. Una foto sfocata non lo mostrava.
+ * estremi anche a portata di tocco nella riga dei comandi. Il dettaglio fine è ciò che il cursore muove: a 0 il tondo e
+ * la capsula non sfocano e il testo si legge attraverso, piegato dalla lente, mentre il pannello resta in parte sfocato
+ * (F10.8b); a «di serie», la cima del cursore dalla F10.8c, è il vetro di serie. Una foto sfocata non lo mostrava.
  */
 @Composable
 private fun CursorScene(
@@ -729,8 +729,8 @@ private fun CursorScene(
 ) {
   var settings by remember { mutableStateOf(EngineSettings()) }
   Caption(
-    "Dietro i vetri: testo, righe sottili e barre a contrasto. A 0 il vetro è quasi limpido e il testo si legge piegato " +
-      "dalla lente; a 1 è una lastra del colore della carta. A metà è il vetro di serie, al bit. " +
+    "Dietro i vetri: testo, righe sottili e barre a contrasto. A 0 il tondo e la capsula sono limpidi e il testo si legge " +
+      "piegato dalla lente; il pannello, più grande, resta in parte sfocato. In cima è il vetro di serie, al bit. " +
       "Valore ora: ${"%.2f".format(live.cursor)}.",
   )
   Column(

@@ -4,6 +4,9 @@ Scritto il 23 novembre 2026, dopo le scelte di Alessio sul banco delle idee. Que
 (`docs/liquid-glass/piano.md`): F6 si chiude là, F7 resta là. Qui stanno gli elementi nuovi, PampAI al centro,
 l'Account Pampa, la galleria-vetrina e il passaggio delle app al nuovo engine.
 
+Aggiornato il 25 novembre 2026: l'Account Pampa è anticipato e corre accanto a F8 (§ 6), e c'è il piano della grande
+uscita (§ 3).
+
 Materiali di partenza:
 - le scelte, con le note di Alessio: `artifacts/liquid-glass/sessioni/idee-2/scelte-alessio.md`;
 - le 88 schede scelte per intero: `artifacts/ecosistema/idee-scelte.md`;
@@ -54,12 +57,21 @@ Le cartelle `artifacts/` sono fuori da git e restano sul PC.
 | **F8** | **Elementi nuovi dell'engine**, in quattro ondate (§ 4) | subito dopo F6 |
 | F7 | Ottimizzazione, come da `docs/liquid-glass/piano.md` | insieme a F8 |
 | **F9** | **PampAI al centro dell'IA** (§ 5) | dopo F8 |
-| **F10** | **Account Pampa** (§ 6), con calma, accanto a F9 | dopo F8 |
+| **F10** | **Account Pampa** (§ 6), anticipato il 24 novembre | ora, accanto a F8 |
 | F11 | Fluid Glass da suite di prove a vetrina dell'engine (§ 7) | quando F8 è quasi finita |
 | **F12** | **Le app sul nuovo engine**, con i loro cambiamenti (§ 8) | dopo F9 e F10 |
 | R | Pulizia della repo e unione schiacciata in main (§ 9) | alla fine |
 
 L'uscita dell'engine 4.0 aspetta l'Account Pampa, come ha detto Alessio.
+
+**La grande uscita.** Il piano di Alessio, detto il 24 novembre:
+1. prima l'engine 4.0;
+2. poi riparte Pampa Mail, che porta con sé Codex, la messaggistica (oggi è un'alpha);
+3. le app passano al nuovo engine, migliorate e rese coerenti fra loro;
+4. un giorno scelto insieme, fra uno o due mesi, esce tutto nello stesso momento, «come quando Facebook è diventata
+   Meta». Va rifinito, senza pezzi a metà.
+
+L'Account Pampa prepara già l'infrastruttura che Codex userà: i contatti, le caselle, i gruppi.
 
 **Come si lavora su ogni pacchetto**, come in F6:
 - un brief con le schede delle idee, le note di Alessio e il riferimento Apple;
@@ -281,43 +293,53 @@ La nota di Alessio, per intero:
 Le idee di questa fase sono cinque: `account-pampa`, `passkey`, `tema-unico-fra-app`, `icona-dell-app`,
 `vetro-trasparente-o-colorato`.
 
-**Le scelte già fatte.**
-- **Accesso:** con una **passkey**, e **Google in alternativa**. Le concessioni Google per le app si danno dalle
-  impostazioni dell'account.
-- **Server: Cloudflare.** Alessio ha lasciato a me la scelta fra Firebase e Cloudflare. Ho scelto Cloudflare per tre
-  motivi:
-  - Pampa Notes (Worker, D1, R2 e scambio del token Google) e Fluid Transit (Worker e R2) lo usano già, quindi resta
-    una piattaforma sola;
-  - le passkey si verificano direttamente nel Worker. Firebase Auth non le gestisce da sé e richiederebbe Cloud
-    Functions, cioè il piano a consumo con la carta registrata;
-  - con pochi utenti il piano gratuito basta largamente.
+**Cosa è cambiato il 24 novembre.** Alessio ha anticipato l'account, senza aspettare la fine di F8. Si lavora in tre
+stadi:
+1. il progetto teorico;
+2. il sistema: server e moduli, senza grafica;
+3. le interfacce delle app, alla fine.
 
-  Alessio riceverà **una guida passo passo** per l'impostazione. Dopo, la manutenzione dovrebbe essere minima.
+Le sue parole: «vorrei che il pampa account fosse davvero una cosa fatta bene, utile, e non buttata li».
 
-**I pacchetti.**
-- **F10.1 Progetto e guida.**
-  - Si definiscono l'identità, le sessioni, i dispositivi, le concessioni Google per servizio con la revoca, il
-    funzionamento offline e il backup.
-  - Si decide anche come le app chiedono l'identità allo store. La strada probabile è un account di sistema Android
-    gestito da Pampa Store, che appare in Impostazioni → Account e si raggiunge dalle app firmate con la stessa chiave.
-  - Si scrive la guida per Alessio: account Cloudflare, `wrangler login`, client OAuth nella console Google.
-- **F10.2 Il server.** Un Worker «account» con D1:
-  - la verifica delle passkey (WebAuthn);
-  - la verifica del token Google;
-  - le sessioni e le concessioni.
+**La sintonia.** L'account deve dare un senso alle app insieme:
+- le app sembrano meno indipendenti;
+- ci sono gli amici e i contatti di Codex;
+- da ogni app si condivide con una persona, e l'altra app mostra la cosa come «condivisa da X».
 
-  Il Worker di Pampa Notes si fida dell'account, così il login di Notes confluisce.
-- **F10.3 Il modulo dell'engine.** `engine-account`, con `engine-auth` per le passkey e Credential Manager: le app lo
-  usano per sapere chi è l'utente e cosa ha concesso.
-- **F10.4 Il gestore in Pampa Store.** Creazione, accesso, dispositivi, concessioni Google, tema e icone. Lo store
-  oggi non ha nessuna identità: tutto è nuovo.
-- **F10.5 Tema e icone per tutte le app.**
-  - Il tema si sceglie una volta e vale ovunque (`tema-unico-fra-app`).
-  - Dentro il tema ci sta anche la preferenza fra vetro trasparente e colorato. Nota di Alessio: «al massimo […]
-    scegliere il suo tema preferito in maniera centrale con l'account pampa».
-  - Le icone si possono cambiare (`icona-dell-app`), e sono **riviste per la grande unione** delle app nell'ecosistema.
-- **F10.6 I login che ci sono già confluiscono.** Il primo è l'accesso Google di Pampa Notes, che oggi alimenta la sua
-  sincronizzazione e il relay su Cloudflare.
+**Dove sta il progetto.** In `artifacts/ecosistema/account/`:
+- `progetto.md`, la fonte di verità, rivista il 25 novembre dopo la critica;
+- `fasi.md`, le fasi e il calendario;
+- `scelte-alessio.md`, tutte le scelte di Alessio;
+- `critico/critica.md`, la critica indipendente.
+
+**Le scelte del 23 novembre restano:**
+- l'accesso con una passkey, e Google in alternativa;
+- il server su Cloudflare;
+- il gestore dentro Pampa Store.
+
+Il dominio è `pampa-apps.com` (comprato il 24 novembre): l'account sta su `account.pampa-apps.com`, e le passkey hanno
+RP ID `pampa-apps.com`.
+
+**Le fasi**, con la numerazione nuova di `fasi.md`:
+
+| Fase | Cosa | Stato al 25 novembre |
+|---|---|---|
+| F10.1 | Il server dell'account, in locale | fatto (repo locale `Pampa-account`) |
+| F10.2 | `engine-auth` e la prova del PRF | in corso |
+| F10.3 | Il server dei dati cifrati, in locale | fatto |
+| F10.4 | La custodia e i moduli dell'account | in corso |
+| F10.5 | Il server delle persone, in locale | fatto |
+| F10.6 | `engine-people` e il campanello sul telefono | dopo F10.4 |
+| F10.7 | Pampa Store custode, e l'accensione online, con Alessio | dopo F10.4 |
+| F10.8 | Tema e luoghi comuni | dopo F10.4 |
+| F10.9 | Le app entrano nell'account, e Notes confluisce | con F12 |
+| F10.10 | Le persone nelle app e in Pampa Mail | con F12 |
+| F10.11 | Le interfacce vere | alla fine |
+| F10.12 | Prove di perdita, legge e accensione dell'uscita | per la grande uscita |
+
+La numerazione vecchia di questo piano (F10.1–F10.6) corrisponde alla nuova come dice `fasi.md` § 5. Quattro pacchetti
+di F8 vanno prima del resto della quarta ondata, perché l'account ci poggia sopra (scelta Q5): F8.19, F8.20, F8.21 e
+F8.23.
 
 ## 7. F11: Fluid Glass come vetrina
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application android:label="Prova Store finto">
+    <!-- Il provider firmato dello Store finto: autorita' <applicationId>.account e meta-data HOST = 1, come lo Store vero
+         (b\api.md par. 5.1). Esportato senza permesso: il controllo della firma e' a ogni chiamata. -->
+    <provider
+      android:name=".ProvaStoreProvider"
+      android:authorities="${applicationId}.account"
+      android:exported="true">
+      <meta-data android:name="dev.pampa.account.HOST" android:value="1" />
+    </provider>
+    <!-- Solo in questa app di prova: l'aspetto cambiato da adb senza aprire lo Store finto. -->
+    <receiver android:name=".AspettoReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="dev.antigravity.fluidengine.account.prova.ASPETTO" />
+      </intent-filter>
+    </receiver>
+    <activity
+      android:name=".AspettoActivity"
+      android:exported="true"
+      android:launchMode="singleTop">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

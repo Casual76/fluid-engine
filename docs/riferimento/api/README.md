@@ -19,7 +19,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
-| [Vetro](vetro.md) | 33 | 258 |
+| [Vetro](vetro.md) | 33 | 260 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
 | [Tema, forma, tipo](tema.md) | 11 | 148 |
 | [Icone (FluidIcons)](icone.md) | 5 | 212 |
@@ -28,7 +28,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
 | [engine-foundation](foundation.md) | 23 | 351 |
-| [engine-storage](storage.md) | 3 | 19 |
+| [engine-storage](storage.md) | 4 | 30 |
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
@@ -38,15 +38,15 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-vault](vault.md) | 10 | 125 |
 | [engine-security](security.md) | 7 | 78 |
 | [engine-viewer](viewer.md) | 30 | 212 |
-| [engine-sync](sync.md) | 12 | 161 |
+| [engine-sync](sync.md) | 13 | 162 |
 | [engine-revisions](revisions.md) | 2 | 18 |
 | [engine-auth](auth.md) | 9 | 52 |
 | [engine-auth-google](auth-google.md) | 2 | 17 |
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-notify](notify.md) | 9 | 65 |
-| [engine-account](account.md) | 8 | 194 |
-| [engine-account-host](account-host.md) | 21 | 254 |
+| [engine-account](account.md) | 10 | 227 |
+| [engine-account-host](account-host.md) | 25 | 302 |
 | [engine-account-ui](account-ui.md) | 1 | 7 |
 | [engine-transfer](transfer.md) | 5 | 59 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |

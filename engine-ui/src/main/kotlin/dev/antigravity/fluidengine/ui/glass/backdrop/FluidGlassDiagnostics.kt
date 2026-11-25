@@ -344,7 +344,26 @@ object FluidGlassDiagnostics {
     installSimulatedGlassApiLevel(null)
     GlassWarmUp.resetForTesting()
     installLiquidTuning(null)
+    GlassStateDump.activateForTesting(false)
   }
+
+  /**
+   * Solo per i test (4.0, F8.10): accende la fotografia a riposo dei vetri come in un'app debuggable sul dispositivo,
+   * senza il ricevitore del broadcast. Va chiamata prima di comporre: le sonde si iscrivono in composizione e in disegno.
+   * Spenta da [resetForTesting].
+   */
+  @VisibleForTesting
+  fun enableStateDumpForTesting() {
+    GlassStateDump.activateForTesting(true)
+  }
+
+  /**
+   * Solo per i test (4.0, F8.10): una prova sullo stato fermo ([action]: `vetri`, `vetri-cattura`, `tasto`, `foglio`) o,
+   * con null, la fotografia dello stato dei vetri vivi. Restituisce le righe che scrive nel log `FluidGlassState`. Serve
+   * [enableStateDumpForTesting].
+   */
+  @VisibleForTesting
+  fun stateDumpForTesting(action: String? = null): List<String> = GlassStateDump.perform(action)
 }
 
 /**

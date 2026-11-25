@@ -12,6 +12,7 @@ import dev.antigravity.fluidengine.account.AccountJson
 import dev.antigravity.fluidengine.account.AccountProtocol
 import dev.antigravity.fluidengine.account.BackupInfo
 import dev.antigravity.fluidengine.account.PampaAccountClient
+import dev.antigravity.fluidengine.account.PlacesAccess
 import dev.antigravity.fluidengine.account.crypto.PampaBase64
 import dev.antigravity.fluidengine.account.host.custody.AppKeyPurpose
 import kotlinx.coroutines.CancellationException
@@ -136,17 +137,25 @@ class AccountProtocolHandler(
     return appearance.responseFor(caller)
   }
 
-  private fun placesList(caller: String): JsonObject {
-    val list = runCatching { places.listFor(caller) }.getOrNull() ?: return fail("not_allowed")
+  /**
+   * I luoghi, se l'app ha il permesso. Altrimenti `not_allowed` con il perché (F10.8, scelta B8): `not_asked` (l'app
+   * può aprire la richiesta dello Store, una volta), `denied` (l'utente ha detto no) o `never` (MyCloud Gallery, o
+   * un'app fuori dalla tabella).
+   */
+  private suspend fun placesList(caller: String): JsonObject {
+    val access = runCatching { places.accessFor(caller) }.getOrDefault(PlacesAccess.NEVER)
+    val list = if (access == PlacesAccess.READ || access == PlacesAccess.READ_WRITE) runCatching { places.all() }.getOrNull() else null
+    if (list == null) return buildJsonObject { put("ok", false); put("reason", "not_allowed"); put("access", access.wire) }
     return buildJsonObject {
       put("ok", true)
-      put("canWrite", places.access(caller) == PlaceAccess.READ_WRITE)
+      put("canWrite", access == PlacesAccess.READ_WRITE)
+      put("access", access.wire)
       putJsonArray("places") { for (p in list) add(AccountJson.placeJson(p)) }
     }
   }
 
-  private fun placesWrite(caller: String, write: () -> Boolean): JsonObject =
-    if (runCatching(write).getOrDefault(false)) buildJsonObject { put("ok", true) } else fail("not_allowed")
+  private suspend fun placesWrite(caller: String, write: suspend () -> Boolean): JsonObject =
+    if (runCatching { write() }.getOrDefault(false)) buildJsonObject { put("ok", true) } else fail("not_allowed")
 
   private suspend fun backupAvailable(caller: String): JsonObject {
     if (policy.entryFor(caller)?.audiences?.get("sync")?.contains("sync.backup") != true) return buildJsonObject { putJsonArray("items") {} }

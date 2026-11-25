@@ -32,6 +32,12 @@ object AccountProtocol {
   const val ACTION_OPEN = "dev.pampa.account.OPEN"
   const val EXTRA_SECTION = "section"
 
+  /** F10.8 · Nella richiesta dei luoghi ([AccountSections.PLACES_REQUEST]): l'app vuole anche aggiungerne. */
+  const val EXTRA_PLACES_WRITE = "placesWrite"
+
+  /** F10.8 · Il meta-data di un `<activity-alias>` dell'app: la famiglia d'icone che porta (`default`, `tinted`, …). */
+  const val META_ICON_SET = "dev.pampa.account.ICON_SET"
+
   const val METHOD_NEGOTIATE = "negotiate"
   const val METHOD_STATE = "state"
   const val METHOD_TOKEN = "token"
@@ -138,9 +144,34 @@ data class Place(
 /** La risposta a `places.list`: i luoghi, oppure il permesso da chiedere allo Store. */
 sealed interface PlacesResult {
   data class Ok(val places: List<Place>, val canWrite: Boolean) : PlacesResult
-  /** L'utente non ha ancora dato il permesso: [AccountSections.PLACES] apre la richiesta dello Store. */
+  /**
+   * L'utente non ha dato il permesso: non gliel'hanno ancora chiesto, l'ha negato, o l'app non può averli (MyCloud
+   * Gallery). Quale dei tre lo dice `PampaAccount.placesAccess`; la richiesta si apre con
+   * `PampaAccount.placesRequestIntent`.
+   */
   data object NotAllowed : PlacesResult
   data object NoStore : PlacesResult
+}
+
+/**
+ * F10.8 · Il permesso dei luoghi per quest'app (scelta B8): ogni app lo chiede la prima volta, e l'utente decide app per
+ * app. Si cambia dalla pagina dell'account nello Store.
+ */
+enum class PlacesAccess(val wire: String) {
+  /** Mai chiesto: l'app può aprire la richiesta dello Store, una volta. */
+  NOT_ASKED("not_asked"),
+  /** Negato: l'app non richiede da sola; l'utente lo cambia dallo Store. */
+  DENIED("denied"),
+  READ("read"),
+  READ_WRITE("read_write"),
+  /** Quest'app non riceve mai i luoghi (MyCloud Gallery: la sua «casa» resta sua), o non è nella tabella. */
+  NEVER("never"),
+  NO_STORE("no_store"),
+  ;
+
+  companion object {
+    fun of(wire: String?): PlacesAccess? = entries.firstOrNull { it.wire == wire }
+  }
 }
 
 /** Un backup di quest'app sul server, per proporre il ripristino al primo avvio («Ripristinare i dati di ieri?»). */
@@ -170,6 +201,12 @@ object AccountSections {
   const val DEVICES = "devices"
   const val APPEARANCE = "appearance"
   const val PLACES = "places"
+  /**
+   * F10.8 · La richiesta dei luoghi di un'app («Fluid Weather vuole usare i tuoi luoghi. Consenti?»). Si apre **con
+   * `startActivityForResult`** (`ActivityResultContracts.StartActivityForResult`): solo così lo Store sa dal sistema chi
+   * chiede (`callingPackage`). Aperta in un altro modo, lo Store non chiede niente.
+   */
+  const val PLACES_REQUEST = "places.request"
 }
 
 /** I pezzi del protocollo scritti in JSON, uguali per lo Store e per le app. */

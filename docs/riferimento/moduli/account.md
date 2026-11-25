@@ -24,8 +24,12 @@ Catalogo completo delle firme: [`../api/account.md`](../api/account.md).
 | cifrare una riga sincronizzata | `PampaRecordCipher(accountId, pacchetto).seal(key, epoca, raccolta, id, versione, byte)` e `open(…)` |
 | il backup dei dati piccoli dell'app | un `PampaBackupSource` (la lista dell'app) e `PampaBackupFormat.seal/open` |
 | proporre il ripristino al primo avvio | `PampaAccount.availableBackups(context)` |
-| l'aspetto comune (anche senza account) | `PampaAccount.appearance(context)`; l'eccezione dell'app con `setAppearanceException` |
-| i luoghi comuni (Casa, Scuola) | `PampaAccount.places(context)`, `putPlace` — solo col permesso dell'utente |
+| il tema comune dello Store nel mio `FluidTheme` | niente: con `engine-account` fra le dipendenze `EngineSettingsStore.settings` lo mette da sé (F10.8) |
+| la sezione Aspetto dell'app con lo Store | `EngineSettingsStore.setSharedException(followShared, EngineAppearanceLayer(…))` |
+| l'aspetto comune grezzo (anche senza account) | `PampaAccount.appearance(context)`; tradotto per il tema `PampaAppearance.layerOf` |
+| i luoghi comuni (Casa, Scuola) | `PampaAccount.places(context)` (si rilegge da sé agli avvisi), `putPlace` — solo col permesso dell'utente |
+| chiedere i luoghi la prima volta | `PampaAccount.placesAccess(context)` (`NOT_ASKED`?) e `placesRequestIntent(context)` con `startActivityForResult` |
+| l'icona che segue la famiglia d'icone comune | un `<activity-alias>` per famiglia col meta-data `dev.pampa.account.ICON_SET` (sotto) |
 | aprire lo Store sulla pagina giusta | `PampaAccount.storeIntent(context, AccountSections.SIGN_IN)` |
 | cancellare le copie dopo un'uscita da remoto | `PampaAccount.onWiped(context) { … }` |
 | le primitive (HKDF, HMAC, AES-256-GCM) | `PampaCrypto`, con le etichette del contratto in `PampaLabels` |
@@ -51,6 +55,43 @@ Store tiene il protocollo `1` per sempre; le novita' arrivano come capacita' (`p
 (`state`, `appearance`, `grants`, `places`, `keys`, `wiped`). L'app **non si fida del contenuto**: rilegge dal provider.
 `wiped` (uscita da remoto) chiama i lavori di `onWiped` solo se lo Store conferma: nessuno dentro e un'uscita da remoto
 piu' nuova dell'ultima gestita. Un broadcast falso costa una lettura in piu'.
+
+**Il tema comune (F10.8).** `engine-storage` cerca con `ServiceLoader` una `EngineSharedAppearance`, e questo modulo
+la dichiara (`PampaSharedAppearance`, in `META-INF/services`): un'app con `engine-account` che usa `EngineSettingsStore`
+ha il tema di Pampa Store **senza scrivere niente**. La regola di chi vince, campo per campo: **l'eccezione dell'app**
+(se l'utente gliel'ha data e l'app non segue il comune), **poi il tema comune**, **poi i valori dell'app**. I primi due
+gradini sono `PampaAppearance.layerOf`, il terzo `EngineAppearanceLayer.applyTo`. Le chiavi sono quelle del contratto
+(`prefs.json`): `appearance.mode` (chiaro, scuro, automatico; il nero vero resta dell'app), `appearance.accent` (un
+colore `#rrggbb`, che il tema porta sul preset con quel colore o sul più vicino), `appearance.glass` (`clear` = il vetro
+di oggi 0,5, `tinted` = 0,8, `reduced` = 1 sul cursore `LocalFluidGlassPreference`), `appearance.textScale`
+(moltiplica la grandezza del sistema), `appearance.contrast` (`high` vale come il contrasto alto di Android),
+`motion.reduced`, `icon.set`. Un valore che non si capisce vale «nessuna scelta» su quel campo. Senza Store
+(`NoStore`) lo strato è `null` e l'app ha il suo tema (R1). Il primo valore arriva dalla copia locale, così il tema non
+lampeggia.
+
+**Le icone (F10.8, critica C6).** L'app dichiara un `<activity-alias>` per famiglia, col meta-data
+`dev.pampa.account.ICON_SET` (`default`, `tinted`, `dark`, `clear`) e uno solo acceso nel manifest (l'icona di serie).
+`PampaAppIcons` fa il resto: quando arriva l'avviso, un'app **non** in primo piano cambia subito l'alias acceso (prima
+accende il nuovo, poi spegne il vecchio, con `DONT_KILL_APP`); un'app **aperta** lo cambia appena passa in sottofondo
+(`TRIM_MEMORY_UI_HIDDEN`). Una famiglia che l'app non ha vale l'icona di serie; senza Store l'icona resta com'è.
+
+```xml
+<activity-alias android:name=".IconaDiSerie" android:targetActivity=".MainActivity" android:icon="@mipmap/ic_launcher" android:exported="true">
+  <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+  <meta-data android:name="dev.pampa.account.ICON_SET" android:value="default" />
+</activity-alias>
+<activity-alias android:name=".IconaTinta" android:enabled="false" android:targetActivity=".MainActivity" android:icon="@mipmap/ic_launcher_tinta" android:exported="true">
+  <!-- lo stesso intent-filter -->
+  <meta-data android:name="dev.pampa.account.ICON_SET" android:value="tinted" />
+</activity-alias>
+```
+
+**I luoghi col permesso (F10.8, scelta B8).** `placesAccess` dice `NOT_ASKED`, `DENIED`, `READ`, `READ_WRITE`,
+`NEVER` (MyCloud Gallery, o un'app fuori dalla tabella) o `NO_STORE`. La prima volta l'app apre la richiesta dello
+Store con `placesRequestIntent` **e `startActivityForResult`** (`registerForActivityResult(StartActivityForResult())`):
+la domanda «Fluid Weather vuole usare i tuoi luoghi (Casa, Scuola). Consenti?» è dello Store, che sa dal sistema chi
+chiede. Dopo un «no» l'app non richiede da sola: l'utente cambia idea dalla pagina dell'account. `places(context)` si
+rilegge da sé agli avvisi `places`, `state` e `wiped`: un permesso tolto si vede subito.
 
 **Offline.** Stato e aspetto stanno in una copia locale (DataStore `pampa_account`), cosi' l'app parte senza aspettare.
 Le scadenze dei token si contano con l'orologio monotono (`expiresAtElapsed`).
@@ -88,8 +129,14 @@ val keys = PampaAccount.appKey(context, KeyPurpose.APP) as? AppKeyResult.Ok
 
 - **Le concessioni Google** (`google`, `grants`) rispondono «non concesso» finche' non si accendono al primo uso vero
   (scelta N6). L'API c'e' gia', lo Store la riempira'.
-- **Il collegamento a `FluidTheme`** (l'aspetto comune che cambia il tema da solo) e i luoghi con la richiesta di
-  permesso sono di F10.8; qui c'e' il canale.
+- **Gli adattatori delle app** che tengono il tema nelle loro preferenze (ClasseViva, Fluidify, Gallery, Converter, lo
+  Store) sono di F10.9: chi non usa `EngineSettingsStore` mappa `PampaAccount.appearance` con `PampaAppearance.layerOf`
+  e `EngineAppearanceLayer.applyTo`.
+- **L'accento comune** è un colore del contratto. Il telefono capisce già anche `app` («il colore di ogni app», cioè il
+  marchio) e `system` («i colori del sistema»), ma il server del contratto v1 accetta solo `#rrggbb`, quindi lo Store non
+  li scrive ancora: oggi una scelta comune d'accento resta finché l'utente non ne sceglie un'altra.
+- **Il cursore del vetro** viaggia fra i dispositivi come uno dei tre livelli del contratto (`clear`, `tinted`,
+  `reduced`); sul telefono un numero fra 0 e 1 passa già così com'è.
 - **Le persone** (`people.row`, `share.*`, «Da X») sono di F10.6, in `engine-people` e nei componenti di
   [account-ui](account-ui.md).
 - **Bouncy Castle** entra nell'app con le regole di R8 di Codex (`consumer-rules.pro`: tutto `org.bouncycastle`).
@@ -101,10 +148,16 @@ val keys = PampaAccount.appKey(context, KeyPurpose.APP) as? AppKeyResult.Ok
   vecchie (M12), le etichette confrontate col contratto `e2e.json`.
 - `PampaBackupFormatTest`: CBOR deterministico, il backup legato al suo posto, il tetto di 5 MB.
 - `StoreLocatorTest` (Robolectric): la precedenza M9, la firma M1, lo Store vecchio, nessuno Store.
+- `PampaAppearanceTest` (F10.8): le chiavi del contratto, la regola di chi vince, i valori che non si capiscono.
+- `PampaAppIconsTest` (F10.8, Robolectric): l'app chiusa cambia subito, quella aperta al sottofondo; il `PackageManager`
+  vero con gli alias trovati dal meta-data.
+- Due app finte che cambiano tema insieme col `FluidTheme` vero: `sample`, `F10p8SharedThemeTest`.
 - Il provider da capo a fondo col cliente vero sta nelle prove di [account-host](account-host.md).
 
 ## File
 
 `engine-account/src/main/kotlin/dev/antigravity/fluidengine/account/`: `PampaAccount.kt` (la facciata, il ricevitore,
-la copia locale), `PampaAccountClient.kt`, `StoreLocator.kt`, `AccountProtocol.kt` (protocollo e tipi), `crypto/`
-(`PampaCrypto`, `PampaLabels`, `PampaEnvelope`), `backup/` (`PampaBackup`, `PampaCbor`).
+la copia locale), `PampaAccountClient.kt`, `StoreLocator.kt`, `AccountProtocol.kt` (protocollo e tipi),
+`PampaAppearance.kt` (il tema comune e la sorgente di `EngineSettingsStore`), `PampaAppIcons.kt` (le icone), `crypto/`
+(`PampaCrypto`, `PampaLabels`, `PampaEnvelope`), `backup/` (`PampaBackup`, `PampaCbor`);
+`src/main/resources/META-INF/services/` (la sorgente per `ServiceLoader`).

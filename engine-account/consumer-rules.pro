@@ -4,3 +4,9 @@
 -keep class org.bouncycastle.** { *; }
 -dontwarn org.bouncycastle.**
 -dontwarn javax.naming.**
+
+# F10.8 · L'aspetto comune: `EngineSettingsStore` (engine-storage) trova la sorgente con ServiceLoader, dal file
+# META-INF/services di questo modulo. R8 riscrive `ServiceLoader.load(X::class.java, X::class.java.classLoader)`, ma
+# senza ottimizzazioni il file resta letto per nome: interfaccia e classe tengono il nome e il costruttore.
+-keep interface dev.antigravity.fluidengine.storage.EngineSharedAppearance
+-keep class dev.antigravity.fluidengine.account.PampaSharedAppearance { public <init>(); }

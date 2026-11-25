@@ -50,7 +50,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `enum class ThemeMode` — How the app decides between its light and dark palettes.
 - `enum class AccentMode` — Where the accent colour comes from.
-- `data class EngineSettings(val themeMode: ThemeMode = ThemeMode.SYSTEM, val accentMode: AccentMode = AccentMode.BRAND, val customAccentName: String = "fluid", val dynamicColorEnabled: Boolean = true, val amoledEnabled: Boolean = false, val hapticsEnabled: Boolean = true)` — Everything the engine needs to know to paint an app.
+- `data class EngineSettings(val themeMode: ThemeMode = ThemeMode.SYSTEM, val accentMode: AccentMode = AccentMode.BRAND, val customAccentName: String = "fluid", val dynamicColorEnabled: Boolean = true, val amoledEnabled: Boolean = false, val hapticsEnabled: Boolean = true, val glassPreference: Float? = null, val textScale: Float = 1f, val highContrast: Boolean = false, val reducedMotion: Boolean = false)` — Everything the engine needs to know to paint an app.
 
 ## `engine-foundation/foundation/EngineVersion.kt`
 

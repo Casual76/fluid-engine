@@ -1,0 +1,91 @@
+{
+  "accepted": [
+    {
+      "key": "appearance.mode",
+      "scopes": "global+app",
+      "value": {
+        "type": "enum",
+        "values": [
+          "system",
+          "light",
+          "dark"
+        ]
+      },
+      "since": 1
+    },
+    {
+      "key": "appearance.accent",
+      "scopes": "global+app",
+      "value": {
+        "type": "color"
+      },
+      "since": 1
+    },
+    {
+      "key": "appearance.glass",
+      "scopes": "global+app",
+      "value": {
+        "type": "enum",
+        "values": [
+          "clear",
+          "tinted",
+          "reduced"
+        ]
+      },
+      "since": 1
+    },
+    {
+      "key": "appearance.textScale",
+      "scopes": "global",
+      "value": {
+        "type": "number",
+        "min": 0.8,
+        "max": 1.6,
+        "step": 0.05
+      },
+      "since": 1
+    },
+    {
+      "key": "appearance.contrast",
+      "scopes": "global",
+      "value": {
+        "type": "enum",
+        "values": [
+          "standard",
+          "high"
+        ]
+      },
+      "since": 1
+    },
+    {
+      "key": "icon.set",
+      "scopes": "global+app",
+      "value": {
+        "type": "enum",
+        "values": [
+          "default",
+          "tinted",
+          "dark",
+          "clear"
+        ]
+      },
+      "since": 1
+    },
+    {
+      "key": "motion.reduced",
+      "scopes": "global",
+      "value": {
+        "type": "bool"
+      },
+      "since": 1
+    },
+    {
+      "key": "app.followGlobal",
+      "scopes": "app",
+      "value": {
+        "type": "bool"
+      },
+      "since": 1
+    }
+  ]
+}

@@ -5,6 +5,12 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-account-host/account/host/AccountChangedBroadcaster.kt`
+
+- `class AccountChangedBroadcaster(private val context: Context)` — F10.8 · L'avviso dello Store alle app quando cambia qualcosa (`b\api.md` § 5.4): `dev.pampa.account.CHANGED`, con dentro solo `what` (`appearance`, `places`, `state`, …). **Esplicito**, uno per app: si mandano solo alle app che hanno il ricevitore di `engine-account` **e la firma dello Store**. Un'app con un'altra firma non sa nemmeno che qualcosa è cambiato.
+  - `fun receivers(): List<String>` — I pacchetti che ricevono l'avviso adesso: quelli col ricevitore e la firma dello Store, tranne lo Store.
+  - `fun send(what: List<String>): Int` — Manda l'avviso [what] a ogni app ([receivers]); risponde a quante.
+
 ## `engine-account-host/account/host/AccountHostProvider.kt`
 
 - `fun interface BackupDirectory` — Dove lo Store trova i backup di un'app sul server (pacchetto 5, `BackupScheduler`). `null` se non lo sa (offline).
@@ -56,6 +62,45 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val STORE_DEBUG`
     - `val DEFAULT: Map<String, AppEntry>` — La tabella di partenza, uguale a `apps.json` del contratto v1 (una prova le confronta).
 
+## `engine-account-host/account/host/AppearanceStore.kt`
+
+- `object PrefsContract` — Le chiavi delle preferenze come le accetta il server (`Pampa-account\src\prefs.ts`, copia in `contract\v1\ prefs.json`: una prova le confronta). Il telefono controlla come il server, così una scelta che il server rifiuterebbe non nasce nemmeno.
+  - `sealed interface Type`
+    - `data class Enum(val values: List<String>) : Type`
+    - `data object Color : Type`
+    - `data object Bool : Type`
+    - `data class Number(val min: Double, val max: Double, val step: Double) : Type`
+  - `data class Spec(val scopes: String, val type: Type)` — Dove vale una chiave: `global`, `app` (solo come eccezione di un'app) o tutte e due.
+  - `val PREFS: Map<String, Spec>`
+  - `const val FOLLOW_GLOBAL`
+  - `fun check(key: String, scope: String, value: JsonElement?): String?` — Il motivo per cui il server rifiuterebbe, o `null` se va bene (la stessa logica di `checkPref`).
+  - `fun typed(key: String, text: String): JsonPrimitive?` — Il valore col suo tipo JSON, da un testo (le scelte dello Store e delle app viaggiano come testo nel provider).
+- `object PrefsHlc` — L'orologio logico ibrido nel formato del server (`Pampa-account\src\hlc.ts`): `<ms, 13 cifre>-<contatore, 5 cifre>- <nodo [a-z0-9]{1,16}>`. A larghezza fissa, così il confronto fra testi è quello vero; qui si confronta comunque per campi, con l'ordine di [SyncHlc].
+  - `fun format(h: SyncHlc): String`
+  - `fun parse(text: String?): SyncHlc?`
+- `data class PrefRow(val scope: String, val key: String, val value: JsonElement, val hlc: String)` — Una riga delle preferenze come viaggia col server: dove vale, la chiave, il valore (`null` toglie un'eccezione) e l'HLC.
+- `class AppearanceStore(private val dir: File, private val wall: () -> Long = System::currentTimeMillis, private val onChange: (List<String>) -> Unit = {})` — L'aspetto comune sul telefono (`b\architettura.md` § 2.5 e § 5.2): il tema comune e le eccezioni delle app. Risponde **anche senza account**. Scrive solo lo Store; un'app chiede la sua eccezione con `setAppearance`. Le chiavi sono quelle del contratto ([PrefsContract]): una chiave o un valore che il server non accetterebbe non si scrive.
+  - `data class Snapshot(val version: Long, val global: Map<String, String>, val overrides: Map<String, Map<String, String>>, val follow: Map<String, Boolean>)` — La versione cresce a ogni cambio: le app la confrontano con la loro copia.
+  - `fun snapshot(): Snapshot`
+  - `fun setGlobal(values: Map<String, String>): Snapshot` — Lo Store cambia il tema comune. Le chiavi e i valori che il contratto non accetta si scartano.
+  - `fun setException(packageName: String, followGlobal: Boolean, override: Map<String, String>?): Snapshot` — L'eccezione di un'app: segue il comune, oppure tiene i suoi valori (solo le chiavi che valgono per un'app).
+  - `fun responseFor(packageName: String): JsonObject` — La risposta di `appearance` per [packageName]: `{ version, global, override?, followGlobal }`.
+  - `fun pending(): List<PrefRow>` — Le righe da mandare al server, solo delle chiavi che il server annuncia (critica M1), se le conosce.
+  - `fun markSent(rows: Collection<PrefRow>)` — Il server ha preso [rows] (o le ha rifiutate per sempre): non si rimandano. Una riga riscritta nel frattempo resta.
+  - `fun merge(rows: Collection<PrefRow>): Boolean` — Le righe arrivate dal server (o da un altro dispositivo): per ogni campo vince l'HLC più grande. Risponde se è cambiato qualcosa che si vede; in quel caso avvisa le app. L'orologio di qui le osserva, così una scelta fatta dopo averle viste ha sempre un HLC più grande.
+  - `fun serverSeq(): Long` — Il numero d'ordine del server già letto (`GET /v1/prefs?since=`).
+  - `fun setServerSeq(seq: Long)`
+  - `fun setAccepted(keys: Set<String>)` — Le chiavi annunciate dal server (`accepted`): lo Store manda solo quelle (critica M1).
+  - `fun syncClockTo(serverNowMillis: Long)` — L'ora del server appena letta ([serverNowMillis]): l'orologio logico si corregge di quanto il telefono è avanti o indietro, così le scelte nuove non nascono nel futuro del server (che le rifiuterebbe) né nel passato.
+  - `fun restamp(rows: Collection<PrefRow>, serverNowMillis: Long)` — Le righe che il server ha rifiutato per l'orologio (`bad_hlc`: un telefono con l'ora avanti di più di un giorno). Non le ha viste nessuno, quindi rinascono con un orologio nuovo, all'ora corretta ([syncClockTo]) e dopo tutte le righe valide: l'orologio di prima, rimasto nel futuro, non si usa più. Restano da mandare.
+  - `val lastHlc: SyncHlc get()` — L'ultimo HLC scritto o visto, per le prove.
+  - `companion object`
+    - `const val GLOBAL`
+    - `val GLOBAL_KEYS: Set<String>` — Le chiavi del contratto v1 (`prefs.json`) che valgono per tutte le app.
+    - `val APP_KEYS: Set<String>` — Quelle che un'app può tenere diverse (`scopes: global+app`).
+    - `const val WHAT_APPEARANCE` — Il campo `what` dell'avviso alle app.
+    - `const val MAX_FUTURE_MILLIS` — Quanto avanti sull'ora del server il server accetta un HLC: un giorno (`HLC_MAX_FUTURE_MS`, F10.3).
+
 ## `engine-account-host/account/host/CustodyService.kt`
 
 - `sealed interface AppKeyOutcome` — La risposta a `appKey` per un'app (`b\api.md` § 5.3).
@@ -83,22 +128,43 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-account-host/account/host/LocalStores.kt`
 
 - `enum class PlaceAccess` — Cosa può fare un'app coi luoghi comuni: niente, leggerli, o anche scriverli (`b\chiavi.md` § 8).
-- `class PlacesStore(private val vault: CustodyVault, private val dir: File, private val policy: AppPolicy, private val choice: KeyClassPolicy.Choice = KeyClassPolicy.CHOICE)` — I luoghi comuni, custoditi dallo Store (`b\chiavi.md` § 8; scelta N7 e B8): «I miei luoghi» (casa, scuola, lavoro, altro) e il permesso di ogni app. Ogni app li vede solo se l'utente glielo permette: la prima volta lo Store chiede «Fluid Weather vuole usare i tuoi luoghi (Casa, Scuola). Consenti?». MyCloud Gallery non li riceve mai ([AppPolicy.Places.NEVER]). Funziona anche senza account;
+- `class PlacesStore(private val vault: CustodyVault, private val dir: File, private val policy: AppPolicy, private val choice: KeyClassPolicy.Choice = KeyClassPolicy.CHOICE, private val onChange: (List<String>) -> Unit = {})` — I luoghi comuni, custoditi dallo Store (`b\chiavi.md` § 8; scelta N7 e B8): «I miei luoghi» (casa, scuola, lavoro, altro) e il permesso di ogni app. Ogni app li vede solo se l'utente glielo permette: la prima volta lo Store chiede «Fluid Weather vuole usare i tuoi luoghi (Casa, Scuola). Consenti?» ([PlacesConsent]). MyCloud Gallery non li riceve mai ([AppPolicy.Places.NEVER]). Funziona anche senza account.
+  - `fun decision(packageName: String): PlaceAccess?` — La scelta dell'utente per [packageName], o `null` se non gliel'hanno mai chiesta.
   - `fun access(packageName: String): PlaceAccess` — Il permesso di [packageName]; un'app che la tabella esclude ha sempre [PlaceAccess.NONE].
-  - `fun setAccess(packageName: String, access: PlaceAccess): Boolean` — La scelta dell'utente, dalla richiesta dello Store o dalla pagina dell'account. Rifiutata per chi non li può avere.
-  - `fun all(): List<Place>` — Tutti i luoghi: per lo Store. Alle app li dà [listFor].
-  - `fun listFor(packageName: String): List<Place>?`
-  - `fun put(packageName: String?, place: Place): Boolean`
-  - `fun delete(packageName: String?, id: String): Boolean`
-- `class AppearanceStore(private val dir: File)` — L'aspetto comune sul telefono (`b\architettura.md` § 2.5): il tema comune e le eccezioni delle app. Risponde **anche senza account**. Scrive solo lo Store; un'app chiede la sua eccezione con `setAppearance`. Le chiavi sono quelle del contratto (`prefs.json`): una chiave che non conosco non si scrive (critica M1, migrazioni).
-  - `data class Snapshot(val version: Long, val global: Map<String, String>, val overrides: Map<String, Map<String, String>>, val follow: Map<String, Boolean>)` — La versione cresce a ogni scrittura: le app la confrontano con la loro copia.
-  - `fun snapshot(): Snapshot`
-  - `fun setGlobal(values: Map<String, String>): Snapshot` — Lo Store cambia il tema comune. Le chiavi sconosciute si scartano.
-  - `fun setException(packageName: String, followGlobal: Boolean, override: Map<String, String>?): Snapshot` — L'eccezione di un'app: segue il comune, oppure tiene i suoi valori (solo le chiavi che valgono per un'app).
-  - `fun responseFor(packageName: String): JsonObject` — La risposta di `appearance` per [packageName]: `{ version, global, override?, followGlobal }`.
+  - `fun accessFor(packageName: String): PlacesAccess` — Il permesso come lo vede l'app ([PlacesAccess]): mai chiesto, negato, dato, o mai.
+  - `fun decisions(): Map<String, PlaceAccess>` — Tutte le scelte fatte, per la pagina dell'account nello Store («Chi usa i tuoi luoghi»).
+  - `fun setAccess(packageName: String, access: PlaceAccess): Boolean` — La scelta dell'utente, dalla richiesta dello Store o dalla pagina dell'account. Rifiutata per chi non li può avere. [PlaceAccess.NONE] è «negato» (o «revocato»): l'app non richiede più da sola.
+  - `fun forget(packageName: String)` — Dimentica la scelta: l'app tornerà a chiedere (la pagina dell'account, «Chiedi di nuovo»).
+  - `suspend fun all(): List<Place>` — Tutti i luoghi: per lo Store. Alle app li dà [listFor].
+  - `suspend fun listFor(packageName: String): List<Place>?`
+  - `suspend fun put(packageName: String?, place: Place): Boolean` — Aggiunge o cambia un luogo. [packageName] `null` è lo Store stesso.
+  - `suspend fun delete(packageName: String?, id: String): Boolean`
+  - `fun wipe()` — Dopo un'uscita **da remoto** (telefono perso o rubato, `b\chiavi.md` § 4.4): via i luoghi, i permessi e le chiavi della loro cassaforte. La casa dice dove abiti, e chi ha il telefono non deve trovarla. Un'uscita volontaria non la chiama. Dopo, i luoghi ripartono vuoti.
+  - `suspend fun migrateLegacy()` — I luoghi del file di F10.4, se ci sono: entrano nello spazio una volta, poi il file tiene solo i permessi. F10.4 non è mai uscito; c'è perché un telefono di prova non perda i suoi luoghi.
   - `companion object`
-    - `val GLOBAL_KEYS` — Le chiavi del contratto v1 (`prefs.json`, `accepted`).
-    - `val APP_KEYS` — Quelle che un'app può tenere diverse (`scopes: global+app`).
+    - `const val COLLECTION` — Lo spazio e la raccolta sul server: `places`, che il server riserva allo Store (`sync.places`, F10.3).
+    - `val SPACE`
+    - `const val WHAT`
+    - `const val F_ID`
+    - `const val F_NAME`
+    - `const val F_KIND`
+    - `const val F_LAT`
+    - `const val F_LON`
+    - `const val F_ADDRESS`
+
+## `engine-account-host/account/host/PlacesConsent.kt`
+
+- `class PlacesConsent(private val places: PlacesStore, private val policy: AppPolicy)` — F10.8 · La richiesta dei luoghi, nello Store (scelta B8; `b\chiavi.md` § 8): la prima volta che un'app li vuole, lo Store chiede «Fluid Weather vuole usare i tuoi luoghi (Casa, Scuola). Consenti?». La domanda è dello Store, come un permesso di Android è del sistema: se la facesse l'app, un'app potrebbe rispondersi da sola.
+  - `sealed interface Step`
+    - `data class Ask(val packageName: String, val appName: String, val placeNames: List<String>, val write: Boolean) : Step` — Da chiedere all'utente con [question]; poi [answer].
+    - `data class Decided(val access: PlacesAccess) : Step` — Già deciso: niente da chiedere. La pagina si chiude subito.
+    - `data object Refused : Step` — Non si chiede: chi chiama non si sa, o non è un'app che può avere i luoghi.
+  - `suspend fun begin(callingPackage: String?, write: Boolean): Step` — Cosa fare per una richiesta di [callingPackage] (dal sistema), che vuole anche scrivere se [write].
+  - `fun answer(ask: Step.Ask, allow: Boolean): PlacesAccess` — La risposta dell'utente a [ask]. Gli altri vengono avvisati (`places`) da [PlacesStore].
+  - `companion object`
+    - `fun isRequest(intent: Intent?): Boolean` — È una richiesta dei luoghi? (`ACTION_OPEN` con la sezione [AccountSections.PLACES_REQUEST]).
+    - `fun wantsWrite(intent: Intent?): Boolean` — Vuole anche scrivere?
+    - `fun callerOf(activity: Activity): String?` — Chi chiede, dal sistema, se ha la stessa firma dello Store; altrimenti `null`. Senza `startActivityForResult` il sistema non lo dice, e la risposta è `null`.
 
 ## `engine-account-host/account/host/backup/StoreBackup.kt`
 
@@ -351,6 +417,22 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun secondsLeft(entry: Entry): Long` — Quanti secondi vale ancora [entry]: è l'`expiresIn` che si dà all'app.
   - `fun forget(packageName: String)` — Via i token di un'app scollegata.
   - `fun clear()` — Uscita: via tutto.
+
+## `engine-account-host/account/host/sync/AccountSync.kt`
+
+- `class AccountSyncRelay(private val client: AccountServerClient, private val token: suspend () -> String, private val collection: String, private val currentEpoch: () -> Int) : SyncRelay` — F10.8 · Il relay di `engine-sync` sopra le righe cifrate del server (`b\api.md` § 4.10; F10.3, `src\routes\sync.ts`): `GET` e `POST /v1/sync/{raccolta}` col token di un'app. Il server vede solo byte sigillati, versioni e numeri d'ordine. Lo usa lo Store per i luoghi (`places`, ambito `sync.places`); è lo stesso contratto che useranno le app per i loro dati in F10.9.
+- `class PlacesSealer(private val accountId: String, private val storePackage: String, private val keys: () -> AppKeySet?) : SyncSealer` — F10.8 · Il sigillo dei luoghi fra i dispositivi: AES-256-GCM con `K_com(places)` dell'epoca, la busta `{v,e,alg,n,c}` e i dati associati del contratto (`accountId|pacchetto dello Store|places|idRiga|versione`, `e2e.json` `recordAad`). Il server non può spostare una riga su un'altra, né servirla come una versione diversa (K4).
+- `sealed interface StoreSyncResult` — Com'è andata una sincronizzazione dello Store (luoghi o preferenze).
+  - `data class Ok(val changed: Boolean, val pushed: Int, val pulled: Int, val rejected: List<String> = emptyList()) : StoreSyncResult` — [changed]: qualcosa che le app vedono è cambiato (e lo Store le ha avvisate).
+  - `data object SignedOut : StoreSyncResult`
+  - `data object NoE2e : StoreSyncResult` — La cifratura non è partita, o le chiavi dei luoghi non sono state ancora ricavate: i luoghi restano sul telefono.
+  - `data object Locked : StoreSyncResult` — Il telefono non è stato sbloccato dall'accensione: si riprova dopo.
+  - `data object Offline : StoreSyncResult`
+  - `data class Failed(val failure: SyncFailure) : StoreSyncResult`
+- `class PlacesSync(private val places: PlacesStore, private val client: AccountServerClient, private val session: AccountSession, private val keyring: CustodyKeyring, private val storePackage: String)` — F10.8 · I luoghi comuni fra i dispositivi (`b\chiavi.md` § 8): lo spazio `places` di [PlacesStore] sopra [AccountSyncRelay], cifrato con `K_com(places)` ([PlacesSealer]). Il token è quello dello Store per `sync` con l'ambito `sync.places`, che il server dà solo allo Store (F10.3). Due modifiche dello stesso campo: vince la più recente, con l'orologio logico di `engine-sync`.
+  - `suspend fun sync(): StoreSyncResult`
+- `class AppearanceSync(private val client: AccountServerClient, private val session: AccountSession, private val store: AppearanceStore)` — F10.8 · Tema e preferenze fra i dispositivi (`b\architettura.md` § 5.2; `b\api.md` § 4.9; F10.3, `src\routes\choices.ts`): legge le novità (`GET /v1/prefs?since=`) e le fonde campo per campo con l'orologio logico ([AppearanceStore.merge]), poi manda le scelte fatte qui (`POST /v1/prefs`), solo delle chiavi che il server annuncia (critica M1).
+  - `suspend fun sync(): StoreSyncResult`
 
 ## `engine-account-host/account/host/testing/MemoryCustodyVault.kt`
 

@@ -480,7 +480,10 @@ class FluidNotifyAndroidTest {
 
   @Test
   fun dopoUnRiavvio_ilPromemoriaPerso_arrivaSubito_segnatoInRitardo() {
-    val now = millis("2026-11-25T10:00")
+    // Una data lontana: la FluidNotify nuova si avvia con l'orologio vero (wallNow si cambia solo dopo install), e
+    // con una data già passata consegnerebbe il promemoria all'avvio come «ritardato dal sistema», prima del riavvio.
+    // Con 2026-11-25T10:00 la prova è caduta il 25/11/2026 dopo le 11 (unione di F10.8).
+    val now = millis("2099-11-25T10:00")
     notify.wallNow = { now }
     notify.reminders.schedule("verifica", FluidReminderTime.at(now + 3_600_000), FluidReminderContent("Verifica di storia"))
     notify.reminders.schedule("dopo", FluidReminderTime.at(now + 10 * 3_600_000), FluidReminderContent("Più tardi"))

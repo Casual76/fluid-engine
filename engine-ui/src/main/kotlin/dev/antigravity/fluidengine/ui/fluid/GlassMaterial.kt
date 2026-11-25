@@ -2239,6 +2239,8 @@ private fun Modifier.glassContentFade(intensity: () -> Float): Modifier = this.d
     // F8.10, diagnostica: quanto si vede il contenuto della lastra (zero = il glifo non si disegna).
     GlassFrameDiagnostics.event("contentFade", intensity) { "amount=$amount size=$size" }
     if (dumpProbe != null) {
+      // Dentro lo strato di posa del vetro: la prova `posa-contenuto` ne fa registrare di nuovo il contenuto.
+      GlassStateDump.readPoseContentTick()
       dumpProbe.values = "amount=$amount size=$size"
       dumpProbe.recorded()
     }

@@ -1,0 +1,89 @@
+// F10.8 · Le app di prova del tema comune, per la finestra sul tablet: uno Store finto (il motore di engine-account-host,
+// senza account e senza rete) e due app finte (engine-account ed engine-ui), "uno" e "due", con tre icone ciascuna
+// (activity-alias col meta-data dev.pampa.account.ICON_SET). Esistono solo nel build dell'engine e non entrano mai in
+// un'app. Firmate con la chiave di debug, mai pampa.jks: le tre si fidano fra loro perche' hanno la stessa firma, e lo
+// Store vero (firmato pampa.jks) per loro non esiste. Si pilotano da adb (scaletta in
+// artifacts\ecosistema\account\f10-8\scaletta-tablet.md):
+//   adb shell am start -n dev.antigravity.fluidengine.account.prova.store/dev.antigravity.fluidengine.account.prova.tema.AspettoActivity --es modo dark --es icone tinted
+// Ogni riga va in logcat col tag PampaProvaTema.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.account.prova.tema'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.account.prova'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1'
+  }
+
+  buildFeatures {
+    compose = true
+    resValues = true
+  }
+
+  flavorDimensions = ['ruolo']
+  productFlavors {
+    store {
+      dimension 'ruolo'
+      applicationIdSuffix '.store'
+    }
+    uno {
+      dimension 'ruolo'
+      applicationIdSuffix '.uno'
+      resValue 'string', 'nome_app', 'Prova uno'
+    }
+    due {
+      dimension 'ruolo'
+      applicationIdSuffix '.due'
+      resValue 'string', 'nome_app', 'Prova due'
+    }
+  }
+
+  sourceSets {
+    uno {
+      manifest.srcFile 'src/app/AndroidManifest.xml'
+      java.srcDirs += 'src/app/kotlin'
+      res.srcDirs += 'src/app/res'
+    }
+    due {
+      manifest.srcFile 'src/app/AndroidManifest.xml'
+      java.srcDirs += 'src/app/kotlin'
+      res.srcDirs += 'src/app/res'
+    }
+  }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  storeImplementation project(':engine-account-host')
+  // Lo Store finto non usa Compose, ma il plugin del modulo vale per tutti i sapori: gli basta il runtime.
+  storeImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  storeImplementation 'androidx.compose.runtime:runtime'
+  unoImplementation project(':engine-account')
+  unoImplementation project(':engine-ui')
+  dueImplementation project(':engine-account')
+  dueImplementation project(':engine-ui')
+}

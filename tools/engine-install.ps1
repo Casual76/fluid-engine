@@ -90,7 +90,7 @@ $EngineModules = [ordered]@{
   "engine-share-in"   = @("engine-foundation", "engine-ui")
   "engine-notify"     = @("engine-foundation")
   "engine-account"    = @("engine-foundation", "engine-storage")
-  "engine-account-host" = @("engine-foundation", "engine-storage", "engine-account", "engine-auth", "engine-vault")
+  "engine-account-host" = @("engine-foundation", "engine-storage", "engine-account", "engine-auth", "engine-vault", "engine-sync")
   "engine-account-ui" = @("engine-foundation", "engine-ui", "engine-storage", "engine-account")
   "engine-transfer"   = @("engine-foundation", "engine-net")
 }
@@ -128,7 +128,9 @@ $EngineModules = [ordered]@{
 # dall'app: -Modules ...,engine-notify. Le pagine e il ponte con la pillola sono gia' in engine-ui.
 # engine-account, engine-account-host ed engine-account-ui (F10.4: l'Account Pampa) idem: engine-account per un'app che usa
 # l'account (porta Bouncy Castle), engine-account-ui per la riga nelle impostazioni, engine-account-host solo per Pampa
-# Store: -Modules ...,engine-account-ui.
+# Store: -Modules ...,engine-account-ui. Con engine-account (F10.8) EngineSettingsStore prende da solo il tema comune
+# di Pampa Store (ServiceLoader), e l'icona segue la famiglia comune se l'app ha gli activity-alias col meta-data
+# dev.pampa.account.ICON_SET. engine-account-host porta anche engine-sync (i luoghi fra i dispositivi).
 # engine-transfer (F8.20: la coda persistita degli scaricamenti e dei caricamenti lunghi; porta WorkManager e dichiara
 # il servizio in primo piano di tipo dataSync) idem: lo chiede solo un'app che trasferisce file grandi
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.

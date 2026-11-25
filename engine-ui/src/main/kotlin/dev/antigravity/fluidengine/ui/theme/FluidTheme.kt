@@ -41,6 +41,12 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassMultiWindow
 import dev.antigravity.fluidengine.ui.fluid.LocalGlassSystemReduceTransparency
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.FluidMotionPolicy
+import dev.antigravity.fluidengine.ui.fluid.FluidSystemContrast
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassPreference
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidSystemContrast
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassMultiWindow
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassSystemReduceTransparency
@@ -125,9 +131,33 @@ val FluidDefaultBrand: AccentPreset =
 fun fluidBrandAccent(isDark: Boolean, brand: AccentPreset = FluidDefaultBrand): Color =
   brand.resolve(isDark)
 
-private fun presetFor(name: String, presets: List<AccentPreset>): AccentPreset {
+private fun presetFor(name: String, presets: List<AccentPreset>): AccentPreset = fluidAccentPresetFor(name, presets)
+
+/**
+ * Il preset che vale per [name]: quello con lo stesso nome, a meno delle maiuscole; altrimenti, se [name] è un colore
+ * `#rrggbb` (l'accento dell'aspetto comune di Pampa Store, F10.8, che fra le app viaggia come colore), il preset con
+ * quel colore in chiaro o in scuro, e se nessuno lo ha **il più vicino** in RGB fra i colori in chiaro; altrimenti il
+ * primo. Un'app coi suoi preset riceve il suo più vicino: l'accento comune non porta colori che l'app non conosce.
+ */
+internal fun fluidAccentPresetFor(name: String, presets: List<AccentPreset>): AccentPreset {
   val pool = presets.ifEmpty { fluidAccentPresets }
-  return pool.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: pool.first()
+  pool.firstOrNull { it.name.equals(name, ignoreCase = true) }?.let { return it }
+  val argb = parseAccentHex(name) ?: return pool.first()
+  pool.firstOrNull { (it.light.toArgb() and 0xFFFFFF) == argb || (it.dark.toArgb() and 0xFFFFFF) == argb }?.let { return it }
+  return pool.minBy { rgbDistance(it.light.toArgb() and 0xFFFFFF, argb) }
+}
+
+/** `#rrggbb` → i 24 bit del colore, o `null` se [text] non è un colore. */
+private fun parseAccentHex(text: String): Int? {
+  if (text.length != 7 || text[0] != '#') return null
+  return text.substring(1).toIntOrNull(16)
+}
+
+private fun rgbDistance(a: Int, b: Int): Int {
+  val dr = (a shr 16 and 0xFF) - (b shr 16 and 0xFF)
+  val dg = (a shr 8 and 0xFF) - (b shr 8 and 0xFF)
+  val db = (a and 0xFF) - (b and 0xFF)
+  return dr * dr + dg * dg + db * db
 }
 
 private val FluidShapes = Shapes(
@@ -204,6 +234,7 @@ fun FluidTheme(
   val haptics = rememberAndroidFluidHaptics(enabled = settings.hapticsEnabled)
   val motionPolicy = LocalFluidMotionPolicy.current
   val systemMotion = rememberFluidMotionPolicy()
+  val systemContrast = rememberFluidSystemContrast()
   CompositionLocalProvider(
     LocalGlassHostView provides LocalView.current,
     LocalFluidHaptics provides haptics,
@@ -213,26 +244,58 @@ fun FluidTheme(
     LocalFluidSurfaceSide provides isDark,
     LocalFluidThemeSides provides sides,
     LocalFluidStatusBarSide provides statusBar,
-    // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto.
-    LocalFluidSystemContrast provides rememberFluidSystemContrast(),
+    // Il contrasto del sistema (Android 14+): il vetro si fa piu' denso e il suo bordo piu' netto. Il contrasto alto
+    // dell'aspetto comune (F10.8) vale come quello del sistema: vince il piu' alto.
+    LocalFluidSystemContrast provides if (settings.highContrast) maxOf(systemContrast, FluidSystemContrast.High) else systemContrast,
     LocalGlassSystemReduceTransparency provides rememberGlassSystemReduceTransparency(),
     LocalGlassMultiWindow provides rememberGlassMultiWindow(),
-    LocalFluidMotionPolicy provides if (systemMotion.reducedMotion && !motionPolicy.reducedMotion) {
-      systemMotion
-    } else {
-      motionPolicy
+    LocalFluidMotionPolicy provides when {
+      // «Riduci movimento» dell'aspetto comune (F10.8) vale come l'animazione spenta del sistema.
+      settings.reducedMotion && !motionPolicy.reducedMotion -> FluidMotionPolicy(durationScale = 0f)
+      systemMotion.reducedMotion && !motionPolicy.reducedMotion -> systemMotion
+      else -> motionPolicy
     },
     LocalGlassLightEnvironment provides rememberGlassLightEnvironment(),
   ) {
-    MaterialTheme(
-      colorScheme = colors,
-      motionScheme = FluidMotionScheme,
-      shapes = FluidShapes,
-      typography = fluidTypography(),
-      content = content,
-    )
+    FluidSharedAppearanceLocals(settings) {
+      MaterialTheme(
+        colorScheme = colors,
+        motionScheme = FluidMotionScheme,
+        shapes = FluidShapes,
+        typography = fluidTypography(),
+        content = content,
+      )
+    }
   }
 }
+
+/**
+ * F10.8 · Il cursore del vetro e la grandezza del testo dell'aspetto comune. Con i valori di serie (`glassPreference`
+ * nullo, `textScale` 1) non fornisce niente: il tema resta quello di prima, al bit, e un `LocalFluidGlassPreference`
+ * fornito dall'app attorno al tema continua a valere.
+ */
+@Composable
+private fun FluidSharedAppearanceLocals(settings: EngineSettings, content: @Composable () -> Unit) {
+  val glass = settings.glassPreference
+  val scale = settings.textScale.takeIf { it.isFinite() && it > 0f }?.coerceIn(MinTextScale, MaxTextScale) ?: 1f
+  when {
+    glass == null && scale == 1f -> content()
+    scale == 1f -> CompositionLocalProvider(LocalFluidGlassPreference provides glass!!, content = content)
+    else -> {
+      val density = LocalDensity.current
+      val scaled = Density(density.density, density.fontScale * scale)
+      if (glass == null) {
+        CompositionLocalProvider(LocalDensity provides scaled, content = content)
+      } else {
+        CompositionLocalProvider(LocalFluidGlassPreference provides glass, LocalDensity provides scaled, content = content)
+      }
+    }
+  }
+}
+
+/** Il campo di `textScale` che il tema rispetta: quello del contratto dell'account (0,8–1,6), con un po' di margine. */
+private const val MinTextScale = 0.5f
+private const val MaxTextScale = 2f
 
 /**
  * Keeps the status and navigation bar icons legible against whatever the app is actually painting.

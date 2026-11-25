@@ -30,6 +30,7 @@ Catalogo completo delle firme: [`../api/sync.md`](../api/sync.md).
 | cifrare (la mette l'account) | un `SyncSealer` con i dati associati di `SyncSealContext` |
 | provare la sincronizzazione senza rete | `MemorySyncRelay` (il relay in memoria) e `testing.FakeSyncRelay` (la rete che cade) |
 | il registro in memoria (prove, scene) | `InMemorySyncStore` |
+| un registro piccolo chiuso da me (la cassaforte) | `BlobSyncStore(load, save)`: tutto in un blob a ogni transazione (F10.8, i luoghi dello Store) |
 
 ## Come funziona
 
@@ -114,12 +115,13 @@ compattazione, i conflitti sullo stesso campo e sui testi lunghi, «tieni tutte 
 verso il relay, un contenuto spostato non si apre), il processo che muore con un invio in volo, una transazione interrotta.
 La prova generativa (`SyncPropertyTest`, 160 corse) controlla che **tutti convergano, nessuna modifica si perda e
 nessuna si applichi due volte**. In Robolectric: il registro su SQLite e il lavoro di WorkManager.
+- `BlobSyncStoreTest` (F10.8): il blob che torna uguale a un avvio dopo, la transazione annullata se il salvataggio cade.
 
 ## File
 
 - `engine-sync/src/main/kotlin/dev/antigravity/fluidengine/sync/` — `FluidSync.kt` (motore, stato, configurazione),
   `SyncSpace.kt` (lo spazio: scrivere, sincronizzare, scegliere), `SyncDocument.kt`, `SyncClock.kt`, `SyncMerge.kt`,
-  `SyncCodec.kt`, `SyncRelay.kt` (l'adattatore e il sigillo), `SyncStore.kt` e `SqliteSyncStore.kt` (il registro),
+  `SyncCodec.kt`, `SyncRelay.kt` (l'adattatore e il sigillo), `SyncStore.kt`, `SqliteSyncStore.kt` e `BlobSyncStore.kt` (il registro),
   `MemorySyncRelay.kt`, `FluidSyncWork.kt` (WorkManager), `testing/FakeSyncRelay.kt`.
 - Le scene: `sample/.../novita/F8p21Scenes.kt` (`sync-due-dispositivi`, `sync-conflitto`, `sync-fermo`).
 

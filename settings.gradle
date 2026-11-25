@@ -79,6 +79,10 @@ project(':engine-viewer-prova-app').projectDir = file('engine-viewer/prova/app')
 // F10.4 · L'app di prova della custodia col Keystore vero, per la finestra sul tablet: solo nel build dell'engine.
 include ':engine-account-prova'
 project(':engine-account-prova').projectDir = file('engine-account-host/prova')
+// F10.8 · Le app di prova del tema comune (uno Store finto e due app finte con le icone), per la finestra sul tablet:
+// solo nel build dell'engine.
+include ':engine-account-prova-tema'
+project(':engine-account-prova-tema').projectDir = file('engine-account-host/prova-tema')
 
 // The gallery. Only exists in this build: a host app includes the engine-* modules by path and
 // never reads this file, so nothing an app compiles is affected by it.

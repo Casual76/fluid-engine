@@ -142,6 +142,13 @@ fun Modifier.drawBackdrop(
 5. **Sorgente sparita.** Ricatturare senza sorgente non registra niente (`LayerBackdrop.drawBackdrop` esce senza coordinate): una cattura vuota sotto una tinta traslucida è la pagina cruda e **nitida**
    dentro la sagoma del vetro, un fotogramma di testo leggibile sotto la barra. Quindi si tiene la cattura vecchia fino a **400 ms** (`SourceGoneGraceMillis`: il caso vero dura un fotogramma — un cambio pagina smonta
    la sorgente vecchia e monta la nuova — ma un fotogramma che compone una pagina intera può durare 80 ms), poi basta: tenere un'immagine ormai falsa a tempo indeterminato è peggio di un vetro vuoto.
+6. **Lo strato di posa a riposo** (4.0, F8.10). Un vetro su vetro (che campiona il materiale di un pannello) che ha catturato mentre si muoveva rispetto alle sue sorgenti, **250 ms**
+   dopo l'ultima di quelle catture (`PlacementSettleMillis`; ognuna sposta l'attesa) riscrive le proprietà del suo strato di posa: alfa e `renderEffect` scritte con un altro valore e
+   poi con quello di serie (`forceLayerDefaults`), perché Compose le riapplichi davvero. Il blocco dello strato scrive solo ritaglio, forma e composizione, e lo scope dei layer
+   riapplica solo i campi cambiati: alfa e `renderEffect` non si riscrivevano mai. Sul Tab S9 la «x» del foglio di condivisione, nato dal tasto Condividi, restava a foglio fermo il
+   disegno sfocato di metà zoom (in una serie di aperture a freddo: la prima, poi quasi tutte dall'undicesima); rifare cattura, disegno del vetro, contenuto del tasto e strato del
+   foglio non la rimetteva a posto, riscrivere le sole proprietà dello strato di posa sì (con la correzione, 0 sfocate su 12). Il segnale passa da uno **stato** letto nel blocco, non da
+   un `invalidateDraw()` chiesto da un `Handler`, che non porta un disegno di questo nodo. La prova al PC (`F8p10GlassDumpRedrawTest`) vede che lo fa solo il vetro su vetro.
 
 **Il padding è l'unica cosa che invalida la catena.** `updateEffects` rifà il `RenderEffect` ogni volta che i numeri cambiano, ma dirty-a la cattura **solo** se cambia il *padding* (il margine di registrazione che
 serve alla sfocatura perché i bordi non si sporchino). Una sfocatura che sale con uno scorrimento o una lente che si ispessisce all'arrivo di un modale non costano altro che ricostruire l'effetto. Il
@@ -359,6 +366,13 @@ richiesta, **solo in un'app debuggable** sul dispositivo (in release e in Robole
 posizione, età dell'ultimo disegno e dell'ultima cattura, ammissione, quante volte `AwaitReading` e l'ultima, byte, sorgenti) e per gli strati sondati: `sheetLayer` (lo strato del
 contenuto di un foglio), `buttonLayer` (lo strato del contenuto di un tasto di vetro), `button` (il contenuto del tasto, con la pressione), `contentFade` (la dissolvenza del
 contenuto di una lastra), ognuno coi valori applicati, quando sono stati scritti e l'ultima volta che il contenuto si è registrato.
+Con `--es azione <prova>` fa invece ridisegnare una parte sola, a schermo fermo e senza un tocco, per vedere quale conserva un fotogramma vecchio: `vetri` (ogni vetro, la
+cattura resta quella), `vetri-cattura` (ogni vetro con la cattura nuova), `tasto` (il contenuto dei tasti di vetro), `foglio` (lo strato del contenuto dei fogli), `posa` (lo strato
+di posa di ogni vetro riscrive le proprietà, alfa e `renderEffect` comprese, e registra di nuovo il contenuto; `posa-proprieta` e `posa-contenuto` una sola delle due),
+`nascondi-vetro` / `nascondi-tasto` (i vetri su vetro non disegnano se
+stessi / i tasti di vetro spariscono; `mostra` li rimette), per vedere chi disegna davvero una zona. Il ridisegno passa
+da contatori **letti in disegno**: un `invalidateDraw()` di `DrawBackdropNode` chiesto da fuori di un fotogramma (un `Handler`, un ricevitore) non porta un disegno del vetro, né in
+Robolectric né sul Tab S9. Nei test: `FluidGlassDiagnostics.enableStateDumpForTesting()` prima di comporre, poi `stateDumpForTesting(azione)` (`F8p10GlassDumpRedrawTest`).
 
 ## Cosa è verificato dai test
 

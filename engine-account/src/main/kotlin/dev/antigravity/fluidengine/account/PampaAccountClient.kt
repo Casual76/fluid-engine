@@ -8,9 +8,15 @@ import dev.antigravity.fluidengine.account.crypto.PampaBase64
 import java.util.TreeMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.Dispatchers
+import dev.antigravity.fluidengine.storage.EngineAppearanceLayer
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -95,6 +101,10 @@ class PampaAccountClient(
   private val _state = MutableStateFlow<AccountState>(AccountState.NoStore)
   private val _appearance = MutableStateFlow(SharedAppearance.EMPTY)
   private val _grants = MutableStateFlow<Set<String>>(emptySet())
+  /** F10.8 · Vero dopo la copia locale o la prima lettura: prima, l'aspetto comune non si sa ancora. */
+  private val _ready = MutableStateFlow(false)
+  /** F10.8 · Cresce a ogni avviso che può cambiare i luoghi (`places`, `state`, `wiped`): [placesFlow] rilegge. */
+  private val placesVersion = MutableStateFlow(0L)
   private val wipeHandlers = CopyOnWriteArrayList<suspend () -> Unit>()
 
   @Volatile private var wipedHandled: Long = 0
@@ -105,6 +115,19 @@ class PampaAccountClient(
   val appearance: StateFlow<SharedAppearance> = _appearance.asStateFlow()
   val grants: StateFlow<Set<String>> = _grants.asStateFlow()
 
+  /**
+   * F10.8 · Le scelte comuni per quest'app, eccezione compresa ([PampaAppearance.layerOf]); `null` senza Store (R1).
+   * Il primo valore arriva dopo la copia locale ([restoreCache]) o la prima lettura, così il tema non lampeggia su
+   * quello dell'app prima di passare al comune.
+   */
+  val sharedLayer: Flow<EngineAppearanceLayer?> = combine(_ready, _state, _appearance) { ready, s, a -> Triple(ready, s, a) }
+    .filter { it.first }
+    .map { (_, s, a) -> if (s is AccountState.NoStore) null else PampaAppearance.layerOf(a) }
+    .distinctUntilChanged()
+
+  /** F10.8 · I luoghi, riletti a ogni avviso dello Store che li può cambiare (un permesso dato o tolto, un luogo nuovo). */
+  val placesFlow: Flow<PlacesResult> = placesVersion.map { places() }.distinctUntilChanged()
+
   /** Lo Store trovato all'ultima lettura, per aprirlo ([storeIntent]). */
   val store: StoreHost? get() = host
 
@@ -113,6 +136,7 @@ class PampaAccountClient(
     val c = cache ?: return
     c.read(CACHE_STATE)?.let(AccountProtocol::parse)?.let { _state.value = stateFrom(it) }
     c.read(CACHE_APPEARANCE)?.let(AccountProtocol::parse)?.let { _appearance.value = appearanceFrom(it) }
+    _ready.value = true
   }
 
   /**
@@ -136,13 +160,14 @@ class PampaAccountClient(
       _appearance.value = appearanceFrom(a)
       cache?.write(CACHE_APPEARANCE, a.toString())
     }
-    val s = call(AccountProtocol.METHOD_STATE) ?: return@withContext _state.value
+    val s = call(AccountProtocol.METHOD_STATE) ?: return@withContext _state.value.also { _ready.value = true }
     cache?.write(CACHE_STATE, s.toString())
     publish(stateFrom(s))
   }
 
   private fun publish(state: AccountState): AccountState {
     _state.value = state
+    _ready.value = true
     return state
   }
 
@@ -151,6 +176,9 @@ class PampaAccountClient(
     refresh()
     if (AccountProtocol.What.GRANTS in what) refreshGrants()
     if (AccountProtocol.What.WIPED in what) confirmWiped()
+    if (what.isEmpty() || what.any { it == AccountProtocol.What.PLACES || it == AccountProtocol.What.STATE || it == AccountProtocol.What.WIPED }) {
+      placesVersion.value = placesVersion.value + 1
+    }
   }
 
   /**
@@ -222,6 +250,31 @@ class PampaAccountClient(
     val r = call(AccountProtocol.METHOD_PLACES_LIST) ?: return@withContext PlacesResult.NoStore
     if ((r["ok"] as? JsonPrimitive)?.booleanOrNull != true) return@withContext PlacesResult.NotAllowed
     PlacesResult.Ok((r["places"] as JsonArray).map { AccountJson.place(it as JsonObject) }, (r["canWrite"] as? JsonPrimitive)?.booleanOrNull == true)
+  }
+
+  /**
+   * F10.8 · Il permesso dei luoghi di quest'app (scelta B8): [PlacesAccess.NOT_ASKED] vuol dire che l'app può aprire la
+   * richiesta dello Store ([placesRequestIntent]); dopo un «no» è [PlacesAccess.DENIED] e l'app non richiede da sola.
+   * Uno Store di F10.4, che non dice il motivo, risponde [PlacesAccess.NOT_ASKED] finché non dà i luoghi.
+   */
+  suspend fun placesAccess(): PlacesAccess = withContext(Dispatchers.IO) {
+    if (host == null && refresh() is AccountState.NoStore) return@withContext PlacesAccess.NO_STORE
+    val r = call(AccountProtocol.METHOD_PLACES_LIST) ?: return@withContext PlacesAccess.NO_STORE
+    if ((r["ok"] as? JsonPrimitive)?.booleanOrNull == true) {
+      return@withContext if ((r["canWrite"] as? JsonPrimitive)?.booleanOrNull == true) PlacesAccess.READ_WRITE else PlacesAccess.READ
+    }
+    PlacesAccess.of((r["access"] as? JsonPrimitive)?.content) ?: PlacesAccess.NOT_ASKED
+  }
+
+  /**
+   * F10.8 · L'intent della richiesta dei luoghi, da lanciare **con `startActivityForResult`** (lo Store legge dal sistema
+   * chi chiede). [write]: l'app vuole anche aggiungere luoghi. `null` senza Store. Alla risposta l'app rilegge
+   * [placesAccess]: lo Store non mette niente nel risultato, così nessuno deve fidarsi di un risultato.
+   */
+  fun placesRequestIntent(write: Boolean = false): Intent? = storeIntent(AccountSections.PLACES_REQUEST)?.apply {
+    putExtra(AccountProtocol.EXTRA_PLACES_WRITE, write)
+    // Il risultato torna a chi chiama: con NEW_TASK si perderebbe, e con lui il pacchetto di chi chiede.
+    flags = flags and Intent.FLAG_ACTIVITY_NEW_TASK.inv()
   }
 
   suspend fun putPlace(place: Place): PlacesResult = withContext(Dispatchers.IO) {

@@ -32,6 +32,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.fluidAccentPresets
+import dev.antigravity.fluidengine.ui.theme.fluidAccentPresetFor
 
 /**
  * Quale accento e' scelto, nei termini in cui lo offre un selettore: **tre strade**, non il prodotto
@@ -150,12 +151,11 @@ object FluidAppearance {
   /**
    * Il nome del preset che il tema usera' davvero per [name]: lo stesso, a meno delle maiuscole, e se
    * non esiste il primo (la regola di `FluidTheme`). Un selettore che accende "niente" perche' il nome
-   * salvato non c'e' piu' fra i preset dice una cosa falsa: il tema sta usando il primo.
+   * salvato non c'e' piu' fra i preset dice una cosa falsa: il tema sta usando il primo. Un colore `#rrggbb`
+   * (l'accento dell'aspetto comune di Pampa Store, F10.8) da' il preset con quel colore, o il piu' vicino.
    */
-  fun presetName(name: String, presets: List<AccentPreset> = fluidAccentPresets): String {
-    val pool = presets.ifEmpty { fluidAccentPresets }
-    return (pool.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: pool.first()).name
-  }
+  fun presetName(name: String, presets: List<AccentPreset> = fluidAccentPresets): String =
+    fluidAccentPresetFor(name, presets).name
 
   /**
    * Quale pallino e' acceso.

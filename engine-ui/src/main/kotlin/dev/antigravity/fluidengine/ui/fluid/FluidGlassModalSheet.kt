@@ -895,6 +895,8 @@ private fun FluidSheetPane(
                 "zoom=${motion.zoomActive} ink=$alpha sigma=$sigma effect=${renderEffect != null}"
               }
               if (GlassStateDump.active) {
+                // Letto qui e nel contenuto: la prova `foglio` rifà le proprietà dello strato e il suo contenuto.
+                GlassStateDump.readSheetTick()
                 motion.dumpLayer.applied("zoom=${motion.zoomActive} ink=$alpha sigma=$sigma effect=${renderEffect != null}")
               }
             }
@@ -904,6 +906,7 @@ private fun FluidSheetPane(
             .then(
               if (GlassStateDump.active) {
                 Modifier.drawWithContent {
+                  GlassStateDump.readSheetTick()
                   motion.dumpLayer.recorded()
                   drawContent()
                 }

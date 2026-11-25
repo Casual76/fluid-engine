@@ -51,6 +51,9 @@ dependencies {
   // `api`: CustodyVault prende un VaultKeystore, e DoorSecret.fromPasskey un FluidPasskeyResult.
   api project(':engine-vault')
   api project(':engine-auth')
+  // F10.8: i luoghi fra i dispositivi sono uno spazio di engine-sync (`api`: AccountSyncRelay e PlacesSealer ne
+  // implementano le interfacce).
+  api project(':engine-sync')
   implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${engine.serialization}"
   implementation "org.bouncycastle:bcprov-jdk18on:${engine.bouncycastle}"
   implementation "androidx.work:work-runtime-ktx:${engine.work}"

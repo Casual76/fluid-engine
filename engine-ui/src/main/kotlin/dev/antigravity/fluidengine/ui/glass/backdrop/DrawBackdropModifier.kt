@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
@@ -840,7 +841,8 @@ private class DrawBackdropNode(
     // Fluid Engine addition (F1A.6): vedi `drawBackdrop(onDrawLight)`.
     var onDrawLight: (DrawScope.() -> Unit)? = null
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode,
-    GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, GlassStateDump.Probe, Modifier.Node() {
+    GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, GlassStateDump.Probe,
+    GlassStateDump.Actionable, Modifier.Node() {
 
     private val effectScope =
         object : BackdropEffectScopeImpl(), GlassNestingScope, GlassRenderQuality, GlassBodyFallbackScope {
@@ -997,18 +999,28 @@ private class DrawBackdropNode(
     private var lastDrawAt = 0L
     private var lastDrawSize = Size.Zero
     private var lastAdmission: CaptureAdmission? = null
+    private var debugDraws = 0
+    private var debugPoses = 0
 
     /** F8.10: una riga per [GlassStateDump]. Sul thread principale, a richiesta. */
     override fun describe(now: Long): String {
         fun age(at: Long) = if (at == 0L) "mai" else "${now - at}ms"
         return "kind=glass id=${System.identityHashCode(this)} size=$lastDrawSize" +
-            " at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()} drawAge=${age(lastDrawAt)}" +
+            " at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()} drawAge=${age(lastDrawAt)} draws=$debugDraws poses=$debugPoses settle=${placementSettle.intValue}" +
             " sampled=$sampled recorded=$recordedSize captureAge=${age(lastRecordedAt)} replay=$replay" +
             " admission=$lastAdmission awaitReading=$awaitReadings lastAwaitAge=${age(lastAwaitReadingAt)}" +
             " bytes=$residentBytes denied=$budgetDenied suspended=$readsSuspended dirty=$surfaceDirty" +
             " container=${container?.let { System.identityHashCode(it) }}" +
             " material=${containerMaterial?.let { System.identityHashCode(it) }} owner=${glassFrameOwner()}" +
             " src=${describeSources()}"
+    }
+
+    /**
+     * F8.10, prova di debug (`vetri-cattura` di [GlassStateDump.ExtraAction]): la cattura si rifà al prossimo disegno. Il
+     * disegno lo porta lo stato letto in [draw] (`GlassStateDump.readGlassTick`), non un `invalidateDraw()`.
+     */
+    override fun recapture() {
+        if (isAttached) surfaceDirty = true
     }
 
     // --- Fluid Engine addition (2.13.0), vetro su vetro: questa superficie come lettrice ---------
@@ -1701,6 +1713,9 @@ private class DrawBackdropNode(
                     recordedOptics = renderState.optics
                     recordedScale = contentScale
                     recordedSize = recordSize
+                    // F8.10: un vetro su vetro che cattura muovendosi rispetto alle sue sorgenti riscrive lo strato di
+                    // posa quando si ferma (vedi [forceLayerDefaults]).
+                    if (containerMaterial != null && !sampleOnce && sameSources && moved) settlePlacementLater()
                     val previous = recordedSourceOffsets
                     recordedSourceOffsets = currentOffsets
                     currentOffsets = previous
@@ -1765,6 +1780,20 @@ private class DrawBackdropNode(
      * fa rileggere la forma, legata alla misura ([SizedClipShape]).
      */
     private var placedLayerSize = IntSize(-1, -1)
+
+    /**
+     * F8.10: la volta che lo strato di posa riscrive le sue proprietà a riposo ([forceLayerDefaults]). Uno **stato**,
+     * scritto da [placementSettleCheck] e letto nel blocco dello strato: un `invalidateDraw()` chiesto da un `Handler` non
+     * fa ridisegnare questo nodo (il tablet e Robolectric, 25 novembre), una scrittura di stato fa rifare il blocco.
+     */
+    private val placementSettle = mutableIntStateOf(0)
+    private val placementSettleCheck = Runnable { if (isAttached) placementSettle.intValue++ }
+
+    /** Riscrive lo strato di posa [PlacementSettleMillis] dopo l'ultima cattura in movimento (ognuna sposta l'attesa). */
+    private fun settlePlacementLater() {
+        MainHandler.removeCallbacks(placementSettleCheck)
+        MainHandler.postDelayed(placementSettleCheck, PlacementSettleMillis)
+    }
     private var sizedLayoutLayerBlock: GraphicsLayerScope.() -> Unit = layoutLayerBlock
 
     override fun MeasureScope.measure(
@@ -1777,7 +1806,17 @@ private class DrawBackdropNode(
         if (placed != placedLayerSize) {
             if (large(placed.width.toFloat(), placed.height.toFloat())) readBeforeAllocation()
             placedLayerSize = placed
-            sizedLayoutLayerBlock = { layoutLayerBlock() }
+            sizedLayoutLayerBlock = {
+                // F8.10: dopo l'ultima cattura in movimento di un vetro su vetro, le proprietà si riscrivono davvero.
+                if (placementSettle.intValue != 0) forceLayerDefaults(this)
+                // F8.10, prova di debug `posa-proprieta` ([GlassStateDump]): lo strato di posa riscrive le proprietà.
+                if (GlassStateDump.active) {
+                    GlassStateDump.readPosePropertiesTick()
+                    debugPoses++
+                    GlassStateDump.forcePoseDefaults(this)
+                }
+                layoutLayerBlock()
+            }
         }
         return layout(placeable.width, placeable.height) {
             placeable.placeWithLayer(IntOffset.Zero, layerBlock = sizedLayoutLayerBlock)
@@ -1820,6 +1859,14 @@ private class DrawBackdropNode(
         if (GlassStateDump.active) {
             lastDrawAt = System.currentTimeMillis()
             lastDrawSize = size
+            debugDraws++
+            // F8.10: letto in disegno, perché le prove di debug possano far ridisegnare questo vetro.
+            GlassStateDump.readGlassTick()
+            // F8.10, prova di debug `nascondi-vetro`: un vetro su vetro disegna solo il suo contenuto.
+            if (GlassStateDump.readHideNestedGlass() && containerMaterial != null) {
+                drawContent()
+                return
+            }
         }
         while (true) {
             val previous = effectiveScale
@@ -2137,6 +2184,7 @@ private class DrawBackdropNode(
 
     override fun onDetach() {
         GlassStateDump.unregister(this)
+        MainHandler.removeCallbacks(placementSettleCheck)
         forgetRejectedUpgrade()
         releaseFrontDemand()
         if (residentBytes > 0L) GlassFrameDiagnostics.event("glassRelease", this) { "bytes=$residentBytes detach=true" }

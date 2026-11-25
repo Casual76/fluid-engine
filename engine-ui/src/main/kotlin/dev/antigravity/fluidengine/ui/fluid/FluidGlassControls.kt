@@ -970,6 +970,14 @@ internal fun FluidGlassIconButtonCore(
   val dumpProbe = if (GlassStateDump.active) remember { GlassLayerProbe("button") } else null
   Layout(
     modifier = modifier
+      // F8.10, prova di debug `nascondi-tasto`: il tasto intero non si disegna (nessuno strato in piu').
+      .then(
+        if (dumpProbe != null) {
+          Modifier.drawWithContent { if (!GlassStateDump.readHideButtons()) drawContent() }
+        } else {
+          Modifier
+        },
+      )
       .alpha(if (enabled) 1f else 0.38f)
       .size(lensWidth.coerceAtLeast(FluidGlassIconTouchTargetSize),
         lens.coerceAtLeast(FluidGlassIconTouchTargetSize))
@@ -1013,6 +1021,8 @@ internal fun FluidGlassIconButtonCore(
           .then(
             if (dumpProbe != null) {
               Modifier.drawWithContent {
+                // Letto in disegno: la prova `tasto` fa registrare di nuovo il contenuto.
+                GlassStateDump.readButtonTick()
                 // `this.size`: la misura del disegno, non la taglia del tasto (il parametro `size`).
                 dumpProbe.values = "size=${this.size} progress=${press.progress} held=${press.motion.held} enabled=$enabled"
                 dumpProbe.recorded()

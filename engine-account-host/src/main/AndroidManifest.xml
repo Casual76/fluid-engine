@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- F10.8 · Lo Store avvisa le app quando cambia l'aspetto, i luoghi o lo stato (AccountChangedBroadcaster): da
+       Android 11 vede i loro ricevitori solo se lo dichiara. A chi mandare lo decide la firma, a ogni avviso. -->
+  <queries>
+    <intent>
+      <action android:name="dev.pampa.account.CHANGED" />
+    </intent>
+  </queries>
+
+</manifest>

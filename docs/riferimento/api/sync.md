@@ -5,6 +5,10 @@
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
 
+## `engine-sync/sync/BlobSyncStore.kt`
+
+- `class BlobSyncStore(private val load: () -> ByteArray?, private val save: (ByteArray) -> Unit) : SyncStore` — F10.8 · Il registro tenuto in memoria e salvato **tutto intero come un blob** a ogni transazione riuscita: per i registri piccoli che chi chiama vuole chiudere da sé, per esempio con la cassaforte (`engine-vault`). È quello dei luoghi comuni in Pampa Store: poche righe, e la casa dice dove abiti, quindi niente SQLite in chiaro.
+
 ## `engine-sync/sync/FluidSync.kt`
 
 - `data class SyncConfig(val pageSize: Int = 200, val pushBatchSize: Int = 100, val maxPushRounds: Int = 4, val tombstoneRetentionMillis: Long = 90L * 24 * 60 * 60 * 1000, val maxMergeEdits: Int = FluidTextDiff.DefaultMaxEdits)` — Le regole di lavoro della sincronizzazione. I valori di serie vengono dall'Account Pampa (`b/architettura.md` § 5.3).

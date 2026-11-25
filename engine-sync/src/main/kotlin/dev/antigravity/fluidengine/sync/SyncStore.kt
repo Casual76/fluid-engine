@@ -120,7 +120,7 @@ class InMemorySyncStore : SyncStore {
     return result
   }
 
-  private class Data(
+  internal class Data(
     val records: HashMap<String, HashMap<String, SyncStoredRecord>> = HashMap(),
     val journal: HashMap<String, java.util.TreeMap<Long, SyncJournalEntry>> = HashMap(),
     val meta: HashMap<String, HashMap<String, ByteArray>> = HashMap(),
@@ -132,7 +132,7 @@ class InMemorySyncStore : SyncStore {
     )
   }
 
-  private class Tx(private val d: Data) : SyncStoreTransaction {
+  internal class Tx(private val d: Data) : SyncStoreTransaction {
     override fun spaces(): List<String> =
       (d.records.filterValues { it.isNotEmpty() }.keys + d.journal.filterValues { it.isNotEmpty() }.keys)
         .filter { it.isNotEmpty() }.distinct().sorted()

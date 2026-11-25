@@ -13,6 +13,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val EXTRA_WHAT`
   - `const val ACTION_OPEN` — L'azione con cui un'app apre lo Store sulla pagina giusta (`open`).
   - `const val EXTRA_SECTION`
+  - `const val EXTRA_PLACES_WRITE` — F10.8 · Nella richiesta dei luoghi ([AccountSections.PLACES_REQUEST]): l'app vuole anche aggiungerne.
+  - `const val META_ICON_SET` — F10.8 · Il meta-data di un `<activity-alias>` dell'app: la famiglia d'icone che porta (`default`, `tinted`, …).
   - `const val METHOD_NEGOTIATE`
   - `const val METHOD_STATE`
   - `const val METHOD_TOKEN`
@@ -66,8 +68,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val OTHER`
 - `sealed interface PlacesResult` — La risposta a `places.list`: i luoghi, oppure il permesso da chiedere allo Store.
   - `data class Ok(val places: List<Place>, val canWrite: Boolean) : PlacesResult`
-  - `data object NotAllowed : PlacesResult` — L'utente non ha ancora dato il permesso: [AccountSections.PLACES] apre la richiesta dello Store.
+  - `data object NotAllowed : PlacesResult` — L'utente non ha dato il permesso: non gliel'hanno ancora chiesto, l'ha negato, o l'app non può averli (MyCloud Gallery). Quale dei tre lo dice `PampaAccount.placesAccess`; la richiesta si apre con `PampaAccount.placesRequestIntent`.
   - `data object NoStore : PlacesResult`
+- `enum class PlacesAccess(val wire: String)` — F10.8 · Il permesso dei luoghi per quest'app (scelta B8): ogni app lo chiede la prima volta, e l'utente decide app per app. Si cambia dalla pagina dell'account nello Store.
+  - `companion object`
+    - `fun of(wire: String?): PlacesAccess?`
 - `data class BackupInfo(val n: Long, val createdAt: Long, val size: Long, val epoch: Int)` — Un backup di quest'app sul server, per proporre il ripristino al primo avvio («Ripristinare i dati di ieri?»).
 - `data class SharedAppearance(val version: Long, val global: Map<String, String>, val override: Map<String, String>?, val followGlobal: Boolean)` — L'aspetto comune scelto nello Store, e l'eccezione di quest'app se c'è (`b\architettura.md` § 2.5).
   - `fun effective(key: String): String?` — Il valore che vale per quest'app: prima l'eccezione (se l'app non segue il comune), poi il comune.
@@ -80,6 +85,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val DEVICES`
   - `const val APPEARANCE`
   - `const val PLACES`
+  - `const val PLACES_REQUEST` — F10.8 · La richiesta dei luoghi di un'app («Fluid Weather vuole usare i tuoi luoghi. Consenti?»). Si apre **con `startActivityForResult`** (`ActivityResultContracts.StartActivityForResult`): solo così lo Store sa dal sistema chi chiede (`callingPackage`). Aperta in un altro modo, lo Store non chiede niente.
 - `object AccountJson` — I pezzi del protocollo scritti in JSON, uguali per lo Store e per le app.
   - `fun placeJson(p: Place): JsonObject` — Un luogo come viaggia nel provider: `{ id, name, kind, lat, lon, address? }`.
   - `fun place(o: JsonObject): Place`
@@ -97,7 +103,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun appearance(context: Context): Flow<SharedAppearance>` — L'aspetto comune (funziona anche senza account, `b\architettura.md` § 2.5). Lo collega al tema F10.8.
   - `suspend fun setAppearanceException(context: Context, followGlobal: Boolean, override: Map<String, String>?)`
   - `suspend fun appKey(context: Context, purpose: KeyPurpose): AppKeyResult`
-  - `fun places(context: Context): Flow<PlacesResult>` — I luoghi comuni, col permesso dell'utente (scelta B8). Si rilegge a ogni avviso `places`.
+  - `fun places(context: Context): Flow<PlacesResult>` — I luoghi comuni, col permesso dell'utente (scelta B8). Si rilegge a ogni avviso `places` (e `state`, `wiped`).
+  - `suspend fun placesAccess(context: Context): PlacesAccess` — F10.8 · Il permesso dei luoghi di quest'app: mai chiesto, negato, dato, mai (Gallery), o niente Store.
+  - `fun placesRequestIntent(context: Context, write: Boolean = false): Intent?` — F10.8 · L'intent della richiesta dei luoghi dello Store, la prima volta (scelta B8). Va lanciato **con `startActivityForResult`** (`registerForActivityResult(StartActivityForResult())`): lo Store chiede «… vuole usare i tuoi luoghi. Consenti?» solo se il sistema gli dice chi chiede. Al ritorno, [placesAccess] dice la risposta.
+  - `fun icons(context: Context): PampaAppIcons` — F10.8 · Le icone dell'app (gli `activity-alias` con `dev.pampa.account.ICON_SET`), per chi vuole sapere lo stato.
   - `suspend fun putPlace(context: Context, place: Place): PlacesResult`
   - `suspend fun availableBackups(context: Context): List<BackupInfo>`
   - `fun storeIntent(context: Context, section: String): Intent?` — L'intent che apre lo Store sulla pagina [section] (`AccountSections`), o `null` senza Store.
@@ -130,6 +139,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val state: StateFlow<AccountState>`
   - `val appearance: StateFlow<SharedAppearance>`
   - `val grants: StateFlow<Set<String>>`
+  - `val sharedLayer: Flow<EngineAppearanceLayer?>` — F10.8 · Le scelte comuni per quest'app, eccezione compresa ([PampaAppearance.layerOf]); `null` senza Store (R1). Il primo valore arriva dopo la copia locale ([restoreCache]) o la prima lettura, così il tema non lampeggia su quello dell'app prima di passare al comune.
+  - `val placesFlow: Flow<PlacesResult>` — F10.8 · I luoghi, riletti a ogni avviso dello Store che li può cambiare (un permesso dato o tolto, un luogo nuovo).
   - `val store: StoreHost? get()` — Lo Store trovato all'ultima lettura, per aprirlo ([storeIntent]).
   - `suspend fun restoreCache()` — Rimette la copia locale (all'avvio, prima che lo Store risponda).
   - `suspend fun refresh(): AccountState` — Rilegge tutto dallo Store: lo trova, controlla la firma, negozia, legge stato e aspetto. Lo chiama [PampaAccount] all'avvio, quando l'app torna in primo piano, e a ogni avviso `CHANGED`.
@@ -138,6 +149,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun token(audience: String, scopes: Set<String>): TokenResult` — Un token per il servizio di quest'app (`audience`) con gli ambiti dati. Sta solo in memoria.
   - `suspend fun appKey(purpose: KeyPurpose): AppKeyResult` — Le chiavi di quest'app per [purpose], una per epoca (per `engine-sync` e per il backup). Mai di un'altra app.
   - `suspend fun places(): PlacesResult` — I luoghi comuni, se l'utente ha dato il permesso a quest'app. Funziona anche senza account.
+  - `suspend fun placesAccess(): PlacesAccess` — F10.8 · Il permesso dei luoghi di quest'app (scelta B8): [PlacesAccess.NOT_ASKED] vuol dire che l'app può aprire la richiesta dello Store ([placesRequestIntent]); dopo un «no» è [PlacesAccess.DENIED] e l'app non richiede da sola. Uno Store di F10.4, che non dice il motivo, risponde [PlacesAccess.NOT_ASKED] finché non dà i luoghi.
+  - `fun placesRequestIntent(write: Boolean = false): Intent?` — F10.8 · L'intent della richiesta dei luoghi, da lanciare **con `startActivityForResult`** (lo Store legge dal sistema chi chiede). [write]: l'app vuole anche aggiungere luoghi. `null` senza Store. Alla risposta l'app rilegge [placesAccess]: lo Store non mette niente nel risultato, così nessuno deve fidarsi di un risultato.
   - `suspend fun putPlace(place: Place): PlacesResult`
   - `suspend fun deletePlace(id: String): PlacesResult`
   - `suspend fun setAppearanceException(followGlobal: Boolean, override: Map<String, String>?)` — L'eccezione di quest'app all'aspetto comune, dalla sua sezione Aspetto. Scrive solo lo Store.
@@ -147,6 +160,47 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun storeIntent(section: String): Intent?` — L'intent che apre lo Store su [section]; `null` senza Store. L'app lo lancia con `startActivity`.
   - `companion object`
     - `fun initialsOf(name: String): String` — Le iniziali di un nome: «Alessio Pampaloni» → «AP», «alessio» → «A».
+
+## `engine-account/account/PampaAppIcons.kt`
+
+- `data class PampaIconAlias(val className: String, val iconSet: String, val enabledInManifest: Boolean)` — Un'icona dell'app: un `<activity-alias>` col meta-data [AccountProtocol.META_ICON_SET].
+- `enum class PampaIconOutcome` — Cosa è successo a una richiesta d'icona.
+- `class PampaAppIcons internal constructor(private val host: Host)` — F10.8 · L'icona dell'app che segue la famiglia d'icone dell'aspetto comune (`icon.set`; critica C6; `b\architettura.md` § 5.2). L'app dichiara un `<activity-alias>` per famiglia, ognuno col meta-data `dev.pampa.account.ICON_SET`, e uno solo acceso nel manifest (l'icona di serie):
+  - `interface Host` — Le domande al sistema, sostituibili nelle prove.
+    - `fun aliases(): List<PampaIconAlias>`
+    - `fun isEnabled(alias: PampaIconAlias): Boolean`
+    - `fun setEnabled(alias: PampaIconAlias, enabled: Boolean)` — Accende o spegne [alias] tornando, se si può, allo stato del manifest (così l'icona di serie non lascia tracce).
+    - `fun inForeground(): Boolean` — L'app ha qualcosa di visibile adesso?
+    - `fun listenBackground(callback: () -> Unit)` — Chiama [callback] ogni volta che l'app passa in sottofondo. Si registra una volta sola.
+  - `val hasAliases: Boolean get()` — L'app ha alias d'icona? Se no, `engine-account` non guarda nemmeno l'aspetto per l'icona.
+  - `fun currentIconSet(): String?` — La famiglia dell'icona accesa adesso, o `null` se l'app non ha alias.
+  - `fun request(iconSet: String?): PampaIconOutcome` — Chiede la famiglia [iconSet] (`null`: quella di serie). Adesso, o al primo sottofondo se l'app è aperta.
+  - `companion object`
+    - `fun of(context: Context): PampaAppIcons` — Le icone di questo processo.
+
+## `engine-account/account/PampaAppearance.kt`
+
+- `object PampaAppearance` — F10.8 · L'aspetto comune di Pampa Store tradotto per il tema dell'engine (`b\architettura.md` § 2.5 e § 5.2; `progetto.md` § 3.13). Le chiavi e i valori sono quelli del contratto del server, `Pampa-account\contract\v1\ prefs.json`: una prova li confronta con la copia del contratto.
+  - `object Keys` — Le chiavi del contratto v1.
+    - `const val MODE`
+    - `const val ACCENT`
+    - `const val GLASS`
+    - `const val TEXT_SCALE`
+    - `const val CONTRAST`
+    - `const val ICON_SET`
+    - `const val MOTION_REDUCED`
+    - `const val FOLLOW_GLOBAL`
+  - `val MODES` — I valori di `appearance.mode`.
+  - `val GLASS_LEVELS` — Il vetro: «Trasparente» è il vetro di oggi, «Colorato» alza opacità e tinta (`idee-scelte.md`, `vetro-trasparente-o-colorato`; iOS 26.1, Impostazioni › Schermo e luminosità › Liquid Glass), «ridotto» è il più pieno. Sul cursore dell'engine (`LocalFluidGlassPreference`): 0,5 è il vetro di serie al bit, 0,8 è dove la riga del cursore comincia a dire «Colorato», 1 è la lastra quasi opaca.
+  - `val ICON_SETS` — Le famiglie d'icone.
+  - `val APP_KEYS` — Le chiavi che un'app può tenere diverse dal comune (`scopes: global+app`).
+  - `const val TEXT_SCALE_MIN` — I limiti di `appearance.textScale` nel contratto.
+  - `const val TEXT_SCALE_MAX`
+  - `val SPECIAL_ACCENTS` — I due accenti che non sono un colore: «il colore di ogni app» e «i colori del sistema». Il telefono li capisce già; il server del contratto v1 accetta solo colori, quindi lo Store non li scrive finché il contratto non li aggiunge (domanda 2 di F10.8).
+  - `fun layerOf(shared: SharedAppearance): EngineAppearanceLayer` — Le scelte che valgono per quest'app: per ogni chiave l'eccezione (se l'app non segue il comune), poi il comune.
+  - `fun glassLevel(value: String): Float?` — Il cursore del vetro per un valore di `appearance.glass`, o `null`.
+  - `fun exceptionValues(layer: EngineAppearanceLayer): Map<String, String>` — I campi di un'eccezione dell'app scritti nelle chiavi del contratto, per `setAppearance`. Solo le chiavi che un'app può tenere diverse ([APP_KEYS]); il vetro va sul livello più vicino.
+- `class PampaSharedAppearance : EngineSharedAppearance` — F10.8 · La sorgente dell'aspetto comune per `EngineSettingsStore`: la trova `ServiceLoader` (`META-INF/services` di questo modulo), quindi un'app con `engine-account` ha il tema dello Store senza scrivere niente. Legge e scrive dallo Store con [PampaAccount]: nessuna rete (R9).
 
 ## `engine-account/account/StoreLocator.kt`
 

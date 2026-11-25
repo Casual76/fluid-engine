@@ -15,7 +15,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -60,6 +59,12 @@ object PampaAccount {
         created.restoreCache()
         created.refresh()
       }
+      // F10.8 · L'icona segue la famiglia d'icone comune, se l'app ha gli alias (critica C6). Senza Store resta com'è.
+      scope.launch {
+        val icons = PampaAppIcons.of(app)
+        if (!icons.hasAliases) return@launch
+        created.sharedLayer.collect { layer -> if (layer != null) icons.request(layer.iconSet) }
+      }
       return created
     }
   }
@@ -84,8 +89,21 @@ object PampaAccount {
 
   suspend fun appKey(context: Context, purpose: KeyPurpose): AppKeyResult = client(context).appKey(purpose)
 
-  /** I luoghi comuni, col permesso dell'utente (scelta B8). Si rilegge a ogni avviso `places`. */
-  fun places(context: Context): Flow<PlacesResult> = flow { emit(client(context).places()) }
+  /** I luoghi comuni, col permesso dell'utente (scelta B8). Si rilegge a ogni avviso `places` (e `state`, `wiped`). */
+  fun places(context: Context): Flow<PlacesResult> = client(context).placesFlow
+
+  /** F10.8 · Il permesso dei luoghi di quest'app: mai chiesto, negato, dato, mai (Gallery), o niente Store. */
+  suspend fun placesAccess(context: Context): PlacesAccess = client(context).placesAccess()
+
+  /**
+   * F10.8 · L'intent della richiesta dei luoghi dello Store, la prima volta (scelta B8). Va lanciato **con
+   * `startActivityForResult`** (`registerForActivityResult(StartActivityForResult())`): lo Store chiede «… vuole usare i
+   * tuoi luoghi. Consenti?» solo se il sistema gli dice chi chiede. Al ritorno, [placesAccess] dice la risposta.
+   */
+  fun placesRequestIntent(context: Context, write: Boolean = false): Intent? = client(context).placesRequestIntent(write)
+
+  /** F10.8 · Le icone dell'app (gli `activity-alias` con `dev.pampa.account.ICON_SET`), per chi vuole sapere lo stato. */
+  fun icons(context: Context): PampaAppIcons = PampaAppIcons.of(context.applicationContext)
 
   suspend fun putPlace(context: Context, place: Place): PlacesResult = client(context).putPlace(place)
 
@@ -102,6 +120,11 @@ object PampaAccount {
     scope.launch {
       try {
         c.onChanged(what)
+        // F10.8 · L'icona subito, prima di chiudere l'avviso: un processo svegliato dall'avviso può morire appena dopo.
+        if (c.state.value !is AccountState.NoStore) {
+          val icons = PampaAppIcons.of(context.applicationContext)
+          if (icons.hasAliases) icons.request(PampaAppearance.layerOf(c.appearance.value).iconSet)
+        }
       } finally {
         done()
       }

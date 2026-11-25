@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Lo Store finto delle prove, al posto di com.pampa.store (AccountClientConfig in ProvaApp). -->
+  <queries>
+    <package android:name="dev.antigravity.fluidengine.account.prova.store" />
+  </queries>
+
+  <application
+    android:name=".ProvaApp"
+    android:label="@string/nome_app"
+    android:theme="@android:style/Theme.Material.NoActionBar">
+    <activity android:name=".MainActivity" android:exported="true" />
+
+    <!-- F10.8 · Le tre icone: un activity-alias per famiglia, col meta-data dev.pampa.account.ICON_SET, e una sola accesa
+         nel manifest (quella di serie). engine-account le cambia da solo (PampaAppIcons). -->
+    <activity-alias
+      android:name=".IconaDiSerie"
+      android:exported="true"
+      android:icon="@mipmap/ic_default"
+      android:targetActivity=".MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <meta-data android:name="dev.pampa.account.ICON_SET" android:value="default" />
+    </activity-alias>
+    <activity-alias
+      android:name=".IconaTinta"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_tinted"
+      android:targetActivity=".MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <meta-data android:name="dev.pampa.account.ICON_SET" android:value="tinted" />
+    </activity-alias>
+    <activity-alias
+      android:name=".IconaScura"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_dark"
+      android:targetActivity=".MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <meta-data android:name="dev.pampa.account.ICON_SET" android:value="dark" />
+    </activity-alias>
+  </application>
+</manifest>

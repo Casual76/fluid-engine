@@ -52,4 +52,19 @@ data class EngineSettings(
    * already did.
    */
   val hapticsEnabled: Boolean = true,
+  /**
+   * F10.8 · Il cursore del vetro, da 0 (trasparente) a 1 (colorato), 0,5 il vetro di serie: lo stesso valore di
+   * `LocalFluidGlassPreference`. `null` (di serie): il tema non lo tocca, e vale quello che l'app fornisce da sé, come
+   * prima. Lo riempie l'aspetto comune di Pampa Store («Vetro: trasparente o colorato»).
+   */
+  val glassPreference: Float? = null,
+  /**
+   * F10.8 · La grandezza del testo scelta nell'aspetto comune, **moltiplicata** per quella del sistema: 1 non cambia
+   * niente. Il contratto dell'account va da 0,8 a 1,6 a passi di 0,05.
+   */
+  val textScale: Float = 1f,
+  /** F10.8 · Il contrasto alto scelto nell'aspetto comune: vale come il contrasto alto del sistema (vince il più alto). */
+  val highContrast: Boolean = false,
+  /** F10.8 · «Riduci movimento» scelto nell'aspetto comune: vale come l'animazione spenta del sistema. */
+  val reducedMotion: Boolean = false,
 )

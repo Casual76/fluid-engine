@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -12,7 +13,9 @@ import dev.antigravity.fluidengine.foundation.AccentMode
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.foundation.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
@@ -30,12 +33,41 @@ internal val Context.fluidEngineStore: DataStore<Preferences> by preferencesData
  * An app with its own settings screen usually already stores these; in that case skip this class
  * and map your own model to [EngineSettings] instead. It exists so a new app gets a working theme
  * picker without writing persistence for it first.
+ *
+ * **F10.8 · L'aspetto comune.** Con `engine-account` fra le dipendenze, [settings] mette sopra le scelte dell'app
+ * quelle comuni di Pampa Store ([EngineSharedAppearance], trovata da sé): per ogni campo vince l'eccezione dell'app,
+ * poi il tema comune, poi il valore dell'app. Così `FluidTheme` cambia quando l'utente cambia tema nello Store, senza
+ * che l'app faccia niente. Senza Store, o senza `engine-account`, [settings] è quello di sempre.
+ *
+ * @param shared la sorgente dell'aspetto comune; di serie quella trovata ([EngineSharedAppearance.current]).
  */
-class EngineSettingsStore(private val context: Context) {
+class EngineSettingsStore @JvmOverloads constructor(
+  private val context: Context,
+  private val shared: EngineSharedAppearance? = EngineSharedAppearance.current(),
+) {
 
-  val settings: Flow<EngineSettings> = context.fluidEngineStore.data.map { it.toSettings() }
+  /** Le impostazioni dell'app, senza l'aspetto comune: quelle che scrive [update]. */
+  val ownSettings: Flow<EngineSettings> = context.fluidEngineStore.data.map { it.toSettings() }
+
+  /** F10.8 · Le scelte comuni per quest'app (eccezione compresa), o `null` senza sorgente. */
+  val sharedAppearance: Flow<EngineAppearanceLayer?> = shared?.layer(context) ?: flowOf(null)
+
+  /** Quello che il tema deve dipingere: le impostazioni dell'app con sopra l'aspetto comune, se c'è. */
+  val settings: Flow<EngineSettings> =
+    if (shared == null) ownSettings else combine(ownSettings, sharedAppearance) { own, layer -> layer?.applyTo(own) ?: own }
 
   suspend fun current(): EngineSettings = settings.first()
+
+  /**
+   * F10.8 · La sezione Aspetto dell'app, quando c'è lo Store: «Segui Pampa Store» ([followShared] `true`) oppure i
+   * valori di quest'app ([exception], solo i campi non nulli). Li scrive lo Store. Risponde `false` senza sorgente:
+   * allora l'app scrive le sue impostazioni con [update], come sempre.
+   */
+  suspend fun setSharedException(followShared: Boolean, exception: EngineAppearanceLayer? = null): Boolean {
+    val source = shared ?: return false
+    source.setException(context, followShared, exception)
+    return true
+  }
 
   suspend fun update(transform: (EngineSettings) -> EngineSettings) {
     context.fluidEngineStore.edit { preferences ->
@@ -46,6 +78,11 @@ class EngineSettingsStore(private val context: Context) {
       preferences[Keys.DynamicColorEnabled] = next.dynamicColorEnabled
       preferences[Keys.AmoledEnabled] = next.amoledEnabled
       preferences[Keys.HapticsEnabled] = next.hapticsEnabled
+      // F10.8: i campi nuovi si scrivono solo se diversi dal valore di serie, cosi' un file vecchio resta uguale.
+      next.glassPreference.let { if (it == null) preferences.remove(Keys.GlassPreference) else preferences[Keys.GlassPreference] = it }
+      if (next.textScale == 1f) preferences.remove(Keys.TextScale) else preferences[Keys.TextScale] = next.textScale
+      if (!next.highContrast) preferences.remove(Keys.HighContrast) else preferences[Keys.HighContrast] = true
+      if (!next.reducedMotion) preferences.remove(Keys.ReducedMotion) else preferences[Keys.ReducedMotion] = true
     }
   }
 
@@ -78,6 +115,10 @@ class EngineSettingsStore(private val context: Context) {
       dynamicColorEnabled = this[Keys.DynamicColorEnabled] ?: defaults.dynamicColorEnabled,
       amoledEnabled = this[Keys.AmoledEnabled] ?: defaults.amoledEnabled,
       hapticsEnabled = this[Keys.HapticsEnabled] ?: defaults.hapticsEnabled,
+      glassPreference = this[Keys.GlassPreference]?.takeIf { it.isFinite() }?.coerceIn(0f, 1f),
+      textScale = this[Keys.TextScale]?.takeIf { it.isFinite() && it > 0f } ?: defaults.textScale,
+      highContrast = this[Keys.HighContrast] ?: defaults.highContrast,
+      reducedMotion = this[Keys.ReducedMotion] ?: defaults.reducedMotion,
     )
   }
 
@@ -88,6 +129,10 @@ class EngineSettingsStore(private val context: Context) {
     val DynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
     val AmoledEnabled = booleanPreferencesKey("amoled_enabled")
     val HapticsEnabled = booleanPreferencesKey("haptics_enabled")
+    val GlassPreference = floatPreferencesKey("glass_preference")
+    val TextScale = floatPreferencesKey("text_scale")
+    val HighContrast = booleanPreferencesKey("high_contrast")
+    val ReducedMotion = booleanPreferencesKey("reduced_motion")
   }
 }
 

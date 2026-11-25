@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="sfondo_default">#1F9E6E</color>
+  <color name="sfondo_tinted">#FF9500</color>
+  <color name="sfondo_dark">#1C1C1E</color>
+</resources>

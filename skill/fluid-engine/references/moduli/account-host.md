@@ -28,6 +28,11 @@ Catalogo completo delle firme: [`../api/account-host.md`](../api/account-host.md
 | dove si chiudono le chiavi sul telefono | `CustodyKeyring` sopra un `CustodyVault`: `AndroidKeystoreVault`, cioe' `KeystoreCustodyVault` sopra il `VaultKeystore` di `engine-vault` |
 | la classe di ogni chiave (Q7) | `KeyClassPolicy.CHOICE` |
 | il backup dello Store | `StoreBackupJob`, `BackupScheduler.schedule(context)`, l'`Application` che implementa `AccountHostOwner` |
+| il tema comune (Store → Aspetto) | `AppearanceStore.setGlobal(mapOf("appearance.mode" to "dark", …))`; fra i dispositivi `AppearanceSync.sync()` |
+| avvisare le app di un cambio | `AccountChangedBroadcaster(context).send(listOf("appearance"))` (dal callback dei depositi) |
+| la richiesta dei luoghi di un'app | `PlacesConsent.begin(PlacesConsent.callerOf(activity), wantsWrite(intent))` → `Ask.question` → `answer(ask, allow)` |
+| «Chi usa i tuoi luoghi» nella pagina dell'account | `PlacesStore.decisions()`, `setAccess(pacchetto, PlaceAccess.NONE)` (revoca), `forget` (chiedi di nuovo) |
+| i luoghi fra i dispositivi | `PlacesSync.sync()` (spazio `places` di `engine-sync`, cifrato con `K_com(places)`) |
 | provare senza Keystore | `testing.MemoryCustodyVault` (bloccato, prima dello sblocco, chiave persa), o `KeystoreCustodyVault` sopra `MemoryVaultKeystore` di `engine-vault`; `testing.SoftwareDeviceKey` |
 
 ## Come funziona
@@ -71,6 +76,26 @@ sblocco, anche a telefono bloccato) per la chiave del dispositivo, la sessione e
 «madre» (solo sbloccato) per la chiave dei dati e la radice della persona. `CustodyKeyring` ricava le chiavi di lavoro a
 telefono sbloccato e le legge in sottofondo senza mai aprire la madre.
 
+**L'aspetto comune (F10.8)** (`AppearanceStore`). Risponde anche senza account. Scrive solo lo Store: il tema comune
+(`setGlobal`, dalla pagina Aspetto) e le eccezioni delle app (`setException`, dal metodo `setAppearance`). Le chiavi e i
+valori sono quelli del contratto (`PrefsContract`, confrontato con `prefs.json`): una scelta che il server
+rifiuterebbe non nasce. Ogni campo porta l'**orologio logico ibrido** di chi l'ha scritto (`SyncClock` di
+`engine-sync`, nel formato del server `ms-contatore-nodo`): fra i dispositivi vince, campo per campo, il più recente,
+anche con gli orologi sfasati; un'eccezione tolta è una lapide col suo orologio. `AppearanceSync` legge `GET
+/v1/prefs?since=`, fonde, poi manda solo le chiavi che il server annuncia (critica M1); una riga rifiutata per
+l'orologio (`bad_hlc`, telefono avanti di oltre un giorno) rinasce all'ora del server e riparte.
+
+**I luoghi (F10.8)** (`PlacesStore`, `PlacesConsent`, `PlacesSync`). I luoghi sono uno spazio di `engine-sync`, uno per
+riga con id casuale, e il registro è un blob chiuso con la cassaforte (`BlobSyncStore`). **La cassaforte dei luoghi è
+sua**, con un prefisso d'alias diverso dalla custodia: l'uscita volontaria cancella le chiavi della custodia, non i
+luoghi (R1); solo un'uscita da remoto li cancella (`PlacesStore.wipe()`). Il permesso: mancante = mai chiesto, `NONE`
+scritto = negato; la domanda è dello Store (`PlacesConsent`), dopo un «no» non si ripete. Fra i dispositivi viaggiano
+sopra `/v1/sync/places` (ambito `sync.places`, solo dello Store) con `K_com(places)` e i dati associati del contratto
+(`AccountSyncRelay`, `PlacesSealer`); due creazioni dello stesso luogo senza vedersi lasciano la più recente.
+
+**Gli avvisi alle app (F10.8)** (`AccountChangedBroadcaster`). Un broadcast esplicito per app, solo a quelle col
+ricevitore di `engine-account` **e la firma dello Store**. Il manifest del modulo porta la `<queries>` per vederle.
+
 **Il Keystore** (`KeystoreCustodyVault`, e `AndroidKeystoreVault` per lo Store). Passa dalla cassaforte dell'engine
 (`engine-vault`, F8.23): una chiave AES-256-GCM per classe, creata con `VaultKeySpec` (`VaultKeyAuth.None`) e usata con
 `aesEncrypt`/`aesDecrypt`; il file e' `nonce(12) ‖ testo cifrato ‖ tag`. La madre ha `unlockedDeviceRequired` solo da
@@ -87,7 +112,8 @@ Sul Tab S9 (Android 16, 25/11): TEE ~8 ms a chiusura o apertura, StrongBox ~120 
 - **Il PRF** lo fa `engine-auth` (`FluidWebAuthnJson` con `FluidPrfInput.PampaV1`, uguale a `PampaLabels.prfInput()`):
   `StorePrf` e' la porta dello Store, e `AccountServerClient.call` rifiuta un corpo che porta ancora un'uscita del PRF.
 - **Le persone** (radice e chiavi di lavoro, `K_com(persona)`) hanno le chiavi pronte nel portachiavi; il resto e' F10.6.
-- **Le schermate** sono dello Store (F10.7, F10.11).
+- **Le schermate** sono dello Store (F10.7, F10.11): anche la pagina della richiesta dei luoghi, che qui ha la logica.
+- **Quando sincronizzare** tema e luoghi lo decide lo Store (F10.7): dopo un cambio, all'apertura, al rinnovo.
 
 ## Le prove
 
@@ -107,9 +133,17 @@ Sul Tab S9 (Android 16, 25/11): TEE ~8 ms a chiusura o apertura, StrongBox ~120 
   passaggio fra due telefoni, il server ostile, niente segreti in intestazioni e corpi.
 - `AccountHostProviderTest` (Robolectric): firme diverse a ogni metodo, UID condiviso, K3, luoghi, `wiped`.
 - `StoreBackupTest`: il backup una volta, solo se cambiato, in tasca con la A, chiuso con la C, WorkManager.
+- `AppearanceSyncTest` (F10.8): due dispositivi e il server finto con le regole di `choices.ts`; il conflitto sullo
+  stesso campo, gli orologi sfasati di tre ore, l'orologio avanti di due giorni, le lapidi delle eccezioni, il contratto.
+- `PlacesSyncTest` (F10.8): i luoghi cifrati fra due dispositivi, il conflitto per campo, la cancellazione che vince, il
+  doppione, il server che scambia due righe, l'uscita che non li toglie.
+- `PlacesConsentTest` (F10.8, Robolectric): negato, concesso, revocato, «chiedi di nuovo», la scrittura in più, Gallery
+  mai; l'avviso solo alle app con la firma dello Store.
 
 ## File
 
 `engine-account-host/src/main/kotlin/dev/antigravity/fluidengine/account/host/`: `AccountHostProvider.kt` (provider e
-gestore del protocollo), `AccountSession.kt`, `CustodyService.kt`, `AppPolicy.kt`, `LocalStores.kt` (luoghi, aspetto),
-`custody/` (la custodia), `server/` (client, chiave del dispositivo, sessione, token), `backup/`, `testing/`.
+gestore del protocollo), `AccountSession.kt`, `CustodyService.kt`, `AppPolicy.kt`, `LocalStores.kt` (luoghi),
+`AppearanceStore.kt` (aspetto, `PrefsContract`, `PrefsHlc`), `PlacesConsent.kt`, `AccountChangedBroadcaster.kt`,
+`sync/` (`AccountSyncRelay`, `PlacesSealer`, `PlacesSync`, `AppearanceSync`), `custody/` (la custodia), `server/`
+(client, chiave del dispositivo, sessione, token), `backup/`, `testing/`.

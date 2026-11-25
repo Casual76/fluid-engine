@@ -439,10 +439,24 @@ Verifica sempre nell'ordine: `engine-doctor.ps1`, poi `:app:assembleDebug :app:t
 | `dynamicColorEnabled: Boolean` | `true` | serve **insieme** ad `accentMode = DYNAMIC` |
 | `amoledEnabled: Boolean` | `false` | nero assoluto sotto il tema scuro (stessa tavolozza del modo `AMOLED`) |
 | `hapticsEnabled: Boolean` | `true` | accende il motore aptico di `LocalFluidHaptics` (default acceso: un'impostazione che compare non deve cambiare quello che un telefono faceva) |
+| `glassPreference: Float?` | `null` | F10.8: il cursore del vetro (`LocalFluidGlassPreference`, 0 trasparente … 1 colorato). `null`: il tema non lo tocca, e vale quello che l'app fornisce |
+| `textScale: Float` | `1` | F10.8: la grandezza del testo comune, **moltiplicata** per quella del sistema (`LocalDensity.fontScale`) |
+| `highContrast: Boolean` | `false` | F10.8: vale come il contrasto alto di Android (`LocalFluidSystemContrast`, vince il piu' alto) |
+| `reducedMotion: Boolean` | `false` | F10.8: vale come l'animazione spenta del sistema (`LocalFluidMotionPolicy`) |
 
 `ThemeMode.AMOLED` e `amoledEnabled` producono la **stessa** tavolozza: il secondo esiste per offrire il nero come interruttore
 sotto «Scuro» invece che come quarto pulsante. `EngineSettingsStore` (`engine-storage`) salva e rilegge i sei campi con DataStore
 e un valore salvato che non nomina piu' niente (una voce di enum tolta da un aggiornamento) torna al default invece di lanciare.
+Con i valori di serie dei quattro campi di F10.8 il tema e' quello di prima, al bit.
+
+**L'aspetto comune di Pampa Store (F10.8).** Con `engine-account` fra le dipendenze, `EngineSettingsStore.settings` mette
+sopra le impostazioni dell'app quelle comuni dello Store (`EngineSharedAppearance`, trovata con `ServiceLoader`): per ogni
+campo **l'eccezione dell'app, poi il tema comune, poi il valore dell'app** (`EngineAppearanceLayer.applyTo`). Le
+impostazioni dell'app sole sono `ownSettings`; la sezione Aspetto dell'app, quando lo Store c'e', scrive l'eccezione con
+`setSharedException(followShared, EngineAppearanceLayer(…))`, perche' sul telefono il tema comune lo scrive solo lo Store.
+Senza Store `settings` e' quello di sempre. L'accento comune arriva come colore: `customAccentName = "#ff9500"` vale il
+preset con quel colore (in chiaro o in scuro), o il piu' vicino fra i preset dell'app (`FluidAppearance.presetName`
+dice quale). Dettagli: [`../moduli/account.md`](../moduli/account.md).
 Per un'app con un suo store basta mappare. La traduzione fra quello che mostra una pagina «Aspetto» e questi campi (`AMOLED`
 = «Scuro» + nero, `DYNAMIC` senza supporto = marchio) e' **in** `FluidAppearance`, descritta in
 [impostazioni.md](impostazioni.md): non riscriverla.

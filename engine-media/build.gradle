@@ -1,0 +1,67 @@
+// F8.14 · Foto e allegati (`scelta-foto-e-video`, `pannello-allegati`). Il selettore di foto e video di vetro e il
+// pannello degli allegati che prende il posto della tastiera. Opt-in, come i visori: un'app che non sceglie foto non lo
+// include.
+//
+//   implementation project(':engine-media')
+//
+// Dentro:
+// - il **contratto delle sorgenti** (`FluidMediaSource`): un archivio con indice, album e ricerca (anche semantica), da
+//   cui si sceglie e che consegna gli indirizzi. Le sorgenti di serie sono il telefono (MediaStore, coi tre regimi dei
+//   permessi delle foto) e quelle di un'altra app che espone lo stesso contratto (`FluidMediaSourceProvider`, il lato di
+//   chi serve; `FluidRemoteMediaSource`, il lato di chi legge): in F12 MyCloud Gallery, con la ricerca semantica e le foto
+//   che stanno solo nel backup. Una sorgente finta (`FluidFakeMediaSource`) per le prove;
+// - il **selettore** (`FluidMediaPicker`): la griglia di F8.4 con la scelta in ordine, gli album, la ricerca, l'anteprima a
+//   tutto schermo che nasce dalla miniatura e ci torna; il **Photo Picker di Android** quando basta (nessun permesso);
+// - il **pannello degli allegati** (`FluidAttachmentPanel`), come il «+» di Messaggi: le foto recenti in cima, poi le fonti,
+//   un elenco aperto che l'app riempie.
+//
+// Nessuna libreria nuova: MediaStore, ImageDecoder e il Photo Picker di androidx.activity (gia' in engine-ui). I permessi
+// delle foto **non** li dichiara il modulo: li dichiara l'app che usa la griglia del telefono (la scheda del modulo dice
+// quali righe); un'app che usa solo il Photo Picker di Android o una sorgente esterna non ne ha bisogno.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.media'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Il contratto fra app passa da un ContentProvider vero e dai Bundle di Android: si prova in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: il selettore parla `FluidPreviewGrid`, `FluidSelectionState`, `FluidFileInfo` e il vetro di engine-ui.
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove col provider, i Bundle e le bitmap vere di Android, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

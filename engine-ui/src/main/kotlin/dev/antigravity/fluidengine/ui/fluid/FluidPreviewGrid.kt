@@ -4,7 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -122,6 +124,12 @@ object FluidPreviewGridDefaults {
   val Settle: SpringSpec<Float> = spring(dampingRatio = 0.86f, stiffness = 380f, visibilityThreshold = 0.001f)
 
   /**
+   * Il velo sulle celle non scelte a tetto pieno (F8.14): il colore della pagina al 55%. A occhio, 25 novembre 2026, sul
+   * selettore di foto di iOS con `selectionLimit`: le foto che non si possono piu' aggiungere restano leggibili ma spente.
+   */
+  const val LimitVeilAlpha: Float = 0.55f
+
+  /**
    * Quanto il dito deve allargare o stringere prima che il pizzico sia della griglia e non uno scorrimento a due dita:
    * il 4% della distanza fra le dita. A occhio, 2026-11-24.
    */
@@ -231,7 +239,16 @@ private class PreviewEntry<T>(val section: FluidPreviewGridSection<T>, val item:
  *   Foto, e le icone della barra di stato chiare finché le foto le passano sotto. Falso per una griglia su una pagina chiara (file, allegati con il nome sotto): titolo e data
  *   nell'inchiostro del tema su un velo del colore del fondo, come il bordo di scorrimento di una pagina (visto sul
  *   tablet il 24 novembre: il bianco su una pagina chiara non si leggeva).
- * @param cell il contenuto di una cella: riempie la cella (`fillMaxSize`), che ritaglia e porta il segno.
+ * @param numbered le scelte portano il loro **numero d'ordine** al posto della spunta (F8.14, la selezione ordinata del
+ *   selettore di foto, come `PHPickerConfiguration.Selection.ordered` di iOS): il primo toccato e' 1. Togliendo una
+ *   scelta, quelle dopo scalano di uno e il numero scorre sfocato ([FluidSelectionMark] con `number`). L'ordine e' quello
+ *   di [FluidSelectionState] (la forma esplicita tiene l'ordine delle scelte).
+ * @param onItemLongPress la pressione lunga su una cella (F8.14: l'anteprima a tutto schermo del selettore, come la
+ *   pressione lunga del selettore di iOS). Con lei la pressione lunga non entra piu' nella selezione trascinando: si sceglie
+ *   in fila col dito di lato, in modo selezione. Null, di serie: la pressione lunga e' della selezione, come prima.
+ * @param cell il contenuto di una cella: riempie la cella (`fillMaxSize`), che ritaglia e porta il segno. A tetto pieno
+ *   ([FluidSelectionState.atLimit], F8.14) le celle non scelte hanno sopra un velo del colore della pagina, come le foto
+ *   che non si possono piu' aggiungere nel selettore di iOS.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -255,6 +272,8 @@ fun <T, K : Any> FluidPreviewGrid(
   navigation: (@Composable () -> Unit)? = null,
   actions: (@Composable RowScope.() -> Unit)? = null,
   titleOnPhotos: Boolean = true,
+  numbered: Boolean = false,
+  onItemLongPress: ((T) -> Unit)? = null,
   cell: @Composable BoxScope.(item: T, selected: Boolean) -> Unit,
 ) {
   require(columns.isNotEmpty()) { "FluidPreviewGrid: servono delle colonne" }
@@ -386,6 +405,8 @@ fun <T, K : Any> FluidPreviewGrid(
       selection = selection,
       gridState = grid,
       keyAt = { index -> currentEntries.getOrNull(index)?.item?.let { currentItemKey(it) } },
+      // F8.14: la pressione lunga che apre l'anteprima non entra anche nella selezione.
+      startWithLongPress = onItemLongPress == null,
       inSelectionMode = inSelectionMode,
     )
   } else {
@@ -507,25 +528,64 @@ fun <T, K : Any> FluidPreviewGrid(
           val selectedState = remember(key, selection) { derivedStateOf { selection?.isSelected(key) == true } }
           val selected = selectedState.value
           val currentItem by rememberUpdatedState(item)
+          val longPress = onItemLongPress
+          val click: () -> Unit = {
+            if (selection != null && currentMode) selection.toggle(key) else onItemClick?.invoke(currentItem)
+          }
           Box(
             Modifier
               .fillMaxWidth()
               .aspectRatio(cellAspectRatio)
               .clipToBounds()
-              .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                  if (selection != null && currentMode) selection.toggle(key) else onItemClick?.invoke(currentItem)
+              .then(
+                if (longPress == null) {
+                  Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = click,
+                  )
+                } else {
+                  Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onLongClick = {
+                      currentHaptics.play(FluidHapticEvent.GestureStart)
+                      longPress(currentItem)
+                    },
+                    onClick = click,
+                  )
                 },
               ),
           ) {
             cell(item, selected)
             if (selecting) {
+              // F8.14: a tetto pieno le celle non scelte si spengono (il velo del colore della pagina).
+              val dimmed by remember(key, selection) {
+                derivedStateOf { selection?.atLimit == true && !selection.isSelected(key) }
+              }
+              if (dimmed) {
+                Box(
+                  Modifier.fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = FluidPreviewGridDefaults.LimitVeilAlpha)),
+                )
+              }
+              val number = if (numbered) {
+                remember(key, selection) {
+                  derivedStateOf {
+                    (selection?.mode as? FluidSelectionMode.Explicit)?.keys?.indexOf(key)?.takeIf { it >= 0 }?.plus(1)
+                  }
+                }.value
+              } else {
+                null
+              }
+              // Un segno che si spegne tiene il suo ultimo numero mentre il disco si svuota.
+              val shownNumber = if (numbered) rememberLastNumber(number) else null
               FluidSelectionMark(
                 selected = selected,
                 onPhoto = true,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                contentDescription = FluidSelectionMarkDefaults.description(selected, number),
+                number = shownNumber,
               )
             }
           }
@@ -555,6 +615,14 @@ fun <T, K : Any> FluidPreviewGrid(
       )
     }
   }
+}
+
+/** L'ultimo numero non nullo: il segno che si spegne lo tiene mentre il disco si svuota (F8.14). */
+@Composable
+private fun rememberLastNumber(number: Int?): Int {
+  val last = remember { mutableIntStateOf(1) }
+  if (number != null && last.intValue != number) last.intValue = number
+  return number ?: last.intValue
 }
 
 /** I numeri della testata come Foto ([FluidPreviewGrid] con `title`). */

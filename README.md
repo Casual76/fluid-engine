@@ -46,6 +46,8 @@ engine-people       le persone dell'account: crittografia di Codex, persona, cas
 engine-push-fcm     il campanello di Pampa Store con FCM, spento fino all'accesso (opt-in, solo lo Store)
 engine-transfer     il centro trasferimenti: coda persistita di scaricamenti e caricamenti lunghi, pausa e
                     ripresa con Range, solo Wi-Fi e in carica, WorkManager col servizio dataSync (opt-in)
+engine-media        foto e allegati: il selettore di foto e video di vetro, le sorgenti di altre app (MyCloud
+                    Gallery) col contratto firmato, il Photo Picker di Android, il «+» degli allegati (opt-in)
 ```
 
 ## Partire in cinque minuti

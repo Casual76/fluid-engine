@@ -24,6 +24,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -131,6 +134,8 @@ fun FluidMediaPreset(
     val policy = LocalFluidMotionPolicy.current
     val active = currentFluidViewerPageActive()
     val page = LocalViewerPage.current
+    // F8.18: un audio o un video riaperto riparte dal secondo dove l'utente era.
+    LocalViewerResumeSlot.current?.let { resume -> ViewerMediaResume(session, resume, active) }
     val surfaceColor = if (video != null) Color.Black else MaterialTheme.colorScheme.surface
     Box(modifier.fillMaxSize().then(if (page == null) Modifier.background(surfaceColor) else Modifier)) {
       if (video != null) {
@@ -545,6 +550,45 @@ private fun PlaybackTimeline(
 internal const val MediaSkipMillis = 10_000L
 
 internal fun Long.inMediaBounds(duration: Long?): Long = coerceIn(0L, duration?.coerceAtLeast(0L) ?: Long.MAX_VALUE)
+
+/**
+ * F8.18 · Riprendi dallo stesso punto, per un audio o un video. Il salto aspetta che il player sappia la durata e si fa
+ * una volta sola, e solo se il player è ancora all'inizio (un'app che ha già scelto un punto vince). Lontano dai bordi
+ * ([ViewerResumeMedia.EdgeMillis]): i primi e gli ultimi secondi ripartono da capo. La posizione si salva alla pausa,
+ * uscendo dalla pagina e, mentre suona, ogni [SaveEveryMillis]: la lettura qui non ricompone niente.
+ */
+@Composable
+private fun ViewerMediaResume(session: FluidMediaSession, resume: FluidViewerResumeSlot, active: Boolean) {
+  val saved = remember(resume) { resume.position?.mediaMillis?.takeIf { it > 0L } }
+  val applied = remember(resume) { booleanArrayOf(saved == null) }
+  fun save() {
+    if (!applied[0]) return
+    val position = session.positionMillis
+    val duration = session.durationMillis
+    resume.save(FluidViewerPosition(mediaMillis = if (ViewerResumeMedia.resumable(position, duration)) position else 0L))
+  }
+  LaunchedEffect(session, resume) {
+    if (saved != null) {
+      val duration = snapshotFlow { session.durationMillis?.takeIf { it > 0L && session.canSeek } }.filterNotNull().first()
+      if (ViewerResumeMedia.resumable(saved, duration) && session.positionMillis < ViewerResumeMedia.EdgeMillis) {
+        session.seekTo(saved.inMediaBounds(duration))
+      }
+      applied[0] = true
+    }
+    snapshotFlow { session.playing }.drop(1).collect { playing -> if (!playing) save() }
+  }
+  LaunchedEffect(session, resume) {
+    while (true) {
+      delay(SaveEveryMillis)
+      if (session.playing) save()
+    }
+  }
+  LaunchedEffect(active) { if (!active) save() }
+  DisposableEffect(session, resume) { onDispose { save() } }
+}
+
+/** Ogni quanto si salva il punto di un file che suona. 5 s, a occhio (25 novembre 2026). */
+private const val SaveEveryMillis = 5_000L
 
 internal fun FluidMediaSession.skipBy(delta: Long) {
   val end = durationMillis?.takeIf { it > 0L } ?: return

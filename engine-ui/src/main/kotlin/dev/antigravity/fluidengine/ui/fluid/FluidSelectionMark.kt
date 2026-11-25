@@ -3,9 +3,14 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -14,10 +19,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -37,6 +45,13 @@ object FluidSelectionMarkDefaults {
 
   /** Cosa legge TalkBack, per stato. Un'app in un'altra lingua passa la sua. */
   fun description(selected: Boolean): String = if (selected) "Selezionato" else "Non selezionato"
+
+  /**
+   * Cosa legge TalkBack per un segno col numero d'ordine (F8.14): «Selezionato, numero 2». Senza numero, come
+   * [description].
+   */
+  fun description(selected: Boolean, number: Int?): String =
+    if (selected && number != null) "Selezionato, numero $number" else description(selected)
 }
 
 /**
@@ -89,6 +104,12 @@ internal const val FluidSelectionCheckStroke: Float = 0.085f
  * @param contentDescription cosa legge TalkBack per questo segno; di serie «Selezionato» o «Non
  *   selezionato» ([FluidSelectionMarkDefaults.description]). Null lo rende muto — quando e' la riga
  *   a dire lo stato (`Modifier.semantics { selected = ... }`) e dirlo due volte e' rumore.
+ * @param number il numero d'ordine della scelta (F8.14, la selezione ordinata del selettore di foto, come
+ *   `PHPickerConfiguration.Selection.ordered` di iOS): a segno pieno il disco porta il numero al posto della spunta. Quando
+ *   il numero cambia senza che il segno si spenga (si toglie la scelta numero 2 e la 3 diventa 2: lo fa l'app, non il
+ *   dito su questo segno) le cifre scorrono sfocate con [FluidNumericText], come il numero di un badge (R7). Col numero un
+ *   segno spento non disegna niente (ne' l'anello ne' il velo): come la scelta ordinata del selettore di iOS, dove le foto
+ *   non scelte non hanno l'anello. Null, di serie: la spunta.
  */
 @Composable
 fun FluidSelectionMark(
@@ -98,6 +119,7 @@ fun FluidSelectionMark(
   onPhoto: Boolean = false,
   tint: Color = Color.Unspecified,
   contentDescription: String? = FluidSelectionMarkDefaults.description(selected),
+  number: Int? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
@@ -115,24 +137,68 @@ fun FluidSelectionMark(
     else -> scheme.onSurfaceVariant.copy(alpha = 0.75f)
   }
 
-  Canvas(
-    modifier = modifier
-      .size(size)
-      .then(
-        if (contentDescription != null) {
-          Modifier.semantics { this.contentDescription = contentDescription }
-        } else {
-          Modifier
+  val described = modifier
+    .size(size)
+    .then(
+      if (contentDescription != null) {
+        Modifier.semantics { this.contentDescription = contentDescription }
+      } else {
+        Modifier
+      },
+    )
+  if (number != null) {
+    // F8.14: il numero d'ordine al posto della spunta. Il disco e l'anello restano un disegno solo; il numero e' un
+    // testo a parte solo sui segni che lo portano (pochi: le scelte, non le cento celle).
+    Box(described, contentAlignment = Alignment.Center) {
+      FluidSelectionDisk(fill = { fill.value }, onPhoto = onPhoto, fillColor = fillColor, idleRing = idleRing,
+        check = null, modifier = Modifier.matchParentSize(), ringAtRest = false)
+      // Il testo c'e' solo mentre il disco ha qualcosa da mostrare: un segno vuoto a riposo resta il solo disegno.
+      val lit by remember { derivedStateOf { fill.value > 0.001f } }
+      if (selected || lit) FluidNumericText(
+        value = number,
+        color = checkColor,
+        style = MaterialTheme.typography.labelMedium.copy(
+          fontWeight = FontWeight.SemiBold,
+          fontFeatureSettings = "tnum",
+          textAlign = TextAlign.Center,
+        ),
+        modifier = Modifier.graphicsLayer {
+          val p = fill.value
+          alpha = p.coerceIn(0f, 1f)
+          scaleX = p
+          scaleY = p
         },
-      ),
-  ) {
-    val progress = fill.value
+      )
+    }
+    return
+  }
+  FluidSelectionDisk(fill = { fill.value }, onPhoto = onPhoto, fillColor = fillColor, idleRing = idleRing,
+    check = checkColor, modifier = described)
+}
+
+/**
+ * Il disco, l'anello e (con [check]) la spunta del [FluidSelectionMark]: un disegno solo, con [fill] letto nel disegno.
+ */
+@Composable
+private fun FluidSelectionDisk(
+  fill: () -> Float,
+  onPhoto: Boolean,
+  fillColor: Color,
+  idleRing: Color,
+  check: Color?,
+  modifier: Modifier,
+  ringAtRest: Boolean = true,
+) {
+  Canvas(modifier = modifier) {
+    val progress = fill()
     val shown = progress.coerceIn(0f, 1f)
     val radius = this.size.minDimension / 2f
     // Lo spessore dell'anello scala col lato: a 24 dp e' 1,75, a 20 non deve restare 1,75.
     val ring = FluidSelectionMarkDefaults.RingWidth.toPx() * (this.size.minDimension / FluidSelectionMarkDefaults.Size.toPx())
 
-    if (onPhoto && shown < 1f) {
+    // Col numero (ringAtRest falso) il segno spento non c'e': anello e velo arrivano col disco.
+    if (!ringAtRest && shown <= 0f) return@Canvas
+    if (onPhoto && shown < 1f && ringAtRest) {
       drawCircle(
         color = Color.Black.copy(alpha = FluidSelectionMarkDefaults.PhotoScrimAlpha * (1f - shown)),
         radius = radius,
@@ -148,8 +214,9 @@ fun FluidSelectionMark(
       color = ringColor,
       radius = radius - ring / 2f,
       style = Stroke(width = ring),
+      alpha = if (ringAtRest) 1f else shown,
     )
-    if (shown > 0f) {
+    if (shown > 0f && check != null) {
       val w = this.size.width
       val h = this.size.height
       val p = FluidSelectionCheckPoints
@@ -163,7 +230,7 @@ fun FluidSelectionMark(
       scale(scaleX = progress, scaleY = progress, pivot = Offset(w / 2f, h / 2f)) {
         drawPath(
           path = path,
-          color = checkColor,
+          color = check,
           alpha = shown,
           style = Stroke(
             width = FluidSelectionCheckStroke * minOf(w, h),

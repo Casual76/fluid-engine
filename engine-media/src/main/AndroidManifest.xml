@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.14 · Nessun permesso: le foto del telefono le chiede l'app che usa la griglia del telefono (READ_MEDIA_IMAGES,
+    READ_MEDIA_VIDEO, READ_MEDIA_VISUAL_USER_SELECTED e READ_EXTERNAL_STORAGE fino ad Android 12), con la riga giusta
+    nel suo manifest. Il Photo Picker di Android e le sorgenti di altre app non ne vogliono.
+
+    La sola cosa che il modulo dichiara e' la visibilita' delle sorgenti delle altre app (Android 11+): chi legge deve
+    poter vedere i provider che espongono il contratto (FluidMediaSourceContract.ACTION_SOURCE).
+  -->
+  <queries>
+    <intent>
+      <action android:name="dev.antigravity.fluidengine.media.SOURCE" />
+    </intent>
+  </queries>
+</manifest>

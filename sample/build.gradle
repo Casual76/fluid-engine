@@ -192,6 +192,11 @@ dependencies {
   // F8.20 · Il centro trasferimenti (con engine-net e WorkManager): la scena scarica e carica davvero, da un server sul
   // loopback della galleria o da quello del PC (`adb reverse`). WorkManager parte su richiesta (`GalleryApplication`).
   implementation project(':engine-transfer')
+  // F8.18 · Lo sfoglia-file (engine-files, sopra engine-viewer): la scena sfoglia la cartella della galleria e le
+  // cartelle concesse col selettore di sistema, e apre i file nei visori dalla miniatura.
+  implementation project(':engine-files')
+  // F8.14 · Foto e allegati: il selettore di foto e video e il pannello degli allegati, con sorgenti finte.
+  implementation project(':engine-media')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

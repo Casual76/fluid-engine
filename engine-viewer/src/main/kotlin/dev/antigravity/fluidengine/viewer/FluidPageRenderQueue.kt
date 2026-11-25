@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.viewer
 import android.content.ComponentCallbacks2
 import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageDisplay
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageRead
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.CancellationException
@@ -58,6 +59,12 @@ internal class FluidPageRenderQueue<T : Any>(
   threadName: String = "FluidPdf",
   /** Gira una volta sola, sul thread del documento, dopo la sua chiusura (o dopo un'apertura fallita o annullata). */
   private val release: () -> Unit = {},
+  /**
+   * F8.18 · La pagina per lo schermo ([FluidPageDisplay] nel contesto di chi chiede): di serie la stessa resa. Il PDF
+   * la porta nella memoria grafica sul thread del documento, così il primo disegno non carica la texture dentro il
+   * fotogramma. Gira sul thread del documento, dentro la prenotazione della resa (che conta già due copie).
+   */
+  private val display: ((T) -> T)? = null,
 ) : Closeable {
 
   private val executor = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, threadName).apply { isDaemon = true } }
@@ -107,7 +114,11 @@ internal class FluidPageRenderQueue<T : Any>(
   @Volatile var renders: Int = 0
     private set
 
-  private data class Key(val index: Int, val width: Int, val height: Int)
+  /** Quante rese per lo schermo sono state portate nella memoria grafica. Per i test e la diagnostica. */
+  @Volatile var displayed: Int = 0
+    private set
+
+  private data class Key(val index: Int, val width: Int, val height: Int, val display: Boolean = false)
 
   /** Apre il documento sul suo thread. Un errore qui (file rotto, protetto) chiude tutto e risale a chi chiama. */
   suspend fun start(): Int = onThread {
@@ -134,7 +145,7 @@ internal class FluidPageRenderQueue<T : Any>(
       memory.ensureCurrent(memory.resources.trimGeneration, false)
       document().pageSize(index).also {
         sizes[index] = it
-        if (sizes.size > 64) sizes.remove(sizes.keys.first())
+        if (sizes.size > MaxSizes) sizes.remove(sizes.keys.first())
       }
     }
   }
@@ -151,7 +162,8 @@ internal class FluidPageRenderQueue<T : Any>(
     val reader = caller[FluidPageRead]
     val optional = caller[OptionalViewerWork] != null || reader?.optional == true
     val generation = memory.resources.trimGeneration
-    val key = Key(index, size.width, size.height)
+    val forDisplay = display != null && caller[FluidPageDisplay] != null
+    val key = Key(index, size.width, size.height, forDisplay)
     val preview = maxOf(size.width, size.height) <= previewLongSide
     val cache = if (preview) previews else pages
     fun ready(): T? = synchronized(memory.lock) {
@@ -166,7 +178,10 @@ internal class FluidPageRenderQueue<T : Any>(
           val document = document()
           require(index in 0 until pageCount) { "Pagina $index fuori da 0 until $pageCount" }
           memory.decode(FluidMemoryCategory.VIEWER, size, optional, { pixelPeak(it, 8) },
-            { admitted -> document.render(index, admitted).also { renders++ } }, bytesOf, physical, discard) { pixels ->
+            { admitted ->
+              val rendered = document.render(index, admitted).also { renders++ }
+              if (forDisplay) display?.invoke(rendered)?.also { if (it !== rendered) displayed++ } ?: rendered else rendered
+            }, bytesOf, physical, discard) { pixels ->
               if (closed) throw CancellationException("Il documento è chiuso")
               memory.ensureCurrent(generation, optional)
               val result = pixels.read(reader)
@@ -262,6 +277,11 @@ internal class FluidPageRenderQueue<T : Any>(
     const val DefaultPreviewLongSide: Int = 256
     /** La pagina più grande che si rende: 12 MP (48 MB), oltre si riduce. A occhio, 22 novembre 2026. */
     const val DefaultMaxPixels: Long = 12_000_000
+    /**
+     * F8.18 · Le misure delle pagine tenute: 256, perché un documento di migliaia di pagine si scorre avanti e indietro
+     * con la maniglia (prima 64). Una misura è pochi byte; rimisurare apre la pagina nel renderer.
+     */
+    const val MaxSizes: Int = 256
   }
 }
 

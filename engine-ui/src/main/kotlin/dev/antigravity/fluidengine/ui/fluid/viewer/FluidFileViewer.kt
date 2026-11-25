@@ -184,6 +184,8 @@ fun FluidFileViewer(
   }
   val file = files[index]
   val infoSource = LocalViewerInfoSource.current
+  // F8.18: il posto della posizione di ogni pagina (FluidViewerResumeProvider), letto dai preset.
+  val resumeSource = LocalViewerResumeProvider.current
   val pageDetails = mutableMapOf<Int, FluidViewerInfo?>()
   for (page in files.keys) pageDetails[page] = key(page) { infoSource(page) }
   val suppliedInfo = pageDetails[index]
@@ -310,9 +312,11 @@ fun FluidFileViewer(
                   else if (video != null) Modifier.fillMaxSize() else Modifier.fillMaxSize().then(shared)
                 val menuLabels = if (pageInfo == null) emptySet() else viewerFileMenuEntries(pageActions[page],
                   pageInfo.actions, printFor(page), openInfo.takeIf { hasInfo }, emptySet(), strings).mapTo(HashSet()) { it.label }
+                val resumeSlot = remember(resumeSource, page, item) { resumeSource?.invoke(page) }
                 CompositionLocalProvider(LocalContentColor provides if (item.blackBackground) Color.White else theme.onSurface,
                   LocalViewerInfo provides pageInfo, LocalViewerPage provides pageScope, LocalViewerEntrance provides claim,
-                  LocalVideoShared provides shared.takeIf { video != null }, LocalViewerFileMenuLabels provides menuLabels) {
+                  LocalVideoShared provides shared.takeIf { video != null }, LocalViewerFileMenuLabels provides menuLabels,
+                  LocalViewerResumeSlot provides resumeSlot) {
                   if (item is FluidViewerContent.Image) {
                     Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().fillMaxHeight(photoSpace),
                       contentAlignment = Alignment.Center) {

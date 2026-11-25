@@ -1,9 +1,6 @@
 package dev.antigravity.fluidengine.viewer.data
 
 import android.os.ParcelFileDescriptor
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.antigravity.fluidengine.ui.fluid.FluidWebResponse
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.viewer.FluidTextDecoder
@@ -11,6 +8,7 @@ import dev.antigravity.fluidengine.viewer.FluidTextDocument
 import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerException
 import dev.antigravity.fluidengine.viewer.FluidViewerFailure
+import dev.antigravity.fluidengine.viewer.FluidViewerLiveDetails
 import dev.antigravity.fluidengine.viewer.FluidViewerOpened
 import dev.antigravity.fluidengine.viewer.FluidViewerRequest
 import java.io.BufferedInputStream
@@ -141,7 +139,7 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
     val singleByteLines = charset.charset == Charsets.UTF_8 || charset.charset.newEncoder().maxBytesPerChar() <= 1f
     var temp: File? = null
     var pfd: ParcelFileDescriptor? = null
-    val details = mutableStateListOf<FluidViewerDetail>()
+    val details = FluidViewerLiveDetails()
     val sampleText = DataText.decodeWith(sample.bytes, charset.bomLength, sample.length - charset.bomLength, charset.charset)
     val usable = if (sample.truncated) sampleText.substringBeforeLast('\n', sampleText) else sampleText
     val dialect = DataCsv.sniff(usable, extension)
@@ -150,7 +148,8 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
     val widths = DataCsv.columnWidths(rows)
     val columns = rows.maxOfOrNull { it.size } ?: 1
     // Il conto finisce in sottofondo, anche prima che la pagina abbia i suoi dati: chi arriva per secondo non li raddoppia.
-    val finish: (DataCsvGrid) -> Unit = { g -> synchronized(details) { details.replaceWith(csvDetails(g, charset).list) } }
+    // Ogni cambio è una lista intera al posto dell'altra (F7.20): chi legge il pannello non la trova mai a metà.
+    val finish: (DataCsvGrid) -> Unit = { g -> details.replace(csvDetails(g, charset).list) }
     val grid = try {
       if (singleByteLines) {
         val descriptor = source.seekable()
@@ -176,7 +175,7 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
       temp?.delete()
       throw e
     }
-    synchronized(details) { if (details.isEmpty()) details.addAll(csvDetails(grid, charset).list) }
+    details.update { if (it.isEmpty()) csvDetails(grid, charset).list else it }
     return FluidViewerOpened(FluidViewerContent.Grid(grid), details, onClose = { grid.close() })
   }
 
@@ -493,26 +492,12 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
 }
 
 /**
- * I dati del pannello info che arrivano dopo l'apertura (il conto delle righe di un CSV): la lista è uno stato. La
- * sostituzione arriva da un filo in sottofondo e si applica in un colpo solo: chi legge la lista (la composizione, il
- * pannello) vede i dati di prima o quelli nuovi, mai la lista vuota a metà.
+ * Una copia ferma dei dati del pannello. Quelli di un CSV cambiano quando il conto delle righe finisce in sottofondo
+ * ([FluidViewerLiveDetails]): si leggono una volta sola, e sono sempre una lista intera. In composizione la lettura si
+ * iscrive ai cambi. F7.20: prima era una copia in un'istantanea di Compose, che non bastava (vedi la classe).
  */
-internal fun SnapshotStateList<FluidViewerDetail>.replaceWith(items: List<FluidViewerDetail>) {
-  Snapshot.withMutableSnapshot {
-    clear()
-    addAll(items)
-  }
-}
-
-/** Una copia ferma della lista, letta in un'istantanea: fuori dalla composizione la sostituzione può arrivare a metà lettura. */
-internal fun <T> List<T>.consistentCopy(): List<T> {
-  val snapshot = Snapshot.takeSnapshot()
-  try {
-    return snapshot.enter { toList() }
-  } finally {
-    snapshot.dispose()
-  }
-}
+internal fun List<FluidViewerDetail>.consistentCopy(): List<FluidViewerDetail> =
+  (this as? FluidViewerLiveDetails)?.current ?: toList()
 
 /** Come si vede una pagina web nel tema scuro, per il pannello info. */
 internal fun colorsLabel(colors: DataWebColors): String = when (colors) {

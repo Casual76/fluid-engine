@@ -98,7 +98,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-viewer/viewer/FluidDecodedImage.kt`
 
-- `class FluidDecodedImage private constructor(val width: Int, val height: Int, val sourceWidth: Int, val sourceHeight: Int, private val bitmap: ImageBitmap?, val animation: Drawable?)` — Un'immagine decodificata dal modulo, ferma o animata, pronta per il preset immagine.
+- `class FluidDecodedImage private constructor(val width: Int, val height: Int, val sourceWidth: Int, val sourceHeight: Int, private val bitmap: ImageBitmap?, val animation: Drawable?, private val region: (() -> ParcelFileDescriptor?)? = null)` — Un'immagine decodificata dal modulo, ferma o animata, pronta per il preset immagine.
   - `val animated: Boolean get()` — Vero se è un contenuto che si riproduce (una GIF o una WebP animata, decodificata su Android 9+).
   - `val still: ImageBitmap? get()` — La bitmap di un'immagine ferma, `null` se è animata.
   - `val aspectRatio: Float get()` — Il rapporto d'aspetto, per il telaio (limiti del pan, elemento condiviso).
@@ -161,6 +161,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun prefetch(index: Int)` — Preriscalda una pagina vicina a bassa risoluzione finché la finestra ha margine.
   - `companion object`
     - `const val DefaultMaxCopyBytes: Long` — Il tetto della copia di un PDF che arriva da un `Uri` non ricercabile (un flusso, una pipe): `PdfRenderer` vuole un descrittore su cui spostarsi, quindi il file si copia nella cache dell'app. 512 MB, a occhio, 22 novembre 2026: un PDF più grande da un flusso è un caso da «Apri con…».
+    - `var hardwareDisplay: Boolean` — F8.18 · Le pagine per lo schermo passano nella memoria grafica (`Bitmap.Config.HARDWARE`) sul thread del PDF, di serie sì: il primo disegno di una pagina non carica la texture dentro il fotogramma del RenderThread, e a 120 Hz non c'è lo scatto all'arrivo di ogni pagina. Solo per le prove di confronto sul dispositivo (la galleria in debug): spento, ogni pagina si carica al primo disegno, come prima di F8.18.
     - `suspend fun open(descriptor: ParcelFileDescriptor): FluidPdfPageSource` — Apre un PDF da un descrittore, che passa al sorgente (lo chiude lui, anche se l'apertura fallisce). Il descrittore deve essere ricercabile: per un `Uri` qualunque usare l'altro [open], che copia quando serve.
     - `suspend fun open(file: File): FluidPdfPageSource` — Apre un PDF da un file dell'app.
     - `suspend fun open(context: Context, uri: Uri, maxCopyBytes: Long = DefaultMaxCopyBytes): FluidPdfPageSource` — Apre un PDF da un `Uri` (`content://` o `file://`). Se il descrittore non è ricercabile copia il file nella cache dell'app, al più [maxCopyBytes], e cancella la copia alla chiusura. La copia si interrompe se chi chiama è annullato, e non lascia file a metà.
@@ -316,6 +317,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun content(index: Int): FluidViewerContent` — Il contenuto della pagina [index]. La prima volta comincia ad aprire il file e chiude quelli lontani.
 - `@Composable fun rememberFluidViewerFiles(files: List<FluidViewerFile>, options: FluidViewerOptions = FluidViewerOptions(), window: Int = 1, openWith: ((FluidViewerFile) -> Unit)? = null, share: ((FluidViewerFile) -> Unit)? = null, media: ((FluidViewerFile, FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerFiles` — I file di [files] per il visore, aperti col modulo attorno alla pagina corrente e chiusi quando la composizione esce. [media] dà il contenuto di un video o di un audio col player dell'app (per esempio `{ _, type -> fluidMedia3Content(session, video = type.preset == FluidViewerPreset.Video) }`); senza, i video vanno allo sconosciuto. [openWith] e [share] diventano «Apri con…» e «Condividi» dello sconosciuto.
 
+## `engine-viewer/viewer/FluidViewerLiveDetails.kt`
+
+- `class FluidViewerLiveDetails(initial: List<FluidViewerDetail> = emptyList()) : AbstractList<FluidViewerDetail>()` — F7.20 · Le righe del pannello info che cambiano dopo l'apertura: il conto delle righe di un CSV che finisce in sottofondo, le pagine di un documento Office contate mentre si impagina. È una lista di sola lettura che è anche uno stato: chi la legge in composizione (`fluidDataViewerInfo`, `officeInfo`) si aggiorna da solo quando cambia.
+  - `val current: List<FluidViewerDetail> get()` — Le righe di adesso, intere e immutabili. In composizione la lettura si iscrive ai cambi.
+  - `fun replace(items: List<FluidViewerDetail>)` — Mette [items] al posto delle righe di adesso, in un passo solo. Righe uguali a quelle di adesso non cambiano niente.
+  - `fun add(detail: FluidViewerDetail)` — Aggiunge [detail] in fondo.
+  - `fun update(transform: (List<FluidViewerDetail>) -> List<FluidViewerDetail>)` — Cambia le righe con [transform], che riceve quelle di adesso e dà le nuove. I cambi di fili diversi passano uno alla volta, quindi [transform] vede sempre l'ultimo cambio: «aggiungi se manca» o «riempi se è vuota» sono sicuri.
+
 ## `engine-viewer/viewer/FluidViewerMemory.kt`
 
 - `object FluidViewerRaster` — Adattatore dei moduli di famiglia per una superficie a misura riducibile e il suo scratch simultaneo.
@@ -333,6 +342,35 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun uninstall(vararg id: String)` — Toglie le famiglie con questi `id`, trovate o installate: il loro tipo torna allo sconosciuto.
   - `suspend fun open(context: Context, source: FluidViewerSource, options: FluidViewerOptions = FluidViewerOptions(), openWith: (() -> Unit)? = null, share: (() -> Unit)? = null, media: ((FluidViewerType) -> FluidViewerContent?)? = null): FluidViewerDocument` — Apre [source] con il risolutore: un tipo di famiglia se un modulo lo conosce, altrimenti i preset di serie, e lo sconosciuto con «Apri con…» se niente lo apre. Serve anche ai moduli per i file dentro i file (la voce di un archivio, l'allegato di una mail): un PDF dentro uno ZIP usa il preset PDF, un DOCX allegato usa Office se c'è. Il documento **possiede** la sorgente e la chiude con sé;
   - `suspend fun thumbnail(context: Context, source: FluidViewerSource, sizePx: Int, options: FluidViewerOptions = FluidViewerOptions()): ImageBitmap?` — La miniatura del contenuto di [source], larga al più [sizePx]: quella della famiglia che lo apre, nell'ordine dei candidati, e (F6C.17) quelle di engine-viewer di serie, cioè le prime righe del testo e del codice coi colori e l'icona di un APK. `null` se niente ne dà una: per le foto e i PDF la miniatura è dell'app, e un tipo che niente legge non ha contenuto da mostrare. Non chiude [source].
+
+## `engine-viewer/viewer/FluidViewerResumeStore.kt`
+
+- `class FluidViewerResumeStore @VisibleForTesting internal constructor(private val file: File, val maxEntries: Int = DefaultMaxEntries, private val saveDelayMillis: Long = DefaultSaveDelayMillis, private val clock: () -> Long = System::currentTimeMillis)` — F8.18 · **Riprendi dallo stesso punto**: dove l'utente era in ogni file (la pagina e il punto della pagina, lo zoom, la riga, il secondo di un audio o di un video), salvato **in modo leggero** e **cancellato quando il file non c'è più**.
+  - `data class Entry(val key: String, val uri: String, val revision: String?, val position: FluidViewerPosition, val savedAtMillis: Long)` — Una posizione salvata: la [key] del file, il suo indirizzo ([uri], per [prune]), la [revision] del contenuto, la [position] e quando è stata salvata. [encode] la scrive in una riga separata da tabulazioni.
+    - `fun encode(): String`
+    - `companion object`
+  - `val all: List<Entry> get()` — Le posizioni salvate, dalla meno usata alla più usata.
+  - `fun read(key: String): Entry?` — La posizione del file [key], o null.
+  - `fun save(key: String, uri: String, revision: String?, position: FluidViewerPosition)` — Salva la [position] del file [key]. Una posizione all'inizio ([FluidViewerPosition.isStart]) non serve: toglie quella che c'era. La scrittura su disco arriva più tardi, tutta insieme.
+  - `fun forget(key: String)` — Toglie la posizione del file [key] (l'app ha cancellato il file, o l'utente l'ha chiuso dall'inizio).
+  - `fun forgetUri(uri: Uri)` — Toglie le posizioni di un indirizzo, qualunque sia la chiave.
+  - `fun export(key: String): String?` — La riga della posizione di [key], per portarla su un altro dispositivo; null se non c'è.
+  - `fun import(record: String): Boolean` — Prende la riga di un altro dispositivo ([export]). Vince la più recente: una riga più vecchia di quella che c'è non cambia niente. Vero se la posizione è entrata.
+  - `fun observe(listener: (Entry) -> Unit): Closeable` — Avvisa [listener] a ogni posizione salvata, per l'app che la porta altrove. Chiudere per smettere.
+  - `fun flush()` — Scrive subito sul disco ciò che è in memoria. Lo fa da sé quando l'app va in background.
+  - `suspend fun prune(exists: suspend (Entry) -> Boolean?): Int` — Toglie le posizioni dei file che non esistono più: [exists] dice per ogni posizione se il suo file c'è ancora (vero), non c'è più (falso) o non si sa (null: la posizione resta, per esempio un provider che non risponde). Di serie si chiede all'indirizzo ([resumeTargetExists]). Restituisce quante posizioni sono uscite.
+  - `suspend fun prune(context: Context): Int` — [prune] con la domanda di serie all'indirizzo di ogni file.
+  - `val pruneDue: Boolean get()` — Vero se è passato un giorno dall'ultima pulizia (o non c'è mai stata).
+  - `fun slot(file: FluidViewerFile, key: String = keyOf(file), revision: String? = revisionOf(file)): FluidViewerResumeSlot` — Il posto della posizione di [file] per il telaio ([FluidViewerResumeSlot]): la posizione della stessa revisione si applica, quella di un'altra si offre ([FluidViewerResumeSlot.stale]).
+  - `companion object`
+    - `const val DefaultMaxEntries: Int` — Le posizioni tenute: 300 file, una ventina di KB. A occhio, 25 novembre 2026.
+    - `const val DefaultSaveDelayMillis: Long` — L'attesa prima di scrivere sul disco dopo l'ultima modifica: 1,5 s. A occhio, 25 novembre 2026.
+    - `const val PruneIntervalMillis: Long` — Ogni quanto si cercano le posizioni dei file spariti: un giorno.
+    - `fun get(context: Context): FluidViewerResumeStore` — Il negozio del processo, nel `noBackupFilesDir` dell'app. La prima volta scrive su disco quando l'app va in background e, se è passato un giorno, pulisce le posizioni dei file spariti fuori dal thread principale.
+    - `fun keyOf(file: FluidViewerFile): String` — La chiave di serie di un file: il suo indirizzo. Lo stesso nome con un indirizzo diverso è un altro file.
+    - `fun revisionOf(file: FluidViewerFile): String?` — La revisione di serie: peso e data, se si sanno; null se l'app non li dà (allora vale qualunque revisione).
+- `fun resumeTargetExists(context: Context, uri: Uri): Boolean?` — Il file a [uri] esiste ancora? Vero, falso, o null se non si sa (un provider che non risponde, uno schema che non si può chiedere). `file://`: il disco. `content://`: una riga dal provider (nessun provider, un permesso perso o un documento sparito valgono falso). `android.resource://`: sempre vero.
+- `@Composable fun rememberFluidViewerResume(files: FluidViewerFiles, store: FluidViewerResumeStore = FluidViewerResumeStore.get(LocalContext.current), key: (FluidViewerFile) -> String = FluidViewerResumeStore::keyOf, revision: (FluidViewerFile) -> String? = FluidViewerResumeStore::revisionOf): (Int) -> FluidViewerResumeSlot?` — Il posto della posizione di ogni file di [files] per [dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerResumeProvider]: `FluidViewerResumeProvider(rememberFluidViewerResume(files)) { FluidFileViewer(count = files.count, content = files::content) }`. Un file che il visore non riesce più a leggere perde la sua posizione.
 
 ## `engine-viewer/viewer/FluidViewerSource.kt`
 

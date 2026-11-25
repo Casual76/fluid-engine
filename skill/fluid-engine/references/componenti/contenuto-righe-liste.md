@@ -468,6 +468,8 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 | `navigation`, `actions` | i tasti di vetro della testata: a sinistra (indietro) e a destra («Seleziona»); rifrangono le foto |
 | `titleOnPhotos` | vero (di serie): titolo e data bianchi su un velo scuro e le icone della barra di stato chiare finché le foto ci passano sotto, come Foto; falso per una griglia su una pagina chiara (file col nome): inchiostro del tema su un velo del colore del fondo |
 | `cell` | il contenuto: riempie la cella, che ritaglia e porta il segno |
+| `numbered` | le scelte portano il **numero d'ordine** al posto della spunta (F8.14, il selettore di foto: `selection = .ordered` di iOS); togliendone una le altre scalano e la cifra scorre sfocata |
+| `onItemLongPress` | la pressione lunga su una cella (F8.14: l'anteprima del selettore); con lei la pressione lunga non entra più nella selezione trascinando, che parte col dito di lato |
 
 - **Il pizzico**: la griglia segue le dita attorno al punto fra di esse; a metà strada (geometrica) verso la densità
   vicina cambia colonne **restando sul punto**: la cella sotto le dita resta sotto le dita, alla stessa frazione della
@@ -497,6 +499,9 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
   si dà un `contentPadding` in alto (barra di stato + ~150 dp): la prima riga parte sotto la testata e poi ci scorre
   sotto.
 - **Lo scorrimento rapido** è `FluidFastScroller` sulla griglia.
+- **Il tetto** (F8.14): con una `FluidSelectionState(limit = …)` a tetto pieno le celle non scelte hanno sopra un velo del
+  colore della pagina (55%, `FluidPreviewGridDefaults.LimitVeilAlpha`) e il tocco non le sceglie, come il selettore di iOS.
+  Il selettore di foto di `engine-media` usa questa griglia: [../moduli/media.md](../moduli/media.md).
 - **Memoria**: la griglia non tiene immagini sue; le celle fuori vista escono dalla composizione e la cache è quella
   delle miniature (`FluidFileThumbnails`, a memoria limitata). Le celle già in vista **non ricompongono scorrendo**
   (provato): la scelta si legge per cella solo quando cambia, la scala del pizzico solo nel disegno.

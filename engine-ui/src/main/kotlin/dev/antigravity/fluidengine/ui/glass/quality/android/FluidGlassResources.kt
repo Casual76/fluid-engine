@@ -79,6 +79,15 @@ class FluidGlassResources private constructor(private val app: Application) {
     GlassMemoryProfile.Reduced -> 2
     GlassMemoryProfile.Protected -> 1
   }
+  /**
+   * F8.18 · Il profilo di memoria del processo per i visori a pagine: 0 Pieno, 1 Ridotto, 2 Protetto. Il preset delle
+   * pagine sceglie da qui la risoluzione di lettura e quella delle anteprime, senza regolazioni da esporre.
+   */
+  internal val viewerProfile: Int @Synchronized get() = when (row) {
+    GlassMemoryProfile.Full -> 0
+    GlassMemoryProfile.Reduced -> 1
+    GlassMemoryProfile.Protected -> 2
+  }
   private var hidden = false
 
   /** Un solo registro per tutti i layer e i decoder, comprese finestre simultanee. */

@@ -45,3 +45,15 @@ class FluidPageRead(val optional: Boolean = false) : AbstractCoroutineContextEle
     readers = null
   }
 }
+
+/**
+ * F8.18 · La resa chiesta dal preset delle pagine **per lo schermo**, mai per la stampa o per un'immagine da
+ * condividere. Una sorgente che lo sa (il PDF di engine-viewer) può consegnare una bitmap già nella memoria grafica
+ * (`Bitmap.Config.HARDWARE`), caricata fuori dal RenderThread: così la prima volta che la pagina si disegna non c'è il
+ * caricamento della texture dentro il fotogramma, che a 120 Hz è uno scatto. Una bitmap così non si legge e non si
+ * disegna in un `Canvas` software: per questo vale solo dentro questo contesto.
+ */
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+object FluidPageDisplay : CoroutineContext.Element, CoroutineContext.Key<FluidPageDisplay> {
+  override val key: CoroutineContext.Key<*> get() = this
+}

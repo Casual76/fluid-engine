@@ -1,0 +1,58 @@
+// F8.18 · Lo sfoglia-file (`sfoglia-file`): la pagina di vetro per sfogliare e scegliere i file, come File di iOS 26
+// (`UIDocumentBrowserViewController`, `fileImporter` di SwiftUI). «Sfoglia» con le posizioni (le sorgenti dell'app, le
+// cartelle che l'utente concede con lo Storage Access Framework, anche quelle delle app che hanno un DocumentsProvider)
+// e «Recenti»; ogni cartella in griglia con le miniature vere o in elenco, ordinata, con la ricerca, la selezione e
+// l'apertura nei visori dell'engine dalla miniatura (il viaggio d'oro), con la ripresa dallo stesso punto.
+// Opt-in, sopra engine-viewer (i visori e le miniature) e quindi engine-ui:
+//
+//   implementation project(':engine-files')
+//
+// Nessuna libreria: lo Storage Access Framework è di Android. Il confine (la scheda dell'idea): l'engine sfoglia, ordina,
+// cerca, sceglie e apre; copiare, spostare, rinominare e cancellare restano dell'app, che li dà come azioni.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.files'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  testOptions {
+    unitTests {
+      // Le sorgenti (il disco dell'app, un albero di documenti con un provider finto), i recenti e le pagine di una
+      // cartella si provano in Robolectric; la pagina col dito vero sta nelle prove della galleria.
+      includeAndroidResources = true
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme parlano `FluidViewerFile` e `FluidViewerContent` (i visori), e da lì engine-ui.
+  api project(':engine-viewer')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

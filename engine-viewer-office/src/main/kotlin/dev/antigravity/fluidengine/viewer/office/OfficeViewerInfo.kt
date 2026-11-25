@@ -1,8 +1,9 @@
 package dev.antigravity.fluidengine.viewer.office
 
 import dev.antigravity.fluidengine.ui.fluid.viewer.*
-import androidx.compose.runtime.snapshots.Snapshot
+import dev.antigravity.fluidengine.viewer.FluidViewerDetail
 import dev.antigravity.fluidengine.viewer.FluidViewerDocument
+import dev.antigravity.fluidengine.viewer.FluidViewerLiveDetails
 import java.time.DateTimeException
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,7 +18,7 @@ import java.util.Locale
  * pagination.
  */
 fun FluidViewerDocument.officeInfo(): FluidViewerInfo {
-  // La lista cresce da un filo in sottofondo (l'impaginazione): si legge una copia ferma, presa in un'istantanea.
+  // La lista cresce da un filo in sottofondo (l'impaginazione): si legge una copia ferma, una volta sola.
   val details = details.consistentCopy()
   val presentation = file.name.substringAfterLast('.').lowercase(Locale.ROOT) in setOf("pptx", "odp")
   val officePages = (content as? FluidViewerContent.Pages)?.source as? OfficePages
@@ -81,12 +82,10 @@ internal fun officeDisplayDate(raw: String, locale: Locale, zone: ZoneId): Strin
   }
 }
 
-/** Una copia ferma della lista, letta in un'istantanea: fuori dalla composizione una riga nuova può arrivare a metà lettura. */
-internal fun <T> List<T>.consistentCopy(): List<T> {
-  val snapshot = Snapshot.takeSnapshot()
-  try {
-    return snapshot.enter { toList() }
-  } finally {
-    snapshot.dispose()
-  }
-}
+/**
+ * Una copia ferma delle righe: quelle che l'impaginazione aggiunge in sottofondo ([FluidViewerLiveDetails]) si leggono
+ * una volta sola, sempre intere; in composizione la lettura si iscrive ai cambi. F7.20: prima era una copia in
+ * un'istantanea di Compose, che non bastava (vedi la classe).
+ */
+internal fun List<FluidViewerDetail>.consistentCopy(): List<FluidViewerDetail> =
+  (this as? FluidViewerLiveDetails)?.current ?: toList()

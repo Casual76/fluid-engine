@@ -77,13 +77,25 @@ sealed interface FluidSelectionMode<out K : Any> {
  *
  * **Thread.** Come ogni stato di Compose: si modifica dal thread principale.
  *
+ * **Il tetto** (F8.14, `selectionLimit` del selettore di foto di iOS). Con [limit] la forma esplicita non supera quel
+ * numero di chiavi: una scelta in piu' non entra (la chiave resta non scelta, niente cambia), e [atLimit] dice quando le
+ * altre righe vanno mostrate spente. «Seleziona tutto» con un tetto non fa niente: sarebbe una scelta oltre il tetto. Le
+ * chiavi della forma esplicita restano nell'ordine in cui sono state scelte, ed e' cosi' che il selettore numera le scelte.
+ *
  * Una persona sola non puo' scegliere due righe uguali: le chiavi sono insiemi (`K` deve avere
  * `equals`/`hashCode` veri: un id, non un oggetto mutabile) e **stabili fra aggiornamenti dei dati**
  * (un id di database, non l'indice nella lista: una riga arrivata in cima sposterebbe la scelta sulla riga
  * sbagliata).
  */
 @Stable
-class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelectionMode.Explicit(emptySet())) {
+class FluidSelectionState<K : Any>(
+  initial: FluidSelectionMode<K> = FluidSelectionMode.Explicit(emptySet()),
+  /** Quante chiavi al piu' si possono scegliere (F8.14); di serie nessun tetto. Almeno 1. */
+  val limit: Int = Int.MAX_VALUE,
+) {
+  init {
+    require(limit >= 1) { "FluidSelectionState: il tetto e' almeno 1" }
+  }
 
   private var current: FluidSelectionMode<K> by mutableStateOf(initial)
 
@@ -99,6 +111,13 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
       is FluidSelectionMode.Explicit -> m.keys.isNotEmpty()
       is FluidSelectionMode.AllExcept -> true
     }
+
+  /**
+   * Il tetto e' raggiunto (F8.14): in forma esplicita ci sono gia' [limit] chiavi, e una scelta nuova non entra. Le righe
+   * non scelte si mostrano spente, come il selettore di foto di iOS a tetto pieno. Mai vero senza un tetto.
+   */
+  val atLimit: Boolean
+    get() = limit != Int.MAX_VALUE && (current as? FluidSelectionMode.Explicit)?.let { it.keys.size >= limit } == true
 
   /** E' la forma «tutto tranne»: il numero scelto dipende dal totale ([countIn]). */
   val isAllExcept: Boolean get() = current is FluidSelectionMode.AllExcept
@@ -156,7 +175,7 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
     current = when (val m = current) {
       is FluidSelectionMode.Explicit ->
         if (selected) {
-          if (key in m.keys) m else FluidSelectionMode.Explicit(m.keys + key)
+          if (key in m.keys || m.keys.size >= limit) m else FluidSelectionMode.Explicit(m.keys + key)
         } else {
           if (key in m.keys) FluidSelectionMode.Explicit(m.keys - key) else m
         }
@@ -181,6 +200,8 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
    *   alla morte del processo; l'app ne decide il formato.
    */
   fun selectAll(snapshot: String? = null) {
+    // Con un tetto «tutto» lo supererebbe: non si fa (F8.14).
+    if (limit != Int.MAX_VALUE) return
     current = FluidSelectionMode.AllExcept(emptySet(), snapshot)
   }
 
@@ -266,10 +287,13 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
      * @param keySaver come salvare una chiave. Null: la chiave e' gia' salvabile (`String`, `Int`,
      *   `Long`, o un `Serializable`) e si salva com'e'. Una chiave che non lo e' (un oggetto) richiede il
      *   suo [Saver]; **non** mettere nel `Bundle` l'oggetto di dominio, solo il suo identificatore.
+     * @param limit il tetto dello stato ripristinato ([FluidSelectionState.limit], F8.14): non si salva, lo dice chi crea
+     *   lo stato.
      */
     fun <K : Any> saver(
       keySaver: Saver<K, out Any>? = null,
       maxSavedKeys: Int = DefaultMaxSavedKeys,
+      limit: Int = Int.MAX_VALUE,
     ): Saver<FluidSelectionState<K>, Any> {
       @Suppress("UNCHECKED_CAST")
       val keys = keySaver as Saver<K, Any>?
@@ -307,8 +331,9 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
             if (kind == KindAllExcept) {
               FluidSelectionMode.AllExcept(restored, snapshot)
             } else {
-              FluidSelectionMode.Explicit(restored)
+              FluidSelectionMode.Explicit(if (restored.size > limit) restored.take(limit).toCollection(LinkedHashSet()) else restored)
             },
+            limit,
           )
         },
       )
@@ -331,6 +356,14 @@ class FluidSelectionState<K : Any>(initial: FluidSelectionMode<K> = FluidSelecti
 @Composable
 fun <K : Any> rememberFluidSelectionState(keySaver: Saver<K, out Any>? = null): FluidSelectionState<K> =
   rememberSaveable(saver = FluidSelectionState.saver(keySaver)) { FluidSelectionState() }
+
+/**
+ * Come l'altra, con un tetto (F8.14): al piu' [limit] chiavi scelte ([FluidSelectionState.limit]). Un [limit] che cambia
+ * fa uno stato nuovo, vuoto.
+ */
+@Composable
+fun <K : Any> rememberFluidSelectionState(keySaver: Saver<K, out Any>? = null, limit: Int): FluidSelectionState<K> =
+  rememberSaveable(limit, saver = FluidSelectionState.saver(keySaver, limit = limit)) { FluidSelectionState(limit = limit) }
 
 /**
  * Il back esce dalla selezione, e non da altro.

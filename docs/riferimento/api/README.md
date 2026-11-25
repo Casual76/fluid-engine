@@ -11,7 +11,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 20 | 291 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 53 | 457 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 54 | 474 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
@@ -37,13 +37,14 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-vault](vault.md) | 10 | 125 |
 | [engine-security](security.md) | 7 | 78 |
-| [engine-viewer](viewer.md) | 30 | 212 |
+| [engine-viewer](viewer.md) | 32 | 235 |
 | [engine-sync](sync.md) | 13 | 162 |
 | [engine-revisions](revisions.md) | 2 | 18 |
 | [engine-auth](auth.md) | 9 | 52 |
 | [engine-auth-google](auth-google.md) | 2 | 17 |
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
+| [engine-media](media.md) | 13 | 179 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
 | [engine-account-host](account-host.md) | 25 | 302 |
@@ -51,6 +52,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-people](people.md) | 20 | 371 |
 | [engine-push-fcm](push-fcm.md) | 1 | 11 |
 | [engine-transfer](transfer.md) | 5 | 59 |
+| [engine-files](files.md) | 6 | 81 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

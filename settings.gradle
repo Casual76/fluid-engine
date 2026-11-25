@@ -74,6 +74,12 @@ include ':engine-push-fcm'
 // F8.20 · Il centro trasferimenti: la coda persistita degli scaricamenti e dei caricamenti lunghi, sopra engine-net e
 // WorkManager. Opt-in; la pagina «Trasferimenti» e la pillola stanno in engine-ui.
 include ':engine-transfer'
+// F8.18 · Lo sfoglia-file (engine-files): le posizioni, le cartelle in griglia o in elenco, la ricerca, i recenti e
+// l'apertura nei visori dalla miniatura. Opt-in, sopra engine-viewer.
+include ':engine-files'
+// F8.14 · Foto e allegati: il selettore di foto e video di vetro (con il contratto delle sorgenti: il telefono, MyCloud
+// Gallery in F12, un archivio futuro) e il pannello degli allegati. Opt-in.
+include ':engine-media'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

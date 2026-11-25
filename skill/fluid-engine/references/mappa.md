@@ -39,7 +39,9 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-push-fcm` | `push` | 1 / 120 | il campanello di Pampa Store con Firebase Messaging, spento fino all'accesso; le notifiche dentro i messaggi non passano — **opt-in**, solo lo Store (F10.6, `moduli/push-fcm.md`) | foundation |
 | `engine-revisions` | `revisions` | 2 / 576 | il foglio di vetro della scelta tra versioni in conflitto, i passaggi diversi con il tetto di lavoro — **opt-in**, dalla 4.0 (F8.21, `moduli/revisions.md`) | foundation, **ui** |
 | `engine-notify` | `notify` | 13 / 2 652 | le notifiche vere di Android: canali, notifiche raccolte per filo, risposte rapide, riepilogo programmato, la porta del ritmo, i Live Update di Android 16 (e la notifica con l'avanzamento prima), i promemoria con `AlarmManager` e il loro ripristino, i controlli di «Le notifiche non arrivano?» — **opt-in**, dalla 4.0 (F8.19, `moduli/notify.md`) | foundation |
+| `engine-media` | `media` | 13 / 4 250 | foto e allegati: il selettore di foto e video di vetro (la griglia di F8.4 con la scelta in ordine, album, ricerca, anteprima che nasce dalla miniatura, i tre regimi dei permessi), il contratto delle sorgenti (il telefono, le altre app col provider firmato: MyCloud Gallery in F12, una sorgente finta), il Photo Picker di Android dove basta, il pannello degli allegati (la scheda del «+» e il pannello al posto della tastiera) — **opt-in**, dalla 4.0 (F8.14, `moduli/media.md`); niente permessi dichiarati | **ui** |
 | `engine-transfer` | `transfer` | 5 / 1 700 | il centro trasferimenti: coda persistita (SQLite della piattaforma) di scaricamenti e caricamenti lunghi, pausa e ripresa con `Range`/`If-Range` e a pezzi con `Content-Range`, solo Wi-Fi e in carica e la regola delle condizioni, velocità e tempo che manca, errori con motivo e nuovi tentativi, WorkManager col servizio in primo piano `dataSync` e il punto d'aggancio della notifica — **opt-in**, dalla 4.0 (F8.20, `moduli/transfer.md`; la pagina e la pillola in `engine-ui`) | net, foundation |
+| `engine-files` | `files` | 6 / 1 760 | lo sfoglia-file di vetro come File di iOS 26: Sfoglia con le posizioni (le sorgenti dell'app e le cartelle concesse con lo Storage Access Framework, anche delle app con un `DocumentsProvider`) e Recenti, le cartelle in griglia con le miniature vere o in elenco, l'ordine, la ricerca, la selezione e la scelta (`onPick`), l'apertura nei visori dalla miniatura con la ripresa dallo stesso punto; il contratto delle sorgenti a pagine — **opt-in**, dalla 4.0 (F8.18, `moduli/files.md`) | **viewer** (e da lì ui, foundation) |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
 | `engine-auth` | `auth` | 11 / 938 | le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione PRF la scrive il modulo, la risposta torna senza il PRF, gli errori come frasi pronte (`AuthResult`, `FluidAuthLabels`) — **opt-in**, dalla 4.0 (la scheda: `moduli/auth.md`) | foundation (+ `androidx.credentials`) |
 | `engine-auth-google` | `auth.google` | 2 / 277 | «Continua con Google» (`FluidGoogleSignIn`) e le concessioni Google (`FluidGoogleAccess`, **spente**): l'unico modulo con librerie Google non libere, col permesso della GPL-3.0 § 7 — **opt-in**, dalla 4.0 | **auth** (+ Play services, `googleid`) |
@@ -55,6 +57,7 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         |                                  ^  <- engine-viewer-office, -archive, -data, -graphics, -3d  (opt-in, ognuno)
         |                                  |       ^  <- engine-viewer-ar (prende -3d)
         |                                  +----- engine-viewer-all (api verso tutti)
+        |                                  +----- engine-files      (opt-in, F8.18: lo sfoglia-file)
         |                  +------<-  engine-ai-ui  ->  engine-ai
         +-- engine-storage --+                              ^
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
@@ -66,6 +69,7 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         +-- engine-storage <- engine-sync  (opt-in; WorkManager, coroutines-android; niente Compose)
         +-- engine-net <- engine-transfer   (opt-in; WorkManager, androidx.core, servizio dataSync; niente Compose)
 engine-ui <- engine-revisions              (opt-in; il foglio della scelta; non conosce engine-sync)
+engine-ui <- engine-media                  (opt-in; MediaStore, il Photo Picker di androidx.activity; nessuna libreria nuova)
 engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compose: pagine e ponte con la pillola in engine-ui)
 engine-storage <- engine-account <- engine-account-host   (opt-in; Bouncy Castle; l'host solo nello Store, con engine-auth, engine-vault e WorkManager)
 engine-ui + engine-account <- engine-account-ui           (opt-in; nessuna chiave)
@@ -92,6 +96,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
 | custodisce password, token, chiavi, documenti cifrati | + `engine-vault` (**opt-in**; entra comunque con `engine-ai`) |
 | si blocca con l'impronta, o ha una cartella o un album protetti | + `engine-security` (**opt-in**; porta `engine-ui` e `engine-vault`) |
+| fa scegliere foto e video dentro l'app (allegati, foto del profilo), legge da MyCloud Gallery, ha il «+» degli allegati | + `engine-media` (**opt-in**; i permessi delle foto li dichiara l'app solo se usa la griglia del telefono) |
 | riceve da altre app (Condividi → l'app, il menu del testo selezionato) | + `engine-share-in` (**opt-in**; l'attivita' che riceve e i filtri li dichiara l'app) |
 | vuole «Mostra come QR» nel foglio di condivisione | + `engine-qr` (**opt-in**; porta ZXing core). Il foglio, le immagini da condividere, il PDF e la stampa sono gia' in `engine-ui` |
 | scrive testo formattato (corpo di una mail, note con elenchi, firme) | + `engine-richtext` (**opt-in**: solo se chiesto per nome, `-Modules …,engine-richtext`; porta `engine-ui` e `engine-foundation`) |
@@ -104,6 +109,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | e' Pampa Mail, la faccia della rubrica | + `engine-people` (**opt-in**; le conversazioni con le chiavi che lo Store le da') |
 | condivide con le persone, «Condivisi con te», «Da X» | + `engine-account-ui` (`FluidPeopleRow`, `FluidSharedWithYou`, `FluidAttribution`, `FluidQuickReply`) e `PampaPeople` di `engine-account` |
 | scarica o carica file grandi che devono finire anche con l'app chiusa (APK, mappe, brani, foto e video) | + `engine-transfer` (**opt-in**: `-Modules …,engine-transfer`; porta `engine-net` e WorkManager e dichiara il servizio in primo piano `dataSync`; la pagina «Trasferimenti» e la pillola sono già in `engine-ui`) |
+| fa sfogliare cartelle e scegliere file (i file dell'app, una cartella del telefono, Drive), con i recenti e l'apertura nei visori | + `engine-files` (**opt-in**: `-Modules …,engine-files`; porta `engine-viewer`; nessun permesso: le cartelle arrivano dal selettore di sistema) |
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
 | fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |

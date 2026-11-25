@@ -194,6 +194,9 @@ class FluidViewerRequest internal constructor(
  * Un file aperto da una famiglia: il [content] per il visore (`Pages`, `Grid`, `Text`, `Image`, `Custom`…), i
  * [details] per il pannello info («Pagine 9», «Calibri → Carlito») e la chiusura ([onClose]), che il documento chiama
  * una volta sola quando la pagina esce.
+ *
+ * Righe che cambiano dopo l'apertura, da un filo in sottofondo (il conto di un CSV, le pagine contate): una
+ * [FluidViewerLiveDetails], mai una lista di Compose cambiata da fuori (F7.20).
  */
 class FluidViewerOpened(
   val content: FluidViewerContent,

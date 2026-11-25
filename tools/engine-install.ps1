@@ -95,6 +95,8 @@ $EngineModules = [ordered]@{
   "engine-people"     = @("engine-foundation", "engine-storage", "engine-account", "engine-sync")
   "engine-push-fcm"   = @("engine-foundation")
   "engine-transfer"   = @("engine-foundation", "engine-net")
+  "engine-files"      = @("engine-foundation", "engine-ui", "engine-viewer")
+  "engine-media"      = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -140,7 +142,12 @@ $EngineModules = [ordered]@{
 # engine-transfer (F8.20: la coda persistita degli scaricamenti e dei caricamenti lunghi; porta WorkManager e dichiara
 # il servizio in primo piano di tipo dataSync) idem: lo chiede solo un'app che trasferisce file grandi
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer")
+# engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
+# (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media")
+# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
+# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
+# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -358,7 +365,9 @@ $notes = @(
   @("engine-account-ui", "la riga Account Pampa, l'avatar e i componenti delle persone (opt-in)"),
   @("engine-people", "le persone: crittografia di Codex, persona, casella, coda in uscita, spazi (opt-in, Store e Pampa Mail)"),
   @("engine-push-fcm", "il campanello di FCM, spento fino all'accesso (opt-in, solo lo Store)"),
-  @("engine-transfer", "centro trasferimenti: coda persistita, pausa e ripresa con Range, WorkManager e dataSync (opt-in)")
+  @("engine-transfer", "centro trasferimenti: coda persistita, pausa e ripresa con Range, WorkManager e dataSync (opt-in)"),
+  @("engine-files", "sfoglia-file: posizioni, cartelle in griglia o elenco, ricerca, recenti, apertura nei visori (opt-in)"),
+  @("engine-media", "foto e allegati: selettore di foto e video, sorgenti di altre app (MyCloud Gallery), pannello del + (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

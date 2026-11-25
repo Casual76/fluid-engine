@@ -49,6 +49,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -98,6 +99,8 @@ data class FluidTextPresetStrings(
   val cancel: String = "Annulla",
   val lineNumbers: String = "Numeri di riga",
   val copyText: String = "Copia il testo",
+  /** F8.18 · La capsula che riprende da una riga salvata quando il file era diverso. */
+  val resume: FluidViewerResumeStrings = FluidViewerResumeStrings(),
 )
 
 /** I numeri del preset testo. Sono quantità di lettura, non di movimento. */
@@ -447,8 +450,12 @@ fun FluidTextPreset(
   val queryState = rememberSaveable { mutableStateOf("") }
   val currentState = rememberSaveable { mutableStateOf(0) }
   val find = remember(queryState, currentState) { TextFind(queryState, currentState) }
-  // La prima riga in vista, salvata: dopo la ricreazione si rilegge fin lì e si torna lì.
-  val savedLine = rememberSaveable { mutableStateOf(0) }
+  // La prima riga in vista, salvata: dopo la ricreazione si rilegge fin lì e si torna lì. F8.18: un file riaperto parte
+  // dalla riga dove l'utente era (FluidViewerResumeProvider), per la stessa revisione del file.
+  val resume = LocalViewerResumeSlot.current
+  val savedLine = rememberSaveable { mutableStateOf(resume?.position?.page ?: 0) }
+  var resumeUsed by rememberSaveable { mutableStateOf(false) }
+  val stale = resume?.stale?.takeIf { !resumeUsed }
   val list = remember { LazyListState() }
   val active = currentFluidViewerPageActive()
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
@@ -466,6 +473,19 @@ fun FluidTextPreset(
   }
   LaunchedEffect(doc, list) {
     snapshotFlow { list.firstVisibleItemIndex }.collect { savedLine.value = doc.rows.getOrNull(it)?.line ?: savedLine.value }
+  }
+  if (resume != null) {
+    // F8.18: la riga si salva a riposo (fine dello scorrimento, pagina lasciata), mai a ogni fotogramma.
+    LaunchedEffect(doc, list, resume) {
+      snapshotFlow { list.firstVisibleItemIndex to list.isScrollInProgress }.drop(1).collectLatest { (_, moving) ->
+        if (!moving) {
+          kotlinx.coroutines.delay(ViewerResumeSettleMillis)
+          resume.save(FluidViewerPosition(page = savedLine.value))
+        }
+      }
+    }
+    LaunchedEffect(active) { if (!active) resume.save(FluidViewerPosition(page = savedLine.value)) }
+    DisposableEffect(resume) { onDispose { resume.save(FluidViewerPosition(page = savedLine.value)) } }
   }
   LaunchedEffect(doc, finding) { if (finding) doc.loadAll() }
   LaunchedEffect(active) { if (!active) finding = false }
@@ -553,6 +573,16 @@ fun FluidTextPreset(
 
   // I comandi nella barra del telaio, per questa pagina.
   ViewerPresetToolbar {
+    // F8.18: il file è cambiato dall'ultima lettura; la riga di prima si offre, non si applica da sola.
+    if (stale != null) text("viewer.text.resume", strings.resume.line(stale.page + 1), {
+      resumeUsed = true
+      resume?.dismissStale()
+      scope.launch {
+        doc.loadThrough(stale.page)
+        val row = doc.rows.indexOfFirst { it.line >= stale.page }
+        if (row >= 0) list.scrollToItem(row)
+      }
+    }, placement = FluidToolbarPlacement.BottomBar)
     if (finding) search(FluidSearchSpec.findInPage(find.query, find::onQueryChange, find.navigation, active = true,
       onActiveChange = { if (!it) finding = false }))
     if (hasBoardTitle) group(TextPresetButton.Display, placement = FluidToolbarPlacement.BottomBar) {

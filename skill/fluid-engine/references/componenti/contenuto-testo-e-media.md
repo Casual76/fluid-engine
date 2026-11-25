@@ -119,6 +119,13 @@ perché cento `Icon` spente sono cento nodi per niente. Il disco si riempie con 
 `onPhoto`: anello **bianco** su un velo scuro (`PhotoScrimAlpha` 0,28) qualunque sia la foto, e l'anello bianco resta anche a segno pieno (è lui a staccare il disco dalla foto). `tint`: colore del disco e dell'anello su una superficie piena che l'accento non
 leggerebbe; **la spunta prende da sola il colore che si legge sul disco** (scuro su disco chiaro, bianco su scuro). L'anello scala col lato (1,75 dp a 24).
 
+**Il numero d'ordine** (F8.14). `number = 2`: a segno pieno il disco porta la cifra al posto della spunta, come la scelta
+ordinata del selettore di foto di iOS (cifra da 12–13 pt nello stesso posto). Quando il numero cambia a segno acceso (si
+toglie la scelta numero 2 e la 3 diventa 2) le cifre scorrono sfocate con `FluidNumericText`, come un badge; il testo c'è
+solo mentre il disco è acceso, e **col numero un segno spento non disegna niente** (né anello né velo: nel selettore di iOS
+le foto non scelte non hanno l'anello). TalkBack: «Selezionato, numero 2»
+(`FluidSelectionMarkDefaults.description(selected, number)`).
+
 **Trappole.** Non gestisce il tocco: lo gestisce la riga o la cella. Il `contentDescription` di serie dice «Selezionato»/«Non selezionato»: se è già la riga a dire lo stato (`Modifier.semantics { selected = … }`), passa `null`, o lo dici due volte.
 In una `FluidListRow` va nel `leading` con `leadingTile = false` (dedotto: con la piastrella il segno finisce nei 19 dp interni, più piccoli dei suoi 24).
 
@@ -273,6 +280,12 @@ transitoria, perderla è un fastidio e il crash un guasto. Una chiave che non è
 **L'ordine del back.** `FluidSelectionBackHandler` registra un `BackHandler` che svuota la selezione solo quando è attiva. **L'ordine di composizione è l'ordine del back**: vince quello registrato per ultimo, quindi va
 composto **dopo** il contenuto che ha i suoi (la pagina, l'host di navigazione) e **prima** di chi deve avere la meglio (i menu, i fogli, `FluidDrawer`, che registrano il loro quando si aprono, dopo). Risultato: menu, poi
 pannello, poi selezione, poi pagina. Posato prima della pagina, il back chiude la pagina con la selezione ancora accesa.
+
+**L'ordine e il tetto** (F8.14). La forma esplicita tiene le chiavi **nell'ordine in cui sono state scelte** (chi rientra va
+in fondo): è così che il selettore di foto numera le scelte. Con `FluidSelectionState(limit = 3)` (o
+`rememberFluidSelectionState(limit = 3)`, il `selectionLimit` di iOS) una scelta oltre il tetto non entra, `atLimit` dice
+quando le altre righe vanno mostrate spente, e «Seleziona tutto» non fa niente; il tetto sopravvive al salvataggio
+(`saver(limit = …)`), e uno stato salvato con più chiavi del tetto tiene le prime.
 
 **Trappole.** Le chiavi sono insiemi: `K` con `equals`/`hashCode` veri (un id, non un oggetto mutabile) e **stabili fra aggiornamenti dei dati** (un id di database, non l'indice: una riga arrivata in cima sposterebbe la scelta
 su quella sbagliata). `isSelected` legge lo stato intero: a ogni scelta ricompongono le righe che lo leggono (le visibili); una riga costosa legge il suo valore con `remember(key) { derivedStateOf { state.isSelected(key) } }`.

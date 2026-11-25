@@ -82,7 +82,10 @@ class FluidViewerDocument internal constructor(
   /** Il motivo per cui il file è finito allo sconosciuto, `null` se si è aperto o se è sconosciuto davvero. */
   val failure: FluidViewerException?,
   private val resource: Closeable?,
-  /** F6C.8: le righe del pannello info date dalla famiglia che l'ha aperto («Pagine 9»); vuote per i preset di serie. */
+  /**
+   * F6C.8: le righe del pannello info date dalla famiglia che l'ha aperto («Pagine 9»); vuote per i preset di serie.
+   * Possono cambiare dopo l'apertura ([FluidViewerLiveDetails]): per una copia ferma, [FluidViewerLiveDetails.current].
+   */
   val details: List<FluidViewerDetail> = emptyList(),
 ) : Closeable {
   override fun close() {
@@ -335,6 +338,8 @@ class FluidViewerFiles internal constructor(
   internal var openWith: ((FluidViewerFile) -> Unit)? = null
   internal var share: ((FluidViewerFile) -> Unit)? = null
   internal var media: ((FluidViewerFile, FluidViewerType) -> FluidViewerContent?)? = null
+  /** F8.18: chi vuole sapere che un file non si è aperto (la ripresa toglie la posizione di un file sparito). */
+  internal var onFailure: ((FluidViewerFile, FluidViewerException) -> Unit)? = null
 
   private class Entry(val file: FluidViewerFile, val pending: Pending) {
     var document: FluidViewerDocument? = null
@@ -380,6 +385,7 @@ class FluidViewerFiles internal constructor(
         document.close()
         return@launch
       }
+      document.failure?.let { failure -> onFailure?.invoke(file, failure) }
       created.pending.complete(document)
       // Il testo e le pagine restano lo stesso oggetto: chi li legge vede arrivare i dati. Il resto si sostituisce.
       created.document = if (created.pending.keeps()) {

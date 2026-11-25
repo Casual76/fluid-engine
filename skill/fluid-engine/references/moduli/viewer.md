@@ -24,6 +24,9 @@ Modello mentale: **il telaio mostra, il modulo apre, l'app possiede.** Il file, 
 | aprire un file che non ha un `Uri` (la voce di un archivio, un allegato, un flusso) | `FluidViewerRegistry.open(context, FluidViewerSource.of(…))` |
 | scrivere una famiglia mia | `FluidViewerFamily` in `META-INF/services` (sotto, e [`viewer-famiglie.md`](viewer-famiglie.md#scrivere-un-modulo-di-famiglia)) |
 | tasselli da 200 MP, motion photo, un lettore con coda | **non questo modulo**: il composable dell'app come `FluidViewerContent.Image` o `Media` |
+| riaprire un file dove l'utente era (pagina, zoom, riga, secondo) | `FluidViewerResumeProvider(rememberFluidViewerResume(files)) { FluidFileViewer(…) }` (sotto, «Riprendi dallo stesso punto») |
+| portare le posizioni su un altro dispositivo | `FluidViewerResumeStore.get(context)`: `observe`, `export`, `import` |
+| sfogliare cartelle e aprire i file da lì | [`files.md`](files.md) (`engine-files`) |
 
 ## Il risolutore
 
@@ -69,7 +72,14 @@ interface FluidViewerFamily {
 }
 class FluidViewerOpened(content: FluidViewerContent, details: List<FluidViewerDetail> = emptyList(), onClose: () -> Unit = {})
 data class FluidViewerDetail(val label: String, val value: String, val section: String? = null)
+class FluidViewerLiveDetails(initial: List<FluidViewerDetail> = emptyList()) : List<FluidViewerDetail> {   // F7.20
+  val current: List<FluidViewerDetail>                      // le righe di adesso, intere e immutabili
+  fun replace(items: List<FluidViewerDetail>); fun add(detail: FluidViewerDetail)
+  fun update(transform: (List<FluidViewerDetail>) -> List<FluidViewerDetail>)   // da qualunque filo, in fila
+}
 ```
+
+**Righe che arrivano dopo l'apertura** (il conto di un CSV in sottofondo, le pagine contate da Office): la famiglia dà una `FluidViewerLiveDetails` come `details` e la cambia da qualunque filo con `replace`, `add` o `update`. Ogni cambio mette una lista intera e immutabile al posto della vecchia; la lettura (`current`, e anche `for`, `filter`, `any`) prende un valore solo, sempre intero, e in composizione si iscrive ai cambi. Per una copia da tenere: `current`.
 
 Campi nuovi, in coda e con un valore di serie (regola 3.11): `FluidViewerType(…, family, label, familyType)`, `FluidViewerOptions(…, sourceMaxCopyBytes)`, `FluidViewerDocument.details`; `FluidViewerPreset.Grid` e `Custom` sono costanti in più.
 
@@ -103,6 +113,8 @@ Il `PdfRenderer` della piattaforma; `androidx.pdf` è in alfa e non si usa.
 - **Il descrittore deve essere ricercabile.** Da un `Uri` che dà una pipe o un flusso, `open(context, uri)` copia il file nella cache dell'app (al più 512 MB, interrompibile) e cancella la copia alla chiusura.
 - **Annullare** una chiamata in coda la toglie prima che apra la pagina; una resa già cominciata finisce (una pagina non si interrompe a metà), si chiude e va in cache. **`close()`** chiude il documento sul suo thread dopo la resa in corso, poi il descrittore e la copia; le chiamate dopo la chiusura sono annullate.
 - **Gli errori** sono `FluidViewerException`: `Corrupt` (non è un PDF, o è rotto), `Protected` (password: il renderer della piattaforma non le chiede), `Unreadable`, `TooLarge`.
+- **F8.18, la pagina per lo schermo.** Quando la chiede il preset delle pagine (`FluidPageDisplay` nel contesto della chiamata), la pagina resa passa nella memoria grafica (`Bitmap.Config.HARDWARE`) sul thread del PDF: il primo disegno non carica la texture dentro il fotogramma del RenderThread, e a 120 Hz non c'è lo scatto all'arrivo di ogni pagina. Ha la sua voce in cache; la stampa, la condivisione e chi chiama `render` senza quel contesto ricevono la bitmap normale, che si legge e si disegna in un `Canvas` software. La prenotazione della resa conta già le due copie (8 byte per pixel), e la copia software si ricicla subito. `FluidPdfPageSource.hardwareDisplay` lo spegne, solo per le prove di confronto sul dispositivo.
+- **F8.18, le misure** tenute sono 256 (prima 64): un documento di migliaia di pagine si percorre avanti e indietro con la maniglia senza riaprire le pagine per misurarle.
 
 ## Testo: `FluidTextDecoder` e `FluidTextDocument`
 
@@ -129,6 +141,7 @@ Scelta di Alessio del 21 novembre 2026: le decodifica questo modulo, **da un fil
 - `image.content(nome)` è un `FluidViewerContent.Image` qualunque, col rapporto d'aspetto: il preset immagine non ha un tipo nuovo da conoscere, e il telaio dà zoom, sfoglio e chiusura come a una foto.
 - Un'animata va a `fluidAnimatedImage` del preset immagine: **parte solo sulla pagina ferma** (`currentFluidViewerPageActive()`) e si ferma quando la si lascia, come Gallery-2; col **movimento ridotto** (`LocalFluidMotionPolicy`) resta ferma e TalkBack ha l'azione «Riproduci animazione». Disegnata fuori dal visore con `FluidDecodedImage.Body`, parte quando entra in composizione.
 - **Sotto Android 9** (API 28) non c'è `AnimatedImageDrawable`: `BitmapFactory` dà il primo fotogramma.
+- **F8.18, i tasselli.** Una foto ferma ridotta (oltre il tetto di 12 MP) e letta da un indirizzo o da un file sa riaprire l'originale: dentro il visore, ingrandita oltre la sua risoluzione e ferma, riceve il tassello della parte in vista alla risoluzione dello schermo (`BitmapRegionDecoder`, la memoria dal registro del visore), sopra la foto ridotta. Non c'è niente da chiamare: lo fa `FluidDecodedImage.content`. Una foto girata dall'EXIF resta senza tasselli.
 - `FluidImageHeader.read(bytes)` legge dai primi byte di una GIF o di una WebP misura, animazione, fotogrammi e giri senza decodificare i pixel: per un rapporto d'aspetto prima della decodifica, o per decidere di non animare una GIF enorme.
 
 ## Media3: `FluidMedia3Session`
@@ -169,6 +182,21 @@ La galleria di Fluid Glass usa il modulo come un'app vera, e si può leggere com
 | un file vuoto | «Il file è vuoto.» | il preset testo dice «Il file è vuoto» |
 | un file sparito | «Non riesco a leggere il file.» | sconosciuto: `failure` è `Unreadable`, la scheda lo dice |
 
+## Riprendi dallo stesso punto: `FluidViewerResumeStore` (F8.18)
+
+Il negozio di serie delle posizioni dei visori ([`../componenti/visori.md`](../componenti/visori.md), «Riprendi dallo stesso punto»): uno per processo, `FluidViewerResumeStore.get(context)`.
+
+- **Leggero.** Le posizioni stanno in memoria; il disco (un file di testo di poche decine di KB in `noBackupFilesDir`, fuori dal backup) si scrive una volta sola 1,5 s dopo l'ultima modifica e subito quando l'app va in background. Al più 300 posizioni; esce la meno usata. Una posizione all'inizio del file non si tiene.
+- **Cancellato quando il file non c'è più.** Una volta al giorno, alla prima apertura, `prune` chiede a ogni indirizzo se esiste (`resumeTargetExists`: `file://` sul disco; `content://` al provider, e un provider sparito, un permesso perso o un documento cancellato valgono «non c'è»; uno schema che non si può chiedere resta). Un file che il visore non riesce più a leggere (`Unreadable`) perde la posizione subito; un'app che cancella un file chiama `forget` o `forgetUri`.
+- **La revisione.** La chiave di serie è l'indirizzo (`keyOf`); la revisione è peso e data (`revisionOf`), se si sanno. Una posizione di un'altra revisione non si applica: il preset la offre. Un'app con un id stabile dei suoi file (un allegato, un documento del cloud) passa `key` e `revision` a `rememberFluidViewerResume`. Lo stesso nome con un indirizzo diverso è un altro file.
+- **Un altro dispositivo.** `observe` avvisa a ogni salvataggio, `export` dà la riga di una posizione e `import` la prende (vince la più recente). Il trasporto è dell'app (l'Account Pampa, `engine-sync`).
+
+```kotlin
+val store = FluidViewerResumeStore.get(context)
+store.observe { entry -> sync.put("posizioni/${entry.key}", entry.encode()) }   // il trasporto è dell'app
+sync.onRemote { riga -> store.import(riga) }
+```
+
 ## Cosa è dell'app, cosa del modulo
 
 | dell'app | del modulo |
@@ -193,6 +221,7 @@ La galleria di Fluid Glass usa il modulo come un'app vera, e si può leggere com
 - **Il testo troncato** si dice: `truncated` vero va mostrato in fondo («letti 4 MB di 120»), altrimenti chi legge un registro crede di averlo tutto.
 - **Una GIF enorme** si anima a 12 MP per fotogramma: se serve meno, `FluidViewerOptions(imageMaxPixels = …)` o `animateImages = false`.
 - **Il `SurfaceView`** non sta sotto il vetro: con `surfaceView = true` i comandi di vetro mostrano il nero.
+- **Una lista di Compose cambiata da un altro filo** (F7.20). Una `SnapshotStateList` scritta in sottofondo non si legge sicura da nessuna parte, neanche copiata in un'istantanea (`Snapshot.takeSnapshot`): Compose 1.10 rilegge l'id di un record mentre cerca il valore, e un record riciclato in quel momento fa leggere quello che l'altro filo sta riempiendo. Ne escono `ConcurrentModificationException`, liste vuote a metà e indici fuori misura. Le righe del pannello che cambiano dopo l'apertura stanno in una `FluidViewerLiveDetails`.
 
 ## Cosa è verificato dai test
 
@@ -205,8 +234,13 @@ Test JVM del modulo (`engine-viewer/src/test/`), senza Robolectric: un'app ospit
 - `FluidMedia3SessionTest`: un `Player` finto di `media3-common` (ogni metodo non previsto fa fallire): preparare e suonare, l'intenzione durante il caricamento, la pausa, il salto limitato, il file finito, la sospensione, i comandi mancanti, l'errore, il rapporto d'aspetto, la versione di Media3 su cui gira.
 - `FluidImageHeaderTest`: GIF e WebP costruite byte per byte, animate e ferme, troncate, con e senza giri.
 - `EngineUiDecoderFreeTest`: F6C-d, sopra.
+- `FluidViewerResumeStoreTest` (F8.18, Robolectric): la riga della posizione, la stessa revisione che si applica e l'altra che si offre, l'inizio che non si tiene, la scrittura più tardi e la lettura da un processo nuovo, il tetto, la riga di un altro dispositivo (vince la più recente), l'avviso a ogni salvataggio, la pulizia dei file spariti e la domanda all'indirizzo per ogni schema.
+- `FluidPageDisplayTest` (F8.18): la pagina per lo schermo convertita sul thread del documento, con la sua voce in cache, e mai data alla stampa; le 256 misure tenute.
+- `FluidImageDetailTest` (F8.18): quando serve il tassello di una foto enorme (solo oltre la risoluzione della foto ridotta), quale parte dell'originale (quella in vista, con lo zoom e lo spostamento del telaio), a che campionamento e dove si disegna.
 
 Il registro (F6C.8): `FluidViewerRegistryTest` (il modulo di prova trovato con `META-INF/services`, firma > estensione > MIME > priorità, lo ZIP che è un Word, l'HEIC a −10, il ripiego al candidato dopo, l'eseguibile che non arriva mai a una famiglia, i campi in coda), `FluidViewerSourceTest` (la copia una volta, annullata, oltre il tetto, l'indice ZIP), `FluidViewerFormsTest`, `FluidViewerFamiliesBuildTest` (i sette grafi finti di `checkViewerFamilies`); `checkViewerFamilyApks` sugli APK R8 dell'app di prova.
+
+Le righe vive del pannello (F7.20): `FluidViewerLiveDetailsTest` (ogni cambio è una lista intera, la copia data prima non cambia, 2000 aggiunte da quattro fili senza perderne una, l'osservatore di Compose avvisato da un filo in sottofondo); la corsa vera sta in `DataDetailsReplaceTest` di `engine-viewer-data` (due fili che sostituiscono, sei che leggono per tre secondi come il pannello, come la composizione e come un'app).
 
 Nella galleria, `VisoriGalleryTest` (sample, Robolectric) apre col modulo i file veri del testo, del codice, dello sconosciuto e dell'eseguibile, **ogni file di ogni famiglia** col suo modulo, la scena «Senza moduli», la pagina «Pesi» e i tipi di Universal Converter; il PDF e le immagini li passa già pronti, perché sulla JVM `PdfRenderer` e `ImageDecoder` non decodificano, e al posto di libarchive (nativa) mette una famiglia finta con i tipi veri.
 

@@ -207,6 +207,8 @@ DIR_FAMILY = {
     "push": "push-fcm",
     # il centro trasferimenti (F8.20)
     "transfer": "transfer",
+    # lo sfoglia-file (F8.18)
+    "files": "files",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -218,6 +220,8 @@ DIR_FAMILY = {
     # i moduli facoltativi della condivisione (F8.10)
     "qr": "qr",
     "sharein": "share-in",
+    # foto e allegati: il selettore, il contratto delle sorgenti, il pannello degli allegati (F8.14)
+    "media": "media",
 }
 
 FAMILY_TITLES = {
@@ -256,6 +260,7 @@ FAMILY_TITLES = {
     "auth-google": "engine-auth-google",
     "qr": "engine-qr",
     "share-in": "engine-share-in",
+    "media": "engine-media",
     "notify": "engine-notify",
     "account": "engine-account",
     "account-host": "engine-account-host",
@@ -263,6 +268,7 @@ FAMILY_TITLES = {
     "people": "engine-people",
     "push-fcm": "engine-push-fcm",
     "transfer": "engine-transfer",
+    "files": "engine-files",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

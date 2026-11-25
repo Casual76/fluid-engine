@@ -15,6 +15,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
+import androidx.compose.foundation.layout.Box
+import dev.antigravity.fluidengine.ui.fluid.viewer.currentFluidViewerZoom
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,7 +73,17 @@ class FluidDecodedImage private constructor(
    * pagina ferma e gli dà l'azione TalkBack «Riproduci»; [content] lo disegna da sé quando quel preset non c'è.
    */
   val animation: Drawable?,
+  /**
+   * F8.18 · Come riaprire l'originale per i tasselli ([ImageDetailLayer]): solo per una foto ferma ridotta rispetto
+   * all'originale e letta da un indirizzo o da un file. Null negli altri casi.
+   */
+  private val region: (() -> ParcelFileDescriptor?)? = null,
 ) {
+  /** F8.18: la stessa immagine, che sa riaprire l'originale per i tasselli quando è stata ridotta. */
+  private fun withRegion(open: () -> ParcelFileDescriptor?): FluidDecodedImage =
+    if (bitmap == null || (sourceWidth <= width && sourceHeight <= height)) this
+    else FluidDecodedImage(width, height, sourceWidth, sourceHeight, bitmap, animation, open)
+
   /** Vero se è un contenuto che si riproduce (una GIF o una WebP animata, decodificata su Android 9+). */
   val animated: Boolean get() = animation != null
 
@@ -95,7 +108,17 @@ class FluidDecodedImage private constructor(
   fun Body(contentDescription: String?, modifier: Modifier = Modifier) {
     val still = bitmap
     if (still != null) {
-      Image(still, contentDescription, modifier, contentScale = ContentScale.Fit)
+      // F8.18: una foto ridotta (oltre 12 MP) ingrandita nel visore riceve, da ferma, i tasselli dell'originale.
+      val zoom = currentFluidViewerZoom()
+      val open = region
+      if (zoom != null && open != null) {
+        Box(modifier) {
+          Image(still, contentDescription, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+          ImageDetailLayer(zoom, IntSize(sourceWidth, sourceHeight), width, open)
+        }
+      } else {
+        Image(still, contentDescription, modifier, contentScale = ContentScale.Fit)
+      }
       return
     }
     val reduced = LocalFluidMotionPolicy.current.reducedMotion
@@ -123,7 +146,7 @@ class FluidDecodedImage private constructor(
       return decode(maxPixels, animate,
         source = { if (Build.VERSION.SDK_INT >= 28) ImageDecoder.createSource(resolver, uri) else null },
         stream = { resolver.openInputStream(uri) ?: throw FileNotFoundException(uri.toString()) },
-      )
+      ).withRegion { resolver.openFileDescriptor(uri, "r") }
     }
 
     /** Decodifica da un file dell'app. */
@@ -131,7 +154,7 @@ class FluidDecodedImage private constructor(
       decode(maxPixels, animate,
         source = { if (Build.VERSION.SDK_INT >= 28) ImageDecoder.createSource(file) else null },
         stream = { file.inputStream() },
-      )
+      ).withRegion { ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY) }
 
     private suspend fun decode(
       maxPixels: Long,

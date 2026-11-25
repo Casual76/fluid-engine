@@ -59,6 +59,11 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
@@ -93,6 +98,10 @@ data class FluidPagesPresetStrings(
   val slideNotes: (current: Int, count: Int) -> String = { current, count -> "Slide $current di $count" },
   val noNotes: String = "Nessuna nota per questa slide",
   val fitWidth: String = "Adatta alla larghezza",
+  /** F8.18 · Il nome per TalkBack dello scorrimento di tutto il documento. */
+  val scrubber: String = "Scorri il documento",
+  /** F8.18 · La capsula che riprende da una posizione salvata quando il file era diverso. */
+  val resume: FluidViewerResumeStrings = FluidViewerResumeStrings(),
 )
 
 /**
@@ -119,7 +128,11 @@ fun FluidPagesPreset(
     return
   }
   key(source) {
-    val pages = rememberLazyListState()
+    // F8.18: il punto dove l'utente era, per questa revisione del file. La lista parte già lì: nessun fotogramma sulla
+    // prima pagina, e il viaggio d'oro arriva sul punto giusto.
+    val resume = LocalViewerResumeSlot.current
+    val resumeAt = remember(resume) { resume?.position?.takeIf { it.page in 0 until count } }
+    val pages = rememberLazyListState(initialFirstVisibleItemIndex = resumeAt?.page ?: 0)
     val horizontal = rememberScrollState()
     val info = LocalViewerInfo.current
     val type = info?.file?.name?.substringAfterLast('.', "")?.lowercase()
@@ -146,10 +159,15 @@ fun FluidPagesPreset(
     }
     val match = hits.getOrNull(cursor)
     if (finding && active) FluidSelectionBackEffect(enabled = true) { finding = false }
-    var scale by rememberSaveable { mutableFloatStateOf(FluidZoom.MinScale) }
+    var scale by rememberSaveable {
+      mutableFloatStateOf(resumeAt?.zoom?.let { FluidZoom.clampScale(it, FluidZoom.DefaultMaxScale) } ?: FluidZoom.MinScale)
+    }
     var thumbnails by rememberSaveable { mutableStateOf(false) }
     var selectedPage by remember { mutableStateOf<Int?>(null) }
     val cache = remember { ViewerPageRenderCache(source) }
+    // F8.18 · Il bilancio: la risoluzione di lettura e delle anteprime segue il profilo di memoria del processo.
+    val process = rememberFluidViewerResources()
+    cache.budget = ViewerPagesBudget.of(process.viewerProfile)
     val backdrop = rememberGlassBackdrop()
     val outerModal = LocalFluidGlassModalHostState.current
     val modal = outerModal ?: rememberFluidGlassModalHostState()
@@ -167,6 +185,8 @@ fun FluidPagesPreset(
     // F6C.19: le azioni del tipo in «•••» (Anteprima e Keynote di iOS 26): vai a una pagina o a una slide, le miniature,
     // le note del relatore se la sorgente le conosce (`FluidPageNotes`), e da ingranditi «Adatta alla larghezza».
     var goingTo by rememberSaveable { mutableStateOf(false) }
+    var resumeUsed by rememberSaveable { mutableStateOf(false) }
+    val stale = resume?.stale?.takeIf { !resumeUsed && it.page in 0 until count }
     var showingNotes by rememberSaveable { mutableStateOf(false) }
     val notes = source as? FluidPageNotes
     ViewerPresetToolbar {
@@ -178,6 +198,13 @@ fun FluidPagesPreset(
         placement = FluidToolbarPlacement.BottomBar)
       else if (searchPages != null) button("viewer.document.find", FluidIcons.Search, strings.find, { finding = true },
         placement = FluidToolbarPlacement.BottomBar)
+      // F8.18: il file è cambiato dall'ultima lettura; la posizione di prima si offre, non si applica da sola.
+      if (stale != null) text("viewer.document.resume", strings.resume.page(stale.page + 1), {
+        pages.requestScrollToItem(stale.page)
+        selectedPage = stale.page
+        resumeUsed = true
+        resume?.dismissStale()
+      }, placement = FluidToolbarPlacement.BottomBar)
       viewerTypeActions(strings.more) {
         buildList {
           add(FluidContextAction(if (slides) strings.goToSlide else strings.goToPage) { goingTo = true })
@@ -198,6 +225,36 @@ fun FluidPagesPreset(
         selectedPage?.takeIf { it < count && pages.layoutInfo.visibleItemsInfo.any { item -> item.index == it } }
           ?: visibleViewerPage(pages.layoutInfo, pages.canScrollBackward, pages.canScrollForward, count)
       }
+    }
+    if (resume != null) {
+      // F8.18: la posizione si salva a riposo (fine dello scorrimento, cambio di zoom, pagina lasciata), mai a ogni
+      // fotogramma: il negozio la tiene in memoria e la scrive più tardi.
+      val currentScale by rememberUpdatedState(scale)
+      val position = remember(pages) {
+        {
+          val first = pages.firstVisibleItemIndex
+          val item = pages.layoutInfo.visibleItemsInfo.firstOrNull { it.index == first }
+          val offset = item?.let { (pages.firstVisibleItemScrollOffset.toFloat() / it.size.coerceAtLeast(1)).coerceIn(0f, 1f) } ?: 0f
+          FluidViewerPosition(page = first, offset = offset, zoom = currentScale)
+        }
+      }
+      LaunchedEffect(pages, resume, resumeAt) {
+        val at = resumeAt
+        if (at != null && at.offset > 0f && pages.firstVisibleItemIndex == at.page && pages.firstVisibleItemScrollOffset == 0) {
+          val item = snapshotFlow { pages.layoutInfo.visibleItemsInfo.firstOrNull { it.index == at.page } }.filterNotNull().first()
+          pages.requestScrollToItem(at.page, (item.size * at.offset).roundToInt())
+        }
+        // A riposo: la pagina, lo zoom o lo scorrimento che cambiano, e poi niente per un momento (anche un salto senza
+        // scorrimento: «Vai a pagina…», le miniature, la maniglia).
+        snapshotFlow { Triple(pages.firstVisibleItemIndex, pages.isScrollInProgress, scale) }.drop(1).collectLatest { (_, moving, _) ->
+          if (!moving) {
+            delay(ViewerResumeSettleMillis)
+            resume.save(position())
+          }
+        }
+      }
+      LaunchedEffect(active) { if (!active) resume.save(position()) }
+      DisposableEffect(pages, resume) { onDispose { resume.save(position()) } }
     }
     val gap = when {
       slides -> 11.dp
@@ -267,6 +324,11 @@ fun FluidPagesPreset(
             }
           }
         }
+        // F8.18 · La barra di scorrimento di tutto il documento (la nota di Alessio sul bilancio): la maniglia porta a
+        // qualunque pagina, anche alla millesima, e si disegnano solo le pagine che si vedono.
+        if (count >= ViewerPagesBudget.ScrubberMinPages) FluidFastScroller(pages, label = { strings.page(it + 1, count) },
+          modifier = Modifier.fillMaxSize().padding(top = top, bottom = bottom), backdrop = backdrop,
+          minItems = ViewerPagesBudget.ScrubberMinPages, contentDescription = strings.scrubber)
         if (presenting) ViewerSlideShow(cache, count, current, strings) { presenting = false }
         ViewerGoToAlert(goingTo, if (slides) strings.goToSlide else strings.goToPage,
           if (slides) strings.slideNumber else strings.pageNumber, strings.range(count), numeric = true,
@@ -397,13 +459,16 @@ private fun ViewerPage(
     if (!visible) return@LaunchedEffect
     failed = false
     try {
+      // F8.18: mentre la lista corre, una pagina che resta in vista per un fotogramma solo non chiede niente al
+      // documento; il suo posto resta il foglio di carta, e il thread del PDF resta libero per le pagine su cui ci si ferma.
+      if (preview && bitmap == null) repeat(ViewerPagesBudget.SettleFrames) { withFrameNanos { } }
       val natural = size ?: cache.measure(index).also { size = it }
-      val target = viewerPageRenderSize(natural, width, preview, thumbnail)
+      val target = viewerPageRenderSize(natural, width, preview, thumbnail, cache.budget)
       val previous = bitmap
       if (previous == null || previous.width < target.width || previous.height < target.height) {
         val reader = FluidPageRead(optional = !onScreen)
         try {
-          val next = withContext(reader) { cache.render(index, target, thumbnail) }
+          val next = withContext(reader + FluidPageDisplay) { cache.render(index, target, thumbnail) }
           if (onScreen) {
             owners.reads.add(reader)
             currentRead = reader
@@ -419,8 +484,10 @@ private fun ViewerPage(
       failed = true
     }
   }
+  // F8.18: una pagina non ancora misurata prende la forma della prima misurata (quasi tutti i PDF hanno pagine uguali):
+  // quando arriva la sua misura vera la colonna non salta.
   val ratio = size?.let { (it.width.toFloat() / it.height).coerceIn(1f / MaxPageAspect, MaxPageAspect) }
-    ?: DefaultPageAspect
+    ?: cache.typicalAspect.floatValue.takeIf { it > 0f }?.coerceIn(1f / MaxPageAspect, MaxPageAspect) ?: DefaultPageAspect
   val paper = MaterialTheme.colorScheme.surfaceContainerHigh
   val shown = bitmap
   val claim = LocalViewerEntrance.current
@@ -467,26 +534,63 @@ internal fun visibleViewerPage(
 }
 
 private const val DefaultPageAspect = 0.7071f
+/** F8.18: quanto la pagina resta ferma prima di salvare la posizione. 400 ms, a occhio (25 novembre 2026). */
+internal const val ViewerResumeSettleMillis = 400L
 private const val MaxPageAspect = 20f
 private val ThumbnailColumnWidth = 112.dp
 private const val ThumbnailEdge = 192
 private const val PreviewEdge = 384
 private const val ReadingEdge = 2048
 
-internal fun viewerPageRenderSize(natural: IntSize, displayWidth: Int, preview: Boolean, thumbnail: Boolean): IntSize {
+internal fun viewerPageRenderSize(
+  natural: IntSize, displayWidth: Int, preview: Boolean, thumbnail: Boolean,
+  budget: ViewerPagesBudget = ViewerPagesBudget.Full,
+): IntSize {
   require(natural.width > 0 && natural.height > 0)
   val edge = when {
-    thumbnail -> ThumbnailEdge
-    preview -> PreviewEdge
-    else -> ReadingEdge
+    thumbnail -> budget.thumbnailEdge
+    preview -> budget.previewEdge
+    else -> budget.readingEdge
   }
   val scale = minOf(displayWidth.coerceAtLeast(1).toDouble() / natural.width,
     edge.toDouble() / maxOf(natural.width, natural.height))
   return IntSize((natural.width * scale).roundToInt().coerceAtLeast(1), (natural.height * scale).roundToInt().coerceAtLeast(1))
 }
 
+/**
+ * F8.18 · Il bilancio dei documenti a pagine, **automatico e invisibile** (nota di Alessio): la barra di scorrimento è
+ * per tutto il documento, ma si disegnano solo le pagine in vista (la lista pigra), si chiedono al documento solo
+ * quelle su cui la lista si ferma almeno [SettleFrames] fotogrammi, e la risoluzione segue il profilo di memoria del
+ * processo (F7.10: Pieno, Ridotto, Protetto). Niente da regolare: un telefono debole riceve pagine un po' meno fitte,
+ * mai una domanda. I numeri sono a occhio (25 novembre 2026); il tetto dei byte resta quello di F7.13.
+ */
+internal class ViewerPagesBudget private constructor(val readingEdge: Int, val previewEdge: Int, val thumbnailEdge: Int) {
+  companion object {
+    val Full = ViewerPagesBudget(ReadingEdge, PreviewEdge, ThumbnailEdge)
+    /** Ridotto: una pagina A4 del tablet a 1600 px di lato lungo; sul telefono a tutta larghezza non cambia niente. */
+    val Reduced = ViewerPagesBudget(1600, 320, 160)
+    /** Protetto: 1200 px, anteprime a 256 e miniature a 128. */
+    val Protected = ViewerPagesBudget(1200, 256, 128)
+
+    fun of(profile: Int): ViewerPagesBudget = when (profile) {
+      0 -> Full
+      1 -> Reduced
+      else -> Protected
+    }
+
+    /** Da quante pagine compare la maniglia di tutto il documento. A occhio, 25 novembre 2026. */
+    const val ScrubberMinPages: Int = 12
+    /** I fotogrammi che una pagina deve restare in vista, mentre la lista corre, prima di chiedere la resa. */
+    const val SettleFrames: Int = 2
+  }
+}
+
 /** Serializes source calls, while keeping at most six rendered pages and 24 MiB of bitmap data per reader. */
 internal class ViewerPageRenderCache(private val source: FluidPageSource) {
+  /** F8.18: la forma della prima pagina misurata, per le pagine che non lo sono ancora. Zero finché non c'è. */
+  val typicalAspect = mutableFloatStateOf(0f)
+  /** F8.18: il bilancio di risoluzione scelto dal preset. */
+  var budget: ViewerPagesBudget = ViewerPagesBudget.Full
   private data class Key(val index: Int, val thumbnail: Boolean)
   private data class Entry(val target: IntSize, val bitmap: ImageBitmap) {
     val bytes: Long get() = bitmap.width.toLong() * bitmap.height * 4L
@@ -503,7 +607,8 @@ internal class ViewerPageRenderCache(private val source: FluidPageSource) {
     coroutineContext.ensureActive()
     require(size.width > 0 && size.height > 0)
     dimensions[index] = size
-    if (dimensions.size > 64) dimensions.remove(dimensions.keys.first())
+    if (typicalAspect.floatValue == 0f) typicalAspect.floatValue = size.width.toFloat() / size.height
+    if (dimensions.size > MaxDimensions) dimensions.remove(dimensions.keys.first())
     size
   }
 
@@ -526,5 +631,7 @@ internal class ViewerPageRenderCache(private val source: FluidPageSource) {
 
   private companion object {
     const val MaxBytes = 24L * 1024 * 1024
+    /** F8.18: le misure tenute, 256 (una lista di migliaia di pagine torna indietro senza rimisurare). */
+    const val MaxDimensions = 256
   }
 }

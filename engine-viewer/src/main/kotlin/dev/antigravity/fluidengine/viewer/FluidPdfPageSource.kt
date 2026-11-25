@@ -9,6 +9,7 @@ import android.os.ParcelFileDescriptor
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
+import androidx.annotation.RestrictTo
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -66,6 +67,17 @@ class FluidPdfPageSource private constructor(
      * 22 novembre 2026: un PDF più grande da un flusso è un caso da «Apri con…».
      */
     const val DefaultMaxCopyBytes: Long = 512L * 1024 * 1024
+
+    /**
+     * F8.18 · Le pagine per lo schermo passano nella memoria grafica (`Bitmap.Config.HARDWARE`) sul thread del PDF, di
+     * serie sì: il primo disegno di una pagina non carica la texture dentro il fotogramma del RenderThread, e a 120 Hz
+     * non c'è lo scatto all'arrivo di ogni pagina. Solo per le prove di confronto sul dispositivo (la galleria in
+     * debug): spento, ogni pagina si carica al primo disegno, come prima di F8.18.
+     */
+    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+    @Volatile
+    @JvmStatic
+    var hardwareDisplay: Boolean = true
 
     /**
      * Apre un PDF da un descrittore, che passa al sorgente (lo chiude lui, anche se l'apertura fallisce). Il
@@ -133,6 +145,7 @@ class FluidPdfPageSource private constructor(
           descriptor.closeQuietly()
           temporary?.delete()
         },
+        display = ::pdfDisplayBitmap,
       )
       try {
         queue.start()
@@ -211,6 +224,23 @@ class FluidPdfPageSource private constructor(
     }
 
   }
+}
+
+/**
+ * F8.18 · La pagina resa per lo schermo, portata nella memoria grafica sul thread del PDF (la copia la fa
+ * l'uploader della piattaforma, fuori dal RenderThread). Se la copia non riesce resta la bitmap normale. La bitmap
+ * software si ricicla subito: la prenotazione della resa contava già le due copie (8 byte per pixel).
+ */
+internal fun pdfDisplayBitmap(page: ImageBitmap): ImageBitmap {
+  if (!FluidPdfPageSource.hardwareDisplay) return page
+  val software = page.asAndroidBitmap()
+  val hardware = try {
+    software.copy(Bitmap.Config.HARDWARE, false)
+  } catch (_: RuntimeException) {
+    null
+  } ?: return page
+  software.recycle()
+  return hardware.asImageBitmap()
 }
 
 /** `PdfRenderer` dietro [FluidPageBackend]. Lo usa un thread solo; ogni pagina si apre e si chiude con `use`. */

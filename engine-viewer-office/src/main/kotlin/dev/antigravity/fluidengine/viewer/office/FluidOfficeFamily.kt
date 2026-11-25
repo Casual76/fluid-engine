@@ -1,7 +1,5 @@
 package dev.antigravity.fluidengine.viewer.office
 
-import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.ImageBitmap
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
 import dev.antigravity.fluidengine.viewer.*
@@ -145,23 +143,23 @@ class FluidOfficeFamily : FluidViewerFamily {
           "%.1f × %.1f pt".format(java.util.Locale.ROOT, paper.width, paper.height),
           "Impaginazione",
         )
-        val details = mutableStateListOf<FluidViewerDetail>().apply { addAll(info.finish()) }
+        // Le righe che arrivano dall'impaginazione, in sottofondo: ogni aggiunta è una lista intera al posto dell'altra
+        // (F7.20), così il pannello che la legge non la trova mai a metà.
+        val details = FluidViewerLiveDetails(info.finish())
         pages.start(
           onPartial = { error ->
-            Snapshot.withMutableSnapshot {
-              details.add(
-                FluidViewerDetail(
-                  "Impaginazione interrotta",
-                  error.message ?: "Errore di lettura",
-                  "Lettura",
-                )
+            details.add(
+              FluidViewerDetail(
+                "Impaginazione interrotta",
+                error.message ?: "Errore di lettura",
+                "Lettura",
               )
-            }
+            )
           }
         ) {
           if (laidOut != null) paginate(laidOut, it, fonts)
           else fixed.orEmpty().forEach { page -> it.append(page) }
-          Snapshot.withMutableSnapshot { details.add(FluidViewerDetail("Pagine", it.count.toString(), "Contenuto")) }
+          details.add(FluidViewerDetail("Pagine", it.count.toString(), "Contenuto"))
         }
         FluidViewerOpened(FluidViewerContent.Pages(pages), details, pages::close)
       } catch (t: Throwable) {

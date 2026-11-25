@@ -10,7 +10,29 @@
   -->
   <uses-permission android:name="android.permission.VIBRATE" />
 
+  <!--
+    F8.10 · La fila delle app Pampa nel foglio di condivisione. Da Android 11 un'app vede solo le app che dichiara: queste
+    righe rendono visibili le app che ricevono una condivisione (`SEND`, `SEND_MULTIPLE`), e solo quelle. Niente
+    QUERY_ALL_PACKAGES: fra queste il foglio tiene le app con la firma attesa (FluidShareTargets), il resto lo mostra il
+    foglio di Android («Altre app…»).
+  -->
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.SEND" />
+      <data android:mimeType="*/*" />
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.SEND_MULTIPLE" />
+      <data android:mimeType="*/*" />
+    </intent>
+  </queries>
+
   <application>
+    <!-- F8.10 · Le uscite dell'engine (FluidShareFiles): sola lettura, solo a chi riceve l'Uri. -->
+    <provider android:name="dev.antigravity.fluidengine.ui.fluid.share.FluidShareFileProvider"
+        android:authorities="${applicationId}.fluid.share" android:exported="false" android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/fluid_share_paths" />
+    </provider>
     <provider android:name="androidx.startup.InitializationProvider"
         android:authorities="${applicationId}.androidx-startup" android:exported="false">
       <meta-data android:name="dev.antigravity.fluidengine.ui.glass.quality.android.GlassStartup"

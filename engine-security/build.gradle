@@ -1,0 +1,46 @@
+// F8.23 · Il blocco con l'impronta: l'app che si blocca al rientro dopo il tempo scelto, la schermata di blocco di vetro,
+// il contenuto protetto che resta chiuso finche' non lo apri, il PIN dell'app di riserva (il campo a codice di F8.3),
+// l'anteprima oscurata nelle recenti e la riga pronta delle impostazioni. Opt-in.
+//
+// Un modulo a parte e non un pezzo di engine-vault: la cassaforte non ha interfaccia e la usa anche engine-ai, che non
+// deve portarsi dietro Compose; il blocco e' quasi tutta interfaccia. Il dialogo dell'impronta e' il BiometricPrompt del
+// sistema (Android 9+), che lavora con qualunque attivita': niente androidx.biometric (vedi FluidSystemAuthenticator.kt).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.security'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano Compose, FluidPrivateGate, VaultSection e VaultAuthenticator.
+  api project(':engine-ui')
+  api project(':engine-vault')
+  api project(':engine-foundation')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

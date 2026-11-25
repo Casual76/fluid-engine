@@ -1098,6 +1098,44 @@ FluidDateTimeSelection(instant: Instant, zone: ZoneId)           // il risultato
 calendario. Le proposte con istanti **già passati** sono scartate dalla conferma, non nascoste: calcolale al momento di mostrare il foglio, non alla creazione della schermata. Il foglio non sa nulla di ricorrenze, promemoria
 o fusi dell'altro utente.
 
+## Le pagine dentro un foglio: `FluidSheetPages` (4.0, F8.10)
+
+**Cos'e'.** La navigazione dentro un foglio di iOS (un `NavigationStack` dentro `.sheet`), come le «Opzioni ›» del
+foglio di condivisione di Foto: il foglio resta dov'e' e al suo detent, cambia solo cosa c'e' dentro. La usa
+`FluidShareSheet` per le opzioni della copia ([condivisione.md](condivisione.md)).
+
+```kotlin
+var pages by remember { mutableStateOf(listOf(Pagina.Elenco)) }
+FluidGlassSheet(visible = aperto, onDismissRequest = { aperto = false }) {
+  FluidSheetPages(pages, onBack = { pages = pages.dropLast(1) }, Modifier.fillMaxWidth().weight(1f)) { pagina ->
+    when (pagina) {
+      Pagina.Elenco -> Elenco(onApri = { pages = pages + Pagina.Dettaglio })
+      Pagina.Dettaglio -> Column(Modifier.fillMaxSize()) {
+        FluidSheetPageBar("Dettaglio", onBack = { pages = pages.dropLast(1) }) { /* la spunta, se serve */ }
+        Dettaglio()
+      }
+    }
+  }
+}
+```
+
+- **La pila la tiene l'app**: una pagina in piu' in cima e' un push, una in meno un ritorno (piu' pagine in meno: esce
+  solo quella in cima). `onBack` chiede di togliere la cima; il foglio non si chiude mai da qui. Sulla prima pagina il
+  back di sistema torna al foglio, che si chiude come sempre.
+- **Il movimento e' quello delle pagine** (`FluidPageMotion`, un orologio solo): la pagina nuova arriva da destra con
+  la molla `page()`, quella sotto arretra di un terzo (`belowParallax`) e **sfuma** (il quadrato della frazione d'uscita:
+  sul vetro del foglio le pagine sono trasparenti e i due testi non devono sovrapporsi; a occhio, 24 novembre 2026).
+- **Indietro** in tre modi, sulla stessa corsa: il tasto di `FluidSheetPageBar`, il back di sistema (predittivo: la
+  pagina segue il gesto, e un gesto annullato rientra con `pageReturn()`) e il dito dal bordo sinistro (20 dp,
+  `FluidPageMotion.EdgeZoneDp`, reclamato solo oltre lo slop orizzontale: un tocco sul bordo arriva ancora a chi sta
+  sotto). Il rilascio lo decide `FluidPageMotion.backRelease`.
+- **Nitide**: le pagine le muove il dito o un tocco, niente sfocatura. Col movimento ridotto il cambio e' immediato.
+- Le pagine sotto restano composte (lo stato `rememberSaveable` di ognuna sopravvive al viaggio); quelle ferme sotto la
+  cima non si misurano, non si disegnano, non ricevono tocchi e non sono nell'albero di TalkBack.
+- `FluidSheetPageBar`: il chevron di vetro a sinistra (lo stesso delle pagine dell'engine), il titolo al centro
+  (intestazione e nome del riquadro, che TalkBack legge quando la pagina arriva) e `trailing` a destra; tasti da 44 dp,
+  come nella barra di un foglio di iOS 26.
+
 ## Token, costanti, Defaults
 
 Le misure dei pannelli (`FluidPopoverMargin` 16 dp, `FluidPopoverGap` 10 dp, 620/360 dp, 78% di altezza, 38 dp del foglio,
@@ -1209,6 +1247,7 @@ Sorgenti in `engine-ui/src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/`:
 | `FluidMenuLayer.kt` | i layer dell'host per i menu (`Expand`, contestuale) e per l'avviso e la conferma (`FluidAlertLayer`, la card, i pulsanti con la goccia, il viaggio dalla sorgente) |
 | `FluidSheet.kt` | `FluidSheet` (deprecato), `FluidGrabber`, `FluidAlert` (con e senza sorgente, a dato), `FluidAlertAction`, il `Dialog` di ripiego |
 | `FluidSheetScaffold.kt` | `FluidSheetScaffold`, `FluidSheetScaffoldDefaults`, `FluidConfirmSheet`, l'aritmetica pura del budget |
+| `FluidSheetPages.kt` | le pagine dentro un foglio (`FluidSheetPages`, `FluidSheetPageBar`, `FluidSheetPagesTags`; 4.0, F8.10) |
 | `FluidPromptAlert.kt` | `FluidPromptAlert`, `FluidPromptValidation`, `fluidPromptNotBlank` |
 | `FluidMotion.kt` | i token (`Popover*`, `SheetSettle`, e i menu: vedi [menu-liquidi.md](menu-liquidi.md)) |
 

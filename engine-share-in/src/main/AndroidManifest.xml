@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    Nessun permesso e nessuna attivita': i filtri (`SEND`, `SEND_MULTIPLE`, `PROCESS_TEXT`, `VIEW`) li dichiara l'app
+    sulla sua attivita', con i tipi che accetta davvero. Il modulo porta solo il tema trasparente (Theme.FluidShareIn).
+  -->
+</manifest>

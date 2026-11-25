@@ -22,6 +22,20 @@ class EngineUiDecoderFreeTest {
     "androidx.pdf.", "coil.", "coil3.", "com.bumptech.glide.", "com.facebook.fresco.", "dev.antigravity.fluidengine.viewer.",
   )
 
+  // Le eccezioni ammesse, una per una, con l'import esatto (F8.10). Scrivere un PDF non è decodificarlo
+  // (`PdfDocument` crea, `PdfRenderer` resta vietato), e la miniatura del foglio di condivisione e la stampa di una
+  // foto leggono l'immagine a campioni, mai intera e mai per mostrarla come un visore.
+  private val allowedImports = setOf(
+    "output/FluidPdf.kt" to "android.graphics.pdf.PdfDocument",
+    "output/FluidPrint.kt" to "android.graphics.pdf.PdfDocument",
+    "output/FluidPrint.kt" to "android.graphics.BitmapFactory",
+    "share/FluidShareSheet.kt" to "android.graphics.BitmapFactory",
+  )
+
+  private fun allowed(file: File, line: String): Boolean = allowedImports.any { (suffix, api) ->
+    file.invariantSeparatorsPath.endsWith("/fluid/$suffix") && line.trim() == "import $api"
+  }
+
   // Un nome di pacchetto intero, non un pezzo di parola: `coil.` non deve prendere `FluidRecoil.Default`.
   private val apiPatterns = forbiddenApis.map { Regex("(?<![A-Za-z0-9_.])" + Regex.escape(it)) }
 
@@ -55,6 +69,7 @@ class EngineUiDecoderFreeTest {
       file.readLines().withIndex()
         .filter { (_, line) -> !line.trimStart().startsWith("//") && !line.trimStart().startsWith("*") }
         .filter { (_, line) -> apiPatterns.any { it.containsMatchIn(line) } }
+        .filter { (_, line) -> !allowed(file, line) }
         .map { (n, line) -> "${file.relativeTo(engineUi)}:${n + 1}: ${line.trim()}" }
     }
     assertEquals("API di decodifica nei sorgenti di engine-ui", emptyList<String>(), found)

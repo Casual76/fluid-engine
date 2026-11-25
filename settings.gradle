@@ -53,6 +53,12 @@ include ':engine-auth-google'
 // Solo nel build dell'engine, fuori dal lotto standard: tools/prf-probe/README.md.
 include ':prf-probe'
 project(':prf-probe').projectDir = file('tools/prf-probe')
+// F8.23 · La cassaforte (senza interfaccia) e il blocco con l'impronta (lo schermo di vetro e il dialogo di sistema).
+include ':engine-vault'
+include ':engine-security'
+// F8.10 · Condivisione: il QR del foglio (ZXing core) e gli arrivi da altre app. Opt-in tutti e due.
+include ':engine-qr'
+include ':engine-share-in'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

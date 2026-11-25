@@ -94,7 +94,13 @@ keys.anyVerified.collect { enabled -> showAssistantButton(enabled) }
 ## `SecretCipher` e `KeystoreCipher`
 
 **Cos'e'.** `SecretCipher` (`encrypt(plain): String`, `decrypt(blob): String?`) e' l'interfaccia che permette ai test di sostituire il Keystore (che sul computer non c'e') con una cifratura trasparente. `KeystoreCipher` e' l'implementazione vera: **AES-256-GCM** con la chiave dentro l'Android Keystore (cio' che
-`EncryptedSharedPreferences` faceva prima di essere deprecata: security-crypto 1.1.0-alpha07, aprile 2025). Ottanta righe, nessuna dipendenza, stesso livello di protezione.
+`EncryptedSharedPreferences` faceva prima di essere deprecata: security-crypto 1.1.0-alpha07, aprile 2025). Nessuna dipendenza oltre l'engine, stesso livello di protezione.
+
+**Dalla 4.0 (F8.23) lavora con la cassaforte dell'engine**: `KeystoreCipher` è un `FluidKeystoreKey` di
+[`engine-vault`](vault.md), **con lo stesso alias e lo stesso formato** di prima. Le chiavi già salvate nelle app si riaprono
+senza toccare niente, e una versione di prima rilegge quelle nuove (provato con il `KeystoreCipher` della 3.x copiato nei
+test, su un Keystore finto). Una chiave che manca nasce ora in StrongBox quando il telefono lo ha; una che c'è resta com'è.
+`AiKeyStore.key` decifra su `Dispatchers.IO`: il Keystore non lavora mai sul thread principale.
 
 **Comportamento.** Formato del blob: `v1:` + base64(`iv[12]` || testo cifrato || tag). L'IV lo sceglie il Keystore a ogni cifratura (`setRandomizedEncryptionRequired`): due salvataggi della stessa chiave non si assomigliano. `decrypt` ritorna `null` (non lancia) per prefisso mancante, blob troppo corto, tag non valido, chiave invalidata, chiave irrecuperabile.
 
@@ -409,7 +415,8 @@ class Transcriber(providers: suspend () -> List<ReadyProvider>) {
 - `SseParserTest`, `MultipartBodyTest`: eventi, commenti, righe multiple, `\r` finale, flush; preludio ed epilogo, boundary nei campi rifiutato.
 - `SpeechCaptureTest` (microfono finto): una frase e poi silenzio con WAV tagliato, il livello che segue la voce, una frase troppo breve, fermata a mano senza parlato, **voce bassa fermata a mano non si butta**, il tetto di durata, la stanza rumorosa, il solo rumore di fondo, i guasti del microfono con il perche', la cancellazione, l'intestazione WAV little-endian.
 - `SmallPartsTest`: «un'altra riga omessa» al singolare, il boundary senza nome d'app, `Transcriber.hint` (venti nomi di serie, parametro, vuoti, tetto).
-- **Non coperto**: `KeystoreCipher` su un telefono (nessun test col Keystore vero); `AndroidPcmSource` (richiede un dispositivo: fuoco audio, priorita' del thread, soppressore di rumore); le chiamate vere ai tre servizi.
+- `F8p23VaultAndroidTest` (Robolectric, nella galleria, con un fornitore «AndroidKeyStore» finto): le chiavi scritte dal `KeystoreCipher` della 3.x si riaprono col nuovo e viceversa, anche con un alias dell'app; `AiKeyStore` le rilegge dal suo DataStore; una chiave nuova nasce in StrongBox quando c'è.
+- **Non coperto**: `KeystoreCipher` su un telefono vero; `AndroidPcmSource` (richiede un dispositivo: fuoco audio, priorita' del thread, soppressore di rumore); le chiamate vere ai tre servizi.
 
 ## Dove guardare
 

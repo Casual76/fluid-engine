@@ -1,0 +1,42 @@
+// F8.10 · Gli arrivi da altre app: il verso opposto del foglio di condivisione. Quando in un'altra app si tocca
+// «Condividi» e si sceglie un'app Pampa, l'engine legge in un modo solo tutte le forme in cui Android consegna (uno,
+// tanti, il testo selezionato, «apri con»), copia subito i file prima che il permesso scada (con l'avanzamento e un
+// tetto) e mostra un piccolo foglio con l'anteprima, la destinazione e «Salva». L'app dichiara cosa accetta e fa il
+// salvataggio vero. Opt-in: un'app che non riceve niente non lo include.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.sharein'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: il foglio parla `GlassBackdropState`, `ImageVector` e le righe di engine-ui. Le scorciatoie di condivisione
+  // (`ShortcutManagerCompat`) vengono da androidx.core, che engine-ui porta gia'.
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+}

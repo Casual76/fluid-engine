@@ -343,9 +343,15 @@ internal object FluidSecureWindow {
   }
 }
 
-/** Tiene il segno della finestra finché [active]. */
+/**
+ * Tiene la finestra fuori dalle recenti finché [active]: l'anteprima nelle app recenti è vuota
+ * (`setRecentsScreenshotEnabled(false)` da Android 13, `FLAG_SECURE` prima, che toglie anche gli screenshot), e con
+ * [blockScreenshots] anche gli screenshot sono neri. Le richieste si contano: la finestra torna com'era quando
+ * l'ultima se ne va, e un'app che aveva già `FLAG_SECURE` lo tiene. È lo stesso segno dei valori riservati, pubblico
+ * dalla 4.0 per il blocco dell'app (`engine-security`, F8.23).
+ */
 @Composable
-internal fun FluidSecureWindowHold(active: Boolean, blockScreenshots: Boolean) {
+fun FluidSecureWindowHold(active: Boolean, blockScreenshots: Boolean) {
   val activity = LocalContext.current.fluidActivity() ?: return
   DisposableEffect(activity, active, blockScreenshots) {
     if (active) FluidSecureWindow.acquire(activity, blockScreenshots)

@@ -1,0 +1,42 @@
+// F8.23 · La cassaforte: valori, file e DataStore cifrati con chiavi del Keystore (StrongBox quando c'e'), in sezioni
+// che si aprono col solo telefono o con l'impronta e si richiudono da sole. Opt-in: un'app che non custodisce niente non
+// la include. Nessuna interfaccia e nessuna libreria nuova: il Keystore e javax.crypto del telefono, e DataStore, che
+// l'engine ha gia'. Niente androidx.security-crypto (deprecata nel 2025) e niente androidx.biometric: il dialogo
+// dell'impronta lo mostra chi chiama (engine-security ne ha uno pronto), la cassaforte riceve solo l'esito.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.vault'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+  // `api`: le firme pubbliche parlano DataStore, Serializer e Preferences.
+  api "androidx.datastore:datastore-preferences:${engine.datastore}"
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Qui la logica sulla JVM, con MemoryVaultKeystore. La strada vera (AndroidVaultKeystore, il Keystore di Android con un
+  // fornitore «AndroidKeyStore» finto, e la compatibilita' con le chiavi di engine-ai) gira su Robolectric nei test della
+  // galleria (sample/src/testDebug/.../novita/F8p23*Test.kt), come gli altri test che hanno bisogno di Android.
+}

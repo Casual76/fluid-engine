@@ -1,16 +1,10 @@
 package dev.antigravity.fluidengine.ai.keys
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyPermanentlyInvalidatedException
-import android.security.keystore.KeyProperties
-import java.security.KeyStore
-import java.security.UnrecoverableKeyException
+import dev.antigravity.fluidengine.vault.AndroidVaultKeystore
+import dev.antigravity.fluidengine.vault.FluidKeystoreKey
+import dev.antigravity.fluidengine.vault.VaultException
+import dev.antigravity.fluidengine.vault.VaultKeystore
 import java.util.Base64
-import javax.crypto.AEADBadTagException
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Cifra e decifra un segreto. Esiste come interfaccia perche' il Keystore non c'e' sul computer:
@@ -26,57 +20,44 @@ interface SecretCipher {
 /**
  * AES-256-GCM con la chiave dentro l'Android Keystore: e' quello che `EncryptedSharedPreferences`
  * faceva prima di essere deprecata (security-crypto 1.1.0-alpha07, aprile 2025: "usate
- * direttamente il Keystore"). Ottanta righe, nessuna dipendenza, stesso livello di protezione.
+ * direttamente il Keystore"). Nessuna dipendenza oltre l'engine, stesso livello di protezione.
+ *
+ * Dalla 4.0 (F8.23) il lavoro lo fa la cassaforte dell'engine ([FluidKeystoreKey] di `engine-vault`), con **lo stesso
+ * alias e lo stesso formato**: le chiavi salvate dalle versioni di prima si riaprono senza toccare niente, e una
+ * versione di prima rilegge quelle scritte da questa. Una chiave del Keystore che manca nasce ora nel chip separato
+ * (StrongBox) quando il telefono lo ha; una che c'e' gia' resta com'e'.
  *
  * Formato del blob: `v1:` + base64(iv[12] || testo cifrato || tag). L'IV lo sceglie il Keystore a
  * ogni cifratura (`setRandomizedEncryptionRequired`), quindi due salvataggi della stessa chiave
  * non si assomigliano.
+ *
+ * Parla col Keystore e blocca: va chiamata fuori dal thread principale ([AiKeyStore] lo fa da se').
  */
-class KeystoreCipher(private val alias: String = DEFAULT_ALIAS) : SecretCipher {
+class KeystoreCipher internal constructor(
+  private val alias: String,
+  keystore: VaultKeystore,
+) : SecretCipher {
 
-  override fun encrypt(plain: String): String {
-    val cipher = Cipher.getInstance(TRANSFORMATION)
-    cipher.init(Cipher.ENCRYPT_MODE, key())
-    val encrypted = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
-    val iv = cipher.iv
-    val blob = ByteArray(iv.size + encrypted.size)
-    iv.copyInto(blob)
-    encrypted.copyInto(blob, iv.size)
-    return PREFIX + Base64.getEncoder().encodeToString(blob)
-  }
+  constructor(alias: String = DEFAULT_ALIAS) : this(alias, AndroidVaultKeystore())
+
+  private val key = FluidKeystoreKey(alias, keystore)
+
+  override fun encrypt(plain: String): String =
+    PREFIX + Base64.getEncoder().encodeToString(key.seal(plain.toByteArray(Charsets.UTF_8)))
 
   override fun decrypt(blob: String): String? {
     if (!blob.startsWith(PREFIX)) return null
     return try {
       val bytes = Base64.getDecoder().decode(blob.removePrefix(PREFIX))
       if (bytes.size <= IV_BYTES) return null
-      val cipher = Cipher.getInstance(TRANSFORMATION)
-      cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(TAG_BITS, bytes, 0, IV_BYTES))
-      String(cipher.doFinal(bytes, IV_BYTES, bytes.size - IV_BYTES), Charsets.UTF_8)
-    } catch (e: AEADBadTagException) {
+      String(key.open(bytes), Charsets.UTF_8)
+    } catch (e: VaultException.Corrupt) {
       null
-    } catch (e: KeyPermanentlyInvalidatedException) {
-      null
-    } catch (e: UnrecoverableKeyException) {
+    } catch (e: VaultException.Invalidated) {
       null
     } catch (e: IllegalArgumentException) {
       null
     }
-  }
-
-  private fun key(): SecretKey {
-    val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-    (store.getKey(alias, null) as? SecretKey)?.let { return it }
-    val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
-    generator.init(
-      KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-        .setKeySize(256)
-        .setRandomizedEncryptionRequired(true)
-        .build(),
-    )
-    return generator.generateKey()
   }
 
   companion object {
@@ -85,10 +66,7 @@ class KeystoreCipher(private val alias: String = DEFAULT_ALIAS) : SecretCipher {
      * `fluidweather.ai`) lo passa al costruttore, altrimenti le chiavi salvate non si leggono piu'.
      */
     const val DEFAULT_ALIAS = "fluidengine.ai"
-    private const val KEYSTORE = "AndroidKeyStore"
-    private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val PREFIX = "v1:"
     private const val IV_BYTES = 12
-    private const val TAG_BITS = 128
   }
 }

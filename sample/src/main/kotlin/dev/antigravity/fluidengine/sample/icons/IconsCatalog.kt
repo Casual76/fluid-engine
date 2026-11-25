@@ -15,7 +15,7 @@ internal class IconsCatalogEntry(
 )
 
 /**
- * Tutto il set `FluidIcons`, nell'ordine dell'elenco: 168 icone al tratto, 31 con la gemella piena.
+ * Tutto il set `FluidIcons`, nell'ordine dell'elenco: 170 icone al tratto, 31 con la gemella piena.
  *
  * Scritto per esteso e non letto per riflessione: la galleria si pubblica minificata, e R8 toglierebbe i getter che
  * nessuno nomina. Se il set cambia (una riga in `tools/icons/fluid-icons.txt`), `IconsPageTest` fallisce e dice quale
@@ -145,9 +145,11 @@ internal val IconsCatalog: List<IconsCatalogEntry> = listOf(
   IconsCatalogEntry("PhotoLibrary", "photo_library", { FluidIcons.PhotoLibrary }, { FluidIcons.Filled.PhotoLibrary }),
   IconsCatalogEntry("PictureAsPdf", "picture_as_pdf", { FluidIcons.PictureAsPdf }, null),
   IconsCatalogEntry("PlayArrow", "play_arrow", { FluidIcons.PlayArrow }, { FluidIcons.Filled.PlayArrow }),
+  IconsCatalogEntry("Print", "print", { FluidIcons.Print }, null),
   IconsCatalogEntry("PriorityHigh", "priority_high", { FluidIcons.PriorityHigh }, null),
   IconsCatalogEntry("Psychology", "psychology", { FluidIcons.Psychology }, null),
   IconsCatalogEntry("Public", "public", { FluidIcons.Public }, null),
+  IconsCatalogEntry("QrCode", "qr_code", { FluidIcons.QrCode }, null),
   IconsCatalogEntry("QrCodeScanner", "qr_code_scanner", { FluidIcons.QrCodeScanner }, null),
   IconsCatalogEntry("Redo", "redo", { FluidIcons.Redo }, null),
   IconsCatalogEntry("Refresh", "refresh", { FluidIcons.Refresh }, null),

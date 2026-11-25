@@ -27,6 +27,13 @@ engine-auth         le passkey e il gestore delle password con Credential Manage
                     PRF la scrive il modulo, gli errori arrivano come frasi pronte (opt-in, dalla 4.0)
 engine-auth-google  «Continua con Google» e le concessioni Google (spente finché non servono): l'unico modulo
                     con librerie Google non libere, col permesso della GPL-3.0 § 7 (opt-in, dalla 4.0)
+engine-vault        la cassaforte: valori, file e DataStore cifrati col Keystore, sezioni all'impronta che si
+                    richiudono da sole, niente in backup (opt-in; entra con engine-ai)
+engine-security     il blocco dell'app con l'impronta, la schermata di vetro, il PIN dell'app, il contenuto
+                    protetto, l'anteprima oscurata nelle recenti (opt-in)
+engine-qr           il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (opt-in)
+engine-share-in     gli arrivi da altre app: le forme di Android lette in un modo solo, la copia
+                    subito con tetto e avanzamento, il foglio sopra l'app di partenza (opt-in)
 ```
 
 ## Partire in cinque minuti

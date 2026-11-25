@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- BiometricPrompt e BiometricManager.canAuthenticate li vogliono (Android 9+): senza, il sistema lancia una
+       SecurityException alla prima domanda. Sono permessi normali, concessi all'installazione, senza dialogo.
+       androidx.biometric li dichiara da se'; noi usiamo il BiometricPrompt di sistema, quindi li dichiariamo qui. -->
+  <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+  <!-- FingerprintManager su Android 9, per sapere se c'e' un'impronta registrata. -->
+  <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="28" />
+</manifest>

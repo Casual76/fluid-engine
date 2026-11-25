@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.10 · Le destinazioni degli arrivi (FluidShareInShortcuts) compaiono in alto nel foglio di condivisione di Android. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+  <share-target android:targetClass="dev.antigravity.fluidengine.sample.novita.ShareInDemoActivity">
+    <data android:mimeType="text/plain" />
+    <data android:mimeType="image/*" />
+    <data android:mimeType="application/pdf" />
+    <category android:name="dev.antigravity.fluidengine.sample.CONDIVISIONE" />
+  </share-target>
+</shortcuts>

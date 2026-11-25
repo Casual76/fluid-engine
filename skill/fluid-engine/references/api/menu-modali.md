@@ -143,6 +143,15 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidAlert(onDismissRequest: () -> Unit, title: String, modifier: Modifier = Modifier, message: String? = null, actions: List<FluidAlertAction>, inHost: Boolean = true, source: FluidTransitionSource?, content: (@Composable ColumnScope.() -> Unit)? = null)` — Un avviso che prende il posto di [source] mentre chiede una decisione e vi rientra al congedo.
 - `@Composable fun <T : Any> FluidAlert(item: T?, onDismissRequest: () -> Unit, title: (T) -> String, modifier: Modifier = Modifier, message: ((T) -> String?)? = null, actions: (T) -> List<FluidAlertAction>, inHost: Boolean = true, source: FluidTransitionSource? = null, content: (@Composable ColumnScope.(T) -> Unit)? = null)` — L'avviso compare quando [item] è presente. Il dato mostrato resta disponibile durante l'uscita.
 
+## `engine-ui/ui/fluid/FluidSheetPages.kt`
+
+- `object FluidSheetPagesTags` — I tag dei test e delle riprese.
+  - `const val Pages`
+  - `const val Back`
+  - `fun page(key: Any): String`
+- `@Composable fun <T : Any> FluidSheetPages(pages: List<T>, onBack: () -> Unit, modifier: Modifier = Modifier, key: (T) -> Any = { it }, content: @Composable (T) -> Unit)` — Le pagine dentro un foglio (4.0, F8.10): la navigazione di un foglio di iOS (un `NavigationStack` dentro `.sheet`), come le «Opzioni ›» del foglio di condivisione di Foto. Il foglio resta dov'e': cambia solo cosa c'e' dentro.
+- `@Composable fun FluidSheetPageBar(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier, backLabel: String = "Indietro", trailing: @Composable RowScope.() -> Unit = {})` — La barra in cima a una pagina di [FluidSheetPages]: il tasto indietro di vetro a sinistra (lo stesso chevron delle pagine dell'engine), il titolo al centro e, a destra, [trailing] (di solito la conferma, un tasto di vetro in evidenza con la spunta, come in iOS 26). Il titolo e' un'intestazione e il nome del riquadro: TalkBack lo legge quando la pagina arriva.
+
 ## `engine-ui/ui/fluid/FluidSheetScaffold.kt`
 
 - `object FluidSheetScaffoldDefaults` — Le misure del contenuto di un foglio di vetro.

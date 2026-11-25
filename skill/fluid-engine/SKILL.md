@@ -69,6 +69,10 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-ai` | l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, router e orchestratore, voce | `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md` |
 | `engine-ai-ui` | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (**opt-in**) | `moduli/ai-ui*.md` |
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
+| `engine-vault` | la cassaforte: valori, file e DataStore cifrati col Keystore, sezioni all'impronta che si richiudono da sole, i byte sigillati dell'account (**opt-in**, dalla 4.0) | `moduli/vault.md` |
+| `engine-security` | il blocco dell'app con l'impronta, la schermata di vetro, il PIN dell'app, il contenuto protetto, l'anteprima oscurata nelle recenti (**opt-in**, dalla 4.0) | `moduli/security.md` |
+| `engine-qr` | il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (**opt-in**, dalla 4.0) | `moduli/qr.md` |
+| `engine-share-in` | gli arrivi da altre app: le forme di Android lette in un modo solo, la copia subito con tetto, il foglio sopra l'app di partenza (**opt-in**, dalla 4.0) | `moduli/share-in.md` |
 | `engine-richtext` | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera), HTML ristretto, Markdown, testo (**opt-in**, dalla 3.1.0) | `moduli/richtext.md` |
 | `engine-viewer` | i decodificatori dei visori di file: PDF, testo con charset e colori di sintassi, GIF e WebP animate, il `Player` di Media3, il risolutore dal MIME al preset e il registro delle famiglie (**opt-in**, dalla 4.0) | `moduli/viewer.md` |
 | `engine-sync` | la sincronizzazione: registro locale, invio una volta sola, unione per campo e dei testi lunghi, pietre tombali, verso il relay cifrato dell'Account Pampa; WorkManager (**opt-in**, dalla 4.0) | `moduli/sync.md` |
@@ -93,6 +97,7 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | scrivere testo formattato (elenchi, link, citazioni, HTML/Markdown) | `moduli/richtext.md` (opt-in) |
 | sincronizzare i dati dell'app fra i dispositivi (anche senza rete), uno spazio condiviso, «3 modifiche in attesa», i conflitti | `moduli/sync.md` (opt-in) |
 | far scegliere fra due versioni di un elemento cambiate su dispositivi diversi (tieni questa, l'altra, tutte e due) | `moduli/revisions.md` (opt-in) |
+| condividere (il foglio di vetro con le app Pampa e le azioni, le opzioni prima dell'invio), fare di una vista un'immagine (un voto nei formati delle storie), un PDF impaginato con testo vero, la stampa; ricevere da un'altra app | `componenti/condivisione.md`; ricevere: `moduli/share-in.md`; il QR: `moduli/qr.md` |
 | il visore di un file a tutto schermo (foto, video, audio, PDF, testo, sconosciuto): rotta, ritorno nella miniatura, barre al tocco, pannello info, strumenti | `componenti/visori.md` |
 | aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |
@@ -120,6 +125,8 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | il foglio «Benvenuto in…» e «Novità di…» una volta per versione, un permesso chiesto dal tasto che ne ha bisogno (anche le foto «solo alcune»), uno sfondo vivo per un onboarding o un traguardo, la finestra del colore giusto al primo fotogramma | `componenti/prima-volta.md` |
 | entrare con una passkey, salvare un codice nel gestore delle password, «Continua con Google» | `moduli/auth.md` (opt-in) |
 | un orologio | `moduli/wear.md` |
+| cifrare una password, un file, un DataStore; una cartella che si apre con l'impronta e si richiude da sola; il caso «chiave non più valida» | `moduli/vault.md` (opt-in) |
+| bloccare l'app con l'impronta al rientro, il PIN dell'app, un album o le note che restano chiusi, l'anteprima nelle recenti | `moduli/security.md` (opt-in) |
 | un assistente IA | `ai.md`, `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md`, e l'interfaccia in `moduli/ai-ui.md` (+ `ai-ui-overlay`, `-chat`, `-impostazioni`, `-stringhe`) |
 
 ## Le cinque regole che non si negoziano

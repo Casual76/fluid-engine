@@ -70,4 +70,6 @@ ext.engine = [
   credentials    : '1.6.0',
   googleId       : '1.2.0',
   playServicesAuth: '22.0.0',
+  // engine-qr (F8.10): il codificatore dei QR del foglio di condivisione. Solo `core`, senza le parti Android.
+  zxing          : '3.5.4',
 ]

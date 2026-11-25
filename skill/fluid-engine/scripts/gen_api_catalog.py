@@ -106,6 +106,8 @@ UI_FLUID_FILES = {
         "FluidGlassMenuPanel", "FluidGlassMenuButton", "FluidSheet", "FluidSheetScaffold",
         "FluidPromptAlert", "FluidNotification", "FluidNotificationSource", "FluidSourceJourney", "FluidUndoCountdown", "FluidDrawer", "FluidDateTimeSheet",
         "FluidDateTimeMath",
+        # le pagine dentro un foglio (F8.10)
+        "FluidSheetPages", "FluidSheetPageBar", "FluidSheetPagesTags",
     ],
     # F8.11: la prima volta (benvenuto e novità, permessi, sfondi vivi, primo fotogramma pronto)
     "prima-volta": ["FluidWelcome", "FluidPermission", "FluidLiveBackground", "FluidFirstFrame", "FluidFirstUseLabels"],
@@ -155,6 +157,9 @@ UI_FLUID_DIRS = {
     "ui/fluid/activity": "barre",
     # i visori di file (F6C): il telaio e i contratti
     "ui/fluid/viewer": "contenuto",
+    # la condivisione (F8.10): il foglio, la copia preparata, il contratto del QR; e le uscite (immagine, PDF, stampa)
+    "ui/fluid/share": "condivisione",
+    "ui/fluid/output": "condivisione",
 }
 
 # cartella (sotto .../fluidengine/) -> famiglia; vale per tutto cio' che non e' in ui/fluid
@@ -174,6 +179,9 @@ DIR_FAMILY = {
     "widget": "widget",
     "wear": "wear",
     "richtext": "richtext",
+    # F8.23: la cassaforte e il blocco con l'impronta
+    "vault": "vault",
+    "security": "security",
     # il modulo facoltativo dei visori (F6C.4)
     "viewer": "viewer",
     # la sincronizzazione e la scelta tra versioni (F8.21)
@@ -190,6 +198,9 @@ DIR_FAMILY = {
     "ai/tools": "ai-orchestrator",
     "ai/bridge": "ai-bridge",
     "aiui": "ai-ui",
+    # i moduli facoltativi della condivisione (F8.10)
+    "qr": "qr",
+    "sharein": "share-in",
 }
 
 FAMILY_TITLES = {
@@ -198,6 +209,7 @@ FAMILY_TITLES = {
     "contenuto": "Contenuto: righe, card, liste, identità, testo, file",
     "contenuto-web": "Contenuto web chiuso (FluidWebContent)",
     "grafici": "Grafici: ciambella, barre, linea, legenda, scrubber e quadrante",
+    "condivisione": "Condivisione: foglio, copia preparata, immagine, PDF e stampa",
     "controlli": "Controlli",
     "menu-modali": "Menu, pop-up, fogli, avvisi, notifiche",
     "prima-volta": "Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma",
@@ -218,11 +230,15 @@ FAMILY_TITLES = {
     "widget": "engine-widget",
     "wear": "engine-wear",
     "richtext": "engine-richtext",
+    "vault": "engine-vault",
+    "security": "engine-security",
     "viewer": "engine-viewer",
     "sync": "engine-sync",
     "revisions": "engine-revisions",
     "auth": "engine-auth",
     "auth-google": "engine-auth-google",
+    "qr": "engine-qr",
+    "share-in": "engine-share-in",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

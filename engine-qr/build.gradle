@@ -1,0 +1,41 @@
+// F8.10 · Il QR del foglio di condivisione: «Mostra come QR» di un link o di un testo. Opt-in e piccolo: porta solo
+// ZXing core (Apache-2.0, ~550 KB prima di R8, senza parti Android e senza fotocamera). Un'app che non vuole il QR non
+// lo include, e il foglio di `engine-ui` non mostra quell'azione. Se un giorno un altro modulo dell'engine dovesse
+// leggere o scrivere un QR, passa da qui.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.qr'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  // `api`: il contratto (`FluidQrEncoder`, `LocalFluidQrEncoder`, `FluidQrCode`) sta in engine-ui.
+  api project(':engine-ui')
+  implementation "com.google.zxing:core:${engine.zxing}"
+
+  testImplementation "junit:junit:${engine.junit}"
+}

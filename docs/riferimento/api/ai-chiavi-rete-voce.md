@@ -105,7 +105,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `interface SecretCipher` — Cifra e decifra un segreto. Esiste come interfaccia perche' il Keystore non c'e' sul computer: i test lo sostituiscono con una versione trasparente, e il resto del codice non se ne accorge.
   - `fun encrypt(plain: String): String`
   - `fun decrypt(blob: String): String?` — Null quando il blob non si puo' leggere: chiave del Keystore cambiata, dato corrotto.
-- `class KeystoreCipher(private val alias: String = DEFAULT_ALIAS) : SecretCipher` — AES-256-GCM con la chiave dentro l'Android Keystore: e' quello che `EncryptedSharedPreferences` faceva prima di essere deprecata (security-crypto 1.1.0-alpha07, aprile 2025: "usate direttamente il Keystore"). Ottanta righe, nessuna dipendenza, stesso livello di protezione.
+- `class KeystoreCipher internal constructor(private val alias: String, keystore: VaultKeystore) : SecretCipher` — AES-256-GCM con la chiave dentro l'Android Keystore: e' quello che `EncryptedSharedPreferences` faceva prima di essere deprecata (security-crypto 1.1.0-alpha07, aprile 2025: "usate direttamente il Keystore"). Nessuna dipendenza oltre l'engine, stesso livello di protezione.
   - `companion object`
     - `const val DEFAULT_ALIAS` — L'alias della chiave nel Keystore. Un'app che aveva gia' il proprio (FluidWeather usava `fluidweather.ai`) lo passa al costruttore, altrimenti le chiavi salvate non si leggono piu'.
 

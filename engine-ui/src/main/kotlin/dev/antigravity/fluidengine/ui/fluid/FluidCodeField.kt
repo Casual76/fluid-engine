@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -181,6 +182,19 @@ internal fun fluidCodeShake(u: Float): Float {
   return sin(PI.toFloat() * FluidCodeFieldMotion.ShakeHalfPeriods * t) * exp(-3f * t)
 }
 
+/**
+ * Quanto stringere le caselle di un codice di [length] cifre in [groups] gruppi perché stiano in una riga larga
+ * [available] (F8.23, `singleRow`): 1 se stanno già, altrimenti la frazione che le fa entrare, caselle e spazi insieme,
+ * mai sotto 0,4. Pura.
+ */
+internal fun fluidCodeSingleRowScale(length: Int, groups: Int, available: Dp): Float {
+  val natural = FluidCodeFieldDefaults.CellMinWidth * length +
+    FluidCodeFieldDefaults.CellSpacing * (length - groups) +
+    FluidCodeFieldDefaults.GroupSpacing * (groups - 1).coerceAtLeast(0)
+  if (available == Dp.Infinity || available >= natural) return 1f
+  return (available / natural).coerceIn(0.4f, 1f)
+}
+
 /** I gruppi delle caselle: 3 + 3 per sei, 4 + 4 per otto, 3 + 4 per sette, uno solo fino a cinque. Pura. */
 internal fun fluidCodeGroups(length: Int): List<Int> = when {
   length <= 5 -> listOf(length)
@@ -228,6 +242,9 @@ internal fun fluidCodeInput(previous: String, raw: String, length: Int, digitsOn
  * @param digitsOnly vero: solo cifre, col tastierino numerico. Falso: lettere e cifre (in maiuscolo), per i codici di
  *   abbinamento.
  * @param label il nome del campo per TalkBack; di serie [FluidSpecialFieldLabels.code].
+ * @param singleRow le caselle restano **in una riga sola**, come il codice di sblocco di iOS: quando lo spazio non basta
+ *   (un telefono stretto, un pannello, il testo grande) si stringono in proporzione, caselle e spazi, invece di andare a
+ *   capo a gruppi. Per un PIN (F8.23, la schermata di blocco); di serie falso, il comportamento di F8.3.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -243,6 +260,7 @@ fun FluidCodeField(
   pasteButton: Boolean = true,
   label: String? = null,
   labels: FluidSpecialFieldLabels = LocalFluidSpecialFieldLabels.current,
+  singleRow: Boolean = false,
 ) {
   val scheme = MaterialTheme.colorScheme
   val haptics = LocalFluidHaptics.current
@@ -332,31 +350,54 @@ fun FluidCodeField(
           },
         decorationBox = { inner ->
           Box(contentAlignment = Alignment.Center) {
-            FlowRow(
-              modifier = Modifier.graphicsLayer {
-                translationX = fluidCodeShake(shake.value) * FluidCodeFieldMotion.ShakeAmplitudeDp * density.density
-              },
-              horizontalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.GroupSpacing, Alignment.CenterHorizontally),
-              verticalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.CellSpacing),
-            ) {
-              var start = 0
-              fluidCodeGroups(state.length).forEach { size ->
-                val from = start
-                Row(horizontalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.CellSpacing)) {
-                  for (index in from until from + size) {
-                    // La casella attiva è la prossima da scrivere; a codice completo, l'ultima.
-                    val activeIndex = if (state.isComplete) state.length - 1 else text.length
-                    CodeCell(
-                      char = text.getOrNull(index),
-                      active = focused && enabled && !verifying && index == activeIndex,
-                      secret = secret,
-                      error = state.isError,
-                      dimmed = verifying || !enabled,
-                      caret = { caret.floatValue },
-                    )
+            val shakeModifier = Modifier.graphicsLayer {
+              translationX = fluidCodeShake(shake.value) * FluidCodeFieldMotion.ShakeAmplitudeDp * density.density
+            }
+            // Le caselle di un gruppo; [cellWidth] nullo: la larghezza di serie, che cresce col testo grande.
+            val group: @Composable (Int, Int, Dp, Dp?) -> Unit = { from, size, cellGap, cellWidth ->
+              Row(horizontalArrangement = Arrangement.spacedBy(cellGap)) {
+                for (index in from until from + size) {
+                  // La casella attiva è la prossima da scrivere; a codice completo, l'ultima.
+                  val activeIndex = if (state.isComplete) state.length - 1 else text.length
+                  CodeCell(
+                    char = text.getOrNull(index),
+                    active = focused && enabled && !verifying && index == activeIndex,
+                    secret = secret,
+                    error = state.isError,
+                    dimmed = verifying || !enabled,
+                    caret = { caret.floatValue },
+                    width = cellWidth,
+                  )
+                }
+              }
+            }
+            val groups = fluidCodeGroups(state.length)
+            if (singleRow) {
+              // Una riga sola, come iOS: se non c'è posto le caselle si stringono, mai a capo.
+              BoxWithConstraints(contentAlignment = Alignment.Center) {
+                val scale = fluidCodeSingleRowScale(state.length, groups.size, maxWidth)
+                Row(
+                  modifier = shakeModifier,
+                  horizontalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.GroupSpacing * scale),
+                ) {
+                  var start = 0
+                  groups.forEach { size ->
+                    group(start, size, FluidCodeFieldDefaults.CellSpacing * scale, FluidCodeFieldDefaults.CellMinWidth * scale)
+                    start += size
                   }
                 }
-                start += size
+              }
+            } else {
+              FlowRow(
+                modifier = shakeModifier,
+                horizontalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.GroupSpacing, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(FluidCodeFieldDefaults.CellSpacing),
+              ) {
+                var start = 0
+                groups.forEach { size ->
+                  group(start, size, FluidCodeFieldDefaults.CellSpacing, null)
+                  start += size
+                }
               }
             }
             // Il testo vero, invisibile, sopra le caselle: il dito lungo ci trova l'incolla del sistema.
@@ -388,6 +429,7 @@ private fun CodeCell(
   error: Boolean,
   dimmed: Boolean,
   caret: () -> Float,
+  width: Dp? = null,
 ) {
   val scheme = MaterialTheme.colorScheme
   val well = fluidTextFieldWellColor(error)
@@ -400,7 +442,7 @@ private fun CodeCell(
   Box(
     modifier = Modifier
       .heightIn(min = FluidCodeFieldDefaults.CellHeight)
-      .widthIn(min = FluidCodeFieldDefaults.CellMinWidth)
+      .then(if (width != null) Modifier.width(width) else Modifier.widthIn(min = FluidCodeFieldDefaults.CellMinWidth))
       .clip(CodeCellShape)
       .background(well)
       .border(FluidCodeFieldDefaults.FocusBorder, border, CodeCellShape)
@@ -424,6 +466,7 @@ private fun CodeCell(
         style = digitStyle,
         color = if (dimmed) scheme.onSurfaceVariant else scheme.onSurface,
         maxLines = 1,
+        softWrap = false,
       )
     }
   }

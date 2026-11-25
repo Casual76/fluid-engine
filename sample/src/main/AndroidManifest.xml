@@ -46,6 +46,40 @@
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+      <!-- F8.10 · Le destinazioni degli arrivi diventano scorciatoie di condivisione (share-target). -->
+      <meta-data android:name="android.app.shortcuts" android:resource="@xml/fluid_glass_shortcuts" />
+    </activity>
+    <!--
+      F8.10 · Gli arrivi da altre app (engine-share-in): un'attivita' trasparente sopra l'app di partenza, col foglio
+      dell'engine. Riceve testo, link, foto e PDF (SEND, SEND_MULTIPLE) e il testo selezionato (PROCESS_TEXT, «Aggiungi a
+      Fluid Glass» nel menu del testo). «Apri con» (VIEW) la galleria lo prova solo dalla scena, senza filtro: non si
+      propone come visore delle foto di nessuno.
+    -->
+    <activity
+        android:name=".novita.ShareInDemoActivity"
+        android:exported="true"
+        android:label="@string/app_name"
+        android:excludeFromRecents="true"
+        android:taskAffinity=""
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|keyboardHidden"
+        android:theme="@style/Theme.FluidShareIn">
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+        <data android:mimeType="image/*" />
+        <data android:mimeType="application/pdf" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="image/*" />
+      </intent-filter>
+      <intent-filter android:label="Aggiungi a Fluid Glass">
+        <action android:name="android.intent.action.PROCESS_TEXT" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
     </activity>
     <!-- Gli indirizzi della galleria arrivano alla stessa pila anche quando la scena è già aperta. -->
     <activity

@@ -1225,7 +1225,11 @@ internal fun <S> FluidGlassContentTransitionWithShape(
   val layers: @Composable () -> Unit = {
     for (layer in journey.layers) {
       if (layer.key == null) continue
-      val state = states[layer.key] ?: continue
+      // Uno stato null con una chiave sua si disegna (F8.10: la miniatura del foglio di condivisione senza immagine, con
+      // la chiave «tipo», restava vuota): manca solo la chiave che nessuno ha piu' nella mappa.
+      if (!states.containsKey(layer.key)) continue
+      @Suppress("UNCHECKED_CAST")
+      val state = states[layer.key] as S
       identity(layer.id) {
         val coordinates = if (labelAnchor == null) null else remember {
           mutableStateOf<LayoutCoordinates?>(null, neverEqualPolicy())

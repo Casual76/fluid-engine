@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /** Cosa si sa di una chiave senza leggerla: c'e', e quando e' stata verificata l'ultima volta. */
 data class KeyState(val present: Boolean, val verifiedAtMillis: Long?) {
@@ -75,7 +76,8 @@ class AiKeyStore(
   /** La chiave in chiaro, adesso. Null se manca o se il Keystore non la legge piu' (e allora la toglie). */
   suspend fun key(provider: ProviderId): String? {
     val blob = store.data.first()[keyOf(provider)] ?: return null
-    val plain = cipher.decrypt(blob)
+    // Il Keystore blocca (millisecondi, decine con StrongBox): mai sul thread principale (F8.23).
+    val plain = withContext(Dispatchers.IO) { cipher.decrypt(blob) }
     if (plain == null) {
       set(provider, null)
       return null

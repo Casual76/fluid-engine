@@ -74,7 +74,9 @@ $EngineModules = [ordered]@{
   "engine-config"     = @("engine-foundation", "engine-net", "engine-storage")
   "engine-update"     = @("engine-foundation", "engine-net")
   "engine-widget"     = @("engine-foundation", "engine-ui")
-  "engine-ai"         = @("engine-foundation")
+  "engine-vault"      = @("engine-foundation")
+  "engine-security"   = @("engine-foundation", "engine-ui", "engine-vault")
+  "engine-ai"         = @("engine-foundation", "engine-vault")
   "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
   "engine-ai-ui"      = @("engine-foundation", "engine-ui", "engine-ai")
   "engine-wear"       = @("engine-foundation", "engine-ui")
@@ -84,6 +86,8 @@ $EngineModules = [ordered]@{
   "engine-revisions"  = @("engine-foundation", "engine-ui")
   "engine-auth"       = @("engine-foundation")
   "engine-auth-google" = @("engine-foundation", "engine-auth")
+  "engine-qr"         = @("engine-foundation", "engine-ui")
+  "engine-share-in"   = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -109,7 +113,13 @@ $EngineModules = [ordered]@{
 # porta le sole librerie Google non libere dell'engine (Play services, googleid): un'app che lo chiede lo fa sapendo
 # che l'engine le permette solo col permesso della GPL-3.0 sezione 7 (LICENSES/Permesso-librerie-Google.md). Porta
 # engine-auth ed engine-foundation: -Modules ...,engine-auth-google.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google")
+# engine-vault (F8.23, la cassaforte: valori, file e DataStore cifrati col Keystore) e engine-security (il blocco
+# dell'app con l'impronta, lo schermo di vetro, il PIN dell'app) idem. engine-vault entra comunque con engine-ai, che
+# cifra con lei le chiavi dei provider; engine-security porta con se' engine-ui e engine-vault:
+# -Modules ...,engine-security.
+# engine-qr (F8.10: il QR di "Mostra come QR", con ZXing core) e engine-share-in (F8.10: gli arrivi da altre app) idem:
+# il foglio di condivisione sta gia' in engine-ui, e un'app che non vuole il QR o non riceve niente non li paga.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -307,6 +317,8 @@ $notes = @(
   @("engine-config", "feature flag remoti"),
   @("engine-update", "aggiornamento in-app"),
   @("engine-widget", "widget Glance"),
+  @("engine-vault", "cassaforte: valori, file e DataStore cifrati col Keystore, sezioni all'impronta (opt-in; entra con engine-ai)"),
+  @("engine-security", "blocco dell'app con l'impronta, contenuto protetto, PIN dell'app (opt-in)"),
   @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
   @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
   @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
@@ -316,7 +328,9 @@ $notes = @(
   @("engine-sync", "sincronizzazione: registro locale, invio una volta sola, unione, verso il relay dell'account (opt-in)"),
   @("engine-revisions", "il foglio della scelta tra versioni in conflitto (opt-in)"),
   @("engine-auth", "passkey e gestore delle password, senza rete; il PRF lo scrive il modulo (opt-in)"),
-  @("engine-auth-google", "Continua con Google e concessioni Google spente; librerie Google non libere (opt-in)")
+  @("engine-auth-google", "Continua con Google e concessioni Google spente; librerie Google non libere (opt-in)"),
+  @("engine-qr", "il QR di 'Mostra come QR' nel foglio di condivisione, ZXing core (opt-in)"),
+  @("engine-share-in", "arrivi da altre app: lettura, copia con tetto, foglio sopra l'app di partenza (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

@@ -157,6 +157,9 @@ dependencies {
   implementation project(':engine-update')
   // F8.11: la memoria della prima volta (il benvenuto visto, i permessi chiesti) nel file dell'engine.
   implementation project(':engine-storage')
+  // F8.23: la cassaforte e il blocco con l'impronta (opt-in), per le scene della pagina «Elementi nuovi».
+  implementation project(':engine-vault')
+  implementation project(':engine-security')
   // L'editor con formattazione (opt-in): la galleria lo mostra, quindi lo include. Un'app che non lo
   // chiede a engine-install.ps1 non lo vede nemmeno.
   implementation project(':engine-richtext')
@@ -179,6 +182,10 @@ dependencies {
   // mostra con dispositivi finti in memoria, senza rete e senza lavoro in sottofondo.
   implementation project(':engine-sync')
   implementation project(':engine-revisions')
+  // F8.10 · La condivisione: «Mostra come QR» nel foglio (engine-qr) e gli arrivi da altre app (engine-share-in), che
+  // la galleria mostra nella pagina «Elementi nuovi» e riceve con la sua attivita' degli arrivi.
+  implementation project(':engine-qr')
+  implementation project(':engine-share-in')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

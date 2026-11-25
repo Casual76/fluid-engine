@@ -62,7 +62,9 @@ internal val NewElementSections: List<NewElementSection> = listOf(
   NewElementSection(pack = "F8.8", title = "Date", scenes = F8p8Scenes, detail = "Il calendario in pagina, intervalli e giorni sparsi con la capsula della data, e il pannello «Ripeti»"),
   NewElementSection(pack = "F8.9", title = "Dati nel testo", scenes = F8p9Scenes, detail = "Date, orari, indirizzi, telefoni, mail e link dentro un avviso"),
   NewElementSection(pack = "F8.11", title = "Prima volta, permessi e avvio", scenes = F8p11Scenes, detail = "Il benvenuto e le novità una volta per versione, il permesso chiesto dal tasto, gli sfondi vivi e il primo fotogramma pronto"),
+  NewElementSection(pack = "F8.10", title = "Condivisione", scenes = F8p10Scenes, detail = "Il foglio di vetro, la copia preparata, immagini, PDF e stampa, e gli arrivi da altre app"),
   F8p21Section,
+  F8p23Section,
 )
 
 /** Gli extra di lancio della pagina (solo nella build di debug). */

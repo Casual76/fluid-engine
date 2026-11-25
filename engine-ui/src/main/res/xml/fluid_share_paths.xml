@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.10 · Le uscite dell'engine (immagini da condividere, PDF, copie preparate): solo questa cartella della cache. -->
+<paths>
+  <cache-path name="fluid_share" path="fluid-share/" />
+</paths>

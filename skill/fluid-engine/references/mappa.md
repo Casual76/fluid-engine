@@ -16,10 +16,14 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-update` | `update` | 2 / 489 | aggiornamento in-app con PackageInstaller | foundation, net |
 | `engine-widget` | `widget` | 3 / 686 | palette e componenti Glance con lo stesso aspetto dell'app | foundation, **ui** |
 | `engine-wear` | `wear` | 17 / 2 216 | il design system su Wear OS (opt-in) | foundation, **ui** |
-| `engine-ai` | `ai` | 36 / 6 456 | assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore, voce | foundation |
+| `engine-ai` | `ai` | 36 / 6 456 | assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore, voce | foundation, **vault** (dalla 4.0) |
+| `engine-vault` | `vault` | 11 / 2 508 | la cassaforte: valori, file e DataStore cifrati col Keystore (StrongBox quando c'è), sezioni «solo telefono» o all'impronta che si richiudono da sole, la chiave diretta di `engine-ai` — **opt-in**, dalla 4.0 (F8.23, la scheda: `moduli/vault.md`) | foundation |
+| `engine-security` | `security` | 7 / 1 720 | il blocco con l'impronta: l'app che si blocca al rientro, la schermata di vetro, il PIN dell'app, il contenuto protetto, l'anteprima oscurata nelle recenti, la riga delle impostazioni — **opt-in**, dalla 4.0 (F8.23, `moduli/security.md`) | **ui**, **vault** |
 | `engine-ai-ui` | `aiui` | 28 / 6 846 | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in) | **ui**, **ai** |
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
 | `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
+| `engine-qr` | `qr` | 1 / 63 | il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (Apache-2.0); il contratto e il disegno stanno in `engine-ui` — **opt-in**, dalla 4.0 (F8.10, `moduli/qr.md`) | **ui** (zxing core) |
+| `engine-share-in` | `sharein` | 3 / 916 | gli arrivi da altre app: `SEND`, `SEND_MULTIPLE`, `PROCESS_TEXT`, `VIEW` letti in un modo solo, la copia subito con tetto e avanzamento, il foglio sopra l'app di partenza, le scorciatoie di condivisione — **opt-in**, dalla 4.0 (F8.10, `moduli/share-in.md`) | **ui** |
 | `engine-viewer` | `viewer` | 15 / 4 120 | i decodificatori dei visori di file: PDF (`PdfRenderer`), testo con charset e colori di sintassi, GIF e WebP animate, l'adattatore del `Player` di Media3 (`compileOnly`: la versione è dell'app), il risolutore dal MIME al preset e il **registro** dei moduli di famiglia — **opt-in**, dalla 4.0 (le schede: `moduli/viewer.md`, e il telaio in `componenti/visori.md`) | foundation, **ui** |
 | `engine-viewer-office` | `viewer.office` | 11 / 3 211 | visori, famiglia Office: DOCX, ODT, RTF a pagine, XLSX e ODS in griglia, PPTX e ODP a slide, i caratteri con le misure di Word — **opt-in** (`moduli/viewer-famiglie.md`) | **viewer** |
 | `engine-viewer-archive` | `viewer.archive` | 6 / 1 322 | visori, archivi con libarchive: ZIP, 7z, RAR, TAR e i compressi, ogni voce col suo preset — **opt-in** | **viewer** |
@@ -30,8 +34,10 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-sync` | `sync` | 12 / 2 517 | la sincronizzazione: registro locale (SQLite della piattaforma), orologio logico ibrido, invio una volta sola con chiave d'idempotenza, unione per campo e dei testi lunghi, pietre tombali e compattazione, ripresa dopo mesi, l'adattatore del relay e il sigillo di chi chiama, WorkManager — **opt-in**, dalla 4.0 (F8.21, `moduli/sync.md`) | storage, foundation |
 | `engine-revisions` | `revisions` | 2 / 576 | il foglio di vetro della scelta tra versioni in conflitto, i passaggi diversi con il tetto di lavoro — **opt-in**, dalla 4.0 (F8.21, `moduli/revisions.md`) | foundation, **ui** |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
+| `engine-auth` | `auth` | 11 / 938 | le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione PRF la scrive il modulo, la risposta torna senza il PRF, gli errori come frasi pronte (`AuthResult`, `FluidAuthLabels`) — **opt-in**, dalla 4.0 (la scheda: `moduli/auth.md`) | foundation (+ `androidx.credentials`) |
+| `engine-auth-google` | `auth.google` | 2 / 277 | «Continua con Google» (`FluidGoogleSignIn`) e le concessioni Google (`FluidGoogleAccess`, **spente**): l'unico modulo con librerie Google non libere, col permesso della GPL-3.0 § 7 — **opt-in**, dalla 4.0 | **auth** (+ Play services, `googleid`) |
 
-(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0, `engine-viewer` e i moduli di famiglia sulla 4.0 di F6C, seconda ondata.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
+(I numeri di file e righe sono quelli dell'engine 3.0.4; `engine-richtext` è contato sulla 3.1.0, `engine-viewer` e i moduli di famiglia sulla 4.0 di F6C, seconda ondata, `engine-auth` ed `engine-auth-google` sulla 4.0 di F10.2.) `engine-ui` e' circa tre quarti di tutte le righe; gli altri sono sottili di proposito. Un modulo senza UI non puo'
 dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere `engine-update` senza Compose.
 
 ```
@@ -47,9 +53,6 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
         |        ^
         |        +-- engine-update
-        +-- engine-ai (foundation, DataStore, serialization, coroutines-android)
-        +-- engine-storage <- engine-sync  (opt-in; WorkManager, coroutines-android; niente Compose)
-engine-ui <- engine-revisions              (opt-in; il foglio della scelta; non conosce engine-sync)
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
@@ -69,11 +72,17 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | ha widget Glance | + `engine-widget` |
 | ha un assistente | + `engine-ai` (+ `engine-ai-ui` se vuoi la sua interfaccia) |
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
+| custodisce password, token, chiavi, documenti cifrati | + `engine-vault` (**opt-in**; entra comunque con `engine-ai`) |
+| si blocca con l'impronta, o ha una cartella o un album protetti | + `engine-security` (**opt-in**; porta `engine-ui` e `engine-vault`) |
+| riceve da altre app (Condividi → l'app, il menu del testo selezionato) | + `engine-share-in` (**opt-in**; l'attivita' che riceve e i filtri li dichiara l'app) |
+| vuole «Mostra come QR» nel foglio di condivisione | + `engine-qr` (**opt-in**; porta ZXing core). Il foglio, le immagini da condividere, il PDF e la stampa sono gia' in `engine-ui` |
 | scrive testo formattato (corpo di una mail, note con elenchi, firme) | + `engine-richtext` (**opt-in**: solo se chiesto per nome, `-Modules …,engine-richtext`; porta `engine-ui` e `engine-foundation`) |
 | apre file dal disco nel visore (PDF, testo e codice, GIF animate, video e audio) | + `engine-viewer` (**opt-in**: `-Modules …,engine-viewer`; porta `engine-ui` e `engine-foundation`; per video e audio l'app aggiunge il suo `media3-exoplayer`). Il telaio dei visori è già in `engine-ui`: un'app che ha i suoi decodificatori non lo installa |
 | sincronizza i dati fra i dispositivi della persona, o uno spazio condiviso (liste, gruppi), anche senza rete | + `engine-sync` (**opt-in**: `-Modules …,engine-sync`; porta `engine-storage` e WorkManager; la cifratura la mette l'Account Pampa col suo sigillo) |
 | fa scegliere fra due versioni di un elemento in conflitto | + `engine-revisions` (**opt-in**; porta `engine-ui`; non richiede `engine-sync`) |
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
+| fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
+| fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |
 | è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** |
 | è di sole View e XML | solo `engine-update` / `engine-net` / `engine-config` (`-Modules`), mai `engine-ui` |
 | è Compose **Multiplatform** | niente `engine-ui` (artefatti diversi): i moduli senza UI in `androidMain`, il look si **porta** (`integrazione.md`, «Il porto») |
@@ -119,7 +128,7 @@ barra a pillola che si ripiega), `GlassMaterial.kt` (1 938, il materiale), `Flui
 | la galleria | `sample/` | **Fluid Glass**, app vera del Pampa Store (`dev.antigravity.fluidglass`): ogni cambiamento al design system si *guarda* qui prima di arrivare nelle app. È anche la raccolta dei test d'interfaccia (Robolectric) |
 | i modelli | `templates/` | `EngineBootstrap.kt.txt` (collegamenti nella `Application`), `EngineModule.kt.txt`, `engine-manifest.json`, `LICENSE-GPL-3.0.txt` |
 | il manifest dello store | `manifest.json` | le app pubblicate dall'engine (Fluid Glass) + sezione `engine` |
-| le licenze | `LICENSES/` | `AndroidLiquidGlass.md` (Kyant0, Apache-2.0), `Haze.md` (Chris Banes, Apache-2.0: il bordo dello scorrimento), `MaterialSymbols.md` (Google, Apache-2.0), `Inter.md`, `LibrePods.md` (**GPL-3.0**) |
+| le licenze | `LICENSES/` | `AndroidLiquidGlass.md` (Kyant0, Apache-2.0), `Haze.md` (Chris Banes, Apache-2.0: il bordo dello scorrimento), `MaterialSymbols.md` (Google, Apache-2.0), `Inter.md`, `LibrePods.md` (**GPL-3.0**), `Permesso-librerie-Google.md` (il permesso della GPL-3.0 § 7 per Play services e Firebase, dalla 4.0) |
 | la documentazione lunga | `docs/` | 10 capitoli numerati + `riferimenti-3.0.md` (l'analisi di LibrePods) |
 | lo stato del lavoro | `artifacts/` | `3.0-decisioni.md`, `3.0-stato.md`, e le cartelle dei collaudi (beta, baseline, perf) |
 | il changelog | `CHANGELOG.md` | una sezione per versione; le voci **BREAKING** e «Cambia a vista/al tatto» |

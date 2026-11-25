@@ -24,6 +24,7 @@ dell'engine. Catalogo delle firme: [../api/controlli.md](../api/controlli.md) e 
 | scrivere o leggere un numero con l'unità fuori da un campo | `FluidUnitFormat.format(quantità, locale)`, `FluidUnitFormat.parse(testo, locale)` |
 | il codice della verifica in due passaggi, il PIN, l'abbinamento | `FluidCodeField(rememberFluidCodeFieldState(6), onComplete = { verifica(it) })`; a codice sbagliato `state.fail()` |
 | il PIN a pallini | `FluidCodeField(…, secret = true)` |
+| il PIN in una riga sola, come il codice di sblocco di iOS (un pannello, un telefono stretto) | `FluidCodeField(…, secret = true, singleRow = true)` |
 | la password nuova con le regole che si spuntano, la forza e la proposta | `FluidPasswordField(value, onValueChange, rules = FluidPasswordRules.Default)` |
 | le regole del servizio scritte come quelle di Apple | `FluidPasswordRules.parse("minlength: 10; required: lower; required: upper; required: digit")` |
 | la password di un accesso (niente regole) | `FluidPasswordField(…, rules = null)` |
@@ -84,7 +85,11 @@ gruppi da tre, otto in due da quattro (lo stacco dei codici di Apple).
 - **TalkBack** legge il nome, «cifra 3 di 6», «codice completo», e l'errore.
 - **Lo stato non si salva**: un codice o un PIN non finiscono nello stato salvato dell'attività.
 
-Col testo grande le caselle crescono con la cifra e vanno a capo a gruppi, mai sotto i 48 dp.
+Col testo grande le caselle crescono con la cifra e vanno a capo a gruppi, mai sotto i 48 dp. Con `singleRow = true`
+(dalla 4.0, F8.23) restano invece in una riga sola, come il codice di sblocco di iOS: se lo spazio non basta si
+stringono in proporzione, caselle e spazi insieme (`fluidCodeSingleRowScale`, mai sotto 0,4). È la scelta del PIN della
+schermata di blocco di `engine-security`, che sta in un pannello largo al più 380 dp: lì, a capo, le sei caselle
+andavano su due righe (visto sul Tab S9 il 25/11/2026).
 
 ## Il campo password
 
@@ -111,7 +116,8 @@ password forte» e «Scegli la mia password», come le schermate di registrazion
 - **Coperto, il valore non c'è**: non si disegna e TalkBack non lo legge («Valore nascosto, Tocca per vedere», con
   l'azione «Mostra»). Il velo è un segnaposto a barre (`FluidPrivateVeil.Placeholder`: un testo corto sfocato si
   indovina) o, per un'immagine, la sfocatura (`FluidPrivateVeil.Blur`, da Android 12).
-- **Si scopre** col tocco, o col cancello (`LocalFluidPrivateGate`): il blocco dell'engine, quando ci sarà, o
+- **Si scopre** col tocco, o col cancello (`LocalFluidPrivateGate`): il blocco dell'engine
+  (`rememberFluidBiometricGate` di `engine-security`, dalla 4.0: [`../moduli/security.md`](../moduli/security.md)), o
   l'impronta dell'app.
 - **Si ricopre da solo** dopo `recoverAfter` (30 s di serie, a occhio), in secondo piano e quando esce dalla composizione.
 - **Mai nelle schermate recenti**: mentre è scoperto la finestra non lascia la sua immagine alle recenti (da Android 13

@@ -189,3 +189,5 @@ volume_up                     # F8.5: le onde dell'altoparlante, il colore varia
 notifications_off             # F8.5b: la campana barrata, la Magic Replace di SF Symbols 6
 mic_off                       # F8.5b: il microfono barrato, la Magic Replace di SF Symbols 6
 notifications_unread          # F8.5c: la campana col pallino, la Magic Replace del pallino di SF Symbols 6
+print                         # F8.10: «Stampa» nel foglio di condivisione (UIActivity.ActivityType.print)
+qr_code                       # F8.10: «Mostra come QR» nel foglio di condivisione
